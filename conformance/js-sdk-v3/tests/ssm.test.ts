@@ -69,7 +69,11 @@ describe("SSM Parameter Store", () => {
     await put({ Name: name, Value: "v", Type: "String" });
     await ssm.send(new DeleteParameterCommand({ Name: name }));
     const gone = await awsFailure(ssm.send(new GetParameterCommand({ Name: name })));
-    expect([gone.name, gone.status, gone.message]).toEqual(["ParameterNotFound", 400, ""]);
+    // AWS's message is empty; the SDK surfaces an empty message as
+    // "UnknownError" (@smithy/core 3.35.2
+    // dist-es/submodules/client/smithy-client/exceptions.js
+    // decorateServiceException: `exception.message || exception.Message || "UnknownError"`).
+    expect([gone.name, gone.status, gone.message]).toEqual(["ParameterNotFound", 400, "UnknownError"]);
   });
 
   test("SecureString with and without decryption; KMS Decrypt opens the ciphertext", async () => {

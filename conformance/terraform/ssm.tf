@@ -80,7 +80,9 @@ resource "aws_ssm_parameter" "intelligent_large" {
   name  = "/${var.name_prefix}/tiering/large"
   type  = "String"
   tier  = "Intelligent-Tiering"
-  value = join("", [for i in range(5000) : "x"])
+  # 5000 characters, over Standard's 4 KB, so the tier resolves to Advanced
+  # (ssm-parameters.md 4.2); range() caps its result at 1024 elements.
+  value = join("", [for i in range(1000) : "xxxxx"])
 }
 
 # A root parameter, created with a leading slash: the type change of the
@@ -118,9 +120,10 @@ output "app_parameter_names" {
   value = data.aws_ssm_parameters_by_path.app.names
 }
 
-output "tiers" {
-  value = {
-    small = aws_ssm_parameter.intelligent_small.tier
-    large = aws_ssm_parameter.intelligent_large.tier
-  }
-}
+# No output reads the Intelligent-Tiering parameters' tier: the provider's
+# Read stores the resolved tier from DescribeParameters (Standard or
+# Advanced, never Intelligent-Tiering; ssm-parameters.md 4.2), and only
+# the resource's DiffSuppress hides the change (provider v6.68.0
+# internal/service/ssm/parameter.go:L136-L147, L376), so a root output of
+# it moves on the first refresh against AWS too and the plan after apply
+# is not empty.

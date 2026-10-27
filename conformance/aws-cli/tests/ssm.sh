@@ -24,7 +24,7 @@ assert_jq_json() {
 
 test_ssm_string_put_get_overwrite_and_version() {
   local name arn ask
-  name="/$(new_name ssm)/string"
+  name="/$(new_name conf-ssm)/string"
   arn=$(ssm_arn "$name")
   # test_ssm.snapshot.json:L19-L26
   aws_ok ssm put-parameter --name "$name" --type String --value one
@@ -52,7 +52,7 @@ test_ssm_string_put_get_overwrite_and_version() {
 
 test_ssm_get_after_delete_is_parameter_not_found() {
   local name
-  name="/$(new_name ssm)/gone"
+  name="/$(new_name conf-ssm)/gone"
   aws_ok ssm put-parameter --name "$name" --type String --value v
   aws_ok ssm delete-parameter --name "$name"
   # localstack@8b9a79f tests/aws/services/cloudformation/resources/test_ssm.snapshot.json:L105-L114
@@ -61,7 +61,7 @@ test_ssm_get_after_delete_is_parameter_not_found() {
 
 test_ssm_secure_string_and_kms_decrypt() {
   local name arn blob
-  name="/$(new_name ssm)/secure"
+  name="/$(new_name conf-ssm)/secure"
   arn=$(ssm_arn "$name")
   aws_ok ssm put-parameter --name "$name" --type SecureString --value hunter2
   aws_ok ssm get-parameter --name "$name" --with-decryption
@@ -81,7 +81,7 @@ test_ssm_secure_string_and_kms_decrypt() {
 
 test_ssm_get_parameters_with_a_missing_name() {
   local base
-  base="/$(new_name ssm)"
+  base="/$(new_name conf-ssm)"
   aws_ok ssm put-parameter --name "$base/a" --type String --value v
   # ssm-parameters.md 7.3
   aws_ok ssm get-parameters --names "$base/a" "$base/missing"
@@ -92,7 +92,7 @@ test_ssm_get_parameters_with_a_missing_name() {
 
 test_ssm_get_parameters_by_path_recursive_across_pages() {
   local base i
-  base="/$(new_name ssm)"
+  base="/$(new_name conf-ssm)"
   for i in 0 1 2 3 4; do
     aws_ok ssm put-parameter --name "$base/l$((i % 2))/p$i" --type String --value v
   done
@@ -106,7 +106,7 @@ test_ssm_get_parameters_by_path_recursive_across_pages() {
 
 test_ssm_history_and_labels() {
   local name
-  name="/$(new_name ssm)/labeled"
+  name="/$(new_name conf-ssm)/labeled"
   aws_ok ssm put-parameter --name "$name" --type String --value v1
   aws_ok ssm put-parameter --name "$name" --value v2 --overwrite
   # ssm-parameters.md 6.2
@@ -128,7 +128,7 @@ test_ssm_history_and_labels() {
 
 test_ssm_tags() {
   local name
-  name="/$(new_name ssm)/tagged"
+  name="/$(new_name conf-ssm)/tagged"
   # ssm-parameters.md 7.9
   aws_ok ssm put-parameter --name "$name" --type String --value v --tags Key=env,Value=dev
   aws_ok ssm add-tags-to-resource --resource-type Parameter --resource-id "$name" --tags Key=env,Value=prod Key=team,Value=a
@@ -140,7 +140,7 @@ test_ssm_tags() {
 
 test_ssm_delete_parameters() {
   local base
-  base="/$(new_name ssm)"
+  base="/$(new_name conf-ssm)"
   aws_ok ssm put-parameter --name "$base/b" --type String --value v
   aws_ok ssm put-parameter --name "$base/a" --type String --value v
   # ssm-parameters.md 7.7: deleted names alphabetical, missing ones listed.

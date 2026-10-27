@@ -32,7 +32,7 @@ func TestSSMStringLifecycle(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	client := ssm.NewFromConfig(awsCfg)
-	base := "/" + name("conf-ssm")
+	base := "/" + name(t, "conf-ssm")
 	p := base + "/string"
 	arn := fmt.Sprintf("arn:aws:ssm:%s:%s:parameter%s", region(), account(t), p)
 
@@ -84,7 +84,7 @@ func TestSSMSecureString(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	client := ssm.NewFromConfig(awsCfg)
-	p := "/" + name("conf-ssm") + "/secure"
+	p := "/" + name(t, "conf-ssm") + "/secure"
 	arn := fmt.Sprintf("arn:aws:ssm:%s:%s:parameter%s", region(), account(t), p)
 	putParameter(t, client, &ssm.PutParameterInput{Name: aws.String(p), Value: aws.String("hunter2"), Type: types.ParameterTypeSecureString})
 
@@ -118,7 +118,7 @@ func TestSSMBatchAndPathReads(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	client := ssm.NewFromConfig(awsCfg)
-	base := "/" + name("conf-ssm")
+	base := "/" + name(t, "conf-ssm")
 	var want []string
 	for i := range 5 {
 		p := fmt.Sprintf("%s/l%d/p%d", base, i%2, i)
@@ -154,7 +154,7 @@ func TestSSMHistoryAndLabels(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	client := ssm.NewFromConfig(awsCfg)
-	p := "/" + name("conf-ssm") + "/labeled"
+	p := "/" + name(t, "conf-ssm") + "/labeled"
 	putParameter(t, client, &ssm.PutParameterInput{Name: aws.String(p), Value: aws.String("v1"), Type: types.ParameterTypeString})
 	_, err := client.PutParameter(ctx, &ssm.PutParameterInput{Name: aws.String(p), Value: aws.String("v2"), Overwrite: aws.Bool(true)})
 	ok(t, err, "overwrite")
@@ -188,7 +188,7 @@ func TestSSMTags(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	client := ssm.NewFromConfig(awsCfg)
-	p := "/" + name("conf-ssm") + "/tagged"
+	p := "/" + name(t, "conf-ssm") + "/tagged"
 	putParameter(t, client, &ssm.PutParameterInput{Name: aws.String(p), Value: aws.String("v"), Type: types.ParameterTypeString, Tags: []types.Tag{{Key: aws.String("env"), Value: aws.String("dev")}}})
 	_, err := client.AddTagsToResource(ctx, &ssm.AddTagsToResourceInput{ResourceType: types.ResourceTypeForTaggingParameter, ResourceId: aws.String(p), Tags: []types.Tag{{Key: aws.String("env"), Value: aws.String("prod")}, {Key: aws.String("team"), Value: aws.String("a")}}})
 	ok(t, err, "AddTagsToResource")
