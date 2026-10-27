@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # Lambda: function control plane, versions, aliases, permissions, tags,
-# concurrency, function URLs, event source mappings, Invoke and function logs.
-# Arbiter: docs/research/lambda-api.md (sections 2 to 10) and
-# docs/research/lambda-events.md (sections 1 and 7).
+# concurrency, function URLs, event source mappings, Invoke, function logs,
+# layers and asynchronous invocation destinations.
+# Arbiter: docs/research/lambda-api.md (sections 2 to 10),
+# docs/research/lambda-events.md (sections 1 and 7) and
+# docs/research/lambda-destinations-layers.md.
 #
 # Tests that execute code need Docker and the Python 3.13 Lambda base image;
 # they skip when the emulator reports Docker as not enabled.
@@ -1016,4 +1018,175 @@ test_event_source_mapping_delivers_sqs_messages() {
     [ "$SECONDS" -lt "$deadline" ] || fail "the processed message was not deleted from the queue"
     sleep 1
   done
+}
+
+# Layers. Arbiter: docs/research/lambda-destinations-layers.md (sections 6
+# and 7, and the LocalStack snapshots they cite).
+
+# new_layer [PUBLISH ARGS...]: publish a layer with a Python module under
+# python/ (name in LAYER, version ARN in LAYER_VERSION_ARN, layer ARN in
+# LAYER_ARN) and leave the response in AWS_OUT.
+new_layer() {
+  LAYER=$(new_name lambda-layer)
+  local zip="$UE_TMP/$LAYER.zip"
+  make_zip "$zip" python/greet.py "def hello():
+    return 'hello from the layer'
+"
+  aws_ok lambda publish-layer-version --layer-name "$LAYER" --zip-file "fileb://$zip" "$@"
+  LAYER_VERSION_ARN=$(jqv '.LayerVersionArn')
+  LAYER_ARN=$(jqv '.LayerArn')
+}
+
+test_publish_layer_version_response_shape() {
+  # 6.3: version 1, Description "" and no LicenseInfo when not sent
+  # (test_lambda_api.snapshot.json:L8271-L8292), CreatedDate as a
+  # function's LastModified.
+  new_layer --compatible-runtimes python3.13
+  assert_eq 201 "$AWS_STATUS" 'PublishLayerVersion status'
+  aws_ok sts get-caller-identity
+  local acct
+  acct=$(jqv '.Account')
+  aws_ok lambda get-layer-version --layer-name "$LAYER" --version-number 1
+  assert_jq '.Version' '1'
+  assert_jq '.LayerArn' "arn:aws:lambda:${AWS_REGION}:${acct}:layer:${LAYER}"
+  assert_jq '.LayerVersionArn' "arn:aws:lambda:${AWS_REGION}:${acct}:layer:${LAYER}:1"
+  assert_jq '.Description' ''
+  assert_jq '.LicenseInfo' 'null'
+  assert_jq_true '.CompatibleRuntimes == ["python3.13"]'
+  assert_jq_match '.Content.CodeSha256' '^[A-Za-z0-9+/]{43}=$'
+  assert_jq_match '.Content.CodeSize' '^[1-9][0-9]*$'
+  assert_jq_match '.CreatedDate' '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}\+0000$'
+}
+
+test_layer_versions_list_newest_first() {
+  # 6.5: newest first (test_lambda_api.snapshot.json:L8761-L8794); 6.4: the
+  # version ARN finds the version.
+  new_layer
+  aws_ok lambda publish-layer-version --layer-name "$LAYER" --zip-file "fileb://$UE_TMP/$LAYER.zip"
+  aws_ok lambda list-layer-versions --layer-name "$LAYER"
+  assert_jq_true '[.LayerVersions[].Version] == [2, 1]'
+  aws_ok lambda get-layer-version-by-arn --arn "$LAYER_ARN:2"
+  assert_jq '.Version' '2'
+  aws_ok lambda list-layers
+  assert_jq_true '[.Layers[] | select(.LayerName == "'"$LAYER"'") | .LatestMatchingVersion.Version] == [2]'
+}
+
+test_delete_layer_version_is_idempotent() {
+  # 6.6: 204 for a version, again, and for one that never existed
+  # (test_lambda_api.snapshot.json:L8390-L8413); a deleted version is not
+  # found (L8356-L8367); numbers are never reused (finding 9, L8865-L8887).
+  new_layer
+  aws_ok lambda delete-layer-version --layer-name "$LAYER" --version-number 1
+  assert_eq 204 "$AWS_STATUS" 'DeleteLayerVersion status'
+  aws_ok lambda delete-layer-version --layer-name "$LAYER" --version-number 1
+  assert_eq 204 "$AWS_STATUS" 'DeleteLayerVersion of a deleted version'
+  aws_error ResourceNotFoundException 404 lambda get-layer-version --layer-name "$LAYER" --version-number 1
+  aws_error_message_contains 'The resource you requested does not exist.'
+  aws_ok lambda publish-layer-version --layer-name "$LAYER" --zip-file "fileb://$UE_TMP/$LAYER.zip"
+  assert_jq '.Version' '2'
+}
+
+test_layer_version_permissions() {
+  # 6.7: an account principal renders as {"AWS":"arn:aws:iam::<account>:root"}
+  # (the Smithy model's example); 6.8: duplicate statement 409, stale
+  # RevisionId 412, no policy 404 (test_lambda_api.snapshot.json:L8915-L8974).
+  new_layer
+  aws_error ResourceNotFoundException 404 lambda get-layer-version-policy --layer-name "$LAYER" --version-number 1
+  aws_error_message_contains 'No policy is associated with the given resource.'
+  aws_ok sts get-caller-identity
+  local acct
+  acct=$(jqv '.Account')
+  aws_ok lambda add-layer-version-permission --layer-name "$LAYER" --version-number 1 --statement-id account \
+    --action lambda:GetLayerVersion --principal "$acct"
+  assert_eq 201 "$AWS_STATUS" 'AddLayerVersionPermission status'
+  assert_jq '.Statement' "{\"Sid\":\"account\",\"Effect\":\"Allow\",\"Principal\":{\"AWS\":\"arn:aws:iam::${acct}:root\"},\"Action\":\"lambda:GetLayerVersion\",\"Resource\":\"${LAYER_VERSION_ARN}\"}"
+  aws_ok lambda get-layer-version-policy --layer-name "$LAYER" --version-number 1
+  assert_jq '.Policy | fromjson | .Statement | length' '1'
+  assert_jq '.Policy | fromjson | .Id' 'default'
+  aws_error ResourceConflictException 409 lambda add-layer-version-permission --layer-name "$LAYER" --version-number 1 \
+    --statement-id account --action lambda:GetLayerVersion --principal '*'
+  aws_error PreconditionFailedException 412 lambda add-layer-version-permission --layer-name "$LAYER" --version-number 1 \
+    --statement-id other --action lambda:GetLayerVersion --principal '*' --revision-id wrong
+}
+
+test_function_layers_render_and_refuse() {
+  # 7.2: Layers [{Arn, CodeSize}] (test_lambda_api.snapshot.json:L8631-L8636);
+  # 7.1: a missing version is refused (L9384-L9395).
+  new_layer
+  new_fn --layers "$LAYER_VERSION_ARN"
+  assert_jq '.Layers[0].Arn' "$LAYER_VERSION_ARN"
+  assert_jq_match '.Layers[0].CodeSize' '^[1-9][0-9]*$'
+  wait_active "$FN"
+  aws_error InvalidParameterValueException 400 lambda update-function-configuration --function-name "$FN" --layers "$LAYER_ARN:9"
+  aws_error_message_contains "Layer version $LAYER_ARN:9 does not exist."
+}
+
+test_function_imports_a_module_from_its_layer() {
+  # 8.1, 8.2: Lambda extracts the layer under /opt and the Python runtime
+  # searches /opt/python.
+  require_docker
+  new_layer
+  FN=$(new_name lambda-fn)
+  local zip="$UE_TMP/$FN.zip"
+  make_zip "$zip" index.py 'import greet
+
+
+def handler(event, context):
+    return {"greeting": greet.hello()}
+'
+  aws_ok lambda create-function --function-name "$FN" --runtime python3.13 --handler index.handler \
+    --role "$(make_role "$(new_name lambda-role)")" --zip-file "fileb://$zip" --layers "$LAYER_VERSION_ARN"
+  wait_active "$FN"
+  invoke_ok "$FN" '{}'
+  assert_eq '{"greeting":"hello from the layer"}' "$(invoke_payload)" 'payload'
+}
+
+# Asynchronous invocation destinations. Arbiter:
+# docs/research/lambda-destinations-layers.md (sections 2 to 4) and
+# docs/research/lambda-api.md 7.7.
+
+test_event_invoke_config_destinations() {
+  # lambda-api.md 7.7: a destination function that does not exist is refused.
+  new_fn
+  new_queue
+  aws_ok lambda put-function-event-invoke-config --function-name "$FN" \
+    --destination-config "{\"OnSuccess\":{\"Destination\":\"$QUEUE_ARN\"}}"
+  assert_jq '.DestinationConfig.OnSuccess.Destination' "$QUEUE_ARN"
+  local missing
+  missing="arn:aws:lambda:${AWS_REGION}:${ACCT}:function:$(new_name lambda-missing)"
+  aws_error InvalidParameterValueException 400 lambda put-function-event-invoke-config --function-name "$FN" \
+    --destination-config "{\"OnFailure\":{\"Destination\":\"$missing\"}}"
+  aws_error_message_contains "The destination ARN $missing is invalid."
+}
+
+test_async_failure_reaches_the_on_failure_queue() {
+  # 3.4: a function error with MaximumRetryAttempts 0 sends RetriesExhausted
+  # with count 1 and functionError Unhandled (test_lambda_destinations.snapshot.json:L150-L175),
+  # as the SQS body (4.1).
+  require_docker
+  new_fn
+  wait_active "$FN"
+  new_queue
+  aws_ok lambda put-function-event-invoke-config --function-name "$FN" --maximum-retry-attempts 0 \
+    --destination-config "{\"OnFailure\":{\"Destination\":\"$QUEUE_ARN\"}}"
+  aws_ok lambda invoke --function-name "$FN" --invocation-type Event --cli-binary-format raw-in-base64-out \
+    --payload '{"action":"fail"}' "$UE_TMP/async-out.json"
+  assert_jq '.StatusCode' '202'
+  local deadline=$((SECONDS + 120)) body=''
+  while :; do
+    aws_ok sqs receive-message --queue-url "$QUEUE_URL" --wait-time-seconds 2
+    body=$(jqv '.Messages[0].Body // empty')
+    [ -n "$body" ] && break
+    [ "$SECONDS" -lt "$deadline" ] || fail "no record reached the on-failure queue"
+  done
+  # shellcheck disable=SC2034 # assert_jq reads the record from AWS_OUT
+  AWS_OUT=$body
+  assert_jq '.version' '1.0'
+  assert_jq '.requestContext.condition' 'RetriesExhausted'
+  assert_jq '.requestContext.approximateInvokeCount' '1'
+  assert_jq '.requestContext.functionArn' "$FN_ARN:\$LATEST"
+  assert_jq '.requestPayload.action' 'fail'
+  assert_jq '.responseContext.statusCode' '200'
+  assert_jq '.responseContext.functionError' 'Unhandled'
+  assert_jq '.responsePayload.errorMessage' 'Handler fails'
 }
