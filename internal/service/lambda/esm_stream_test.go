@@ -313,9 +313,10 @@ type streamHarness struct {
 	queues *sqs.Service
 }
 
-// runStream runs fn with the stream poller's switches f; the pollers are
-// started by fn (start), so a test can act before the first read.
-func runStream(t *testing.T, f esm.StreamFidelity, fn func(h *streamHarness)) {
+// runStream runs fn with the stream poller's switches f and any further
+// options; the pollers are started by fn (start), so a test can act before
+// the first read.
+func runStream(t *testing.T, f esm.StreamFidelity, fn func(h *streamHarness), opts ...execOptions) {
 	t.Helper()
 	box := outbox.New()
 	kerneltest.Run(t, func(k *kerneltest.K) {
@@ -334,7 +335,7 @@ func runStream(t *testing.T, f esm.StreamFidelity, fn func(h *streamHarness)) {
 		rec := &streamRecorder{}
 		withExec(k, rec.handle, nil, func(h *execHarness) {
 			fn(&streamHarness{execHarness: h, stream: stream, rec: rec, topics: topics, queues: queues})
-		}, func(c *execConfig) { c.svc.Streams = f })
+		}, append([]execOptions{func(c *execConfig) { c.svc.Streams = f }}, opts...)...)
 	}, kerneltest.Deliver(box), kerneltest.Services(lambdaapi.Service(), logsapi.Service(), sqsapi.Service(), snsapi.Service(), dynamodbstreamsapi.Service()))
 }
 
@@ -378,6 +379,8 @@ func derefAny[T any](p *T) any {
 // field, defaulted, as recorded (third-party-recorded LS-D:L246-L271 and
 // LS-K:L5-L29; lambda-stream-sources.md 3.5), and none of the fields 3.5
 // lists as absent; Get after creation reads Enabled with the same fields.
+// The recorded transient state needs lambda.stateTransitions = clock
+// (ARCHITECTURE.md 9); under final, the default, Create answers Enabled.
 func TestStreamMappingCreateShape(t *testing.T) {
 	runStream(t, esm.StreamFidelity{}, func(h *streamHarness) {
 		got := h.mapStream(lambdaapi.CreateEventSourceMappingInput{})
@@ -417,10 +420,10 @@ func TestStreamMappingCreateShape(t *testing.T) {
 			}
 		}
 		check("Create", got, "Creating")
-		h.settle()
+		h.advancePolled(settleDelay)
 		g := h.get(*got.UUID)
 		check("Get", g, "Enabled")
-	})
+	}, transitionsClock)
 }
 
 // An SQS mapping renders exactly as before: no StartingPosition and no
@@ -524,7 +527,8 @@ func TestStreamMappingValidation(t *testing.T) {
 // 8; recorded echo LS-K:L1301-L1305); members of the SQS type are ignored
 // and not echoed (12.4 item 9, inferred, ESMS-03); FunctionResponseTypes
 // echoes ["ReportBatchItemFailures"] (LS-K:L1670-L1672); disabling answers
-// Disabling with "User action" (LS-D:L173-L197).
+// Disabling with "User action" (LS-D:L173-L197), which needs
+// lambda.stateTransitions = clock (ARCHITECTURE.md 9).
 func TestStreamMappingUpdate(t *testing.T) {
 	runStream(t, esm.StreamFidelity{}, func(h *streamHarness) {
 		_, dlq := h.queue("dlq", nil)
@@ -542,12 +546,12 @@ func TestStreamMappingUpdate(t *testing.T) {
 		if !slices.Equal(m.FunctionResponseTypes, []lambdaapi.FunctionResponseType{"ReportBatchItemFailures"}) {
 			h.Errorf("FunctionResponseTypes = %v", m.FunctionResponseTypes)
 		}
-		h.settle()
+		h.advancePolled(settleDelay)
 		up := call(h.harness, lambdaapi.OpUpdateEventSourceMapping, &lambdaapi.UpdateEventSourceMappingInput{UUID: *m.UUID, BatchSize: new(int32(10))})
 		if d := up.DestinationConfig; d == nil || d.OnFailure == nil || derefAny(d.OnFailure.Destination) != dlq {
 			h.Errorf("after an Update without DestinationConfig = %+v, want %s kept", d, dlq)
 		}
-		h.settle()
+		h.advancePolled(settleDelay)
 		up = call(h.harness, lambdaapi.OpUpdateEventSourceMapping, &lambdaapi.UpdateEventSourceMappingInput{
 			UUID:              *m.UUID,
 			DestinationConfig: &lambdaapi.DestinationConfig{OnFailure: &lambdaapi.OnFailure{Destination: new("")}},
@@ -555,12 +559,12 @@ func TestStreamMappingUpdate(t *testing.T) {
 		if d := up.DestinationConfig; d == nil || d.OnFailure == nil || d.OnFailure.Destination != nil {
 			h.Errorf("after clearing = %+v, want {\"OnFailure\": {}}", d)
 		}
-		h.settle()
+		h.advancePolled(settleDelay)
 		up = call(h.harness, lambdaapi.OpUpdateEventSourceMapping, &lambdaapi.UpdateEventSourceMappingInput{UUID: *m.UUID, Enabled: new(false)})
 		if derefAny(up.State) != "Disabling" || derefAny(up.StateTransitionReason) != "User action" {
 			h.Errorf("disable = %v, %v; want Disabling, User action", derefAny(up.State), derefAny(up.StateTransitionReason))
 		}
-	})
+	}, transitionsClock)
 }
 
 // Create checks the stream through DescribeStream as the mapping's

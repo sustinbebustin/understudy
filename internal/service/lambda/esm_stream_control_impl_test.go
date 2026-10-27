@@ -5,56 +5,34 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sustinbebustin/understudy/internal/api/dynamodbstreamsapi"
 	"github.com/sustinbebustin/understudy/internal/api/lambdaapi"
-	"github.com/sustinbebustin/understudy/internal/api/logsapi"
-	"github.com/sustinbebustin/understudy/internal/api/snsapi"
-	"github.com/sustinbebustin/understudy/internal/api/sqsapi"
-	"github.com/sustinbebustin/understudy/internal/kernel/kerneltest"
-	"github.com/sustinbebustin/understudy/internal/outbox"
 	"github.com/sustinbebustin/understudy/internal/service/lambda"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/esm"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/runtimeapi"
-	"github.com/sustinbebustin/understudy/internal/service/sqs"
 )
 
-// runStreamClock is runStream with lambda.stateTransitions = clock, under
-// which a mapping reports its transient states (ARCHITECTURE.md 9).
-func runStreamClock(t *testing.T, fn func(h *streamHarness)) {
-	t.Helper()
-	box := outbox.New()
-	kerneltest.Run(t, func(k *kerneltest.K) {
-		if err := box.Bind(k.Kernel, outbox.Options{}); err != nil {
-			k.Fatal(err)
-		}
-		queues := sqs.New(k.Deps(sqsapi.Service()), sqs.Options{})
-		stream := newFakeStream(k)
-		rec := &streamRecorder{}
-		withExec(k, rec.handle, nil, func(h *execHarness) {
-			fn(&streamHarness{execHarness: h, stream: stream, rec: rec, topics: &published{}, queues: queues})
-		}, func(c *execConfig) { c.svc.StateTransitions = lambda.TransitionsClock })
-	}, kerneltest.Deliver(box), kerneltest.Services(lambdaapi.Service(), logsapi.Service(), sqsapi.Service(), snsapi.Service(), dynamodbstreamsapi.Service()))
-}
+// transitionsClock sets lambda.stateTransitions = clock, under which a
+// mapping reports its transient states (ARCHITECTURE.md 9).
+func transitionsClock(c *execConfig) { c.svc.StateTransitions = lambda.TransitionsClock }
 
-// Under lambda.stateTransitions = clock, Create answers Creating and a
-// disable Disabling, both with "User action" (recorded LS-D:L246-L271,
-// LS-D:L173-L197; lambda-stream-sources.md 3.5, 3.6). Under final, the
-// default, the settled states (see the A7 dispute on
-// TestStreamMappingCreateShape and TestStreamMappingUpdate).
-func TestStreamMappingTransientStatesUnderClock(t *testing.T) {
-	runStreamClock(t, func(h *streamHarness) {
+// settleDelay is how long a transient state lasts under clock (service.go
+// settleDelay), on the frozen test clock.
+const settleDelay = 10 * time.Millisecond
+
+// Under lambda.stateTransitions = final, the default, Create answers the
+// settled Enabled and a disable Disabled, both with "User action"
+// (ARCHITECTURE.md 9); TestStreamMappingCreateShape and
+// TestStreamMappingUpdate assert AWS's transient states under clock
+// (LS-D:L246-L271, LS-D:L173-L197).
+func TestStreamMappingSettledStatesUnderFinal(t *testing.T) {
+	runStream(t, esm.StreamFidelity{}, func(h *streamHarness) {
 		m := h.mapStream(lambdaapi.CreateEventSourceMappingInput{})
-		if derefAny(m.State) != "Creating" || derefAny(m.StateTransitionReason) != "User action" {
-			h.Errorf("Create = %v, %v; want Creating, User action", derefAny(m.State), derefAny(m.StateTransitionReason))
-		}
-		// The settle delay (service.go settleDelay) on the frozen test clock.
-		h.advancePolled(10 * time.Millisecond)
-		if got := derefAny(h.get(*m.UUID).State); got != "Enabled" {
-			h.Errorf("after the settle delay State = %v, want Enabled", got)
+		if derefAny(m.State) != "Enabled" || derefAny(m.StateTransitionReason) != "User action" {
+			h.Errorf("Create = %v, %v; want Enabled, User action", derefAny(m.State), derefAny(m.StateTransitionReason))
 		}
 		up := call(h.harness, lambdaapi.OpUpdateEventSourceMapping, &lambdaapi.UpdateEventSourceMappingInput{UUID: *m.UUID, Enabled: new(false)})
-		if derefAny(up.State) != "Disabling" || derefAny(up.StateTransitionReason) != "User action" {
-			h.Errorf("disable = %v, %v; want Disabling, User action", derefAny(up.State), derefAny(up.StateTransitionReason))
+		if derefAny(up.State) != "Disabled" || derefAny(up.StateTransitionReason) != "User action" {
+			h.Errorf("disable = %v, %v; want Disabled, User action", derefAny(up.State), derefAny(up.StateTransitionReason))
 		}
 	})
 }
