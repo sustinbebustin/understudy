@@ -44,17 +44,17 @@ func runStreamClock(t *testing.T, fn func(h *streamHarness)) {
 func TestStreamMappingTransientStatesUnderClock(t *testing.T) {
 	runStreamClock(t, func(h *streamHarness) {
 		m := h.mapStream(lambdaapi.CreateEventSourceMappingInput{})
-		if deref(m.State) != "Creating" || deref(m.StateTransitionReason) != "User action" {
-			h.Errorf("Create = %v, %v; want Creating, User action", deref(m.State), deref(m.StateTransitionReason))
+		if derefAny(m.State) != "Creating" || derefAny(m.StateTransitionReason) != "User action" {
+			h.Errorf("Create = %v, %v; want Creating, User action", derefAny(m.State), derefAny(m.StateTransitionReason))
 		}
 		// The settle delay (service.go settleDelay) on the frozen test clock.
 		h.advancePolled(10 * time.Millisecond)
-		if got := deref(h.get(*m.UUID).State); got != "Enabled" {
+		if got := derefAny(h.get(*m.UUID).State); got != "Enabled" {
 			h.Errorf("after the settle delay State = %v, want Enabled", got)
 		}
 		up := call(h.harness, lambdaapi.OpUpdateEventSourceMapping, &lambdaapi.UpdateEventSourceMappingInput{UUID: *m.UUID, Enabled: new(false)})
-		if deref(up.State) != "Disabling" || deref(up.StateTransitionReason) != "User action" {
-			h.Errorf("disable = %v, %v; want Disabling, User action", deref(up.State), deref(up.StateTransitionReason))
+		if derefAny(up.State) != "Disabling" || derefAny(up.StateTransitionReason) != "User action" {
+			h.Errorf("disable = %v, %v; want Disabling, User action", derefAny(up.State), derefAny(up.StateTransitionReason))
 		}
 	})
 }
@@ -74,7 +74,7 @@ func TestStreamMappingUpdateChecksSettings(t *testing.T) {
 		up := call(h.harness, lambdaapi.OpUpdateEventSourceMapping, &lambdaapi.UpdateEventSourceMappingInput{
 			UUID: *m.UUID, DestinationConfig: &lambdaapi.DestinationConfig{OnFailure: &lambdaapi.OnFailure{Destination: new(topic)}},
 		})
-		if d := up.DestinationConfig; d == nil || d.OnFailure == nil || deref(d.OnFailure.Destination) != topic {
+		if d := up.DestinationConfig; d == nil || d.OnFailure == nil || derefAny(d.OnFailure.Destination) != topic {
 			h.Errorf("DestinationConfig = %+v, want OnFailure %s", d, topic)
 		}
 		h.settle()
@@ -102,7 +102,7 @@ func TestStreamMappingUpdateChecksSettings(t *testing.T) {
 				h.Errorf("%s: %s %d %q, want 501 NotImplemented", name, err.ID.Shape.Name(), err.ID.Status, err.Message)
 			}
 		}
-		if d := h.get(*m.UUID).DestinationConfig; d == nil || d.OnFailure == nil || deref(d.OnFailure.Destination) != topic {
+		if d := h.get(*m.UUID).DestinationConfig; d == nil || d.OnFailure == nil || derefAny(d.OnFailure.Destination) != topic {
 			h.Errorf("after refused updates DestinationConfig = %+v, want OnFailure %s kept", d, topic)
 		}
 	})
@@ -119,8 +119,8 @@ func TestStreamMappingUpdateMovesTheFunction(t *testing.T) {
 		other := h.createFunction("other")
 		described := len(h.stream.callers("DescribeStream"))
 		up := call(h.harness, lambdaapi.OpUpdateEventSourceMapping, &lambdaapi.UpdateEventSourceMappingInput{UUID: *m.UUID, FunctionName: new("other")})
-		if deref(up.FunctionArn) != deref(other.FunctionArn) {
-			h.Errorf("FunctionArn = %v, want %v", deref(up.FunctionArn), deref(other.FunctionArn))
+		if derefAny(up.FunctionArn) != derefAny(other.FunctionArn) {
+			h.Errorf("FunctionArn = %v, want %v", derefAny(up.FunctionArn), derefAny(other.FunctionArn))
 		}
 		if n := len(h.stream.callers("DescribeStream")); n != described+1 {
 			h.Errorf("DescribeStream calls %d after the update, want %d", n, described+1)
@@ -170,7 +170,7 @@ func TestStreamPartialFailureResendsFromTheLowestReported(t *testing.T) {
 		if got := h.rec.ids(); !slices.Equal(got[len(got)-1], []string{"d"}) {
 			h.Errorf("next invocation %v, want [d]", got[len(got)-1])
 		}
-		if got := deref(h.get(*m.UUID).LastProcessingResult); got != "OK" {
+		if got := derefAny(h.get(*m.UUID).LastProcessingResult); got != "OK" {
 			h.Errorf("LastProcessingResult = %v, want OK", got)
 		}
 	})

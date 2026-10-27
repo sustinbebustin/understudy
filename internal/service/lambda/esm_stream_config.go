@@ -22,7 +22,8 @@ import (
 // 501 rather than being stored without effect: ParallelizationFactor above
 // 1, BisectBatchOnFunctionError, TumblingWindowInSeconds above 0, a
 // FilterCriteria pattern, an S3 on-failure destination and, until the
-// poller applies them, a retry limit and a record age. The SQS rule that
+// poller sends on-failure records, a destination on a mapping with a retry
+// limit or a record age. The SQS rule that
 // a BatchSize above 10 needs a batching window does not apply to a stream
 // (contract 8.2 step 4).
 
@@ -133,6 +134,10 @@ func (u streamSettings) apply(m *Mapping, kind *esm.DynamoDBStream) *awserr.Erro
 	if err := u.checkUnbuilt(); err != nil {
 		return err
 	}
+	u.applyLimits(kind)
+	if err := checkDiscardDestination(*kind); err != nil {
+		return err
+	}
 	set(&m.BatchSize, u.batchSize)
 	set(&m.Window, u.window)
 	if u.responseTypes != nil {
@@ -181,10 +186,41 @@ func (u streamSettings) checkUnbuilt() *awserr.Error {
 		return errStreamSettingUnbuilt("TumblingWindowInSeconds above 0")
 	case u.recordAge != nil && *u.recordAge >= 0 && *u.recordAge < minRecordAge:
 		return errRecordAge()
-	case u.recordAge != nil && *u.recordAge != -1:
-		return errStreamSettingUnbuilt("MaximumRecordAgeInSeconds other than -1")
-	case u.retries != nil && *u.retries != -1:
-		return errStreamSettingUnbuilt("MaximumRetryAttempts other than -1")
+	}
+	return nil
+}
+
+// applyLimits sets the record age and retry limit u carries on kind; -1
+// lifts either. The model's ranges (-1 to 604800, -1 to 10000) are checked
+// before a handler runs, and the record-age floor by checkUnbuilt.
+func (u streamSettings) applyLimits(kind *esm.DynamoDBStream) {
+	if u.recordAge != nil {
+		kind.Settings.RecordAge = esm.AnyAge{}
+		if *u.recordAge != -1 {
+			kind.Settings.RecordAge = esm.MaxAge{Seconds: *u.recordAge}
+		}
+	}
+	if u.retries != nil {
+		kind.Settings.Retries = esm.Unlimited{}
+		if *u.retries != -1 {
+			kind.Settings.Retries = esm.Attempts{N: *u.retries}
+		}
+	}
+}
+
+// checkDiscardDestination refuses an on-failure destination on a mapping
+// whose limits can discard a batch: the poller does not send on-failure
+// records yet, so the destination would be stored without effect. Without
+// a limit only stream retention discards, and it sends no record (inferred,
+// UNVERIFIED; lambda-stream-sources.md 5.1, 5.3).
+func checkDiscardDestination(kind esm.DynamoDBStream) *awserr.Error {
+	if _, none := kind.Settings.OnFailure.(esm.NoDestination); none || kind.Settings.OnFailure == nil {
+		return nil
+	}
+	_, aged := kind.Settings.RecordAge.(esm.MaxAge)
+	_, limited := kind.Settings.Retries.(esm.Attempts)
+	if aged || limited {
+		return errStreamSettingUnbuilt("an on-failure destination together with MaximumRetryAttempts or MaximumRecordAgeInSeconds other than -1")
 	}
 	return nil
 }

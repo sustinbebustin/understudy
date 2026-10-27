@@ -29,7 +29,7 @@ func (r *streamRecorder) sizes() []int {
 func TestStreamBatchingWindowOpensAtStartAndAfterEachInvocation(t *testing.T) {
 	runStream(t, esm.StreamFidelity{}, func(h *streamHarness) {
 		m := h.mapStream(lambdaapi.CreateEventSourceMappingInput{BatchSize: new(int32(10)), MaximumBatchingWindowInSeconds: new(int32(5))})
-		if got := deref(m.MaximumBatchingWindowInSeconds); got != int32(5) {
+		if got := derefAny(m.MaximumBatchingWindowInSeconds); got != int32(5) {
 			h.Fatalf("MaximumBatchingWindowInSeconds = %v, want 5", got)
 		}
 		h.start()
@@ -135,7 +135,7 @@ func TestStreamGoneReaderReadsNothingMore(t *testing.T) {
 		if gone != 1 {
 			h.Errorf("%d Polling->StreamGone entries, want 1", gone)
 		}
-		if got := deref(h.get(*m.UUID).State); got != "Enabled" {
+		if got := derefAny(h.get(*m.UUID).State); got != "Enabled" {
 			h.Errorf("State = %v, want Enabled", got)
 		}
 	})

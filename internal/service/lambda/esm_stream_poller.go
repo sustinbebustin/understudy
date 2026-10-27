@@ -49,9 +49,12 @@ import (
 // batch may be dropped up to a second early; its records still in the
 // stream are then read again from TRIM_HORIZON.
 //
-// Not built yet, and so refused by the control plane: a retry limit and
-// record age. Without them a failing batch is retried until retention
-// ends it, so an on-failure destination is never sent to. One reader
+// MaximumRetryAttempts discards a batch once that many retries have failed
+// (5.2), and MaximumRecordAgeInSeconds discards each record past its age
+// before an invocation (5.3); both move the checkpoint past what they
+// discard. An invocation that does not reach the function is not counted
+// (5.1). On-failure records are not sent yet, so the control plane refuses
+// a destination on a mapping that can discard. One reader
 // reads the stream's shards in turn. The invocation hangs from the step's
 // poll: the stream does not report the events of the writes that
 // appended its records.
@@ -85,6 +88,10 @@ type streamRetry struct {
 	shard string
 	batch esm.Batch[esm.StreamRecord]
 	at    clock.Instant
+	// attempts counts the batch's invocations that reached the function;
+	// those that did not (a throttle, a missing function) are not attempts
+	// (aws-doc, lambda-stream-sources.md 5.1).
+	attempts int
 }
 
 // newStreamPoller is the poller of mapping uuid, whose source is a
@@ -147,7 +154,7 @@ func (p *pollers) streamStep(ctx context.Context, c *kernel.Call, pl *poller) po
 			sh.retry = r
 			return pollAt{at: r.at}
 		}
-		return p.invokeStream(ctx, c, pl, t, m.ReportFailures, r.shard, r.batch)
+		return p.expireAndInvoke(ctx, c, pl, t, m, kind, r.shard, r.batch, r.attempts)
 	}
 	src := dynamoSource{k: p.x.k, parent: c, target: target, stream: sh.stream}
 	shard, b, cut, rerr := p.readBatch(ctx, c, pl, src, int(m.BatchSize), kind.Position)
@@ -164,7 +171,77 @@ func (p *pollers) streamStep(ctx context.Context, c *kernel.Call, pl *poller) po
 			return pollAt{at: closes}
 		}
 	}
-	return p.invokeStream(ctx, c, pl, t, m.ReportFailures, shard, b)
+	return p.expireAndInvoke(ctx, c, pl, t, m, kind, shard, b, 0)
+}
+
+// expireAndInvoke discards the records of b past their age, then invokes
+// the function on the rest; attempts counts b's earlier invocations that
+// reached the function. A record already past its age when read reports
+// one invocation (recorded, lambda-stream-sources.md 5.3); one that passed
+// it while being retried reports the invocations made (recorded
+// approximateInvokeCount 8, 5.3).
+func (p *pollers) expireAndInvoke(ctx context.Context, c *kernel.Call, pl *poller, t target, m Mapping, kind esm.DynamoDBStream, shard string, b esm.Batch[esm.StreamRecord], attempts int) pollNext {
+	rest, err := p.expireStream(ctx, c, pl, kind.Settings.RecordAge, shard, b, max(attempts, 1))
+	switch {
+	case err != nil:
+		return p.readFailed(ctx, c, pl, err)
+	case rest.Len() == 0:
+		return pollAgain{}
+	}
+	return p.invokeStream(ctx, c, pl, t, m, kind, shard, rest, attempts)
+}
+
+// expireStream discards the records of b, read from shard, whose age
+// (now minus their arrival in the stream) exceeds age, each on its own
+// with RecordAgeExceeded and count as its approximateInvokeCount
+// (recorded batchSize 1, lambda-stream-sources.md 5.3; age measured from
+// the arrival and one record each, inferred, ESMS-09), and returns the
+// rest. Arrivals do not decrease within a shard, so the expired records
+// lead the batch.
+func (p *pollers) expireStream(ctx context.Context, c *kernel.Call, pl *poller, age esm.RecordAge, shard string, b esm.Batch[esm.StreamRecord], count int) (esm.Batch[esm.StreamRecord], error) {
+	limit, ok := age.(esm.MaxAge)
+	if !ok {
+		return b, nil
+	}
+	oldest := p.x.k.Clock().Now().Add(-time.Duration(limit.Seconds) * time.Second)
+	records := b.Records()
+	n := 0
+	for n < len(records) && records[n].Arrival.Before(oldest) {
+		n++
+	}
+	if n == 0 {
+		return b, nil
+	}
+	p.discardStream(ctx, c, pl, shard, records[:n], esm.RecordAgeExceeded{}, count)
+	return batchOf(records[n:])
+}
+
+// batchOf batches records, part of a batch that fit, so they fit.
+func batchOf(records []esm.StreamRecord) (esm.Batch[esm.StreamRecord], error) {
+	var b esm.Batch[esm.StreamRecord]
+	for _, r := range records {
+		if _, err := b.Add(r); err != nil {
+			return esm.Batch[esm.StreamRecord]{}, err
+		}
+	}
+	return b, nil
+}
+
+// discardStream discards records of shard for cond after count
+// invocations ("Lambda discards the records and continues", aws-doc,
+// lambda-stream-sources.md 5.1) and moves the checkpoint past them. The
+// control plane refuses an on-failure destination on a mapping that can
+// discard, so no on-failure record is owed; the log says what was lost.
+func (p *pollers) discardStream(ctx context.Context, c *kernel.Call, pl *poller, shard string, records []esm.StreamRecord, cond esm.FailCondition, count int) {
+	condition := "RetryAttemptsExhausted"
+	if _, aged := cond.(esm.RecordAgeExceeded); aged {
+		condition = "RecordAgeExceeded"
+	}
+	last := records[len(records)-1].Seq
+	p.x.k.Log().LogAttrs(ctx, slog.LevelWarn, "an event source mapping discarded stream records its retry limit or record age ended; the mapping has no on-failure destination, and it continues after them",
+		pl.attrs(slog.String("condition", condition), slog.String("shard", shard), slog.String("first", string(records[0].Seq)), slog.String("last", string(last)),
+			slog.Int("records", len(records)), slog.Int("approximate_invoke_count", count))...)
+	p.saveCheckpoint(ctx, c, pl, shard, shardlog.After{Seq: last}, false)
 }
 
 // readBatch reads the first shard of pl's stream that has records past
@@ -336,57 +413,96 @@ func checkpointState(p shardlog.Position) journal.ResourceState {
 }
 
 // invokeStream runs the function synchronously on b, read from shard, as
-// Lambda on its own behalf (as for SQS, esm_batch.go). The batching
+// Lambda on its own behalf (as for SQS, esm_batch.go); attempts counts the
+// batch's earlier invocations that reached the function. The batching
 // window opens again when the invocation ends. A success moves the
-// checkpoint past b and marks the mapping processed. A failure keeps b for
-// its retry after lambda.esm-stream.retry-delay, timed from the
-// invocation's end; under report, a partial failure first moves the
-// checkpoint to just before the lowest reported record and keeps only the
-// records from it (lambda-stream-sources.md 5.5).
-func (p *pollers) invokeStream(ctx context.Context, c *kernel.Call, pl *poller, t target, report bool, shard string, b esm.Batch[esm.StreamRecord]) pollNext {
+// checkpoint past b and marks the mapping processed. An invocation that
+// did not reach the function is retried without counting
+// (lambda-stream-sources.md 5.1). A failure counts and goes to
+// failStream. Under ReportBatchItemFailures, a partial failure first
+// moves the checkpoint to just before the lowest reported record and
+// keeps only the records from it (5.5); when that leaves out records, the
+// rest is a new batch whose count lambda.esm-stream.partial-resend-budget
+// restarts or continues (inferred, ESMS-08).
+func (p *pollers) invokeStream(ctx context.Context, c *kernel.Call, pl *poller, t target, m Mapping, kind esm.DynamoDBStream, shard string, b esm.Batch[esm.StreamRecord], attempts int) pollNext {
 	fn := kernel.Target{Scope: pl.scope, As: kernel.AsPlatform{Name: lambdaService}, Via: ref.LambdaESM}
 	out, err := kernel.Invoke(ctx, p.x.k, c, lambdaapi.OpInvoke, fn, &lambdaapi.InvokeInput{
 		FunctionName: t.invoked.String(), InvocationType: new(lambdaapi.InvocationTypeRequestResponse), Payload: b.Event(),
 	})
 	pl.stream.window = p.x.k.Clock().Now()
+	if err != nil {
+		p.x.k.Log().LogAttrs(ctx, slog.LevelInfo, "an event source mapping's stream batch did not reach its function; it is retried with the same records and the attempt is not counted",
+			pl.attrs(slog.Int("records", b.Len()), slog.String("reason", err.Message))...)
+		return p.retryStream(pl, shard, b, attempts)
+	}
+	attempts++
 	records := b.Records()
 	seqs := make([]string, len(records))
 	for i, r := range records {
 		seqs[i] = string(r.Seq)
 	}
-	switch v := verdict(out, err, report, seqs).(type) {
+	response := esm.RetryAttemptsExhausted{StatusCode: int(out.StatusCode), ExecutedVersion: deref(out.ExecutedVersion), FunctionError: deref(out.FunctionError)}
+	switch v := streamVerdict(out, m.ReportFailures, seqs).(type) {
 	case esm.Failed:
-		p.x.k.Log().LogAttrs(ctx, slog.LevelInfo, "an event source mapping's stream batch failed; it is retried with the same records",
-			pl.attrs(slog.Int("records", b.Len()), slog.String("reason", v.Reason))...)
-		return p.retryStream(pl, shard, b)
+		p.x.k.Log().LogAttrs(ctx, slog.LevelInfo, "an event source mapping's stream batch failed",
+			pl.attrs(slog.Int("records", b.Len()), slog.Int("attempts", attempts), slog.String("reason", v.Reason))...)
+		return p.failStream(ctx, c, pl, kind.Settings.Retries, shard, b, attempts, response)
 	case esm.PartiallyFailed:
 		lowest := slices.Index(seqs, v.IDs[0])
 		p.x.k.Log().LogAttrs(ctx, slog.LevelInfo, "an event source mapping's stream batch partially failed; it is retried from the lowest reported record",
-			pl.attrs(slog.Int("records", b.Len()), slog.String("lowest", v.IDs[0]))...)
-		if lowest > 0 {
-			p.saveCheckpoint(ctx, c, pl, shard, shardlog.After{Seq: records[lowest-1].Seq}, false)
+			pl.attrs(slog.Int("records", b.Len()), slog.Int("attempts", attempts), slog.String("lowest", v.IDs[0]))...)
+		if lowest == 0 {
+			return p.failStream(ctx, c, pl, kind.Settings.Retries, shard, b, attempts, response)
 		}
-		var rest esm.Batch[esm.StreamRecord]
-		for _, r := range records[lowest:] {
-			// A part of a batch that fit fits.
-			if _, err := rest.Add(r); err != nil {
-				return p.readFailed(ctx, c, pl, err)
-			}
+		p.saveCheckpoint(ctx, c, pl, shard, shardlog.After{Seq: records[lowest-1].Seq}, false)
+		rest, err := batchOf(records[lowest:])
+		if err != nil {
+			return p.readFailed(ctx, c, pl, err)
 		}
-		return p.retryStream(pl, shard, rest)
+		if p.x.svc.opts.Streams.ResendBudget == esm.ResendRestart {
+			attempts = 0
+		}
+		return p.failStream(ctx, c, pl, kind.Settings.Retries, shard, rest, attempts, response)
 	case esm.Succeeded:
 	}
 	p.saveCheckpoint(ctx, c, pl, shard, shardlog.After{Seq: records[len(records)-1].Seq}, true)
 	return pollAgain{}
 }
 
-// retryStream keeps b, read from shard, for its retry after
-// lambda.esm-stream.retry-delay.
-func (p *pollers) retryStream(pl *poller, shard string, b esm.Batch[esm.StreamRecord]) pollNext {
+// streamVerdict reads an invocation that reached the function: a function
+// error is complete failure; under report the response is read as
+// lambda-stream-sources.md 5.5 records; otherwise any result is success.
+func streamVerdict(out *lambdaapi.InvokeOutput, report bool, seqs []string) esm.Verdict {
+	switch {
+	case out.FunctionError != nil:
+		return esm.Failed{Reason: "the function failed: " + *out.FunctionError}
+	case report:
+		return esm.ReadStreamResponse(out.Payload, seqs)
+	}
+	return esm.Succeeded{}
+}
+
+// failStream follows a failed invocation of b, read from shard, the
+// batch's attempts-th: once MaximumRetryAttempts + 1 invocations have
+// failed, b is discarded with RetryAttemptsExhausted and response, the
+// last invocation's (recorded, lambda-stream-sources.md 5.2); otherwise b
+// is kept for its retry. A batch whose last retry fails is reported so
+// even when its records have also passed their age (inferred, ESMS-09).
+func (p *pollers) failStream(ctx context.Context, c *kernel.Call, pl *poller, retries esm.Retries, shard string, b esm.Batch[esm.StreamRecord], attempts int, response esm.RetryAttemptsExhausted) pollNext {
+	if limit, ok := retries.(esm.Attempts); ok && attempts > int(limit.N) {
+		p.discardStream(ctx, c, pl, shard, b.Records(), response, attempts)
+		return pollAgain{}
+	}
+	return p.retryStream(pl, shard, b, attempts)
+}
+
+// retryStream keeps b, read from shard after attempts counted
+// invocations, for its retry after lambda.esm-stream.retry-delay.
+func (p *pollers) retryStream(pl *poller, shard string, b esm.Batch[esm.StreamRecord], attempts int) pollNext {
 	at := p.x.k.Clock().Now()
 	if p.x.svc.opts.Streams.RetryDelay == esm.RetryAfterPollInterval {
 		at = at.Add(esm.DynamoDBRetryDelay)
 	}
-	pl.stream.retry = &streamRetry{shard: shard, batch: b, at: at}
+	pl.stream.retry = &streamRetry{shard: shard, batch: b, at: at, attempts: attempts}
 	return pollAt{at: at}
 }

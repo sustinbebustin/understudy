@@ -186,11 +186,9 @@ func lambdaAction(name string) registry.IAMAction {
 // choices, the event source mapping filter engine's choices, Lambda's
 // denial body, how a mapping meets a role refused the queue
 // (iam-enforcement-surfaces.md 8.6, 12.8) and the stream poller's LATEST
-// anchor and retry delay. The transitions govern the calls that create or
-// change a function or mapping and the reads that report its state. The
-// stream poller's partial-resend-budget switch is not listed: what it
-// governs, the retry limit of a partial resend, answers 501 until the limit
-// is built.
+// anchor, retry delay and partial-resend budget. The transitions govern
+// the calls that create or change a function or mapping and the reads that
+// report its state.
 func (s *Service) Switches() []fidelity.Entry {
 	// AccessDeniedException 403 is recorded for another account's ARN
 	// (third-party); the same-account body is inferred.
@@ -202,9 +200,6 @@ func (s *Service) Switches() []fidelity.Entry {
 		[]string{"lambda.CreateEventSourceMapping", "lambda.UpdateEventSourceMapping"})
 	permissionLoss := authz.EnforcementSwitch("lambda.esm.permission-loss", "stay-enabled", evidence.Inferred, "8.6", "IAM-ENF-25",
 		[]string{"lambda.CreateEventSourceMapping"})
-	streams := slices.DeleteFunc(esm.StreamSwitches(s.opts.Streams), func(e fidelity.Entry) bool {
-		return e.Name == "lambda.esm-stream.partial-resend-budget"
-	})
 	entries := []fidelity.Entry{denial, roleDenied, permissionLoss, fidelity.Switch[string]{
 		Name:  "lambda.stateTransitions",
 		Value: s.opts.StateTransitions.String(),
@@ -222,7 +217,7 @@ func (s *Service) Switches() []fidelity.Entry {
 		entries = append(entries, sw.Entry())
 	}
 	entries = append(entries, esm.Switches()...)
-	return append(entries, streams...)
+	return append(entries, esm.StreamSwitches(s.opts.Streams)...)
 }
 
 // Name returns "lambda".

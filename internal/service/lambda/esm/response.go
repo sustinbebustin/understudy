@@ -77,6 +77,20 @@ func ReadResponse(payload []byte, batch []string) Verdict {
 	return PartiallyFailed{IDs: slices.DeleteFunc(slices.Clone(batch), func(id string) bool { return !failed[id] })}
 }
 
+// ReadStreamResponse reads a stream batch's response under
+// ReportBatchItemFailures, where seqs are the batch's sequence numbers. It
+// is ReadResponse except that an empty JSON list is full success, as
+// recorded for both stream kinds (third-party-recorded LS-D:L3735-L3808,
+// LS-K:L1892-L1946; lambda-stream-sources.md 5.5). Any other list is
+// complete failure (inferred, ESMS-08).
+func ReadStreamResponse(payload []byte, seqs []string) Verdict {
+	var list []json.RawMessage
+	if json.Unmarshal(payload, &list) == nil && list != nil && len(list) == 0 {
+		return Succeeded{}
+	}
+	return ReadResponse(payload, seqs)
+}
+
 // itemIdentifier reads one batchItemFailures entry, at path, and returns
 // its id, or why it is malformed.
 func itemIdentifier(raw json.RawMessage, path string) (id, reason string) {
