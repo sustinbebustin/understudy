@@ -63,18 +63,16 @@ func reservedVariables() []string {
 	}
 }
 
-// architectureViolation is the rolled-up enum check of Architectures the
-// overlay leaves to the service, with the recorded composite text.
-func architectureViolation(archs []lambdaapi.Architecture) []awserr.Violation {
+// architectureViolation is the rolled-up enum check of an architecture list
+// the overlay leaves to the service, Architectures or a layer's
+// CompatibleArchitectures as member names it, with the recorded composite
+// text.
+func architectureViolation(member string, archs []lambdaapi.Architecture) []awserr.Violation {
 	for _, a := range archs {
 		if !a.Known() {
-			names := make([]string, len(archs))
-			for i, a := range archs {
-				names[i] = string(a)
-			}
 			return []awserr.Violation{{
-				Path:  awserr.Path{"architectures"},
-				Value: awserr.RenderedText{Text: "[" + strings.Join(names, ", ") + "]"},
+				Path:  awserr.Path{member},
+				Value: awserr.RenderedText{Text: "[" + strings.Join(nameList(archs), ", ") + "]"},
 				Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{
 					awserr.Enum{Values: []string{string(lambdaapi.ArchitectureX8664), string(lambdaapi.ArchitectureArm64)}}, awserr.Required{},
 				}},
@@ -106,7 +104,7 @@ func limitViolations(timeout, memory *int32, storage *lambdaapi.EphemeralStorage
 }
 
 func validateCreateFunction(in *lambdaapi.CreateFunctionInput) []awserr.Violation {
-	return append(architectureViolation(in.Architectures), limitViolations(in.Timeout, in.MemorySize, in.EphemeralStorage)...)
+	return append(architectureViolation("architectures", in.Architectures), limitViolations(in.Timeout, in.MemorySize, in.EphemeralStorage)...)
 }
 
 func validateUpdateConfiguration(in *lambdaapi.UpdateFunctionConfigurationInput) []awserr.Violation {
@@ -129,7 +127,7 @@ func validateCreateMapping(in *lambdaapi.CreateEventSourceMappingInput) []awserr
 }
 
 func validateUpdateCode(in *lambdaapi.UpdateFunctionCodeInput) []awserr.Violation {
-	return architectureViolation(in.Architectures)
+	return architectureViolation("architectures", in.Architectures)
 }
 
 // checkCreateFunction answers the creation rules no constraint trait
@@ -195,8 +193,9 @@ func checkRuntime(r *lambdaapi.Runtime) *awserr.Error {
 	}
 }
 
-// checkLayers refuses every layer: understudy publishes none, so no
-// version a function names exists.
+// checkLayers refuses every layer: functions do not resolve layers against
+// the layer store yet, so even a published version is answered as AWS
+// answers one that does not exist.
 func checkLayers(layers []string) *awserr.Error {
 	switch {
 	case len(layers) > maxLayers:

@@ -19,15 +19,18 @@ import (
 )
 
 // stateVersion is the schema version of State in snapshot sections. Version
-// 2 added Mapping.SourceKind; a version 1 section is refused (ADR 0009).
-const stateVersion = 2
+// 2 added Mapping.SourceKind, version 3 the layer store; a section of an
+// earlier version is refused (ADR 0009).
+const stateVersion = 3
 
 // State is the Lambda state of one account and region: its functions by
-// name and its event source mappings by UUID. Records are values replaced
-// on change; a value read out of a cell is always a copy.
+// name, its event source mappings by UUID and its layers by name. Records
+// are values replaced on change; a value read out of a cell is always a
+// copy.
 type State struct {
 	Functions map[string]Function `json:"functions,omitempty"`
 	Mappings  map[string]Mapping  `json:"mappings,omitempty"`
+	Layers    map[string]Layer    `json:"layers,omitempty"`
 	// Serial counts the identifiers the scope has minted (revision ids,
 	// function URL ids); each is derived from the scope and its serial, so
 	// none repeats until the scope is reset.
@@ -44,9 +47,10 @@ func newState(aws.Scope) State {
 
 // IsZero reports whether the scope holds nothing, which snapshots skip. A scope
 // that minted identifiers is not empty even once its functions are gone:
-// its serial and retired URL ids keep later ids from repeating them.
+// its serial and retired URL ids keep later ids from repeating them, as a
+// layer whose versions are all deleted keeps its numbering.
 func (s *State) IsZero() bool {
-	return len(s.Functions) == 0 && len(s.Mappings) == 0 && s.Serial == 0 && len(s.RetiredURLs) == 0
+	return len(s.Functions) == 0 && len(s.Mappings) == 0 && len(s.Layers) == 0 && s.Serial == 0 && len(s.RetiredURLs) == 0
 }
 
 // Partitioned finds IsZero and BlobRefs by type assertions; these keep a
@@ -56,12 +60,17 @@ var (
 	_ store.BlobHolder = (*State)(nil)
 )
 
-// BlobRefs lists one entry per reference the state holds on a zip package:
-// one per version whose code is a zip.
+// BlobRefs lists one entry per reference the state holds on a zip archive:
+// one per version whose code is a zip and one per stored layer version.
 func (s *State) BlobRefs() []string {
 	var refs []string
 	for _, name := range slices.Sorted(maps.Keys(s.Functions)) {
 		for _, ref := range s.Functions[name].zipRefs() {
+			refs = append(refs, ref.String())
+		}
+	}
+	for _, name := range slices.Sorted(maps.Keys(s.Layers)) {
+		for _, ref := range s.Layers[name].blobRefs() {
 			refs = append(refs, ref.String())
 		}
 	}

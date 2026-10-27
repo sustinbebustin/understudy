@@ -8,15 +8,23 @@ import (
 	"github.com/sustinbebustin/understudy/internal/policydoc"
 )
 
-// ResourcePolicy returns the permissions of the function target names,
-// arn:...:function:<name>[:<qualifier>], as the policy GetPolicy returns
-// (authz.PolicyProvider, ARCHITECTURE.md 16); nil when the function or
-// qualifier has no statements. ok is false when no such function exists,
-// which skips the delivery access advisory.
+// ResourcePolicy returns the permissions of what target names
+// (authz.PolicyProvider, ARCHITECTURE.md 16): for a function,
+// arn:...:function:<name>[:<qualifier>], the policy GetPolicy returns; for
+// a layer version, arn:...:layer:<name>:<version>, the policy
+// GetLayerVersionPolicy returns (lambda-destinations-layers.md 7.4). doc is
+// nil when there are no statements; ok is false when no such function or
+// layer version exists, which skips the delivery access advisory.
 func (s *Service) ResourcePolicy(target aws.ARN) (doc *policydoc.Document, ok bool) {
-	rest, isFunction := strings.CutPrefix(target.Resource, "function:")
 	scope, serr := aws.ScopeOf(target)
-	if target.Service != "lambda" || !isFunction || serr != nil {
+	if target.Service != "lambda" || serr != nil {
+		return nil, false
+	}
+	if strings.HasPrefix(target.Resource, "layer:") {
+		return s.layerVersionPolicy(target)
+	}
+	rest, isFunction := strings.CutPrefix(target.Resource, "function:")
+	if !isFunction {
 		return nil, false
 	}
 	name, qualifier, _ := strings.Cut(rest, ":")
@@ -37,6 +45,29 @@ func (s *Service) ResourcePolicy(target aws.ARN) (doc *policydoc.Document, ok bo
 	})
 	if !f.ok {
 		return nil, false
+	}
+	return policydoc.ParseStored(f.text), true
+}
+
+// layerVersionPolicy is ResourcePolicy for a layer version ARN.
+func (s *Service) layerVersionPolicy(target aws.ARN) (*policydoc.Document, bool) {
+	ref, n, ok := parseLayerVersionARN(target.String())
+	if !ok {
+		return nil, false
+	}
+	type found struct {
+		text string
+		ok   bool
+	}
+	f, _ := view(s, ref.scope, func(st *State) (found, *awserr.Error) {
+		v, ok := st.layerVersion(ref, n)
+		return found{text: v.policyDocument(), ok: ok}, nil
+	})
+	switch {
+	case !f.ok:
+		return nil, false
+	case f.text == "":
+		return nil, true
 	}
 	return policydoc.ParseStored(f.text), true
 }

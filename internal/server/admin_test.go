@@ -156,7 +156,7 @@ func TestEveryProtocolReachesItsService(t *testing.T) {
 			name: "rpcv2Cbor", method: http.MethodPost, path: "/service/GraniteServiceVersion20100801/operation/ListDashboards", signing: "monitoring",
 			header: map[string]string{"Content-Type": "application/cbor", "Smithy-Protocol": "rpc-v2-cbor"}, want: "NotImplemented",
 		},
-		{name: "restJson1", method: http.MethodGet, path: "/2018-10-31/layers", signing: "lambda", want: "understudy does not implement lambda.ListLayers"},
+		{name: "restJson1", method: http.MethodGet, path: "/2020-04-22/code-signing-configs", signing: "lambda", want: "understudy does not implement lambda.ListCodeSigningConfigs"},
 		{name: "restXml", method: http.MethodGet, path: "/bucket/key?torrent", signing: "s3", want: "understudy does not implement s3.GetObjectTorrent"},
 	}
 	for _, tc := range cases {

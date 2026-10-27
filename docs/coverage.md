@@ -122,7 +122,7 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | eventbridge | 57 | 6 | 3 | 13 | 35 | 0 | 0 |
 | iam | 180 | 42 | 6 | 16 | 116 | 1 | 0 |
 | kms | 54 | 19 | 3 | 5 | 27 | 0 | 0 |
-| lambda | 88 | 25 | 2 | 14 | 47 | 0 | 2 |
+| lambda | 88 | 30 | 3 | 17 | 38 | 0 | 2 |
 | logs | 118 | 9 | 0 | 9 | 100 | 1 | 0 |
 | s3 | 112 | 22 | 42 | 22 | 26 | 0 | 3 |
 | secretsmanager | 23 | 12 | 1 | 2 | 8 | 0 | 0 |
@@ -575,6 +575,7 @@ Internal operations:
 | DeleteFunctionConcurrency | full | third-party-recorded, 2 of 2 claims |  |
 | DeleteFunctionEventInvokeConfig | full | third-party-recorded, 2 of 2 claims |  |
 | DeleteFunctionUrlConfig | full | third-party-recorded, 2 of 2 claims |  |
+| DeleteLayerVersion | full | third-party-recorded, 2 of 2 claims |  |
 | GetAccountSettings | full | third-party-recorded, 2 of 2 claims |  |
 | GetAlias | full | third-party-recorded, 2 of 2 claims |  |
 | GetEventSourceMapping | full | aws-doc, 1 of 3 claims |  |
@@ -582,18 +583,23 @@ Internal operations:
 | GetFunctionConfiguration | full | aws-doc, 1 of 3 claims |  |
 | GetFunctionEventInvokeConfig | full | third-party-recorded, 2 of 2 claims |  |
 | GetFunctionUrlConfig | full | third-party-recorded, 2 of 2 claims |  |
+| GetLayerVersionPolicy | full | third-party-recorded, 2 of 2 claims |  |
 | GetPolicy | full | third-party-recorded, 2 of 2 claims |  |
 | ListAliases | full | third-party-recorded, 2 of 2 claims |  |
 | ListEventSourceMappings | full | third-party-recorded, 2 of 2 claims |  |
 | ListFunctionEventInvokeConfigs | full | third-party-recorded, 2 of 2 claims |  |
 | ListFunctionUrlConfigs | full | third-party-recorded, 2 of 2 claims |  |
 | ListFunctions | full | third-party-recorded, 2 of 2 claims |  |
+| ListLayerVersions | full | inferred, 1 of 3 claims |  |
+| ListLayers | full | third-party-recorded, 3 of 3 claims |  |
 | ListTags | full | third-party-recorded, 2 of 2 claims |  |
 | ListVersionsByFunction | full | third-party-recorded, 2 of 2 claims |  |
 | PutFunctionConcurrency | full | third-party-recorded, 2 of 2 claims |  |
+| RemoveLayerVersionPermission | full | third-party-recorded, 2 of 2 claims |  |
 | RemovePermission | full | third-party-recorded, 2 of 2 claims |  |
 | TagResource | full | third-party-recorded, 2 of 2 claims |  |
 | UntagResource | full | third-party-recorded, 2 of 2 claims |  |
+| AddLayerVersionPermission | stored-only | third-party-recorded, 2 of 2 claims | statements are stored and returned by GetLayerVersionPolicy; another account's use of the layer is advised, not refused |
 | AddPermission | stored-only | third-party-recorded, 2 of 2 claims | statements are stored and returned by GetPolicy, not enforced |
 | GetFunctionCodeSigningConfig | stored-only | third-party-recorded, 2 of 2 claims | code signing is not enforced; no function has a configuration |
 | CreateAlias | partial | third-party-recorded, 2 of 2 claims | weighted routing is stored, not applied to invocations |
@@ -601,7 +607,10 @@ Internal operations:
 | CreateFunction | partial | aws-doc, 1 of 5 claims | layers, PublishTo, TenancyConfig and DurableConfig are refused; code signing and VPC networking are stored only |
 | CreateFunctionUrlConfig | partial | third-party-recorded, 2 of 2 claims | the URL is served (see InvokeFunctionUrl); InvokeMode RESPONSE_STREAM answers buffered and CORS is applied as stored |
 | GetFunction | partial | aws-doc, 1 of 3 claims | Code.Location is a link understudy serves the package at, not a presigned S3 URL |
+| GetLayerVersion | partial | third-party-recorded, 2 of 2 claims | Content.Location is a link understudy serves the archive at, not a presigned S3 URL |
+| GetLayerVersionByArn | partial | third-party-recorded, 2 of 2 claims | Content.Location is a link understudy serves the archive at, not a presigned S3 URL |
 | Invoke | partial | inferred, 4 of 8 claims | an alias with weighted routing always runs its primary version; LoggingConfig reaches the function as AWS_LAMBDA_LOG_FORMAT and AWS_LAMBDA_LOG_LEVEL, but Lambda's own INIT_START, START, END and REPORT lines stay text and SystemLogLevel filters nothing |
+| PublishLayerVersion | partial | third-party-recorded, 2 of 2 claims | S3ObjectStorageMode REFERENCE is stored and the archive is copied as with COPY; the account code-storage quota is not enforced; layers are never signed |
 | PublishVersion | partial | aws-doc, 1 of 3 claims | PublishTo LATEST_PUBLISHED is refused: understudy does not implement Lambda Managed Instances |
 | PutFunctionEventInvokeConfig | partial | inferred, 2 of 4 claims | the execution role's permission to reach a destination is recorded, not checked; a failed delivery is journaled and not retried |
 | UpdateAlias | partial | third-party-recorded, 2 of 2 claims | weighted routing is stored, not applied to invocations |
@@ -610,14 +619,12 @@ Internal operations:
 | UpdateFunctionConfiguration | partial | inferred, 1 of 4 claims | layers and DurableConfig are refused; code signing and VPC networking are stored only |
 | UpdateFunctionEventInvokeConfig | partial | inferred, 1 of 3 claims | the execution role's permission to reach a destination is recorded, not checked; a failed delivery is journaled and not retried |
 | UpdateFunctionUrlConfig | partial | third-party-recorded, 2 of 2 claims | the URL is served (see InvokeFunctionUrl); InvokeMode RESPONSE_STREAM answers buffered and CORS is applied as stored |
-| AddLayerVersionPermission | unbound | unassessed |  |
 | CheckpointDurableExecution | unbound | unassessed |  |
 | CreateCapacityProvider | unbound | unassessed |  |
 | CreateCodeSigningConfig | unbound | unassessed |  |
 | DeleteCapacityProvider | unbound | unassessed |  |
 | DeleteCodeSigningConfig | unbound | unassessed |  |
 | DeleteFunctionCodeSigningConfig | unbound | unassessed |  |
-| DeleteLayerVersion | unbound | unassessed |  |
 | DeleteProvisionedConcurrencyConfig | unbound | unassessed |  |
 | DeleteResourcePolicy | unbound | unassessed |  |
 | GetCapacityProvider | unbound | unassessed |  |
@@ -627,9 +634,6 @@ Internal operations:
 | GetDurableExecutionState | unbound | unassessed |  |
 | GetFunctionRecursionConfig | unbound | unassessed |  |
 | GetFunctionScalingConfig | unbound | unassessed |  |
-| GetLayerVersion | unbound | unassessed |  |
-| GetLayerVersionByArn | unbound | unassessed |  |
-| GetLayerVersionPolicy | unbound | unassessed |  |
 | GetProvisionedConcurrencyConfig | unbound | unassessed |  |
 | GetResourcePolicy | unbound | unassessed |  |
 | GetRuntimeManagementConfig | unbound | unassessed |  |
@@ -640,17 +644,13 @@ Internal operations:
 | ListDurableExecutionsByFunction | unbound | unassessed |  |
 | ListFunctionVersionsByCapacityProvider | unbound | unassessed |  |
 | ListFunctionsByCodeSigningConfig | unbound | unassessed |  |
-| ListLayerVersions | unbound | unassessed |  |
-| ListLayers | unbound | unassessed |  |
 | ListProvisionedConcurrencyConfigs | unbound | unassessed |  |
-| PublishLayerVersion | unbound | unassessed |  |
 | PutFunctionCodeSigningConfig | unbound | unassessed |  |
 | PutFunctionRecursionConfig | unbound | unassessed |  |
 | PutFunctionScalingConfig | unbound | unassessed |  |
 | PutProvisionedConcurrencyConfig | unbound | unassessed |  |
 | PutResourcePolicy | unbound | unassessed |  |
 | PutRuntimeManagementConfig | unbound | unassessed |  |
-| RemoveLayerVersionPermission | unbound | unassessed |  |
 | SendDurableExecutionCallbackFailure | unbound | unassessed |  |
 | SendDurableExecutionCallbackHeartbeat | unbound | unassessed |  |
 | SendDurableExecutionCallbackSuccess | unbound | unassessed |  |
@@ -1185,7 +1185,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 
 Corrections to the vendored models in `codegen/overlays`, one row per evidence item. The count and order, strongest evidence first, follow the label the overlay states; the Label column shows the recording's verdict where a replayed step settles or contradicts the item.
 
-328 evidence items: 49 aws-recorded, 102 third-party-recorded, 56 aws-doc, 5 sdk-source, 116 inferred.
+333 evidence items: 49 aws-recorded, 106 third-party-recorded, 56 aws-doc, 5 sdk-source, 117 inferred.
 
 | Label | Overlay | Shape | Covers | Source |
 |---|---|---|---|---|
@@ -1263,10 +1263,14 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | third-party-recorded | lambda.json | `com.amazonaws.lambda#AWSGirApiService` | dev.understudy#malformedRequestError | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/lambda_/test_lambda.snapshot.json#L3476 (validated 2025-11-24) |
 | third-party-recorded | lambda.json | `com.amazonaws.lambda#AccessDeniedException` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/lambda_/test_lambda_api.snapshot.json#L13926-L13934: CreateFunction with another account's function ARN answers x-amzn-errortype AccessDeniedException, 403, with the body key Message (docs/research/iam-enforcement-surfaces.md#32-per-service-identity); the model declares no such shape (validated 2025-11-25) |
 | third-party-recorded | lambda.json | `com.amazonaws.lambda#ArchitecturesList$member` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/lambda_/test_lambda_api.snapshot.json#L7904 (validated 2026-01-12) |
+| third-party-recorded | lambda.json | `com.amazonaws.lambda#CompatibleArchitectures$member` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/lambda_/test_lambda_api.snapshot.json#L8444-L8463: the refusal is the rolled-up element constraint with 'Member must not be null', after the compatibleRuntimes one (docs/research/lambda-destinations-layers.md#63-publishlayerversion) (validated 2026-01-12) |
+| third-party-recorded | lambda.json | `com.amazonaws.lambda#CompatibleRuntimes$member` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/lambda_/test_lambda_api.snapshot.json#L8444-L8463: the refusal prints the 25-value creation list, not the model's enum, and names compatibleRuntimes before compatibleArchitectures (docs/research/lambda-destinations-layers.md#63-publishlayerversion) (validated 2026-01-12) |
 | third-party-recorded | lambda.json | `com.amazonaws.lambda#CreateEventSourceMappingRequest$StartingPosition` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/lambda_/test_lambda_api.snapshot.json#L12330 (validated 2025-11-25) |
 | third-party-recorded | lambda.json | `com.amazonaws.lambda#CreateFunction` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/lambda_/test_lambda_api.snapshot.json#L7052 (validated 2025-11-25) |
 | third-party-recorded | lambda.json | `com.amazonaws.lambda#CreateFunctionRequest$Runtime` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/lambda_/test_lambda_api.snapshot.json#L7869 (validated 2026-01-12) |
 | third-party-recorded | lambda.json | `com.amazonaws.lambda#DeleteFunction` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/lambda_/test_lambda_api.snapshot.json#L309 (validated 2025-11-25) |
+| third-party-recorded | lambda.json | `com.amazonaws.lambda#LayerVersionArn` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/lambda_/test_lambda_api.snapshot.json#L8368-L8377: AWS prints the pattern without the model's anchors and without its outer group (docs/research/lambda-destinations-layers.md#64-getlayerversion-and-getlayerversionbyarn) (validated 2026-01-12) |
+| third-party-recorded | lambda.json | `com.amazonaws.lambda#ListLayersRequest$CompatibleRuntime` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/lambda_/test_lambda_api.snapshot.json#L8296: the filter is checked against a 56-value internal list, not the model's enum (docs/research/lambda-destinations-layers.md#65-listlayers-and-listlayerversions) (validated 2026-01-12) |
 | third-party-recorded | lambda.json | `com.amazonaws.lambda#NumericLatestPublishedOrAliasQualifier` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/lambda_/test_lambda_api.snapshot.json#L7779: AWS matches the whole value against either branch of the model's top-level alternation, so 'invalid-qualifier-with-?-char' fails it (validated 2025-11-25) |
 | third-party-recorded | logs.json | `com.amazonaws.cloudwatchlogs#Logs_20140328` | dev.understudy#denialError | docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: the model's AccessDeniedException answers 400 for a non-IAM denial (PutSubscriptionFilter with another account's Lambda ARN, https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/logs/test_logs_subscription_filters.snapshot.json#L157-L165, 3.2); the status of an IAM denial falls under proposed switch logs.denial.status (12.8, added with enforcement) until recording IAM-ENF-07 (validated 2026-02-06) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#AmazonS3` | dev.understudy#validationError | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json#L2880 (validated 2026-02-21) |
@@ -1436,6 +1440,7 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | inferred | lambda.json | `com.amazonaws.lambda#CollectionName` |  | docs/research/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: ^(^(?!(system\x2e)))(^[_a-zA-Z0-9])([^$]*)$ is a word character, then anything but $, not starting with system. |
 | inferred | lambda.json | `com.amazonaws.lambda#FunctionUrlFunctionName` |  | docs/research/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: the qualifier (?!\d+$)[0-9a-zA-Z-_]+ is one or more of the class with at least one non-digit |
 | inferred | lambda.json | `com.amazonaws.lambda#FunctionUrlQualifier` |  | docs/research/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: ^((?!^\d+$)^[0-9a-zA-Z-_]+$)$ is one or more of the class with at least one non-digit |
+| inferred | lambda.json | `com.amazonaws.lambda#ListLayerVersionsRequest$CompatibleRuntime` |  | docs/research/lambda-destinations-layers.md#65-listlayers-and-listlayerversions: ListLayers' filter is recorded against a 56-value internal list (test_lambda_api.snapshot.json#L8296); ListLayerVersions shares the member's name and target, so it is taken to share the list |
 | inferred | lambda.json | `com.amazonaws.lambda#S3Bucket` |  | docs/research/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: ^[0-9A-Za-z\.\-_]*(?<!\.)$ is the class repeated, not ending in a dot |
 | inferred | lambda.json | `com.amazonaws.lambda#UpdateFunctionConfigurationRequest$Runtime` |  | docs/research/lambda-api.md#42-runtime-enum-and-deprecation: the deprecation text covers creating or updating functions, so the update answers like the create |
 | inferred | logs.json | `com.amazonaws.cloudwatchlogs#Logs_20140328` | dev.understudy#throttleError | docs/research/error-matrix.md#57-cloudwatch-logs-json-11 |

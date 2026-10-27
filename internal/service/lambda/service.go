@@ -80,6 +80,7 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 	s.bindURLConfigs(b)
 	s.bindEventInvokeConfigs(b)
 	s.bindMappings(b)
+	s.bindLayers(b)
 	declareAccess(d.Binder)
 	return s
 }

@@ -136,9 +136,39 @@ func errTooManyLayers() *awserr.Error {
 	return user(lambdaapi.ErrInvalidParameterValueException("Cannot reference more than 5 layers."))
 }
 
-// errLayerNotFound answers every layer reference: understudy has no layers.
+// errLayerNotFound answers a function's layer reference (checkLayers).
 func errLayerNotFound(arn string) *awserr.Error {
 	return user(lambdaapi.ErrInvalidParameterValueException("Layer version " + arn + " does not exist."))
+}
+
+// errLayerVersionMissing is the permission operations' answer for a layer
+// or version that does not exist (lambda-destinations-layers.md 6.8).
+func errLayerVersionMissing(arn string) *awserr.Error {
+	return user(lambdaapi.ErrResourceNotFoundException("Layer version " + arn + " does not exist."))
+}
+
+func errLayerVersionBelowOne() *awserr.Error {
+	return user(lambdaapi.ErrInvalidParameterValueException("Layer Version Cannot be less than 1"))
+}
+
+// errLayerPolicyRevisionMismatch keeps the recorded "GetLayerPolicy", a name
+// no operation has (lambda-destinations-layers.md 6.8).
+func errLayerPolicyRevisionMismatch() *awserr.Error {
+	return user(lambdaapi.ErrPreconditionFailedException("The Revision Id provided does not match the latest Revision Id. Call the GetLayerPolicy API to retrieve the latest Revision Id"))
+}
+
+// errLayerName is understudy's text for a LayerName that passes the model's
+// unanchored pattern but names no layer a version can be published under;
+// AWS's answer is unrecorded.
+func errLayerName(name string) *awserr.Error {
+	return user(lambdaapi.ErrInvalidParameterValueException("The layer name " + name + " is neither a name of letters, digits, hyphens and underscores nor an unversioned layer ARN " +
+		"(arn:aws:lambda:<region>:<account>:layer:<name>), so no layer version can be published under it. Pass the layer's name or its unversioned ARN."))
+}
+
+// errLayerContent is understudy's text for a Content that names no archive,
+// or both an inline one and an S3 object; AWS's is unrecorded.
+func errLayerContent() *awserr.Error {
+	return user(lambdaapi.ErrInvalidParameterValueException("PublishLayerVersion needs Content.ZipFile, or Content.S3Bucket and Content.S3Key, and not both; nothing was published."))
 }
 
 func errInvalidZip() *awserr.Error {

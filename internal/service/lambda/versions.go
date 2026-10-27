@@ -197,6 +197,8 @@ const (
 	listingEventSourceMappings paging.Listing = "event-source-mappings"
 	listingEventInvokeConfigs  paging.Listing = "event-invoke-configs"
 	listingFunctionURLConfigs  paging.Listing = "function-url-configs"
+	listingLayers              paging.Listing = "layers"
+	listingLayerVersions       paging.Listing = "layer-versions"
 )
 
 // page returns the page of listing l over items, sorted by key with unique

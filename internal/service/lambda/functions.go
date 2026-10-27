@@ -123,7 +123,7 @@ func (s *Service) holdForPublish(ctx context.Context, publish bool, code Code) (
 func (s *Service) newCode(ctx context.Context, c *kernel.Call, src codeSource) (Code, *awserr.Error) {
 	switch src := src.(type) {
 	case zipSource:
-		if err := checkZip(src.bytes); err != nil {
+		if _, err := checkZip(src.bytes); err != nil {
 			return nil, err
 		}
 		return s.storeZip(ctx, src.bytes)
@@ -132,7 +132,7 @@ func (s *Service) newCode(ctx context.Context, c *kernel.Call, src codeSource) (
 		if err != nil {
 			return nil, err
 		}
-		if err := checkArchive(b); err != nil {
+		if _, err := checkArchive(b); err != nil {
 			return nil, err
 		}
 		return s.storeZip(ctx, b)
@@ -447,7 +447,7 @@ func samePackageType(current, code Code) *awserr.Error {
 func (s *Service) dryRunCode(ctx context.Context, c *kernel.Call, ref functionRef, src codeSource) (*lambdaapi.FunctionConfiguration, *awserr.Error) {
 	switch src := src.(type) {
 	case zipSource:
-		if err := checkZip(src.bytes); err != nil {
+		if _, err := checkZip(src.bytes); err != nil {
 			return nil, err
 		}
 	case s3Source:
@@ -455,7 +455,7 @@ func (s *Service) dryRunCode(ctx context.Context, c *kernel.Call, ref functionRe
 		if err != nil {
 			return nil, err
 		}
-		if err := checkArchive(b); err != nil {
+		if _, err := checkArchive(b); err != nil {
 			return nil, err
 		}
 	case imageSource:
