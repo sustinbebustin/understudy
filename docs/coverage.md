@@ -956,8 +956,8 @@ Raw operations:
 | DeleteTopic | full | inferred, 1 of 3 claims |  |
 | GetSubscriptionAttributes | full | inferred, 1 of 3 claims |  |
 | GetTopicAttributes | full | third-party-recorded, 2 of 2 claims |  |
-| ListSubscriptions | full | inferred, 1 of 3 claims |  |
-| ListSubscriptionsByTopic | full | inferred, 1 of 3 claims |  |
+| ListSubscriptions | full | third-party-recorded, 3 of 3 claims |  |
+| ListSubscriptionsByTopic | full | third-party-recorded, 3 of 3 claims |  |
 | ListTagsForResource | full | third-party-recorded, 2 of 2 claims |  |
 | ListTopics | full | third-party-recorded, 2 of 2 claims |  |
 | TagResource | full | third-party-recorded, 2 of 2 claims |  |
@@ -1059,12 +1059,13 @@ Internal operations:
 
 Behaviors chosen without AWS-recorded evidence, with the research they rest on and the parity scenario step that settles them, or why none does. The count and order follow the label the code states; the Label column shows the recording's verdict where a replayed step settles or contradicts the switch.
 
-110 switches: 1 aws-recorded, 1 third-party-recorded, 16 aws-doc, 92 inferred.
+110 switches: 1 aws-recorded, 2 third-party-recorded, 16 aws-doc, 91 inferred.
 
 | Switch | Value | Label | Reference | Settled by |
 |---|---|---|---|---|
 | `s3.encryption.after-delete` | `default-sse-s3` | aws-recorded | docs/research/s3-ssec-object-lock.md#2-what-the-repos-recordings-already-settled | none: s3/R06/02-get-encryption-after-delete.json is recorded; the replayer skips S3's REST requests |
 | `s3.object-lock.bypass-without-lock` | `refused` | third-party-recorded | docs/research/s3-ssec-object-lock.md#73-the-bypass-header-on-a-bucket-without-object-lock | none: unrecorded: S3SOL-23 is queued in docs/research/s3-ssec-object-lock.md 12 |
+| `sns.listing.pending-arn` | `PendingConfirmation` | third-party-recorded | docs/research/sns.md#34-listing | none: no project recording lists a pending subscription; third-party-recorded (sns-http-delivery.md 2.2) |
 | `cloudwatch.get-metric-data.start-rounding` | `by-age` | aws-doc | docs/research/secrets-logs-events-alarms.md#53-getmetricdata | none: unrecorded: no recording shows GetMetricData's period boundaries |
 | `events.bus-target.cross-account-role` | `required` | aws-doc | docs/research/eventbridge-buses.md#63-cross-account | none: unrecorded: EBB-09 (eventbridge-buses.md 12) records it |
 | `events.delete-bus.with-rules` | `rejected` | aws-doc | docs/research/eventbridge-buses.md#35-deleteeventbus | none: unrecorded: EBB-01 (eventbridge-buses.md 12) records it |
@@ -1165,7 +1166,6 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `sns.http.status-classes` | `retries-doc` | inferred | docs/research/sns-http-delivery.md#61-response-classes | none: unrecorded: the sns-http-delivery.md recording queue holds SNSH-05, SNSH-24 |
 | `sns.http.unsubscribe-confirmation` | `unauthenticated-only` | inferred | docs/research/sns-http-delivery.md#24-unsubscribing-and-the-unsubscribeconfirmation | none: unrecorded: the sns-http-delivery.md recording queue holds SNSH-15 |
 | `sns.lambda.attribute-type` | `as-published` | inferred | docs/research/sns.md#9-conflicts-between-sources | none: logs/R16/01-lambda-events.json is recorded; no scenario replays it, as the delivery runs a Lambda function under Docker |
-| `sns.listing.pending-arn` | `PendingConfirmation` | inferred | docs/research/sns.md#34-listing | none: unrecorded: no recording lists a pending subscription |
 | `sqs.batch.unset-visibility-timeout` | `zero` | inferred | docs/research/sqs.md#62-sendmessagebatch-and-the-other-batch-apis | none: unrecorded: sqs/R01#06-cmv-batch sets VisibilityTimeout on every entry |
 | `sqs.fifo.content-dedup-id` | `lowercase-hex-sha256` | inferred | docs/research/sqs.md#82-deduplication | none: sqs/R01#07-fifo-recv1 holds the value, but the step differs on JSON member order, so a claim there would read contradicted for another reason |
 | `sqs.fifo.duplicate` | `original-message-id-and-sequence` | inferred | docs/research/sqs.md#82-deduplication | none: unrecorded: no recording shows what a suppressed FIFO duplicate send answers |

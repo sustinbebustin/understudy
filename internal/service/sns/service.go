@@ -58,16 +58,16 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 // pendingInListings is how ListSubscriptions shows a pending
 // subscription: "PendingConfirmation" in place of the ARN (sns.md 3.4),
 // which a third-party recording shows for an email subscription
-// (sns-http-delivery.md 2.2). No project recording lists a pending
+// (sns-http-delivery.md 2.2, 8.3.5). No project recording lists a pending
 // subscription, so it stays a switch.
 func pendingInListings() fidelity.Switch[string] {
 	return fidelity.Switch[string]{
 		Name:    "sns.listing.pending-arn",
 		Value:   "PendingConfirmation",
-		Label:   evidence.Inferred,
+		Label:   evidence.ThirdPartyRecorded,
 		Ref:     "docs/research/sns.md#34-listing",
 		Ops:     []string{"sns.ListSubscriptions", "sns.ListSubscriptionsByTopic"},
-		Settles: fidelity.NoScenario{Reason: "unrecorded: no recording lists a pending subscription"},
+		Settles: fidelity.NoScenario{Reason: "no project recording lists a pending subscription; third-party-recorded (sns-http-delivery.md 2.2)"},
 	}
 }
 

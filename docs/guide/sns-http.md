@@ -220,7 +220,7 @@ Each prints `Verified OK`. The UnsubscribeConfirmation checked over `sns-validat
 
 ## Unsubscribing
 
-A GET of a Notification's `UnsubscribeURL` removes the subscription and sends it an UnsubscribeConfirmation. Its `Token` and `SubscribeURL` do not restore the subscription: whether AWS's do is not recorded, and understudy answers that token as it answers any unknown one:
+A GET of a Notification's `UnsubscribeURL` removes the subscription and sends it an UnsubscribeConfirmation. AWS documents that visiting that message's `SubscribeURL` re-confirms the subscription; understudy's `Token` and `SubscribeURL` do not restore it, a difference the `UnsubscribeLink` coverage note records. Whether AWS restores the same subscription ARN is not recorded. understudy answers that token as it answers any unknown one:
 
 ```sh
 aws sns confirm-subscription --topic-arn arn:aws:sns:us-east-1:000000000000:orders \
