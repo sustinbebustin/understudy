@@ -47,10 +47,12 @@ func checkSubscriptionDeliveryPolicy(policy document.Map) string {
 // counts at least 0 and a known backoffFunction. A constraint between two
 // members (minDelayTarget at most maxDelayTarget, the phase counts summing
 // to at most numRetries) applies when the policy gives both, since AWS
-// fills an absent member from a default that may differ. The numRetries
-// upper-bound text is AWS-recorded (ballerina topics-tests.bal); the
-// others follow its form and are inferred. A member that is not an integer
-// is left to AWS's unrecorded type checks.
+// fills an absent member from a default that may differ; a minDelayTarget
+// above 3600 is refused alone, since no maxDelayTarget can reach it. The
+// numRetries upper-bound text is AWS-recorded (ballerina topics-tests.bal);
+// the others follow its form and are inferred. A member that is not an
+// integer is left to AWS's unrecorded type checks, and delivery then takes
+// the system default's value for it (httpRetryPolicy).
 func checkRetryPolicy(path string, retry document.Map) string {
 	if retry == nil {
 		return ""
@@ -64,6 +66,8 @@ func checkRetryPolicy(path string, retry document.Map) string {
 		return atMost(path, "minDelayTarget", maxDelay)
 	case hasMax && maxDelay > maxDelayTargetSecond:
 		return atMost(path, "maxDelayTarget", maxDelayTargetSecond)
+	case hasMin && minDelay > maxDelayTargetSecond:
+		return atMost(path, "minDelayTarget", maxDelayTargetSecond)
 	}
 	retries, hasRetries := intMember(retry, "numRetries")
 	switch {

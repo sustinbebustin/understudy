@@ -36,6 +36,11 @@ const (
 )
 
 // bindSubscriptions binds the subscription lifecycle and listings.
+// Subscribe's note is sns-http-delivery.md 8.1's text. A DeliveryPolicy
+// passed to Subscribe applies as SetSubscriptionAttributes's does:
+// sicklyRetryPolicy and guaranteed are stored and echoed, never applied
+// (6.2, SNSH-18), and the 3,600-second total retry time is not checked
+// (httpRetryPolicy).
 func (s *Service) bindSubscriptions(b snsapi.Binder) {
 	b.Subscribe(s.subscribe, registry.Partial{Note: "sqs and lambda endpoints are delivered to, and their failed deliveries go to the RedrivePolicy queue; " +
 		"http and https endpoints get a signed SubscriptionConfirmation when their host and port are in sns.httpDelivery.allow, " +

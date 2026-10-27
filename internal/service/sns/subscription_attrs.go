@@ -36,6 +36,9 @@ const (
 )
 
 // bindSubscriptionAttributes binds Get and SetSubscriptionAttributes.
+// SetSubscriptionAttributes's note is sns-http-delivery.md 8.1's text; the
+// 3,600-second total retry time of an http or https policy is not checked
+// either (6.3, SNSH-18; httpRetryPolicy).
 func (s *Service) bindSubscriptionAttributes(b snsapi.Binder) {
 	b.GetSubscriptionAttributes(s.getSubscriptionAttributes, registry.Full{},
 		arnResource(func(in *snsapi.GetSubscriptionAttributesInput) string { return in.SubscriptionArn }))

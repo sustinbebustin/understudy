@@ -15,7 +15,8 @@ import (
 // 0 to 100, minDelayTarget 1 to maxDelayTarget, maxDelayTarget at most
 // 3600, phase counts at least 0 and summing to at most numRetries, and a
 // known backoffFunction. Constraints between two members apply when both
-// are given.
+// are given; minDelayTarget is at most 3600 alone, since it can be at most
+// a maxDelayTarget that is at most 3600.
 func TestRetryPolicyConstraints(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		var retry document.Map
@@ -41,7 +42,7 @@ func TestRetryPolicyConstraints(t *testing.T) {
 			retry = append(retry, document.Entry{Key: "backoffFunction", Value: document.String(backoff)})
 		}
 
-		valid := (!hasMin || minDelay >= 1) &&
+		valid := (!hasMin || (minDelay >= 1 && minDelay <= maxDelayTargetSecond)) &&
 			(!hasMax || maxDelay <= maxDelayTargetSecond) &&
 			(!hasMin || !hasMax || minDelay <= maxDelay) &&
 			(!hasRetries || (retries >= 0 && retries <= maxDeliveryRetries && phases <= retries)) &&

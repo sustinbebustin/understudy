@@ -14,7 +14,13 @@ import (
 	"github.com/sustinbebustin/understudy/internal/registry"
 )
 
-// bindTopics binds the topic control plane.
+// bindTopics binds the topic control plane. SetTopicAttributes's note is
+// sns-http-delivery.md 8.1's text. Of the http defaults in DeliveryPolicy,
+// defaultHealthyRetryPolicy, defaultThrottlePolicy and defaultRequestPolicy
+// apply; disableSubscriptionOverrides and defaultSicklyRetryPolicy are
+// stored and echoed, never applied, since what AWS does with them is
+// UNVERIFIED (6.2, SNSH-18, SNSH-19), and the 3,600-second total retry
+// time is not checked (httpRetryPolicy).
 func (s *Service) bindTopics(b snsapi.Binder) {
 	b.CreateTopic(s.createTopic, registry.Full{},
 		kernel.WithResources(func(c *kernel.Call, in *snsapi.CreateTopicInput) []aws.ARN {
