@@ -906,10 +906,10 @@ func TestLambdaDynamoDBStreamEventSourceMapping(t *testing.T) {
 	ctx := t.Context()
 	client := lambda.NewFromConfig(awsCfg)
 	ddb := dynamodb.NewFromConfig(awsCfg)
-	resultURL := createQueue(t, name("ddb-esm-result"), nil)
-	fn := deployFunction(t, name("ddb-esm"), "handler.forward", map[string]string{"FORWARD_QUEUE_URL": resultURL})
+	resultURL := createQueue(t, name(t, "ddb-esm-result"), nil)
+	fn := deployFunction(t, name(t, "ddb-esm"), "handler.forward", map[string]string{"FORWARD_QUEUE_URL": resultURL})
 	fnName := aws.ToString(fn.FunctionName)
-	tableName := name("ddb-esm")
+	tableName := name(t, "ddb-esm")
 	streamArn := aws.ToString(createStreamTable(t, tableName, ddbtypes.StreamViewTypeNewImage).LatestStreamArn)
 
 	t.Run("validation", func(t *testing.T) {

@@ -75,7 +75,7 @@ func TestDynamoDBStreams(t *testing.T) {
 	ctx := t.Context()
 	ddb := dynamodb.NewFromConfig(awsCfg)
 	streams := dynamodbstreams.NewFromConfig(awsCfg)
-	tableName := name("streamed")
+	tableName := name(t, "streamed")
 	desc := createStreamTable(t, tableName, types.StreamViewTypeNewAndOldImages)
 	streamArn, label := aws.ToString(desc.LatestStreamArn), aws.ToString(desc.LatestStreamLabel)
 
