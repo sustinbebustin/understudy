@@ -84,7 +84,7 @@ func settleEmulator(t *testing.T) {
 // statesRole creates a role Step Functions may assume.
 func statesRole(t *testing.T) string {
 	t.Helper()
-	return *createRole(t, name("sfn-role"), statesTrustPolicy).Arn
+	return *createRole(t, name(t, "sfn-role"), statesTrustPolicy).Arn
 }
 
 func createMachine(t *testing.T, client *sfn.Client, machineName, definition, role string) string {
@@ -139,7 +139,7 @@ func TestSFNStateMachineLifecycle(t *testing.T) {
 		t.Errorf("validate {} = %+v, want FAIL with the recorded diagnostic", invalid)
 	}
 
-	machineName := name("sfn-route")
+	machineName := name(t, "sfn-route")
 	machine := createMachine(t, client, machineName, routeMachine, role)
 	d, err := client.DescribeStateMachine(ctx, &sfn.DescribeStateMachineInput{StateMachineArn: aws.String(machine)})
 	ok(t, err, "DescribeStateMachine")
@@ -228,20 +228,20 @@ func TestSFNRefusals(t *testing.T) {
 	role := statesRole(t)
 
 	_, err := client.CreateStateMachine(ctx, &sfn.CreateStateMachineInput{
-		Name: aws.String(name("sfn-jsonata")), RoleArn: aws.String(role),
+		Name: aws.String(name(t, "sfn-jsonata")), RoleArn: aws.String(role),
 		Definition: aws.String(`{"QueryLanguage":"JSONata","StartAt":"P","States":{"P":{"Type":"Pass","End":true}}}`),
 	})
 	errAs[*types.InvalidDefinition](t, err, "CreateStateMachine JSONata")
 	wantMessageContains(t, err, "CreateStateMachine JSONata", "Invalid State Machine Definition: 'UNSUPPORTED_BY_UNDERSTUDY: ")
 
 	_, err = client.CreateStateMachine(ctx, &sfn.CreateStateMachineInput{
-		Name: aws.String(name("sfn-express")), RoleArn: aws.String(role),
+		Name: aws.String(name(t, "sfn-express")), RoleArn: aws.String(role),
 		Definition: aws.String(routeMachine), Type: types.StateMachineTypeExpress,
 	})
 	apiErr(t, err, "CreateStateMachine EXPRESS", "NotImplemented")
 	wantStatus(t, err, "CreateStateMachine EXPRESS", 501)
 
-	machine := createMachine(t, client, name("sfn-sync"), routeMachine, role)
+	machine := createMachine(t, client, name(t, "sfn-sync"), routeMachine, role)
 	_, err = client.StartSyncExecution(ctx, &sfn.StartSyncExecutionInput{StateMachineArn: aws.String(machine)}, func(o *sfn.Options) {
 		o.APIOptions = append(o.APIOptions, disableHostPrefix)
 	})
@@ -257,10 +257,10 @@ func TestSFNRefusals(t *testing.T) {
 func TestSFNLambdaTaskRetryAndCatch(t *testing.T) {
 	ctx := t.Context()
 	client := sfn.NewFromConfig(awsCfg)
-	failing := deployFunction(t, name("sfn-fail"), "handler.fail", nil)
-	echoing := deployFunction(t, name("sfn-echo"), "handler.echo", nil)
+	failing := deployFunction(t, name(t, "sfn-fail"), "handler.fail", nil)
+	echoing := deployFunction(t, name(t, "sfn-echo"), "handler.echo", nil)
 
-	roleName := name("sfn-task-role")
+	roleName := name(t, "sfn-task-role")
 	role := *createRole(t, roleName, statesTrustPolicy).Arn
 	iamClient := iam.NewFromConfig(awsCfg)
 	policy := fmt.Sprintf(`{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"lambda:InvokeFunction","Resource":[%q,%q]}]}`, *failing.FunctionArn, *echoing.FunctionArn)
@@ -275,7 +275,7 @@ func TestSFNLambdaTaskRetryAndCatch(t *testing.T) {
 			"Retry":[{"ErrorEquals":["States.ALL"],"IntervalSeconds":1,"MaxAttempts":1}],
 			"Catch":[{"ErrorEquals":["States.ALL"],"ResultPath":"$.error","Next":"Echo"}],"Next":"Echo"},
 		"Echo":{"Type":"Task","Resource":%q,"End":true}}}`, *failing.FunctionArn, *echoing.FunctionArn)
-	machine := createMachine(t, client, name("sfn-lambda"), definition, role)
+	machine := createMachine(t, client, name(t, "sfn-lambda"), definition, role)
 	started, err := client.StartExecution(ctx, &sfn.StartExecutionInput{StateMachineArn: aws.String(machine), Input: aws.String(`{"k":"v"}`)})
 	ok(t, err, "StartExecution")
 	settleEmulator(t)
