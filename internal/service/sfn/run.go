@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/api/sfnapi"
@@ -71,13 +72,49 @@ func (s *Service) advance(tx *kernel.Tx, st *State, ref executionRef, ev asl.Eve
 	if _, done := rec.Engine.Outcome(); !ok || done {
 		return nil
 	}
-	def, diags := asl.Parse(rec.Run.Definition, AcceptedFeatures())
-	if def == nil {
-		return definitionError(diags)
+	def, err := s.definitions.parse(rec.Run.Definition)
+	if err != nil {
+		return err
 	}
 	x, events, effects := asl.Step(def, EngineRules(), intrinsicSource{s.ids}, rec.Engine, ev)
 	s.record(tx, st, ref, rec, x, events, effects, at)
 	return nil
+}
+
+// maxParsed bounds the definitions parsedDefinitions keeps.
+const maxParsed = 256
+
+// parsedDefinitions keeps the definitions executions run, parsed, by their
+// text: advance steps an execution under its cell lock at every engine
+// event, and a stored definition never changes, so it is parsed once, not
+// at every Map iteration step. A Definition is immutable, so executions
+// share it. When full it starts again empty. mu is a leaf lock
+// (ARCHITECTURE.md 8, lock hierarchy).
+type parsedDefinitions struct {
+	mu   sync.Mutex
+	defs map[string]*asl.Definition
+}
+
+// parse parses definition with the accepted features, or answers
+// InvalidDefinition when it no longer parses.
+func (p *parsedDefinitions) parse(definition string) (*asl.Definition, *awserr.Error) {
+	p.mu.Lock()
+	def, ok := p.defs[definition]
+	p.mu.Unlock()
+	if ok {
+		return def, nil
+	}
+	def, diags := asl.Parse(definition, AcceptedFeatures())
+	if def == nil {
+		return nil, definitionError(diags)
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.defs == nil || len(p.defs) >= maxParsed {
+		p.defs = map[string]*asl.Definition{}
+	}
+	p.defs[definition] = def
+	return def, nil
 }
 
 // record stores into st what one engine Step did to the execution rec at

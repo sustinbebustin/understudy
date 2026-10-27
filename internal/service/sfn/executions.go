@@ -105,9 +105,9 @@ func (s *Service) startExecution(_ context.Context, c *kernel.Call, in *sfnapi.S
 			tx.Unchanged()
 			return startedExecution{arn: ref.arn().String(), started: old.Started}, nil
 		}
-		def, diags := asl.Parse(m.Definition, AcceptedFeatures())
-		if def == nil {
-			return startedExecution{}, definitionError(diags)
+		def, err := s.definitions.parse(m.Definition)
+		if err != nil {
+			return startedExecution{}, err
 		}
 		m.Tags = slices.Clone(m.Tags)
 		rec := Execution{Machine: m.Name, Name: name, Input: raw, TraceHeader: trace, Started: now, Run: m}

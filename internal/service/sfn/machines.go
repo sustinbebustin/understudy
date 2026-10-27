@@ -315,18 +315,19 @@ func (s *Service) deleteStateMachine(_ context.Context, c *kernel.Call, in *sfna
 			tx.Unchanged()
 			return struct{}{}, nil
 		}
-		if !hasRunning(st, m.Name) {
+		running, err := s.runningExecutions(st, ref)
+		if err != nil {
+			return struct{}{}, err
+		}
+		if len(running) == 0 {
 			delete(st.Machines, ref.name)
 			return struct{}{}, nil
 		}
 		m.Deleting = true
 		st.Machines[ref.name] = m
-		for _, key := range slices.Sorted(maps.Keys(st.Executions)) {
-			if rec := st.Executions[key]; rec.Machine == m.Name {
-				exec := executionRef{machine: ref, name: rec.Name}
-				if err := s.advance(tx, st, exec, asl.MachineDeleting{At: now.Wire()}, now); err != nil {
-					return struct{}{}, err
-				}
+		for _, exec := range running {
+			if err := s.advance(tx, st, exec, asl.MachineDeleting{At: now.Wire()}, now); err != nil {
+				return struct{}{}, err
 			}
 		}
 		return struct{}{}, nil
@@ -335,6 +336,25 @@ func (s *Service) deleteStateMachine(_ context.Context, c *kernel.Call, in *sfna
 		return nil, err
 	}
 	return &sfnapi.DeleteStateMachineOutput{}, nil
+}
+
+// runningExecutions lists the running executions of the machine ref in
+// name order. It validates first, so a delete can mutate last (ADR 0005):
+// a stored definition that no longer parses refuses the delete before any
+// execution learns of it.
+func (s *Service) runningExecutions(st *State, ref machineRef) ([]executionRef, *awserr.Error) {
+	var running []executionRef
+	for _, key := range slices.Sorted(maps.Keys(st.Executions)) {
+		rec := st.Executions[key]
+		if _, done := rec.Engine.Outcome(); rec.Machine != ref.name || done {
+			continue
+		}
+		if _, err := s.definitions.parse(rec.Run.Definition); err != nil {
+			return nil, err
+		}
+		running = append(running, executionRef{machine: ref, name: rec.Name})
+	}
+	return running, nil
 }
 
 // listStateMachines lists the machines by name as a string

@@ -24,6 +24,8 @@ type Service struct {
 	stepKind, expireKind, invokeKind kernel.HandledKind
 	// running are the Lambda tasks whose function is running.
 	running invocations
+	// definitions are the parsed definitions of running executions.
+	definitions parsedDefinitions
 }
 
 // New binds the Step Functions operations understudy implements and

@@ -1,6 +1,7 @@
 package sfn_test
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -100,6 +101,50 @@ func TestTimedOutExecutionOnTheWire(t *testing.T) {
 		timedOut := sfnapi.ExecutionStatusTimedOut
 		if got := must(h, sfnapi.OpListExecutions, &sfnapi.ListExecutionsInput{StateMachineArn: new(machine), StatusFilter: &timedOut}).Executions; len(got) != 1 || got[0].ExecutionArn != arn {
 			h.Errorf("TIMED_OUT filter = %+v", got)
+		}
+	})
+}
+
+// DeleteStateMachine validates before it changes anything (ADR 0005): when
+// a running execution's stored definition no longer parses, as one saved by
+// a build that accepted a construct this one refuses, the delete answers
+// InvalidDefinition and leaves the machine ACTIVE and every execution
+// running as before.
+func TestDeleteRefusedByAnUnparsableDefinitionChangesNothing(t *testing.T) {
+	run(t, func(h *harness) {
+		first := `{"StartAt":"W","States":{"W":{"Type":"Wait","Seconds":60,"End":true}}}`
+		second := `{"StartAt":"W","States":{"W":{"Type":"Wait","Seconds":61,"End":true}}}`
+		machine := h.create("m", first)
+		a := h.start(machine, "a", nil)
+		must(h, sfnapi.OpUpdateStateMachine, &sfnapi.UpdateStateMachineInput{StateMachineArn: machine, Definition: new(second)})
+		h.start(machine, "b", nil)
+		sections, err := h.svc.Export()
+		if err != nil {
+			h.Fatal(err)
+		}
+		// The second definition, as JSON text inside the section, becomes one
+		// this build refuses.
+		quoted := strings.ReplaceAll(second, `"`, `\"`)
+		refused := strings.ReplaceAll(strings.Replace(second, `"Wait"`, `"Bogus"`, 1), `"`, `\"`)
+		for i := range sections {
+			sections[i].Data = []byte(strings.ReplaceAll(string(sections[i].Data), quoted, refused))
+		}
+		h.svc.Reset(kernel.ResetScope{})
+		h.Kernel.Timers().Scheduler().Clear()
+		if err := h.svc.Import(sections); err != nil {
+			h.Fatal(err)
+		}
+		h.svc.Rearm(h.Clock.Now())
+		_, derr := call(h, sfnapi.OpDeleteStateMachine, &sfnapi.DeleteStateMachineInput{StateMachineArn: machine})
+		if derr == nil || derr.ID.Shape.Name() != "InvalidDefinition" {
+			h.Fatalf("delete = %+v, want InvalidDefinition", derr)
+		}
+		if d := must(h, sfnapi.OpDescribeStateMachine, &sfnapi.DescribeStateMachineInput{StateMachineArn: machine}); d.Status == nil || *d.Status != sfnapi.StateMachineStatusActive {
+			h.Errorf("machine status after the refused delete = %s, want ACTIVE", val((*string)(d.Status)))
+		}
+		h.advance(time.Minute)
+		if e := h.describeExecution(a); e.Status != sfnapi.ExecutionStatusSucceeded {
+			h.Errorf("execution a after its Wait = %s, want SUCCEEDED: the refused delete told it", e.Status)
 		}
 	})
 }
