@@ -542,7 +542,7 @@ func TestAddValidatesTheRuleShape(t *testing.T) {
 		{"mechanisms in the request phase", fault.Rule{Match: fault.Match{Mechanisms: []delivery.Mechanism{delivery.SNSToSQS}}, Phase: fault.Request, Action: fault.Latency{Wall: time.Second}, Trigger: fault.Always{}}, "match.mechanisms"},
 		{"operations in the delivery phase", fault.Rule{Match: ops(sendMessage), Phase: fault.Delivery, Action: fault.DropDelivery{}, Trigger: fault.Always{}}, "match.operations"},
 		{"mechanism landing outside the services", fault.Rule{Match: fault.Match{Services: []ref.ServiceID{"lambda"}, Mechanisms: []delivery.Mechanism{delivery.SNSToSQS}}, Phase: fault.Delivery, Action: fault.DropDelivery{}, Trigger: fault.Always{}}, "match.mechanisms"},
-		{"delivery to a service no mechanism targets", fault.Rule{Match: fault.Match{Services: []ref.ServiceID{"s3"}}, Phase: fault.Delivery, Action: fault.DropDelivery{}, Trigger: fault.Always{}}, "match.services"},
+		{"delivery to a service no mechanism targets", fault.Rule{Match: fault.Match{Services: []ref.ServiceID{"dynamodb"}}, Phase: fault.Delivery, Action: fault.DropDelivery{}, Trigger: fault.Always{}}, "match.services"},
 		{"error without a shape", fault.Rule{Match: ops(sendMessage), Phase: fault.Request, Action: fault.Error{}, Trigger: fault.Always{}}, "action.shape"},
 		{"message on a shape without one", fault.Rule{Match: ops(changeVisibility), Phase: fault.Request, Action: fault.Error{Shape: "MessageNotInflight", Message: "boom"}, Trigger: fault.Always{}}, "action.message"},
 		{"after-commit without a shape", fault.Rule{Match: ops(sendMessage), Phase: fault.Request, Action: fault.AfterCommit{}, Trigger: fault.Always{}}, "action.shape"},
@@ -573,7 +573,11 @@ func TestAddExplainsHowToFixTheRule(t *testing.T) {
 		rule fault.Rule
 		want string
 	}{
-		{"delivery from a source service", fault.Rule{Match: fault.Match{Services: []ref.ServiceID{"s3"}}, Phase: fault.Delivery, Action: fault.DropDelivery{}, Trigger: fault.Always{}}, "s3-to-sqs, s3-to-sns or s3-to-lambda"},
+		{
+			"delivery to a service no mechanism targets",
+			fault.Rule{Match: fault.Match{Services: []ref.ServiceID{"dynamodb"}}, Phase: fault.Delivery, Action: fault.DropDelivery{}, Trigger: fault.Always{}},
+			"no delivery lands in dynamodb, so the rule could never match; in the delivery phase match.services names the target, one of sqs, lambda, sns, eventbridge or s3",
+		},
 		{"error without a shape", fault.Rule{Match: fault.Match{Operations: []ref.OperationID{sendMessage}}, Phase: fault.Request, Action: fault.Error{}, Trigger: fault.Always{}}, "action.shape: is missing"},
 		{"missing phase", fault.Rule{Action: fault.Latency{Wall: time.Second}, Trigger: fault.Always{}}, `phase: is missing; set "phase" to request or delivery`},
 		{"unknown phase", fault.Rule{Phase: 7, Action: fault.Latency{Wall: time.Second}, Trigger: fault.Always{}}, `phase: 7 is not a phase; set "phase" to request or delivery`},
@@ -604,7 +608,7 @@ func TestAddAcceptsMatchesThatCanHit(t *testing.T) {
 	}{
 		{"mechanism landing in the services", fault.Match{Services: []ref.ServiceID{"sqs"}, Mechanisms: []delivery.Mechanism{delivery.SNSToSQS, delivery.EventsToSQS}}, fault.Delivery},
 		{"every mechanism without services", fault.Match{Mechanisms: []delivery.Mechanism{delivery.SNSToLambda, delivery.S3ToSNS}}, fault.Delivery},
-		{"delivery target services", fault.Match{Services: []ref.ServiceID{"sqs", "sns", "lambda"}}, fault.Delivery},
+		{"delivery target services", fault.Match{Services: []ref.ServiceID{"sqs", "sns", "lambda", "s3"}}, fault.Delivery},
 		{"full arn glob", fault.Match{Resource: fault.NewARNGlob("arn:aws:sqs:*:*:orders-*")}, fault.Request},
 		{"leading star", fault.Match{Resource: fault.NewARNGlob("*:orders-*")}, fault.Request},
 		{"question mark in the prefix", fault.Match{Resource: fault.NewARNGlob("a?n:*")}, fault.Request},

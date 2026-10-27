@@ -297,10 +297,9 @@ func checkMechanisms(r Rule) *RuleError {
 }
 
 // checkDeliveryTarget rejects svc in a delivery-phase match.services when no
-// mechanism delivers to it, pointing to the mechanisms that deliver from it
-// when it is a source; a mechanism's wire name is "<source>-to-<target>".
+// mechanism delivers to it, listing the services some mechanism delivers to.
 func checkDeliveryTarget(r Rule, svc ref.ServiceID) *RuleError {
-	var targets, from []string
+	var targets []string
 	for _, m := range delivery.Mechanisms() {
 		if m.Target() == svc {
 			return nil
@@ -309,16 +308,9 @@ func checkDeliveryTarget(r Rule, svc ref.ServiceID) *RuleError {
 		if t := string(m.Target()); t != "" && !slices.Contains(targets, t) {
 			targets = append(targets, t)
 		}
-		if name := m.String(); strings.HasPrefix(name, string(svc)+"-to-") {
-			from = append(from, name)
-		}
 	}
-	e := reject(r, "match.services", "no delivery lands in %s, so the rule could never match; in the delivery phase match.services names the target, one of %s",
+	return reject(r, "match.services", "no delivery lands in %s, so the rule could never match; in the delivery phase match.services names the target, one of %s",
 		svc, orList(targets))
-	if len(from) > 0 {
-		e.Reason += fmt.Sprintf("; to select deliveries from %s use match.mechanisms %s", svc, orList(from))
-	}
-	return e
 }
 
 // orList joins items as "a, b or c".

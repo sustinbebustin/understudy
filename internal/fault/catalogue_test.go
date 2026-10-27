@@ -175,6 +175,8 @@ func (testCatalogue) Throttle(svc ref.ServiceID) awserr.Identity {
 		return slowDown()
 	case "sns":
 		return awserr.ThrottlingException()
+	case "dynamodb":
+		return dynamoDBThrottling()
 	default:
 		return awserr.Identity{}
 	}
