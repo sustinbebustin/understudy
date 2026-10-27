@@ -9,6 +9,7 @@ Task-oriented pages. Each command shown was run against a build of this reposito
 | [SDKs and the AWS CLI](sdks.md) | Go v2, boto3, JS v3 and the CLI, S3 addressing, TLS, Go tests with `understudytest` |
 | [Terraform](terraform.md) | The provider block, a plan that stays empty, what is slow and why |
 | [Lambda](lambda.md) | Runtimes, zip and image functions, hot reload, networking, logs, event sources, function URLs |
+| [DynamoDB Streams](streams.md) | Stream-enabled tables, reading records, Lambda mappings with retries and on-failure destinations, iterator expiry and trimming on the emulator clock |
 | [API Gateway HTTP APIs](apigateway.md) | APIs, routes, Lambda proxy integrations with payload 1.0 and 2.0, stages and deployments, the execute-api host and path, Terraform |
 | [SNS HTTP delivery](sns-http.md) | The allow-list, retries and dead letters, https endpoints, validating signatures with AWS's validators and openssl |
 | [The clock](clock.md) | Freeze, advance, scale; what runs on emulator time and what does not |

@@ -293,6 +293,7 @@ While a binding is active it wins over `UpdateFunctionCode`; the update is store
 ## Event sources and triggers
 
 - **SQS event source mappings**: batch size, batching window (on the emulator clock), filter criteria, `ReportBatchItemFailures` and redrive to the queue's dead-letter queue after `maxReceiveCount`, as AWS does them.
+- **DynamoDB stream event source mappings**: `TRIM_HORIZON` or `LATEST`, batch size, batching window, `MaximumRetryAttempts`, `MaximumRecordAgeInSeconds`, `ReportBatchItemFailures` and an SQS or SNS on-failure destination; see [DynamoDB Streams](streams.md). Kinesis streams answer 501.
 - **SNS subscriptions** with `protocol lambda` invoke asynchronously with the `Records[0].Sns` event.
 - **EventBridge rules**, schedules included, invoke their Lambda targets; schedules fire on the emulator clock.
 - **S3 event notifications** invoke functions asynchronously.
