@@ -26,6 +26,7 @@ const (
 	pidsLimit   = 1024
 	nofileLimit = 1024
 	taskRoot    = "/var/task"
+	optRoot     = "/opt"
 )
 
 // Architecture is a Lambda instruction set architecture.
@@ -99,7 +100,7 @@ type ZipCode struct {
 	// Opt is the absolute host path of the function's merged layer tree,
 	// which reaches /opt read-only (lambda-destinations-layers.md 8.1,
 	// 11.5); "" when the function has no layers, which leaves the image's
-	// /opt alone. Not read yet: environments get no /opt.
+	// /opt alone.
 	Opt string
 }
 
@@ -177,6 +178,9 @@ func (s Spec) validate() error {
 		}
 		if c.Handler == "" {
 			return &SpecError{Field: "Code", Reason: "zip code needs a handler: the runtime image's entrypoint requires exactly one argument"}
+		}
+		if c.Opt != "" && !filepath.IsAbs(c.Opt) {
+			return &SpecError{Field: "Code", Reason: fmt.Sprintf("layer directory %q is not absolute", c.Opt)}
 		}
 	case ImageCode:
 	case nil:
@@ -303,6 +307,9 @@ func containerSpec(s Spec, slot Slot, labels map[string]string, addrs topology.A
 		switch d.(type) {
 		case bindMount:
 			host.Mounts = append(host.Mounts, docker.Mount{Type: "bind", Source: c.Dir, Target: taskRoot, ReadOnly: true})
+			if c.Opt != "" {
+				host.Mounts = append(host.Mounts, docker.Mount{Type: "bind", Source: c.Opt, Target: optRoot, ReadOnly: true})
+			}
 			host.ReadonlyRootfs = true
 		case tarCopy:
 		}

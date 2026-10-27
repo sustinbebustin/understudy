@@ -222,13 +222,13 @@ func (l *Launcher) fallBackToCopy(ctx context.Context, spec Spec, refused error)
 		slog.String("dir", dir), slog.String("error", refused.Error()))
 }
 
-// prepare copies code when bind mounts are unavailable, registers the
-// container for exit watching and starts it.
+// prepare copies code and layers when bind mounts are unavailable,
+// registers the container for exit watching and starts it.
 func (l *Launcher) prepare(ctx context.Context, c Container, spec Spec, d delivery) error {
 	if code, ok := spec.Code.(ZipCode); ok {
 		if _, copyCode := d.(tarCopy); copyCode {
-			if err := l.copyCode(ctx, c.ID, code.Dir); err != nil {
-				return fmt.Errorf("launch %s: copy code: %w", c.Name, err)
+			if err := l.copyTrees(ctx, c, code); err != nil {
+				return err
 			}
 		}
 	}
@@ -240,6 +240,21 @@ func (l *Launcher) prepare(ctx context.Context, c Container, spec Spec, d delive
 	}
 	if err := l.markStarted(c.ID); err != nil {
 		return fmt.Errorf("launch %s: watch for exit: %w", c.Name, err)
+	}
+	return nil
+}
+
+// copyTrees copies the code to /var/task and then, when the function has
+// layers, their merged tree to /opt.
+func (l *Launcher) copyTrees(ctx context.Context, c Container, code ZipCode) error {
+	if err := l.copyCode(ctx, c.ID, code.Dir); err != nil {
+		return fmt.Errorf("launch %s: copy code: %w", c.Name, err)
+	}
+	if code.Opt == "" {
+		return nil
+	}
+	if err := l.copyOpt(ctx, c.ID, code.Opt); err != nil {
+		return fmt.Errorf("launch %s: copy layers to /opt: %w", c.Name, err)
 	}
 	return nil
 }
