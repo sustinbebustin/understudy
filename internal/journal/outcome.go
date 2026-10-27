@@ -221,6 +221,11 @@ const (
 	// out a function response that is not JSON, whose rendering AWS has not
 	// been recorded (lambda-destinations-layers.md 11.4).
 	AdvisoryRecordResponseOmitted
+	// AdvisoryAsyncEventAbandoned: a queued asynchronous invocation was
+	// dropped with no record and no dead letter because its function or
+	// qualifier was deleted while it waited (lambda-destinations-layers.md
+	// 11.3.4).
+	AdvisoryAsyncEventAbandoned
 
 	// endAdvisoryKind follows the last value and is no advisory kind:
 	// ParseAdvisoryKind, MarshalText and the AdvisoryKindError text count
@@ -245,6 +250,8 @@ func (k AdvisoryKind) String() string {
 		return "schedule-fires-skipped"
 	case AdvisoryRecordResponseOmitted:
 		return "record-response-omitted"
+	case AdvisoryAsyncEventAbandoned:
+		return "async-event-abandoned"
 	default:
 		return fmt.Sprintf("AdvisoryKind(%d)", uint8(k))
 	}

@@ -1,11 +1,13 @@
 package lambda_test
 
 import (
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/api/lambdaapi"
 	"github.com/sustinbebustin/understudy/internal/delivery"
+	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 )
 
@@ -87,6 +89,32 @@ func TestFailedEventWithoutDestinationsDeliversNothing(t *testing.T) {
 		h.settle()
 		if got := h.sink.lambda(); len(got) != 0 {
 			h.Errorf("deliveries = %+v, want none", got)
+		}
+	})
+}
+
+// An event whose function is deleted while it waits for a retry is dropped
+// with no record and a journal entry naming its request id
+// (lambda-destinations-layers.md 11.3.4).
+func TestFunctionDeletedWhileQueuedIsJournaled(t *testing.T) {
+	s := newScript()
+	runDestinations(t, s.handle, func(h *destHarness) {
+		t := h.T
+		h.createWithDLQ()
+		h.configure("", 2, successQueue, failureQueue)
+		h.invoke(fnEvent(`{"action":"fail"}`))
+		h.settle()
+		request := string(s.invoked()[0].RequestID)
+		call(h.harness, lambdaapi.OpDeleteFunction, &lambdaapi.DeleteFunctionInput{FunctionName: "fn"})
+		h.advance(10 * time.Minute)
+		var found []journal.Advisory
+		for _, e := range h.Journal.Query(journal.Filter{Kind: journal.KindAdvisory, Limit: 10}).Events {
+			if a, ok := e.Detail.(journal.Advisory); ok && a.Kind == journal.AdvisoryAsyncEventAbandoned {
+				found = append(found, a)
+			}
+		}
+		if len(found) != 1 || found[0].Resource.String() != fnUnqualified || !strings.Contains(found[0].Text, request) {
+			t.Errorf("async-event-abandoned advisories = %+v, want one on %s naming request %s", found, fnUnqualified, request)
 		}
 	})
 }

@@ -452,6 +452,14 @@ func (x *Execution) settleAsync(ctx context.Context, c *kernel.Call, scope aws.S
 			s = x.sendRecords(tx, scope, ev, cfg, now, p.condition, p.invocation)
 		case abandoned:
 			delete(q.Events, string(request))
+			// Dropped with no record and a journal entry: the configuration
+			// naming its destinations went with the function
+			// (lambda-destinations-layers.md 11.3.4).
+			tx.Record(scope, journal.Advisory{
+				Kind: journal.AdvisoryAsyncEventAbandoned, Resource: invokedARN(functionRef{scope: scope, name: ev.Function, qualifier: ev.Qualifier}),
+				Text: "Lambda dropped the asynchronous invocation " + string(request) + " with no record and no dead letter: " + p.reason +
+					", and its destinations' configuration went with it (lambda-destinations-layers.md 11.3.4)",
+			})
 		}
 		return outcome{plan: plan, event: ev, sent: s}, nil
 	})

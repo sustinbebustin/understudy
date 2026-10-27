@@ -20,6 +20,8 @@ var advisoryKindNames = []struct {
 	{AdvisoryCrossRegionServed, "cross-region-served"},
 	{AdvisoryFilterUndecided, "filter-undecided"},
 	{AdvisoryScheduleFiresSkipped, "schedule-fires-skipped"},
+	{AdvisoryRecordResponseOmitted, "record-response-omitted"},
+	{AdvisoryAsyncEventAbandoned, "async-event-abandoned"},
 }
 
 // declaredAdvisoryKinds walks the kinds from the first until String falls
