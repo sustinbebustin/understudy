@@ -2,8 +2,10 @@ package apigatewayv2
 
 import (
 	"fmt"
+	"maps"
 	"slices"
 
+	"github.com/sustinbebustin/understudy/internal/api/apigatewayv2api"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/protocol/jsonx"
@@ -63,10 +65,12 @@ type API struct {
 	IPAddressType string            `json:"ipAddressType"`
 	Tags          map[string]string `json:"tags,omitempty"`
 	Created       clock.Instant     `json:"created"`
-	Routes        []Route           `json:"routes"`
-	Integrations  []Integration     `json:"integrations"`
-	Stages        []Stage           `json:"stages"`
-	Deployments   []Deployment      `json:"deployments"`
+	// NextChild is the Seq the next route or integration of the API gets.
+	NextChild    uint64        `json:"nextChild"`
+	Routes       []Route       `json:"routes"`
+	Integrations []Integration `json:"integrations"`
+	Stages       []Stage       `json:"stages"`
+	Deployments  []Deployment  `json:"deployments"`
 }
 
 // CORS is an API's CORS configuration, kept as sent: a nil list was not
@@ -81,24 +85,116 @@ type CORS struct {
 	MaxAge           *int32   `json:"maxAge,omitzero"`
 }
 
-// Route is one route of an API.
+// Route is one route of an API. The members after Authorization act only
+// on WebSocket APIs (apigateway-http.md 3.2): they are stored and echoed
+// without effect, as Terraform reads them back.
 type Route struct {
 	ID string `json:"id"`
+	// Seq orders the API's routes by creation, as GetRoutes pages them.
+	Seq uint64 `json:"seq"`
 	// Key is the route key as sent, which route.ParseKey accepted.
 	Key string `json:"key"`
 	// Integration is the id of the integration the route targets
 	// ("integrations/<id>"); empty for a route without a target.
 	Integration string `json:"integration,omitempty"`
+	// Authorization is NONE or AWS_IAM. JWT and CUSTOM name authorizers,
+	// which understudy does not emulate, so no route holds them; a request
+	// an AWS_IAM route matches answers 501.
+	Authorization                    apigatewayv2api.AuthorizationType `json:"authorization"`
+	APIKeyRequired                   bool                              `json:"apiKeyRequired"`
+	ModelSelectionExpression         *string                           `json:"modelSelectionExpression,omitzero"`
+	OperationName                    *string                           `json:"operationName,omitzero"`
+	RequestModels                    map[string]string                 `json:"requestModels,omitzero"`
+	RequestParameters                map[string]RouteParameter         `json:"requestParameters,omitzero"`
+	RouteResponseSelectionExpression *string                           `json:"routeResponseSelectionExpression,omitzero"`
 }
 
-// Integration is a Lambda proxy integration (AWS_PROXY with no subtype)
-// of payload format 2.0, the only kind stored yet.
+// RouteParameter is a route request parameter's constraints, as sent.
+type RouteParameter struct {
+	Required *bool `json:"required,omitzero"`
+}
+
+// clone is a copy of the route with maps of its own.
+func (r *Route) clone() Route {
+	c := *r
+	c.RequestModels = maps.Clone(r.RequestModels)
+	c.RequestParameters = maps.Clone(r.RequestParameters)
+	return c
+}
+
+// Integration is one integration of an API, as stored with the defaults
+// AWS fills (apigateway-http.md 3.3). Only a Lambda proxy integration
+// (AWS_PROXY without a subtype) of payload format 2.0 runs; a request that
+// reaches any other answers 501 (Integration.unemulated).
 type Integration struct {
 	ID string `json:"id"`
-	// URI is the IntegrationUri as sent: a function ARN or API Gateway's
-	// invoke URI wrapping one (lambdaFunction).
-	URI                  string `json:"uri"`
-	PayloadFormatVersion string `json:"payloadFormatVersion"`
+	// Seq orders the API's integrations by creation, as GetIntegrations
+	// pages them.
+	Seq uint64 `json:"seq"`
+	// Type is AWS_PROXY or HTTP_PROXY, the two an HTTP API takes.
+	Type    apigatewayv2api.IntegrationType `json:"type"`
+	Subtype *string                         `json:"subtype,omitzero"`
+	// URI is the IntegrationUri as sent: for a Lambda integration a
+	// function ARN, API Gateway's invoke URI wrapping one
+	// (lambdaFunction), or text referencing a stage variable.
+	URI *string `json:"uri,omitzero"`
+	// Method is the IntegrationMethod: as sent, or POST for a Lambda
+	// integration that sent none.
+	Method               *string                        `json:"method,omitzero"`
+	PayloadFormatVersion string                         `json:"payloadFormatVersion"`
+	ConnectionType       apigatewayv2api.ConnectionType `json:"connectionType"`
+	ConnectionID         *string                        `json:"connectionId,omitzero"`
+	CredentialsARN       *string                        `json:"credentialsArn,omitzero"`
+	Description          *string                        `json:"description,omitzero"`
+	TimeoutInMillis      int32                          `json:"timeoutInMillis"`
+	// RequestParameters and ResponseParameters are as sent, byte for byte
+	// (apigateway-http.md 3.3).
+	RequestParameters  map[string]string            `json:"requestParameters,omitzero"`
+	ResponseParameters map[string]map[string]string `json:"responseParameters,omitzero"`
+	// TLSConfig is stored without effect: it configures private
+	// integrations, which answer 501.
+	TLSConfig *TLSConfig `json:"tlsConfig,omitzero"`
+}
+
+// TLSConfig is an integration's TLS configuration, as sent.
+type TLSConfig struct {
+	ServerNameToVerify *string `json:"serverNameToVerify,omitzero"`
+}
+
+// clone is a copy of the integration with maps of its own.
+func (i *Integration) clone() Integration {
+	c := *i
+	c.RequestParameters = maps.Clone(i.RequestParameters)
+	c.ResponseParameters = cloneResponseParameters(i.ResponseParameters)
+	return c
+}
+
+// cloneResponseParameters copies response parameters, each status's
+// mappings included; nil stays nil.
+func cloneResponseParameters(p map[string]map[string]string) map[string]map[string]string {
+	if p == nil {
+		return nil
+	}
+	out := make(map[string]map[string]string, len(p))
+	for status, m := range p {
+		out[status] = maps.Clone(m)
+	}
+	return out
+}
+
+// cloned copies each of xs with its clone method; nil stays nil.
+func cloned[T any, P interface {
+	*T
+	clone() T
+}](xs []T) []T {
+	if xs == nil {
+		return nil
+	}
+	out := make([]T, len(xs))
+	for i := range xs {
+		out[i] = P(&xs[i]).clone()
+	}
+	return out
 }
 
 // Stage is one stage of an API.
@@ -117,8 +213,9 @@ type Stage struct {
 
 // Deployment is a snapshot of an API's routes and integrations at its
 // creation, which a stage serves (apigateway-http.md finding 7). Its
-// slices are copies that no write changes afterwards; a member that adds
-// a map or a slice to Route or Integration must be copied deeply here.
+// slices are deep copies (cloned) that no write changes afterwards; a map
+// or a slice added to Route or Integration must be copied by its clone
+// method.
 type Deployment struct {
 	ID           string        `json:"id"`
 	AutoDeployed bool          `json:"autoDeployed"`
@@ -139,6 +236,13 @@ func (a *API) integration(id string) (Integration, bool) {
 		return Integration{}, false
 	}
 	return a.Integrations[i], true
+}
+
+// nextChild is the Seq of a new route or integration, which it takes.
+func (a *API) nextChild() uint64 {
+	seq := a.NextChild
+	a.NextChild++
+	return seq
 }
 
 // stage finds the stage name names.
@@ -189,7 +293,7 @@ func (a *API) deployTo(i int, now clock.Instant, newID func() string) {
 	}
 	a.Deployments = append(slices.Clone(a.Deployments), Deployment{
 		ID: id, AutoDeployed: true, Description: autoDeployDescription, Created: now,
-		Routes: slices.Clone(a.Routes), Integrations: slices.Clone(a.Integrations),
+		Routes: cloned(a.Routes), Integrations: cloned(a.Integrations),
 	})
 	a.Stages = slices.Clone(a.Stages)
 	a.Stages[i].Deployment = id

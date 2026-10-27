@@ -184,14 +184,56 @@ func (a *API) selectRoute(owner aws.Scope, addr address, method string, origin b
 	if rt.Integration == "" {
 		return answered{RouteMatchingSwitch().Value.NoTarget}
 	}
+	if rt.Authorization == apigatewayv2api.AuthorizationTypeAwsIam {
+		// AWS evaluates execute-api:Invoke for the caller here
+		// (apigateway-http.md 8.3); serving the request unchecked would fake
+		// that.
+		return unemulated{fmt.Sprintf("understudy does not evaluate IAM authorization of requests: route %q of API %s has authorizationType AWS_IAM, "+
+			"so no integration ran and nothing was changed. Set the route's authorizationType to NONE.", rt.Key, a.ID)}
+	}
 	j := slices.IndexFunc(d.Integrations, func(x Integration) bool { return x.ID == rt.Integration })
 	if j < 0 {
 		return corrupt{fmt.Errorf("apigatewayv2: route %s of deployment %s of API %s targets integration %s, which the deployment does not hold", rt.ID, d.ID, a.ID, rt.Integration)}
 	}
+	integration := d.Integrations[j]
+	if what, instead := integration.unemulated(); what != "" {
+		return unemulated{fmt.Sprintf("understudy does not run %s: route %q of API %s targets integration %s, so no integration ran and nothing was changed. %s",
+			what, rt.Key, a.ID, integration.ID, instead)}
+	}
 	return toFunction{
 		owner: owner, apiID: a.ID, stage: stage.Name, key: key, routeKey: rt.Key,
-		rawPath: addr.path, params: m.PathParameters, integration: d.Integrations[j],
+		rawPath: addr.path, params: m.PathParameters, integration: integration,
 	}
+}
+
+// unemulated names what of the integration understudy cannot run as AWS
+// would, and what to change instead; what is "" for a Lambda proxy
+// integration of payload format 2.0 with nothing a request would need
+// applied (the unit's scope: these are stored and answer 501 when a
+// request reaches them).
+func (i *Integration) unemulated() (what, instead string) {
+	switch {
+	case i.Type == apigatewayv2api.IntegrationTypeHttpProxy:
+		return "HTTP proxy integrations (integrationType HTTP_PROXY)", "Target a Lambda proxy integration (AWS_PROXY) instead."
+	case i.Subtype != nil:
+		return "AWS service integrations (integrationSubtype " + *i.Subtype + ")", "Target a Lambda proxy integration that calls the service instead."
+	case i.ConnectionType == apigatewayv2api.ConnectionTypeVpcLink:
+		return "private integrations (connectionType VPC_LINK)", "Target a Lambda proxy integration with connectionType INTERNET instead."
+	case deref(i.CredentialsARN, "") != "":
+		// An empty credentialsArn names no role: it is what Terraform sends
+		// to remove one (apigateway-http.md 9.3).
+		return "integration credentials (credentialsArn)",
+			"Remove the integration's credentialsArn and let API Gateway invoke the function through its resource policy (lambda add-permission)."
+	case len(i.RequestParameters) > 0:
+		return "parameter mapping (requestParameters)", "Remove the integration's requestParameters."
+	case len(i.ResponseParameters) > 0:
+		return "parameter mapping (responseParameters)", "Remove the integration's responseParameters."
+	case i.URI != nil && strings.Contains(*i.URI, stageVariableRef):
+		return "stage variables in integrationUri", "Name the function in the integration's integrationUri."
+	case i.PayloadFormatVersion == payloadV1:
+		return "payload format 1.0 yet", "Use payloadFormatVersion 2.0."
+	}
+	return "", ""
 }
 
 // refuse is how the API's own settings answer a request before any stage
@@ -261,9 +303,10 @@ func (d *Deployment) table() (route.Table, error) {
 // policy check, the payload format 2.0 event, the synchronous invocation
 // and the response read from its output.
 func (s *Service) invokeFunction(ctx context.Context, c *kernel.Call, r *http.Request, w http.ResponseWriter, t toFunction, body []byte, requestID string) *awserr.Error {
-	fn, ok := lambdaFunction(t.integration.URI)
+	uri := deref(t.integration.URI, "")
+	fn, ok := lambdaFunction(uri)
 	if !ok {
-		return awserr.Internalf(fmt.Errorf("apigatewayv2: integration %s of API %s holds URI %q, which CreateIntegration could not have accepted", t.integration.ID, t.apiID, t.integration.URI))
+		return awserr.Internalf(fmt.Errorf("apigatewayv2: integration %s of API %s holds URI %q, which CreateIntegration could not have accepted", t.integration.ID, t.apiID, uri))
 	}
 	fnScope, serr := aws.ScopeOf(fn)
 	if serr != nil {

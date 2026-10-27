@@ -39,6 +39,15 @@ func childCollection[In any](apiID func(*In) string, sub string) func(*kernel.Ca
 	}
 }
 
+// childItem is the kernel.WithResources resolver of a call on one resource
+// under an API, /apis/<api-id>/<sub>/<id> (apigateway-http.md 8.1).
+func childItem[In any](ids func(*In) (apiID, id string), sub string) func(*kernel.Call, *In) []aws.ARN {
+	return func(c *kernel.Call, in *In) []aws.ARN {
+		apiID, id := ids(in)
+		return []aws.ARN{resourceARN(c.Scope(), "/apis/"+apiID+"/"+sub+"/"+id)}
+	}
+}
+
 // tagsResource is the kernel.WithResources resolver of a tag operation:
 // /tags/<the resource ARN percent-encoded> (apigateway-http.md 8.1, the
 // form REST APIs document; for HTTP APIs the form, which bytes are encoded

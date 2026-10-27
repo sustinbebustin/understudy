@@ -58,19 +58,22 @@ const (
 		"corsConfiguration is stored and returned, and a data-plane request with an Origin header to an API that has one answers 501 (CORS is not applied); " +
 		"ipAddressType is stored without effect; " +
 		"ApiEndpoint names the emulator (http://<api-id>.execute-api.<region>.localhost:<port>), not amazonaws.com"
-	createRouteNote = "only a route key, authorizationType NONE and an optional target are accepted; " +
-		"every other member answers NotImplemented; " +
-		"a change deploys to the autoDeploy stages before the call returns (UNVERIFIED delay, APIGW2-04)"
-	createIntegrationNote = "only Lambda AWS_PROXY with payloadFormatVersion 2.0 and a function ARN or invoke URI is accepted, and the output omits the documented defaults; " +
-		"HTTP_PROXY, payload format 1.0, a stage variable in the URI and every other member answer NotImplemented; " +
-		"a change deploys to the autoDeploy stages before the call returns (UNVERIFIED delay, APIGW2-04)"
+	routeNote = "authorizationType JWT and CUSTOM answer NotImplemented (authorizers are not emulated); " +
+		"a route with AWS_IAM is stored and a request it matches answers 501; " +
+		"WebSocket-only members are stored and echoed without effect"
+	integrationNote = "Lambda AWS_PROXY with payload 2.0 runs; " +
+		"a Lambda integration of payload 1.0, integration subtypes, HTTP_PROXY and VPC_LINK connections are stored and a request that reaches them answers 501; " +
+		"a Lambda integration with credentialsArn, requestParameters, responseParameters or a stage variable in its URI is stored and a request that reaches it answers 501; " +
+		"timeoutInMillis is stored without effect (a request waits for the function however long it runs); " +
+		"tlsConfig is stored without effect"
 	createStageNote = "only stageName, autoDeploy and tags are accepted, and the output omits the documented defaults; " +
 		"every other member answers NotImplemented; an automatic deployment completes before the call returns (UNVERIFIED delay, APIGW2-04)"
 	invokeAPINote = "Lambda AWS_PROXY with payload format 2.0 through the path fallback /_understudy/execute-api/<api-id>/ only " +
 		"(the execute-api host answers 501); stage and route selection as documented; " +
 		"where the documents leave the order of two matching routes open it is inferred (APIGW2-05): " +
 		"a full match on ANY before a greedy match on the method, the greedy route with more segments before its variable first, then the leftmost literal segment; " +
-		"CORS requests (an Origin header to an API with a corsConfiguration) answer 501; " +
+		"AWS_IAM routes, CORS requests (an Origin header to an API with a corsConfiguration), payload format 1.0 and integrations other than Lambda AWS_PROXY answer 501, " +
+		"as does a Lambda integration with credentialsArn, requestParameters, responseParameters or a stage variable in its URI; " +
 		"the integration timeout is not applied; " +
 		"inferred, UNVERIFIED: the gateway's own answers and their status (APIGW2-05, APIGW2-06, APIGW2-10, APIGW2-11), " +
 		"the 2.0 isBase64Encoded of a bodyless request and default Content-Type (APIGW2-07, APIGW2-09)"
@@ -111,10 +114,26 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 		kernel.WithResources(tagsResource(func(in *apigatewayv2api.UntagResourceInput) string { return in.ResourceArn })))
 	b.GetTags(s.getTags, registry.Partial{Note: baseNote},
 		kernel.WithResources(tagsResource(func(in *apigatewayv2api.GetTagsInput) string { return in.ResourceArn })))
-	b.CreateRoute(s.createRoute, partial(createRouteNote),
+	b.CreateRoute(s.createRoute, partial(routeNote), kernel.WithCheck(checkCreateRoute),
 		kernel.WithResources(childCollection(func(in *apigatewayv2api.CreateRouteInput) string { return in.ApiId }, "routes")))
-	b.CreateIntegration(s.createIntegration, partial(createIntegrationNote),
+	b.GetRoutes(s.getRoutes, registry.Partial{Note: baseNote},
+		kernel.WithResources(childCollection(func(in *apigatewayv2api.GetRoutesInput) string { return in.ApiId }, "routes")))
+	b.GetRoute(s.getRoute, registry.Partial{Note: baseNote},
+		kernel.WithResources(childItem(func(in *apigatewayv2api.GetRouteInput) (string, string) { return in.ApiId, in.RouteId }, "routes")))
+	b.UpdateRoute(s.updateRoute, partial(routeNote), kernel.WithCheck(checkUpdateRoute),
+		kernel.WithResources(childItem(func(in *apigatewayv2api.UpdateRouteInput) (string, string) { return in.ApiId, in.RouteId }, "routes")))
+	b.DeleteRoute(s.deleteRoute, registry.Partial{Note: baseNote},
+		kernel.WithResources(childItem(func(in *apigatewayv2api.DeleteRouteInput) (string, string) { return in.ApiId, in.RouteId }, "routes")))
+	b.CreateIntegration(s.createIntegration, partial(integrationNote), kernel.WithCheck(checkCreateIntegration),
 		kernel.WithResources(childCollection(func(in *apigatewayv2api.CreateIntegrationInput) string { return in.ApiId }, "integrations")))
+	b.GetIntegrations(s.getIntegrations, registry.Partial{Note: baseNote},
+		kernel.WithResources(childCollection(func(in *apigatewayv2api.GetIntegrationsInput) string { return in.ApiId }, "integrations")))
+	b.GetIntegration(s.getIntegration, registry.Partial{Note: baseNote},
+		kernel.WithResources(childItem(func(in *apigatewayv2api.GetIntegrationInput) (string, string) { return in.ApiId, in.IntegrationId }, "integrations")))
+	b.UpdateIntegration(s.updateIntegration, partial(integrationNote), kernel.WithCheck(checkUpdateIntegration),
+		kernel.WithResources(childItem(func(in *apigatewayv2api.UpdateIntegrationInput) (string, string) { return in.ApiId, in.IntegrationId }, "integrations")))
+	b.DeleteIntegration(s.deleteIntegration, registry.Partial{Note: baseNote},
+		kernel.WithResources(childItem(func(in *apigatewayv2api.DeleteIntegrationInput) (string, string) { return in.ApiId, in.IntegrationId }, "integrations")))
 	b.CreateStage(s.createStage, partial(createStageNote),
 		kernel.WithResources(childCollection(func(in *apigatewayv2api.CreateStageInput) string { return in.ApiId }, "stages")))
 	b.InvokeApi(s.invoke, registry.Partial{Note: invokeAPINote})

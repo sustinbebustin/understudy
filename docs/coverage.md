@@ -117,7 +117,7 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 
 | Service | Operations | Full | Stored only | Partial | Unbound | Internal | Raw |
 |---|---|---|---|---|---|---|---|
-| apigatewayv2 | 103 | 0 | 0 | 12 | 91 | 0 | 1 |
+| apigatewayv2 | 103 | 0 | 0 | 20 | 83 | 0 | 1 |
 | cloudwatch | 55 | 1 | 2 | 9 | 43 | 0 | 0 |
 | dynamodb | 58 | 6 | 2 | 18 | 32 | 0 | 0 |
 | eventbridge | 57 | 6 | 3 | 13 | 35 | 0 | 0 |
@@ -136,17 +136,25 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | Operation | Status | Evidence | Note |
 |---|---|---|---|
 | CreateApi | partial | unassessed | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03); HTTP APIs only: protocolType WEBSOCKET and quick create (Target, RouteKey, CredentialsArn) answer NotImplemented; corsConfiguration is stored and returned, and a data-plane request with an Origin header to an API that has one answers 501 (CORS is not applied); ipAddressType is stored without effect; ApiEndpoint names the emulator (http://<api-id>.execute-api.<region>.localhost:<port>), not amazonaws.com |
-| CreateIntegration | partial | unassessed | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03); only Lambda AWS_PROXY with payloadFormatVersion 2.0 and a function ARN or invoke URI is accepted, and the output omits the documented defaults; HTTP_PROXY, payload format 1.0, a stage variable in the URI and every other member answer NotImplemented; a change deploys to the autoDeploy stages before the call returns (UNVERIFIED delay, APIGW2-04) |
-| CreateRoute | partial | unassessed | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03); only a route key, authorizationType NONE and an optional target are accepted; every other member answers NotImplemented; a change deploys to the autoDeploy stages before the call returns (UNVERIFIED delay, APIGW2-04) |
+| CreateIntegration | partial | unassessed | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03); Lambda AWS_PROXY with payload 2.0 runs; a Lambda integration of payload 1.0, integration subtypes, HTTP_PROXY and VPC_LINK connections are stored and a request that reaches them answers 501; a Lambda integration with credentialsArn, requestParameters, responseParameters or a stage variable in its URI is stored and a request that reaches it answers 501; timeoutInMillis is stored without effect (a request waits for the function however long it runs); tlsConfig is stored without effect |
+| CreateRoute | partial | unassessed | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03); authorizationType JWT and CUSTOM answer NotImplemented (authorizers are not emulated); a route with AWS_IAM is stored and a request it matches answers 501; WebSocket-only members are stored and echoed without effect |
 | CreateStage | partial | inferred, 1 of 1 claim | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03); only stageName, autoDeploy and tags are accepted, and the output omits the documented defaults; every other member answers NotImplemented; an automatic deployment completes before the call returns (UNVERIFIED delay, APIGW2-04) |
 | DeleteApi | partial | unassessed | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03) |
 | DeleteCorsConfiguration | partial | unassessed | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03) |
+| DeleteIntegration | partial | unassessed | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03) |
+| DeleteRoute | partial | unassessed | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03) |
 | GetApi | partial | unassessed | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03) |
 | GetApis | partial | unassessed | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03) |
+| GetIntegration | partial | unassessed | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03) |
+| GetIntegrations | partial | unassessed | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03) |
+| GetRoute | partial | unassessed | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03) |
+| GetRoutes | partial | unassessed | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03) |
 | GetTags | partial | unassessed | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03) |
 | TagResource | partial | unassessed | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03) |
 | UntagResource | partial | unassessed | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03) |
 | UpdateApi | partial | unassessed | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03); HTTP APIs only: protocolType WEBSOCKET and quick create (Target, RouteKey, CredentialsArn) answer NotImplemented; corsConfiguration is stored and returned, and a data-plane request with an Origin header to an API that has one answers 501 (CORS is not applied); ipAddressType is stored without effect; ApiEndpoint names the emulator (http://<api-id>.execute-api.<region>.localhost:<port>), not amazonaws.com |
+| UpdateIntegration | partial | unassessed | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03); Lambda AWS_PROXY with payload 2.0 runs; a Lambda integration of payload 1.0, integration subtypes, HTTP_PROXY and VPC_LINK connections are stored and a request that reaches them answers 501; a Lambda integration with credentialsArn, requestParameters, responseParameters or a stage variable in its URI is stored and a request that reaches it answers 501; timeoutInMillis is stored without effect (a request waits for the function however long it runs); tlsConfig is stored without effect |
+| UpdateRoute | partial | unassessed | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03); authorizationType JWT and CUSTOM answer NotImplemented (authorizers are not emulated); a route with AWS_IAM is stored and a request it matches answers 501; WebSocket-only members are stored and echoed without effect |
 | CreateApiMapping | unbound | unassessed |  |
 | CreateAuthorizer | unbound | unassessed |  |
 | CreateDeployment | unbound | unassessed |  |
@@ -165,7 +173,6 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | DeleteAuthorizer | unbound | unassessed |  |
 | DeleteDeployment | unbound | unassessed |  |
 | DeleteDomainName | unbound | unassessed |  |
-| DeleteIntegration | unbound | unassessed |  |
 | DeleteIntegrationResponse | unbound | unassessed |  |
 | DeleteModel | unbound | unassessed |  |
 | DeletePortal | unbound | unassessed |  |
@@ -173,7 +180,6 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | DeletePortalProductSharingPolicy | unbound | unassessed |  |
 | DeleteProductPage | unbound | unassessed |  |
 | DeleteProductRestEndpointPage | unbound | unassessed |  |
-| DeleteRoute | unbound | unassessed |  |
 | DeleteRouteRequestParameter | unbound | unassessed |  |
 | DeleteRouteResponse | unbound | unassessed |  |
 | DeleteRouteSettings | unbound | unassessed |  |
@@ -190,10 +196,8 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | GetDeployments | unbound | unassessed |  |
 | GetDomainName | unbound | unassessed |  |
 | GetDomainNames | unbound | unassessed |  |
-| GetIntegration | unbound | unassessed |  |
 | GetIntegrationResponse | unbound | unassessed |  |
 | GetIntegrationResponses | unbound | unassessed |  |
-| GetIntegrations | unbound | unassessed |  |
 | GetModel | unbound | unassessed |  |
 | GetModelTemplate | unbound | unassessed |  |
 | GetModels | unbound | unassessed |  |
@@ -202,10 +206,8 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | GetPortalProductSharingPolicy | unbound | unassessed |  |
 | GetProductPage | unbound | unassessed |  |
 | GetProductRestEndpointPage | unbound | unassessed |  |
-| GetRoute | unbound | unassessed |  |
 | GetRouteResponse | unbound | unassessed |  |
 | GetRouteResponses | unbound | unassessed |  |
-| GetRoutes | unbound | unassessed |  |
 | GetRoutingRule | unbound | unassessed |  |
 | GetStage | unbound | unassessed |  |
 | GetStages | unbound | unassessed |  |
@@ -227,14 +229,12 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | UpdateAuthorizer | unbound | unassessed |  |
 | UpdateDeployment | unbound | unassessed |  |
 | UpdateDomainName | unbound | unassessed |  |
-| UpdateIntegration | unbound | unassessed |  |
 | UpdateIntegrationResponse | unbound | unassessed |  |
 | UpdateModel | unbound | unassessed |  |
 | UpdatePortal | unbound | unassessed |  |
 | UpdatePortalProduct | unbound | unassessed |  |
 | UpdateProductPage | unbound | unassessed |  |
 | UpdateProductRestEndpointPage | unbound | unassessed |  |
-| UpdateRoute | unbound | unassessed |  |
 | UpdateRouteResponse | unbound | unassessed |  |
 | UpdateStage | unbound | unassessed |  |
 | UpdateVpcLink | unbound | unassessed |  |
@@ -243,7 +243,7 @@ Raw operations:
 
 | Operation | Status | Evidence | Note |
 |---|---|---|---|
-| InvokeApi | partial | inferred, 5 of 5 claims | Lambda AWS_PROXY with payload format 2.0 through the path fallback /_understudy/execute-api/<api-id>/ only (the execute-api host answers 501); stage and route selection as documented; where the documents leave the order of two matching routes open it is inferred (APIGW2-05): a full match on ANY before a greedy match on the method, the greedy route with more segments before its variable first, then the leftmost literal segment; CORS requests (an Origin header to an API with a corsConfiguration) answer 501; the integration timeout is not applied; inferred, UNVERIFIED: the gateway's own answers and their status (APIGW2-05, APIGW2-06, APIGW2-10, APIGW2-11), the 2.0 isBase64Encoded of a bodyless request and default Content-Type (APIGW2-07, APIGW2-09) |
+| InvokeApi | partial | inferred, 5 of 5 claims | Lambda AWS_PROXY with payload format 2.0 through the path fallback /_understudy/execute-api/<api-id>/ only (the execute-api host answers 501); stage and route selection as documented; where the documents leave the order of two matching routes open it is inferred (APIGW2-05): a full match on ANY before a greedy match on the method, the greedy route with more segments before its variable first, then the leftmost literal segment; AWS_IAM routes, CORS requests (an Origin header to an API with a corsConfiguration), payload format 1.0 and integrations other than Lambda AWS_PROXY answer 501, as does a Lambda integration with credentialsArn, requestParameters, responseParameters or a stage variable in its URI; the integration timeout is not applied; inferred, UNVERIFIED: the gateway's own answers and their status (APIGW2-05, APIGW2-06, APIGW2-10, APIGW2-11), the 2.0 isBase64Encoded of a bodyless request and default Content-Type (APIGW2-07, APIGW2-09) |
 
 ### cloudwatch
 

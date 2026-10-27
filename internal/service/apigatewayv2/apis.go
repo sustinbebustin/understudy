@@ -270,6 +270,25 @@ func writeAPI[R any](s *Service, c *kernel.Call, id string, fn func(a *API, now 
 	return r, err
 }
 
+// readAPI runs fn on the API id of scope without creating its cell; an id
+// the scope does not hold is NotFoundException. What fn returns must not
+// alias the state.
+func readAPI[R any](s *Service, scope aws.Scope, id string, fn func(a *API) (R, *awserr.Error)) (R, *awserr.Error) {
+	type answer struct {
+		r   R
+		err *awserr.Error
+	}
+	got := readState(s, scope, func(st *State) answer {
+		a, ok := st.APIs[id]
+		if !ok {
+			return answer{err: errAPINotFound(scope, id)}
+		}
+		r, err := fn(&a)
+		return answer{r, err}
+	})
+	return got.r, got.err
+}
+
 // output is the API as GetApi answers it, with the ApiEndpoint of the
 // endpoint the client addressed (apigateway-http.md 3.1, 9.1): Tags,
 // DisableExecuteApiEndpoint and IpAddressType always, CorsConfiguration,
