@@ -165,9 +165,9 @@ func TestAddRefusesServicesBesideSNSToHTTP(t *testing.T) {
 	}
 	// And the drop rule's list of delivery target services does not list
 	// an empty target.
-	_, err = newStore(1).Add(fault.Rule{Match: fault.Match{Services: []ref.ServiceID{"s3"}}, Phase: fault.Delivery, Action: fault.DropDelivery{}, Trigger: fault.Always{}})
+	_, err = newStore(1).Add(fault.Rule{Match: fault.Match{Services: []ref.ServiceID{"dynamodb"}}, Phase: fault.Delivery, Action: fault.DropDelivery{}, Trigger: fault.Always{}})
 	if err == nil || strings.Contains(err.Reason, `""`) || strings.Contains(err.Reason, ", ,") {
-		t.Errorf("Add(drop for s3) = %v, want a refusal listing only real target services", err)
+		t.Errorf("Add(drop for dynamodb) = %v, want a refusal listing only real target services", err)
 	}
 }
 
