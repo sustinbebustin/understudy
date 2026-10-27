@@ -58,6 +58,7 @@ There is one file per service, named after it, so that one person can own and fi
 | `lambda_test.go` | Lambda |
 | `lambda_layers_test.go` | Lambda layers and asynchronous invocation destinations |
 | `dynamodb_test.go` | DynamoDB |
+| `dynamodbstreams_test.go` | DynamoDB Streams |
 | `cloudwatchlogs_test.go` | CloudWatch Logs |
 | `secretsmanager_test.go` | Secrets Manager |
 | `kms_test.go` | KMS |

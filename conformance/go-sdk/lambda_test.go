@@ -13,12 +13,15 @@ import (
 	"net/http"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	ddbtypes "github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/aws/aws-sdk-go-v2/service/lambda"
 	"github.com/aws/aws-sdk-go-v2/service/lambda/types"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
@@ -890,5 +893,100 @@ func TestLambdaSQSEventSourceMapping(t *testing.T) {
 			var nf *types.ResourceNotFoundException
 			return errors.As(err, &nf), err.Error()
 		})
+	})
+}
+
+// A DynamoDB stream mapping: the refusals of lambda-stream-sources.md 3.3
+// rows 1 and 4, the create shape of 3.5 (third-party-recorded
+// LS-D:L246-L271), and a written item reaching the function as a stream
+// record (dynamodb-streams.md 7.8; LS-D:L2-L101).
+func TestLambdaDynamoDBStreamEventSourceMapping(t *testing.T) {
+	requireDynamoDB(t)
+	t.Parallel()
+	ctx := t.Context()
+	client := lambda.NewFromConfig(awsCfg)
+	ddb := dynamodb.NewFromConfig(awsCfg)
+	resultURL := createQueue(t, name("ddb-esm-result"), nil)
+	fn := deployFunction(t, name("ddb-esm"), "handler.forward", map[string]string{"FORWARD_QUEUE_URL": resultURL})
+	fnName := aws.ToString(fn.FunctionName)
+	tableName := name("ddb-esm")
+	streamArn := aws.ToString(createStreamTable(t, tableName, ddbtypes.StreamViewTypeNewImage).LatestStreamArn)
+
+	t.Run("validation", func(t *testing.T) {
+		_, err := client.CreateEventSourceMapping(ctx, &lambda.CreateEventSourceMappingInput{FunctionName: aws.String(fnName), EventSourceArn: aws.String(streamArn)})
+		errAs[*types.InvalidParameterValueException](t, err, "CreateEventSourceMapping without StartingPosition")
+		wantMessage(t, err, "CreateEventSourceMapping without StartingPosition", "1 validation error detected: Value null at 'startingPosition' failed to satisfy constraint: Member must not be null.")
+		missing := strings.Replace(streamArn, "/stream/", "x/stream/", 1)
+		_, err = client.CreateEventSourceMapping(ctx, &lambda.CreateEventSourceMappingInput{FunctionName: aws.String(fnName), EventSourceArn: aws.String(missing), StartingPosition: types.EventSourcePositionTrimHorizon})
+		errAs[*types.InvalidParameterValueException](t, err, "CreateEventSourceMapping on a missing stream")
+		wantMessage(t, err, "CreateEventSourceMapping on a missing stream", "Stream not found: "+missing)
+	})
+
+	created, err := client.CreateEventSourceMapping(ctx, &lambda.CreateEventSourceMappingInput{
+		FunctionName: aws.String(fnName), EventSourceArn: aws.String(streamArn), StartingPosition: types.EventSourcePositionTrimHorizon,
+	})
+	ok(t, err, "CreateEventSourceMapping")
+	uuid := aws.ToString(created.UUID)
+	t.Cleanup(func() {
+		_, _ = client.DeleteEventSourceMapping(context.Background(), &lambda.DeleteEventSourceMappingInput{UUID: aws.String(uuid)})
+	})
+	if aws.ToInt32(created.BatchSize) != 100 || aws.ToBool(created.BisectBatchOnFunctionError) || created.DestinationConfig == nil || created.DestinationConfig.OnFailure == nil ||
+		created.DestinationConfig.OnFailure.Destination != nil || aws.ToString(created.LastProcessingResult) != "No records processed" ||
+		aws.ToInt32(created.MaximumRecordAgeInSeconds) != -1 || aws.ToInt32(created.MaximumRetryAttempts) != -1 || aws.ToInt32(created.ParallelizationFactor) != 1 ||
+		created.StartingPosition != types.EventSourcePositionTrimHorizon || aws.ToString(created.StateTransitionReason) != "User action" ||
+		aws.ToInt32(created.TumblingWindowInSeconds) != 0 || created.FunctionResponseTypes == nil {
+		t.Errorf("CreateEventSourceMapping = %+v, want the recorded stream defaults", created)
+	}
+	eventually(t, time.Minute, 500*time.Millisecond, "the mapping to be Enabled", func() (bool, string) {
+		got, err := client.GetEventSourceMapping(ctx, &lambda.GetEventSourceMappingInput{UUID: aws.String(uuid)})
+		if err != nil {
+			return false, err.Error()
+		}
+		return aws.ToString(got.State) == "Enabled", "State " + aws.ToString(got.State)
+	})
+
+	_, err = ddb.PutItem(ctx, &dynamodb.PutItemInput{TableName: aws.String(tableName), Item: map[string]ddbtypes.AttributeValue{"id": ddbS("hello")}})
+	ok(t, err, "PutItem")
+	type record struct {
+		EventID        string `json:"eventID"`
+		EventName      string `json:"eventName"`
+		EventVersion   string `json:"eventVersion"`
+		EventSource    string `json:"eventSource"`
+		AwsRegion      string `json:"awsRegion"`
+		EventSourceARN string `json:"eventSourceARN"`
+		Dynamodb       struct {
+			ApproximateCreationDateTime float64
+			Keys                        map[string]map[string]string
+			NewImage                    map[string]map[string]string
+			SequenceNumber              string
+			StreamViewType              string
+		} `json:"dynamodb"`
+	}
+	var got []record
+	deadline := time.Now().Add(60 * time.Second)
+	for len(got) == 0 && time.Now().Before(deadline) {
+		for _, m := range drain(t, resultURL, 2*time.Second) {
+			var ev struct{ Records []record }
+			if err := json.Unmarshal([]byte(aws.ToString(m.Body)), &ev); err != nil {
+				t.Fatalf("the function received %s, want a DynamoDB stream event", aws.ToString(m.Body))
+			}
+			got = append(got, ev.Records...)
+		}
+	}
+	if len(got) != 1 {
+		t.Fatalf("the function received %d records, want the one PutItem's", len(got))
+	}
+	r := got[0]
+	if r.EventName != "INSERT" || r.EventVersion != "1.1" || r.EventSource != "aws:dynamodb" || r.AwsRegion != region() || r.EventSourceARN != streamArn || r.EventID == "" ||
+		r.Dynamodb.Keys["id"]["S"] != "hello" || r.Dynamodb.NewImage["id"]["S"] != "hello" || r.Dynamodb.StreamViewType != "NEW_IMAGE" || r.Dynamodb.SequenceNumber == "" ||
+		len(strconv.FormatInt(int64(r.Dynamodb.ApproximateCreationDateTime), 10)) != 10 {
+		t.Errorf("stream record = %+v", r)
+	}
+	eventually(t, 30*time.Second, 500*time.Millisecond, "LastProcessingResult OK", func() (bool, string) {
+		got, err := client.GetEventSourceMapping(ctx, &lambda.GetEventSourceMappingInput{UUID: aws.String(uuid)})
+		if err != nil {
+			return false, err.Error()
+		}
+		return aws.ToString(got.LastProcessingResult) == "OK", "LastProcessingResult " + aws.ToString(got.LastProcessingResult)
 	})
 }
