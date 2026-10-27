@@ -3,6 +3,7 @@ package sfn
 import (
 	"context"
 	"slices"
+	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/api/sfnapi"
 	"github.com/sustinbebustin/understudy/internal/awserr"
@@ -11,6 +12,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/protocol/jsonx"
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy/document"
+	"github.com/sustinbebustin/understudy/internal/ruler"
 	"github.com/sustinbebustin/understudy/internal/service/sfn/asl"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
@@ -22,26 +24,41 @@ type startedExecution struct {
 }
 
 // executionInput parses StartExecution's input: omitted is {}
-// (stepfunctions-api.md 6.1). The empty string answers the recorded text;
-// any other input that is not JSON answers it too, where AWS answers its
-// parser's text (inferred, SFN-08).
+// (stepfunctions-api.md 6.1). The empty string answers the recorded
+// 'Invalid execution input.'. Input that is not JSON answers Jackson's text
+// for the two recorded kinds of error, an unrecognized token and a field
+// name without its double quote (stepfunctions-api.md 6.1; aws-recorded
+// localstack@8b9a79f v2/test_sfn_api.snapshot.json:L402-L445), and the
+// empty-string text for every other kind (inferred, SFN-08).
 func executionInput(in *string) (string, document.Value, *awserr.Error) {
 	if in == nil {
 		return "{}", document.Map{}, nil
 	}
-	invalid := sfnapi.ErrInvalidExecutionInput("Invalid State Machine Execution Input: 'Invalid execution input.'")
+	invalid := func(message string) *awserr.Error {
+		return sfnapi.ErrInvalidExecutionInput("Invalid State Machine Execution Input: '" + message + "'")
+	}
 	if *in == "" {
-		return "", nil, invalid
+		return "", nil, invalid("Invalid execution input.")
 	}
 	d := jsonx.NewDecoder([]byte(*in))
 	v, err := d.ReadValue()
 	if err == nil {
 		err = d.End()
 	}
-	if err != nil {
-		return "", nil, invalid
+	if err == nil {
+		return *in, v, nil
 	}
-	return *in, v, nil
+	if message, ok := ruler.SyntaxError([]byte(*in)); ok && recordedSyntaxError(message) {
+		return "", nil, invalid(message)
+	}
+	return "", nil, invalid("Invalid execution input.")
+}
+
+// recordedSyntaxError reports whether a Jackson syntax error is of a kind
+// AWS was recorded answering with its text (stepfunctions-api.md 6.1).
+func recordedSyntaxError(message string) bool {
+	return strings.HasPrefix(message, "Unrecognized token '") ||
+		strings.HasPrefix(message, "Unexpected character (") && strings.HasSuffix(message, "): was expecting double-quote to start field name")
 }
 
 // startExecution starts a Standard execution. The same name and input as a
@@ -173,7 +190,7 @@ func (s *Service) describeExecution(_ context.Context, c *kernel.Call, in *sfnap
 		ExecutionArn:    ref.arn().String(),
 		StateMachineArn: ref.machine.arn().String(),
 		Name:            new(rec.Name),
-		Status:          sfnapi.ExecutionStatusRunning,
+		Status:          statusOf(rec.Engine),
 		StartDate:       rec.Started.Wire(),
 		Input:           new(rec.Input),
 		InputDetails:    &sfnapi.CloudWatchEventsExecutionDataDetails{Included: true},
@@ -188,19 +205,19 @@ func (s *Service) describeExecution(_ context.Context, c *kernel.Call, in *sfnap
 	outcome, _ := rec.Engine.Outcome()
 	switch o := outcome.(type) {
 	case asl.Succeeded:
-		out.Status = sfnapi.ExecutionStatusSucceeded
 		out.Output = new(docText(o.Output))
 		out.OutputDetails = &sfnapi.CloudWatchEventsExecutionDataDetails{Included: true}
 		out.RedriveStatus = new(sfnapi.ExecutionRedriveStatusNotRedrivable)
 		out.RedriveStatusReason = new("Execution is SUCCEEDED and cannot be redriven")
 	case asl.Failed:
-		out.Status = sfnapi.ExecutionStatusFailed
+		// A failed Standard execution is REDRIVABLE (stepfunctions-asl.md
+		// 12; aws-recorded localstack@8b9a79f
+		// v2/base/test_base.snapshot.json:L184-L199).
 		out.Error, out.Cause = optional(o.Error), optional(o.Cause)
+		out.RedriveStatus = new(sfnapi.ExecutionRedriveStatusRedrivable)
 	case asl.TimedOut:
-		out.Status = sfnapi.ExecutionStatusTimedOut
 		out.Error, out.Cause = optional(o.Error), optional(o.Cause)
 	case asl.Aborted:
-		out.Status = sfnapi.ExecutionStatusAborted
 		out.Error, out.Cause = optional(o.Error), optional(o.Cause)
 	}
 	return out, nil

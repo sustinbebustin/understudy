@@ -6,9 +6,11 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/sustinbebustin/understudy/internal/api/sfnapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
+	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/service/sfn/asl"
 )
@@ -49,7 +51,8 @@ func timerOf(id string) (executionRef, asl.TimerID, bool) {
 
 // record keeps what one engine Step did to the execution rec at at: the
 // new engine state, the events it wrote, and its effects as timers armed
-// and disarmed in tx and the stop instant.
+// and disarmed in tx and the stop instant. An execution that ends is
+// journaled as a StateChange from RUNNING to its status.
 func (s *Service) record(tx *kernel.Tx, ref executionRef, rec *Execution, x asl.Execution, events []asl.HistoryEvent, effects []asl.Effect, at clock.Instant) {
 	rec.Engine = x
 	// Appending in place is safe: the stored slice's length does not cover
@@ -65,6 +68,11 @@ func (s *Service) record(tx *kernel.Tx, ref executionRef, rec *Execution, x asl.
 			tx.Disarm(s.step, timerID(ref, e.Timer))
 		case asl.Finish:
 			rec.Stopped = at
+			tx.Record(ref.machine.scope, journal.StateChange{
+				Resource: ref.arn(),
+				From:     journal.ResourceState(sfnapi.ExecutionStatusRunning),
+				To:       journal.ResourceState(statusOf(x)),
+			})
 		case asl.InvokeLambda:
 			// No built state invokes Lambda yet; Parse refuses Task states.
 		}
