@@ -27,14 +27,19 @@ func (s *Service) Export() ([]store.Section, error) {
 	return s.cells.Export(store.ScopeKeys(), stateVersion)
 }
 
-// Import loads sections written by Export of this schema version.
+// Import loads sections written by Export of this schema version. Every
+// running invocation is forgotten, so Rearm invokes each task in flight in
+// the loaded state again (the StartExecution coverage note).
 func (s *Service) Import(ss []store.Section) error {
+	s.running.drop(func(aws.Scope) bool { return true })
 	return s.cells.Import(store.ScopeKeys(), stateVersion, ss)
 }
 
-// Reset drops the scopes rs covers.
+// Reset drops the scopes rs covers, and the running invocations of their
+// executions.
 func (s *Service) Reset(rs kernel.ResetScope) {
 	s.cells.Reset(func(k aws.Scope) bool { return !rs.Covers(k) })
+	s.running.drop(rs.Covers)
 }
 
 // Rearm arms the engine timers of every running execution, an invocation

@@ -22,6 +22,8 @@ type Service struct {
 	// stepKind, expireKind and invokeKind are TimerStep, TimerExpire and
 	// TimerInvoke as registered with the kernel.
 	stepKind, expireKind, invokeKind kernel.HandledKind
+	// running are the Lambda tasks whose function is running.
+	running invocations
 }
 
 // New binds the Step Functions operations understudy implements and

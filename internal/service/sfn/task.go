@@ -3,9 +3,11 @@ package sfn
 import (
 	"context"
 	"log/slog"
+	"maps"
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/api/lambdaapi"
@@ -25,6 +27,55 @@ import (
 // coverage note). The key's ID is "<execution ARN>/<TaskID>". Arming it in
 // the step's write means a committed step always gets its invocation.
 const TimerInvoke kernel.TimerKind = "sfn.invoke"
+
+// invocations are the Lambda tasks whose function is running, by taskKey,
+// so a TimerInvoke that a Rearm armed again does not invoke one twice. Each
+// claim has its own token, so an invocation that ends after a reset or a
+// load dropped its claim never frees a newer one. mu is a leaf lock
+// (ARCHITECTURE.md 8, lock hierarchy).
+type invocations struct {
+	mu     sync.Mutex
+	tokens uint64
+	keys   map[string]invocationClaim
+}
+
+type invocationClaim struct {
+	token uint64
+	scope aws.Scope
+}
+
+// claim records key as running in scope; false when it already is.
+func (r *invocations) claim(key string, scope aws.Scope) (token uint64, free bool) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, running := r.keys[key]; running {
+		return 0, false
+	}
+	if r.keys == nil {
+		r.keys = map[string]invocationClaim{}
+	}
+	r.tokens++
+	r.keys[key] = invocationClaim{token: r.tokens, scope: scope}
+	return r.tokens, true
+}
+
+// release ends the claim token on key, if it still holds it.
+func (r *invocations) release(key string, token uint64) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.keys[key].token == token {
+		delete(r.keys, key)
+	}
+}
+
+// drop forgets the claims whose scope covers reports true: their
+// executions are gone, and one started again under the same name invokes
+// its own task.
+func (r *invocations) drop(covers func(aws.Scope) bool) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	maps.DeleteFunc(r.keys, func(_ string, c invocationClaim) bool { return covers(c.scope) })
+}
 
 // taskKey is the TimerInvoke ID of task of the execution exec.
 func taskKey(exec executionRef, task asl.TaskID) string {
@@ -66,8 +117,26 @@ func (s *Service) onInvoke(c *kernel.Call, key clock.TimerKey, _ clock.Instant) 
 	if !got.ok {
 		return
 	}
+	id := taskKey(exec, asl.TaskID(n))
+	claim, free := s.running.claim(id, exec.machine.scope)
+	if !free {
+		// Its function is still running: a Rearm after a reset or a clock
+		// restart re-arms every task in flight.
+		return
+	}
+	// Drawn here, in timer order, not in the goroutine, so a seeded run
+	// gives the same ids whatever order concurrent invocations run in
+	// (ADR 0018).
+	requestID := string(s.ids.RequestID())
 	s.k.Go(kernel.InvocationRunning, func(ctx context.Context) {
-		answer := s.invokeTask(ctx, c, exec, got.role, got.invoke)
+		defer s.running.release(id, claim)
+		answer := s.invokeTask(ctx, c, exec, got.role, got.invoke, requestID)
+		if ctx.Err() != nil {
+			// The kernel is stopping: the invocation was cut short, not
+			// answered. The task stays in flight, so the final checkpoint
+			// saves it and a load invokes it again.
+			return
+		}
 		if _, ok := s.cells.Lookup(exec.machine.scope); !ok {
 			// A reset dropped the execution while the function ran.
 			return
@@ -87,8 +156,7 @@ func (s *Service) onInvoke(c *kernel.Call, key clock.TimerKey, _ clock.Instant) 
 // given the instant the result is applied at. A Lambda service error is
 // named by switch sfn.integration.lambda-error; a function error by the
 // payload's errorType with the payload as cause (stepfunctions-asl.md 8.1).
-func (s *Service) invokeTask(ctx context.Context, c *kernel.Call, exec executionRef, role string, inv asl.InvokeLambda) func(at time.Time) asl.Event {
-	requestID := string(s.ids.RequestID())
+func (s *Service) invokeTask(ctx context.Context, c *kernel.Call, exec executionRef, role string, inv asl.InvokeLambda, requestID string) func(at time.Time) asl.Event {
 	failed := func(e asl.StateError) func(time.Time) asl.Event {
 		return func(at time.Time) asl.Event { return asl.LambdaFailed{At: at, Task: inv.Task, Err: e} }
 	}
