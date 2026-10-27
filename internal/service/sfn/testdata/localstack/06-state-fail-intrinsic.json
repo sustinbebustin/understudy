@@ -1,0 +1,24 @@
+{
+  "golden": 6,
+  "source": "localstack@8b9a79f tests/aws/services/stepfunctions/v2/base/test_base.snapshot.json:L126",
+  "test": "test_state_fail_intrinsic (get_execution_history)",
+  "validated": "2024-02-07",
+  "definitionSource": "localstack@8b9a79f tests/aws/services/stepfunctions/templates/base/statemachines/raise_failure_path_intrinsic.json5",
+  "definition": {
+    "Comment": "RAISE_FAILURE_PATH_INTRINSIC",
+    "StartAt": "FailState",
+    "States": {
+      "FailState": {
+        "Type": "Fail",
+        "ErrorPath": "States.Format('{}', $.Error)",
+        "CausePath": "States.Format('This is a custom error message for {}, caused by {}.', $.Error, $.Cause)"
+      }
+    }
+  },
+  "input": {"Error": "error string", "Cause": "cause string"},
+  "history": [
+    {"executionStartedEventDetails": {"input": {"Error": "error string", "Cause": "cause string"}, "inputDetails": {"truncated": false}, "roleArn": "snf_role_arn"}, "id": 1, "previousEventId": 0, "timestamp": "timestamp", "type": "ExecutionStarted"},
+    {"id": 2, "previousEventId": 0, "stateEnteredEventDetails": {"input": {"Error": "error string", "Cause": "cause string"}, "inputDetails": {"truncated": false}, "name": "FailState"}, "timestamp": "timestamp", "type": "FailStateEntered"},
+    {"executionFailedEventDetails": {"cause": "This is a custom error message for error string, caused by cause string.", "error": "error string"}, "id": 3, "previousEventId": 2, "timestamp": "timestamp", "type": "ExecutionFailed"}
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "golden": 5,
+  "source": "localstack@8b9a79f tests/aws/services/stepfunctions/v2/base/test_base.snapshot.json:L2",
+  "test": "test_state_fail (get_execution_history)",
+  "validated": "2024-03-06",
+  "definitionSource": "localstack@8b9a79f tests/aws/services/stepfunctions/templates/base/statemachines/raise_failure.json5",
+  "definition": {
+    "Comment": "BASE_RAISE_FAILURE",
+    "StartAt": "FailState",
+    "States": {
+      "FailState": {
+        "Type": "Fail",
+        "Error": "SomeFailure",
+        "Cause": "This state machines raises a 'SomeFailure' failure."
+      }
+    }
+  },
+  "input": {},
+  "history": [
+    {"executionStartedEventDetails": {"input": {}, "inputDetails": {"truncated": false}, "roleArn": "snf_role_arn"}, "id": 1, "previousEventId": 0, "timestamp": "timestamp", "type": "ExecutionStarted"},
+    {"id": 2, "previousEventId": 0, "stateEnteredEventDetails": {"input": {}, "inputDetails": {"truncated": false}, "name": "FailState"}, "timestamp": "timestamp", "type": "FailStateEntered"},
+    {"executionFailedEventDetails": {"cause": "This state machines raises a 'SomeFailure' failure.", "error": "SomeFailure"}, "id": 3, "previousEventId": 2, "timestamp": "timestamp", "type": "ExecutionFailed"}
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "golden": 4,
+  "source": "localstack@8b9a79f tests/aws/services/stepfunctions/v2/base/test_base.snapshot.json:L1012",
+  "test": "test_state_pass_regex_json_path_base (get_execution_history)",
+  "validated": "2024-02-07",
+  "definitionSource": "localstack@8b9a79f tests/aws/services/stepfunctions/templates/base/statemachines/pass_result_regex_json_path_base.json5",
+  "definition": {
+    "Comment": "BASE_PASS_RESULT_REGEX_JSON_PATH_BASE",
+    "StartAt": "State0",
+    "States": {
+      "State0": {
+        "Type": "Pass",
+        "Parameters": {"FromInput.$": "$.users[?(@.status == 0)]"},
+        "End": true
+      }
+    }
+  },
+  "input": {"users": [{"year": 1997, "status": 0}, {"year": 1998, "status": 1}]},
+  "history": [
+    {"executionStartedEventDetails": {"input": {"users": [{"year": 1997, "status": 0}, {"year": 1998, "status": 1}]}, "inputDetails": {"truncated": false}, "roleArn": "snf_role_arn"}, "id": 1, "previousEventId": 0, "timestamp": "timestamp", "type": "ExecutionStarted"},
+    {"id": 2, "previousEventId": 0, "stateEnteredEventDetails": {"input": {"users": [{"year": 1997, "status": 0}, {"year": 1998, "status": 1}]}, "inputDetails": {"truncated": false}, "name": "State0"}, "timestamp": "timestamp", "type": "PassStateEntered"},
+    {"id": 3, "previousEventId": 2, "stateExitedEventDetails": {"name": "State0", "output": {"FromInput": [{"year": 1997, "status": 0}]}, "outputDetails": {"truncated": false}}, "timestamp": "timestamp", "type": "PassStateExited"},
+    {"executionSucceededEventDetails": {"output": {"FromInput": [{"year": 1997, "status": 0}]}, "outputDetails": {"truncated": false}}, "id": 4, "previousEventId": 3, "timestamp": "timestamp", "type": "ExecutionSucceeded"}
+  ]
+}
