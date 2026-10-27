@@ -1,0 +1,43 @@
+{
+  "golden": 23,
+  "source": "localstack@8b9a79f tests/aws/services/stepfunctions/v2/error_handling/test_task_service_lambda.snapshot.json:L998",
+  "test": "test_no_such_function_catch (get_execution_history)",
+  "validated": "2025-11-25",
+  "definitionSource": "localstack@8b9a79f tests/aws/services/stepfunctions/templates/errorhandling/statemachines/task_service_lambda_invoke_catch_relevant.json5; the function does not exist and the stub gives Lambda's recorded ResourceNotFoundException",
+  "definition": {
+    "Comment": "TASK_SERVICE_LAMBDA_CATCH_RELEVANT",
+    "StartAt": "Start",
+    "States": {
+      "Start": {
+        "Type": "Task",
+        "Resource": "arn:aws:states:::lambda:invoke",
+        "Parameters": {"FunctionName.$": "$.FunctionName", "Payload.$": "$.Payload"},
+        "Catch": [
+          {"ErrorEquals": ["Lambda.Unknown"], "Next": "EndWithLambdaUnknownHandler"},
+          {"ErrorEquals": ["States.TaskFailed"], "Next": "EndWithStateTaskFailedHandler"},
+          {"ErrorEquals": ["States.ALL"], "Next": "EndWithAllHandler"}
+        ],
+        "Next": "EndWithFinal"
+      },
+      "EndWithLambdaUnknownHandler": {"Type": "Pass", "ResultPath": "$.lambda_unknown", "End": true},
+      "EndWithStateTaskFailedHandler": {"Type": "Pass", "ResultPath": "$.task_failed_error", "End": true},
+      "EndWithAllHandler": {"Type": "Pass", "ResultPath": "$.all_error", "End": true},
+      "EndWithFinal": {"Type": "Pass", "ResultPath": "$.final", "End": true}
+    }
+  },
+  "input": {"FunctionName": "no_such_golden-fn", "Payload": null},
+  "lambdaAnswers": [{"notFound": true}],
+  "transforms": [{"pattern": "Request ID: [^;]+;", "replace": "Request ID: <request_id>;"}],
+  "placeholders": {"<partition>": "aws", "<region>": "us-east-1", "111111111111": "000000000000", "<lambda_function_name>": "golden-fn"},
+  "history": [
+    {"executionStartedEventDetails":{"input":{"FunctionName":"no_such_<lambda_function_name>","Payload":null},"inputDetails":{"truncated":false},"roleArn":"snf_role_arn"},"id":1,"previousEventId":0,"timestamp":"timestamp","type":"ExecutionStarted"},
+    {"id":2,"previousEventId":0,"stateEnteredEventDetails":{"input":{"FunctionName":"no_such_<lambda_function_name>","Payload":null},"inputDetails":{"truncated":false},"name":"Start"},"timestamp":"timestamp","type":"TaskStateEntered"},
+    {"id":3,"previousEventId":2,"taskScheduledEventDetails":{"parameters":{"FunctionName":"no_such_<lambda_function_name>","Payload":null},"region":"<region>","resource":"invoke","resourceType":"lambda"},"timestamp":"timestamp","type":"TaskScheduled"},
+    {"id":4,"previousEventId":3,"taskStartedEventDetails":{"resource":"invoke","resourceType":"lambda"},"timestamp":"timestamp","type":"TaskStarted"},
+    {"id":5,"previousEventId":4,"taskFailedEventDetails":{"cause":"Function not found: arn:<partition>:lambda:<region>:111111111111:function:no_such_<lambda_function_name>:$LATEST (Service: AWSLambda; Status Code: 404; Error Code: ResourceNotFoundException; Request ID: <request_id>; Proxy: null)","error":"Lambda.ResourceNotFoundException","resource":"invoke","resourceType":"lambda"},"timestamp":"timestamp","type":"TaskFailed"},
+    {"id":6,"previousEventId":5,"stateExitedEventDetails":{"name":"Start","output":{"Error":"Lambda.ResourceNotFoundException","Cause":"Function not found: arn:<partition>:lambda:<region>:111111111111:function:no_such_<lambda_function_name>:$LATEST (Service: AWSLambda; Status Code: 404; Error Code: ResourceNotFoundException; Request ID: <request_id>; Proxy: null)"},"outputDetails":{"truncated":false}},"timestamp":"timestamp","type":"TaskStateExited"},
+    {"id":7,"previousEventId":6,"stateEnteredEventDetails":{"input":{"Error":"Lambda.ResourceNotFoundException","Cause":"Function not found: arn:<partition>:lambda:<region>:111111111111:function:no_such_<lambda_function_name>:$LATEST (Service: AWSLambda; Status Code: 404; Error Code: ResourceNotFoundException; Request ID: <request_id>; Proxy: null)"},"inputDetails":{"truncated":false},"name":"EndWithStateTaskFailedHandler"},"timestamp":"timestamp","type":"PassStateEntered"},
+    {"id":8,"previousEventId":7,"stateExitedEventDetails":{"name":"EndWithStateTaskFailedHandler","output":{"Error":"Lambda.ResourceNotFoundException","Cause":"Function not found: arn:<partition>:lambda:<region>:111111111111:function:no_such_<lambda_function_name>:$LATEST (Service: AWSLambda; Status Code: 404; Error Code: ResourceNotFoundException; Request ID: <request_id>; Proxy: null)","task_failed_error":{"Error":"Lambda.ResourceNotFoundException","Cause":"Function not found: arn:<partition>:lambda:<region>:111111111111:function:no_such_<lambda_function_name>:$LATEST (Service: AWSLambda; Status Code: 404; Error Code: ResourceNotFoundException; Request ID: <request_id>; Proxy: null)"}},"outputDetails":{"truncated":false}},"timestamp":"timestamp","type":"PassStateExited"},
+    {"executionSucceededEventDetails":{"output":{"Error":"Lambda.ResourceNotFoundException","Cause":"Function not found: arn:<partition>:lambda:<region>:111111111111:function:no_such_<lambda_function_name>:$LATEST (Service: AWSLambda; Status Code: 404; Error Code: ResourceNotFoundException; Request ID: <request_id>; Proxy: null)","task_failed_error":{"Error":"Lambda.ResourceNotFoundException","Cause":"Function not found: arn:<partition>:lambda:<region>:111111111111:function:no_such_<lambda_function_name>:$LATEST (Service: AWSLambda; Status Code: 404; Error Code: ResourceNotFoundException; Request ID: <request_id>; Proxy: null)"}},"outputDetails":{"truncated":false}},"id":9,"previousEventId":8,"timestamp":"timestamp","type":"ExecutionSucceeded"}
+  ]
+}
