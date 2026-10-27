@@ -171,20 +171,8 @@ func notYet(op string, raws ...string) *awserr.Error {
 
 // The handlers below are not implemented yet: each answers notYet.
 
-func (*Service) getParameterHistory(_ context.Context, _ *kernel.Call, in *ssmapi.GetParameterHistoryInput) (*ssmapi.GetParameterHistoryOutput, *awserr.Error) {
-	return nil, notYet("GetParameterHistory", in.Name)
-}
-
 func (*Service) deleteParameters(_ context.Context, _ *kernel.Call, in *ssmapi.DeleteParametersInput) (*ssmapi.DeleteParametersOutput, *awserr.Error) {
 	return nil, notYet("DeleteParameters", in.Names...)
-}
-
-func (*Service) labelParameterVersion(_ context.Context, _ *kernel.Call, in *ssmapi.LabelParameterVersionInput) (*ssmapi.LabelParameterVersionOutput, *awserr.Error) {
-	return nil, notYet("LabelParameterVersion", in.Name)
-}
-
-func (*Service) unlabelParameterVersion(_ context.Context, _ *kernel.Call, in *ssmapi.UnlabelParameterVersionInput) (*ssmapi.UnlabelParameterVersionOutput, *awserr.Error) {
-	return nil, notYet("UnlabelParameterVersion", in.Name)
 }
 
 func (*Service) addTagsToResource(_ context.Context, _ *kernel.Call, in *ssmapi.AddTagsToResourceInput) (*ssmapi.AddTagsToResourceOutput, *awserr.Error) {
