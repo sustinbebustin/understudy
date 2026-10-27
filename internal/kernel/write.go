@@ -184,13 +184,8 @@ func (e *DeliverError) Unwrap() error { return e.Err }
 // counted by the work tracker.
 func Write[K comparable, S, R any](c *Call, p *store.Partitioned[K, S], key K, fn func(s *S, now clock.Instant, tx *Tx) (R, *awserr.Error)) (R, *awserr.Error) {
 	var zero R
-	// An AuthorizedAfterResolve call is asked at its first Write, before the
-	// lock: a denial is what the Write returns (AuthorizedAfterResolve).
-	if err := c.authorizeDeferred(); err != nil {
+	if err := c.beginWrite(); err != nil {
 		return zero, err
-	}
-	if !c.holding.CompareAndSwap(false, true) {
-		return zero, awserr.Internalf(&HoldingError{Attempted: "kernel.Write", Holder: c.label})
 	}
 	defer c.holding.Store(false)
 	for {
@@ -209,6 +204,24 @@ func Write[K comparable, S, R any](c *Call, p *store.Partitioned[K, S], key K, f
 		}
 		return res.r, nil
 	}
+}
+
+// beginWrite marks c as holding for a Write, or returns the error the Write
+// ends with. A nested Write is refused first, as Invoke refuses a call made
+// under a lock, so an AuthorizedAfterResolve call's authorization never runs
+// under a cell lock (ADR 0005); that call is asked next, at its first Write,
+// before the lock: a denial is what the Write returns.
+func (c *Call) beginWrite() *awserr.Error {
+	if c.holding.Load() {
+		return awserr.Internalf(&HoldingError{Attempted: "kernel.Write", Holder: c.label})
+	}
+	if err := c.authorizeDeferred(); err != nil {
+		return err
+	}
+	if !c.holding.CompareAndSwap(false, true) {
+		return awserr.Internalf(&HoldingError{Attempted: "kernel.Write", Holder: c.label})
+	}
+	return nil
 }
 
 // committed is the outcome of one attempt at a Write.
