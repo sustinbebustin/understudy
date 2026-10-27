@@ -58,8 +58,8 @@ const (
 		"corsConfiguration is stored and returned, and a data-plane request with an Origin header to an API that has one answers 501 (CORS is not applied); " +
 		"ipAddressType is stored without effect; " +
 		"ApiEndpoint names the emulator (http://<api-id>.execute-api.<region>.localhost:<port>), not amazonaws.com"
-	createRouteNote = "only $default and literal route keys with authorizationType NONE and an optional target are accepted; " +
-		"route keys with path variables and every other member answer NotImplemented; " +
+	createRouteNote = "only a route key, authorizationType NONE and an optional target are accepted; " +
+		"every other member answers NotImplemented; " +
 		"a change deploys to the autoDeploy stages before the call returns (UNVERIFIED delay, APIGW2-04)"
 	createIntegrationNote = "only Lambda AWS_PROXY with payloadFormatVersion 2.0 and a function ARN or invoke URI is accepted, and the output omits the documented defaults; " +
 		"HTTP_PROXY, payload format 1.0, a stage variable in the URI and every other member answer NotImplemented; " +
@@ -67,7 +67,9 @@ const (
 	createStageNote = "only stageName, autoDeploy and tags are accepted, and the output omits the documented defaults; " +
 		"every other member answers NotImplemented; an automatic deployment completes before the call returns (UNVERIFIED delay, APIGW2-04)"
 	invokeAPINote = "Lambda AWS_PROXY with payload format 2.0 through the path fallback /_understudy/execute-api/<api-id>/ only " +
-		"(the execute-api host answers 501); stage and literal route selection as documented; " +
+		"(the execute-api host answers 501); stage and route selection as documented; " +
+		"where the documents leave the order of two matching routes open it is inferred (APIGW2-05): " +
+		"a full match on ANY before a greedy match on the method, the greedy route with more segments before its variable first, then the leftmost literal segment; " +
 		"CORS requests (an Origin header to an API with a corsConfiguration) answer 501; " +
 		"the integration timeout is not applied; " +
 		"inferred, UNVERIFIED: the gateway's own answers and their status (APIGW2-05, APIGW2-06, APIGW2-10, APIGW2-11), " +

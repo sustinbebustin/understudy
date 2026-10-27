@@ -168,16 +168,14 @@ func TestTracerAutoDeployStageOutput(t *testing.T) {
 
 // What the first slice does not store is refused with NotImplemented naming
 // it and saying nothing was changed, never stored silently (CLAUDE.md
-// invariant 3): WebSocket APIs, members beyond the tracer's, route keys
-// with path variables, authorizers, HTTP_PROXY, payload format 1.0 and
-// stage variables in a URI.
+// invariant 3): WebSocket APIs, members beyond the tracer's, authorizers,
+// HTTP_PROXY, payload format 1.0 and stage variables in a URI.
 func TestTracerRefusesWhatItDoesNotStore(t *testing.T) {
 	run(t, func(h *harness) {
 		id := h.apiID("t")
 		fnARN := h.createFunction("fn")
 		ws := apigatewayv2api.ProtocolTypeWebsocket
 		wantNotImplemented(t, fail(h, apigatewayv2api.OpCreateApi, &apigatewayv2api.CreateApiInput{Name: "w", ProtocolType: ws}), "WEBSOCKET")
-		wantNotImplemented(t, fail(h, apigatewayv2api.OpCreateRoute, &apigatewayv2api.CreateRouteInput{ApiId: id, RouteKey: "GET /pets/{id}"}), "path variables")
 		jwt := apigatewayv2api.AuthorizationTypeJwt
 		wantNotImplemented(t, fail(h, apigatewayv2api.OpCreateRoute, &apigatewayv2api.CreateRouteInput{ApiId: id, RouteKey: "GET /a", AuthorizationType: &jwt}), "JWT")
 		lambdaIn := func() *apigatewayv2api.CreateIntegrationInput {

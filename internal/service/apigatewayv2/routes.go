@@ -15,8 +15,8 @@ import (
 // targetPrefix starts a route's Target (apigateway-http.md 3.2).
 const targetPrefix = "integrations/"
 
-// createRoute creates a route with a $default or literal route key and an
-// optional target, and deploys it to the API's autoDeploy stages.
+// createRoute creates a route with a route key and an optional target,
+// and deploys it to the API's autoDeploy stages.
 func (s *Service) createRoute(_ context.Context, c *kernel.Call, in *apigatewayv2api.CreateRouteInput) (*apigatewayv2api.CreateRouteOutput, *awserr.Error) {
 	if err := refuseMembers("CreateRoute",
 		member{"apiKeyRequired", in.ApiKeyRequired != nil},
@@ -33,12 +33,8 @@ func (s *Service) createRoute(_ context.Context, c *kernel.Call, in *apigatewayv
 	if t := in.AuthorizationType; t != nil && *t != apigatewayv2api.AuthorizationTypeNone {
 		return nil, errNotImplemented("CreateRoute", "authorizationType "+string(*t), "Create the route with authorizationType NONE.")
 	}
-	key, kerr := route.ParseKey(in.RouteKey)
-	if kerr != nil {
+	if _, kerr := route.ParseKey(in.RouteKey); kerr != nil {
 		return nil, errBadRequest("%s", kerr.Error())
-	}
-	if k, ok := key.(route.Keyed); ok && k.Variables() {
-		return nil, errNotImplemented("CreateRoute", "route keys with path variables ({name} or {name+})", "Use a route key of literal segments, or $default.")
 	}
 	var integration string
 	if in.Target != nil {

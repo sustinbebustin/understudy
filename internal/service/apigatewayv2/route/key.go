@@ -60,15 +60,6 @@ func (k Keyed) Path() string {
 	return b.String()
 }
 
-// Variables reports whether the key binds a path variable, {name} or
-// {name+}.
-func (k Keyed) Variables() bool {
-	return slices.ContainsFunc(k.Segments, func(s Segment) bool {
-		_, literal := s.(Literal)
-		return !literal
-	})
-}
-
 func (Default) isKey() {}
 func (Keyed) isKey()   {}
 

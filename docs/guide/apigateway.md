@@ -62,6 +62,26 @@ The function gets the payload format 2.0 event. Its `rawPath` is the path after 
 
 The execute-api host form, `http://<api-id>.execute-api.us-east-1.localhost:4566/hello`, still answers 501.
 
+## Routes
+
+A route key is `$default` or `<METHOD> <path>`. A `{name}` segment matches one segment, and a `{name+}` segment, last only, matches the rest of the path; the function gets their values decoded in `pathParameters`. With a handler that returns `event["routeKey"] + " " + json.dumps(event["pathParameters"])`:
+
+```sh
+aws apigatewayv2 create-route --api-id pfovz1oe8r --route-key 'GET /pets/{id}' --target integrations/5iy2elh
+aws apigatewayv2 create-route --api-id pfovz1oe8r --route-key 'ANY /{proxy+}' --target integrations/5iy2elh
+
+curl http://localhost:4566/_understudy/execute-api/pfovz1oe8r/pets/rex%20the%20dog
+# GET /pets/{id} {"id": "rex the dog"}
+curl -X POST http://localhost:4566/_understudy/execute-api/pfovz1oe8r/orders/1/items
+# ANY /{proxy+} {"proxy": "orders/1/items"}
+curl http://localhost:4566/_understudy/execute-api/pfovz1oe8r/pets/
+# ANY /{proxy+} {"proxy": "pets/"}
+curl http://localhost:4566/_understudy/execute-api/pfovz1oe8r/
+# {"message":"Not Found"}
+```
+
+A request takes the most specific route, in AWS's documented order: a full match, then a match with a `{name+}` variable, then `$default`; on one path, a literal segment before a variable and the request's own method before `ANY`. Where AWS documents no order, understudy prefers a full match on `ANY` to a `{name+}` match on the request's method, and the `{name+}` route with more segments before its variable. A variable never matches an empty segment, so `/pets/` is not `GET /pets/{id}`. Literal segments match case-sensitively, `/pets` and `/pets/` are different paths, and `HEAD` reaches only `HEAD` and `ANY` routes. AWS has not been recorded on any of these choices; [coverage.md](../coverage.md) lists them.
+
 `update-api --disable-execute-api-endpoint` turns this path off from that call on: requests answer `403 {"message":"Forbidden"}` until `--no-disable-execute-api-endpoint`.
 
 understudy stores an API's `--cors-configuration` and returns it, but does not apply CORS. A request with an `Origin` header to an API that has one answers 501 and runs nothing, rather than reaching your function without the CORS headers AWS would add:
@@ -79,7 +99,7 @@ Requests without `Origin` are served as usual; `delete-cors-configuration` remov
 Requests understudy cannot serve as AWS would are refused with `NotImplemented` (501), naming what is missing, and change nothing:
 
 - WebSocket APIs (`--protocol-type WEBSOCKET`) and quick create (`create-api` or `update-api` with `--target`, `--route-key` or `--credentials-arn`);
-- route keys with path variables (`GET /pets/{id}`, `ANY /{proxy+}`) and authorizers; `$default` and literal keys work;
+- route members other than `--route-key` and `--target`, among them every `--authorization-type` but `NONE`;
 - integrations other than Lambda `AWS_PROXY` with payload format 2.0, and any optional integration member;
 - stage members other than `--stage-name`, `--auto-deploy` and `--tags`, so a stage without `--auto-deploy` has no deployment yet and answers `404 {"message":"Not Found"}`;
 - every other operation, among them the reads, updates and deletes of routes, integrations, stages and deployments (`get-routes`, `get-stage`, ...) and `create-deployment`.
