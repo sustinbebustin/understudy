@@ -150,10 +150,10 @@ func errNotImplementedYet(op string) *awserr.Error {
 		" yet. Run 'understudy coverage --service ssm' for what is supported. Nothing was changed.")
 }
 
-// errFeatureNotYet answers a request that needs a part of op whose handler
-// has not landed yet.
-func errFeatureNotYet(op, feature string) *awserr.Error {
-	return ssmapi.ErrNotImplemented("understudy does not implement " + feature + " in ssm " + op +
+// errDescribeNotYet answers a DescribeParameters request that needs a part
+// of the operation whose handler has not landed yet.
+func errDescribeNotYet(feature string) *awserr.Error {
+	return ssmapi.ErrNotImplemented("understudy does not implement " + feature + " in ssm DescribeParameters" +
 		" yet. Run 'understudy coverage --service ssm' for what is supported. Nothing was changed.")
 }
 
@@ -177,10 +177,6 @@ func notYet(op string, raws ...string) *awserr.Error {
 }
 
 // The handlers below are not implemented yet: each answers notYet.
-
-func (*Service) getParameters(_ context.Context, _ *kernel.Call, in *ssmapi.GetParametersInput) (*ssmapi.GetParametersOutput, *awserr.Error) {
-	return nil, notYet("GetParameters", in.Names...)
-}
 
 func (*Service) getParametersByPath(_ context.Context, _ *kernel.Call, in *ssmapi.GetParametersByPathInput) (*ssmapi.GetParametersByPathOutput, *awserr.Error) {
 	return nil, notYet("GetParametersByPath", in.Path)

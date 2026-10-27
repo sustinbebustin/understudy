@@ -149,18 +149,6 @@ func parseNameOrARN(raw string, scope aws.Scope) (name, *awserr.Error) {
 	return n, nil
 }
 
-// hasSelector reports a name or ARN that carries a :<version> or :<label>
-// selector after the name (ssm-parameters.md 6.3).
-func hasSelector(raw string) bool {
-	v := strings.Trim(raw, " ")
-	if strings.HasPrefix(v, "arn:") {
-		a, err := aws.ParseARN(v)
-		// A malformed ARN carries no selector; parseNameOrARN refuses it.
-		return err == nil && strings.Contains(a.Resource, ":")
-	}
-	return strings.Contains(v, ":")
-}
-
 // canonicalOf is the canonical form of a name, valid or not, for comparing
 // filter values with stored names (ssm-parameters.md 3.2).
 func canonicalOf(raw string) string {

@@ -2,6 +2,7 @@ package ssm_test
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -289,5 +290,26 @@ func TestStandardParameterCount(t *testing.T) {
 		must(h, ssmapi.OpPutParameter, &ssmapi.PutParameterInput{
 			Name: "/count/adv", Value: "v", Type: new(ssmapi.ParameterTypeString), Tier: new(ssmapi.ParameterTierAdvanced),
 		})
+	})
+}
+
+// GetParameters answers a name given twice once, and lists in
+// InvalidParameters, as the request gave them and in request order, a name
+// that is not valid, a selector naming no version and a malformed
+// selector, while answering the rest. UNVERIFIED (SSM-17, SSM-18),
+// ssm-parameters.md 6.3, 7.3.
+func TestGetParametersDuplicatesAndInvalidNames(t *testing.T) {
+	run(t, func(h *harness) {
+		h.put("/gp/a", "a")
+		h.put("/gp/b", "b")
+		out := must(h, ssmapi.OpGetParameters, &ssmapi.GetParametersInput{
+			Names: []string{"/gp/b", "/gp/a", "/gp/b", "bad name", "/gp//x", "/gp/a:7", "/gp/a:1:2", "/gp/a:1"},
+		})
+		if got := names(out.Parameters, paramName); !slices.Equal(got, []string{"/gp/a", "/gp/a", "/gp/b"}) {
+			h.Errorf("Parameters = %v, want /gp/a (latest), /gp/a (:1), /gp/b once", got)
+		}
+		if want := []string{"bad name", "/gp//x", "/gp/a:7", "/gp/a:1:2"}; !slices.Equal(out.InvalidParameters, want) {
+			h.Errorf("InvalidParameters = %q, want %q", out.InvalidParameters, want)
+		}
 	})
 }

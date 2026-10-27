@@ -348,38 +348,6 @@ func addTags(tags []Tag, add []ssmapi.Tag) []Tag {
 	return out
 }
 
-// getParameter reads a parameter's latest version by name or ARN. Not
-// implemented yet: a version or label selector.
-func (s *Service) getParameter(ctx context.Context, c *kernel.Call, in *ssmapi.GetParameterInput) (*ssmapi.GetParameterOutput, *awserr.Error) {
-	const op = "GetParameter"
-	if err := checkReserved(op, in.Name); err != nil {
-		return nil, err
-	}
-	if hasSelector(in.Name) {
-		return nil, errFeatureNotYet(op, "a Name with a version or label selector")
-	}
-	scope := c.Scope()
-	n, err := parseNameOrARN(in.Name, scope)
-	if err != nil {
-		return nil, err
-	}
-	p, ok := s.lookup(scope, n.canonical)
-	if !ok {
-		return nil, errNotFound()
-	}
-	v := p.latest()
-	text, err := s.valueText(ctx, c, scope, p.Name, v.Value, in.WithDecryption != nil && *in.WithDecryption)
-	if err != nil {
-		return nil, err
-	}
-	arn := parameterARN(scope, p.Name)
-	c.Touch(arn)
-	return &ssmapi.GetParameterOutput{Parameter: &ssmapi.Parameter{
-		Name: new(n.spelling), Type: new(ssmapi.ParameterType(v.Type)), Value: new(text), Version: v.Number,
-		LastModifiedDate: new(v.LastModified.Wire()), ARN: new(arn.String()), DataType: new(v.DataType),
-	}}, nil
-}
-
 // describeParameters lists the metadata of the parameters a Name Equals
 // filter names, Terraform's one request (ssm-parameters.md 10.1). Not
 // implemented yet: every other filter and option, Shared, paging and the
@@ -396,14 +364,14 @@ func (s *Service) describeParameters(_ context.Context, c *kernel.Call, in *ssma
 	}
 	switch {
 	case len(in.Filters) > 0:
-		return nil, errFeatureNotYet(op, "Filters")
+		return nil, errDescribeNotYet("Filters")
 	case in.Shared != nil && *in.Shared:
-		return nil, errFeatureNotYet(op, "Shared")
+		return nil, errDescribeNotYet("Shared")
 	case in.NextToken != nil:
-		return nil, errFeatureNotYet(op, "NextToken")
+		return nil, errDescribeNotYet("NextToken")
 	case len(in.ParameterFilters) != 1 || in.ParameterFilters[0].Key != "Name" ||
 		(in.ParameterFilters[0].Option != nil && *in.ParameterFilters[0].Option != "Equals"):
-		return nil, errFeatureNotYet(op, "ParameterFilters other than one Name filter with Option Equals")
+		return nil, errDescribeNotYet("ParameterFilters other than one Name filter with Option Equals")
 	}
 	wanted := make([]string, 0, len(in.ParameterFilters[0].Values))
 	for _, raw := range in.ParameterFilters[0].Values {
@@ -426,7 +394,7 @@ func (s *Service) describeParameters(_ context.Context, c *kernel.Call, in *ssma
 		size = int(*in.MaxResults)
 	}
 	if len(found) > size {
-		return nil, errFeatureNotYet(op, "paging")
+		return nil, errDescribeNotYet("paging")
 	}
 	out := &ssmapi.DescribeParametersOutput{Parameters: make([]ssmapi.ParameterMetadata, 0, len(found))}
 	for _, p := range found {
