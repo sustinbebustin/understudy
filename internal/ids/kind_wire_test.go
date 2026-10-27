@@ -46,6 +46,7 @@ var kindNames = []struct {
 	{ids.KindJitter, "jitter"},
 	{ids.KindEventID, "events-event-id"},
 	{ids.KindSSECSalt, "s3-ssec-salt"},
+	{ids.KindLambdaRecordKey, "lambda-record-key"},
 	{ids.KindAPIGatewayAPIID, "apigateway-api-id"},
 	{ids.KindAPIGatewayChildID, "apigateway-child-id"},
 }

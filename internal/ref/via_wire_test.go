@@ -38,6 +38,7 @@ var viaNames = []struct {
 	{ref.KMSForward, "kms-forward"},
 	{ref.STSAssumeRole, "sts-assume-role"},
 	{ref.LambdaCode, "lambda-code"},
+	{ref.LambdaDestination, "lambda-destination"},
 	{ref.ViaAPIGateway, "apigateway-integration"},
 }
 
