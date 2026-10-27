@@ -49,6 +49,10 @@ func layerBlobs(layers []LayerRef) []blob.Ref {
 // AWS-recorded evidence (lambda-destinations-layers.md 11.2).
 func layerSwitches() []fidelity.Switch[string] {
 	return []fidelity.Switch[string]{
+		// A path two of a function's layers hold has the later layer's
+		// content in /opt (codestore.Store.Merge).
+		ldlSwitch("lambda.layers.merge-conflict", "later-overwrites", evidence.Inferred, "81-extraction-and-merge-order", "LDL-12",
+			"lambda.Invoke"),
 		// A layer marked for another runtime or architecture attaches: the
 		// compatible lists are metadata ListLayers filters on (resolveLayers
 		// checks neither).

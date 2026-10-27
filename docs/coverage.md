@@ -609,7 +609,7 @@ Internal operations:
 | GetFunction | partial | aws-doc, 1 of 3 claims | Code.Location is a link understudy serves the package at, not a presigned S3 URL |
 | GetLayerVersion | partial | third-party-recorded, 2 of 2 claims | Content.Location is a link understudy serves the archive at, not a presigned S3 URL |
 | GetLayerVersionByArn | partial | third-party-recorded, 2 of 2 claims | Content.Location is a link understudy serves the archive at, not a presigned S3 URL |
-| Invoke | partial | inferred, 4 of 8 claims | an alias with weighted routing always runs its primary version; LoggingConfig reaches the function as AWS_LAMBDA_LOG_FORMAT and AWS_LAMBDA_LOG_LEVEL, but Lambda's own INIT_START, START, END and REPORT lines stay text and SystemLogLevel filters nothing |
+| Invoke | partial | inferred, 5 of 9 claims | an alias with weighted routing always runs its primary version; LoggingConfig reaches the function as AWS_LAMBDA_LOG_FORMAT and AWS_LAMBDA_LOG_LEVEL, but Lambda's own INIT_START, START, END and REPORT lines stay text and SystemLogLevel filters nothing |
 | PublishLayerVersion | partial | third-party-recorded, 2 of 2 claims | S3ObjectStorageMode REFERENCE is stored and the archive is copied as with COPY; the account code-storage quota is not enforced; layers are never signed |
 | PublishVersion | partial | aws-doc, 1 of 3 claims | PublishTo LATEST_PUBLISHED is refused: understudy does not implement Lambda Managed Instances |
 | PutFunctionEventInvokeConfig | partial | inferred, 2 of 4 claims | the execution role's permission to reach a destination is recorded, not checked; a failed delivery is journaled and not retried |
@@ -1059,7 +1059,7 @@ Internal operations:
 
 Behaviors chosen without AWS-recorded evidence, with the research they rest on and the parity scenario step that settles them, or why none does. The count and order follow the label the code states; the Label column shows the recording's verdict where a replayed step settles or contradicts the switch.
 
-119 switches: 1 aws-recorded, 3 third-party-recorded, 17 aws-doc, 98 inferred.
+120 switches: 1 aws-recorded, 3 third-party-recorded, 17 aws-doc, 99 inferred.
 
 | Switch | Value | Label | Reference | Settled by |
 |---|---|---|---|---|
@@ -1119,6 +1119,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `lambda.esm-filter.operator-allow-list` | `documented-table` | inferred | docs/research/matching-engines.md#8 | none: recorded in lambda/R03 (H13-01-create to H13-15-create); the replayer skips REST and Docker steps |
 | `lambda.layers.compatibility` | `not-enforced` | inferred | docs/research/lambda-destinations-layers.md#73-compatibility-is-metadata | none: unrecorded: LDL-13 is queued in docs/research/lambda-destinations-layers.md 12 |
 | `lambda.layers.cross-account-policy` | `advise` | inferred | docs/research/lambda-destinations-layers.md#74-layers-of-other-accounts | none: unrecorded: LDL-15 is queued in docs/research/lambda-destinations-layers.md 12 |
+| `lambda.layers.merge-conflict` | `later-overwrites` | inferred | docs/research/lambda-destinations-layers.md#81-extraction-and-merge-order | none: unrecorded: LDL-12 is queued in docs/research/lambda-destinations-layers.md 12 |
 | `logs.filter.delimited-field-count` | `last-absorbs` | inferred | docs/research/logs-filter-patterns.md#3 | none: logs/R10/03-filter-11.json is recorded; no scenario replays logs/R10 yet |
 | `logs.filter.term-boundary` | `substring` | inferred | docs/research/logs-filter-patterns.md#5 | none: logs/R10/03-filter-01.json is recorded; no scenario replays logs/R10 yet |
 | `s3.bucket.cross-account` | `served` | inferred | UNVERIFIED: no research note or recording shows AWS's answer to a bucket request from an account that does not own the bucket | none: unrecorded: no recording sends a bucket request from an account that does not own the bucket |

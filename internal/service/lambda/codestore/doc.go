@@ -7,6 +7,12 @@
 // tree is the read-only /var/task bind mount of every environment running
 // that code (ARCHITECTURE.md 14.3, containers.md 5.2).
 //
+// Merge copies the trees of a function's layers, in order, into one tree
+// under merged/<hex key>, keyed by the layers' digests in order and counted
+// the same way (ReleaseMerged): the read-only /opt of the function's
+// environments (lambda-destinations-layers.md 8.1, 11.5). A merged tree is
+// a copy, so the layers' own trees can go once it is built.
+//
 // Safety, checked for every entry before anything is written: names must
 // satisfy filepath.IsLocal, symbolic links and special files are refused
 // (no link is ever created from an archive, because a bind mount follows it
@@ -26,9 +32,14 @@
 //     directories 0755, files 0644, and 0755 for files whose zip mode has
 //     any execute bit and for the top-level bootstrap (a zip built on
 //     Windows carries no modes, and provided runtimes exec bootstrap).
-//   - Open removes trees an earlier process left. Trees are derived from
-//     packages the Lambda state keeps; on restart the state re-adds them,
-//     and nothing else could hold a reference to an old one.
+//   - Open removes trees and merged trees an earlier process left. Trees
+//     are derived from packages the Lambda state keeps; on restart the
+//     state re-adds them, and nothing else could hold a reference to an
+//     old one.
+//   - In a merged tree a later layer's file replaces an earlier layer's at
+//     the same path (switch lambda.layers.merge-conflict), and a file
+//     where an earlier layer has a directory, or the reverse, refuses the
+//     merge.
 //   - A file entry whose name repeats an earlier one overwrites it, as
 //     unzip does; an entry that needs a directory where a file was written
 //     (or the reverse) makes the archive invalid.
