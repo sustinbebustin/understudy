@@ -28,7 +28,7 @@ Type-check with `bun run typecheck`.
 | Variable | Effect |
 |---|---|
 | `CONFORMANCE_DYNAMODB=0` | Skips `dynamodb.test.ts`, each test with the reason `DynamoDB opted out (CONFORMANCE_DYNAMODB=0)`. Unset, the file runs on DynamoDB Local, pulled on first use, and `run.sh` exits 1 unless the health document reports DynamoDB as `enabled`. |
-| `CONFORMANCE_LAMBDA_EXECUTION=0` | Skips `lambda.test.ts`, which runs functions in AWS's Python base image and needs Docker and a first-use image pull. |
+| `CONFORMANCE_LAMBDA_EXECUTION=0` | Skips `lambda.test.ts` and the function tests of `lambda-layers.test.ts`, which run functions in AWS's Python base image and need Docker and a first-use image pull. |
 
 The suite refuses any endpoint that is not loopback http.
 
@@ -46,6 +46,7 @@ One file per service, so each can be fixed on its own.
 | `tests/s3.test.ts` | S3, including `lib-storage` multipart uploads, default checksums, presigned URLs, virtual-hosted and path-style addressing |
 | `tests/dynamodb.test.ts` | DynamoDB, DynamoDB document client |
 | `tests/lambda.test.ts` | Lambda |
+| `tests/lambda-layers.test.ts` | Lambda layers and asynchronous invocation destinations |
 | `tests/logs.test.ts` | CloudWatch Logs |
 | `tests/secretsmanager.test.ts` | Secrets Manager |
 | `tests/kms.test.ts` | KMS |
