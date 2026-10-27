@@ -29,12 +29,20 @@
 //     attempt is made anyway. An events-to-events delivery is not checked:
 //     AWS authorizes an event bus target through its RoleArn or the bus
 //     policy's grant to the sender account (eventbridge-buses.md 6.2, 6.3),
-//     not a grant to events.amazonaws.com.
+//     not a grant to events.amazonaws.com. Nor is a Lambda delivery, which
+//     AWS authorizes as the function's execution role.
 //  3. The target operation (SQS SendMessage, Lambda Invoke, SNS Publish,
 //     EventBridge PutEvents, S3 PutObject) runs through kernel.Invoke as
 //     the delivering service principal, with the mechanism's Via, admitted
 //     at the due instant. An HTTP endpoint is POSTed to through the
-//     egress client of Options.Egress instead.
+//     egress client of Options.Egress instead. A Lambda delivery (an
+//     asynchronous invocation's record or dead letter, Request.Sender) runs
+//     as the function's execution role, and lambda-to-s3 checks the bucket
+//     with HeadBucket before the PutObject (lambda-destinations-layers.md
+//     2.5, 11.3.2). It never calls a FIFO queue or topic, which Lambda does
+//     not deliver to (2.2, 5.1); it makes one attempt, and an undelivered
+//     one is Dropped with the metric AWS counts it in,
+//     DestinationDeliveryFailures or DeadLetterErrors (4.6, 5.4).
 //  4. Success removes the entry. A server-side failure (a retryable or
 //     throttling error, a server fault, a 5xx or a 429) is retried on the
 //     request's policy; a client-side failure (QueueDoesNotExist,

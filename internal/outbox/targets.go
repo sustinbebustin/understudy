@@ -30,7 +30,9 @@ import (
 func (a *attempt) send(ctx context.Context, t delivery.Target) (journal.DeliveryOutcome, bool) {
 	switch t := t.(type) {
 	case delivery.SQSQueue:
-		return a.end(ctx, a.sendSQS(ctx, a.scope, sqsMessage{queue: t.ARN, body: t.Body, attributes: t.Attributes, groupID: t.GroupID, dedupID: t.DedupID}))
+		return a.end(ctx, a.sendSQS(ctx, a.scope, sqsMessage{
+			queue: t.ARN, body: t.Body, attributes: t.Attributes, groupID: t.GroupID, dedupID: t.DedupID, traceHeader: t.TraceHeader,
+		}))
 	case delivery.LambdaFunction:
 		return a.end(ctx, a.invokeLambda(ctx, t))
 	case delivery.SNSTopic:
@@ -38,6 +40,14 @@ func (a *attempt) send(ctx context.Context, t delivery.Target) (journal.Delivery
 	case delivery.EventBus:
 		return a.end(ctx, putEvents(ctx, a.e.k, a.c, a.as(a.scope), t))
 	case delivery.S3Object:
+		if a.entry.Request.Mechanism == delivery.LambdaToS3 {
+			// Lambda's execution role needs s3:ListBucket beside s3:PutObject
+			// (lambda-destinations-layers.md 2.5): the bucket is checked
+			// first, and a failed check puts nothing.
+			if err := headBucket(ctx, a.e.k, a.c, a.as(a.scope), t.Bucket); err != nil {
+				return a.end(ctx, err)
+			}
+		}
 		return a.end(ctx, putObject(ctx, a.e.k, a.c, a.as(a.scope), t))
 	case delivery.HTTPEndpoint:
 		elapsed := a.e.k.Clock().Stopwatch()
@@ -137,6 +147,13 @@ func putObject(ctx context.Context, k *kernel.Kernel, c *kernel.Call, kt kernel.
 	length := int64(len(t.Body))
 	in := &s3api.PutObjectInput{Bucket: t.Bucket, Key: t.Key, Body: objectBody(t.Body), ContentLength: &length}
 	_, err := kernel.Invoke(ctx, k, c, s3api.OpPutObject, kt, in)
+	return err
+}
+
+// headBucket is one s3:HeadBucket of bucket through the kernel k, as the
+// call c makes it, run as kt; its IAM action is s3:ListBucket.
+func headBucket(ctx context.Context, k *kernel.Kernel, c *kernel.Call, kt kernel.Target, bucket string) *awserr.Error {
+	_, err := kernel.Invoke(ctx, k, c, s3api.OpHeadBucket, kt, &s3api.HeadBucketInput{Bucket: bucket})
 	return err
 }
 
@@ -333,6 +350,9 @@ type sqsMessage struct {
 	attributes []delivery.MessageAttribute
 	// groupID and dedupID are set for FIFO queues only.
 	groupID, dedupID string
+	// traceHeader is sent as the AWSTraceHeader message system attribute
+	// when not empty.
+	traceHeader string
 }
 
 // sendSQS sends m to its queue in scope.
@@ -349,6 +369,12 @@ func (a *attempt) sendSQS(ctx context.Context, scope aws.Scope, m sqsMessage) *a
 	}
 	if m.dedupID != "" {
 		in.MessageDeduplicationId = &m.dedupID
+	}
+	if m.traceHeader != "" {
+		// AWSTraceHeader's data type is String (API_SendMessage.html).
+		in.MessageSystemAttributes = map[sqsapi.MessageSystemAttributeNameForSends]sqsapi.MessageSystemAttributeValue{
+			sqsapi.MessageSystemAttributeNameForSendsAWSTraceHeader: {DataType: "String", StringValue: &m.traceHeader},
+		}
 	}
 	_, err := kernel.Invoke(ctx, a.e.k, a.c, sqsapi.OpSendMessage, a.as(scope), in)
 	return err

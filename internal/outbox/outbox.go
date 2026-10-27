@@ -215,6 +215,9 @@ func checkRequest(req delivery.Request) (aws.Scope, *RequestError) {
 	if err := checkPolicy(req.Mechanism, req.Policy); err != nil {
 		return aws.Scope{}, err
 	}
+	if err := checkSender(req); err != nil {
+		return aws.Scope{}, err
+	}
 	if err := checkDLQ(req); err != nil {
 		return aws.Scope{}, err
 	}
@@ -223,6 +226,46 @@ func checkRequest(req delivery.Request) (aws.Scope, *RequestError) {
 		return aws.Scope{}, &RequestError{Field: field, Reason: unservedScope, Err: serr}
 	}
 	return scope, nil
+}
+
+// checkSender checks req's sender: set for the Lambda mechanisms, which
+// deliver an asynchronous invocation's record or dead letter as the
+// function's execution role, and nil for every other mechanism
+// (lambda-destinations-layers.md 2.5, 11.3.2). A dead letter goes to a
+// queue or topic only (5.1), and Lambda neither retries nor dead-letters
+// its own deliveries: a failed one is counted in a metric (4.6, 5.4).
+func checkSender(req delivery.Request) *RequestError {
+	m, s := req.Mechanism, req.Sender
+	lambda := m.Via() == ref.LambdaDestination
+	switch {
+	case !lambda && s == nil:
+		return nil
+	case !lambda:
+		return &RequestError{Field: "Sender", Reason: "is set, but only the Lambda mechanisms run as an execution role, and this delivery is " + m.String()}
+	case s == nil:
+		return &RequestError{Field: "Sender", Reason: "is nil, but a " + m.String() + " delivery runs as the function's execution role"}
+	}
+	name, isRole := strings.CutPrefix(s.Role.Resource, "role/")
+	if _, err := aws.ParseAccountID(s.Role.Account); s.Role.Service != "iam" || !isRole || name == "" || err != nil {
+		return &RequestError{Field: "Sender.Role", Reason: fmt.Sprintf("%s is not an IAM role, arn:<partition>:iam::<account>:role/<path><name>", s.Role)}
+	}
+	if _, err := s.Carries.MarshalText(); err != nil {
+		return &RequestError{Field: "Sender.Carries", Reason: "is not a declared Lambda delivery payload", Err: err}
+	}
+	switch req.Target.(type) {
+	case delivery.SQSQueue, delivery.SNSTopic:
+	case delivery.LambdaFunction, delivery.EventBus, delivery.S3Object, delivery.HTTPEndpoint:
+		if s.Carries == delivery.DeadLetter {
+			return &RequestError{Field: "Sender.Carries", Reason: "is a dead letter, which goes to an SQS queue or SNS topic only (lambda-destinations-layers.md 5.1), not to this " + m.String() + " target"}
+		}
+	}
+	if req.DLQ != nil {
+		return &RequestError{Field: "DLQ", Reason: "is set, but Lambda dead-letters none of its own deliveries: a failed one counts in " + s.Carries.Metric() + " (lambda-destinations-layers.md 4.6, 5.4)"}
+	}
+	if _, ok := req.Policy.(delivery.None); !ok {
+		return &RequestError{Field: "Policy", Reason: fmt.Sprintf("is %T, but a Lambda delivery makes one attempt, delivery.None (lambda-destinations-layers.md 4.6, 5.4)", req.Policy)}
+	}
+	return nil
 }
 
 // checkDLQ checks req's dead-letter queue, if it has one: an SQS queue in

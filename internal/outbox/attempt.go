@@ -160,8 +160,51 @@ func (a *attempt) do(ctx context.Context) {
 	// attempt the delivery again.
 	defer a.release()
 	if outcome, ok := a.run(ctx); ok {
-		a.finish(ctx, outcome)
+		a.finish(ctx, a.counted(outcome))
 	}
+}
+
+// counted is outcome with, for a Lambda delivery that ends undelivered, the
+// metric AWS counts it in: DestinationDeliveryFailures for a destination
+// record (lambda-destinations-layers.md 4.6), DeadLetterErrors for a dead
+// letter, whose event Lambda then deletes (5.4). A Lambda delivery makes
+// one attempt and has no dead-letter queue (checkSender), so every such
+// outcome is Dropped.
+func (a *attempt) counted(outcome journal.DeliveryOutcome) journal.DeliveryOutcome {
+	s := a.entry.Request.Sender
+	d, dropped := outcome.(journal.Dropped)
+	if s == nil || !dropped {
+		return outcome
+	}
+	switch s.Carries {
+	case delivery.DestinationRecord:
+		d.Reason += "; Lambda counts it in " + s.Carries.Metric()
+	case delivery.DeadLetter:
+		d.Reason += "; Lambda deletes the event and counts it in " + s.Carries.Metric()
+	}
+	return d
+}
+
+// fifoRefusal is why Lambda does not make a's target call: the target is a
+// FIFO queue or topic, which Lambda never delivers a record or dead letter
+// to (lambda-destinations-layers.md 2.2, 5.1, 11.3.6); false for any other
+// delivery.
+func (a *attempt) fifoRefusal() (string, bool) {
+	if a.entry.Request.Sender == nil {
+		return "", false
+	}
+	switch t := a.entry.Request.Target.(type) {
+	case delivery.SQSQueue:
+		if isFIFO(t.ARN) {
+			return t.ARN.String() + " is a FIFO queue, which Lambda does not deliver to (lambda-destinations-layers.md 2.2, 5.1)", true
+		}
+	case delivery.SNSTopic:
+		if isFIFO(t.ARN) {
+			return t.ARN.String() + " is a FIFO topic, which Lambda does not deliver to (lambda-destinations-layers.md 2.2, 5.1)", true
+		}
+	case delivery.LambdaFunction, delivery.EventBus, delivery.S3Object, delivery.HTTPEndpoint:
+	}
+	return "", false
 }
 
 // release ends the attempt's claim on its entry if it still holds it: the
@@ -195,6 +238,9 @@ func (a *attempt) run(ctx context.Context) (journal.DeliveryOutcome, bool) {
 	}
 	if outcome, decided, ok := a.faults(ctx); !ok || decided {
 		return outcome, ok
+	}
+	if reason, refused := a.fifoRefusal(); refused {
+		return journal.Dropped{Reason: reason}, true
 	}
 	a.advise(ctx)
 	return a.send(ctx, a.entry.Request.Target)
@@ -338,10 +384,12 @@ func (a *attempt) wait(ctx context.Context, d time.Duration) bool {
 // target through its RoleArn, or the sender account against the receiving
 // bus's policy (eventbridge-buses.md 6.2, 6.3), not through a grant to
 // events.amazonaws.com, so this model would misreport every same-account
-// forward.
+// forward. Nor does a Lambda delivery, which AWS authorizes as the
+// function's execution role, not as a service principal a resource policy
+// names (lambda-destinations-layers.md 2.5, 11.3.2).
 func (a *attempt) advise(ctx context.Context) {
 	req := a.entry.Request
-	if a.e.policies == nil || req.Mechanism == delivery.EventsToEvents {
+	if a.e.policies == nil || req.Mechanism == delivery.EventsToEvents || req.Sender != nil {
 		return
 	}
 	target := deliveredTo(req)
@@ -360,13 +408,19 @@ func (a *attempt) advise(ctx context.Context) {
 }
 
 // as is how every call of the attempt runs: in scope, as the delivering
-// service on behalf of the source, admitted at the due instant and caused
-// by the source call, like the attempt's Delivery event.
+// service on behalf of the source, or as the function's execution role for
+// a Lambda delivery (lambda-destinations-layers.md 2.5, 11.3.2), admitted
+// at the due instant and caused by the source call, like the attempt's
+// Delivery event.
 func (a *attempt) as(scope aws.Scope) kernel.Target {
 	req := a.entry.Request
+	var as kernel.PrincipalMode = kernel.AsService{Name: servicePrincipal(req.Mechanism), Source: req.Source}
+	if req.Sender != nil {
+		as = kernel.AsExecutionRole{Role: req.Sender.Role}
+	}
 	return kernel.Target{
 		Scope:  scope,
-		As:     kernel.AsService{Name: servicePrincipal(req.Mechanism), Source: req.Source},
+		As:     as,
 		Via:    req.Mechanism.Via(),
 		At:     a.due,
 		Resume: a.entry.Cause,

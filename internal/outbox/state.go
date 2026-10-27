@@ -19,8 +19,10 @@ import (
 )
 
 // stateVersion is the schema version of State in snapshot sections. 2: an
-// event bus entry keeps a forwarded event's envelope (forwardedRecord).
-const stateVersion = 2
+// event bus entry keeps a forwarded event's envelope (forwardedRecord). 3:
+// a Lambda delivery keeps its sender (senderRecord) and a queue target its
+// trace header.
+const stateVersion = 3
 
 // State is the outbox of one account and region, the scope of the targets
 // its deliveries land in: every accepted delivery not yet delivered,
@@ -113,6 +115,13 @@ type requestRecord struct {
 	Target    targetRecord       `json:"target"`
 	Policy    policyRecord       `json:"policy"`
 	DLQ       string             `json:"dlq,omitempty"`
+	Sender    *senderRecord      `json:"sender,omitempty"`
+}
+
+// senderRecord is the persisted form of a delivery.LambdaSender.
+type senderRecord struct {
+	Role    string                 `json:"role"`
+	Carries delivery.LambdaPayload `json:"carries"`
 }
 
 // targetRecord is the persisted form of a delivery.Target.
@@ -121,11 +130,12 @@ type requestRecord struct {
 type targetRecord interface{ isTargetRecord() }
 
 type sqsQueueRecord struct {
-	Queue      string            `json:"queue"`
-	Body       string            `json:"body"`
-	Attributes []attributeRecord `json:"attributes,omitempty"`
-	GroupID    string            `json:"groupId,omitempty"`
-	DedupID    string            `json:"dedupId,omitempty"`
+	Queue       string            `json:"queue"`
+	Body        string            `json:"body"`
+	Attributes  []attributeRecord `json:"attributes,omitempty"`
+	GroupID     string            `json:"groupId,omitempty"`
+	DedupID     string            `json:"dedupId,omitempty"`
+	TraceHeader string            `json:"traceHeader,omitempty"`
 }
 
 type lambdaFunctionRecord struct {
@@ -319,6 +329,9 @@ func recordOf(e *Entry) entryRecord {
 	if req.DLQ != nil {
 		r.Request.DLQ = req.DLQ.String()
 	}
+	if s := req.Sender; s != nil {
+		r.Request.Sender = &senderRecord{Role: s.Role.String(), Carries: s.Carries}
+	}
 	return r
 }
 
@@ -386,6 +399,13 @@ func requestOf(r *requestRecord) (delivery.Request, *RequestError) {
 		}
 		req.DLQ = &dlq
 	}
+	if s := r.Sender; s != nil {
+		role, err := parseARN("Sender.Role", s.Role)
+		if err != nil {
+			return delivery.Request{}, err
+		}
+		req.Sender = &delivery.LambdaSender{Role: role, Carries: s.Carries}
+	}
 	return req, nil
 }
 
@@ -400,7 +420,9 @@ func parseARN(field, s string) (aws.ARN, *RequestError) {
 func targetRecordOf(t delivery.Target) targetRecord {
 	switch t := t.(type) {
 	case delivery.SQSQueue:
-		return sqsQueueRecord{Queue: t.ARN.String(), Body: t.Body, Attributes: attributeRecordsOf(t.Attributes), GroupID: t.GroupID, DedupID: t.DedupID}
+		return sqsQueueRecord{
+			Queue: t.ARN.String(), Body: t.Body, Attributes: attributeRecordsOf(t.Attributes), GroupID: t.GroupID, DedupID: t.DedupID, TraceHeader: t.TraceHeader,
+		}
 	case delivery.LambdaFunction:
 		return lambdaFunctionRecord{Function: t.ARN.String(), Qualifier: t.Qualifier, Event: t.Event, Invocation: t.Invocation}
 	case delivery.SNSTopic:
@@ -437,7 +459,7 @@ func targetOf(r targetRecord) (delivery.Target, *RequestError) {
 		if err != nil {
 			return nil, err
 		}
-		return delivery.SQSQueue{ARN: queue, Body: r.Body, Attributes: attrs, GroupID: r.GroupID, DedupID: r.DedupID}, nil
+		return delivery.SQSQueue{ARN: queue, Body: r.Body, Attributes: attrs, GroupID: r.GroupID, DedupID: r.DedupID, TraceHeader: r.TraceHeader}, nil
 	case lambdaFunctionRecord:
 		function, err := parseARN("Target.ARN", r.Function)
 		if err != nil {
