@@ -13,6 +13,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/fidelity"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/ref"
+	"github.com/sustinbebustin/understudy/internal/shardlog"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
@@ -61,7 +62,45 @@ func NewStreams(d kernel.ServiceDeps, svc *Service) *Streams {
 	b.DescribeStream(s.describeStream, notes(describeStreamNote))
 	b.GetShardIterator(s.getShardIterator, notes(getShardIteratorNote))
 	b.GetRecords(s.getRecords, notes(getRecordsNote))
+	declareStreamsAccess(d.Binder)
 	return s
+}
+
+// declareStreamsAccess states what each Streams call needs from IAM: its
+// own action and no other (dynamodb:ReadDataForReplication, also in the
+// generated lists of DescribeStream, GetShardIterator and GetRecords,
+// authorizes global-table replication, not a caller's read), on the stream
+// it addresses; ListStreams addresses no stream, so it is asked on "*"
+// (spec enforce matrix row 1). GetRecords names its stream only in its
+// iterator's prefix, which is read before the handler verifies the token.
+func declareStreamsAccess(b *kernel.Binder) {
+	kernel.Declare(b, dynamodbstreamsapi.OpListStreams, kernel.WithoutSecondaryActions())
+	kernel.Declare(b, dynamodbstreamsapi.OpDescribeStream, kernel.WithoutSecondaryActions(),
+		kernel.WithResources(func(_ *kernel.Call, in *dynamodbstreamsapi.DescribeStreamInput) []aws.ARN {
+			return streamResource(in.StreamArn)
+		}))
+	kernel.Declare(b, dynamodbstreamsapi.OpGetShardIterator, kernel.WithoutSecondaryActions(),
+		kernel.WithResources(func(_ *kernel.Call, in *dynamodbstreamsapi.GetShardIteratorInput) []aws.ARN {
+			return streamResource(in.StreamArn)
+		}))
+	kernel.Declare(b, dynamodbstreamsapi.OpGetRecords, kernel.WithoutSecondaryActions(),
+		kernel.WithResources(func(_ *kernel.Call, in *dynamodbstreamsapi.GetRecordsInput) []aws.ARN {
+			stream, ok := shardlog.ClaimedStream([]byte(in.ShardIterator))
+			if !ok || stream.Service != "dynamodb" {
+				return nil
+			}
+			return []aws.ARN{stream}
+		}))
+}
+
+// streamResource is the stream a Streams input's StreamArn names, nothing
+// when it is not a DynamoDB ARN: the handler then answers it as usual.
+func streamResource(arn string) []aws.ARN {
+	stream, err := aws.ParseARN(arn)
+	if err != nil || stream.Service != "dynamodb" {
+		return nil
+	}
+	return []aws.ARN{stream}
 }
 
 // Name returns "dynamodbstreams".

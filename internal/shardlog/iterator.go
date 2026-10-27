@@ -103,19 +103,38 @@ func (c Codec) Encode(it Iterator) []byte {
 	return out
 }
 
+// ClaimedStream returns the stream an ARNPrefixed token names in its
+// prefix, unverified: what a call reading through the token addresses,
+// known before the token's HMAC is checked, as IAM authorization needs it.
+// False when the token has no prefix that parses as an ARN.
+func ClaimedStream(token []byte) (aws.ARN, bool) {
+	stream, _, err := splitPrefix(token)
+	return stream, err == nil
+}
+
+// splitPrefix splits an ARNPrefixed token into the stream its prefix names
+// and the rest, the prefix's separator included in neither.
+func splitPrefix(b []byte) (aws.ARN, []byte, *MalformedError) {
+	before, after, ok := bytes.CutLast(b, []byte(arnSeparator))
+	if !ok {
+		return aws.ARN{}, nil, &MalformedError{Reason: "no stream ARN prefix"}
+	}
+	stream, err := aws.ParseARN(string(before))
+	if err != nil {
+		return aws.ARN{}, nil, &MalformedError{Reason: "the prefix is not a stream ARN"}
+	}
+	return stream, after, nil
+}
+
 // Decode checks a token's HMAC, its prefix against the stream it names and
 // its age: *MalformedError for one that does not decode or verify,
 // *ExpiredError when now is at or past Issued plus ttl or before Issued.
 func (c Codec) Decode(b []byte, now clock.Instant, ttl time.Duration) (Iterator, error) {
-	i := bytes.LastIndex(b, []byte(arnSeparator))
-	if i < 0 {
-		return Iterator{}, &MalformedError{Reason: "no stream ARN prefix"}
+	stream, enc, merr := splitPrefix(b)
+	if merr != nil {
+		return Iterator{}, merr
 	}
-	prefix, enc := b[:i+len(arnSeparator)], b[i+len(arnSeparator):]
-	stream, err := aws.ParseARN(string(b[:i]))
-	if err != nil {
-		return Iterator{}, &MalformedError{Reason: "the prefix is not a stream ARN"}
-	}
+	prefix := b[:len(b)-len(enc)]
 	signed := make([]byte, base64.StdEncoding.DecodedLen(len(enc)))
 	n, err := base64.StdEncoding.Strict().Decode(signed, enc)
 	if err != nil || n <= sha256.Size {
