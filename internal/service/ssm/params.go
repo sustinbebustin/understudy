@@ -19,10 +19,6 @@ import (
 // (ssm-parameters.md 4.3).
 const defaultDataType = "text"
 
-// describePageSize is how many entries DescribeParameters answers without
-// MaxResults. UNVERIFIED (SSM-20), ssm-parameters.md 7.10.
-const describePageSize = 50
-
 // errAlreadyExists is PutParameter's answer for an existing name without
 // Overwrite (ssm-parameters.md 12.4).
 func errAlreadyExists() *awserr.Error {
@@ -346,67 +342,6 @@ func addTags(tags []Tag, add []ssmapi.Tag) []Tag {
 		out = append(out, Tag{Key: t.Key, Value: t.Value})
 	}
 	return out
-}
-
-// describeParameters lists the metadata of the parameters a Name Equals
-// filter names, Terraform's one request (ssm-parameters.md 10.1). Not
-// implemented yet: every other filter and option, Shared, paging and the
-// deprecated Filters.
-func (s *Service) describeParameters(_ context.Context, c *kernel.Call, in *ssmapi.DescribeParametersInput) (*ssmapi.DescribeParametersOutput, *awserr.Error) {
-	const op = "DescribeParameters"
-	for _, f := range in.ParameterFilters {
-		if f.Key != "Name" && f.Key != "Path" {
-			continue
-		}
-		if err := checkReserved(op, f.Values...); err != nil {
-			return nil, err
-		}
-	}
-	switch {
-	case len(in.Filters) > 0:
-		return nil, errDescribeNotYet("Filters")
-	case in.Shared != nil && *in.Shared:
-		return nil, errDescribeNotYet("Shared")
-	case in.NextToken != nil:
-		return nil, errDescribeNotYet("NextToken")
-	case len(in.ParameterFilters) != 1 || in.ParameterFilters[0].Key != "Name" ||
-		(in.ParameterFilters[0].Option != nil && *in.ParameterFilters[0].Option != "Equals"):
-		return nil, errDescribeNotYet("ParameterFilters other than one Name filter with Option Equals")
-	}
-	wanted := make([]string, 0, len(in.ParameterFilters[0].Values))
-	for _, raw := range in.ParameterFilters[0].Values {
-		wanted = append(wanted, canonicalOf(raw))
-	}
-	slices.Sort(wanted)
-	wanted = slices.Compact(wanted)
-	scope := c.Scope()
-	found := readState(s, scope, func(st *State) []Parameter {
-		var out []Parameter
-		for _, w := range wanted {
-			if p, ok := st.Parameters[w]; ok {
-				out = append(out, p)
-			}
-		}
-		return out
-	})
-	size := describePageSize
-	if in.MaxResults != nil {
-		size = int(*in.MaxResults)
-	}
-	if len(found) > size {
-		return nil, errDescribeNotYet("paging")
-	}
-	out := &ssmapi.DescribeParametersOutput{Parameters: make([]ssmapi.ParameterMetadata, 0, len(found))}
-	for _, p := range found {
-		v := p.latest()
-		out.Parameters = append(out.Parameters, ssmapi.ParameterMetadata{
-			Name: new(p.Name), ARN: new(parameterARN(scope, p.Name).String()), Type: new(ssmapi.ParameterType(v.Type)), KeyId: keyIDOf(v.Value),
-			LastModifiedDate: new(v.LastModified.Wire()), LastModifiedUser: new(v.LastModifiedUser),
-			Description: v.Description, AllowedPattern: v.AllowedPattern, Version: v.Number,
-			Tier: new(ssmapi.ParameterTier(v.Tier)), Policies: []ssmapi.ParameterInlinePolicy{}, DataType: new(v.DataType),
-		})
-	}
-	return out, nil
 }
 
 // deleteParameter drops a parameter with its versions, labels and tags.

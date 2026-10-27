@@ -149,16 +149,6 @@ func parseNameOrARN(raw string, scope aws.Scope) (name, *awserr.Error) {
 	return n, nil
 }
 
-// canonicalOf is the canonical form of a name, valid or not, for comparing
-// filter values with stored names (ssm-parameters.md 3.2).
-func canonicalOf(raw string) string {
-	spelling := strings.Trim(raw, " ")
-	if rest, ok := strings.CutPrefix(spelling, "/"); ok && !strings.Contains(rest, "/") {
-		return rest
-	}
-	return spelling
-}
-
 // parameterARN is the ARN of the parameter canonical in scope:
 // parameter/<canonical name without its leading slash> (ssm-parameters.md
 // 3.3).
