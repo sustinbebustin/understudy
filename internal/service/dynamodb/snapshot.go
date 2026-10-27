@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"slices"
 	"strings"
+	"sync"
 
 	"github.com/sustinbebustin/understudy/internal/api/dynamodbapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
@@ -28,8 +29,10 @@ import (
 // CreateTable request that rebuilds the table from Local's DescribeTable,
 // every other line one item in DynamoDB JSON, members sorted, the lines
 // ordered by the item's key in the same encoding. The shim's own state (tags, TTL, PITR,
-// table ids) travels in the cell sections. Local's SQLite files are never
-// copied, and its stream labels change across a load.
+// table ids, streams and their records) travels in the cell sections.
+// Local's SQLite files are never copied; its stream labels change across a
+// load, so each re-created table's new Local stream is mapped to the
+// restored stream (relinks).
 
 // sectionExt is the extension of an item section.
 const sectionExt = ".ndjson"
@@ -280,7 +283,12 @@ func readPage(op *registry.Operation, body []byte) (scanPage, error) {
 // tables of every scope the shim or ss names are deleted, then each
 // section's table is created and its items written. The cell sections the
 // load imports next restore what the shim records about them.
+//
+// Each table created with a stream is recorded, with its new Local stream
+// read to the tip, for Import to map (relinks); a failed import leaves no
+// record for a later Import to apply.
 func (s *Service) ImportLate(ctx context.Context, ss []store.Section) error {
+	s.relinks.set(nil)
 	tables := make([]lateTable, 0, len(ss))
 	scopes := s.cells.Keys(store.ScopeKeys())
 	for _, sec := range ss {
@@ -296,12 +304,42 @@ func (s *Service) ImportLate(ctx context.Context, ss []store.Section) error {
 	if err := s.dropTables(ctx, scopes); err != nil {
 		return err
 	}
+	found := map[tableKey]relink{}
 	for _, t := range tables {
-		if err := s.importTable(ctx, t); err != nil {
+		r, streamed, err := s.importTable(ctx, t)
+		if err != nil {
 			return fmt.Errorf("importing DynamoDB table %s: %w", tableARN(t.key.scope, t.key.table), err)
 		}
+		if streamed {
+			found[t.key] = r
+		}
 	}
+	s.relinks.set(found)
 	return nil
+}
+
+// relinks hands the streams ImportLate found to the Import that follows
+// it. The load runs the two in turn; the lock only keeps the race detector
+// and a concurrent reset honest.
+type relinks struct {
+	mu     sync.Mutex
+	tables map[tableKey]relink
+}
+
+func (r *relinks) set(tables map[tableKey]relink) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.tables = tables
+}
+
+// takeRelinks returns the relinks ImportLate recorded and forgets them, so
+// each applies to one Import only.
+func (s *Service) takeRelinks() map[tableKey]relink {
+	s.relinks.mu.Lock()
+	defer s.relinks.mu.Unlock()
+	t := s.relinks.tables
+	s.relinks.tables = nil
+	return t
 }
 
 // lateTable is one parsed item section.
@@ -314,7 +352,8 @@ type lateTable struct {
 // parseSection reads an item section, refusing one of another schema
 // version or layout before anything in Local changes.
 func parseSection(sec store.Section) (lateTable, error) {
-	if sec.Version != stateVersion {
+	// Version 3 wrote item sections exactly as version 4 does.
+	if sec.Version != stateVersion && sec.Version != stateVersionNoStreams {
 		return lateTable{}, &store.VersionMismatchError{Path: sec.Path, Section: sec.Version, Running: stateVersion}
 	}
 	path, ok := strings.CutSuffix(sec.Path, sectionExt)
@@ -384,16 +423,56 @@ func (e *SectionError) Error() string {
 	return fmt.Sprintf("DynamoDB item section %q cannot be imported: %s; nothing in DynamoDB Local was changed", e.Path, e.Reason)
 }
 
-func (s *Service) importTable(ctx context.Context, t lateTable) error {
-	if _, err := s.directBody(ctx, t.key.scope, dynamodbapi.OpCreateTableRaw.Descriptor(), t.create); err != nil {
-		return err
+// importTable creates t in Local and writes its items. When Local's answer
+// says the table has a stream, it reports that stream read to its tip,
+// past the records of the import's own writes.
+func (s *Service) importTable(ctx context.Context, t lateTable) (relink, bool, error) {
+	created, err := s.directBody(ctx, t.key.scope, dynamodbapi.OpCreateTableRaw.Descriptor(), t.create)
+	if err != nil {
+		return relink{}, false, err
 	}
 	for batch := range slices.Chunk(t.items, batchSize) {
 		if err := s.writeBatch(ctx, t.key, batch); err != nil {
-			return err
+			return relink{}, false, err
 		}
 	}
-	return nil
+	r, streamed := createdStream(created)
+	if !streamed {
+		return relink{}, false, nil
+	}
+	r.feed, err = s.localTip(ctx, s.kernel.Clock().Now(), t.key.scope, localStreamARN(t.key.table, r.feed.label), r.feed)
+	if err != nil {
+		return relink{}, false, fmt.Errorf("reading the new DynamoDB Local stream of the table to its end: %w", err)
+	}
+	return r, true, nil
+}
+
+// createdStream reads the stream a CreateTable answer of Local's reports:
+// its view type, Local's label and the table's key schema. It reports
+// false for a table without an enabled stream.
+func createdStream(answer []byte) (relink, bool) {
+	dec := jsonx.NewDecoder(answer)
+	doc, err := dec.ReadValue()
+	if err != nil {
+		return relink{}, false
+	}
+	top, ok := doc.(document.Map)
+	if !ok {
+		return relink{}, false
+	}
+	desc, ok := member(top, "TableDescription").(document.Map)
+	if !ok {
+		return relink{}, false
+	}
+	spec, hasSpec := member(desc, "StreamSpecification").(document.Map)
+	enabled, hasEnabled := member(spec, "StreamEnabled").(document.Bool)
+	view, hasView := member(spec, "StreamViewType").(document.String)
+	var seen localStreamSeen
+	seen.read(desc)
+	if !hasSpec || !hasEnabled || !hasView || !bool(enabled) || seen.label == "" {
+		return relink{}, false
+	}
+	return relink{feed: localFeed{label: seen.label}, keys: seen.keys, viewType: dynamodbapi.StreamViewType(view)}, true
 }
 
 // writeBatch puts items into k with BatchWriteItem, sending again what

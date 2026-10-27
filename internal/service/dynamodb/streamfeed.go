@@ -222,7 +222,7 @@ func (s *Service) drain(ctx context.Context, c *kernel.Call, scope aws.Scope, ta
 	if feed.failed != nil {
 		stamp = *feed.failed
 	}
-	p, err := s.pull(ctx, c, scope, st.localARN(), feed)
+	p, err := s.pull(ctx, c.Admitted(), scope, st.localARN(), feed)
 	if err == nil {
 		err = s.appendPulled(c, scope, st, arn, p, stamp)
 	}
@@ -303,20 +303,39 @@ type pulledRecord struct {
 // it can (dynamodb-streams.md 6.4).
 const drainPage = 1000
 
-// pull reads Local's stream localARN after feed's position: DescribeStream
-// once to learn the shard, GetShardIterator from the saved number (or
-// TRIM_HORIZON before the first record), then GetRecords until a page is
-// empty.
-func (s *Service) pull(ctx context.Context, c *kernel.Call, scope aws.Scope, localARN string, feed localFeed) (pulled, error) {
+// pull reads Local's stream localARN after feed's position, with requests
+// stamped at (pullEach).
+func (s *Service) pull(ctx context.Context, at clock.Instant, scope aws.Scope, localARN string, feed localFeed) (pulled, error) {
+	var records []pulledRecord
+	shard, err := s.pullEach(ctx, at, scope, localARN, feed, func(r *localPageRecord) error {
+		v, err := r.value()
+		if err != nil {
+			return err
+		}
+		records = append(records, pulledRecord{seq: r.Dynamodb.SequenceNumber, value: v})
+		return nil
+	})
+	if err != nil {
+		return pulled{}, err
+	}
+	return pulled{shard: shard, records: records}, nil
+}
+
+// pullEach passes each record of Local's stream localARN after feed's
+// position to each, in order, and returns the stream's shard id:
+// DescribeStream once to learn the shard, GetShardIterator from the saved
+// number (or TRIM_HORIZON before the first record), then GetRecords until a
+// page is empty.
+func (s *Service) pullEach(ctx context.Context, at clock.Instant, scope aws.Scope, localARN string, feed localFeed, each func(*localPageRecord) error) (string, error) {
 	endpoint, ok := s.local.Endpoint()
 	if !ok {
-		return pulled{}, errStopped
+		return "", errStopped
 	}
 	call := func(op *registry.Operation, in, out any) error {
-		return s.callLocalStreams(ctx, c, scope, endpoint, op, in, out)
+		return s.callLocalStreams(ctx, at, scope, endpoint, op, in, out)
 	}
-	p := pulled{shard: feed.shard}
-	if p.shard == "" {
+	shard := feed.shard
+	if shard == "" {
 		var d struct {
 			StreamDescription struct {
 				Shards []struct {
@@ -325,13 +344,13 @@ func (s *Service) pull(ctx context.Context, c *kernel.Call, scope aws.Scope, loc
 			}
 		}
 		if err := call(dynamodbstreamsapi.OpDescribeStream.Descriptor(), map[string]string{"StreamArn": localARN}, &d); err != nil {
-			return pulled{}, err
+			return "", err
 		}
 		shards := d.StreamDescription.Shards
 		if len(shards) == 0 {
-			return pulled{}, &AnswerError{Op: dynamodbstreamsapi.OpDescribeStream.Descriptor().ID, Reason: "the stream " + localARN + " has no shard"}
+			return "", &AnswerError{Op: dynamodbstreamsapi.OpDescribeStream.Descriptor().ID, Reason: "the stream " + localARN + " has no shard"}
 		}
-		p.shard = shards[len(shards)-1].ShardID
+		shard = shards[len(shards)-1].ShardID
 	}
 	type iteratorIn struct {
 		StreamArn         string
@@ -339,13 +358,13 @@ func (s *Service) pull(ctx context.Context, c *kernel.Call, scope aws.Scope, loc
 		ShardIteratorType string
 		SequenceNumber    string `json:",omitempty"`
 	}
-	in := iteratorIn{StreamArn: localARN, ShardID: p.shard, ShardIteratorType: "TRIM_HORIZON"}
+	in := iteratorIn{StreamArn: localARN, ShardID: shard, ShardIteratorType: "TRIM_HORIZON"}
 	if feed.last != "" {
 		in.ShardIteratorType, in.SequenceNumber = "AFTER_SEQUENCE_NUMBER", feed.last
 	}
 	var it struct{ ShardIterator *string }
 	if err := call(dynamodbstreamsapi.OpGetShardIterator.Descriptor(), in, &it); err != nil {
-		return pulled{}, err
+		return "", err
 	}
 	for next := it.ShardIterator; next != nil; {
 		type recordsIn struct {
@@ -354,21 +373,36 @@ func (s *Service) pull(ctx context.Context, c *kernel.Call, scope aws.Scope, loc
 		}
 		var page localPage
 		if err := call(dynamodbstreamsapi.OpGetRecords.Descriptor(), recordsIn{ShardIterator: *next, Limit: drainPage}, &page); err != nil {
-			return pulled{}, err
+			return "", err
 		}
 		if len(page.Records) == 0 {
 			break
 		}
-		for _, r := range page.Records {
-			v, err := r.value()
-			if err != nil {
-				return pulled{}, err
+		for i := range page.Records {
+			if err := each(&page.Records[i]); err != nil {
+				return "", err
 			}
-			p.records = append(p.records, pulledRecord{seq: r.Dynamodb.SequenceNumber, value: v})
 		}
 		next = page.NextShardIterator
 	}
-	return p, nil
+	return shard, nil
+}
+
+// localTip is feed moved to the end of Local's stream localARN: its shard
+// and the number of its last record, which Local's stream may not have
+// yet (an empty last then reads from TRIM_HORIZON). A snapshot load maps a
+// restored stream to the tip of the table's new Local stream, so the
+// load's own writes emit nothing (ADR 0009 amendment of 2026-10-27).
+func (s *Service) localTip(ctx context.Context, at clock.Instant, scope aws.Scope, localARN string, feed localFeed) (localFeed, error) {
+	shard, err := s.pullEach(ctx, at, scope, localARN, feed, func(r *localPageRecord) error {
+		feed.last = r.Dynamodb.SequenceNumber
+		return nil
+	})
+	if err != nil {
+		return localFeed{}, err
+	}
+	feed.shard = shard
+	return feed, nil
 }
 
 // localPage is a GetRecords answer of Local's, with the images as Local
@@ -402,16 +436,16 @@ func (r *localPageRecord) value() (streamRecord, error) {
 }
 
 // callLocalStreams sends Local the DynamoDB Streams operation op with in
-// as its body, under scope's credential, and decodes its answer into out:
-// an error answer is a *LocalError, one that does not decode an
-// *AnswerError. The feed's reads are understudy reading its own backend,
-// not a principal's call, so they skip the pipeline.
-func (s *Service) callLocalStreams(ctx context.Context, c *kernel.Call, scope aws.Scope, endpoint *url.URL, op *registry.Operation, in, out any) error {
+// as its body, under scope's credential signed at at, and decodes its
+// answer into out: an error answer is a *LocalError, one that does not
+// decode an *AnswerError. The feed's reads are understudy reading its own
+// backend, not a principal's call, so they skip the pipeline.
+func (s *Service) callLocalStreams(ctx context.Context, at clock.Instant, scope aws.Scope, endpoint *url.URL, op *registry.Operation, in, out any) error {
 	body, err := json.Marshal(in)
 	if err != nil {
 		return err
 	}
-	resp, aerr := s.send(ctx, endpoint, exchange{scope: scope, op: op.ID, at: c.Admitted()}, body)
+	resp, aerr := s.send(ctx, endpoint, exchange{scope: scope, op: op.ID, at: at}, body)
 	if aerr != nil {
 		return aerr.AsError()
 	}

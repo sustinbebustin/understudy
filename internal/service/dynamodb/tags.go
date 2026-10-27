@@ -159,12 +159,16 @@ func (s *Service) listTags(ctx context.Context, c *kernel.Call, in *dynamodbapi.
 	return out, nil
 }
 
-// taggedName is the table a tag operation's ResourceArn names. An ARN that
-// is not a table's is refused with ValidationException; a table of another
-// account or region is not found, as for every table operation (inScope).
+// taggedName is the table a tag operation's ResourceArn names. A stream
+// ARN answers 501 (errStreamTags); any other ARN that is not a table's is
+// refused with ValidationException; a table of another account or region
+// is not found, as for every table operation (inScope).
 func taggedName(scope aws.Scope, resource string) (string, *awserr.Error) {
 	arn, err := aws.ParseARN(resource)
 	name, isTable := strings.CutPrefix(arn.Resource, "table/")
+	if table, label, isStream := strings.Cut(name, "/stream/"); err == nil && arn.Service == "dynamodb" && isTable && isStream && table != "" && label != "" {
+		return "", errStreamTags()
+	}
 	if err != nil || arn.Service != "dynamodb" || !isTable || name == "" || strings.Contains(name, "/") {
 		return "", dynamodbapi.ErrValidationException("Invalid TableArn: Invalid ResourceArn provided as input " + resource)
 	}
@@ -172,6 +176,17 @@ func taggedName(scope aws.Scope, resource string) (string, *awserr.Error) {
 		return "", errTaggedNotFound(resource)
 	}
 	return name, nil
+}
+
+// streamTagsNote is the tag operations' coverage clause for stream ARNs
+// (dynamodb-streams.md 11.6), and the message of their 501.
+const streamTagsNote = "stream ARNs are not taggable in understudy; AWS tags existing streams"
+
+// errStreamTags answers a tag operation on a stream ARN: AWS tags existing
+// streams (aws-doc Tagging.Streams), understudy does not, and says so
+// rather than calling the ARN invalid (dynamodb-streams.md 11.6).
+func errStreamTags() *awserr.Error {
+	return &awserr.Error{ID: awserr.NotImplemented(), Message: streamTagsNote, Origin: awserr.Generic{}}
 }
 
 // errTaggedNotFound answers a tag operation on a table the scope lacks

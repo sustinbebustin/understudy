@@ -33,6 +33,9 @@ type Service struct {
 	feedLocks feedLocks
 	// drains are the timers that retry a failed drain.
 	drains kernel.HandledKind
+	// relinks are the tables the last ImportLate re-created in Local with a
+	// stream, for the Import that follows it to map (State.relink).
+	relinks relinks
 }
 
 // The service is the snapshot and reset view of its shim state.
@@ -91,11 +94,9 @@ const (
 	statementTwins = "aws-differs: dynamodb-local: table names inside statements resolve case-insensitively, so a statement naming a case twin of a table acts on that table"
 	parallelScan   = "aws-differs: dynamodb-local: Segment and TotalSegments are ignored, so a parallel scan reads sequentially"
 	statementLimit = "aws-differs: dynamodb-local: Limit is ignored"
-	// streamLabels goes on the operations whose answers carry
-	// LatestStreamLabel (ADR 0009 amendment, ARCHITECTURE.md 15): understudy
-	// mints the labels (dynamodb-streams.md 11.1 item 6), but snapshots do
-	// not keep them yet (State.Streams).
-	streamLabels = "aws-differs: dynamodb-local: stream labels are not saved in snapshots yet, so a table re-created by snapshot load or reset carries the new LatestStreamLabel DynamoDB Local mints, and ListStreams does not list that stream"
+	// streamTexts goes on UpdateTable: Local answers the stream enable and
+	// disable refusals itself (dynamodb-streams.md 5.1, 11.6; DDBS-06).
+	streamTexts = "aws-differs: dynamodb-local: the stream enable and disable errors carry DynamoDB Local's texts; AWS's are UNVERIFIED except \"Table already has an enabled stream\" (dynamodb-streams.md 5.1)"
 )
 
 // notes joins coverage notes into one Partial.
@@ -103,13 +104,13 @@ func notes(ns ...string) registry.Partial { return registry.Partial{Note: string
 
 func (s *Service) bindTables(b dynamodbapi.Binder) {
 	createTable := named(func(in *dynamodbapi.CreateTableInput) string { return in.TableName })
-	b.CreateTableRaw(s.createTable, notes(caseTwins, streamLabels), tables(createTable))
+	b.CreateTableRaw(s.createTable, notes(caseTwins), tables(createTable))
 	deleteTable := named(func(in *dynamodbapi.DeleteTableInput) string { return in.TableName })
 	b.DeleteTableRaw(s.deleteTable, registry.Full{}, tables(deleteTable))
 	describeTable := named(func(in *dynamodbapi.DescribeTableInput) string { return in.TableName })
-	b.DescribeTableRaw(s.describeTable, notes(streamLabels), tables(describeTable))
+	b.DescribeTableRaw(s.describeTable, registry.Full{}, tables(describeTable))
 	updateTable := named(func(in *dynamodbapi.UpdateTableInput) string { return in.TableName })
-	b.UpdateTableRaw(s.updateTable, notes(streamLabels), tables(updateTable))
+	b.UpdateTableRaw(s.updateTable, notes(streamTexts), tables(updateTable))
 	b.ListTablesRaw(passthrough(s, noTables, plainAnswer[dynamodbapi.ListTablesInput]), registry.Full{})
 	b.DescribeLimitsRaw(passthrough(s, noTables, plainAnswer[dynamodbapi.DescribeLimitsInput]), registry.Full{})
 }

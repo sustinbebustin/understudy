@@ -104,7 +104,7 @@ func TestOperationsLocalLacksNeverReachIt(t *testing.T) {
 // TestEveryOperationLocalServesIsBound: the forwarded operations are
 // bound, with Full or a Partial naming Local's gap, and so are the
 // operations the shims answer; those whose answers carry LatestStreamLabel
-// list Local's labels as a deviation.
+// no longer list Local's labels as a deviation.
 func TestEveryOperationLocalServesIsBound(t *testing.T) {
 	run(t, func(h *harness) {
 		forwarded := []string{
@@ -128,11 +128,11 @@ func TestEveryOperationLocalServesIsBound(t *testing.T) {
 			if ok && partial && slices.Contains(forwarded, op.ID.Name) && !strings.HasPrefix(p.Note, "aws-differs: dynamodb-local: ") {
 				h.Errorf("%s: partial note %q does not say how Local differs", op.ID.Name, p.Note)
 			}
-			// ADR 0009 amendment: stream labels change across a snapshot
-			// load or reset until snapshots keep them, listed where answers
-			// carry them.
-			if slices.Contains(labelled, op.ID.Name) && (!partial || !strings.Contains(p.Note, "stream labels are not saved in snapshots yet")) {
-				h.Errorf("%s: coverage %#v does not list the stream-label deviation", op.ID.Name, bound.Coverage)
+			// Snapshots keep stream labels, so the deviation the ADR 0009
+			// amendment listed where answers carry them is retired
+			// (dynamodb-streams.md 11.1 item 7).
+			if slices.Contains(labelled, op.ID.Name) && partial && strings.Contains(p.Note, "stream labels") {
+				h.Errorf("%s: coverage %#v still lists the retired stream-label deviation", op.ID.Name, bound.Coverage)
 			}
 		}
 	})

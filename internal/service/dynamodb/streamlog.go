@@ -1,6 +1,8 @@
 package dynamodb
 
 import (
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"fmt"
 	"hash/crc32"
 	"slices"
@@ -41,10 +43,73 @@ type streamLog struct {
 	// keys is the table's key schema, from Local's answer that enabled the
 	// stream; DescribeStream reports it.
 	keys []dynamodbstreamsapi.KeySchemaElement
+	// seq numbers the shard's records: the dynamodb.streams.sequence-number
+	// layout the stream was minted under, which a snapshot keeps with it.
+	seq shardlog.DecimalCounter
 	// shard is the stream's one shard (dynamodb-streams.md 11.1 item 1).
 	shard *shardlog.Shard[streamRecord]
 	// feed is how far the feed has read Local's stream of the table.
 	feed localFeed
+}
+
+// savedStream is a Stream as a snapshot holds it (ADR 0009 amendment of
+// 2026-10-27): what
+// identifies and describes it, its shard with every untrimmed record, and
+// the feed's saved place in Local's stream. A failed drain pending at the
+// cut is not kept: a load re-creates the table in Local, and the records
+// the drain left there are gone with the old table.
+type savedStream struct {
+	Table        string                                `json:"table"`
+	Label        clock.Instant                         `json:"label"`
+	ViewType     dynamodbapi.StreamViewType            `json:"viewType"`
+	Enabled      bool                                  `json:"enabled"`
+	TableDeleted *clock.Instant                        `json:"tableDeleted,omitempty"`
+	Keys         []dynamodbstreamsapi.KeySchemaElement `json:"keys"`
+	FirstAtStart bool                                  `json:"firstAtStart,omitempty"`
+	Shard        shardlog.ShardState[streamRecord]     `json:"shard"`
+	LocalLabel   string                                `json:"localLabel"`
+	LocalShard   string                                `json:"localShard,omitempty"`
+	LocalLast    string                                `json:"localLast,omitempty"`
+}
+
+// streamList is a scope's streams, oldest first, which a snapshot holds as
+// a list of savedStream.
+type streamList []Stream
+
+// MarshalJSONTo writes l as a list of savedStream.
+func (l *streamList) MarshalJSONTo(enc *jsontext.Encoder) error {
+	saved := make([]savedStream, 0, len(*l))
+	for _, s := range *l {
+		saved = append(saved, savedStream{
+			Table: s.Table, Label: s.Label, ViewType: s.ViewType, Enabled: s.Enabled, TableDeleted: s.TableDeleted,
+			Keys: s.log.keys, FirstAtStart: s.log.seq.FirstAtStart, Shard: s.log.shard.State(),
+			LocalLabel: s.log.feed.label, LocalShard: s.log.feed.shard, LocalLast: s.log.feed.last,
+		})
+	}
+	return json.MarshalEncode(enc, saved)
+}
+
+// UnmarshalJSONFrom reads what MarshalJSONTo writes, each Stream with a
+// log of its own.
+func (l *streamList) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	var saved []savedStream
+	if err := json.UnmarshalDecode(dec, &saved); err != nil {
+		return err
+	}
+	out := make(streamList, 0, len(saved))
+	for i := range saved {
+		v := &saved[i]
+		seq := shardlog.DecimalCounter{Digits: streamSeqDigits, FirstAtStart: v.FirstAtStart}
+		out = append(out, Stream{
+			Table: v.Table, Label: v.Label, ViewType: v.ViewType, Enabled: v.Enabled, TableDeleted: v.TableDeleted,
+			log: &streamLog{
+				keys: v.Keys, seq: seq, shard: shardlog.RestoreShard(v.Shard, seq),
+				feed: localFeed{label: v.LocalLabel, shard: v.LocalShard, last: v.LocalLast},
+			},
+		})
+	}
+	*l = out
+	return nil
 }
 
 // streamRecord is one record of the log: what the feed copied from Local's
@@ -79,10 +144,13 @@ type localFeed struct {
 
 // localARN is the ARN of Local's stream of the table, as Local minted it:
 // Local refuses understudy's (dynamodb-streams.md 8.3 row 1).
-func (s Stream) localARN() string {
+func (s Stream) localARN() string { return localStreamARN(s.Table, s.log.feed.label) }
+
+// localStreamARN is the ARN of Local's stream of table labeled label.
+func localStreamARN(table, label string) string {
 	return aws.ARN{
 		Partition: "aws", Service: "dynamodb", Region: localRegion, Account: localAccount,
-		Resource: "table/" + s.Table + "/stream/" + s.log.feed.label,
+		Resource: "table/" + table + "/stream/" + label,
 	}.String()
 }
 
@@ -266,15 +334,21 @@ func (s *Service) mint(scope aws.Scope, name string, v dynamodbapi.StreamViewTyp
 	if cell, ok := s.cells.Lookup(scope); ok {
 		label = store.Read(cell, func(st *State) clock.Instant { return st.streamLabel(name, now) })
 	}
+	return newStream(scope, name, v, label, s.sequencer())
+}
+
+// newStream is an enabled stream of view type v on the table name in scope,
+// labeled label, with an empty open shard numbered by seq.
+func newStream(scope aws.Scope, name string, v dynamodbapi.StreamViewType, label clock.Instant, seq shardlog.DecimalCounter) Stream {
 	st := Stream{Table: name, Label: label, ViewType: v, Enabled: true}
 	info := shardlog.ShardInfo{ID: shardID(st.arn(scope), label), Opened: label}
-	st.log = &streamLog{shard: shardlog.NewShard[streamRecord](info, s.sequencer())}
+	st.log = &streamLog{seq: seq, shard: shardlog.NewShard[streamRecord](info, seq)}
 	return st
 }
 
 // sequencer numbers stream records as the dynamodb.streams.sequence-number
 // switch says (dynamodb-streams.md 4.3, DDBS-09).
-func (s *Service) sequencer() shardlog.Sequencer {
+func (s *Service) sequencer() shardlog.DecimalCounter {
 	return shardlog.DecimalCounter{Digits: streamSeqDigits, FirstAtStart: s.streamSeq == SequenceStartEqualsFirst}
 }
 
@@ -288,4 +362,27 @@ const streamSeqDigits = 21
 func (s Stream) adopt(seen *localStreamSeen) {
 	s.log.keys = seen.keys
 	s.log.feed.label = seen.label
+}
+
+// relink is a table ImportLate re-created in Local with a stream: Local's
+// new stream, read to its tip, and what a stream minted for it needs.
+type relink struct {
+	feed     localFeed
+	keys     []dynamodbstreamsapi.KeySchemaElement
+	viewType dynamodbapi.StreamViewType
+}
+
+// relink maps the enabled stream of table to r's Local stream, at its tip
+// so the load's own writes emit nothing, keeping its label
+// (dynamodb-streams.md 11.1 item 7). A table without one, as every table
+// of a version 3 section, gets a fresh stream labeled at now, the import
+// instant (ADR 0009 amendment of 2026-10-27).
+func (st *State) relink(scope aws.Scope, table string, r relink, now clock.Instant, seq shardlog.DecimalCounter) {
+	if l, ok := st.latestStream(table); ok && l.Enabled {
+		l.log.feed = r.feed
+		return
+	}
+	minted := newStream(scope, table, r.viewType, st.streamLabel(table, now), seq)
+	minted.log.keys, minted.log.feed = r.keys, r.feed
+	st.Streams = append(st.Streams, minted)
 }

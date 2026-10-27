@@ -246,9 +246,9 @@ const (
 // bindShims binds the operations the shims answer without Local: tags,
 // time to live and continuous backups.
 func (s *Service) bindShims(b dynamodbapi.Binder) {
-	b.TagResourceRaw(answered(s, s.tagResource), registry.Full{}, taggedTable(func(in *dynamodbapi.TagResourceInput) string { return in.ResourceArn }))
-	b.UntagResourceRaw(answered(s, s.untagResource), registry.Full{}, taggedTable(func(in *dynamodbapi.UntagResourceInput) string { return in.ResourceArn }))
-	b.ListTagsOfResourceRaw(answered(s, s.listTags), registry.Full{}, taggedTable(func(in *dynamodbapi.ListTagsOfResourceInput) string { return in.ResourceArn }))
+	b.TagResourceRaw(answered(s, s.tagResource), notes(streamTagsNote), taggedTable(func(in *dynamodbapi.TagResourceInput) string { return in.ResourceArn }))
+	b.UntagResourceRaw(answered(s, s.untagResource), notes(streamTagsNote), taggedTable(func(in *dynamodbapi.UntagResourceInput) string { return in.ResourceArn }))
+	b.ListTagsOfResourceRaw(answered(s, s.listTags), notes(streamTagsNote), taggedTable(func(in *dynamodbapi.ListTagsOfResourceInput) string { return in.ResourceArn }))
 	b.UpdateTimeToLiveRaw(answered(s, s.updateTimeToLive), registry.Partial{Note: ttlNote},
 		tables(named(func(in *dynamodbapi.UpdateTimeToLiveInput) string { return in.TableName })))
 	b.DescribeTimeToLiveRaw(answered(s, s.describeTimeToLive), registry.Partial{Note: ttlNote},

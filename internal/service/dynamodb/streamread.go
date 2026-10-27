@@ -205,7 +205,7 @@ func (s *Streams) getShardIterator(ctx context.Context, c *kernel.Call, in *dyna
 		if err != nil {
 			return nil, false, awserr.Internalf(err)
 		}
-		drawn := st.iteratorKey == nil
+		drawn := st.IteratorKey == nil
 		token := st.codec(s.svc).Encode(shardlog.Iterator{Stream: arn, Created: x.Label, Shard: shard.Info().ID, Pos: pos, Issued: now})
 		return &dynamodbstreamsapi.GetShardIteratorOutput{ShardIterator: new(string(token))}, drawn, nil
 	})
@@ -214,10 +214,10 @@ func (s *Streams) getShardIterator(ctx context.Context, c *kernel.Call, in *dyna
 // codec is the scope's iterator codec, its key drawn on first use from the
 // seeded id streams (contract 3).
 func (st *State) codec(s *Service) shardlog.Codec {
-	if st.iteratorKey == nil {
-		st.iteratorKey = s.kernel.IDs().StreamIteratorKey()
+	if st.IteratorKey == nil {
+		st.IteratorKey = s.kernel.IDs().StreamIteratorKey()
 	}
-	return shardlog.NewCodec(st.iteratorKey, shardlog.ARNPrefixed{})
+	return shardlog.NewCodec(st.IteratorKey, shardlog.ARNPrefixed{})
 }
 
 func recordSize(r streamRecord) int { return int(r.SizeBytes) }
@@ -262,10 +262,10 @@ func (s *Streams) getRecords(ctx context.Context, c *kernel.Call, in *dynamodbst
 // IteratorSingleUse a token reads once: records remembers it until it
 // expires, and reports that as a change of the state.
 func (st *State) records(scope aws.Scope, token string, limit int, now clock.Instant, reuse IteratorReuse) (*dynamodbstreamsapi.GetRecordsOutput, bool, *awserr.Error) {
-	if st.iteratorKey == nil {
+	if st.IteratorKey == nil {
 		return nil, false, dynamodbstreamsapi.ErrValidationException(textInvalidIterator)
 	}
-	codec := shardlog.NewCodec(st.iteratorKey, shardlog.ARNPrefixed{})
+	codec := shardlog.NewCodec(st.IteratorKey, shardlog.ARNPrefixed{})
 	it, err := codec.Decode([]byte(token), now, iteratorTTL)
 	if err != nil {
 		if _, expired := errors.AsType[*shardlog.ExpiredError](err); expired {
