@@ -310,6 +310,55 @@ func Authorize(ctx context.Context, c *Call, action registry.IAMAction, resource
 	return verdictError(c, c.k.authorizer.Authorize(ctx, c, AuthzQuery{Pairs: []Pair{pair}, Keys: keys}))
 }
 
+// AuthorizeAs asks the Authorizer whether the principal as resolves to,
+// rather than c's caller, may perform q's pairs: for a handler that checks
+// a principal the request names, such as Step Functions asking whether
+// states.amazonaws.com may assume the execution role a state machine is
+// given (AsService), or whether that role may deliver its logs
+// (AsExecutionRole). The question is asked within c: an Authorizer's
+// journal entries are c's, and a denial is c's service's denial identity,
+// which the handler may reword. Nothing is touched or access-recorded,
+// since c's caller does not use the pairs. Like Authorize it asks nothing
+// when authorization is off, about a platform principal (AsPlatform),
+// which no policy grants, or about no pair. Asking while holding a cell
+// lock, without a mode, or for a call that names no modeled operation is a
+// caller bug: Internal, and the Authorizer is not asked.
+func AuthorizeAs(ctx context.Context, c *Call, as PrincipalMode, q AuthzQuery) *awserr.Error {
+	var action registry.IAMAction
+	if len(q.Pairs) > 0 {
+		action = q.Pairs[0].Action
+	}
+	switch {
+	case c.holding.Load():
+		return awserr.Internalf(&HoldingError{Attempted: "kernel.AuthorizeAs of " + action.String(), Holder: c.label})
+	case as == nil:
+		return awserr.Internalf(&AuthorizeError{Op: c.opID, Action: action, Reason: "the principal mode is nil; say whose permission is asked about"})
+	case c.op == nil:
+		return awserr.Internalf(&AuthorizeError{Op: c.opID, Action: action, Reason: "the call names no modeled operation, so it has no denial identity"})
+	}
+	if _, platform := as.(AsPlatform); c.k.authorizer == nil || platform || len(q.Pairs) == 0 {
+		return nil
+	}
+	asked := &Call{
+		k:         c.k,
+		id:        c.id,
+		scope:     c.scope,
+		principal: resolvePrincipal(c, as),
+		origin:    c.origin,
+		mode:      as,
+		op:        c.op,
+		opID:      c.opID,
+		label:     c.label,
+		event:     c.event,
+		cause:     c.cause,
+		admitted:  c.admitted,
+		endpoint:  c.endpoint,
+		trace:     c.trace,
+		elapsed:   c.elapsed,
+	}
+	return verdictError(asked, c.k.authorizer.Authorize(ctx, asked, q))
+}
+
 // AuthorizedOps lists, as ref.OperationID strings in registry order, the
 // modeled operations of svc bound in this kernel whose calls the Authorizer
 // may deny with svc's denial identity: every bound one but a raw HTTP
