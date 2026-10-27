@@ -1,67 +1,73 @@
 package asl
 
 import (
-	"errors"
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy/document"
-	"github.com/sustinbebustin/understudy/internal/service/sfn/asl/intrinsic"
 )
-
-// errNotImplemented is what the engine's unbuilt parts return.
-var errNotImplemented = errors.New("asl: not implemented yet")
 
 // Execution is one execution's interpreter state: an opaque value, zero
 // before Start, changed only by Step. It persists through jsonx with
 // MarshalJSON and UnmarshalJSON.
 type Execution struct {
-	_ struct{}
+	started bool
+	// lastEvent is the id of the last history event written; 0 before
+	// Start.
+	lastEvent int64
+	// lastTimer is the id of the last timer armed.
+	lastTimer TimerID
+	// timers are the armed timers, in TimerID order.
+	timers []armed
+	// context is Start's context: the stepfunctions-asl.md 4.7 Execution
+	// and StateMachine members.
+	context document.Value
+	// outcome is nil while the execution runs.
+	outcome Outcome
 }
+
+// armed is one armed timer and what it does when it fires.
+type armed struct {
+	id  TimerID
+	at  time.Time
+	job job
+}
+
+// job is what a timer does: stepJob.
+type job interface{ isJob() }
+
+// stepJob runs one state: the state named state on input, its first event
+// pointing at previous (stepfunctions-asl.md 11.2 rules 2 and 4).
+type stepJob struct {
+	state    string
+	input    document.Value
+	previous int64
+}
+
+func (stepJob) isJob() {}
 
 // Outcome reports how the execution ended; false while it runs or before
 // Start.
-//
-// Not implemented yet: it reports a running execution.
 func (x Execution) Outcome() (Outcome, bool) {
-	_ = x
-	return nil, false
+	return x.outcome, x.outcome != nil
 }
 
 // Timers lists the timers x has armed and not yet seen fire or cancelled,
 // in TimerID order: what the service re-arms after a snapshot load, since
 // timers are never saved (ADR 0009).
-//
-// Not implemented yet: it lists none.
 func (x Execution) Timers() []ArmTimer {
-	_ = x
-	return nil
+	out := make([]ArmTimer, 0, len(x.timers))
+	for _, t := range x.timers {
+		out = append(out, ArmTimer{Timer: t.id, At: t.at})
+	}
+	return out
 }
 
 // InFlight lists the Lambda tasks x is waiting on, in TaskID order: what the
 // service invokes again after a snapshot load (the StartExecution coverage
-// note).
-//
-// Not implemented yet: it lists none.
+// note). No built state invokes Lambda yet, so it lists none.
 func (x Execution) InFlight() []InvokeLambda {
 	_ = x
 	return nil
-}
-
-// MarshalJSON writes x in the jsonx tagged-union convention
-// (ARCHITECTURE.md 13).
-//
-// Not implemented yet: it fails.
-func (x Execution) MarshalJSON() ([]byte, error) {
-	_ = x
-	return nil, errNotImplemented
-}
-
-// UnmarshalJSON reads what MarshalJSON wrote.
-//
-// Not implemented yet: it fails.
-func (x *Execution) UnmarshalJSON(b []byte) error {
-	_, _ = x, b
-	return errNotImplemented
 }
 
 // Outcome is how an execution ended: Succeeded, Failed, TimedOut or Aborted.
@@ -200,15 +206,3 @@ func (InvokeLambda) effect() {}
 func (ArmTimer) effect()     {}
 func (CancelTimer) effect()  {}
 func (Finish) effect()       {}
-
-// Step applies ev to x and returns the new execution, the history events it
-// wrote (ids continuing from x's last) and the effects, in order. It is
-// pure: equal arguments give equal results. An event that does not apply (a
-// timer or task x does not know, anything after the outcome) returns x
-// unchanged with no events or effects.
-//
-// Not implemented yet: no event applies.
-func Step(d *Definition, rules Rules, src intrinsic.Source, x Execution, ev Event) (Execution, []HistoryEvent, []Effect) {
-	_, _, _, _ = d, rules, src, ev
-	return x, nil, nil
-}

@@ -1,10 +1,34 @@
 package asl
 
+import "github.com/sustinbebustin/understudy/internal/protocol/smithy/document"
+
 // Definition is a parsed state machine definition. It is immutable and built
 // only by Parse.
 type Definition struct {
-	_ struct{}
+	startAt string
+	states  map[string]state
 }
+
+// state is one parsed state: passState or succeedState.
+type state interface{ isState() }
+
+// passState is a Pass state (stepfunctions-asl.md 7.3): its output is
+// Result when the definition gives one, else its input.
+type passState struct {
+	name string
+	// next is the state that follows; "" when the state ends the execution.
+	next string
+	// result is the literal Result; nil when the state has none.
+	result document.Value
+}
+
+// succeedState is a Succeed state: its output is its input.
+type succeedState struct {
+	name string
+}
+
+func (passState) isState()    {}
+func (succeedState) isState() {}
 
 // Feature is a group of definition constructs that lands with one runtime
 // ticket. A construct whose Feature is outside the accepted set is refused
@@ -103,21 +127,6 @@ type Diagnostic struct {
 	Code     string // AWS's code, or CodeUnsupported
 	Message  string
 	Location string // "/States/<name>/<Field>"; "" when AWS gives none
-}
-
-// Parse parses definition, accepting the constructs of accept. It returns
-// every diagnostic in document order; the Definition is nil when any
-// diagnostic is SeverityError.
-//
-// Not implemented yet: it refuses every definition.
-func Parse(definition string, accept Features) (*Definition, []Diagnostic) {
-	_, _ = definition, accept
-	return nil, []Diagnostic{{
-		Severity: SeverityError,
-		Code:     CodeUnsupported,
-		Message:  "understudy does not implement Step Functions definitions yet. Run 'understudy coverage --service sfn' for what is supported.",
-		Location: "/",
-	}}
 }
 
 // InvalidDefinition returns the InvalidDefinition message CreateStateMachine
