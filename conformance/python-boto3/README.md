@@ -52,6 +52,7 @@ One file per service, so a fixer can own one service at a time.
 | `tests/test_kms.py` | keys, aliases, rotation, encrypt, decrypt, data keys |
 | `tests/test_logs.py` | `filter_log_events` pattern syntax, `get_log_events`, retention |
 | `tests/test_lambda.py` | invoke, log tail, SQS event source mappings, function URLs |
+| `tests/test_lambda_layers.py` | layer versions, filters and policies, layers on functions and in `/opt`, event-invoke refusals, invocation records to SQS, SNS and EventBridge destinations |
 | `tests/test_sts.py` | `get_caller_identity`, `assume_role` |
 | `tests/test_events.py` | `put_events` on the default bus; custom buses: lifecycle, default-bus tags, rules and events per bus, the schedule refusal, event bus targets and bus policies |
 
