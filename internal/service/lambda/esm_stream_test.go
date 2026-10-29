@@ -483,7 +483,8 @@ func TestStreamMappingRefusals(t *testing.T) {
 // without effect (spec "Out of both"; invariant 3): ParallelizationFactor
 // above 1, BisectBatchOnFunctionError, TumblingWindowInSeconds above 0, a
 // FilterCriteria pattern that compiles, an S3 on-failure destination, and a
-// Kinesis stream, whose text names what is supported (contract 8.2).
+// source of another service, whose text names what is supported (contract
+// 8.2; 08b contract 6.1).
 func TestStreamMappingNotImplemented(t *testing.T) {
 	runStream(t, esm.StreamFidelity{}, func(h *streamHarness) {
 		h.createFunction("worker")
@@ -499,9 +500,9 @@ func TestStreamMappingNotImplemented(t *testing.T) {
 				h.Errorf("%s: %s %d %q, want 501 NotImplemented", name, err.ID.Shape.Name(), err.ID.Status, err.Message)
 			}
 		}
-		kinesis := "arn:aws:kinesis:us-east-1:000000000000:stream/clicks"
-		errorIs(h, fail(h.harness, lambdaapi.OpCreateEventSourceMapping, &lambdaapi.CreateEventSourceMappingInput{FunctionName: "worker", EventSourceArn: new(kinesis), StartingPosition: new(lambdaapi.EventSourcePosition("LATEST"))}),
-			"NotImplemented", "understudy implements event source mappings for Amazon SQS queues and DynamoDB streams only; "+kinesis+" is neither. Run 'understudy coverage --service lambda' for what is supported.")
+		cluster := "arn:aws:kafka:us-east-1:000000000000:cluster/orders/0123abcd-0123-4567-89ab-0123456789ab-1"
+		errorIs(h, fail(h.harness, lambdaapi.OpCreateEventSourceMapping, &lambdaapi.CreateEventSourceMappingInput{FunctionName: "worker", EventSourceArn: new(cluster), StartingPosition: new(lambdaapi.EventSourcePosition("LATEST"))}),
+			"NotImplemented", "understudy implements event source mappings for Amazon SQS queues, DynamoDB streams and Kinesis data streams only; "+cluster+" is none of them. Run 'understudy coverage --service lambda' for what is supported.")
 	})
 }
 

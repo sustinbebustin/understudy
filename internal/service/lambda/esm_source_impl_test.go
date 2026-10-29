@@ -90,9 +90,9 @@ func TestMappingUnknownSourceKindIsRefused(t *testing.T) {
 	}
 }
 
-// CreateEventSourceMapping takes the kind from the source ARN: an SQS queue
-// or a DynamoDB stream; a source of another service is refused 501 naming
-// both (contract 8.2).
+// CreateEventSourceMapping takes the kind from the source ARN: an SQS queue,
+// a DynamoDB stream or a Kinesis stream; a source of another service is
+// refused 501 naming the three (contract 8.2; 08b contract 6.1).
 func TestEventSourceTakesTheKindFromTheARN(t *testing.T) {
 	queue := kindQueue
 	a, kind, err := eventSource(&queue)
@@ -111,14 +111,23 @@ func TestEventSourceTakesTheKindFromTheARN(t *testing.T) {
 	}
 
 	stream := "arn:aws:kinesis:us-east-1:000000000000:stream/orders"
-	_, kind, err = eventSource(&stream)
-	want := "understudy implements event source mappings for Amazon SQS queues and DynamoDB streams only; " + stream +
-		" is neither. Run 'understudy coverage --service lambda' for what is supported."
-	if err == nil || err.Message != want || kind != nil {
-		t.Fatalf("eventSource(%s) = %#v, %v; want no kind and %q", stream, kind, err, want)
+	if _, kind, err := eventSource(&stream); err != nil {
+		t.Errorf("eventSource(%s): %v", stream, err)
+	} else if _, ok := kind.(esm.KinesisStream); !ok {
+		t.Errorf("eventSource(%s) kind = %#v, want esm.KinesisStream", stream, kind)
 	}
-	if err.ID != errEventSourceUnsupported(stream).ID {
-		t.Errorf("eventSource(%s) error id = %v, want NotImplemented's", stream, err.ID)
+
+	// Anything else answers NotImplemented naming the three kinds (08b
+	// contract 6.1).
+	cluster := "arn:aws:kafka:us-east-1:000000000000:cluster/orders/0123abcd-0123-4567-89ab-0123456789ab-1"
+	_, kind, err = eventSource(&cluster)
+	want := "understudy implements event source mappings for Amazon SQS queues, DynamoDB streams and Kinesis data streams only; " + cluster +
+		" is none of them. Run 'understudy coverage --service lambda' for what is supported."
+	if err == nil || err.Message != want || kind != nil {
+		t.Fatalf("eventSource(%s) = %#v, %v; want no kind and %q", cluster, kind, err, want)
+	}
+	if err.ID != errEventSourceUnsupported(cluster).ID {
+		t.Errorf("eventSource(%s) error id = %v, want NotImplemented's", cluster, err.ID)
 	}
 }
 
