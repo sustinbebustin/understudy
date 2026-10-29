@@ -1,6 +1,8 @@
 package cloudwatch
 
 import (
+	"slices"
+
 	"github.com/sustinbebustin/understudy/internal/api/cloudwatchapi"
 	"github.com/sustinbebustin/understudy/internal/authz"
 	"github.com/sustinbebustin/understudy/internal/aws"
@@ -52,17 +54,18 @@ func timestampWindow() fidelity.Switch[string] {
 	}
 }
 
-// startRounding is how GetMetricData aligns its periods: StartTime rounds
-// down to the minute, five minutes or hour by its age on the emulator
-// clock, or to a sub-minute period's division of the minute, as AWS
-// documents; no recording shows the period boundaries.
+// startRounding is how GetMetricData and GetMetricStatistics align their
+// periods: StartTime rounds down to the minute, five minutes or hour by its
+// age on the emulator clock, or to a sub-minute period's division of the
+// minute, as AWS documents (cloudwatch-alarms.md 9.1, 12.2); no recording
+// shows the period boundaries.
 func startRounding() fidelity.Switch[string] {
 	return fidelity.Switch[string]{
 		Name:    "cloudwatch.get-metric-data.start-rounding",
 		Value:   "by-age",
 		Label:   evidence.AWSDoc,
 		Ref:     "docs/research/secrets-logs-events-alarms.md#53-getmetricdata",
-		Ops:     []string{"cloudwatch.GetMetricData"},
+		Ops:     []string{"cloudwatch.GetMetricData", "cloudwatch.GetMetricStatistics"},
 		Settles: fidelity.NoScenario{Reason: "unrecorded: no recording shows GetMetricData's period boundaries"},
 	}
 }
@@ -75,5 +78,5 @@ func (s *Service) Switches() []fidelity.Entry {
 		authz.DenialSwitch("cloudwatch.denial.identity",
 			"AccessDenied 403 over Query; __type com.amazon.coral.service#AccessDeniedException with header AccessDenied;Sender over JSON and CBOR",
 			evidence.Inferred, "3.2", "IAM-ENF-09", s.k.Bindings().AuthorizedOps(cloudwatchapi.Service())),
-	}, alarmSwitches()...)
+	}, slices.Concat(alarmSwitches(), statisticsSwitches())...)
 }

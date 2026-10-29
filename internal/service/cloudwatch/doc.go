@@ -1,6 +1,7 @@
 // Package cloudwatch implements Amazon CloudWatch metrics and alarms: metric
-// alarms and their tags, stored as Terraform needs them, PutMetricData,
-// GetMetricData over the stored points and ListMetrics. The handlers are
+// alarms and their tags, stored as Terraform needs them,
+// DescribeAlarmsForMetric, PutMetricData, GetMetricData and
+// GetMetricStatistics over the stored points and ListMetrics. The handlers are
 // written once and served through awsJson1_0, awsQuery and rpcv2Cbor, the
 // protocols the registry lists for the service.
 //
@@ -25,8 +26,8 @@
 //     cannot count more data points than it evaluates (the alarm
 //     evaluation documentation; the text is inferred). Without MaxRecords,
 //     DescribeAlarms pages by 50, a size AWS does not document (inferred).
-//   - Dimension names and values of PutMetricData, PutMetricAlarm and
-//     GetMetricData hold only printable ASCII with a non-space character,
+//   - Dimension names and values of PutMetricData, PutMetricAlarm,
+//     GetMetricData and GetMetricStatistics hold only printable ASCII with a non-space character,
 //     and a name does not start with a colon (the Dimension
 //     documentation; the text is inferred).
 //   - DeleteAlarms, EnableAlarmActions and DisableAlarmActions skip names
@@ -57,9 +58,18 @@
 //     request's queries differ in them (both AWS-recorded). Its NextToken is
 //     the number of values earlier pages returned. Metric math, Metrics
 //     Insights and valid statistics other than the basic five answer 501.
+//   - GetMetricStatistics reads periods as GetMetricData does, through the
+//     same series read and bucketing that alarm evaluation uses, but answers
+//     one datapoint per period and unit, never narrowing to one unit, sorted
+//     by timestamp, then unit, an order AWS does not document. Its
+//     1440-datapoint limit counts the ceiling of the span over the StartTime
+//     as sent (inferred, cloudwatch-alarms.md 9.3). ExtendedStatistics
+//     answer 501: percentiles need the samples, and points keep statistic
+//     sets.
 //   - PutMetricData accepts a SampleCount or Counts of zero, which AWS does
 //     not document refusing. A period whose combined SampleCount is zero has
-//     no Average, so the Average result leaves it out rather than answer NaN
+//     no Average, so the Average result or datapoint field leaves it out
+//     rather than answer NaN
 //     (inferred: no recording shows AWS's answer).
 //   - Error texts AWS records are marked so in errors.go and validate.go; the
 //     others follow the recorded templates and are marked inferred, so a

@@ -52,6 +52,14 @@ func errExpressionNotImplemented(path string) *awserr.Error {
 		".Expression); query stored metrics with MetricStat instead. Run 'understudy coverage --service cloudwatch' for what is supported.")
 }
 
+// errExtendedStatisticsNotImplemented refuses GetMetricStatistics'
+// ExtendedStatistics: understudy keeps statistic sets, from which no
+// percentile can be computed.
+func errExtendedStatisticsNotImplemented() *awserr.Error {
+	return cloudwatchapi.ErrNotImplemented("understudy does not implement ExtendedStatistics in GetMetricStatistics; ask for Statistics (" +
+		strings.Join(statNames(), ", ") + ") instead. Run 'understudy coverage --service cloudwatch' for what is supported.")
+}
+
 // errStatNotImplemented refuses a statistic GetMetricData supports and
 // understudy does not: percentiles, trimmed and windowed statistics.
 func errStatNotImplemented(path, stat string) *awserr.Error {

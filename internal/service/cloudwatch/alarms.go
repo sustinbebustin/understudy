@@ -41,6 +41,7 @@ func (s *Service) bindAlarms(b cloudwatchapi.Binder) {
 	b.DescribeAlarms(s.describeAlarms,
 		registry.Partial{Note: "metric alarms only: composite and log alarms are never stored, so ChildrenOfAlarmName and ParentsOfAlarmName select nothing"},
 		kernel.WithCheck(checkDescribeAlarms))
+	b.DescribeAlarmsForMetric(s.describeAlarmsForMetric, registry.Full{})
 	b.DeleteAlarms(s.deleteAlarms, registry.Full{},
 		alarmsNamed(func(in *cloudwatchapi.DeleteAlarmsInput) []string { return in.AlarmNames }))
 	b.EnableAlarmActions(s.enableAlarmActions,
@@ -179,6 +180,54 @@ func describes(in *cloudwatchapi.DescribeAlarmsInput, name string, a *Alarm) boo
 			func(action string) bool { return strings.HasPrefix(action, *in.ActionPrefix) })
 	}
 	return true
+}
+
+// describeAlarmsForMetric lists, by name, the scope's alarms on exactly the
+// named metric, narrowed by the filters sent and rendered as DescribeAlarms
+// renders them. MetricAlarms is always a list and CompositeAlarms is never
+// sent (cloudwatch-alarms.md 9.4).
+func (s *Service) describeAlarmsForMetric(_ context.Context, c *kernel.Call, in *cloudwatchapi.DescribeAlarmsForMetricInput) (*cloudwatchapi.DescribeAlarmsForMetricOutput, *awserr.Error) {
+	out := &cloudwatchapi.DescribeAlarmsForMetricOutput{MetricAlarms: []cloudwatchapi.MetricAlarm{}}
+	scope := c.Scope()
+	cell, ok := s.cells.Lookup(scope)
+	if !ok {
+		return out, nil
+	}
+	out.MetricAlarms = append(out.MetricAlarms, store.Read(cell, func(st *State) []cloudwatchapi.MetricAlarm {
+		var sel []cloudwatchapi.MetricAlarm
+		for _, name := range slices.Sorted(maps.Keys(st.Alarms)) {
+			a := st.Alarms[name]
+			if onMetric(in, &a.Config) {
+				sel = append(sel, renderAlarm(alarmRef{scope: scope, name: name}, &a))
+			}
+		}
+		return sel
+	})...)
+	return out, nil
+}
+
+// onMetric reports whether an alarm is a standard alarm on exactly the
+// input's namespace, metric name and dimension set, in any order, that each
+// filter sent matches. Alarms on Metrics or EvaluationCriteria are never on
+// a metric: AWS returns "only standard alarms that are based on the
+// specified metric" (cloudwatch-alarms.md 9.4).
+func onMetric(in *cloudwatchapi.DescribeAlarmsForMetricInput, cfg *cloudwatchapi.PutMetricAlarmInput) bool {
+	switch {
+	case len(cfg.Metrics) > 0 || cfg.EvaluationCriteria != nil:
+		return false
+	case cfg.Namespace == nil || *cfg.Namespace != in.Namespace || cfg.MetricName == nil || *cfg.MetricName != in.MetricName:
+		return false
+	case !slices.Equal(sortedDimensions(cfg.Dimensions), sortedDimensions(in.Dimensions)):
+		return false
+	}
+	return filterMatches(in.Statistic, cfg.Statistic) && filterMatches(in.ExtendedStatistic, cfg.ExtendedStatistic) &&
+		filterMatches(in.Period, cfg.Period) && filterMatches(in.Unit, cfg.Unit)
+}
+
+// filterMatches reports whether an optional filter is absent or equals the
+// alarm's value, which must then be set.
+func filterMatches[T comparable](filter, have *T) bool {
+	return filter == nil || have != nil && *have == *filter
 }
 
 // renderAlarm is the MetricAlarm DescribeAlarms returns: the configuration

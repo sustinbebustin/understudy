@@ -118,7 +118,7 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | Service | Operations | Full | Stored only | Partial | Unbound | Internal | Raw |
 |---|---|---|---|---|---|---|---|
 | apigatewayv2 | 103 | 0 | 2 | 29 | 72 | 0 | 1 |
-| cloudwatch | 55 | 1 | 2 | 9 | 43 | 0 | 0 |
+| cloudwatch | 55 | 2 | 2 | 10 | 41 | 0 | 0 |
 | dynamodb | 58 | 4 | 2 | 20 | 32 | 0 | 0 |
 | dynamodbstreams | 4 | 0 | 0 | 4 | 0 | 0 | 0 |
 | eventbridge | 57 | 6 | 1 | 15 | 35 | 1 | 0 |
@@ -253,13 +253,15 @@ Raw operations:
 | Operation | Status | Evidence | Note |
 |---|---|---|---|
 | DeleteAlarms | full | inferred, 1 of 4 claims |  |
+| DescribeAlarmsForMetric | full | inferred, 1 of 3 claims |  |
 | DisableAlarmActions | stored-only | inferred, 1 of 3 claims | ActionsEnabled is stored and echoed; alarm actions never run |
 | EnableAlarmActions | stored-only | inferred, 1 of 3 claims | ActionsEnabled is stored and echoed; alarm actions never run |
-| DescribeAlarms | partial | inferred, 7 of 13 claims | metric alarms only: composite and log alarms are never stored, so ChildrenOfAlarmName and ParentsOfAlarmName select nothing |
+| DescribeAlarms | partial | inferred, 8 of 14 claims | metric alarms only: composite and log alarms are never stored, so ChildrenOfAlarmName and ParentsOfAlarmName select nothing |
 | GetMetricData | partial | inferred, 1 of 4 claims | MetricStat queries with SampleCount, Average, Sum, Minimum or Maximum; metric math, Metrics Insights and percentiles answer 501; LabelOptions is ignored |
+| GetMetricStatistics | partial | inferred, 3 of 6 claims | Statistics only: ExtendedStatistics answers 501; points are kept until reset, not aged out by resolution |
 | ListMetrics | partial | inferred, 1 of 3 claims | no linked accounts: IncludeLinkedAccounts and OwningAccount select nothing more |
 | ListTagsForResource | partial | inferred, 1 of 3 claims | alarms only: insight rules and metric streams are never stored |
-| PutMetricAlarm | partial | inferred, 7 of 14 claims | stored and echoed; alarms are never evaluated, so their state changes only through SetAlarmState, and their actions never run |
+| PutMetricAlarm | partial | inferred, 8 of 15 claims | stored and echoed; alarms are never evaluated, so their state changes only through SetAlarmState, and their actions never run |
 | PutMetricData | partial | inferred, 2 of 5 claims | entities are not kept; with StrictEntityValidation false an entity error stores the data without the X-Amzn-Failure-Message header; points are kept until reset, not aged out by resolution |
 | SetAlarmState | partial | inferred, 1 of 5 claims | the state is set and echoed; no action runs and no evaluation follows |
 | TagResource | partial | inferred, 1 of 3 claims | alarms only: insight rules and metric streams are never stored |
@@ -274,7 +276,6 @@ Raw operations:
 | DeleteResourceMetricsConfiguration | unbound | unassessed |  |
 | DescribeAlarmContributors | unbound | unassessed |  |
 | DescribeAlarmHistory | unbound | unassessed |  |
-| DescribeAlarmsForMetric | unbound | unassessed |  |
 | DescribeAnomalyDetectors | unbound | unassessed |  |
 | DescribeInsightRules | unbound | unassessed |  |
 | DisableInsightRules | unbound | unassessed |  |
@@ -284,7 +285,6 @@ Raw operations:
 | GetDashboard | unbound | unassessed |  |
 | GetDataset | unbound | unassessed |  |
 | GetInsightRuleReport | unbound | unassessed |  |
-| GetMetricStatistics | unbound | unassessed |  |
 | GetMetricStream | unbound | unassessed |  |
 | GetMetricWidgetImage | unbound | unassessed |  |
 | GetOTelEnrichment | unbound | unassessed |  |
@@ -1391,7 +1391,7 @@ Internal operations:
 
 Behaviors chosen without AWS-recorded evidence, with the research they rest on and the parity scenario step that settles them, or why none does. The count and order follow the label the code states; the Label column shows the recording's verdict where a replayed step settles or contradicts the switch.
 
-194 switches: 1 aws-recorded, 5 third-party-recorded, 24 aws-doc, 164 inferred.
+197 switches: 1 aws-recorded, 5 third-party-recorded, 24 aws-doc, 167 inferred.
 
 | Switch | Value | Label | Reference | Settled by |
 |---|---|---|---|---|
@@ -1433,10 +1433,13 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `cloudwatch.alarm.evaluation-phase` | `minute-boundary` | inferred | docs/research/cloudwatch-alarms.md#31-cadence-and-phase | none: AWS evaluates at an arbitrary second, which does not change the data a minute's evaluation reads; no recording can pin it |
 | `cloudwatch.alarm.evaluation-range` | `n-plus-2` | inferred | docs/research/cloudwatch-alarms.md#34-evaluation-range-n-and-m | none: unrecorded: CWA-01 |
 | `cloudwatch.alarm.first-evaluation` | `next-boundary` | inferred | docs/research/cloudwatch-alarms.md#31-cadence-and-phase | none: unrecorded: CWA-03 |
+| `cloudwatch.alarm.mixed-units` | `first-unit-by-name` | inferred | docs/research/cloudwatch-alarms.md#33-which-series-and-which-statistic | none: AWS documents an alarm on a metric of several units without Unit as undefined, so no recording can settle it |
 | `cloudwatch.alarm.reason-format` | `count-form-unless-datapoints-to-alarm` | inferred | docs/research/cloudwatch-alarms.md#41-statereason-texts | none: unrecorded: CWA-06, CWA-07, CWA-08 |
 | `cloudwatch.alarm.unaged-breach` | `retain` | inferred | docs/research/cloudwatch-alarms.md#35-missing-data-the-algorithm | none: unrecorded: CWA-04 |
 | `cloudwatch.alarm.unchanged-state` | `no-update` | inferred | docs/research/cloudwatch-alarms.md#38-what-a-transition-does-and-what-no-transition-does | none: unrecorded: CWA-05 |
 | `cloudwatch.denial.identity` | `AccessDenied 403 over Query; __type com.amazon.coral.service#AccessDeniedException with header AccessDenied;Sender over JSON and CBOR` | inferred | docs/research/iam-enforcement-surfaces.md#3.2 | none: unrecorded: IAM-ENF-09 waits in the recording queue (iam-enforcement-surfaces.md 13) |
+| `cloudwatch.get-metric-statistics.datapoint-limit` | `ceil-unrounded` | inferred | docs/research/cloudwatch-alarms.md#93-errors-and-limits | none: unrecorded: CWA-20 |
+| `cloudwatch.get-metric-statistics.order` | `timestamp-ascending,then-unit` | inferred | docs/research/cloudwatch-alarms.md#92-response | none: AWS documents no order ("Data points are not returned in chronological order"), so no recording can pin one |
 | `cloudwatch.put-metric-data.timestamp-window` | `wall-or-emulator` | inferred | docs/research/secrets-logs-events-alarms.md#52-putmetricdata | none: AWS has one clock: which of understudy's two the windows read is understudy's choice, which no recording settles |
 | `dynamodb.denial.type` | `__type com.amazon.coral.service#AccessDeniedException, 400` | inferred | docs/research/iam-enforcement-surfaces.md#3.2 | none: unrecorded: IAM-ENF-04 waits in the recording queue (iam-enforcement-surfaces.md 13) |
 | `dynamodb.streams.iterator-reuse` | `allowed` | inferred | docs/research/dynamodb-streams.md#44-shard-iterators | none: unrecorded: DDBS-04 is queued |
