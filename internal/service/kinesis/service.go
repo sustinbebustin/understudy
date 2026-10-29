@@ -9,6 +9,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/evidence"
 	"github.com/sustinbebustin/understudy/internal/fidelity"
+	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/shardlog"
@@ -19,6 +20,7 @@ import (
 // account and region.
 type Service struct {
 	opts  Options
+	ids   *ids.Source
 	cells *store.Partitioned[aws.Scope, State]
 }
 
@@ -31,9 +33,11 @@ const stateVersion = 1
 // New binds the operations of slice 1 built so far (kinesis.md 13.1);
 // every other operation stays unbound and answers 501.
 func New(d kernel.ServiceDeps, o Options) *Service {
-	s := &Service{opts: o, cells: store.NewPartitioned(d.Kernel.Gate(), stateCodec(), newState)}
+	s := &Service{opts: o, ids: d.IDs, cells: store.NewPartitioned(d.Kernel.Gate(), stateCodec(), newState)}
 	b := kinesisapi.NewBinder(d.Binder)
 	s.bindStreams(b)
+	s.bindShards(b)
+	s.bindMonitoring(b)
 	s.bindTags(b)
 	return s
 }

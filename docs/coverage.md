@@ -123,7 +123,7 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | dynamodbstreams | 4 | 0 | 0 | 4 | 0 | 0 | 0 |
 | eventbridge | 57 | 6 | 1 | 15 | 35 | 1 | 0 |
 | iam | 180 | 10 | 1 | 53 | 116 | 1 | 0 |
-| kinesis | 45 | 0 | 0 | 14 | 31 | 0 | 0 |
+| kinesis | 45 | 0 | 2 | 15 | 28 | 0 | 0 |
 | kms | 54 | 16 | 2 | 9 | 27 | 0 | 0 |
 | lambda | 88 | 30 | 2 | 18 | 38 | 0 | 2 |
 | logs | 118 | 9 | 0 | 9 | 100 | 1 | 0 |
@@ -644,6 +644,8 @@ Internal operations:
 
 | Operation | Status | Evidence | Note |
 |---|---|---|---|
+| DisableEnhancedMonitoring | stored-only | third-party-recorded, 2 of 2 claims | shard-level metrics are stored and reported on the stream; no metrics are published to CloudWatch |
+| EnableEnhancedMonitoring | stored-only | third-party-recorded, 2 of 2 claims | shard-level metrics are stored and reported on the stream; no metrics are published to CloudWatch |
 | AddTagsToStream | partial | third-party-recorded, 2 of 2 claims | a 51st tag and an aws: key answer InvalidArgumentException; AWS's code and text are UNVERIFIED (kinesis.md 4.10) |
 | CreateStream | partial | inferred, 1 of 3 claims | ON_DEMAND streams start with four shards and never scale; WarmThroughputMiBps and RecordDistributionStrategy AUTO are answered with 501 NotImplemented; the account shard and on-demand stream quotas are not enforced; the stream is ACTIVE when CreateStream returns, where AWS reports CREATING first |
 | DecreaseStreamRetentionPeriod | partial | inferred, 1 of 3 claims | error texts follow kinesalite and are UNVERIFIED (kinesis.md 4.7) |
@@ -652,6 +654,7 @@ Internal operations:
 | DescribeStream | partial | inferred, 2 of 4 claims | the optional fields of a fresh stream (EncryptionType NONE, StreamModeDetails, MaxRecordSizeInKiB 1024, no KeyId, WarmThroughput or ConsumerCount) and the not-found text over JSON are inferred; AWS's are UNVERIFIED (kinesis.md 4.4, finding 5) |
 | DescribeStreamSummary | partial | third-party-recorded, 2 of 2 claims | the optional fields of a fresh stream (EncryptionType NONE, StreamModeDetails, MaxRecordSizeInKiB 1024, no KeyId, WarmThroughput or ConsumerCount) and the not-found text over JSON are inferred; AWS's are UNVERIFIED (kinesis.md 4.4, finding 5) |
 | IncreaseStreamRetentionPeriod | partial | inferred, 1 of 3 claims | error texts follow kinesalite and are UNVERIFIED (kinesis.md 4.7) |
+| ListShards | partial | inferred, 2 of 4 claims | the errors for NextToken combined with StreamName, StreamCreationTimestamp or ExclusiveStartShardId, or for neither stream nor token, follow kinesalite and are UNVERIFIED (kinesis.md 4.6) |
 | ListStreams | partial | third-party-recorded, 2 of 2 claims | names are listed in lexical order; AWS's order and token lifetime are UNVERIFIED (kinesis.md 4.5) |
 | ListTagsForResource | partial | third-party-recorded, 2 of 2 claims | a 51st tag and an aws: key answer InvalidArgumentException; AWS's code and text are UNVERIFIED (kinesis.md 4.10) |
 | ListTagsForStream | partial | third-party-recorded, 2 of 2 claims | a 51st tag and an aws: key answer InvalidArgumentException; AWS's code and text are UNVERIFIED (kinesis.md 4.10) |
@@ -665,13 +668,10 @@ Internal operations:
 | DescribeAccountSettings | unbound | unassessed |  |
 | DescribeChannel | unbound | unassessed |  |
 | DescribeStreamConsumer | unbound | unassessed |  |
-| DisableEnhancedMonitoring | unbound | unassessed |  |
-| EnableEnhancedMonitoring | unbound | unassessed |  |
 | GetRecords | unbound | unassessed |  |
 | GetResourcePolicy | unbound | unassessed |  |
 | GetShardIterator | unbound | unassessed |  |
 | ListChannels | unbound | unassessed |  |
-| ListShards | unbound | unassessed |  |
 | ListStreamConsumers | unbound | unassessed |  |
 | MergeShards | unbound | unassessed |  |
 | PutRecord | unbound | unassessed |  |

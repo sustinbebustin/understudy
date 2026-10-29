@@ -89,6 +89,9 @@ func (s *Service) createStream(_ context.Context, c *kernel.Call, in *kinesisapi
 		if _, taken := st.Streams[in.StreamName]; taken {
 			return struct{}{}, errStreamInUse(in.StreamName, account)
 		}
+		if st.TokenKey == nil {
+			st.TokenKey = s.ids.StreamIteratorKey()
+		}
 		str := Stream{
 			Name: in.StreamName, Created: now, Mode: mode,
 			RetentionHours: defaultRetentionHours, MaxRecordSizeKiB: maxRecord,
@@ -132,10 +135,10 @@ func (s *Service) deleteStream(_ context.Context, c *kernel.Call, in *kinesisapi
 }
 
 // enhancedMonitoring is the stream's one EnhancedMetrics entry
-// (kinesalite's form, kinesis.md 4.4): empty, since enhanced monitoring
-// is not bound yet and nothing stores a metric.
-func enhancedMonitoring() []kinesisapi.EnhancedMetrics {
-	return []kinesisapi.EnhancedMetrics{{ShardLevelMetrics: []kinesisapi.MetricsName{}}}
+// (kinesalite's form, kinesis.md 4.4): the stored metrics, empty when none
+// is enabled.
+func enhancedMonitoring(str Stream) []kinesisapi.EnhancedMetrics {
+	return []kinesisapi.EnhancedMetrics{{ShardLevelMetrics: append([]kinesisapi.MetricsName{}, str.Metrics...)}}
 }
 
 // describeStreamSummary renders the fields of kinesis.md 13.6 item 2 and
@@ -158,7 +161,7 @@ func (s *Service) describeStreamSummary(_ context.Context, c *kernel.Call, in *k
 		StreamModeDetails:       &kinesisapi.StreamModeDetails{StreamMode: str.Mode},
 		RetentionPeriodHours:    str.RetentionHours,
 		StreamCreationTimestamp: str.Created.Wire(),
-		EnhancedMonitoring:      enhancedMonitoring(),
+		EnhancedMonitoring:      enhancedMonitoring(str),
 		EncryptionType:          new(kinesisapi.EncryptionTypeNone),
 		OpenShardCount:          int32(len(str.Shards)), //nolint:gosec // CreateStream's ShardCount is an int32
 		MaxRecordSizeInKiB:      new(str.MaxRecordSizeKiB),
@@ -204,7 +207,7 @@ func (s *Service) describeStream(_ context.Context, c *kernel.Call, in *kinesisa
 		HasMoreShards:           to < len(str.Shards),
 		RetentionPeriodHours:    str.RetentionHours,
 		StreamCreationTimestamp: str.Created.Wire(),
-		EnhancedMonitoring:      enhancedMonitoring(),
+		EnhancedMonitoring:      enhancedMonitoring(str),
 		EncryptionType:          new(kinesisapi.EncryptionTypeNone),
 	}}, nil
 }
