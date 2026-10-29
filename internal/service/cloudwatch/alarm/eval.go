@@ -20,15 +20,31 @@ const (
 
 // String returns the TreatMissingData wire value: "missing", "ignore",
 // "breaching" or "notBreaching".
-func (Treatment) String() string {
-	// not implemented yet
+func (t Treatment) String() string {
+	switch t {
+	case TreatMissing:
+		return "missing"
+	case TreatIgnore:
+		return "ignore"
+	case TreatBreaching:
+		return "breaching"
+	case TreatNotBreaching:
+		return "notBreaching"
+	}
 	return ""
 }
 
 // ParseTreatment reads TreatMissingData s: absent is TreatMissing, a wire
 // value its Treatment; ok is false for any other text.
-func ParseTreatment(_ *string) (t Treatment, ok bool) {
-	// not implemented yet
+func ParseTreatment(s *string) (t Treatment, ok bool) {
+	if s == nil {
+		return TreatMissing, true // "The default behavior is missing" (cloudwatch-alarms.md 3.5)
+	}
+	for _, t := range []Treatment{TreatMissing, TreatIgnore, TreatBreaching, TreatNotBreaching} {
+		if *s == t.String() {
+			return t, true
+		}
+	}
 	return 0, false
 }
 
@@ -46,23 +62,54 @@ const (
 
 // ParseComparison reads a ComparisonOperator; ok is false for the three
 // anomaly detection operators.
-func ParseComparison(_ cloudwatchapi.ComparisonOperator) (c Comparison, ok bool) {
-	// not implemented yet
+func ParseComparison(op cloudwatchapi.ComparisonOperator) (c Comparison, ok bool) {
+	switch op {
+	case cloudwatchapi.ComparisonOperatorGreaterThanThreshold:
+		return GreaterThan, true
+	case cloudwatchapi.ComparisonOperatorGreaterThanOrEqualToThreshold:
+		return GreaterThanOrEqual, true
+	case cloudwatchapi.ComparisonOperatorLessThanThreshold:
+		return LessThan, true
+	case cloudwatchapi.ComparisonOperatorLessThanOrEqualToThreshold:
+		return LessThanOrEqual, true
+	case cloudwatchapi.ComparisonOperatorLessThanLowerOrGreaterThanUpperThreshold,
+		cloudwatchapi.ComparisonOperatorLessThanLowerThreshold,
+		cloudwatchapi.ComparisonOperatorGreaterThanUpperThreshold:
+	}
 	return 0, false
 }
 
 // Breaches reports whether v, the statistic as first operand, crosses
 // threshold T: v > T, v >= T, v < T or v <= T (cloudwatch-alarms.md 3.3).
-func (Comparison) Breaches(_, _ float64) bool {
-	// not implemented yet
+func (c Comparison) Breaches(v, threshold float64) bool {
+	switch c {
+	case GreaterThan:
+		return v > threshold
+	case GreaterThanOrEqual:
+		return v >= threshold
+	case LessThan:
+		return v < threshold
+	case LessThanOrEqual:
+		return v <= threshold
+	}
 	return false
 }
 
 // Phrase is the operator in a StateReason: "greater than", "greater than
 // or equal to", "less than" or "less than or equal to"
-// (cloudwatch-alarms.md 4.1).
-func (Comparison) Phrase() string {
-	// not implemented yet
+// (cloudwatch-alarms.md 4.1). The OrEqual phrases are inferred
+// (cloudwatch.alarm.reason-format, CWA-07).
+func (c Comparison) Phrase() string {
+	switch c {
+	case GreaterThan:
+		return "greater than"
+	case GreaterThanOrEqual:
+		return "greater than or equal to"
+	case LessThan:
+		return "less than"
+	case LessThanOrEqual:
+		return "less than or equal to"
+	}
 	return ""
 }
 
@@ -92,9 +139,8 @@ type Config struct {
 
 // Range is R, the number of bins one evaluation reads: N + 2
 // (cloudwatch.alarm.evaluation-range, cloudwatch-alarms.md 3.4).
-func (Config) Range() int {
-	// not implemented yet
-	return 0
+func (c Config) Range() int {
+	return c.N + 2
 }
 
 // NotEvaluableError is an alarm understudy stores and never evaluates
@@ -113,9 +159,67 @@ func (e *NotEvaluableError) Error() string {
 // ConfigOf reads an alarm's evaluation config, or a NotEvaluableError for
 // an alarm on an ExtendedStatistic, Metrics, a ThresholdMetricId,
 // EvaluationCriteria, a WallClockWindow or an anomaly detection operator.
+// The checks run in that order and the first match is the Why.
+// PutMetricAlarm validation guarantees the single-statistic fields of any
+// other alarm; one stored without them is reported as not evaluable
+// rather than evaluated on a zero value.
 func ConfigOf(in *cloudwatchapi.PutMetricAlarmInput) (Config, *NotEvaluableError) {
-	// not implemented yet
-	return Config{}, &NotEvaluableError{Alarm: in.AlarmName, Why: "evaluation is not implemented yet"}
+	notEvaluable := func(why string) (Config, *NotEvaluableError) {
+		return Config{}, &NotEvaluableError{Alarm: in.AlarmName, Why: why}
+	}
+	switch {
+	case in.ExtendedStatistic != nil:
+		return notEvaluable("ExtendedStatistic")
+	case len(in.Metrics) > 0:
+		return notEvaluable("Metrics")
+	case in.ThresholdMetricId != nil:
+		return notEvaluable("ThresholdMetricId")
+	case in.EvaluationCriteria != nil:
+		return notEvaluable("EvaluationCriteria")
+	}
+	if _, wall := in.EvaluationWindow.(cloudwatchapi.EvaluationWindowMemberWallClockWindow); wall {
+		return notEvaluable("WallClockWindow")
+	}
+	if in.ComparisonOperator == nil {
+		return notEvaluable("no ComparisonOperator")
+	}
+	cmp, ok := ParseComparison(*in.ComparisonOperator)
+	if !ok {
+		return notEvaluable("ComparisonOperator " + string(*in.ComparisonOperator))
+	}
+	switch {
+	case in.Statistic == nil:
+		return notEvaluable("no Statistic")
+	case in.Period == nil:
+		return notEvaluable("no Period")
+	case in.EvaluationPeriods == nil:
+		return notEvaluable("no EvaluationPeriods")
+	case in.Threshold == nil:
+		return notEvaluable("no Threshold")
+	}
+	treatment, ok := ParseTreatment(in.TreatMissingData)
+	if !ok {
+		return notEvaluable("TreatMissingData " + *in.TreatMissingData)
+	}
+	if in.Namespace != nil && *in.Namespace == "AWS/DynamoDB" {
+		treatment = TreatIgnore // cloudwatch.alarm.dynamodb-missing-data (cloudwatch-alarms.md 3.7)
+	}
+	n := int(*in.EvaluationPeriods)
+	cfg := Config{
+		Period: *in.Period, N: n, M: n,
+		Comparison: cmp, Threshold: *in.Threshold, Treatment: treatment,
+		Statistic: *in.Statistic, Unit: in.Unit,
+	}
+	if in.DatapointsToAlarm != nil {
+		cfg.M, cfg.MSet = int(*in.DatapointsToAlarm), true
+	}
+	if w := in.WarmUpConfiguration; w != nil {
+		cfg.WarmUp = &WarmUp{
+			Duration: time.Duration(w.WarmUpPeriodDurationInMinutes) * time.Minute,
+			WaitFull: w.OnlyStartEvaluatingAfterWarmUpPeriodEnds != nil && *w.OnlyStartEvaluatingAfterWarmUpPeriodEnds,
+		}
+	}
+	return cfg, nil
 }
 
 // Bin is one period of an evaluation range. Bins are passed newest first:
@@ -179,9 +283,113 @@ type Evidence struct {
 // Evaluate is the 3.5 algorithm over bins (newest first, len(bins) ==
 // cfg.Range()) from the current state (cloudwatch-alarms.md 3.5, 3.6,
 // 12.3).
-func Evaluate(_ Config, _ []Bin, _ cloudwatchapi.StateValue) Outcome {
-	// not implemented yet
-	return nil
+func Evaluate(cfg Config, bins []Bin, current cloudwatchapi.StateValue) Outcome {
+	v, ev := decide(cfg, bins)
+	to := cloudwatchapi.StateValue(v)
+	if v == retain || to == current { // cloudwatch.alarm.unchanged-state (cloudwatch-alarms.md 3.8)
+		return Retain{}
+	}
+	return Transition{To: to, Evidence: ev}
+}
+
+// verdict is one decision of the 3.5 algorithm: a state, or retain.
+type verdict cloudwatchapi.StateValue
+
+const (
+	toAlarm                = verdict(cloudwatchapi.StateValueAlarm)
+	toOK                   = verdict(cloudwatchapi.StateValueOk)
+	toInsufficient         = verdict(cloudwatchapi.StateValueInsufficientData)
+	retain         verdict = ""
+)
+
+func alarmIf(breached bool) verdict {
+	if breached {
+		return toAlarm
+	}
+	return toOK
+}
+
+// decide is the 3.5 algorithm with the Evidence it read.
+func decide(cfg Config, bins []Bin) (verdict, Evidence) {
+	ev := Evidence{Bins: bins}
+	var values []Value
+	for _, b := range bins {
+		if v, ok := b.(Value); ok {
+			values = append(values, v)
+		}
+	}
+	switch {
+	case len(values) >= cfg.N:
+		// A: enough real data; the treatment is unused.
+		ev.Used = values[:cfg.N]
+		ev.Breaching = cfg.breaching(ev.Used)
+		return alarmIf(ev.Breaching >= cfg.M), ev
+	case len(values) == 0:
+		// B: no real data; every point is filled.
+		ev.Filled = cfg.N
+		return cfg.noData(), ev
+	}
+	// C: some real data, the rest filled.
+	ev.Used = values
+	ev.Filled = cfg.N - len(values)
+	ev.Breaching = cfg.breaching(values)
+	return cfg.someData(bins, ev), ev
+}
+
+func (c Config) breaching(vs []Value) int {
+	n := 0
+	for _, v := range vs {
+		if c.Comparison.Breaches(v.Value, c.Threshold) {
+			n++
+		}
+	}
+	return n
+}
+
+// noData is case B of the 3.5 algorithm.
+func (c Config) noData() verdict {
+	switch c.Treatment {
+	case TreatMissing:
+		return toInsufficient
+	case TreatBreaching:
+		return toAlarm
+	case TreatNotBreaching:
+		return toOK
+	case TreatIgnore:
+	}
+	return retain
+}
+
+// someData is case C of the 3.5 algorithm, over ev's Used, Filled and
+// Breaching.
+func (c Config) someData(bins []Bin, ev Evidence) verdict {
+	b := ev.Breaching
+	switch c.Treatment {
+	case TreatBreaching:
+		return alarmIf(b+ev.Filled >= c.M)
+	case TreatNotBreaching:
+		return alarmIf(b >= c.M)
+	case TreatMissing, TreatIgnore:
+	}
+	if b >= c.M { // C1
+		return toAlarm
+	}
+	if b < len(ev.Used) { // C2
+		return toOK
+	}
+	// C3: premature alarm state, the oldest breaching bin of d1..dN at
+	// least M periods old.
+	oldest := 0
+	for k := 0; k < c.N && k < len(bins); k++ {
+		if v, ok := bins[k].(Value); ok && c.Comparison.Breaches(v.Value, c.Threshold) {
+			oldest = k + 1
+		}
+	}
+	if oldest > 0 && oldest >= c.M && c.Treatment == TreatMissing {
+		return toAlarm
+	}
+	// C3 under ignore, and C4 (cloudwatch.alarm.unaged-breach, CWA-04).
+	return retain
 }
 
 // WarmUp is WarmUpConfiguration (cloudwatch-alarms.md 2.4).
@@ -195,7 +403,17 @@ type WarmUp struct {
 // creation: with WaitFull once Duration has passed, otherwise at Duration
 // or as soon as every one of the N newest bins holds a Value
 // (cloudwatch.alarm.warm-up-end).
-func (WarmUp) Over(_ time.Duration, _ []Bin, _ int) bool {
-	// not implemented yet
-	return false
+func (w WarmUp) Over(elapsed time.Duration, bins []Bin, n int) bool {
+	if elapsed >= w.Duration {
+		return true
+	}
+	if w.WaitFull || n > len(bins) {
+		return false
+	}
+	for _, b := range bins[:n] {
+		if _, ok := b.(Value); !ok {
+			return false
+		}
+	}
+	return true
 }

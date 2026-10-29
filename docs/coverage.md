@@ -121,7 +121,7 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | cloudwatch | 55 | 1 | 2 | 9 | 43 | 0 | 0 |
 | dynamodb | 58 | 4 | 2 | 20 | 32 | 0 | 0 |
 | dynamodbstreams | 4 | 0 | 0 | 4 | 0 | 0 | 0 |
-| eventbridge | 57 | 6 | 1 | 15 | 35 | 0 | 0 |
+| eventbridge | 57 | 6 | 1 | 15 | 35 | 1 | 0 |
 | iam | 180 | 10 | 1 | 53 | 116 | 1 | 0 |
 | kms | 54 | 16 | 2 | 9 | 27 | 0 | 0 |
 | lambda | 88 | 30 | 2 | 18 | 38 | 0 | 2 |
@@ -255,11 +255,11 @@ Raw operations:
 | DeleteAlarms | full | inferred, 1 of 4 claims |  |
 | DisableAlarmActions | stored-only | inferred, 1 of 3 claims | ActionsEnabled is stored and echoed; alarm actions never run |
 | EnableAlarmActions | stored-only | inferred, 1 of 3 claims | ActionsEnabled is stored and echoed; alarm actions never run |
-| DescribeAlarms | partial | inferred, 1 of 3 claims | metric alarms only: composite and log alarms are never stored, so ChildrenOfAlarmName and ParentsOfAlarmName select nothing |
+| DescribeAlarms | partial | inferred, 7 of 13 claims | metric alarms only: composite and log alarms are never stored, so ChildrenOfAlarmName and ParentsOfAlarmName select nothing |
 | GetMetricData | partial | inferred, 1 of 4 claims | MetricStat queries with SampleCount, Average, Sum, Minimum or Maximum; metric math, Metrics Insights and percentiles answer 501; LabelOptions is ignored |
 | ListMetrics | partial | inferred, 1 of 3 claims | no linked accounts: IncludeLinkedAccounts and OwningAccount select nothing more |
 | ListTagsForResource | partial | inferred, 1 of 3 claims | alarms only: insight rules and metric streams are never stored |
-| PutMetricAlarm | partial | inferred, 1 of 4 claims | stored and echoed; alarms are never evaluated, so their state changes only through SetAlarmState, and their actions never run |
+| PutMetricAlarm | partial | inferred, 7 of 14 claims | stored and echoed; alarms are never evaluated, so their state changes only through SetAlarmState, and their actions never run |
 | PutMetricData | partial | inferred, 2 of 5 claims | entities are not kept; with StrictEntityValidation false an entity error stores the data without the X-Amzn-Failure-Message header; points are kept until reset, not aged out by resolution |
 | SetAlarmState | partial | inferred, 1 of 5 claims | the state is set and echoed; no action runs and no evaluation follows |
 | TagResource | partial | inferred, 1 of 3 claims | alarms only: insight rules and metric streams are never stored |
@@ -441,6 +441,12 @@ Raw operations:
 | UpdateArchive | unbound | unassessed |  |
 | UpdateConnection | unbound | unassessed |  |
 | UpdateEndpoint | unbound | unassessed |  |
+
+Internal operations:
+
+| Operation | Status | Evidence | Note |
+|---|---|---|---|
+| PutServiceEventInternal | unbound | unassessed |  |
 
 ### iam
 
@@ -1385,7 +1391,7 @@ Internal operations:
 
 Behaviors chosen without AWS-recorded evidence, with the research they rest on and the parity scenario step that settles them, or why none does. The count and order follow the label the code states; the Label column shows the recording's verdict where a replayed step settles or contradicts the switch.
 
-184 switches: 1 aws-recorded, 5 third-party-recorded, 20 aws-doc, 158 inferred.
+194 switches: 1 aws-recorded, 5 third-party-recorded, 24 aws-doc, 164 inferred.
 
 | Switch | Value | Label | Reference | Settled by |
 |---|---|---|---|---|
@@ -1395,6 +1401,10 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `s3.object-lock.bypass-without-lock` | `refused` | third-party-recorded | docs/research/s3-ssec-object-lock.md#73-the-bypass-header-on-a-bucket-without-object-lock | none: unrecorded: S3SOL-23 is queued in docs/research/s3-ssec-object-lock.md 12 |
 | `secretsmanager.denial.status` | `AccessDeniedException 400, body key Message` | third-party-recorded | docs/research/iam-enforcement-surfaces.md#3.2 | none: unrecorded: IAM-ENF-06 waits in the recording queue (iam-enforcement-surfaces.md 13) |
 | `sns.listing.pending-arn` | `PendingConfirmation` | third-party-recorded | docs/research/sns.md#34-listing | none: no project recording lists a pending subscription; third-party-recorded (sns-http-delivery.md 2.2) |
+| `cloudwatch.alarm.dynamodb-missing-data` | `always-ignore` | aws-doc | docs/research/cloudwatch-alarms.md#37-special-cases | none: unrecorded: CWA-21 |
+| `cloudwatch.alarm.evaluation-cadence` | `minute,10s-for-high-resolution,hourly-past-one-day` | aws-doc | docs/research/cloudwatch-alarms.md#31-cadence-and-phase | none: AWS documents the cadence (alarm-evaluation); no recording observes the instant of an evaluation |
+| `cloudwatch.alarm.warm-up-end` | `every-period-has-data` | aws-doc | docs/research/cloudwatch-alarms.md#24-warm-up | none: unrecorded: CWA-22 |
+| `cloudwatch.alarm.window-anchor` | `evaluation-minute` | aws-doc | docs/research/cloudwatch-alarms.md#32-the-window-bins-anchored-at-the-evaluation-minute | none: unrecorded: CWA-02 (sub-minute periods) |
 | `cloudwatch.get-metric-data.start-rounding` | `by-age` | aws-doc | docs/research/secrets-logs-events-alarms.md#53-getmetricdata | none: unrecorded: no recording shows GetMetricData's period boundaries |
 | `events.bus-target.cross-account-role` | `required` | aws-doc | docs/research/eventbridge-buses.md#63-cross-account | none: unrecorded: EBB-09 (eventbridge-buses.md 12) records it |
 | `events.delete-bus.with-rules` | `rejected` | aws-doc | docs/research/eventbridge-buses.md#35-deleteeventbus | none: unrecorded: EBB-01 (eventbridge-buses.md 12) records it |
@@ -1420,6 +1430,12 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `apigatewayv2.lambda.permission` | `{<api-id>/<stage>/<METHOD>/<route path without its leading slash>, the route key's template and ANY as written; <api-id>/<stage>/$default for the $default route {500 Internal Server Error}}` | inferred | docs/research/apigateway-http.md#55-invocation-credentials-and-the-resource-policy | none: unrecorded: APIGW2-11 (apigateway-http.md 14) records it |
 | `apigatewayv2.payload.unrecorded` | `{false true text/plain; charset=utf-8 false last first}` | inferred | docs/research/apigateway-http.md#51-payload-format-20-request-event | none: unrecorded: APIGW2-07, APIGW2-08 and APIGW2-09 (apigateway-http.md 14) records it |
 | `apigatewayv2.route.matching` | `{{true true false} {404 Not Found}}` | inferred | docs/research/apigateway-http.md#44-methods-head-trailing-slashes-case-and-decoding | none: unrecorded: APIGW2-05 (apigateway-http.md 14) records it |
+| `cloudwatch.alarm.evaluation-phase` | `minute-boundary` | inferred | docs/research/cloudwatch-alarms.md#31-cadence-and-phase | none: AWS evaluates at an arbitrary second, which does not change the data a minute's evaluation reads; no recording can pin it |
+| `cloudwatch.alarm.evaluation-range` | `n-plus-2` | inferred | docs/research/cloudwatch-alarms.md#34-evaluation-range-n-and-m | none: unrecorded: CWA-01 |
+| `cloudwatch.alarm.first-evaluation` | `next-boundary` | inferred | docs/research/cloudwatch-alarms.md#31-cadence-and-phase | none: unrecorded: CWA-03 |
+| `cloudwatch.alarm.reason-format` | `count-form-unless-datapoints-to-alarm` | inferred | docs/research/cloudwatch-alarms.md#41-statereason-texts | none: unrecorded: CWA-06, CWA-07, CWA-08 |
+| `cloudwatch.alarm.unaged-breach` | `retain` | inferred | docs/research/cloudwatch-alarms.md#35-missing-data-the-algorithm | none: unrecorded: CWA-04 |
+| `cloudwatch.alarm.unchanged-state` | `no-update` | inferred | docs/research/cloudwatch-alarms.md#38-what-a-transition-does-and-what-no-transition-does | none: unrecorded: CWA-05 |
 | `cloudwatch.denial.identity` | `AccessDenied 403 over Query; __type com.amazon.coral.service#AccessDeniedException with header AccessDenied;Sender over JSON and CBOR` | inferred | docs/research/iam-enforcement-surfaces.md#3.2 | none: unrecorded: IAM-ENF-09 waits in the recording queue (iam-enforcement-surfaces.md 13) |
 | `cloudwatch.put-metric-data.timestamp-window` | `wall-or-emulator` | inferred | docs/research/secrets-logs-events-alarms.md#52-putmetricdata | none: AWS has one clock: which of understudy's two the windows read is understudy's choice, which no recording settles |
 | `dynamodb.denial.type` | `__type com.amazon.coral.service#AccessDeniedException, 400` | inferred | docs/research/iam-enforcement-surfaces.md#3.2 | none: unrecorded: IAM-ENF-04 waits in the recording queue (iam-enforcement-surfaces.md 13) |
@@ -1578,7 +1594,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 
 Corrections to the vendored models in `codegen/overlays`, one row per evidence item. The count and order, strongest evidence first, follow the label the overlay states; the Label column shows the recording's verdict where a replayed step settles or contradicts the item.
 
-338 evidence items: 50 aws-recorded, 108 third-party-recorded, 56 aws-doc, 5 sdk-source, 119 inferred.
+340 evidence items: 50 aws-recorded, 108 third-party-recorded, 56 aws-doc, 5 sdk-source, 121 inferred.
 
 | Label | Overlay | Shape | Covers | Source |
 |---|---|---|---|---|
@@ -1821,6 +1837,8 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | inferred | eventbridge.json | `com.amazonaws.eventbridge#CreateEventBus` |  | docs/research/eventbridge-buses.md#103-validation-and-error-texts: the texts refusing the name default, a name with /, and the 101st bus are unrecorded (EBB-02) |
 | inferred | eventbridge.json | `com.amazonaws.eventbridge#PathParameter` |  | docs/research/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: ^(?!\s*$).+$ is one or more non-line-terminator characters that are not all ECMA whitespace |
 | inferred | eventbridge.json | `com.amazonaws.eventbridge#PutPermission` |  | docs/research/eventbridge-buses.md#103-validation-and-error-texts: the texts refusing a Policy sent with a statement member, a statement missing a member, a Policy that is not a policy document, and a policy over 10,240 characters are unrecorded (EBB-06) |
+| inferred | eventbridge.json | `com.amazonaws.eventbridge#PutServiceEventInternal` |  | docs/research/cloudwatch-alarms.md#124-actions-and-delivery: an AWS service's event goes to the default bus of its account and Region, with a Source in the aws. namespace that PutEvents refuses |
+| inferred | eventbridge.json | `com.amazonaws.eventbridge#PutServiceEventInternalRequest` |  | docs/research/cloudwatch-alarms.md#124-actions-and-delivery |
 | inferred | eventbridge.json | `com.amazonaws.eventbridge#PutTargets` |  | docs/research/eventbridge-buses.md#103-validation-and-error-texts: the texts refusing a cross-account event bus target without a RoleArn or with Input, InputPath or InputTransformer are unrecorded (EBB-09) |
 | inferred | iam.json | `com.amazonaws.iam#AWSIdentityManagementV20100508` | dev.understudy#denialError | docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: code AccessDenied, Type Sender, 403 in the IAM namespace envelope, inferred from the recorded STS denial (testdata/parity/sts/R15/06-assume-denied.json) and Terraform matching 'AccessDenied: .+ with an explicit deny' (3.2); the CommonErrors page's AccessDeniedException is a template (3.3); switch iam.denial.identity (12.8) until recording IAM-ENF-10 |
 | inferred | iam.json | `com.amazonaws.iam#ResolveRole` |  | docs/ARCHITECTURE.md#7-identity-auth-accounts-and-regions: STS AssumeRole succeeds only if the role exists, and the same path mints Lambda execution-role credentials; STS reads the role from IAM through this operation |
