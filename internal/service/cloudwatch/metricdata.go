@@ -180,40 +180,66 @@ func query(st *State, ms *cloudwatchapi.MetricStat, start, end clock.Instant) re
 	if m.Namespace == nil || m.MetricName == nil {
 		return r
 	}
-	series, ok := st.Series[seriesKey(*m.Namespace, *m.MetricName, sortedDimensions(m.Dimensions))]
-	if !ok {
-		return r
-	}
-	var points []Point
-	for _, p := range series.Points {
-		if p.At.Before(start) || !p.At.Before(end) || ms.Unit != nil && p.Unit != string(*ms.Unit) {
-			continue
-		}
-		points = append(points, p)
-	}
+	points := seriesPoints(st, *m.Namespace, *m.MetricName, m.Dimensions, ms.Unit, start, end)
 	if ms.Unit == nil {
 		points, r.messages = oneUnit(points)
 	}
 	s, _ := statOf(ms.Stat)
-	period := time.Duration(ms.Period) * time.Second
-	buckets := map[int64]Stats{}
-	for _, p := range points {
-		i := int64(p.At.Sub(start) / period)
-		if b, ok := buckets[i]; ok {
-			buckets[i] = b.add(p.Stats)
-		} else {
-			buckets[i] = p.Stats
-		}
-	}
-	for _, i := range slices.Sorted(maps.Keys(buckets)) {
-		v, ok := s.of(buckets[i])
+	for _, b := range bucketed(points, start, time.Duration(ms.Period)*time.Second) {
+		v, ok := s.of(b.stats)
 		if !ok {
 			continue
 		}
-		r.timestamps = append(r.timestamps, start.Add(time.Duration(i)*period).Wire())
+		r.timestamps = append(r.timestamps, b.start.Wire())
 		r.values = append(r.values, v)
 	}
 	return r
+}
+
+// seriesPoints are the points in [start, end) of the series a namespace,
+// name and dimension set name exactly, of unit alone when unit is set.
+// GetMetricData, GetMetricStatistics and alarm evaluation all read a
+// series through it (cloudwatch-alarms.md 3.3, 9.1, 12.3).
+func seriesPoints(st *State, namespace, name string, dims []cloudwatchapi.Dimension, unit *cloudwatchapi.StandardUnit, start, end clock.Instant) []Point {
+	series, ok := st.Series[seriesKey(namespace, name, sortedDimensions(dims))]
+	if !ok {
+		return nil
+	}
+	var points []Point
+	for _, p := range series.Points {
+		if p.At.Before(start) || !p.At.Before(end) || unit != nil && p.Unit != string(*unit) {
+			continue
+		}
+		points = append(points, p)
+	}
+	return points
+}
+
+// bucket is the combined statistic set of one period that holds data.
+type bucket struct {
+	start clock.Instant
+	stats Stats
+}
+
+// bucketed combines points into consecutive periods of length period from
+// start, in ascending time; a period without points has no bucket. It is
+// the one aggregation GetMetricData, GetMetricStatistics and alarm
+// evaluation share (cloudwatch-alarms.md 12.3).
+func bucketed(points []Point, start clock.Instant, period time.Duration) []bucket {
+	sets := map[int64]Stats{}
+	for _, p := range points {
+		i := int64(p.At.Sub(start) / period)
+		if b, ok := sets[i]; ok {
+			sets[i] = b.add(p.Stats)
+		} else {
+			sets[i] = p.Stats
+		}
+	}
+	out := make([]bucket, 0, len(sets))
+	for _, i := range slices.Sorted(maps.Keys(sets)) {
+		out = append(out, bucket{start: start.Add(time.Duration(i) * period), stats: sets[i]})
+	}
+	return out
 }
 
 // oneUnit keeps the points of the first unit by name when points carry

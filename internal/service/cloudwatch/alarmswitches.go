@@ -43,6 +43,11 @@ func alarmSwitches() []fidelity.Entry {
 			Settles: unrecorded("CWA-02 (sub-minute periods)"),
 		},
 		{
+			Name: "cloudwatch.alarm.mixed-units", Value: "first-unit-by-name",
+			Label: evidence.Inferred, Ref: alarmResearch + "#33-which-series-and-which-statistic", Ops: alarmEvaluationOps(),
+			Settles: fidelity.NoScenario{Reason: "AWS documents an alarm on a metric of several units without Unit as undefined, so no recording can settle it"},
+		},
+		{
 			Name: "cloudwatch.alarm.evaluation-range", Value: "n-plus-2",
 			Label: evidence.Inferred, Ref: alarmResearch + "#34-evaluation-range-n-and-m", Record: "CWA-01", Ops: alarmEvaluationOps(),
 			Settles: unrecorded("CWA-01"),
