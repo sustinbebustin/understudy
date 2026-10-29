@@ -15,8 +15,9 @@ import (
 	"github.com/sustinbebustin/understudy/internal/service/sfn"
 )
 
-// gate is a fake Authorizer: it records every question and denies any
-// question that names an action in deny.
+// gate is a fake Authorizer: it records every question with the principal
+// mode it was asked under and denies any question that names an action in
+// deny.
 type gate struct {
 	mu    sync.Mutex
 	deny  []string
@@ -24,14 +25,15 @@ type gate struct {
 }
 
 type question struct {
-	op string
-	q  kernel.AuthzQuery
+	op   string
+	mode kernel.PrincipalMode // nil for the caller's own questions; set by kernel.AuthorizeAs
+	q    kernel.AuthzQuery
 }
 
 func (g *gate) Authorize(_ context.Context, c *kernel.Call, q kernel.AuthzQuery) kernel.Verdict {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	g.asked = append(g.asked, question{op: c.Op().ID.Name, q: q})
+	g.asked = append(g.asked, question{op: c.Op().ID.Name, mode: c.Mode(), q: q})
 	for _, p := range q.Pairs {
 		if slices.Contains(g.deny, p.Action.String()) || slices.Contains(g.deny, "*") {
 			return kernel.Denied{Message: "User is not authorized to perform: " + p.Action.String()}
@@ -53,11 +55,18 @@ func (g *gate) questions(op string) []kernel.AuthzQuery {
 	return out
 }
 
-// actions lists every action asked about during op.
+// actions lists every action the caller was asked about during op, leaving
+// out questions about another principal, such as the role trust question
+// asked as states.amazonaws.com (kernel.AuthorizeAs).
 func (g *gate) actions(op string) []string {
+	g.mu.Lock()
+	defer g.mu.Unlock()
 	var out []string
-	for _, q := range g.questions(op) {
-		for _, p := range q.Pairs {
+	for _, a := range g.asked {
+		if a.op != op || a.mode != nil {
+			continue
+		}
+		for _, p := range a.q.Pairs {
 			if a := p.Action.String(); !slices.Contains(out, a) {
 				out = append(out, a)
 			}

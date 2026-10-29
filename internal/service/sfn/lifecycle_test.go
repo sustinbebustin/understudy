@@ -1,11 +1,12 @@
 package sfn_test
 
 import (
-	"fmt"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/google/go-cmp/cmp"
 
 	"github.com/sustinbebustin/understudy/internal/api/lambdaapi"
 	"github.com/sustinbebustin/understudy/internal/api/sfnapi"
@@ -102,7 +103,7 @@ func TestSnapshotRoundTrip(t *testing.T) {
 	run(t, func(h *harness) {
 		machine := h.create("m", resultMachine)
 		arn := h.start(machine, "x", new(`{"a":1}`))
-		before := fmt.Sprintf("%+v|%s", *h.describeExecution(arn), shape(h.history(arn)))
+		before, beforeHistory := *h.describeExecution(arn), shape(h.history(arn))
 		sections, err := h.svc.Export()
 		if err != nil {
 			h.Fatal(err)
@@ -118,8 +119,11 @@ func TestSnapshotRoundTrip(t *testing.T) {
 		if err := h.svc.Import(sections); err != nil {
 			h.Fatalf("Import = %v", err)
 		}
-		if after := fmt.Sprintf("%+v|%s", *h.describeExecution(arn), shape(h.history(arn))); after != before {
-			h.Errorf("after the round trip:\n%s\nwant:\n%s", after, before)
+		if diff := cmp.Diff(before, *h.describeExecution(arn)); diff != "" {
+			h.Errorf("DescribeExecution after the round trip (-before +after):\n%s", diff)
+		}
+		if diff := cmp.Diff(beforeHistory, shape(h.history(arn))); diff != "" {
+			h.Errorf("history after the round trip (-before +after):\n%s", diff)
 		}
 		if d := must(h, sfnapi.OpDescribeStateMachine, &sfnapi.DescribeStateMachineInput{StateMachineArn: machine}); d.Definition != resultMachine {
 			h.Errorf("definition after the round trip = %q", d.Definition)

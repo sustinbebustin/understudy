@@ -17,9 +17,8 @@ import (
 )
 
 // A snapshot round trip keeps the machine and a finished execution with
-// its history, compared value by value (Stateful, ADR 0009). It stands in
-// for TestSnapshotRoundTrip, whose %+v comparison prints pointer addresses
-// (see the unit's disputes).
+// its history, the history compared event by event rather than by shape
+// (Stateful, ADR 0009).
 func TestSnapshotRoundTripKeepsMachineAndExecution(t *testing.T) {
 	run(t, func(h *harness) {
 		machine := h.create("m", resultMachine)
