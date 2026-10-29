@@ -1,10 +1,13 @@
 package alarm
 
 import (
+	"encoding/json"
 	"time"
+	"unicode/utf8"
 
 	"github.com/sustinbebustin/understudy/internal/api/cloudwatchapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
+	"github.com/sustinbebustin/understudy/internal/protocol/jsonx"
 )
 
 // The EventBridge source and detail types of alarm events
@@ -126,7 +129,91 @@ func ConfigurationChangeDetail(_ ConfigOp, _ Subject, _ *Subject, _ StateRecord)
 // history item: "Alarm updated from <old> to <new>" and the
 // {"version","oldState","newState"} JSON, stateReasonData nested as an
 // object and absent without one (cloudwatch-alarms.md 8.2).
-func StateUpdate(_ Change) (summary, data string) {
-	// not implemented yet
-	return "", ""
+//
+// The model caps HistoryData at MaxHistoryData characters
+// (cloudwatch-alarms.md 12.5); how AWS fits a change whose two reasons and
+// reason data exceed it is unrecorded (CWA-10). understudy drops the old
+// state's stateReasonData, then the new state's, then shortens the longer
+// reason, so the item stays one JSON object.
+func StateUpdate(ch Change) (summary, data string) {
+	summary = "Alarm updated from " + string(ch.Old.Value) + " to " + string(ch.New.Value)
+	item := historyData{Version: "1.0", OldState: historyStateOf(ch.Old), NewState: historyStateOf(ch.New)}
+	for {
+		data = item.encode()
+		if len(data) <= MaxHistoryData {
+			return summary, data
+		}
+		excess := len(data) - MaxHistoryData
+		switch {
+		case item.OldState.StateReasonData != nil:
+			item.OldState.StateReasonData = nil
+		case item.NewState.StateReasonData != nil:
+			item.NewState.StateReasonData = nil
+		case len(item.OldState.StateReason) >= len(item.NewState.StateReason):
+			item.OldState.StateReason = cut(item.OldState.StateReason, excess)
+		default:
+			item.NewState.StateReason = cut(item.NewState.StateReason, excess)
+		}
+	}
+}
+
+// MaxHistoryData is the longest HistoryData AWS stores (model
+// com.amazonaws.cloudwatch#HistoryData).
+const MaxHistoryData = 4095
+
+// historyData is HistoryData's JSON (cloudwatch-alarms.md 8.2).
+type historyData struct {
+	Version            string
+	OldState, NewState historyState
+}
+
+type historyState struct {
+	StateValue  cloudwatchapi.StateValue
+	StateReason string
+	// StateReasonData is the state's reason data, nested as an object with
+	// its bytes kept; nil without one (cloudwatch-alarms.md 8.2).
+	StateReasonData *string
+}
+
+// historyStateOf is one side of a change in HistoryData. Reason data that
+// is not JSON, which SetAlarmState refuses and evaluation never writes,
+// is left out rather than nested.
+func historyStateOf(r StateRecord) historyState {
+	s := historyState{StateValue: r.Value, StateReason: r.Reason}
+	if r.ReasonData != nil && json.Valid([]byte(*r.ReasonData)) {
+		s.StateReasonData = r.ReasonData
+	}
+	return s
+}
+
+// encode is the compact JSON of d, its keys in AWS's order.
+func (d historyData) encode() string {
+	b := []byte(`{"version":`)
+	b = jsonx.AppendString(b, d.Version)
+	b = append(b, `,"oldState":`...)
+	b = d.OldState.append(b)
+	b = append(b, `,"newState":`...)
+	b = d.NewState.append(b)
+	return string(append(b, '}'))
+}
+
+func (s historyState) append(b []byte) []byte {
+	b = append(b, `{"stateValue":`...)
+	b = jsonx.AppendString(b, string(s.StateValue))
+	b = append(b, `,"stateReason":`...)
+	b = jsonx.AppendString(b, s.StateReason)
+	if s.StateReasonData != nil {
+		b = append(b, `,"stateReasonData":`...)
+		b = append(b, *s.StateReasonData...)
+	}
+	return append(b, '}')
+}
+
+// cut drops at least n bytes from the end of s, at a rune boundary.
+func cut(s string, n int) string {
+	end := max(len(s)-n, 0)
+	for end > 0 && !utf8.RuneStart(s[end]) {
+		end--
+	}
+	return s[:end]
 }

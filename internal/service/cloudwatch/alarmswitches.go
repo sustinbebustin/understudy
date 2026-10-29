@@ -77,6 +77,18 @@ func alarmSwitches() []fidelity.Entry {
 			Label: evidence.Inferred, Ref: alarmResearch + "#41-statereason-texts", Record: "CWA-06, CWA-07, CWA-08", Ops: alarmEvaluationOps(),
 			Settles: unrecorded("CWA-06, CWA-07, CWA-08"),
 		},
+		{
+			Name: "cloudwatch.alarm.number-format", Value: "java-double,event-configuration-plain-whole-numbers",
+			Label: evidence.Inferred, Ref: alarmResearch + "#43-formatting", Record: "CWA-09, CWA-15",
+			Ops:     append(alarmEvaluationOps(), "cloudwatch.DescribeAlarmHistory"),
+			Settles: unrecorded("CWA-09, CWA-15"),
+		},
+		{
+			Name: "cloudwatch.alarm.history.page-size", Value: "50",
+			Label: evidence.Inferred, Ref: alarmResearch + "#81-describealarmhistory", Record: "CWA-18",
+			Ops:     []string{"cloudwatch.DescribeAlarmHistory"},
+			Settles: unrecorded("CWA-18"),
+		},
 	}
 	entries := make([]fidelity.Entry, len(switches))
 	for i, s := range switches {
