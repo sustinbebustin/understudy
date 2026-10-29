@@ -2,7 +2,7 @@
 
 A local AWS emulator for development machines and CI, built for testing event-driven systems.
 
-understudy is one Go binary, or a Docker image of about 11 MB compressed, that stands in for fourteen AWS services. Applications, the AWS SDKs, the AWS CLI and Terraform reach it through the standard `AWS_ENDPOINT_URL` override, with no code changes.
+understudy is one Go binary, or a Docker image of about 11 MB compressed, that stands in for fifteen AWS services. Applications, the AWS SDKs, the AWS CLI and Terraform reach it through the standard `AWS_ENDPOINT_URL` override, with no code changes.
 
 1. `understudy serve` starts the emulator on `127.0.0.1:4566`.
 2. `eval "$(understudy env)"` points every SDK, the AWS CLI and Terraform at it.
@@ -190,7 +190,7 @@ understudy never bundles, mirrors, re-tags, saves, pushes or patches the DynamoD
 - **LocalStack** when you need services understudy does not emulate, such as ECS, RDS, Step Functions Express workflows and service integrations other than Lambda, API Gateway REST and WebSocket APIs, Cognito or CloudFormation deploys.
 - **moto** for Python unit tests that should not leave the process.
 - **Real AWS** for final validation. Emulators can pass where the cloud fails, and that applies to understudy too.
-- **understudy** when your system lives in the fourteen services above and you want fast, deterministic, free tests of how they interact, including time, failures and permissions.
+- **understudy** when your system lives in the fifteen services above and you want fast, deterministic, free tests of how they interact, including time, failures and permissions.
 
 ## Limitations
 

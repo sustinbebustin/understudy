@@ -45,7 +45,7 @@ Requirements: Go, Terraform 1.16 or later, Docker (for Lambda), `uv` (for `scrip
 | Path | Contents |
 |---|---|
 | `provider.tf` | Provider and Terraform settings, and the variables every service shares. |
-| `<service>.tf` | One self-contained configuration per service: `sqs`, `sns`, `s3`, `dynamodb`, `kms`, `secretsmanager`, `iam`, `lambda`, `logs`, `events` (EventBridge), `cloudwatch` (metric alarms), `apigatewayv2` (API Gateway HTTP APIs), `dynamodbstreams` (a table's stream read by a Lambda event source mapping) and `ssm` (Parameter Store). Resources from other services that a configuration needs, such as the queue an S3 notification targets, are declared in that file and marked as fixtures. |
+| `<service>.tf` | One self-contained configuration per service: `sqs`, `sns`, `s3`, `dynamodb`, `kms`, `secretsmanager`, `iam`, `lambda`, `logs`, `events` (EventBridge), `cloudwatch` (metric alarms), `apigatewayv2` (API Gateway HTTP APIs), `dynamodbstreams` (a table's stream read by a Lambda event source mapping), `ssm` (Parameter Store) and `sfn` (Step Functions). Resources from other services that a configuration needs, such as the queue an S3 notification targets, are declared in that file and marked as fixtures. |
 | `.terraform.lock.hcl` | Pinned provider checksums, copied into every working directory (`init -lockfile=readonly`). |
 | `functions/go-worker` | The Go worker for `provided.al2023`, standard library only, its own module. |
 | `functions/python-handler` | The Python handler for `python3.13`. |
@@ -54,7 +54,7 @@ Requirements: Go, Terraform 1.16 or later, Docker (for Lambda), `uv` (for `scrip
 
 The `step` variable selects the scenario: `create` is the initial configuration and `update` the changed one. Each file's header says what the update changes.
 
-Resource names start with `tfc-<service>`. Each service signs with a 12-digit access key from which understudy derives a separate account (`100000000001` to `100000000014`, in the order of the table above). So one service never sees another's resources, and the leftover check can ask understudy for exactly one account.
+Resource names start with `tfc-<service>`. Each service signs with a 12-digit access key from which understudy derives a separate account (`100000000001` to `100000000015`, in the order of the table above). So one service never sees another's resources, and the leftover check can ask understudy for exactly one account.
 
 The provider is configured as the research documents for a custom endpoint (`tf-messaging.md` 1.2): the endpoint comes from `AWS_ENDPOINT_URL`, set by `scripts/sealed`, and the provider block sets `skip_credentials_validation`, `skip_requesting_account_id`, `skip_metadata_api_check` and `s3_use_path_style`. The endpoint is an IP literal, so S3 must use path style.
 

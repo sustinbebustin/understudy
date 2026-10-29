@@ -1,6 +1,6 @@
 # understudy
 
-A local AWS emulator for development machines and CI, built for testing event-driven systems: one Go binary that stands in for fourteen AWS services, reached through `AWS_ENDPOINT_URL`. Pre-release; what each operation supports is listed in `docs/coverage.md`.
+A local AWS emulator for development machines and CI, built for testing event-driven systems: one Go binary that stands in for fifteen AWS services, reached through `AWS_ENDPOINT_URL`. Pre-release; what each operation supports is listed in `docs/coverage.md`.
 
 ```sh
 just verify          # gofmt check, vet, golangci-lint, go test -race: the gate for every change
