@@ -128,6 +128,7 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | logs | 118 | 9 | 0 | 9 | 100 | 1 | 0 |
 | s3 | 112 | 22 | 39 | 25 | 26 | 0 | 3 |
 | secretsmanager | 23 | 1 | 0 | 14 | 8 | 0 | 0 |
+| sfn | 37 | 7 | 0 | 9 | 21 | 0 | 0 |
 | sns | 42 | 12 | 0 | 7 | 23 | 0 | 3 |
 | sqs | 23 | 16 | 0 | 7 | 0 | 2 | 0 |
 | ssm | 152 | 0 | 0 | 13 | 139 | 0 | 0 |
@@ -1073,6 +1074,48 @@ Raw operations:
 | StopReplicationToReplica | unbound | unassessed |  |
 | ValidateResourcePolicy | unbound | unassessed |  |
 
+### sfn
+
+| Operation | Status | Evidence | Note |
+|---|---|---|---|
+| DeleteStateMachine | full | inferred, 2 of 4 claims |  |
+| DescribeStateMachine | full | inferred, 1 of 3 claims |  |
+| DescribeStateMachineForExecution | full | inferred, 1 of 3 claims |  |
+| ListStateMachines | full | inferred, 1 of 3 claims |  |
+| ListTagsForResource | full | inferred, 1 of 3 claims |  |
+| TagResource | full | inferred, 1 of 3 claims |  |
+| UntagResource | full | inferred, 1 of 3 claims |  |
+| CreateStateMachine | partial | inferred, 1 of 3 claims | Standard workflows only: type EXPRESS, publish true and a CUSTOMER_MANAGED_KMS_KEY encryptionConfiguration answer 501. Definitions are JSONPath with Pass, Task, Choice, Wait, Succeed, Fail, Parallel and inline Map states, and Task resources are Lambda only (a function ARN or arn:aws:states:::lambda:invoke). These answer InvalidDefinition with code UNSUPPORTED_BY_UNDERSTUDY: JSONata, Assign and variables, Distributed Map and its fields, Credentials, HeartbeatSeconds, callbacks, activities, every other Task resource, a literal lambda:invoke InvocationType other than RequestResponse, and JSONPath functions such as length(), multi-clause filters and filter scripts (ASL-19). A dynamodb resource outside getItem, putItem, updateItem and deleteItem answers AWS's SCHEMA_VALIDATION_FAILED text. Only the first problem in a definition is reported (UNVERIFIED, ASL-01, SFN-08). loggingConfiguration and tracingConfiguration are validated, stored and echoed; no log events or traces are emitted. The role ARN is checked for syntax, and its trust policy only under iam.enforce=enforce, with understudy's message (UNVERIFIED, SFN-08) |
+| DescribeExecution | partial | inferred, 1 of 3 claims | redriveStatus is NOT_REDRIVABLE for SUCCEEDED executions and REDRIVABLE for FAILED, TIMED_OUT and ABORTED ones, however long ago they closed; a RUNNING execution has none. The other NOT_REDRIVABLE reasons AWS documents (a running execution, a DELETING machine, the 14-day redrive period) are not given: none is recorded |
+| GetExecutionHistory | partial | inferred, 1 of 3 claims | includeExecutionData false removes input and output and keeps the *Details members (UNVERIFIED, SFN-05). Events of concurrent Parallel branches and Map iterations are appended in the order understudy runs them, steps due at the same emulator instant in branch or item order (UNVERIFIED, ASL-13); payload-template output keeps template key order (UNVERIFIED, ASL-02) |
+| ListExecutions | partial | inferred, 1 of 4 claims | mapRunArn and redriveFilter are validated; no Map Run or redrive exists, so they match nothing |
+| ListStateMachineVersions | partial | inferred, 1 of 3 claims | Always empty: publishing versions is not implemented (publish is refused and PublishStateMachineVersion is unbound) |
+| StartExecution | partial | inferred, 6 of 8 claims | Standard executions. Unrecorded AWS behavior understudy chooses, each with its recording case: same-name idempotency compares input byte for byte (SFN-03); malformed input other than the recorded cases answers 'Invalid execution input.' (SFN-08); ResultPath into a non-object and a missing path in a Task, Parallel or Map template fail with States.Runtime (ASL-03, ASL-04); a Fail state in a Parallel branch fails the Parallel with the branch's error (ASL-13); States.DataLimitExceeded from a non-Task state is terminal at any depth (ASL-15); a Wait past the one-year execution limit ends with States.Timeout at the limit (ASL-09); the 25,000-event history limit fails the execution with States.Runtime (ASL-16); retry delays keep milliseconds and FULL jitter is uniform from understudy's seeded stream (ASL-10); IsTimestamp follows the documented RFC 3339 profile (ASL-07). A lambda:invoke InvocationType that resolves to anything but RequestResponse fails with States.Runtime (SFN-13). lambda:invoke results carry SdkHttpMetadata with AWS's recorded header names; the X-Amzn-Trace-Id value is understudy's. traceHeader, or the X-Amzn-Trace-Id request header when both are sent, is stored and returned by DescribeExecution; no X-Ray trace is emitted. A Lambda task in flight when a snapshot was saved is invoked again after load. States.MathRandom never reproduces AWS's sequence for a seed |
+| StopExecution | partial | inferred, 1 of 3 claims | error and cause are kept in DescribeExecution and ExecutionAborted; stopping a closed execution answers 200 with its stopDate and changes nothing (UNVERIFIED, SFN-04) |
+| UpdateStateMachine | partial | inferred, 1 of 3 claims | The CreateStateMachine definition and configuration rules apply; publish true and versionDescription answer 501. Running executions keep the definition and role they started with |
+| ValidateStateMachineDefinition | partial | inferred, 1 of 3 claims | Diagnostics use AWS's codes; messages are AWS's for the recorded cases (stepfunctions-asl.md 3.4-3.6) and understudy's wording elsewhere (UNVERIFIED, ASL-01). Features understudy refuses are ERROR diagnostics with code UNSUPPORTED_BY_UNDERSTUDY; type EXPRESS answers 501 |
+| CreateActivity | unbound | unassessed |  |
+| CreateStateMachineAlias | unbound | unassessed |  |
+| DeleteActivity | unbound | unassessed |  |
+| DeleteStateMachineAlias | unbound | unassessed |  |
+| DeleteStateMachineVersion | unbound | unassessed |  |
+| DescribeActivity | unbound | unassessed |  |
+| DescribeMapRun | unbound | unassessed |  |
+| DescribeStateMachineAlias | unbound | unassessed |  |
+| GetActivityTask | unbound | unassessed |  |
+| ListActivities | unbound | unassessed |  |
+| ListMapRuns | unbound | unassessed |  |
+| ListStateMachineAliases | unbound | unassessed |  |
+| PublishStateMachineVersion | unbound | unassessed |  |
+| RedriveExecution | unbound | unassessed |  |
+| SendTaskFailure | unbound | unassessed |  |
+| SendTaskHeartbeat | unbound | unassessed |  |
+| SendTaskSuccess | unbound | unassessed |  |
+| StartSyncExecution | unbound | unassessed |  |
+| TestState | unbound | unassessed |  |
+| UpdateMapRun | unbound | unassessed |  |
+| UpdateStateMachineAlias | unbound | unassessed |  |
+
 ### sns
 
 | Operation | Status | Evidence | Note |
@@ -1342,7 +1385,7 @@ Internal operations:
 
 Behaviors chosen without AWS-recorded evidence, with the research they rest on and the parity scenario step that settles them, or why none does. The count and order follow the label the code states; the Label column shows the recording's verdict where a replayed step settles or contradicts the switch.
 
-178 switches: 1 aws-recorded, 5 third-party-recorded, 20 aws-doc, 152 inferred.
+184 switches: 1 aws-recorded, 5 third-party-recorded, 20 aws-doc, 158 inferred.
 
 | Switch | Value | Label | Reference | Settled by |
 |---|---|---|---|---|
@@ -1474,6 +1517,12 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `secretsmanager.list-secrets.all-filter-match` | `any-word,word-prefix` | inferred | https://docs.aws.amazon.com/secretsmanager/latest/userguide/manage_search-secret.html | none: unrecorded: no recording calls ListSecrets |
 | `secretsmanager.list-secrets.filter-combination` | `and-across-filters,or-across-values` | inferred | docs/research/secrets-logs-events-alarms.md#24-operations-request-and-response-facts | none: unrecorded: no recording calls ListSecrets |
 | `secretsmanager.restore.not-scheduled` | `no-op` | inferred | docs/research/secrets-logs-events-alarms.md#25-deletion-window-force-delete-restore-clock-driven | none: secretsmanager/R15/05-restore-live.json is recorded; no scenario replays secretsmanager/R15 yet |
+| `sfn.choice.missing-variable` | `{States.Runtime true}` | inferred | docs/research/stepfunctions-asl.md#64-no-match-and-missing-variables | none: unrecorded: recording case ASL-08 (stepfunctions-asl.md 16.2) |
+| `sfn.choice.no-match` | `{States.NoChoiceMatched false}` | inferred | docs/research/stepfunctions-asl.md#64-no-match-and-missing-variables | none: unrecorded: recording case ASL-08 (stepfunctions-asl.md 16.2) |
+| `sfn.delete.running-execution` | `true` | inferred | docs/research/stepfunctions-api.md#54-deletestatemachine | none: unrecorded: recording case SFN-06 (stepfunctions-api.md 14.7) |
+| `sfn.denial.status` | `400` | inferred | docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit | none: unrecorded: recording case SFN-15 (stepfunctions-api.md 14.16) |
+| `sfn.integration.lambda-error` | `{Lambda. Lambda.AWSLambdaException %s (Service: AWSLambda; Status Code: %d; Error Code: %s; Request ID: %s; Proxy: null)}` | inferred | docs/research/stepfunctions-api.md#94-error-names-and-causes-recorded | none: unrecorded for an unmodeled code: recording case SFN-15 (stepfunctions-api.md 14.16) |
+| `sfn.intrinsic.failure-error` | `{States.IntrinsicFailure false}` | inferred | docs/research/stepfunctions-asl.md#54-failures | none: unrecorded: recording case ASL-05 (stepfunctions-asl.md 16.2) |
 | `sns.default-policy.direct-calls` | `identity-policy-required` | inferred | docs/research/iam-enforcement-surfaces.md#7.2 | none: unrecorded: IAM-ENF-17 waits in the recording queue (iam-enforcement-surfaces.md 13) |
 | `sns.delete-topic.detached-retention` | `48h0m0s` | inferred | docs/research/sns.md#22-topic-attributes | none: sns/R16/06-list-subscriptions-after-delete.json shows the subscriptions 5 s after DeleteTopic; how long they stay is unrecorded |
 | `sns.delivery.source-account` | `present` | inferred | docs/research/iam-enforcement-surfaces.md#8.1 | none: unrecorded: IAM-ENF-18 waits in the recording queue (iam-enforcement-surfaces.md 13) |
@@ -1529,7 +1578,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 
 Corrections to the vendored models in `codegen/overlays`, one row per evidence item. The count and order, strongest evidence first, follow the label the overlay states; the Label column shows the recording's verdict where a replayed step settles or contradicts the item.
 
-336 evidence items: 50 aws-recorded, 107 third-party-recorded, 56 aws-doc, 5 sdk-source, 118 inferred.
+338 evidence items: 50 aws-recorded, 108 third-party-recorded, 56 aws-doc, 5 sdk-source, 119 inferred.
 
 | Label | Overlay | Shape | Covers | Source |
 |---|---|---|---|---|
@@ -1678,6 +1727,7 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | third-party-recorded | secretsmanager.json | `com.amazonaws.secretsmanager#secretsmanager` | dev.understudy#denialError | docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: AccessDeniedException answers 400 with body key Message for a non-IAM denial (RotateSecret, https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/secretsmanager/test_secretsmanager.snapshot.json#L4011-L4019, 3.2); the status of an IAM denial falls under switch secretsmanager.denial.status (12.8) until recording IAM-ENF-06 (validated 2024-03-15) |
 | third-party-recorded | ses.json | `com.amazonaws.ses#InvalidParameterValue` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/ses/test_ses.snapshot.json#L592-L735 (validated 2024-07-30) |
 | third-party-recorded | sfn.json | `com.amazonaws.sfn#CharacterRestrictedName` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/stepfunctions/v2/test_sfn_api_aliasing.snapshot.json#L132-L152 (validated 2025-04-09) |
+| third-party-recorded | sfn.json | `com.amazonaws.sfn#ListExecutionsInput$statusFilter` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/stepfunctions/v2/test_sfn_api.snapshot.json#L1672: Member must satisfy enum value set: [SUCCEEDED, TIMED_OUT, PENDING_REDRIVE, ABORTED, FAILED, RUNNING], not model order, so the handler renders the recorded order (docs/research/stepfunctions-api.md#32-error-identities-and-statuses) (validated 2024-03-14) |
 | third-party-recorded | sns.json | `com.amazonaws.sns#AmazonSimpleNotificationService` | dev.understudy#validationError | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sns/test_sns.snapshot.json#L1823 (validated 2024-11-15) |
 | third-party-recorded | sqs.json | `com.amazonaws.sqs#AmazonSQS` | dev.understudy#emptyCollection | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sqs/test_sqs.snapshot.json |
 | third-party-recorded | sqs.json | `com.amazonaws.sqs#InvalidParameterValue` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sqs/test_sqs.snapshot.json#L2 (validated 2024-04-30) |
@@ -1828,7 +1878,8 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | inferred | sesv2.json | `com.amazonaws.sesv2#SimpleEmailService_v2` | dev.understudy#denialError | docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: no source names the SES v2 denial and its model declares no AccessDeniedException, so the generic com.amazon.coral.service#AccessDeniedException, 403, answers; UNVERIFIED until recording IAM-ENF-39 |
 | inferred | sesv2.json | `com.amazonaws.sesv2#SimpleEmailService_v2` | dev.understudy#throttleError | docs/research/ses.md#114-fidelity-switches: https://docs.aws.amazon.com/ses/latest/APIReference-V2/API_SendEmail.html#API_SendEmail_Errors lists TooManyRequestsException 429 'Too many requests have been made to the operation.'; the model declares it on all 116 v2 operations, and docs/research/ses.md#114-fidelity-switches names it as the v2 throttle error (3.3 lists it at 429); https://docs.aws.amazon.com/ses/latest/APIReference-V2/CommonErrors.html also lists ThrottlingException 400 'Your request rate is too high.', so taking the per-operation error over it is inferred; which one a throttled v2 call returns is UNVERIFIED, and no case in the section 12 recording queue settles it yet |
 | inferred | sesv2.json | `com.amazonaws.sesv2#SimpleEmailService_v2` | dev.understudy#validationError | docs/research/ses.md#114-fidelity-switches: the note names BadRequestException 400 as the v2 validation identity; its text 'The input you provided is invalid.' and its declaration on all 116 v2 operations come from the model, and https://docs.aws.amazon.com/ses/latest/APIReference-V2/CommonErrors.html also lists ValidationError 400; no recording shows what a v2 required, enum, length, range or pattern violation answers, and SES-23 (4.4) records service checks on Content and FromEmailAddress, which the model does not constrain; UNVERIFIED, and no case in the section 12 recording queue settles it yet (a raw POST /v2/email/identities with EmailIdentity "", com.amazonaws.sesv2#Identity length min 1, would) |
-| inferred | sfn.json | `com.amazonaws.sfn#AWSStepFunctions` | dev.understudy#denialError | docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: no source names the Step Functions denial and its model declares no AccessDeniedException, so the generic com.amazon.coral.service#AccessDeniedException, 403, answers with that awsJson1_0 __type; UNVERIFIED until recording IAM-ENF-40 |
+| inferred | sfn.json | `com.amazon.coral.service#AccessDeniedException` |  | docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: 400 as every plain awsJson service of 12.3 (DynamoDB, EventBridge, Logs, KMS, Secrets Manager); 3.3 rules out the CommonErrors 403 template as sole ground; switch sfn.denial.status, UNVERIFIED until recording SFN-15 (docs/research/stepfunctions-api.md#1416-sfn-15-denials-and-lambda-service-errors) |
+| inferred | sfn.json | `com.amazonaws.sfn#AWSStepFunctions` | dev.understudy#denialError | docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: no source names the Step Functions denial and its model declares no AccessDeniedException, so the generic com.amazon.coral.service#AccessDeniedException answers with that awsJson1_0 __type, at 400 as every plain awsJson service of 12.3 (switch sfn.denial.status); UNVERIFIED until recording SFN-15 (stepfunctions-api.md 14.16) or IAM-ENF-40 |
 | inferred | sfn.json | `com.amazonaws.sfn#AWSStepFunctions` | dev.understudy#throttleError | docs/research/stepfunctions-api.md#32-error-identities-and-statuses: code ThrottlingException, HTTP 400 and SDK retry are documented at https://docs.aws.amazon.com/step-functions/latest/apireference/CommonErrors.html, which shows the bare name only; UNVERIFIED (SFN-01): the awsJson1_0 __type namespace com.amazon.coral.service# and the message key casing; recording-queue SFN-01 (stepfunctions-api.md 14.2) settles it |
 | inferred | sfn.json | `com.amazonaws.sfn#AWSStepFunctions` | dev.understudy#validationError | docs/research/stepfunctions-api.md#32-error-identities-and-statuses: code ValidationException, HTTP 400, a top-level message member and the Coral grammar are recorded against AWS (LocalStack, validated 2024-07-01) at https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/stepfunctions/v2/test_sfn_api.snapshot.json#L1882-L1892; botocore strips the namespace, so UNVERIFIED (SFN-01): the raw __type namespace com.amazon.coral.validate#; recording-queue SFN-01 (stepfunctions-api.md 14.2) settles it |
 | inferred | sns.json | `com.amazonaws.sns#AmazonSimpleNotificationService` | dev.understudy#throttleError | docs/research/error-matrix.md#53-sns-query |

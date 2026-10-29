@@ -30,6 +30,8 @@ export const vias = [
   "lambda-code",
   "lambda-destination",
   "apigateway-integration",
+  "sfn-log-destination",
+  "sfn-task",
 ] as const;
 
 export const mechanisms = [
@@ -77,4 +79,9 @@ export const idKinds = [
   "apigateway-child-id",
   "dynamodb-stream-event-id",
   "shard-iterator-key",
+  "sfn-execution-name",
+  "sfn-revision-id",
+  "sfn-uuid",
+  "sfn-math-random",
+  "sfn-jitter",
 ] as const;
