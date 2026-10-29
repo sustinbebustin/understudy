@@ -37,8 +37,7 @@ type ARNPrefixed struct{}
 
 // Opaque is Kinesis's form: standard base64 of the 8-byte prefix
 // 00 00 00 00 00 00 00 01, a binary payload that names the stream, and its
-// HMAC, at most 512 characters (kinesis.md 3.5, 13.5 item 3). Codec does
-// not implement it yet: Encode returns nil and Decode a *MalformedError.
+// HMAC, at most 512 characters (kinesis.md 3.5, 13.5 item 3).
 type Opaque struct{}
 
 func (ARNPrefixed) isForm() {}
@@ -87,20 +86,42 @@ const (
 	kindAfter       = "f"
 )
 
+// positionKind returns the payload kind and number of a resolved position;
+// Latest and AtTime come back as TrimHorizon, which no caller issues.
+func positionKind(p Position) (string, Seq) {
+	switch p := p.(type) {
+	case At:
+		return kindAt, p.Seq
+	case After:
+		return kindAfter, p.Seq
+	case TrimHorizon, Latest, AtTime:
+	}
+	return kindTrimHorizon, ""
+}
+
+// positionOf is positionKind's inverse; false for an unknown kind.
+func positionOf(kind string, seq Seq) (Position, bool) {
+	switch kind {
+	case kindTrimHorizon:
+		return TrimHorizon{}, true
+	case kindAt:
+		return At{Seq: seq}, true
+	case kindAfter:
+		return After{Seq: seq}, true
+	}
+	return nil, false
+}
+
 // Encode returns it as a token. Pos must be resolved (TrimHorizon, At or
 // After); Latest and AtTime encode as TrimHorizon, which no caller issues.
 func (c Codec) Encode(it Iterator) []byte {
-	if _, opaque := c.form.(Opaque); opaque {
-		return nil
+	switch c.form.(type) {
+	case Opaque:
+		return c.encodeOpaque(it)
+	case ARNPrefixed:
 	}
-	p := payload{Created: stampOf(it.Created), Shard: it.Shard, Kind: kindTrimHorizon, Issued: stampOf(it.Issued)}
-	switch pos := it.Pos.(type) {
-	case At:
-		p.Kind, p.Seq = kindAt, pos.Seq
-	case After:
-		p.Kind, p.Seq = kindAfter, pos.Seq
-	case TrimHorizon, Latest, AtTime:
-	}
+	p := payload{Created: stampOf(it.Created), Shard: it.Shard, Issued: stampOf(it.Issued)}
+	p.Kind, p.Seq = positionKind(it.Pos)
 	body, err := json.Marshal(p)
 	if err != nil {
 		// A struct of strings and integers always marshals.
@@ -123,12 +144,6 @@ func ClaimedStream(token []byte) (aws.ARN, bool) {
 	return stream, err == nil
 }
 
-// ClaimedOpaqueStream returns the stream an Opaque token's payload names,
-// unverified, as IAM authorization needs it before the HMAC is checked;
-// false when the token is not base64 of an Opaque payload. Not implemented
-// yet: always false.
-func ClaimedOpaqueStream([]byte) (aws.ARN, bool) { return aws.ARN{}, false }
-
 // splitPrefix splits an ARNPrefixed token into the stream its prefix names
 // and the rest, the prefix's separator included in neither.
 func splitPrefix(b []byte) (aws.ARN, []byte, *MalformedError) {
@@ -147,9 +162,27 @@ func splitPrefix(b []byte) (aws.ARN, []byte, *MalformedError) {
 // its age: *MalformedError for one that does not decode or verify,
 // *ExpiredError when now is at or past Issued plus ttl or before Issued.
 func (c Codec) Decode(b []byte, now clock.Instant, ttl time.Duration) (Iterator, error) {
-	if _, opaque := c.form.(Opaque); opaque {
-		return Iterator{}, &MalformedError{Reason: "the Opaque form is not implemented yet"}
+	var (
+		it   Iterator
+		merr *MalformedError
+	)
+	switch c.form.(type) {
+	case Opaque:
+		it, merr = c.decodeOpaque(b)
+	case ARNPrefixed:
+		it, merr = c.decodeARNPrefixed(b)
 	}
+	if merr != nil {
+		return Iterator{}, merr
+	}
+	if now.Before(it.Issued) || now.Compare(it.Issued.Add(ttl)) >= 0 {
+		return Iterator{}, &ExpiredError{Issued: it.Issued, Now: now}
+	}
+	return it, nil
+}
+
+// decodeARNPrefixed reads and verifies an ARNPrefixed token.
+func (c Codec) decodeARNPrefixed(b []byte) (Iterator, *MalformedError) {
 	stream, enc, merr := splitPrefix(b)
 	if merr != nil {
 		return Iterator{}, merr
@@ -168,21 +201,11 @@ func (c Codec) Decode(b []byte, now clock.Instant, ttl time.Duration) (Iterator,
 	if err := json.Unmarshal(body, &p); err != nil {
 		return Iterator{}, &MalformedError{Reason: "the payload does not parse"}
 	}
-	it := Iterator{Stream: stream, Created: p.Created.instant(), Shard: p.Shard, Issued: p.Issued.instant()}
-	switch p.Kind {
-	case kindTrimHorizon:
-		it.Pos = TrimHorizon{}
-	case kindAt:
-		it.Pos = At{Seq: p.Seq}
-	case kindAfter:
-		it.Pos = After{Seq: p.Seq}
-	default:
+	pos, ok := positionOf(p.Kind, p.Seq)
+	if !ok {
 		return Iterator{}, &MalformedError{Reason: "unknown position kind " + p.Kind}
 	}
-	if now.Before(it.Issued) || now.Compare(it.Issued.Add(ttl)) >= 0 {
-		return Iterator{}, &ExpiredError{Issued: it.Issued, Now: now}
-	}
-	return it, nil
+	return Iterator{Stream: stream, Created: p.Created.instant(), Shard: p.Shard, Pos: pos, Issued: p.Issued.instant()}, nil
 }
 
 func (c Codec) sign(prefix, body []byte) []byte {
