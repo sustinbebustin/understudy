@@ -109,6 +109,10 @@ func FailureRecord(kind EventSourceKind, b FailedBatch) []byte {
 		return nil
 	case DynamoDBStream:
 		return ddbFailureRecord(b)
+	case KinesisStream:
+		// Not implemented yet: KinesisBatchInfo with millisecond arrival
+		// times (lambda-stream-sources.md 5.6).
+		return nil
 	}
 	return nil
 }

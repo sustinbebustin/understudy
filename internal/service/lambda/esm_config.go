@@ -339,6 +339,10 @@ func (s *Service) createMapping(ctx context.Context, c *kernel.Call, in *lambdaa
 	switch kind.(type) {
 	case esm.DynamoDBStream:
 		return s.createStreamMapping(ctx, c, in, queue)
+	case esm.KinesisStream:
+		// eventSource names no Kinesis stream until Kinesis mappings are
+		// built; it answers errEventSourceUnsupported for one.
+		return nil, errEventSourceUnsupported(queue.String())
 	case esm.SQS:
 	}
 	m := Mapping{Source: queue.String(), SourceKind: kind, BatchSize: defaultBatchSize, Enabled: in.Enabled == nil || *in.Enabled, Tags: maps.Clone(in.Tags)}
@@ -586,6 +590,8 @@ func renderMapping(scope aws.Scope, m Mapping) lambdaapi.EventSourceMappingConfi
 		renderScaling(&out, kind.Scaling)
 	case esm.DynamoDBStream:
 		renderStreamMapping(&out, &m, kind)
+	case esm.KinesisStream:
+		// Not implemented yet: no mapping of this kind is created.
 	}
 	return out
 }

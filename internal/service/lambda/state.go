@@ -617,6 +617,7 @@ func unions() (jsonx.Codec, error) {
 	sources, err := jsonx.NewUnion("lambda.EventSourceKind",
 		jsonx.Variant[esm.EventSourceKind, esm.SQS]("sqs"),
 		jsonx.Variant[esm.EventSourceKind, esm.DynamoDBStream]("dynamodb-stream"),
+		jsonx.Variant[esm.EventSourceKind, esm.KinesisStream]("kinesis-stream"),
 	)
 	if err != nil {
 		return jsonx.Codec{}, fmt.Errorf("lambda state codec: %w", err)

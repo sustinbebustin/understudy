@@ -23,6 +23,44 @@ type DynamoDBStream struct {
 
 func (DynamoDBStream) isEventSourceKind() {}
 
+// KinesisStream is a Kinesis data stream; the mapping's source is the
+// stream's ARN. AT_TIMESTAMP is not a StreamStart: on a Kinesis stream it
+// answers 501 until it is built (lambda-stream-sources.md 12.1 item 2).
+type KinesisStream struct {
+	Position StreamStart    `json:"position"`
+	Settings StreamSettings `json:"settings"`
+}
+
+func (KinesisStream) isEventSourceKind() {}
+
+// StreamOf returns a stream kind's starting position and settings; false
+// for an SQS queue.
+func StreamOf(k EventSourceKind) (StreamStart, StreamSettings, bool) {
+	switch k := k.(type) {
+	case DynamoDBStream:
+		return k.Position, k.Settings, true
+	case KinesisStream:
+		return k.Position, k.Settings, true
+	case SQS:
+	}
+	return nil, StreamSettings{}, false
+}
+
+// PollInterval is the documented polling interval of a stream kind, the
+// delay before a failed batch is retried under lambda.esm-stream.retry-delay
+// poll-interval (lambda-stream-sources.md 4.1): DynamoDBRetryDelay,
+// KinesisRetryDelay, and 0 for an SQS queue.
+func PollInterval(k EventSourceKind) time.Duration {
+	switch k.(type) {
+	case DynamoDBStream:
+		return DynamoDBRetryDelay
+	case KinesisStream:
+		return KinesisRetryDelay
+	case SQS:
+	}
+	return 0
+}
+
 // StreamStart is a stream mapping's StartingPosition. AT_TIMESTAMP is not
 // one: on a DynamoDB stream it is refused (lambda-stream-sources.md 3.3
 // row 3).
@@ -140,6 +178,10 @@ type StreamSource interface {
 	// *shardlog.TrimmedError when from is behind the trim horizon, a
 	// *GoneError when the stream or shard no longer exists.
 	Read(ctx context.Context, shard string, from shardlog.Position, limit int) (StreamPage, error)
+	// Retention is how long the stream keeps a record: DynamoDBRetention
+	// for a DynamoDB stream, a Kinesis stream's current retention period;
+	// a *GoneError when the stream no longer exists.
+	Retention(ctx context.Context) (time.Duration, error)
 }
 
 // StreamPage is what one Read returned.
@@ -184,6 +226,12 @@ type Checkpoint struct {
 // (lambda-stream-sources.md 4.1), used under lambda.esm-stream.retry-delay
 // poll-interval.
 const DynamoDBRetryDelay = 250 * time.Millisecond
+
+// KinesisRetryDelay is the delay before a failed batch of a Kinesis stream
+// is retried: the documented base polling rate of once a second
+// (kinesis.md 8.2; lambda-stream-sources.md 4.1), used under
+// lambda.esm-stream.retry-delay poll-interval.
+const KinesisRetryDelay = time.Second
 
 // DynamoDBRetention is how long a DynamoDB stream keeps a record: 24 hours
 // (aws-doc, dynamodb-streams.md 5.5). A reader whose retried batch reaches

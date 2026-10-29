@@ -35,7 +35,14 @@ type Form interface{ isForm() }
 // (dynamodb-streams.md 4.4).
 type ARNPrefixed struct{}
 
+// Opaque is Kinesis's form: standard base64 of the 8-byte prefix
+// 00 00 00 00 00 00 00 01, a binary payload that names the stream, and its
+// HMAC, at most 512 characters (kinesis.md 3.5, 13.5 item 3). Codec does
+// not implement it yet: Encode returns nil and Decode a *MalformedError.
+type Opaque struct{}
+
 func (ARNPrefixed) isForm() {}
+func (Opaque) isForm()      {}
 
 // arnSeparator ends the stream ARN of an ARNPrefixed token. A table name
 // cannot hold '|' and base64 never does, so the last one is the separator.
@@ -83,6 +90,9 @@ const (
 // Encode returns it as a token. Pos must be resolved (TrimHorizon, At or
 // After); Latest and AtTime encode as TrimHorizon, which no caller issues.
 func (c Codec) Encode(it Iterator) []byte {
+	if _, opaque := c.form.(Opaque); opaque {
+		return nil
+	}
 	p := payload{Created: stampOf(it.Created), Shard: it.Shard, Kind: kindTrimHorizon, Issued: stampOf(it.Issued)}
 	switch pos := it.Pos.(type) {
 	case At:
@@ -113,6 +123,12 @@ func ClaimedStream(token []byte) (aws.ARN, bool) {
 	return stream, err == nil
 }
 
+// ClaimedOpaqueStream returns the stream an Opaque token's payload names,
+// unverified, as IAM authorization needs it before the HMAC is checked;
+// false when the token is not base64 of an Opaque payload. Not implemented
+// yet: always false.
+func ClaimedOpaqueStream([]byte) (aws.ARN, bool) { return aws.ARN{}, false }
+
 // splitPrefix splits an ARNPrefixed token into the stream its prefix names
 // and the rest, the prefix's separator included in neither.
 func splitPrefix(b []byte) (aws.ARN, []byte, *MalformedError) {
@@ -131,6 +147,9 @@ func splitPrefix(b []byte) (aws.ARN, []byte, *MalformedError) {
 // its age: *MalformedError for one that does not decode or verify,
 // *ExpiredError when now is at or past Issued plus ttl or before Issued.
 func (c Codec) Decode(b []byte, now clock.Instant, ttl time.Duration) (Iterator, error) {
+	if _, opaque := c.form.(Opaque); opaque {
+		return Iterator{}, &MalformedError{Reason: "the Opaque form is not implemented yet"}
+	}
 	stream, enc, merr := splitPrefix(b)
 	if merr != nil {
 		return Iterator{}, merr

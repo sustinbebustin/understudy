@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/sustinbebustin/understudy/internal/api/dynamodbstreamsapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
@@ -25,6 +26,12 @@ type dynamoSource struct {
 }
 
 var _ esm.StreamSource = dynamoSource{}
+
+// Retention is a DynamoDB stream's fixed 24 hours (dynamodb-streams.md
+// 5.5).
+func (dynamoSource) Retention(context.Context) (time.Duration, error) {
+	return esm.DynamoDBRetention, nil
+}
 
 // Shards lists the stream's shard ids through DescribeStream.
 func (d dynamoSource) Shards(ctx context.Context) ([]string, error) {

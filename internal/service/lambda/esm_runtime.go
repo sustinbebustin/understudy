@@ -340,6 +340,8 @@ func newPoller(scope aws.Scope, uuid string, m Mapping) (*poller, bool) {
 		return newQueuePoller(scope, uuid, m)
 	case esm.DynamoDBStream:
 		return newStreamPoller(scope, uuid, m)
+	case esm.KinesisStream:
+		// Not implemented yet: no mapping of this kind is created.
 	case nil:
 		// createMapping gives every mapping a kind and every section of
 		// this state version stores it; one without has nothing to poll.
