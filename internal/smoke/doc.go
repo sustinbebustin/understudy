@@ -6,11 +6,10 @@
 // awsQuery with the delivery asserted in the journal, S3 over restXml (a
 // checksum header over HTTP, an aws-chunked trailer body over TLS,
 // SSE-KMS), Lambda and an API Gateway HTTP API over restJson1, CloudWatch
-// Logs, Secrets Manager, KMS, EventBridge and Kinesis over awsJson1_1, IAM and STS
-// over awsQuery, and CloudWatch alarms over awsJson1_0 and rpcv2Cbor. It
-// then asks
-// `understudy iam policy` for the smoke principal's policy and reads the
-// coverage report.
+// Logs, Secrets Manager, KMS, EventBridge and Kinesis over awsJson1_1, IAM
+// and STS over awsQuery, CloudWatch alarms over awsJson1_0 and rpcv2Cbor,
+// and an SES email identity over awsQuery. It then asks `understudy iam
+// policy` for the smoke principal's policy and reads the coverage report.
 //
 // With the docker tag as well, the workload invokes its zip function on a
 // provided.al2023 runtime, directly and through the HTTP API's execute-api

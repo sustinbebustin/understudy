@@ -90,6 +90,7 @@ func (w *workload) run(t *testing.T) {
 		{"eventbridge", w.events},
 		{"cloudwatch", w.cloudwatch},
 		{"step functions", w.stepFunctions},
+		{"ses", w.ses},
 		{"iam policy", w.policy},
 		{"coverage", w.coverage},
 	}
@@ -636,6 +637,20 @@ func (w *workload) stepFunctions(t *testing.T) {
 	decode(t, "ListStateMachines", must(t, "ListStateMachines", awsJSON(t, w.emu, "1.0", "states", "AWSStepFunctions.ListStateMachines", `{}`), http.StatusOK).body, &list)
 	if len(list.StateMachines) != 1 || list.StateMachines[0].StateMachineArn != "arn:aws:states:"+region+":"+account+":stateMachine:smoke" {
 		t.Fatalf("ListStateMachines = %+v, want the smoke machine", list)
+	}
+}
+
+// ses verifies an email identity over awsQuery and reads it back Pending,
+// keyed by the address as sent (ses.md 5.2, 9.1).
+func (w *workload) ses(t *testing.T) {
+	t.Helper()
+	const addr = "smoke@example.com"
+	must(t, "VerifyEmailIdentity", awsQuery(t, w.emu, "ses", "VerifyEmailIdentity", "2010-12-01", url.Values{"EmailAddress": {addr}}), http.StatusOK)
+	attrs := must(t, "GetIdentityVerificationAttributes", awsQuery(t, w.emu, "ses", "GetIdentityVerificationAttributes", "2010-12-01", url.Values{
+		"Identities.member.1": {addr},
+	}), http.StatusOK)
+	if element(t, attrs.body, "key") != addr || element(t, attrs.body, "VerificationStatus") != "Pending" {
+		t.Fatalf("GetIdentityVerificationAttributes = %s, want %s Pending", attrs.body, addr)
 	}
 }
 
