@@ -148,6 +148,8 @@ logs = _client_fixture("logs")
 sts = _client_fixture("sts")
 iam = _client_fixture("iam")
 ssm = _client_fixture("ssm")
+ses = _client_fixture("ses")
+sesv2 = _client_fixture("sesv2")
 
 
 @pytest.fixture(scope="session", name="lambda_")
