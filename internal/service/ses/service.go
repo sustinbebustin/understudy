@@ -1,21 +1,22 @@
 package ses
 
 import (
+	"github.com/sustinbebustin/understudy/internal/api/sesapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/clock"
+	"github.com/sustinbebustin/understudy/internal/evidence"
 	"github.com/sustinbebustin/understudy/internal/fidelity"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
-// stateVersion is the version of the "ses" snapshot section.
-const stateVersion = 1
-
 // Service is SES API v1 and the owner of the store both APIs share: the full
-// kernel.Stateful (export, import, reset, Rearm, resources).
+// kernel.Stateful (export, import, reset, Rearm, resources), one state cell
+// per account and Region.
 type Service struct {
-	opts Options
+	opts  Options
+	cells *store.Partitioned[aws.Scope, state]
 }
 
 // V2 is SES API v2: a view of the Service store that exports and lists
@@ -31,10 +32,15 @@ var (
 	_ kernel.Stateful = (*V2)(nil)
 )
 
-// New binds the SES v1 operations understudy implements; not implemented
-// yet, so every v1 operation stays unbound and answers 501.
-func New(_ kernel.ServiceDeps, o Options) *Service {
-	return &Service{opts: o}
+// New binds the SES v1 operations understudy implements. Every other v1
+// operation stays unbound and answers 501.
+func New(d kernel.ServiceDeps, o Options) *Service {
+	s := &Service{
+		opts:  o,
+		cells: store.NewPartitioned(d.Kernel.Gate(), codec(), newState),
+	}
+	s.bindIdentities(sesapi.NewBinder(d.Binder))
+	return s
 }
 
 // NewV2 binds the SES v2 operations understudy implements over svc's store;
@@ -49,33 +55,64 @@ func (*Service) Name() ref.ServiceID { return "ses" }
 // SchemaVersion returns the version of the "ses" section.
 func (*Service) SchemaVersion() int { return stateVersion }
 
-// Export serializes the store; not implemented yet, so it writes no
-// section.
-func (*Service) Export() ([]store.Section, error) { return nil, nil }
+// Export serializes every non-empty account and Region to one section.
+func (s *Service) Export() ([]store.Section, error) {
+	return s.cells.Export(store.ScopeKeys(), stateVersion)
+}
 
-// Import loads sections written by Export; not implemented yet, so it
-// accepts none and changes nothing.
-func (*Service) Import([]store.Section) error { return nil }
+// Import loads sections written by Export of this schema version.
+func (s *Service) Import(ss []store.Section) error {
+	return s.cells.Import(store.ScopeKeys(), stateVersion, ss)
+}
 
-// Reset drops the scopes rs covers, sent messages and recipient counters
-// included; not implemented yet, so there is nothing to drop.
-func (*Service) Reset(kernel.ResetScope) {}
+// Reset drops the scopes rs covers.
+func (s *Service) Reset(rs kernel.ResetScope) {
+	s.cells.Reset(func(k aws.Scope) bool { return !rs.Covers(k) })
+}
 
-// Rearm rebuilds the verification expiry timers from state; not
-// implemented yet, so it arms none.
+// Rearm arms nothing: verification expiry is not implemented yet, so the
+// state holds no deadline.
 func (*Service) Rearm(clock.Instant) {}
 
-// Resources lists the identities and templates of scope; not implemented
-// yet, so it lists nothing.
-func (*Service) Resources(aws.Scope) []kernel.Resource { return nil }
+// Resources lists the identities of scope in creation order, each with
+// its v1 verification status.
+func (s *Service) Resources(scope aws.Scope) []kernel.Resource {
+	cell, ok := s.cells.Lookup(scope)
+	if !ok {
+		return nil
+	}
+	return store.Read(cell, func(st *state) []kernel.Resource {
+		out := make([]kernel.Resource, 0, len(st.Identities))
+		for i := range st.Identities {
+			id := &st.Identities[i]
+			out = append(out, kernel.Resource{ARN: identityARN(scope, id.Name), Summary: string(id.Status.v1())})
+		}
+		return out
+	})
+}
 
-// Scopes lists the scopes the store holds a cell for; not implemented yet,
-// so it lists none.
-func (*Service) Scopes() []aws.Scope { return nil }
+// Scopes returns the accounts and Regions that hold a state cell.
+func (s *Service) Scopes() []aws.Scope { return s.cells.Keys(store.ScopeKeys()) }
 
-// Switches lists the SES switches in effect; not implemented yet, so it
-// lists none.
-func (*Service) Switches() []fidelity.Entry { return nil }
+// Switches lists the SES switches whose behavior is implemented, with the
+// value in effect.
+func (s *Service) Switches() []fidelity.Entry {
+	return []fidelity.Entry{unknownIdentitySwitch(s.opts.UnknownIdentity).Entry()}
+}
+
+// unknownIdentitySwitch is switch ses.verification.unknown-identity at
+// value v.
+func unknownIdentitySwitch(v UnknownIdentity) fidelity.Switch[UnknownIdentity] {
+	return fidelity.Switch[UnknownIdentity]{
+		Name:    "ses.verification.unknown-identity",
+		Value:   v,
+		Label:   evidence.Inferred,
+		Ref:     "docs/research/ses.md#53-v1-identity-operations",
+		Record:  "SES-08",
+		Ops:     []string{"ses.GetIdentityVerificationAttributes"},
+		Settles: fidelity.NoScenario{Reason: "unrecorded: SES-08 in the recording queue (ses.md 12) settles it"},
+	}
+}
 
 // Name returns "sesv2".
 func (*V2) Name() ref.ServiceID { return "sesv2" }

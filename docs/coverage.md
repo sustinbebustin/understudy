@@ -129,7 +129,7 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | logs | 118 | 9 | 0 | 9 | 100 | 1 | 0 |
 | s3 | 112 | 22 | 39 | 25 | 26 | 0 | 3 |
 | secretsmanager | 23 | 1 | 0 | 14 | 8 | 0 | 0 |
-| ses | 71 | 0 | 0 | 0 | 71 | 0 | 0 |
+| ses | 71 | 1 | 0 | 2 | 68 | 0 | 0 |
 | sesv2 | 116 | 0 | 0 | 0 | 116 | 0 | 0 |
 | sfn | 37 | 7 | 0 | 9 | 21 | 0 | 0 |
 | sns | 42 | 12 | 0 | 7 | 23 | 0 | 3 |
@@ -1137,6 +1137,9 @@ Raw operations:
 
 | Operation | Status | Evidence | Note |
 |---|---|---|---|
+| DeleteIdentity | full | third-party-recorded, 1 of 1 claim |  |
+| GetIdentityVerificationAttributes | partial | inferred, 1 of 2 claims | the 100-identity limit per call is not enforced yet |
+| VerifyEmailIdentity | partial | third-party-recorded, 1 of 1 claim | the identity starts and stays Pending: the verification email and its link, ses.verifiedIdentities, the 24-hour expiry, address validation and the 10,000-identity limit are not implemented yet |
 | CloneReceiptRuleSet | unbound | unassessed |  |
 | CreateConfigurationSet | unbound | unassessed |  |
 | CreateConfigurationSetEventDestination | unbound | unassessed |  |
@@ -1150,7 +1153,6 @@ Raw operations:
 | DeleteConfigurationSetEventDestination | unbound | unassessed |  |
 | DeleteConfigurationSetTrackingOptions | unbound | unassessed |  |
 | DeleteCustomVerificationEmailTemplate | unbound | unassessed |  |
-| DeleteIdentity | unbound | unassessed |  |
 | DeleteIdentityPolicy | unbound | unassessed |  |
 | DeleteReceiptFilter | unbound | unassessed |  |
 | DeleteReceiptRule | unbound | unassessed |  |
@@ -1167,7 +1169,6 @@ Raw operations:
 | GetIdentityMailFromDomainAttributes | unbound | unassessed |  |
 | GetIdentityNotificationAttributes | unbound | unassessed |  |
 | GetIdentityPolicies | unbound | unassessed |  |
-| GetIdentityVerificationAttributes | unbound | unassessed |  |
 | GetSendQuota | unbound | unassessed |  |
 | GetSendStatistics | unbound | unassessed |  |
 | GetTemplate | unbound | unassessed |  |
@@ -1207,7 +1208,6 @@ Raw operations:
 | VerifyDomainDkim | unbound | unassessed |  |
 | VerifyDomainIdentity | unbound | unassessed |  |
 | VerifyEmailAddress | unbound | unassessed |  |
-| VerifyEmailIdentity | unbound | unassessed |  |
 
 ### sesv2
 
@@ -1641,7 +1641,7 @@ Internal operations:
 
 Behaviors chosen without AWS-recorded evidence, with the research they rest on and the parity scenario step that settles them, or why none does. The count and order follow the label the code states; the Label column shows the recording's verdict where a replayed step settles or contradicts the switch.
 
-211 switches: 1 aws-recorded, 5 third-party-recorded, 24 aws-doc, 181 inferred.
+212 switches: 1 aws-recorded, 5 third-party-recorded, 24 aws-doc, 182 inferred.
 
 | Switch | Value | Label | Reference | Settled by |
 |---|---|---|---|---|
@@ -1800,6 +1800,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `secretsmanager.list-secrets.all-filter-match` | `any-word,word-prefix` | inferred | https://docs.aws.amazon.com/secretsmanager/latest/userguide/manage_search-secret.html | none: unrecorded: no recording calls ListSecrets |
 | `secretsmanager.list-secrets.filter-combination` | `and-across-filters,or-across-values` | inferred | docs/research/secrets-logs-events-alarms.md#24-operations-request-and-response-facts | none: unrecorded: no recording calls ListSecrets |
 | `secretsmanager.restore.not-scheduled` | `no-op` | inferred | docs/research/secrets-logs-events-alarms.md#25-deletion-window-force-delete-restore-clock-driven | none: secretsmanager/R15/05-restore-live.json is recorded; no scenario replays secretsmanager/R15 yet |
+| `ses.verification.unknown-identity` | `omitted` | inferred | docs/research/ses.md#53-v1-identity-operations | none: unrecorded: SES-08 in the recording queue (ses.md 12) settles it |
 | `sfn.choice.missing-variable` | `{States.Runtime true}` | inferred | docs/research/stepfunctions-asl.md#64-no-match-and-missing-variables | none: unrecorded: recording case ASL-08 (stepfunctions-asl.md 16.2) |
 | `sfn.choice.no-match` | `{States.NoChoiceMatched false}` | inferred | docs/research/stepfunctions-asl.md#64-no-match-and-missing-variables | none: unrecorded: recording case ASL-08 (stepfunctions-asl.md 16.2) |
 | `sfn.delete.running-execution` | `true` | inferred | docs/research/stepfunctions-api.md#54-deletestatemachine | none: unrecorded: recording case SFN-06 (stepfunctions-api.md 14.7) |
