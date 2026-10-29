@@ -104,7 +104,10 @@ func TestTerraformAlarmSequenceReadsBackItsConfiguration(t *testing.T) {
 		create.AlarmDescription = new("queue depth")
 		create.Dimensions = []cloudwatchapi.Dimension{{Name: "QueueName", Value: "jobs"}}
 		create.DatapointsToAlarm = new(int32(1))
-		create.TreatMissingData = new("missing")
+		// ignore with no data keeps the state SetAlarmState sets below
+		// across the evaluation the advance runs, as AWS's recorded
+		// SetAlarmState tests rely on (cloudwatch-alarms.md 2.3).
+		create.TreatMissingData = new("ignore")
 		create.Tags = []cloudwatchapi.Tag{{Key: "env", Value: "dev"}}
 		must(h, cloudwatchapi.OpPutMetricAlarm, create)
 
@@ -309,12 +312,15 @@ func TestSetAlarmState(t *testing.T) {
 		created := h.now()
 		h.advance(time.Minute)
 		must(h, cloudwatchapi.OpSetAlarmState, &cloudwatchapi.SetAlarmStateInput{AlarmName: "a", StateValue: cloudwatchapi.StateValueInsufficientData, StateReason: "same value", StateReasonData: new(`{"k":1}`)})
+		// To the same value only the reason and data change, both
+		// timestamps stay (cloudwatch.alarm.set-same-state, cwa 2.3, CWA-17).
+		followsSwitch(h, "cloudwatch.alarm.set-same-state", "reason-and-data-only")
 		a := h.describe("a").MetricAlarms[0]
 		switch {
 		case *a.StateReason != "same value" || a.StateReasonData == nil || *a.StateReasonData != `{"k":1}`:
 			h.Errorf("reason = %q %v", *a.StateReason, a.StateReasonData)
-		case !a.StateUpdatedTimestamp.Equal(h.now()):
-			h.Errorf("StateUpdatedTimestamp = %v, want %v", *a.StateUpdatedTimestamp, h.now())
+		case !a.StateUpdatedTimestamp.Equal(created):
+			h.Errorf("StateUpdatedTimestamp moved without a change of value: %v", *a.StateUpdatedTimestamp)
 		case !a.StateTransitionedTimestamp.Equal(created):
 			h.Errorf("StateTransitionedTimestamp moved without a change of value: %v", *a.StateTransitionedTimestamp)
 		}
