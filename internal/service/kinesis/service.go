@@ -1,24 +1,25 @@
 package kinesis
 
 import (
-	"context"
-	"errors"
+	"maps"
+	"slices"
 
 	"github.com/sustinbebustin/understudy/internal/api/kinesisapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
-	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
+	"github.com/sustinbebustin/understudy/internal/evidence"
 	"github.com/sustinbebustin/understudy/internal/fidelity"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/ref"
-	"github.com/sustinbebustin/understudy/internal/registry"
+	"github.com/sustinbebustin/understudy/internal/shardlog"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // Service is Amazon Kinesis Data Streams slice 1: one state cell per
 // account and region.
 type Service struct {
-	opts Options
+	opts  Options
+	cells *store.Partitioned[aws.Scope, State]
 }
 
 // The service is the snapshot and reset view of its state.
@@ -27,73 +28,90 @@ var _ kernel.Stateful = (*Service)(nil)
 // stateVersion is the schema version of the service's snapshot section.
 const stateVersion = 1
 
-// New binds the 21 operations of slice 1 (kinesis.md 13.1); the other 24
-// stay unbound and answer 501. Not implemented yet: every bound operation
-// answers 501 NotImplemented.
+// New binds the operations of slice 1 built so far (kinesis.md 13.1);
+// every other operation stays unbound and answers 501.
 func New(d kernel.ServiceDeps, o Options) *Service {
-	s := &Service{opts: o}
+	s := &Service{opts: o, cells: store.NewPartitioned(d.Kernel.Gate(), stateCodec(), newState)}
 	b := kinesisapi.NewBinder(d.Binder)
-	cov := registry.Partial{Note: "not implemented yet"}
-	b.CreateStream(unbuilt[kinesisapi.CreateStreamInput, kinesisapi.CreateStreamOutput], cov)
-	b.DeleteStream(unbuilt[kinesisapi.DeleteStreamInput, kinesisapi.DeleteStreamOutput], cov)
-	b.DescribeStream(unbuilt[kinesisapi.DescribeStreamInput, kinesisapi.DescribeStreamOutput], cov)
-	b.DescribeStreamSummary(unbuilt[kinesisapi.DescribeStreamSummaryInput, kinesisapi.DescribeStreamSummaryOutput], cov)
-	b.ListStreams(unbuilt[kinesisapi.ListStreamsInput, kinesisapi.ListStreamsOutput], cov)
-	b.ListShards(unbuilt[kinesisapi.ListShardsInput, kinesisapi.ListShardsOutput], cov)
-	b.IncreaseStreamRetentionPeriod(unbuilt[kinesisapi.IncreaseStreamRetentionPeriodInput, kinesisapi.IncreaseStreamRetentionPeriodOutput], cov)
-	b.DecreaseStreamRetentionPeriod(unbuilt[kinesisapi.DecreaseStreamRetentionPeriodInput, kinesisapi.DecreaseStreamRetentionPeriodOutput], cov)
-	b.PutRecord(unbuilt[kinesisapi.PutRecordInput, kinesisapi.PutRecordOutput], cov)
-	b.PutRecords(unbuilt[kinesisapi.PutRecordsInput, kinesisapi.PutRecordsOutput], cov)
-	b.GetShardIterator(unbuilt[kinesisapi.GetShardIteratorInput, kinesisapi.GetShardIteratorOutput], cov)
-	b.GetRecords(unbuilt[kinesisapi.GetRecordsInput, kinesisapi.GetRecordsOutput], cov)
-	b.AddTagsToStream(unbuilt[kinesisapi.AddTagsToStreamInput, kinesisapi.AddTagsToStreamOutput], cov)
-	b.RemoveTagsFromStream(unbuilt[kinesisapi.RemoveTagsFromStreamInput, kinesisapi.RemoveTagsFromStreamOutput], cov)
-	b.ListTagsForStream(unbuilt[kinesisapi.ListTagsForStreamInput, kinesisapi.ListTagsForStreamOutput], cov)
-	b.TagResource(unbuilt[kinesisapi.TagResourceInput, kinesisapi.TagResourceOutput], cov)
-	b.UntagResource(unbuilt[kinesisapi.UntagResourceInput, kinesisapi.UntagResourceOutput], cov)
-	b.ListTagsForResource(unbuilt[kinesisapi.ListTagsForResourceInput, kinesisapi.ListTagsForResourceOutput], cov)
-	b.DescribeLimits(unbuilt[kinesisapi.DescribeLimitsInput, kinesisapi.DescribeLimitsOutput], cov)
-	b.EnableEnhancedMonitoring(unbuilt[kinesisapi.EnableEnhancedMonitoringInput, kinesisapi.EnhancedMonitoringOutput], cov)
-	b.DisableEnhancedMonitoring(unbuilt[kinesisapi.DisableEnhancedMonitoringInput, kinesisapi.EnhancedMonitoringOutput], cov)
+	s.bindStreams(b)
+	s.bindTags(b)
 	return s
-}
-
-// unbuilt answers an operation slice 1 binds but no ticket has built yet.
-func unbuilt[In, Out any](context.Context, *kernel.Call, *In) (*Out, *awserr.Error) { //nolint:unparam // a kernel.Handler; built handlers return their output
-	return nil, kinesisapi.ErrNotImplemented("not implemented yet")
 }
 
 // Name returns "kinesis".
 func (*Service) Name() ref.ServiceID { return "kinesis" }
 
-// SchemaVersion returns the version of the service's snapshot section.
+// SchemaVersion returns the version of State.
 func (*Service) SchemaVersion() int { return stateVersion }
 
-// Export returns no section: the service holds no state yet.
-func (*Service) Export() ([]store.Section, error) { return nil, nil }
-
-// errStateUnbuilt is Import's answer to a section until the state exists.
-var errStateUnbuilt = errors.New("kinesis: loading a snapshot section is not implemented yet; the section was not applied")
-
-// Import accepts no section yet.
-func (*Service) Import(ss []store.Section) error {
-	if len(ss) > 0 {
-		return errStateUnbuilt
-	}
-	return nil
+// Export serializes every non-empty scope to one section.
+func (s *Service) Export() ([]store.Section, error) {
+	return s.cells.Export(store.ScopeKeys(), stateVersion)
 }
 
-// Reset has nothing to drop yet.
-func (*Service) Reset(kernel.ResetScope) {}
+// Import loads sections written by Export of this schema version.
+func (s *Service) Import(ss []store.Section) error {
+	return s.cells.Import(store.ScopeKeys(), stateVersion, ss)
+}
 
-// Rearm has no timers to arm yet.
+// Reset drops the streams of the scopes rs covers.
+func (s *Service) Reset(rs kernel.ResetScope) {
+	s.cells.Reset(func(k aws.Scope) bool { return !rs.Covers(k) })
+}
+
+// Rearm has no timers to arm: nothing the service holds yet expires.
 func (*Service) Rearm(clock.Instant) {}
 
-// Resources lists nothing yet.
-func (*Service) Resources(aws.Scope) []kernel.Resource { return nil }
+// Resources lists the streams of scope in name order, each ACTIVE.
+func (s *Service) Resources(scope aws.Scope) []kernel.Resource {
+	return readState(s, scope, func(st *State) []kernel.Resource {
+		out := make([]kernel.Resource, 0, len(st.Streams))
+		for _, name := range slices.Sorted(maps.Keys(st.Streams)) {
+			out = append(out, kernel.Resource{ARN: streamARN(scope, name), Summary: string(kinesisapi.StreamStatusActive)})
+		}
+		return out
+	})
+}
 
-// Scopes returns no scope yet.
-func (*Service) Scopes() []aws.Scope { return nil }
+// Scopes returns the accounts and regions that hold a stream.
+func (s *Service) Scopes() []aws.Scope {
+	var out []aws.Scope
+	for _, scope := range s.cells.Keys(store.ScopeKeys()) {
+		if readState(s, scope, func(st *State) bool { return !st.IsZero() }) {
+			out = append(out, scope)
+		}
+	}
+	return out
+}
 
-// Switches lists no switch yet.
-func (*Service) Switches() []fidelity.Entry { return nil }
+// Switches lists the five Kinesis switches (contract 3.8), each inferred
+// and unrecorded, reporting the value the service was built with.
+func (s *Service) Switches() []fidelity.Entry {
+	sw := func(name, value, ref, record string, ops ...string) fidelity.Entry {
+		return fidelity.Switch[string]{
+			Name: name, Value: value, Label: evidence.Inferred, Ref: ref, Record: record, Ops: ops,
+			Settles: fidelity.NoScenario{Reason: "unrecorded: " + record + " is queued"},
+		}.Entry()
+	}
+	const doc = "docs/research/kinesis.md#"
+	return []fidelity.Entry{
+		sw("kinesis.hash.even-split", s.opts.EvenSplit.String(), doc+"33-hash-key-space-and-the-even-split", "KIN-01",
+			"kinesis.CreateStream", "kinesis.DescribeStream", "kinesis.ListShards"),
+		sw("kinesis.hash.md5-byte-order", s.opts.HashByteOrder.String(), doc+"53-shard-selection", "KIN-13",
+			"kinesis.PutRecord", "kinesis.PutRecords"),
+		sw("kinesis.sequence.layout", s.opts.SequenceLayout.String(), doc+"34-sequence-numbers", "KIN-09, KIN-16",
+			"kinesis.PutRecord", "kinesis.PutRecords", "kinesis.GetRecords", "kinesis.DescribeStream", "kinesis.ListShards"),
+		sw("kinesis.get-records.millis-behind-latest", s.opts.MillisBehind.String(), doc+"510-approximatearrivaltimestamp-and-millisbehindlatest", "KIN-10",
+			"kinesis.GetRecords"),
+		sw("kinesis.retention.equal-value", s.opts.RetentionEqual.String(), doc+"47-retention-period", "KIN-06",
+			"kinesis.IncreaseStreamRetentionPeriod", "kinesis.DecreaseStreamRetentionPeriod"),
+	}
+}
+
+// sequencer is the kinesis.sequence.layout switch's Sequencer.
+func (s *Service) sequencer() shardlog.Sequencer {
+	if s.opts.SequenceLayout == LayoutDecimal56 {
+		return shardlog.DecimalCounter{Digits: 56}
+	}
+	return V2Sequencer{}
+}

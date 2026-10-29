@@ -4,6 +4,7 @@
 // Terraform makes. Resharding, consumers, encryption, resource policies,
 // CBOR and HTTP/2 answer 501.
 //
-// The service is not wired into the server yet: its operations answer 501
-// NotImplemented "not implemented yet" until each ticket builds them.
+// Not built yet, and so unbound (501): ListShards, the data plane
+// (PutRecord, PutRecords, GetShardIterator, GetRecords) and enhanced
+// monitoring.
 package kinesis

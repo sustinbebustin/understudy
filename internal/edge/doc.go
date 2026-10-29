@@ -27,7 +27,7 @@
 //     DynamoDB sending (T7). It is journaled as Unclaimed, since no
 //     operation was named.
 //   - A request signed for a service understudy does not emulate (ec2,
-//     rds, kinesis) is 501 NotImplemented, outside every SDK's retry set,
+//     rds, firehose) is 501 NotImplemented, outside every SDK's retry set,
 //     naming the service and the emulated ones. Since no codec claimed it,
 //     its envelope is the one its shape names: rpcv2Cbor by Smithy-Protocol,
 //     awsJson by X-Amz-Target, awsQuery by a form or a GET with Action,

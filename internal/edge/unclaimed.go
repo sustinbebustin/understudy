@@ -118,7 +118,7 @@ func (h *Handler) legacyQuery(ctx context.Context, x *exchange, rt legacyQuery) 
 }
 
 // notEmulated answers a request signed for a service understudy does not
-// emulate (ec2, rds, kinesis, ...) with 501 NotImplemented, outside every
+// emulate (ec2, rds, firehose, ...) with 501 NotImplemented, outside every
 // SDK's retry set, naming the service and the ones understudy emulates.
 // The rule trace stays in the Unclaimed journal event: the client needs
 // only the one fact.

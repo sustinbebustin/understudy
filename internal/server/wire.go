@@ -22,6 +22,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/dynamodbstreamsapi"
 	"github.com/sustinbebustin/understudy/internal/api/eventbridgeapi"
 	"github.com/sustinbebustin/understudy/internal/api/iamapi"
+	"github.com/sustinbebustin/understudy/internal/api/kinesisapi"
 	"github.com/sustinbebustin/understudy/internal/api/kmsapi"
 	"github.com/sustinbebustin/understudy/internal/api/lambdaapi"
 	"github.com/sustinbebustin/understudy/internal/api/logsapi"
@@ -61,6 +62,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/service/dynamodb/ddblocal"
 	"github.com/sustinbebustin/understudy/internal/service/events"
 	"github.com/sustinbebustin/understudy/internal/service/iam"
+	"github.com/sustinbebustin/understudy/internal/service/kinesis"
 	"github.com/sustinbebustin/understudy/internal/service/kms"
 	"github.com/sustinbebustin/understudy/internal/service/lambda"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/codestore"
@@ -924,6 +926,9 @@ func wiredServices() []wiredService {
 		}},
 		{api{sfnapi.Service(), sfnapi.ThrottleError(), sfnapi.UnknownOperationError}, func(d kernel.ServiceDeps, _ *construction) serveradmin.Service {
 			return sfn.New(d, sfn.Options{})
+		}},
+		{api{kinesisapi.Service(), kinesisapi.ThrottleError(), kinesisapi.UnknownOperationError}, func(d kernel.ServiceDeps, _ *construction) serveradmin.Service {
+			return kinesis.New(d, kinesis.Options{})
 		}},
 	}
 }

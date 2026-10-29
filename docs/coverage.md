@@ -123,6 +123,7 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | dynamodbstreams | 4 | 0 | 0 | 4 | 0 | 0 | 0 |
 | eventbridge | 57 | 6 | 1 | 15 | 35 | 1 | 0 |
 | iam | 180 | 10 | 1 | 53 | 116 | 1 | 0 |
+| kinesis | 45 | 0 | 0 | 14 | 31 | 0 | 0 |
 | kms | 54 | 16 | 2 | 9 | 27 | 0 | 0 |
 | lambda | 88 | 30 | 2 | 18 | 38 | 0 | 2 |
 | logs | 118 | 9 | 0 | 9 | 100 | 1 | 0 |
@@ -638,6 +639,56 @@ Internal operations:
 | Operation | Status | Evidence | Note |
 |---|---|---|---|
 | ResolveRole | full | inferred, 3 of 5 claims |  |
+
+### kinesis
+
+| Operation | Status | Evidence | Note |
+|---|---|---|---|
+| AddTagsToStream | partial | third-party-recorded, 2 of 2 claims | a 51st tag and an aws: key answer InvalidArgumentException; AWS's code and text are UNVERIFIED (kinesis.md 4.10) |
+| CreateStream | partial | inferred, 1 of 3 claims | ON_DEMAND streams start with four shards and never scale; WarmThroughputMiBps and RecordDistributionStrategy AUTO are answered with 501 NotImplemented; the account shard and on-demand stream quotas are not enforced; the stream is ACTIVE when CreateStream returns, where AWS reports CREATING first |
+| DecreaseStreamRetentionPeriod | partial | inferred, 1 of 3 claims | error texts follow kinesalite and are UNVERIFIED (kinesis.md 4.7) |
+| DeleteStream | partial | third-party-recorded, 2 of 2 claims | the stream is gone when DeleteStream returns, where AWS reports DELETING first |
+| DescribeLimits | partial | third-party-recorded, 2 of 2 claims | ShardLimit is 20000 and OnDemandStreamCountLimit 50 in every region, and neither is enforced |
+| DescribeStream | partial | inferred, 2 of 4 claims | the optional fields of a fresh stream (EncryptionType NONE, StreamModeDetails, MaxRecordSizeInKiB 1024, no KeyId, WarmThroughput or ConsumerCount) and the not-found text over JSON are inferred; AWS's are UNVERIFIED (kinesis.md 4.4, finding 5) |
+| DescribeStreamSummary | partial | third-party-recorded, 2 of 2 claims | the optional fields of a fresh stream (EncryptionType NONE, StreamModeDetails, MaxRecordSizeInKiB 1024, no KeyId, WarmThroughput or ConsumerCount) and the not-found text over JSON are inferred; AWS's are UNVERIFIED (kinesis.md 4.4, finding 5) |
+| IncreaseStreamRetentionPeriod | partial | inferred, 1 of 3 claims | error texts follow kinesalite and are UNVERIFIED (kinesis.md 4.7) |
+| ListStreams | partial | third-party-recorded, 2 of 2 claims | names are listed in lexical order; AWS's order and token lifetime are UNVERIFIED (kinesis.md 4.5) |
+| ListTagsForResource | partial | third-party-recorded, 2 of 2 claims | a 51st tag and an aws: key answer InvalidArgumentException; AWS's code and text are UNVERIFIED (kinesis.md 4.10) |
+| ListTagsForStream | partial | third-party-recorded, 2 of 2 claims | a 51st tag and an aws: key answer InvalidArgumentException; AWS's code and text are UNVERIFIED (kinesis.md 4.10) |
+| RemoveTagsFromStream | partial | third-party-recorded, 2 of 2 claims | a 51st tag and an aws: key answer InvalidArgumentException; AWS's code and text are UNVERIFIED (kinesis.md 4.10) |
+| TagResource | partial | third-party-recorded, 2 of 2 claims | a 51st tag and an aws: key answer InvalidArgumentException; AWS's code and text are UNVERIFIED (kinesis.md 4.10) |
+| UntagResource | partial | third-party-recorded, 2 of 2 claims | a 51st tag and an aws: key answer InvalidArgumentException; AWS's code and text are UNVERIFIED (kinesis.md 4.10) |
+| CreateChannel | unbound | unassessed |  |
+| DeleteChannel | unbound | unassessed |  |
+| DeleteResourcePolicy | unbound | unassessed |  |
+| DeregisterStreamConsumer | unbound | unassessed |  |
+| DescribeAccountSettings | unbound | unassessed |  |
+| DescribeChannel | unbound | unassessed |  |
+| DescribeStreamConsumer | unbound | unassessed |  |
+| DisableEnhancedMonitoring | unbound | unassessed |  |
+| EnableEnhancedMonitoring | unbound | unassessed |  |
+| GetRecords | unbound | unassessed |  |
+| GetResourcePolicy | unbound | unassessed |  |
+| GetShardIterator | unbound | unassessed |  |
+| ListChannels | unbound | unassessed |  |
+| ListShards | unbound | unassessed |  |
+| ListStreamConsumers | unbound | unassessed |  |
+| MergeShards | unbound | unassessed |  |
+| PutRecord | unbound | unassessed |  |
+| PutRecords | unbound | unassessed |  |
+| PutResourcePolicy | unbound | unassessed |  |
+| RegisterStreamConsumer | unbound | unassessed |  |
+| SplitShard | unbound | unassessed |  |
+| StartStreamEncryption | unbound | unassessed |  |
+| StopStreamEncryption | unbound | unassessed |  |
+| SubscribeToShard | unbound | unassessed |  |
+| UpdateAccountSettings | unbound | unassessed |  |
+| UpdateChannel | unbound | unassessed |  |
+| UpdateMaxRecordSize | unbound | unassessed |  |
+| UpdateShardCount | unbound | unassessed |  |
+| UpdateStreamMode | unbound | unassessed |  |
+| UpdateStreamRecordDistributionStrategy | unbound | unassessed |  |
+| UpdateStreamWarmThroughput | unbound | unassessed |  |
 
 ### kms
 
@@ -1391,7 +1442,7 @@ Internal operations:
 
 Behaviors chosen without AWS-recorded evidence, with the research they rest on and the parity scenario step that settles them, or why none does. The count and order follow the label the code states; the Label column shows the recording's verdict where a replayed step settles or contradicts the switch.
 
-206 switches: 1 aws-recorded, 5 third-party-recorded, 24 aws-doc, 176 inferred.
+211 switches: 1 aws-recorded, 5 third-party-recorded, 24 aws-doc, 181 inferred.
 
 | Switch | Value | Label | Reference | Settled by |
 |---|---|---|---|---|
@@ -1493,6 +1544,11 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `iam.variables.unresolved` | `value-null` | inferred | docs/research/iam-evaluation.md#7.3 | none: unrecorded: IAM-EVAL-16 waits in the recording queue (iam-evaluation.md 13) |
 | `iam.wildcard-principal.role-session` | `direct` | inferred | docs/research/iam-evaluation.md#2.3 | none: unrecorded: IAM-EVAL-19 waits in the recording queue (iam-evaluation.md 13) |
 | `iam.wildcard-principal.service` | `matches` | inferred | docs/research/iam-evaluation.md#2.9 | none: unrecorded: IAM-EVAL-33 waits in the recording queue (iam-evaluation.md 13) |
+| `kinesis.get-records.millis-behind-latest` | `now-minus-next-unread-arrival` | inferred | docs/research/kinesis.md#510-approximatearrivaltimestamp-and-millisbehindlatest | none: unrecorded: KIN-10 is queued |
+| `kinesis.hash.even-split` | `i*floor(2^128/N)` | inferred | docs/research/kinesis.md#33-hash-key-space-and-the-even-split | none: unrecorded: KIN-01 is queued |
+| `kinesis.hash.md5-byte-order` | `big-endian-utf8` | inferred | docs/research/kinesis.md#53-shard-selection | none: unrecorded: KIN-13 is queued |
+| `kinesis.retention.equal-value` | `accept` | inferred | docs/research/kinesis.md#47-retention-period | none: unrecorded: KIN-06 is queued |
+| `kinesis.sequence.layout` | `v2-56-digit` | inferred | docs/research/kinesis.md#34-sequence-numbers | none: unrecorded: KIN-09, KIN-16 is queued |
 | `kms.cross-account.management-error` | `NotFoundException` | inferred | https://docs.aws.amazon.com/kms/latest/APIReference/API_GetKeyPolicy.html | none: unrecorded: no recording names another account's key |
 | `kms.denial.status` | `400` | inferred | docs/research/iam-enforcement-surfaces.md#3.2 | none: unrecorded: IAM-ENF-05 waits in the recording queue (iam-enforcement-surfaces.md 13) |
 | `kms.enforce.missing-resource.by-name` | `resolve-first` | inferred | docs/research/iam-enforcement-surfaces.md#5.3 | none: unrecorded: IAM-ENF-14 waits in the recording queue (iam-enforcement-surfaces.md 13) |
