@@ -236,6 +236,8 @@ Inferred; no source states it for SSM. The AWS managed key's policy grants `Prin
 
 UNVERIFIED (SSM-22 step 08): that a caller with only `ssm:PutParameter` and `ssm:GetParameter` writes and reads a default-key SecureString with decryption.
 
+The same key policy means a direct `kms:Decrypt` of a default-key ciphertext (no `kms:ViaService`) is not granted by the key policy, so 5.2's direct Decrypt is shown with a customer managed key (amended 2026-10-29; inferred from the managed-key policy shape, SSM-22).
+
 ## 6. Versions, labels and selectors
 
 ### 6.1 Versions
