@@ -465,6 +465,16 @@ func (v *PutRuleOutput) Redact() *PutRuleOutput {
 }
 
 // Redact returns v with its sensitive members cleared.
+func (v *PutServiceEventInternalInput) Redact() *PutServiceEventInternalInput {
+	return v
+}
+
+// Redact returns v with its sensitive members cleared.
+func (v *PutServiceEventInternalOutput) Redact() *PutServiceEventInternalOutput {
+	return v
+}
+
+// Redact returns v with its sensitive members cleared.
 func (v *PutTargetsInput) Redact() *PutTargetsInput {
 	if v == nil {
 		return nil

@@ -1497,6 +1497,16 @@ var schemaPutRuleOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#PutRuleRe
 
 var memberPutRuleOutput_RuleArn = smithy.Member{Name: "RuleArn", Index: 0}
 
+var schemaPutServiceEventInternalInput = smithy.Schema{ID: "com.amazonaws.eventbridge#PutServiceEventInternalRequest", Type: smithy.TypeStructure}
+
+var memberPutServiceEventInternalInput_Source = smithy.Member{Name: "Source", Index: 0, Required: true}
+
+var memberPutServiceEventInternalInput_DetailType = smithy.Member{Name: "DetailType", Index: 1, Required: true}
+
+var memberPutServiceEventInternalInput_Detail = smithy.Member{Name: "Detail", Index: 2, Required: true}
+
+var memberPutServiceEventInternalInput_Resources = smithy.Member{Name: "Resources", Index: 3}
+
 var schemaPutTargetsInput = smithy.Schema{ID: "com.amazonaws.eventbridge#PutTargetsRequest", Type: smithy.TypeStructure}
 
 var memberPutTargetsInput_Rule = smithy.Member{Name: "Rule", Index: 0, Required: true}
@@ -2770,6 +2780,11 @@ func init() {
 	schemaPutRuleInput.Members = []*smithy.Member{&memberPutRuleInput_Name, &memberPutRuleInput_ScheduleExpression, &memberPutRuleInput_EventPattern, &memberPutRuleInput_State, &memberPutRuleInput_Description, &memberPutRuleInput_RoleArn, &memberPutRuleInput_Tags, &memberPutRuleInput_EventBusName}
 	memberPutRuleOutput_RuleArn.Target = &schemaRuleArn
 	schemaPutRuleOutput.Members = []*smithy.Member{&memberPutRuleOutput_RuleArn}
+	memberPutServiceEventInternalInput_Source.Target = &schemaString
+	memberPutServiceEventInternalInput_DetailType.Target = &schemaString
+	memberPutServiceEventInternalInput_Detail.Target = &schemaString
+	memberPutServiceEventInternalInput_Resources.Target = &schemaEventResourceList
+	schemaPutServiceEventInternalInput.Members = []*smithy.Member{&memberPutServiceEventInternalInput_Source, &memberPutServiceEventInternalInput_DetailType, &memberPutServiceEventInternalInput_Detail, &memberPutServiceEventInternalInput_Resources}
 	memberPutTargetsInput_Rule.Target = &schemaRuleName
 	memberPutTargetsInput_EventBusName.Target = &schemaEventBusNameOrArn
 	memberPutTargetsInput_Targets.Target = &schemaTargetList

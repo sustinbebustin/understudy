@@ -34,6 +34,8 @@ var mechanismNames = []struct {
 	{delivery.LambdaToS3, "lambda-to-s3"},
 	{delivery.ESMToSQS, "esm-to-sqs"},
 	{delivery.ESMToSNS, "esm-to-sns"},
+	{delivery.CloudWatchToSNS, "cloudwatch-to-sns"},
+	{delivery.CloudWatchToLambda, "cloudwatch-to-lambda"},
 }
 
 func TestMechanismWireNamesAreStable(t *testing.T) {

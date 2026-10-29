@@ -66,6 +66,37 @@
           "source": "docs/research/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: ^(?!\\s*$).+$ is one or more non-line-terminator characters that are not all ECMA whitespace"
         }
       }
+    },
+    "com.amazonaws.eventbridge#PutServiceEventInternal": {
+      "type": "operation",
+      "input": {"target": "com.amazonaws.eventbridge#PutServiceEventInternalRequest"},
+      "output": {"target": "smithy.api#Unit"},
+      "errors": [
+        {"target": "com.amazonaws.eventbridge#InternalException"}
+      ],
+      "traits": {
+        "dev.understudy#internalOperation": {},
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/cloudwatch-alarms.md#124-actions-and-delivery: an AWS service's event goes to the default bus of its account and Region, with a Source in the aws. namespace that PutEvents refuses"
+        }
+      }
+    },
+    "com.amazonaws.eventbridge#PutServiceEventInternalRequest": {
+      "type": "structure",
+      "members": {
+        "Source": {"target": "com.amazonaws.eventbridge#String", "traits": {"smithy.api#required": {}}},
+        "DetailType": {"target": "com.amazonaws.eventbridge#String", "traits": {"smithy.api#required": {}}},
+        "Detail": {"target": "com.amazonaws.eventbridge#String", "traits": {"smithy.api#required": {}}},
+        "Resources": {"target": "com.amazonaws.eventbridge#EventResourceList"}
+      },
+      "traits": {
+        "smithy.api#input": {},
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/cloudwatch-alarms.md#124-actions-and-delivery"
+        }
+      }
     }
   }
 }

@@ -110,6 +110,9 @@ func TestMechanismVia(t *testing.T) {
 		delivery.LambdaToS3:     ref.LambdaDestination,
 		delivery.ESMToSQS:       ref.LambdaESM,
 		delivery.ESMToSNS:       ref.LambdaESM,
+		// cloudwatch-alarms.md 12.4.
+		delivery.CloudWatchToSNS:    ref.CloudWatchAlarm,
+		delivery.CloudWatchToLambda: ref.CloudWatchAlarm,
 	}
 	for _, m := range delivery.Mechanisms() {
 		if got := m.Via(); got != want[m] {
@@ -138,6 +141,9 @@ func TestMechanismTarget(t *testing.T) {
 		delivery.LambdaToS3:     "s3",
 		delivery.ESMToSQS:       "sqs",
 		delivery.ESMToSNS:       "sns",
+		// cloudwatch-alarms.md 7.2.
+		delivery.CloudWatchToSNS:    "sns",
+		delivery.CloudWatchToLambda: "lambda",
 	}
 	for _, m := range delivery.Mechanisms() {
 		if _, listed := want[m]; !listed {

@@ -556,6 +556,14 @@ func servicePrincipal(m delivery.Mechanism) string {
 		return "s3.amazonaws.com"
 	case delivery.EventsToLambda, delivery.EventsToSQS, delivery.EventsToSNS, delivery.EventsToEvents:
 		return "events.amazonaws.com"
+	case delivery.CloudWatchToSNS:
+		// The topic policy grants cloudwatch.amazonaws.com SNS:Publish
+		// (cloudwatch-alarms.md 5.3).
+		return "cloudwatch.amazonaws.com"
+	case delivery.CloudWatchToLambda:
+		// The function policy names lambda.alarms.cloudwatch.amazonaws.com
+		// (cloudwatch-alarms.md 6.1).
+		return "lambda.alarms.cloudwatch.amazonaws.com"
 	case delivery.LambdaToSQS, delivery.LambdaToSNS, delivery.LambdaToLambda, delivery.LambdaToEvents, delivery.LambdaToS3,
 		delivery.ESMToSQS, delivery.ESMToSNS:
 	}

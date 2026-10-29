@@ -26,6 +26,7 @@ const (
 	ViaAPIGateway                    // an API Gateway integration calling its backend, such as a Lambda proxy invoke
 	SFNLogDestination                // Step Functions checking that a state machine's log group exists
 	SFNTask                          // a Step Functions Task invoking its Lambda function as the execution role
+	CloudWatchAlarm                  // a CloudWatch alarm running an action or sending its EventBridge event
 
 	// endVia follows the last value and is no Via: valid, ParseVia and the
 	// ViaError text count up to it, so a new value is one line above it
@@ -77,6 +78,8 @@ func (v Via) String() string {
 		return "sfn-log-destination"
 	case SFNTask:
 		return "sfn-task"
+	case CloudWatchAlarm:
+		return "cloudwatch-alarm"
 	default:
 		return fmt.Sprintf("Via(%d)", uint8(v))
 	}

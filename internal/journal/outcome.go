@@ -244,6 +244,13 @@ const (
 	// policy or KMS's key-policy lockout check, served unchecked under every
 	// iam.enforce mode.
 	AdvisoryCheckNotRun
+	// AdvisoryAlarmActionNotRun: a metric alarm action understudy cannot
+	// run (EC2, Auto Scaling, Systems Manager, investigation), journaled
+	// instead of run (cloudwatch-alarms.md 12.7).
+	AdvisoryAlarmActionNotRun
+	// AdvisoryAlarmNotEvaluated: a metric alarm of a kind understudy cannot
+	// evaluate, stored and never evaluated (cloudwatch-alarms.md 12.7).
+	AdvisoryAlarmNotEvaluated
 
 	// endAdvisoryKind follows the last value and is no advisory kind:
 	// ParseAdvisoryKind, MarshalText and the AdvisoryKindError text count
@@ -280,6 +287,10 @@ func (k AdvisoryKind) String() string {
 		return "condition-key-unsupplied"
 	case AdvisoryCheckNotRun:
 		return "check-not-run"
+	case AdvisoryAlarmActionNotRun:
+		return "alarm-action-not-run"
+	case AdvisoryAlarmNotEvaluated:
+		return "alarm-not-evaluated"
 	default:
 		return fmt.Sprintf("AdvisoryKind(%d)", uint8(k))
 	}

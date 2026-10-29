@@ -313,6 +313,12 @@ func (a *attempt) publishSNS(ctx context.Context, t delivery.SNSTopic) *awserr.E
 	if t.Subject != "" {
 		in.Subject = &t.Subject
 	}
+	if t.GroupID != "" {
+		in.MessageGroupId = &t.GroupID
+	}
+	if t.DedupID != "" {
+		in.MessageDeduplicationId = &t.DedupID
+	}
 	if len(t.Attributes) > 0 {
 		in.MessageAttributes = make(map[string]snsapi.MessageAttributeValue, len(t.Attributes))
 		for _, attr := range t.Attributes {

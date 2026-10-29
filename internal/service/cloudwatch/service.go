@@ -10,6 +10,10 @@ import (
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
+// TimerAlarmEvaluation is the kind of an evaluable alarm's evaluation
+// timer, one per alarm, its id the alarm ARN (cloudwatch-alarms.md 12.3).
+const TimerAlarmEvaluation kernel.TimerKind = "cloudwatch.alarm-evaluation"
+
 // Service is Amazon CloudWatch metrics and alarms: one state cell per
 // account and region. Its handlers are written once and served through
 // every protocol the registry lists for it: awsJson1_0, awsQuery and

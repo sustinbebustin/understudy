@@ -2522,6 +2522,37 @@ func (v *PutRuleInput) validate(path awserr.Path, out *[]awserr.Violation) {
 
 // Validate reports the constraint violations of v in AWS's order; nil
 // means v satisfies every generated constraint.
+func (v *PutServiceEventInternalInput) Validate() []awserr.Violation {
+	var out []awserr.Violation
+	v.validate(nil, &out)
+	return out
+}
+
+func (v *PutServiceEventInternalInput) validate(path awserr.Path, out *[]awserr.Violation) {
+	if v.missing&(1<<0) != 0 {
+		*out = append(*out, awserr.Violation{Path: at(path, "source"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
+	}
+	if v.missing&(1<<1) != 0 {
+		*out = append(*out, awserr.Violation{Path: at(path, "detailType"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
+	}
+	if v.missing&(1<<2) != 0 {
+		*out = append(*out, awserr.Violation{Path: at(path, "detail"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
+	}
+	if v.Resources != nil {
+		for i2, e2 := range v.Resources {
+			p2 := at(at(path, "resources"), strconv.Itoa(i2+1), "member")
+			if utf8.RuneCountInString(e2) > 2048 {
+				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMax{Max: 2048}})
+			}
+			if utf8.RuneCountInString(e2) < 0 {
+				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMin{Min: 0}})
+			}
+		}
+	}
+}
+
+// Validate reports the constraint violations of v in AWS's order; nil
+// means v satisfies every generated constraint.
 func (v *PutTargetsInput) Validate() []awserr.Violation {
 	var out []awserr.Violation
 	v.validate(nil, &out)
@@ -4542,6 +4573,24 @@ var policyPutRule = validationPolicy{
 // when vs is empty.
 func (*PutRuleInput) ValidationError(vs []awserr.Violation) *awserr.Error {
 	return policyPutRule.render(vs)
+}
+
+var policyPutServiceEventInternal = validationPolicy{
+	paths: []validationPath{
+		{segments: []string{"source"}, param: "Source"},
+		{segments: []string{"detailType"}, param: "DetailType"},
+		{segments: []string{"detail"}, param: "Detail"},
+		{segments: []string{"resources"}, param: "Resources"},
+		{segments: []string{"resources", "*", "member"}, param: "Resources"},
+	},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+}
+
+// ValidationError returns the error PutServiceEventInternal answers for vs, the
+// violations of the generated and the hand-written validators, or nil
+// when vs is empty.
+func (*PutServiceEventInternalInput) ValidationError(vs []awserr.Violation) *awserr.Error {
+	return policyPutServiceEventInternal.render(vs)
 }
 
 var policyPutTargets = validationPolicy{

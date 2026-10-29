@@ -154,6 +154,12 @@ type SNSTopic struct {
 	Message    string
 	Attributes []MessageAttribute
 	Subject    string
+	// GroupID and DedupID are the MessageGroupId and
+	// MessageDeduplicationId of a Publish to a FIFO topic, empty for a
+	// standard one. Only CloudWatchToSNS sets them
+	// (cloudwatch-alarms.md 5.3).
+	GroupID string
+	DedupID string
 }
 
 // EventBus is a PutEvents to an event bus. No mechanism delivers to one
@@ -622,6 +628,11 @@ const (
 	// role (lambda-stream-sources.md 5.6).
 	ESMToSQS
 	ESMToSNS
+	// CloudWatchToSNS and CloudWatchToLambda run a metric alarm's SNS and
+	// Lambda actions on a state transition, as cloudwatch.amazonaws.com and
+	// lambda.alarms.cloudwatch.amazonaws.com (cloudwatch-alarms.md 12.4).
+	CloudWatchToSNS
+	CloudWatchToLambda
 
 	// endMechanism follows the last value and is no mechanism: Mechanisms,
 	// valid and the MechanismError text count up to it, so a new value is
@@ -675,6 +686,10 @@ func (m Mechanism) String() string {
 		return "esm-to-sqs"
 	case ESMToSNS:
 		return "esm-to-sns"
+	case CloudWatchToSNS:
+		return "cloudwatch-to-sns"
+	case CloudWatchToLambda:
+		return "cloudwatch-to-lambda"
 	default:
 		return fmt.Sprintf("Mechanism(%d)", uint8(m))
 	}
@@ -696,6 +711,8 @@ func (m Mechanism) Via() ref.Via {
 		return ref.LambdaDestination
 	case ESMToSQS, ESMToSNS:
 		return ref.LambdaESM
+	case CloudWatchToSNS, CloudWatchToLambda:
+		return ref.CloudWatchAlarm
 	default:
 		return 0
 	}
@@ -707,9 +724,9 @@ func (m Mechanism) Target() ref.ServiceID {
 	switch m {
 	case SNSToSQS, S3ToSQS, EventsToSQS, LambdaToSQS, ESMToSQS:
 		return "sqs"
-	case SNSToLambda, S3ToLambda, EventsToLambda, LambdaToLambda:
+	case SNSToLambda, S3ToLambda, EventsToLambda, LambdaToLambda, CloudWatchToLambda:
 		return "lambda"
-	case S3ToSNS, EventsToSNS, LambdaToSNS, ESMToSNS:
+	case S3ToSNS, EventsToSNS, LambdaToSNS, ESMToSNS, CloudWatchToSNS:
 		return "sns"
 	case EventsToEvents, LambdaToEvents:
 		return "eventbridge"

@@ -32,6 +32,7 @@ export const vias = [
   "apigateway-integration",
   "sfn-log-destination",
   "sfn-task",
+  "cloudwatch-alarm",
 ] as const;
 
 export const mechanisms = [
@@ -52,6 +53,8 @@ export const mechanisms = [
   "lambda-to-s3",
   "esm-to-sqs",
   "esm-to-sns",
+  "cloudwatch-to-sns",
+  "cloudwatch-to-lambda",
 ] as const;
 
 export const idKinds = [

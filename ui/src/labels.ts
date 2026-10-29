@@ -33,6 +33,7 @@ export const viaLabels: Readonly<Record<string, string>> = {
   "apigateway-integration": "API Gateway integration",
   "sfn-log-destination": "Step Functions log destination check",
   "sfn-task": "Step Functions Lambda task",
+  "cloudwatch-alarm": "CloudWatch alarm",
 };
 
 export const mechanismLabels: Readonly<Record<string, string>> = {
@@ -53,6 +54,8 @@ export const mechanismLabels: Readonly<Record<string, string>> = {
   "lambda-to-s3": "Lambda to S3",
   "esm-to-sqs": "Event source mapping to SQS",
   "esm-to-sns": "Event source mapping to SNS",
+  "cloudwatch-to-sns": "CloudWatch alarm to SNS",
+  "cloudwatch-to-lambda": "CloudWatch alarm to Lambda",
 };
 
 // ids.Kind: the generator streams (internal/ids/kind.go).
