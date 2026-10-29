@@ -467,7 +467,7 @@ Slice 1 is the tracer bullet the shared stream poller needs: create, describe, l
 | IncreaseStreamRetentionPeriod | 1 | Full | |
 | DecreaseStreamRetentionPeriod | 1 | Full | |
 | PutRecord | 1 | Partial | `per-shard write limits (1 MiB/s, 1,000 records/s) are not enforced and ProvisionedThroughputExceededException comes only from fault injection` |
-| PutRecords | 1 | Partial | `per-shard write limits (1 MiB/s, 1,000 records/s) are not enforced; entries fail only through fault injection` |
+| PutRecords | 1 | Partial | `per-shard write limits (1 MiB/s, 1,000 records/s) are not enforced; no entry fails: a fault rule fails the whole call, and entry-level fault injection is not built` (slice 1 does not build 13.7 item 2) |
 | GetShardIterator | 1 | Partial | `the five calls per second per shard limit is not enforced` |
 | GetRecords | 1 | Partial | `per-shard read limits (5 calls/s, 2 MiB/s and the 5-second wait after a 10 MiB read) are not enforced` |
 | AddTagsToStream, RemoveTagsFromStream, ListTagsForStream | 1 | Full | |
@@ -562,7 +562,7 @@ The edge's request cap for Kinesis must exceed a 10 MiB PutRecords after base64 
 ### 13.7 Fault injection
 
 1. The service's throttle identity differs by plane: `LimitExceededException` for control operations (what the provider retries, 5.9; inferred until KIN-23) and `ProvisionedThroughputExceededException` for PutRecord, PutRecords, GetRecords and GetShardIterator. A single per-service `dev.understudy#throttleError` is wrong for half the operations; the overlay needs a per-operation choice or the data-plane identity with control-plane rules naming `LimitExceededException` explicitly.
-2. PutRecords needs an entry-level fault: fail selected entries with `ErrorCode: ProvisionedThroughputExceededException`, `ErrorMessage: Rate exceeded for shard <shardId> in stream <name> under account <account>.` or `ErrorCode: InternalFailure`, `ErrorMessage: Internal service failure.` (5.2, [D] texts), set `FailedRecordCount`, and append the others. This is the failure path producers must handle, and it cannot be provoked deterministically otherwise.
+2. PutRecords needs an entry-level fault: fail selected entries with `ErrorCode: ProvisionedThroughputExceededException`, `ErrorMessage: Rate exceeded for shard <shardId> in stream <name> under account <account>.` or `ErrorCode: InternalFailure`, `ErrorMessage: Internal service failure.` (5.2, [D] texts), set `FailedRecordCount`, and append the others. This is the failure path producers must handle, and it cannot be provoked deterministically otherwise. Slice 1 (roadmap item 8b) does not build it: a fault rule fails the whole PutRecords call, and the PutRecords coverage note says entry-level injection is missing.
 3. Throttle texts for the operation-level errors stay labeled UNVERIFIED until KIN-23.
 
 ### 13.8 Lambda mappings and EventBridge
