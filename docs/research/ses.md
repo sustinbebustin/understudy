@@ -6,7 +6,7 @@ Scope: what roadmap item 9 needs for SES "in a journal-only form for notificatio
 
 | Label | Meaning |
 |---|---|
-| model | Smithy JSON AST at commit `1cfdfb4bb9ea858e65623e66d73af04bec353201`: [ses-2010-12-01.json][m1] (v1) and [sesv2-2019-09-27.json][m2] (v2). Shapes are cited as Smithy ids, such as `com.amazonaws.ses#SendEmailRequest`. Neither model is vendored yet. |
+| model | Smithy JSON AST at commit `1cfdfb4bb9ea858e65623e66d73af04bec353201`: [ses-2010-12-01.json][m1] (v1) and [sesv2-2019-09-27.json][m2] (v2). Shapes are cited as Smithy ids, such as `com.amazonaws.ses#SendEmailRequest`. Both models are vendored at this commit under `third_party/api-models-aws/models/ses/` and `.../sesv2/`. |
 | aws-doc | AWS documentation on docs.aws.amazon.com or aws.amazon.com, linked per claim. |
 | third-party-recorded | LocalStack snapshot entry recorded against real AWS, counted only when [test_ses.validation.json][lsv] gives the test a `last_validated_date` (localstack@8b9a79f, Apache-2.0). Of the 33 entries in [test_ses.snapshot.json][lss], 23 are validated; the 10 `SetIdentityHeadersInNotificationsEnabled` entries are not, and this note does not rely on them. Three validated tests carry no snapshot and only assert an error code (`test_special_tags_send_email` x2, `test_send_email_raises_message_rejected`). |
 | provider | Terraform provider source or acceptance test at tag v6.68.0. The acceptance tests run against real AWS, so an asserted attribute value is evidence of what AWS returned, in Terraform's flattened form. |
@@ -31,7 +31,7 @@ UNVERIFIED marks behavior no source fixes; each names its recording case in sect
 
 Both APIs sign with the same name and resolve to the same host, so one emulator endpoint receives both; they differ in protocol and operation set (model). The v2 endpoint rules add one path the v1 rules lack: when an operation binds the `EndpointId` context parameter (only `SendEmail` and `SendBulkEmail` carry it), the resolved endpoint is `https://{EndpointId}.endpoints.email.{dnsSuffix}` with auth scheme `sigv4a`, signingName `ses`, signingRegionSet `["*"]` (model, `smithy.rules#endpointBdd` of `SimpleEmailService_v2`). The result list also holds a custom-`Endpoint` result carrying the same `sigv4a` scheme, beside the plain custom-`Endpoint` result, so a client that sets both `Endpoint` and `EndpointId` signs SigV4A (inferred from the result list; the BDD nodes were not decoded).
 
-Neither model carries `aws.iam` traits. That both APIs use the IAM prefix `ses` is inferred from the shared arnNamespace; the vendor tool's `-service-reference` run settles the action table.
+Neither model carries `aws.iam` traits. The service reference settles the prefix: both SDKs' operations are listed under prefix `ses` (`third_party/aws-service-reference/actions.json`, retrieved 2026-10-26; `SendEmail` lists sdk `ses` and `sesv2`). `SendEmail` and `SendRawEmail` have empty `authorized` rows there, so their primary actions `ses:SendEmail` and `ses:SendRawEmail` come from the same-name rule (`primaryFirst` in `internal/codegen/iam.go`; smithy-models.md 8).
 
 ### 2.2 What clients call
 
@@ -116,8 +116,8 @@ v2 `SendEmail` declares `AccountSuspendedException`, `BadRequestException`, `Lim
 
 ### 3.4 One signing name, two services: what understudy must change
 
-- The registry indexes services by signing name and refuses a second service with the same one: `DuplicateSigningName` "signing name %q is also service %q's" ([internal/registry/registry.go L159-L161](../../internal/registry/registry.go)). Registering `ses` and `sesv2` as two descriptors fails today.
-- Edge rule 7 claims form-encoded requests by `(Action, Version)` and confirms the signing name ([ARCHITECTURE.md](../ARCHITECTURE.md) 4.1 rule 7); `(SendEmail, 2010-12-01)` collides with no registered service. Rule 8 routes REST requests by signing name, but only `lambda` and `s3` have route tables in it ([internal/edge/claim.go L381-L405](../../internal/edge/claim.go)); a request signed for any other registered name goes to that service's unknown-operation answer.
+- Settled by [ADR 0019](../adr/0019-shared-signing-names.md): `registry.Registry.BySigningName` returns every service of a name in registration order, and an awsQuery service and a REST service with a route table share a name with no special rule, since they have no protocol family in common.
+- Edge rule 7 claims form-encoded requests by `(Action, Version)` and confirms the signing name ([ARCHITECTURE.md](../ARCHITECTURE.md) 4.1 rule 7), so `ses` claims v1 by `(Action, 2010-12-01)`. Rule 8 tries the route tables of the name's REST services in registration order (ADR 0019), so a REST request signed for `ses` goes to `sesv2`'s table, and a request it does not match is `sesv2`'s unknown operation.
 - SigV4A is refused at parse with "SigV4A (AWS4-ECDSA-P256-SHA256) is not supported" ([internal/auth/parse.go L243](../../internal/auth/parse.go)), so a v2 `SendEmail` carrying `EndpointId` (section 2.1) fails before reaching SES.
 
 ## 4. Send operations
@@ -356,61 +356,71 @@ First slice (the notification path):
 
 | Operation | Level | Coverage note |
 |---|---|---|
-| v1 `SendEmail` | Partial | `journal-only: validates and applies identity and sandbox rules, returns a MessageId and records the message for GET /_understudy/v1/ses/messages; no mail is sent, and no Send, Delivery, Bounce or Complaint event or notification is produced` |
-| v1 `SendRawEmail` | Partial | `journal-only as SendEmail; the raw MIME is recorded as received, without the Message-ID and Date headers SES would substitute; recipients come from Destinations, else the To, Cc and Bcc headers; X-SES-CONFIGURATION-SET is honored, X-SES-MESSAGE-TAGS is recorded` |
+| v1 `SendEmail` | Partial | `journal-only: validates and applies identity and sandbox rules, returns a MessageId and records the message for GET /_understudy/v1/ses/messages; no mail is sent, and no Send, Delivery, Bounce or Complaint event or notification is produced; ConfigurationSetName and the sending-authorization ARNs answer NotImplemented; chosen without a recording (docs/research/ses.md 11.4): address, recipient-count, size and daily-quota answers, tag boundaries and ses: names, check order, mailbox-simulator and label matching` |
+| v1 `SendRawEmail` | Partial | `journal-only as SendEmail; the raw MIME is recorded as received, without the Message-ID and Date headers SES would substitute; recipients come from Destinations, else the To, Cc and Bcc headers; X-SES-MESSAGE-TAGS is recorded; ConfigurationSetName, X-SES-CONFIGURATION-SET, the ARN members and the X-SES-*-ARN headers answer NotImplemented` |
 | v1 `SendTemplatedEmail` | Partial | `journal-only as SendEmail; the stored template and TemplateData are recorded, and rendered subject and bodies only for {{name}} and dotted-path tags; other Handlebars constructs record a render gap, and the send is still accepted, as SES accepts before rendering` |
-| v2 `SendEmail` | Partial | `journal-only as the v1 sends, for Simple (with Headers and Attachments), Raw and Template content, stored or inline; EndpointId needs SigV4A, which understudy refuses; TenantName and ListManagementOptions answer as not implemented` |
-| v1 `VerifyEmailIdentity`, `VerifyEmailAddress` | Partial | `the identity stays Pending until its verification link under /_understudy/ses/verify is opened, the admin API verifies it or understudy.json lists it; the verification email is recorded, never sent; Failed after 24 hours on the emulator clock` |
+| v2 `SendEmail` | Partial | `journal-only as the v1 sends, for Simple (with Headers and Attachments) and Raw content; FeedbackForwardingEmailAddress must be verified, as ReturnPath (inferred); Template content, ConfigurationSetName, ConfigurationOverrides, EndpointId, TenantName, ListManagementOptions and the identity ARN members answer NotImplemented` |
+| v1 `VerifyEmailIdentity`, `VerifyEmailAddress` | Partial | `the identity stays Pending until its verification link under /_understudy/ses/VerificationLink is opened, the admin API verifies it or understudy.json lists it; the verification email is recorded, never sent; Failed after 24 hours on the emulator clock` |
 | v1 `VerifyDomainIdentity` | Partial | `the domain stays Pending until the admin API verifies it or understudy.json lists it; DNS is never queried; Failed after 72 hours on the emulator clock` |
 | v1 `GetIdentityVerificationAttributes`, `ListIdentities`, `DeleteIdentity`, `ListVerifiedEmailAddresses`, `DeleteVerifiedEmailAddress` | Full | |
 | v1 `GetIdentityNotificationAttributes` | Partial | `every identity reports no SNS topics, ForwardingEnabled true and headers disabled; SetIdentityNotificationTopic and the other setters are not implemented` |
-| v1 `GetSendQuota` | Partial | `Max24HourSend and MaxSendRate from the sandbox or production setting; SentLast24Hours counts accepted recipients on the emulator clock, mailbox simulator excluded; the send rate is not enforced` |
+| v1 `GetSendQuota` | Partial | `Max24HourSend and MaxSendRate from the sandbox or production setting; SentLast24Hours counts accepted recipients on the emulator clock, mailbox simulator excluded; the send rate is not enforced; production values -1 and 14 are unrecorded (SES-26)` |
 | v1 `CreateTemplate`, `GetTemplate`, `UpdateTemplate`, `DeleteTemplate`, `ListTemplates` | Full | |
-| v2 `CreateEmailIdentity` | Partial | `email identities start PENDING with DKIM NOT_STARTED; domains get three random Easy DKIM tokens and stay PENDING; DkimSigningAttributes are stored, never used; verification as VerifyEmailIdentity` |
-| v2 `GetEmailIdentity`, `ListEmailIdentities` (both bindings), `DeleteEmailIdentity` | Full | |
-| v2 `GetAccount` | Partial | `ProductionAccessEnabled, SendQuota and SendingEnabled from understudy state; EnforcementStatus HEALTHY; no dedicated IP, VDM, pricing, suppression or account details` |
+| v2 `CreateEmailIdentity` | Partial | `email identities start PENDING with DKIM NOT_STARTED; domains get three random Easy DKIM tokens and stay PENDING; DkimSigningAttributes are stored, never used; verification as VerifyEmailIdentity; ConfigurationSetName answers NotImplemented` |
+| v2 `GetEmailIdentity`, `ListEmailIdentities` (both bindings), `DeleteEmailIdentity` | Full | Until the GET binding lands, `ListEmailIdentities` is Partial: `the GET /v2/email/identities binding sent by SDKs generated before 2026-09-29 is not routed and answers sesv2's unknown operation` |
+| v2 `GetAccount` | Partial | `ProductionAccessEnabled and SendQuota from understudy state; SendingEnabled true, since account sending cannot be paused yet; EnforcementStatus HEALTHY; no dedicated IP, VDM, pricing, suppression or account details` |
 | v2 `CreateEmailTemplate`, `GetEmailTemplate`, `UpdateEmailTemplate`, `DeleteEmailTemplate`, `ListEmailTemplates` | Full | |
-| v2 `TagResource`, `UntagResource`, `ListTagsForResource` | Full | (identity, template and configuration-set ARNs) |
+| v2 `TagResource`, `UntagResource`, `ListTagsForResource` | Partial | `identity ARNs only; a template ARN answers NotFoundException until the v2 template operations land` (Full, for identity and template ARNs, once they land) |
 
-Second slice: v1 `CreateConfigurationSet`, `DeleteConfigurationSet`, `DescribeConfigurationSet`, `ListConfigurationSets` and v2 `CreateConfigurationSet`, `GetConfigurationSet`, `DeleteConfigurationSet`, `ListConfigurationSets` (both bindings) as StoredOnly with `stored and checked by name on sends; no event destinations, tracking, reputation, delivery or suppression options take effect`; v2 `PutEmailIdentityConfigurationSetAttributes` Full (it selects the default set recorded on sends); v2 `PutEmailIdentityDkimSigningAttributes` StoredOnly `stored; DKIM status never changes on its own`; v1 `GetAccountSendingEnabled`/`UpdateAccountSendingEnabled` Full (they gate sends with `AccountSendingPausedException`). Trace `aws_sesv2_configuration_set` and `aws_ses_configuration_set` reads before binding them.
+Until its stage lands, each of `SendTemplatedEmail`, the v2 email templates and `VerifyEmailAddress`, `ListVerifiedEmailAddresses`, `DeleteVerifiedEmailAddress` is unbound (501), and v2 `Template` content answers NotImplemented. Configuration sets are not in the first slice: `ConfigurationSetName` on a send or on `CreateEmailIdentity`, and the raw `X-SES-CONFIGURATION-SET` header, answer NotImplemented naming the member or header. So do the sending-authorization members `SourceArn`, `FromArn`, `ReturnPathArn`, `FromEmailAddressIdentityArn`, `FeedbackForwardingEmailAddressIdentityArn` and the raw `X-SES-SOURCE-ARN`, `X-SES-FROM-ARN`, `X-SES-RETURN-PATH-ARN` headers, and v2 `ConfigurationOverrides` and `EndpointId`, whatever the signature (2.1 leaves the SigV4A path inferred). v2 `FeedbackForwardingEmailAddress` is sender-checked as `ReturnPath` and recorded as `returnPath` (inferred: both name where bounces and complaints go, and 6.1 names Return-Path).
+
+Second slice, deferred to a later item and unbound (501) until then: v1 `CreateConfigurationSet`, `DeleteConfigurationSet`, `DescribeConfigurationSet`, `ListConfigurationSets` and v2 `CreateConfigurationSet`, `GetConfigurationSet`, `DeleteConfigurationSet`, `ListConfigurationSets` (both bindings) as StoredOnly with `stored and checked by name on sends; no event destinations, tracking, reputation, delivery or suppression options take effect`; v2 `PutEmailIdentityConfigurationSetAttributes` Full (it selects the default set recorded on sends); v2 `PutEmailIdentityDkimSigningAttributes` StoredOnly `stored; DKIM status never changes on its own`; v1 `GetAccountSendingEnabled`/`UpdateAccountSendingEnabled` Full (they gate sends with `AccountSendingPausedException`). Trace `aws_sesv2_configuration_set` and `aws_ses_configuration_set` reads before binding them.
 
 Unbound (501): `GetSendStatistics` (it reports delivery attempts, bounces and complaints that journal-only sending cannot have), `SendBulkTemplatedEmail`, `SendBulkEmail`, `SendCustomVerificationEmail` and custom verification templates, `TestRenderTemplate`/`TestRenderEmailTemplate`, event destinations, the identity notification setters (`SetIdentityNotificationTopic`, `SetIdentityFeedbackForwardingEnabled`, `SetIdentityHeadersInNotificationsEnabled`), receipt rules and filters (inbound mail), DKIM operations (`VerifyDomainDkim`, `GetIdentityDkimAttributes`, `SetIdentityDkimEnabled`), MAIL FROM, identity policies and sending authorization, suppression lists, contact lists, dedicated IPs, VDM, deliverability, export and import jobs, tenants, multi-region endpoints.
 
 ### 11.2 Journal-only: what is recorded and how tests read it
 
 - An accepted send records one sent message in SES state, keyed by `MessageId`, per account and Region: operation and API (`ses` or `sesv2`), request id, emulator acceptance time, `Source`/`FromEmailAddress` as given, the parsed sender addresses, `ReplyTo`, `ReturnPath`, To, Cc, Bcc, the envelope recipients the sandbox check used, subject and text and HTML bodies with charsets (Simple), v2 `Headers` and `Attachments` (name, content type, base64 content), the raw MIME bytes (Raw), template name, ARN or inline content plus `TemplateData` and the rendered parts or the render gap (Template), configuration set, tags, and the mailbox simulator scenario per recipient when one applies. Simple content is recorded as fields, not as a MIME message SES never showed: AWS's assembled bytes are not known.
-- State, not journal: the journal stores inputs redacted, keeps bodies only with `journal.bodies`, evicts from a bounded ring, and snapshots omit it unless `--include-journal` ([ARCHITECTURE.md](../ARCHITECTURE.md) 10). Tests assert on bodies, so the messages live in SES state, bounded (10,000 per account and Region, oldest evicted, eviction counted in the listing), exported in snapshots and cleared by `understudy reset --service ses`.
+- State, not journal: the journal stores every input as its generated `Redact()` (`internal/kernel/doc.go`; there is no `journal.bodies` key), evicts from a bounded ring, and snapshots omit it unless `--include-journal` ([ARCHITECTURE.md](../ARCHITECTURE.md) 10). The pinned models mark no send content sensitive, so both generated `SendEmailInput.Redact()` would return their input unchanged (`internal/api/sesapi/redact_gen.go`, `internal/api/sesv2api/redact_gen.go`); overlay `smithy.api#sensitive` traits on the content shapes (v1 `SendEmailRequest$Message`, `RawMessage$Data`, `SendTemplatedEmailRequest$TemplateData`; v2 `Message$Subject`, `Message$Body`, `Attachment$RawContent`, `RawMessage$Data`, `Template$TemplateContent`, `Template$TemplateData`) keep subjects, bodies, attachments, raw MIME and template data out of the journal. Tests assert on bodies, so the messages live in SES state, bounded (10,000 per account and Region, oldest evicted, eviction counted in the listing), exported in snapshots and cleared by `understudy reset --service ses`.
 - Read path: `GET /_understudy/v1/ses/messages` with filters `account`, `region`, `messageId`, `from`, `to` (any recipient), `since` (emulator time), `limit` and a cursor, oldest first; `DELETE /_understudy/v1/ses/messages` with the same filters; `admin.Client.SESMessages` and `admin.Client.ClearSESMessages`; CLI `understudy ses messages [--to ADDR] [--from ADDR] [--message-id ID] [--follow]`. Correlation: each record carries the request id, so `understudy journal --request-id` finds the call.
-- The journal keeps its normal `APICall` event per send, touching the sender identity ARN and the configuration set ARN; identity verification transitions are `StateChange` events (`Pending` to `Success` or `Failed`) on the identity ARN.
+- The journal keeps its normal `APICall` event per send, touching the sender identity ARN (and the configuration set ARN once configuration sets are bound); identity verification transitions are `StateChange` events (`Pending` to `Success` or `Failed`) on the identity ARN.
 - Message ids, domain verification tokens and DKIM tokens are new `internal/ids` kinds, seeded under `--seed` ([ADR 0018](../adr/0018-ids-and-determinism.md)).
 
 ### 11.3 Verification and sandbox controls
 
 - Identities start `Pending` / `PENDING`, as on AWS (5.2). Three explicit ways complete verification, each journaled as a `StateChange`:
-  1. The verification email for an address identity is itself a recorded sent message, subject `Amazon Web Services - Email Address Verification Request in region <RegionName>` (5.2), whose body carries a link `/_understudy/ses/verify?token=<token>` (unversioned and AWS-visible, as the SNS confirm links are). Opening it verifies, mirroring the owner's click. It works for 24 hours of emulator time.
+  1. The verification email for an address identity is itself a recorded sent message, subject `Amazon Web Services - Email Address Verification Request in region <RegionName>` (5.2), whose body carries a link `/_understudy/ses/VerificationLink?token=<token>` (unversioned and AWS-visible, as the SNS confirm links are; edge rule 1 names the raw operation after `/_understudy/<service>/`, as `snsLink` in `internal/edge/claim.go` does for SNS). Opening it verifies, mirroring the owner's click. It works for 24 hours of emulator time.
   2. `POST /_understudy/v1/ses/identities/{identity}/verification` with `{"account", "region", "status": "Success" | "Failed" | "TemporaryFailure"}`, CLI `understudy ses verify IDENTITY [--status S]`. This is the only path for domains, which have no email to click.
   3. A file key `ses.verifiedIdentities`: a list of exact addresses, domains and `*@domain` patterns verified at creation, so Terraform's `aws_ses_domain_identity_verification` (9.2) completes. Configured identities are a statement by the user that they own them; the guide says so.
 - Expiry on the emulator clock: `Pending` email identities become `Failed` 24 hours after the verification email, domains 72 hours after creation (5.2; switch `ses.verification.expiry`).
-- Sandbox: each account and Region starts in the sandbox (6.1). Production access comes from the file key `ses.productionAccess` (default false; a list of `{account, region}` or `true` for all) and from the admin endpoint `PUT /_understudy/v1/ses/account` `{"account", "region", "productionAccess": bool, "sendingEnabled": bool}`. v2 `PutAccountDetails` stays unbound: on AWS it only files a request for human review (request-production-access).
+- Sandbox: each account and Region starts in the sandbox (6.1). Production access comes from the file key `ses.productionAccess` (default false; a list of `{account, region}` or `true` for all) and, in a later stage, from the admin endpoint `PUT /_understudy/v1/ses/account` `{"account", "region", "productionAccess": bool}`. Account sending is always enabled: `UpdateAccountSendingEnabled` is second slice. v2 `PutAccountDetails` stays unbound: on AWS it only files a request for human review (request-production-access).
 - Sender check on every send, sandbox or not: `Source`/`FromEmailAddress`, the raw `From` and `Sender` headers, and `ReturnPath` or the raw `Return-Path` must each be a verified address (case-sensitive, labels stripped) or be in a verified domain or a subdomain of one (case-insensitive) (5.1). In the sandbox, each envelope recipient must pass the same test or be a mailbox simulator address (6.1, 6.2).
 
 ### 11.4 Fidelity switches
+
+Six switches (`fidelity.Switch`), each asserted by a test that fails when its value flips:
 
 | Name | Default | Label | Ground | Record |
 |---|---|---|---|---|
 | `ses.store.shared-v1-v2` | `shared`: one identity, template and configuration-set store for both APIs | inferred | 2.3 | SES-12 |
 | `ses.message-id.format` | `01` + region code + 12 hex digits of emulator-clock epoch ms + `-` + seeded UUIDv4 + `-000000`; codes us-east-1 `00`, us-west-2 `01`, eu-west-1 `02`, any other Region `00` | inferred | 4.7 | SES-07 |
 | `ses.error.unverified.text` | `Email address is not verified. The following identities failed the check in region <REGION>: <ids>`, Region upper case, identities as written in the request, senders first, then recipients in request order, joined by `, ` | inferred | 6.1 | SES-01, SES-03 |
+| `ses.verification.unknown-identity` | omitted from `VerificationAttributes` | inferred | 5.3 | SES-08 |
+| `ses.raw.envelope` | `Destinations` when non-empty, else `To`, `Cc`, `Bcc` headers | inferred | 4.2 | SES-20 |
+| `ses.denial.identity` | v1 `AccessDenied`, Type `Sender`, 403, the IAM grammar (as STS, aws-recorded, and IAM, inferred); v2 `AccessDeniedException` in `x-amzn-ErrorType`, 403, body `{"message": "<grammar>"}` (`message` is the v2 member name, 3.2) | inferred ([iam-enforcement-surfaces.md](iam-enforcement-surfaces.md) 12.3 requires a switch for every inferred denial identity) | IS 12.3 | SES-28 |
+
+Chosen without a switch: each is an exported constant, or an ordered table, in `internal/service/ses` whose comment names its UNVERIFIED case, and tests read the constant rather than a literal. Recording one of these cases means searching the code for its id, since `coverage-check` cannot flag them:
+
+| Name | Value | Label | Ground | Record |
+|---|---|---|---|---|
 | `ses.tags.max-length` | 255 for names and values | inferred from the third-party-recorded text; the recordings used 2,100 and 2,200 characters, so the boundary is unrecorded | 4.5 | SES-16 |
 | `ses.tags.ses-prefix` | only `ses:feedback-id-a` and `ses:feedback-id-b`; other `ses:` names fail the charset rule | inferred | 4.5 | SES-16 |
-| `ses.verification.unknown-identity` | omitted from `VerificationAttributes` | inferred | 5.3 | SES-08 |
 | `ses.verification.expiry` | email `Failed` exactly 24 h after the verification email, domain exactly 72 h after creation | aws-doc for the 24 h and 72 h; inferred that the change is exact | 5.2 | SES-27 |
 | `ses.simulator.addresses` | the five documented local parts, optional `+label`, local part exact, domain case-insensitive; other `simulator.amazonses.com` addresses are ordinary recipients | inferred | 6.2 | SES-19 |
 | `ses.sandbox.recipient-labels` | a labeled recipient passes when the unlabeled address is verified | inferred | 5.1 | SES-19 |
-| `ses.raw.envelope` | `Destinations` when non-empty, else `To`, `Cc`, `Bcc` headers | inferred | 4.2 | SES-20 |
 | `ses.quota.send-rate` | `not-enforced` | inferred | 6.3 | SES-21 |
 | `ses.quota.production` | `Max24HourSend` -1, `MaxSendRate` 14 | inferred | 6.3 | SES-26 |
-| `ses.send.check-order` | model validation, tags, addresses, recipient count, configuration set, account sending enabled, sender, sandbox recipients, daily quota | inferred (tags before sender: third-party-recorded) | 6.4 | SES-17 |
+| `ses.send.check-order` | model validation, NotImplemented members, tags, addresses, recipient count, sender, sandbox recipients, daily quota (configuration sets and account sending are not bound, so their steps are absent) | inferred (tags before sender: third-party-recorded) | 6.4 | SES-17 |
 
 Overlay entries rather than switches: the v1 `QueryErrorEnvelope` `{Namespace: true, Detail: false}` (inferred, 3.1, SES-01); throttle error v1 `Throttling` (aws-doc, status 400 inferred, SES-21) and v2 `TooManyRequestsException` 429 (model); validation identities v1 `InvalidParameterValue` 400 and v2 `BadRequestException` 400.
 
@@ -422,9 +432,9 @@ Overlay entries rather than switches: the v1 `QueryErrorEnvelope` `{Namespace: t
 
 ### 11.6 Registry, edge and codegen
 
-1. Vendor both models: `ses` and `sesv2` in `pinnedModels`, both mapped to IAM prefix `ses` in `referencePrefixes`, which today maps every model to a distinct prefix ([internal/cmd/vendor/reference.go L29-L44](../../internal/cmd/vendor/reference.go)).
-2. Registry: allow two services on one signing name when exactly one speaks awsQuery only and the other has a route table; `BySigningName` returns the REST one for rule 8 (3.4). This changes the descriptor rule and [ARCHITECTURE.md](../ARCHITECTURE.md) 4.1 rule 8, so record it there.
-3. Edge rule 8: `signed == "ses"` routes to the `sesv2` route table; a request signed for `ses` that neither table nor rule 7 claims gets `sesv2`'s unknown-operation answer until SES-24 says otherwise.
+1. Done: both models are vendored, and `internal/cmd/vendor/reference.go` maps `ses` and `sesv2` to IAM prefix `ses` (2.1).
+2. Registry: settled by [ADR 0019](../adr/0019-shared-signing-names.md). `BySigningName` returns the name's services in registration order, and an awsQuery plus REST pair is always accepted; `ses` is wired before `sesv2` (3.4).
+3. Edge: rule 7 claims v1 by `(Action, 2010-12-01)`; rule 8 tries `sesv2`'s route table, and a request signed for `ses` that neither claims is `sesv2`'s unknown operation until SES-24 says otherwise (ADR 0019).
 4. Overlay for `sesv2`: extra routes `GET /v2/email/identities` (query `NextToken`, `PageSize`) to `ListEmailIdentities` and `GET /v2/email/configuration-sets` to `ListConfigurationSets`, with the 3.2 history as evidence. `POST /v2/email/identities` stays `CreateEmailIdentity`.
 5. Address parsing with `net/mail` for the RFC 5322 mailbox forms; AWS's parser behaves like Jakarta Mail (4.6), so differences are expected and SES-04 decides the texts. MIME parsing of raw messages with `net/mail` and `mime/multipart` (stdlib, ADR 0016).
 6. Template rendering: substitution of `{{name}}` and dotted paths from `TemplateData`; any other Handlebars construct records a render gap rather than a guess (7). A full Handlebars engine is a dependency question for ADR 0016, not this item.
@@ -752,6 +762,37 @@ date -u +%FT%TZ > "$REC/SES-27/started"
 rec SES-27/02-after aws ses get-identity-verification-attributes --identities "$P-expire@example.com"
 ```
 Cost 0, 2 min over 25 h. Teardown: shared.
+
+**SES-28: denial identity and the action v2 Raw checks.** Settles switch `ses.denial.identity` ([iam-enforcement-surfaces.md](iam-enforcement-surfaces.md) 12.3, the SES v1 and v2 rows) and which action v2 `SendEmail` with `Content.Raw` is authorized as (the denial message names it). Uses the `$P-enf-none` session of [iam-enforcement-surfaces.md](iam-enforcement-surfaces.md) 13.1 (`enf_assume`, `as_role`, `enf_curl`), which holds no permissions; run that setup first. Run after SES-20: step 4 reuses `$REC/r1.eml`.
+
+```sh
+enf_assume "$P-enf-none"
+rec SES-28/01-v1-send as_role ses send-email --from "$M" --destination ToAddresses=success@simulator.amazonses.com --message "$MSG"
+SVC=ses enf_curl SES-28/02-v1-raw -H 'Content-Type: application/x-www-form-urlencoded' --data-urlencode Action=SendEmail --data-urlencode Version=2010-12-01 --data-urlencode "Source=$M" --data-urlencode Destination.ToAddresses.member.1=success@simulator.amazonses.com --data-urlencode Message.Subject.Data=s --data-urlencode Message.Body.Text.Data=b "https://email.$R.amazonaws.com/"
+SVC=ses enf_curl SES-28/03-v2-simple -X POST -H 'Content-Type: application/json' -d "{\"FromEmailAddress\":\"$M\",\"Destination\":{\"ToAddresses\":[\"success@simulator.amazonses.com\"]},\"Content\":{\"Simple\":{\"Subject\":{\"Data\":\"s\"},\"Body\":{\"Text\":{\"Data\":\"b\"}}}}}" "https://email.$R.amazonaws.com/v2/email/outbound-emails"
+SVC=ses enf_curl SES-28/04-v2-raw -X POST -H 'Content-Type: application/json' -d "{\"Content\":{\"Raw\":{\"Data\":\"$(b64 "$REC/r1.eml")\"}}}" "https://email.$R.amazonaws.com/v2/email/outbound-emails"
+```
+Record status, `x-amzn-ErrorType`, `x-amzn-query-error`, and the body (`<Code>`, `<Type>`, message key and text). Cost 0 (every call is denied), 5 min. Teardown: [iam-enforcement-surfaces.md](iam-enforcement-surfaces.md) 13.2.
+
+**SES-29: size, line, part, paging and template limits.** Settles the error identities and texts of the 11.5 limits that no source records: message size (10 MB v1, 40 MB v2), the 1,000-character line, 500 MIME parts, `ListIdentities` `MaxItems` outside 1 to 1,000, and a template over 500 KB. Every call is expected to be rejected; one that is accepted goes to the simulator.
+
+```sh
+hdr() { printf 'From: %s\r\nTo: success@simulator.amazonses.com\r\nSubject: s\r\n' "$M"; }
+{ hdr; printf 'Content-Type: text/plain\r\n\r\n'; head -c $((10*1024*1024 + 1)) /dev/zero | tr '\0' a | fold -w 76; } > "$REC/big10.eml"
+{ hdr; printf 'Content-Type: text/plain\r\n\r\n'; head -c $((40*1024*1024 + 1)) /dev/zero | tr '\0' a | fold -w 76; } > "$REC/big40.eml"
+{ hdr; printf 'Content-Type: text/plain\r\n\r\n'; head -c 1001 /dev/zero | tr '\0' a; printf '\r\n'; } > "$REC/line.eml"
+{ hdr; printf 'MIME-Version: 1.0\r\nContent-Type: multipart/mixed; boundary=B\r\n\r\n'; for i in $(seq 501); do printf -- '--B\r\nContent-Type: text/plain\r\n\r\np%s\r\n' "$i"; done; printf -- '--B--\r\n'; } > "$REC/parts.eml"
+for f in big10 line parts; do printf '{"Data":"%s"}' "$(b64 "$REC/$f.eml")" > "$REC/$f.json"; rec "SES-29/v1-$f" aws ses send-raw-email --raw-message "file://$REC/$f.json"; done
+printf '{"Content":{"Raw":{"Data":"%s"}}}' "$(b64 "$REC/big40.eml")" > "$REC/big40.json"
+rec SES-29/v2-big40 aws sesv2 send-email --cli-input-json "file://$REC/big40.json"
+rec SES-29/list-max-0 aws ses list-identities --max-items 0 --no-paginate
+q SES-29/list-max-0-raw ListIdentities MaxItems=0
+q SES-29/list-max-1001-raw ListIdentities MaxItems=1001
+head -c $((500*1024 + 1)) /dev/zero | tr '\0' a > "$REC/tmpl.txt"
+printf '{"Template":{"TemplateName":"%s-big","SubjectPart":"s","TextPart":"%s"}}' "$P" "$(cat "$REC/tmpl.txt")" > "$REC/tmpl.json"
+rec SES-29/template-over aws ses create-template --cli-input-json "file://$REC/tmpl.json"
+```
+The `--max-items` of the CLI is client-side paging, so the raw calls are the evidence for `MaxItems`. Whether 500 KB means 512,000 or 500,000 bytes is part of what this settles; if the 512,001-byte template is accepted, rerun with 500,001 bytes and record both. Cost 0 if all are rejected, else USD 0.0001 per accepted send, 10 min. Teardown: `aws ses delete-template --template-name "$P-big"` if it was created, and the shared teardown.
 
 [m1]: https://github.com/aws/api-models-aws/blob/1cfdfb4bb9ea858e65623e66d73af04bec353201/models/ses/service/2010-12-01/ses-2010-12-01.json
 [m2]: https://github.com/aws/api-models-aws/blob/1cfdfb4bb9ea858e65623e66d73af04bec353201/models/sesv2/service/2019-09-27/sesv2-2019-09-27.json

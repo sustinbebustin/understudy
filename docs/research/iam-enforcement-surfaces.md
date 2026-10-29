@@ -479,8 +479,8 @@ Replace the shared `com.amazon.coral.service#AccessDeniedException` 403 with per
 | DynamoDB Streams | `__type` `com.amazon.coral.service#AccessDeniedException`, as DynamoDB | 400 | grammar | inferred (IAM-ENF-35) |
 | Kinesis | `AccessDeniedException` (the model's) | 400 | grammar | inferred (IAM-ENF-36) |
 | Scheduler | `AccessDeniedException` (generic; the model declares none) | 403 | grammar | inferred (IAM-ENF-37) |
-| SES v1 | `AccessDenied`, `Sender`, the SES namespace | 403 | grammar | inferred from STS and IAM (IAM-ENF-38) |
-| SES v2 | `AccessDeniedException` (generic; the model declares none) | 403 | grammar | inferred (IAM-ENF-39) |
+| SES v1 | `AccessDenied`, `Sender`, the SES namespace | 403 | grammar | inferred from STS and IAM (`ses.denial.identity`; IAM-ENF-38, ses.md SES-28) |
+| SES v2 | `AccessDeniedException` (generic; the model declares none) in `x-amzn-ErrorType` | 403 | `{"message": "<grammar>"}`, key `message` as every v2 error shape names it (ses.md 3.2) | inferred (`ses.denial.identity`; IAM-ENF-39, ses.md SES-28) |
 | Step Functions | `__type` `com.amazon.coral.service#AccessDeniedException` (generic; the model declares none) | 400 | grammar | inferred (`sfn.denial.status`; IAM-ENF-40, stepfunctions-api.md 14.16 SFN-15): 400, as every plain awsJson service above (DynamoDB, EventBridge, Logs, KMS, Secrets Manager); 3.3 rules out the CommonErrors 403 template as sole ground |
 | SSM | `AccessDeniedException` (the model's), key `Message` | 400 | grammar | inferred (IAM-ENF-41) |
 
