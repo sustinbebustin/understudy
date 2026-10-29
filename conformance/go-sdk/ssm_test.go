@@ -85,7 +85,6 @@ func TestSSMSecureString(t *testing.T) {
 	ctx := t.Context()
 	client := ssm.NewFromConfig(awsCfg)
 	p := "/" + name(t, "conf-ssm") + "/secure"
-	arn := fmt.Sprintf("arn:aws:ssm:%s:%s:parameter%s", region(), account(t), p)
 	putParameter(t, client, &ssm.PutParameterInput{Name: aws.String(p), Value: aws.String("hunter2"), Type: types.ParameterTypeSecureString})
 
 	plain, err := client.GetParameter(ctx, &ssm.GetParameterInput{Name: aws.String(p), WithDecryption: aws.Bool(true)})
@@ -95,6 +94,18 @@ func TestSSMSecureString(t *testing.T) {
 	}
 	sealed, err := client.GetParameter(ctx, &ssm.GetParameterInput{Name: aws.String(p)})
 	ok(t, err, "GetParameter without decryption")
+	if aws.ToString(sealed.Parameter.Value) == "hunter2" {
+		t.Errorf("without decryption = %+v", sealed.Parameter)
+	}
+
+	// A customer managed key, because the aws/ssm key's policy allows Decrypt
+	// only through SSM (ssm-parameters.md 5.6).
+	keyed := p + "-cmk"
+	arn := fmt.Sprintf("arn:aws:ssm:%s:%s:parameter%s", region(), account(t), keyed)
+	key := createKey(t, "conformance ssm key")
+	putParameter(t, client, &ssm.PutParameterInput{Name: aws.String(keyed), Value: aws.String("hunter2"), Type: types.ParameterTypeSecureString, KeyId: key.KeyId})
+	sealed, err = client.GetParameter(ctx, &ssm.GetParameterInput{Name: aws.String(keyed)})
+	ok(t, err, "GetParameter without decryption, customer managed key")
 	blob, err := base64.StdEncoding.DecodeString(aws.ToString(sealed.Parameter.Value))
 	ok(t, err, "base64 of the value read without decryption")
 	opened, err := kms.NewFromConfig(awsCfg).Decrypt(ctx, &kms.DecryptInput{CiphertextBlob: blob, EncryptionContext: map[string]string{"PARAMETER_ARN": arn}})

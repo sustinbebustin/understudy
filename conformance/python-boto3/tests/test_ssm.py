@@ -61,13 +61,19 @@ def test_get_after_delete_is_parameter_not_found(ssm: Any, make_param: Callable[
     assert info.value.response["Error"]["Message"] == ""
 
 
-def test_secure_string_with_and_without_decryption(ssm: Any, kms: Any, sts: Any, make_param: Callable[..., str]) -> None:
+def test_secure_string_with_and_without_decryption(
+    ssm: Any, kms: Any, sts: Any, make_param: Callable[..., str], make_key: Callable[..., dict[str, Any]]
+) -> None:
     name = make_param("/" + uniq("conf-ssm") + "/secure", value="hunter2", type_="SecureString")
-    arn = f"arn:aws:ssm:{REGION}:{account(sts)}:parameter{name}"
     assert ssm.get_parameter(Name=name, WithDecryption=True)["Parameter"]["Value"] == "hunter2"
-    sealed = ssm.get_parameter(Name=name)["Parameter"]["Value"]
-    assert sealed != "hunter2"
+    assert ssm.get_parameter(Name=name)["Parameter"]["Value"] != "hunter2"
     # ssm-parameters.md 5.2: KMS Decrypt with PARAMETER_ARN opens the value.
+    # A customer managed key, because the aws/ssm key's policy allows Decrypt
+    # only through SSM (ssm-parameters.md 5.6).
+    key = make_key("conformance ssm key")["KeyId"]
+    keyed = make_param("/" + uniq("conf-ssm") + "/secure-cmk", value="hunter2", type_="SecureString", KeyId=key)
+    arn = f"arn:aws:ssm:{REGION}:{account(sts)}:parameter{keyed}"
+    sealed = ssm.get_parameter(Name=keyed)["Parameter"]["Value"]
     opened = kms.decrypt(CiphertextBlob=base64.b64decode(sealed), EncryptionContext={"PARAMETER_ARN": arn})
     assert opened["Plaintext"] == b"hunter2"
     # ssm-parameters.md 5.4: the default key reads back alias/aws/ssm.

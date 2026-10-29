@@ -68,15 +68,24 @@ test_ssm_secure_string_and_kms_decrypt() {
   assert_jq '.Parameter.Value' hunter2
   aws_ok ssm get-parameter --name "$name"
   assert_jq_true '.Parameter.Value != "hunter2"'
-  # ssm-parameters.md 5.2: KMS Decrypt with PARAMETER_ARN opens the value.
-  blob=$(mktemp "$UE_TMP/ssm-blob.XXXXXX")
-  jqv '.Parameter.Value' | base64 -d >"$blob"
-  aws_ok kms decrypt --ciphertext-blob "fileb://$blob" --encryption-context "PARAMETER_ARN=$arn"
-  assert_eq hunter2 "$(jqv '.Plaintext' | base64 -d)" "KMS Decrypt of the SecureString ciphertext"
   # ssm-parameters.md 5.4
   aws_ok ssm describe-parameters --parameter-filters "Key=Name,Option=Equals,Values=$name"
   assert_jq_json '[.Parameters[].KeyId]' '["alias/aws/ssm"]'
   aws_ok ssm delete-parameter --name "$name"
+  # ssm-parameters.md 5.2: KMS Decrypt with PARAMETER_ARN opens the value.
+  # A customer managed key, because the aws/ssm key's policy allows Decrypt
+  # only through SSM (ssm-parameters.md 5.6).
+  local key
+  aws_ok kms create-key --description 'conformance ssm key'
+  key=$(jqv '.KeyMetadata.KeyId')
+  aws_ok ssm put-parameter --name "$name" --type SecureString --value hunter2 --key-id "$key"
+  aws_ok ssm get-parameter --name "$name"
+  blob=$(mktemp "$UE_TMP/ssm-blob.XXXXXX")
+  jqv '.Parameter.Value' | base64 -d >"$blob"
+  aws_ok kms decrypt --ciphertext-blob "fileb://$blob" --encryption-context "PARAMETER_ARN=$arn"
+  assert_eq hunter2 "$(jqv '.Plaintext' | base64 -d)" "KMS Decrypt of the SecureString ciphertext"
+  aws_ok ssm delete-parameter --name "$name"
+  aws_ok kms schedule-key-deletion --key-id "$key" --pending-window-in-days 7
 }
 
 test_ssm_get_parameters_with_a_missing_name() {

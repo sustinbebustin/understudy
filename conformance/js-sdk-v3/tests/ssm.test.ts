@@ -3,7 +3,7 @@
 // localstack@8b9a79f tests/aws/services/ssm/test_ssm.snapshot.json.
 
 import { afterAll, describe, expect, test } from "bun:test";
-import { DecryptCommand, KMSClient } from "@aws-sdk/client-kms";
+import { CreateKeyCommand, DecryptCommand, KMSClient, ScheduleKeyDeletionCommand } from "@aws-sdk/client-kms";
 import {
   AddTagsToResourceCommand,
   DeleteParameterCommand,
@@ -81,13 +81,22 @@ describe("SSM Parameter Store", () => {
     await put({ Name: name, Value: "hunter2", Type: "SecureString" });
     const plain = (await ssm.send(new GetParameterCommand({ Name: name, WithDecryption: true }))).Parameter;
     expect(plain?.Value).toBe("hunter2");
-    const sealed = (await ssm.send(new GetParameterCommand({ Name: name }))).Parameter?.Value ?? "";
-    expect(sealed).not.toBe("hunter2");
-    // ssm-parameters.md 5.2: PARAMETER_ARN is the encryption context.
-    const opened = await kms.send(
-      new DecryptCommand({ CiphertextBlob: Buffer.from(sealed, "base64"), EncryptionContext: { PARAMETER_ARN: arnOf(name) } }),
-    );
-    expect(new TextDecoder().decode(opened.Plaintext)).toBe("hunter2");
+    expect((await ssm.send(new GetParameterCommand({ Name: name }))).Parameter?.Value).not.toBe("hunter2");
+    // ssm-parameters.md 5.2: PARAMETER_ARN is the encryption context. A
+    // customer managed key, because the aws/ssm key's policy allows Decrypt
+    // only through SSM (ssm-parameters.md 5.6).
+    const keyId = (await kms.send(new CreateKeyCommand({ Description: "conformance ssm key" }))).KeyMetadata?.KeyId;
+    try {
+      const keyed = `${name}-cmk`;
+      await put({ Name: keyed, Value: "hunter2", Type: "SecureString", KeyId: keyId });
+      const sealed = (await ssm.send(new GetParameterCommand({ Name: keyed }))).Parameter?.Value ?? "";
+      const opened = await kms.send(
+        new DecryptCommand({ CiphertextBlob: Buffer.from(sealed, "base64"), EncryptionContext: { PARAMETER_ARN: arnOf(keyed) } }),
+      );
+      expect(new TextDecoder().decode(opened.Plaintext)).toBe("hunter2");
+    } finally {
+      await kms.send(new ScheduleKeyDeletionCommand({ KeyId: keyId, PendingWindowInDays: 7 }));
+    }
     // ssm-parameters.md 5.4: the default key reads back alias/aws/ssm.
     const meta = await ssm.send(
       new DescribeParametersCommand({ ParameterFilters: [{ Key: "Name", Option: "Equals", Values: [name] }] }),
