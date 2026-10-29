@@ -109,18 +109,23 @@ describe("CloudWatch metric alarms", () => {
     });
   });
 
+  // Alarms whose set state a test reads back treat missing data as ignore:
+  // with no data an evaluation keeps the state, so one that falls between
+  // the set and the read cannot change it (cloudwatch-alarms.md 2.3).
   test("PutMetricAlarm on an existing alarm overwrites the configuration but keeps the state", async () => {
     const name = uniq("alarm");
-    await cw.send(new PutMetricAlarmCommand(alarmInput(name)));
+    await cw.send(new PutMetricAlarmCommand(alarmInput(name, { TreatMissingData: "ignore" })));
     await cw.send(new SetAlarmStateCommand({ AlarmName: name, StateValue: "ALARM", StateReason: "forced" }));
-    await cw.send(new PutMetricAlarmCommand(alarmInput(name, { Threshold: 99, AlarmDescription: "second" })));
+    await cw.send(
+      new PutMetricAlarmCommand(alarmInput(name, { Threshold: 99, AlarmDescription: "second", TreatMissingData: "ignore" })),
+    );
     const alarm = await describeOne(name);
     expect(alarm).toMatchObject({ Threshold: 99, AlarmDescription: "second", StateValue: "ALARM" });
   });
 
   test("SetAlarmState sets the state value and reason", async () => {
     const name = uniq("alarm");
-    await cw.send(new PutMetricAlarmCommand(alarmInput(name)));
+    await cw.send(new PutMetricAlarmCommand(alarmInput(name, { TreatMissingData: "ignore" })));
     await cw.send(new SetAlarmStateCommand({ AlarmName: name, StateValue: "OK", StateReason: "all good" }));
     expect(await describeOne(name)).toMatchObject({ StateValue: "OK", StateReason: "all good" });
   });

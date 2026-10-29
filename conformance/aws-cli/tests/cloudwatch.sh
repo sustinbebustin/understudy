@@ -73,11 +73,16 @@ test_put_metric_alarm_extended_statistic() {
   assert_jq '.MetricAlarms[0].Threshold' '1.5'
 }
 
+# Alarms whose set state a test reads back treat missing data as ignore: with
+# no data an evaluation keeps the state, so one that falls between the set
+# and the read cannot change it (cloudwatch-alarms.md 2.3).
+
 test_put_metric_alarm_again_overwrites_configuration_and_keeps_state() {
-  new_alarm --alarm-description first
+  new_alarm --alarm-description first --treat-missing-data ignore
   aws_ok cloudwatch set-alarm-state --alarm-name "$ALARM" --state-value ALARM --state-reason 'forced for test'
   aws_ok cloudwatch put-metric-alarm --alarm-name "$ALARM" --namespace Conformance --metric-name CPUUtilization \
-    --statistic Maximum --period 120 --evaluation-periods 2 --threshold 95 --comparison-operator GreaterThanThreshold
+    --statistic Maximum --period 120 --evaluation-periods 2 --threshold 95 --comparison-operator GreaterThanThreshold \
+    --treat-missing-data ignore
   describe_alarm "$ALARM"
   assert_jq '.MetricAlarms[0].Statistic' 'Maximum'
   assert_jq '.MetricAlarms[0].Period' '120'
@@ -109,7 +114,8 @@ test_describe_alarms_by_state_value() {
   aws_ok cloudwatch put-metric-alarm --alarm-name "${prefix}-x" --namespace Conformance --metric-name M \
     --statistic Sum --period 60 --evaluation-periods 1 --threshold 1 --comparison-operator LessThanThreshold
   aws_ok cloudwatch put-metric-alarm --alarm-name "${prefix}-y" --namespace Conformance --metric-name M \
-    --statistic Sum --period 60 --evaluation-periods 1 --threshold 1 --comparison-operator LessThanThreshold
+    --statistic Sum --period 60 --evaluation-periods 1 --threshold 1 --comparison-operator LessThanThreshold \
+    --treat-missing-data ignore
   aws_ok cloudwatch set-alarm-state --alarm-name "${prefix}-y" --state-value OK --state-reason done
   aws_ok cloudwatch describe-alarms --alarm-name-prefix "$prefix" --state-value OK
   assert_jq_true '[.MetricAlarms[].AlarmName] == ["'"$prefix"'-y"]'
@@ -122,7 +128,7 @@ test_describe_alarms_returns_metric_alarms_by_default() {
 }
 
 test_set_alarm_state() {
-  new_alarm
+  new_alarm --treat-missing-data ignore
   aws_ok cloudwatch set-alarm-state --alarm-name "$ALARM" --state-value ALARM --state-reason 'manual reason'
   assert_eq 200 "$AWS_STATUS" 'SetAlarmState status'
   describe_alarm "$ALARM"
@@ -197,6 +203,78 @@ test_list_tags_for_deleted_alarm_is_empty() {
   aws_ok cloudwatch delete-alarms --alarm-names "$ALARM"
   aws_ok cloudwatch list-tags-for-resource --resource-arn "$ALARM_ARN"
   assert_jq_true '.Tags == []'
+}
+
+# Alarm evaluation on the emulator clock (cloudwatch-alarms.md, cited as cwa N.N)
+
+# admin_clock JSON: POST a clock change to the admin API.
+admin_clock() {
+  curl -fsS -X POST -H 'Content-Type: application/json' --data "$1" "${AWS_ENDPOINT_URL}/_understudy/v1/clock" >/dev/null
+}
+
+# advance_clock DURATION: move emulator time forward and wait for the work it
+# starts.
+advance_clock() {
+  admin_clock "{\"op\":\"advance\",\"by\":\"$1\"}"
+  curl -fsS "${AWS_ENDPOINT_URL}/_understudy/v1/settle?timeout=30s" >/dev/null
+}
+
+# restore_clock: put the clock back as serve started it.
+restore_clock() {
+  curl -fsS -X POST -H 'Content-Type: application/json' --data '{"services":["sts"],"clock":true}' \
+    "${AWS_ENDPOINT_URL}/_understudy/v1/reset" >/dev/null
+}
+
+test_alarm_evaluates_on_clock_advance() {
+  # Each test runs in its own shell, which a failed assertion exits.
+  trap restore_clock EXIT
+  admin_clock '{"op":"freeze"}'
+  local metric
+  metric=$(new_name cw-load)
+  # Data put without a timestamp lines up with alarm windows (cwa 12.3).
+  aws_ok cloudwatch put-metric-data --namespace Conformance --metric-name "$metric" --value 20
+  ALARM=$(new_name cw-alarm)
+  aws_ok cloudwatch put-metric-alarm --alarm-name "$ALARM" --namespace Conformance --metric-name "$metric" \
+    --statistic Sum --period 60 --evaluation-periods 1 --threshold 10 --comparison-operator GreaterThanThreshold
+  # No synchronous evaluation (cwa 3.1, third-party-recorded).
+  describe_alarm "$ALARM"
+  assert_jq '.MetricAlarms[0].StateValue' 'INSUFFICIENT_DATA'
+  assert_jq '.MetricAlarms[0].StateReason' 'Unchecked: Initial alarm creation'
+
+  advance_clock 60s
+  describe_alarm "$ALARM"
+  assert_jq '.MetricAlarms[0].StateValue' 'ALARM'
+  # cwa 4.1, 4.3: the count form, values as Java doubles.
+  assert_jq_match '.MetricAlarms[0].StateReason' '^Threshold Crossed: 1 datapoint \[20\.0 \([0-9/: ]+\)\] was greater than the threshold \(10\.0\)\.$'
+  # cwa 4.2.
+  assert_jq_true '.MetricAlarms[0].StateReasonData | fromjson | .version == "1.0" and .statistic == "Sum" and .period == 60 and .recentDatapoints == [20] and .threshold == 10'
+  aws_ok cloudwatch describe-alarm-history --alarm-name "$ALARM"
+  # cwa 8.2, third-party-recorded.
+  assert_jq_true '[.AlarmHistoryItems[] | .HistorySummary] == ["Alarm updated from INSUFFICIENT_DATA to ALARM"]'
+  assert_jq_true '.AlarmHistoryItems[0] | .HistoryItemType == "StateUpdate" and .AlarmType == "MetricAlarm"'
+
+  # cwa 3.5: every bin missing under the default treatment.
+  advance_clock 10m
+  describe_alarm "$ALARM"
+  assert_jq '.MetricAlarms[0].StateValue' 'INSUFFICIENT_DATA'
+  aws_ok cloudwatch describe-alarm-history --alarm-name "$ALARM"
+  assert_jq_true '[.AlarmHistoryItems[] | .HistorySummary] == ["Alarm updated from ALARM to INSUFFICIENT_DATA", "Alarm updated from INSUFFICIENT_DATA to ALARM"]'
+}
+
+test_get_metric_statistics_limits() {
+  local now
+  now=$(date +%s)
+  # cwa 9.3, third-party-recorded.
+  aws_error InvalidParameterCombination 400 cloudwatch get-metric-statistics --namespace Conformance --metric-name metric_name \
+    --start-time "$(iso "$now")" --end-time "$(iso $((now + 86400)))" --period 1 --statistics Average
+  aws_error_message_contains 'You have requested up to 86400 datapoints, which exceeds the limit of 1440. You may reduce the datapoints requested by increasing Period, or decreasing the time range.'
+  aws_error InvalidParameterValue 400 cloudwatch get-metric-statistics --namespace Conformance --metric-name metric_name \
+    --start-time "$(iso "$now")" --end-time "$(iso "$now")" --period 60 --statistics Average
+  aws_error_message_contains 'The parameter StartTime must be less than the parameter EndTime.'
+  # cwa 9.2, third-party-recorded.
+  aws_ok cloudwatch get-metric-statistics --namespace Conformance --metric-name metric_name \
+    --start-time "$(iso "$now")" --end-time "$(iso $((now + 86400)))" --period 60 --statistics Average
+  assert_jq_true '.Datapoints == [] and .Label == "metric_name"'
 }
 
 # PutMetricData, GetMetricData, ListMetrics
