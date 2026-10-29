@@ -1342,7 +1342,7 @@ Internal operations:
 
 Behaviors chosen without AWS-recorded evidence, with the research they rest on and the parity scenario step that settles them, or why none does. The count and order follow the label the code states; the Label column shows the recording's verdict where a replayed step settles or contradicts the switch.
 
-173 switches: 1 aws-recorded, 5 third-party-recorded, 20 aws-doc, 147 inferred.
+178 switches: 1 aws-recorded, 5 third-party-recorded, 20 aws-doc, 152 inferred.
 
 | Switch | Value | Label | Reference | Settled by |
 |---|---|---|---|---|
