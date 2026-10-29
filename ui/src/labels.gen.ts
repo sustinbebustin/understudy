@@ -87,4 +87,8 @@ export const idKinds = [
   "sfn-uuid",
   "sfn-math-random",
   "sfn-jitter",
+  "ses-message-id",
+  "ses-domain-token",
+  "ses-dkim-token",
+  "ses-link-token",
 ] as const;

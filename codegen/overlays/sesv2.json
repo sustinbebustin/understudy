@@ -25,6 +25,66 @@
           }
         ]
       }
+    },
+    "com.amazonaws.sesv2#Message$Subject": {
+      "type": "apply",
+      "traits": {
+        "smithy.api#sensitive": {},
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/ses.md#112-journal-only-what-is-recorded-and-how-tests-read-it: the subject of a Simple send is the sender's mail, which the journal must not keep; the model marks no send content sensitive"
+        }
+      }
+    },
+    "com.amazonaws.sesv2#Message$Body": {
+      "type": "apply",
+      "traits": {
+        "smithy.api#sensitive": {},
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/ses.md#112-journal-only-what-is-recorded-and-how-tests-read-it: the bodies of a Simple send are the sender's mail, which the journal must not keep; the model marks no send content sensitive"
+        }
+      }
+    },
+    "com.amazonaws.sesv2#Attachment$RawContent": {
+      "type": "apply",
+      "traits": {
+        "smithy.api#sensitive": {},
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/ses.md#112-journal-only-what-is-recorded-and-how-tests-read-it: attachment contents are the sender's mail, which the journal must not keep; the model marks no send content sensitive"
+        }
+      }
+    },
+    "com.amazonaws.sesv2#RawMessage$Data": {
+      "type": "apply",
+      "traits": {
+        "smithy.api#sensitive": {},
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/ses.md#112-journal-only-what-is-recorded-and-how-tests-read-it: the raw MIME of a send (up to 40 MB, 2.2) is the sender's mail, which the journal must not keep; the model marks no send content sensitive"
+        }
+      }
+    },
+    "com.amazonaws.sesv2#Template$TemplateContent": {
+      "type": "apply",
+      "traits": {
+        "smithy.api#sensitive": {},
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/ses.md#112-journal-only-what-is-recorded-and-how-tests-read-it: inline template content (4.4) is the sender's mail, which the journal must not keep; the model marks no send content sensitive"
+        }
+      }
+    },
+    "com.amazonaws.sesv2#Template$TemplateData": {
+      "type": "apply",
+      "traits": {
+        "smithy.api#sensitive": {},
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/ses.md#112-journal-only-what-is-recorded-and-how-tests-read-it: TemplateData holds the replacement values of a templated send (4.4), part of the sender's mail, which the journal must not keep; the model marks no send content sensitive"
+        }
+      }
     }
   }
 }

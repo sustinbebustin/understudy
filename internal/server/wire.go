@@ -28,6 +28,8 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/logsapi"
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
 	"github.com/sustinbebustin/understudy/internal/api/secretsmanagerapi"
+	"github.com/sustinbebustin/understudy/internal/api/sesapi"
+	"github.com/sustinbebustin/understudy/internal/api/sesv2api"
 	"github.com/sustinbebustin/understudy/internal/api/sfnapi"
 	"github.com/sustinbebustin/understudy/internal/api/snsapi"
 	"github.com/sustinbebustin/understudy/internal/api/sqsapi"
@@ -71,6 +73,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/service/logs"
 	"github.com/sustinbebustin/understudy/internal/service/s3"
 	"github.com/sustinbebustin/understudy/internal/service/secretsmanager"
+	"github.com/sustinbebustin/understudy/internal/service/ses"
 	"github.com/sustinbebustin/understudy/internal/service/sfn"
 	"github.com/sustinbebustin/understudy/internal/service/sns"
 	"github.com/sustinbebustin/understudy/internal/service/sqs"
@@ -930,6 +933,16 @@ func wiredServices() []wiredService {
 		{api{kinesisapi.Service(), kinesisapi.ThrottleError(), kinesisapi.UnknownOperationError}, func(d kernel.ServiceDeps, _ *construction) serveradmin.Service {
 			return kinesis.New(d, kinesis.Options{})
 		}},
+		// SES v1 owns the store both SES APIs share; v2's row follows and
+		// takes it (ses.md 2.3), and rule 8 tries sesv2's route table for a
+		// REST request signed for ses (ADR 0019).
+		{api{sesapi.Service(), sesapi.ThrottleError(), sesapi.UnknownOperationError}, func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
+			c.ses = ses.New(d, ses.Options{})
+			return c.ses
+		}},
+		{api{sesv2api.Service(), sesv2api.ThrottleError(), sesv2api.UnknownOperationError}, func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
+			return ses.NewV2(d, c.ses)
+		}},
 	}
 }
 
@@ -970,6 +983,8 @@ type construction struct {
 	lambdaDeps kernel.ServiceDeps
 	// iam is the identity-policy source of IAM evaluation.
 	iam *iam.Service
+	// ses is the store SES v2's view shares.
+	ses *ses.Service
 }
 
 // build constructs every row of the wiring table in order. A table whose
@@ -991,6 +1006,7 @@ func (c *construction) build(deps func(*registry.Service) kernel.ServiceDeps) ([
 		{c.sns == nil, snsapi.Service().ID},
 		{c.lambda == nil, lambdaapi.Service().ID},
 		{c.iam == nil, iamapi.Service().ID},
+		{c.ses == nil, sesapi.Service().ID},
 	} {
 		if m.unbuilt {
 			missing = append(missing, m.id)

@@ -129,6 +129,8 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | logs | 118 | 9 | 0 | 9 | 100 | 1 | 0 |
 | s3 | 112 | 22 | 39 | 25 | 26 | 0 | 3 |
 | secretsmanager | 23 | 1 | 0 | 14 | 8 | 0 | 0 |
+| ses | 71 | 0 | 0 | 0 | 71 | 0 | 0 |
+| sesv2 | 116 | 0 | 0 | 0 | 116 | 0 | 0 |
 | sfn | 37 | 7 | 0 | 9 | 21 | 0 | 0 |
 | sns | 42 | 12 | 0 | 7 | 23 | 0 | 3 |
 | sqs | 23 | 16 | 0 | 7 | 0 | 2 | 0 |
@@ -1131,6 +1133,203 @@ Raw operations:
 | StopReplicationToReplica | unbound | unassessed |  |
 | ValidateResourcePolicy | unbound | unassessed |  |
 
+### ses
+
+| Operation | Status | Evidence | Note |
+|---|---|---|---|
+| CloneReceiptRuleSet | unbound | unassessed |  |
+| CreateConfigurationSet | unbound | unassessed |  |
+| CreateConfigurationSetEventDestination | unbound | unassessed |  |
+| CreateConfigurationSetTrackingOptions | unbound | unassessed |  |
+| CreateCustomVerificationEmailTemplate | unbound | unassessed |  |
+| CreateReceiptFilter | unbound | unassessed |  |
+| CreateReceiptRule | unbound | unassessed |  |
+| CreateReceiptRuleSet | unbound | unassessed |  |
+| CreateTemplate | unbound | unassessed |  |
+| DeleteConfigurationSet | unbound | unassessed |  |
+| DeleteConfigurationSetEventDestination | unbound | unassessed |  |
+| DeleteConfigurationSetTrackingOptions | unbound | unassessed |  |
+| DeleteCustomVerificationEmailTemplate | unbound | unassessed |  |
+| DeleteIdentity | unbound | unassessed |  |
+| DeleteIdentityPolicy | unbound | unassessed |  |
+| DeleteReceiptFilter | unbound | unassessed |  |
+| DeleteReceiptRule | unbound | unassessed |  |
+| DeleteReceiptRuleSet | unbound | unassessed |  |
+| DeleteTemplate | unbound | unassessed |  |
+| DeleteVerifiedEmailAddress | unbound | unassessed |  |
+| DescribeActiveReceiptRuleSet | unbound | unassessed |  |
+| DescribeConfigurationSet | unbound | unassessed |  |
+| DescribeReceiptRule | unbound | unassessed |  |
+| DescribeReceiptRuleSet | unbound | unassessed |  |
+| GetAccountSendingEnabled | unbound | unassessed |  |
+| GetCustomVerificationEmailTemplate | unbound | unassessed |  |
+| GetIdentityDkimAttributes | unbound | unassessed |  |
+| GetIdentityMailFromDomainAttributes | unbound | unassessed |  |
+| GetIdentityNotificationAttributes | unbound | unassessed |  |
+| GetIdentityPolicies | unbound | unassessed |  |
+| GetIdentityVerificationAttributes | unbound | unassessed |  |
+| GetSendQuota | unbound | unassessed |  |
+| GetSendStatistics | unbound | unassessed |  |
+| GetTemplate | unbound | unassessed |  |
+| ListConfigurationSets | unbound | unassessed |  |
+| ListCustomVerificationEmailTemplates | unbound | unassessed |  |
+| ListIdentities | unbound | unassessed |  |
+| ListIdentityPolicies | unbound | unassessed |  |
+| ListReceiptFilters | unbound | unassessed |  |
+| ListReceiptRuleSets | unbound | unassessed |  |
+| ListTemplates | unbound | unassessed |  |
+| ListVerifiedEmailAddresses | unbound | unassessed |  |
+| PutConfigurationSetDeliveryOptions | unbound | unassessed |  |
+| PutIdentityPolicy | unbound | unassessed |  |
+| ReorderReceiptRuleSet | unbound | unassessed |  |
+| SendBounce | unbound | unassessed |  |
+| SendBulkTemplatedEmail | unbound | unassessed |  |
+| SendCustomVerificationEmail | unbound | unassessed |  |
+| SendEmail | unbound | unassessed |  |
+| SendRawEmail | unbound | unassessed |  |
+| SendTemplatedEmail | unbound | unassessed |  |
+| SetActiveReceiptRuleSet | unbound | unassessed |  |
+| SetIdentityDkimEnabled | unbound | unassessed |  |
+| SetIdentityFeedbackForwardingEnabled | unbound | unassessed |  |
+| SetIdentityHeadersInNotificationsEnabled | unbound | unassessed |  |
+| SetIdentityMailFromDomain | unbound | unassessed |  |
+| SetIdentityNotificationTopic | unbound | unassessed |  |
+| SetReceiptRulePosition | unbound | unassessed |  |
+| TestRenderTemplate | unbound | unassessed |  |
+| UpdateAccountSendingEnabled | unbound | unassessed |  |
+| UpdateConfigurationSetEventDestination | unbound | unassessed |  |
+| UpdateConfigurationSetReputationMetricsEnabled | unbound | unassessed |  |
+| UpdateConfigurationSetSendingEnabled | unbound | unassessed |  |
+| UpdateConfigurationSetTrackingOptions | unbound | unassessed |  |
+| UpdateCustomVerificationEmailTemplate | unbound | unassessed |  |
+| UpdateReceiptRule | unbound | unassessed |  |
+| UpdateTemplate | unbound | unassessed |  |
+| VerifyDomainDkim | unbound | unassessed |  |
+| VerifyDomainIdentity | unbound | unassessed |  |
+| VerifyEmailAddress | unbound | unassessed |  |
+| VerifyEmailIdentity | unbound | unassessed |  |
+
+### sesv2
+
+| Operation | Status | Evidence | Note |
+|---|---|---|---|
+| AssociateEmailIdentityCertificate | unbound | unassessed |  |
+| BatchGetMetricData | unbound | unassessed |  |
+| CancelExportJob | unbound | unassessed |  |
+| CreateConfigurationSet | unbound | unassessed |  |
+| CreateConfigurationSetEventDestination | unbound | unassessed |  |
+| CreateContact | unbound | unassessed |  |
+| CreateContactList | unbound | unassessed |  |
+| CreateCustomVerificationEmailTemplate | unbound | unassessed |  |
+| CreateDedicatedIpPool | unbound | unassessed |  |
+| CreateDeliverabilityTestReport | unbound | unassessed |  |
+| CreateEmailIdentity | unbound | unassessed |  |
+| CreateEmailIdentityPolicy | unbound | unassessed |  |
+| CreateEmailTemplate | unbound | unassessed |  |
+| CreateExportJob | unbound | unassessed |  |
+| CreateImportJob | unbound | unassessed |  |
+| CreateMultiRegionEndpoint | unbound | unassessed |  |
+| CreateTenant | unbound | unassessed |  |
+| CreateTenantResourceAssociation | unbound | unassessed |  |
+| DeleteConfigurationSet | unbound | unassessed |  |
+| DeleteConfigurationSetEventDestination | unbound | unassessed |  |
+| DeleteContact | unbound | unassessed |  |
+| DeleteContactList | unbound | unassessed |  |
+| DeleteCustomVerificationEmailTemplate | unbound | unassessed |  |
+| DeleteDedicatedIpPool | unbound | unassessed |  |
+| DeleteEmailIdentity | unbound | unassessed |  |
+| DeleteEmailIdentityPolicy | unbound | unassessed |  |
+| DeleteEmailTemplate | unbound | unassessed |  |
+| DeleteMultiRegionEndpoint | unbound | unassessed |  |
+| DeleteSuppressedDestination | unbound | unassessed |  |
+| DeleteTenant | unbound | unassessed |  |
+| DeleteTenantResourceAssociation | unbound | unassessed |  |
+| DisassociateEmailIdentityCertificate | unbound | unassessed |  |
+| GetAccount | unbound | unassessed |  |
+| GetBlacklistReports | unbound | unassessed |  |
+| GetConfigurationSet | unbound | unassessed |  |
+| GetConfigurationSetEventDestinations | unbound | unassessed |  |
+| GetContact | unbound | unassessed |  |
+| GetContactList | unbound | unassessed |  |
+| GetCustomVerificationEmailTemplate | unbound | unassessed |  |
+| GetDedicatedIp | unbound | unassessed |  |
+| GetDedicatedIpPool | unbound | unassessed |  |
+| GetDedicatedIps | unbound | unassessed |  |
+| GetDeliverabilityDashboardOptions | unbound | unassessed |  |
+| GetDeliverabilityTestReport | unbound | unassessed |  |
+| GetDomainDeliverabilityCampaign | unbound | unassessed |  |
+| GetDomainStatisticsReport | unbound | unassessed |  |
+| GetEmailAddressInsights | unbound | unassessed |  |
+| GetEmailIdentity | unbound | unassessed |  |
+| GetEmailIdentityPolicies | unbound | unassessed |  |
+| GetEmailTemplate | unbound | unassessed |  |
+| GetExportJob | unbound | unassessed |  |
+| GetImportJob | unbound | unassessed |  |
+| GetMessageInsights | unbound | unassessed |  |
+| GetMultiRegionEndpoint | unbound | unassessed |  |
+| GetReputationEntity | unbound | unassessed |  |
+| GetSuppressedDestination | unbound | unassessed |  |
+| GetTenant | unbound | unassessed |  |
+| ListConfigurationSets | unbound | unassessed |  |
+| ListContactLists | unbound | unassessed |  |
+| ListContacts | unbound | unassessed |  |
+| ListCustomVerificationEmailTemplates | unbound | unassessed |  |
+| ListDedicatedIpPools | unbound | unassessed |  |
+| ListDeliverabilityTestReports | unbound | unassessed |  |
+| ListDomainDeliverabilityCampaigns | unbound | unassessed |  |
+| ListEmailIdentities | unbound | unassessed |  |
+| ListEmailIdentityCertificates | unbound | unassessed |  |
+| ListEmailTemplates | unbound | unassessed |  |
+| ListExportJobs | unbound | unassessed |  |
+| ListImportJobs | unbound | unassessed |  |
+| ListMultiRegionEndpoints | unbound | unassessed |  |
+| ListRecommendations | unbound | unassessed |  |
+| ListReputationEntities | unbound | unassessed |  |
+| ListResourceTenants | unbound | unassessed |  |
+| ListSuppressedDestinations | unbound | unassessed |  |
+| ListTagsForResource | unbound | unassessed |  |
+| ListTenantResources | unbound | unassessed |  |
+| ListTenants | unbound | unassessed |  |
+| PutAccountDedicatedIpWarmupAttributes | unbound | unassessed |  |
+| PutAccountDetails | unbound | unassessed |  |
+| PutAccountPricingAttributes | unbound | unassessed |  |
+| PutAccountSendingAttributes | unbound | unassessed |  |
+| PutAccountSuppressionAttributes | unbound | unassessed |  |
+| PutAccountVdmAttributes | unbound | unassessed |  |
+| PutConfigurationSetArchivingOptions | unbound | unassessed |  |
+| PutConfigurationSetDeliveryOptions | unbound | unassessed |  |
+| PutConfigurationSetReputationOptions | unbound | unassessed |  |
+| PutConfigurationSetSendingOptions | unbound | unassessed |  |
+| PutConfigurationSetSuppressionOptions | unbound | unassessed |  |
+| PutConfigurationSetTrackingOptions | unbound | unassessed |  |
+| PutConfigurationSetVdmOptions | unbound | unassessed |  |
+| PutDedicatedIpInPool | unbound | unassessed |  |
+| PutDedicatedIpPoolScalingAttributes | unbound | unassessed |  |
+| PutDedicatedIpWarmupAttributes | unbound | unassessed |  |
+| PutDeliverabilityDashboardOption | unbound | unassessed |  |
+| PutEmailIdentityConfigurationSetAttributes | unbound | unassessed |  |
+| PutEmailIdentityDkimAttributes | unbound | unassessed |  |
+| PutEmailIdentityDkimSigningAttributes | unbound | unassessed |  |
+| PutEmailIdentityFeedbackAttributes | unbound | unassessed |  |
+| PutEmailIdentityMailFromAttributes | unbound | unassessed |  |
+| PutSuppressedDestination | unbound | unassessed |  |
+| PutTenantSuppressionAttributes | unbound | unassessed |  |
+| SendBulkEmail | unbound | unassessed |  |
+| SendCustomVerificationEmail | unbound | unassessed |  |
+| SendEmail | unbound | unassessed |  |
+| TagResource | unbound | unassessed |  |
+| TestRenderEmailTemplate | unbound | unassessed |  |
+| UntagResource | unbound | unassessed |  |
+| UpdateConfigurationSet | unbound | unassessed |  |
+| UpdateConfigurationSetEventDestination | unbound | unassessed |  |
+| UpdateContact | unbound | unassessed |  |
+| UpdateContactList | unbound | unassessed |  |
+| UpdateCustomVerificationEmailTemplate | unbound | unassessed |  |
+| UpdateEmailIdentityPolicy | unbound | unassessed |  |
+| UpdateEmailTemplate | unbound | unassessed |  |
+| UpdateReputationEntityCustomerManagedStatus | unbound | unassessed |  |
+| UpdateReputationEntityPolicy | unbound | unassessed |  |
+
 ### sfn
 
 | Operation | Status | Evidence | Note |
@@ -1662,7 +1861,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 
 Corrections to the vendored models in `codegen/overlays`, one row per evidence item. The count and order, strongest evidence first, follow the label the overlay states; the Label column shows the recording's verdict where a replayed step settles or contradicts the item.
 
-341 evidence items: 50 aws-recorded, 108 third-party-recorded, 57 aws-doc, 5 sdk-source, 121 inferred.
+350 evidence items: 50 aws-recorded, 108 third-party-recorded, 57 aws-doc, 5 sdk-source, 130 inferred.
 
 | Label | Overlay | Shape | Covers | Source |
 |---|---|---|---|---|
@@ -1957,14 +2156,23 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | inferred | scheduler.json | `com.amazonaws.scheduler#AWSChronosService` | dev.understudy#throttleError | docs/research/eventbridge-buses.md#111-model-and-wire: the model declares ThrottlingException (429) on every operation while CommonErrors.html lists a 400 ThrottlingException; no recording shows which Scheduler emits; the EBB queue has no throttle case, so J14 (error-matrix.md 10) run against scheduler settles it |
 | inferred | scheduler.json | `com.amazonaws.scheduler#AWSChronosService` | dev.understudy#validationError | docs/research/eventbridge-buses.md#111-model-and-wire: the only Scheduler error recording (LocalStack test_scheduler.snapshot.json L33-L44, AWS-validated 2025-01-26) is the handler's 'Invalid Schedule Expression <expr>.' check, which shows ValidationException 400 with body key Message; UNVERIFIED: no capture shows a model-constraint violation (required, length, range, pattern, enum) or its text, so the Coral text is the cross-service rule of error-matrix.md 4; a constraint-violation step not yet in recording-queue EBB-11 (create-schedule with a 65-character Name, model length 1-64) settles it |
 | inferred | scheduler.json | `com.amazonaws.scheduler#Source` |  | docs/research/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: the model's ^(?=[/\.\-_A-Za-z0-9]+)((?!aws\.).*)\|(\$(\.[\w_-]+(\[(\d+\|\*)\])*)*)$ is a first character in [/.\-_A-Za-z0-9] with no leading aws., or a $-path suffix; a rendering of the model pattern, not an AWS behavior, so no recording case settles it |
+| inferred | ses.json | `com.amazonaws.ses#RawMessage$Data` |  | docs/research/ses.md#112-journal-only-what-is-recorded-and-how-tests-read-it: the raw MIME of a send (up to 10 MB, 2.2) is the sender's mail, which the journal must not keep; the model marks no send content sensitive |
+| inferred | ses.json | `com.amazonaws.ses#SendEmailRequest$Message` |  | docs/research/ses.md#112-journal-only-what-is-recorded-and-how-tests-read-it: the subject and bodies of a send are the sender's mail, which the journal must not keep; the model marks no send content sensitive, so the generated Redact() would journal it whole |
+| inferred | ses.json | `com.amazonaws.ses#SendTemplatedEmailRequest$TemplateData` |  | docs/research/ses.md#112-journal-only-what-is-recorded-and-how-tests-read-it: TemplateData holds the replacement values of a templated send (4.3), part of the sender's mail, which the journal must not keep; the model marks no send content sensitive |
 | inferred | ses.json | `com.amazonaws.ses#SimpleEmailService` | dev.understudy#denialError | docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: no source names the SES v1 denial and its model declares none; it takes the Query services' AccessDenied, 403, as STS answers (recorded) and IAM is inferred to; UNVERIFIED until recording IAM-ENF-38 |
 | inferred | ses.json | `com.amazonaws.ses#SimpleEmailService` | dev.understudy#throttleError | docs/research/ses.md#114-fidelity-switches: the note names Code Throttling (AWS blog, 3.3) as the v1 throttle identity rather than CommonErrors.html's ThrottlingException; its 400 status is UNVERIFIED until recording SES-21 |
 | inferred | ses.json | `com.amazonaws.ses#SimpleEmailService` | dev.understudy#validationError | docs/research/ses.md#114-fidelity-switches: the note names InvalidParameterValue 400 as the v1 validation identity, extrapolated from v1 SendEmail's tag check (third-party-recorded 2024-07-30, https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/ses/test_ses.snapshot.json#L592-L735), a handler check on MessageTagName and MessageTagValue, which carry no model constraints; no recording shows what a v1 required, enum, length, range or pattern violation answers, and CommonErrors v1 also lists MissingParameter 400 and ValidationError 400 (3.3); UNVERIFIED, and no case in the section 12 recording queue settles it yet |
 | inferred | ses.json | `com.amazonaws.ses#SimpleEmailService` | dev.understudy#queryErrorEnvelope | docs/research/ses.md#31-v1-awsquery: a captured, not recorded, SES ErrorResponse carries the service xmlns and no Detail, as recorded for SNS, IAM, STS and CloudWatch; UNVERIFIED until recording SES-01 |
 | inferred | ses.json | `com.amazonaws.ses#Throttling` |  | docs/research/ses.md#33-error-tables: sending-rate throttling is Code Throttling with 'Maximum sending rate exceeded.' (AWS blog, 2013-02-01); the 400 status is UNVERIFIED until recording SES-21 |
+| inferred | sesv2.json | `com.amazonaws.sesv2#Attachment$RawContent` |  | docs/research/ses.md#112-journal-only-what-is-recorded-and-how-tests-read-it: attachment contents are the sender's mail, which the journal must not keep; the model marks no send content sensitive |
+| inferred | sesv2.json | `com.amazonaws.sesv2#Message$Body` |  | docs/research/ses.md#112-journal-only-what-is-recorded-and-how-tests-read-it: the bodies of a Simple send are the sender's mail, which the journal must not keep; the model marks no send content sensitive |
+| inferred | sesv2.json | `com.amazonaws.sesv2#Message$Subject` |  | docs/research/ses.md#112-journal-only-what-is-recorded-and-how-tests-read-it: the subject of a Simple send is the sender's mail, which the journal must not keep; the model marks no send content sensitive |
+| inferred | sesv2.json | `com.amazonaws.sesv2#RawMessage$Data` |  | docs/research/ses.md#112-journal-only-what-is-recorded-and-how-tests-read-it: the raw MIME of a send (up to 40 MB, 2.2) is the sender's mail, which the journal must not keep; the model marks no send content sensitive |
 | inferred | sesv2.json | `com.amazonaws.sesv2#SimpleEmailService_v2` | dev.understudy#denialError | docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: no source names the SES v2 denial and its model declares no AccessDeniedException, so the generic com.amazon.coral.service#AccessDeniedException, 403, answers; UNVERIFIED until recording IAM-ENF-39 |
 | inferred | sesv2.json | `com.amazonaws.sesv2#SimpleEmailService_v2` | dev.understudy#throttleError | docs/research/ses.md#114-fidelity-switches: https://docs.aws.amazon.com/ses/latest/APIReference-V2/API_SendEmail.html#API_SendEmail_Errors lists TooManyRequestsException 429 'Too many requests have been made to the operation.'; the model declares it on all 116 v2 operations, and docs/research/ses.md#114-fidelity-switches names it as the v2 throttle error (3.3 lists it at 429); https://docs.aws.amazon.com/ses/latest/APIReference-V2/CommonErrors.html also lists ThrottlingException 400 'Your request rate is too high.', so taking the per-operation error over it is inferred; which one a throttled v2 call returns is UNVERIFIED, and no case in the section 12 recording queue settles it yet |
 | inferred | sesv2.json | `com.amazonaws.sesv2#SimpleEmailService_v2` | dev.understudy#validationError | docs/research/ses.md#114-fidelity-switches: the note names BadRequestException 400 as the v2 validation identity; its text 'The input you provided is invalid.' and its declaration on all 116 v2 operations come from the model, and https://docs.aws.amazon.com/ses/latest/APIReference-V2/CommonErrors.html also lists ValidationError 400; no recording shows what a v2 required, enum, length, range or pattern violation answers, and SES-23 (4.4) records service checks on Content and FromEmailAddress, which the model does not constrain; UNVERIFIED, and no case in the section 12 recording queue settles it yet (a raw POST /v2/email/identities with EmailIdentity "", com.amazonaws.sesv2#Identity length min 1, would) |
+| inferred | sesv2.json | `com.amazonaws.sesv2#Template$TemplateContent` |  | docs/research/ses.md#112-journal-only-what-is-recorded-and-how-tests-read-it: inline template content (4.4) is the sender's mail, which the journal must not keep; the model marks no send content sensitive |
+| inferred | sesv2.json | `com.amazonaws.sesv2#Template$TemplateData` |  | docs/research/ses.md#112-journal-only-what-is-recorded-and-how-tests-read-it: TemplateData holds the replacement values of a templated send (4.4), part of the sender's mail, which the journal must not keep; the model marks no send content sensitive |
 | inferred | sfn.json | `com.amazon.coral.service#AccessDeniedException` |  | docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: 400 as every plain awsJson service of 12.3 (DynamoDB, EventBridge, Logs, KMS, Secrets Manager); 3.3 rules out the CommonErrors 403 template as sole ground; switch sfn.denial.status, UNVERIFIED until recording SFN-15 (docs/research/stepfunctions-api.md#1416-sfn-15-denials-and-lambda-service-errors) |
 | inferred | sfn.json | `com.amazonaws.sfn#AWSStepFunctions` | dev.understudy#denialError | docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: no source names the Step Functions denial and its model declares no AccessDeniedException, so the generic com.amazon.coral.service#AccessDeniedException answers with that awsJson1_0 __type, at 400 as every plain awsJson service of 12.3 (switch sfn.denial.status); UNVERIFIED until recording SFN-15 (stepfunctions-api.md 14.16) or IAM-ENF-40 |
 | inferred | sfn.json | `com.amazonaws.sfn#AWSStepFunctions` | dev.understudy#throttleError | docs/research/stepfunctions-api.md#32-error-identities-and-statuses: code ThrottlingException, HTTP 400 and SDK retry are documented at https://docs.aws.amazon.com/step-functions/latest/apireference/CommonErrors.html, which shows the bare name only; UNVERIFIED (SFN-01): the awsJson1_0 __type namespace com.amazon.coral.service# and the message key casing; recording-queue SFN-01 (stepfunctions-api.md 14.2) settles it |

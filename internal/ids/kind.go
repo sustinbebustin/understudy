@@ -68,6 +68,17 @@ const (
 	// so EventBridge deliveries never shift an execution's retry delays
 	// (ADR 0018).
 	KindSFNJitter
+	// KindSESMessageID is the random part of an SES MessageId (ses.md 4.7).
+	KindSESMessageID
+	// KindSESDomainToken is an SES domain verification token: 32 bytes
+	// encoded as 44 base64 characters (ses.md 5.3).
+	KindSESDomainToken
+	// KindSESDkimToken is the Easy DKIM tokens of an SES v2 domain identity,
+	// whose format is unrecorded (ses.md 5.4, SES-13).
+	KindSESDkimToken
+	// KindSESLinkToken is the token of an SES verification link (ses.md
+	// 11.3).
+	KindSESLinkToken
 
 	// endKind follows the last kind and is no kind: kindCount counts up to
 	// it, so a new kind is one line above it plus its String case.
@@ -147,6 +158,14 @@ func (k Kind) String() string {
 		return "sfn-math-random"
 	case KindSFNJitter:
 		return "sfn-jitter"
+	case KindSESMessageID:
+		return "ses-message-id"
+	case KindSESDomainToken:
+		return "ses-domain-token"
+	case KindSESDkimToken:
+		return "ses-dkim-token"
+	case KindSESLinkToken:
+		return "ses-link-token"
 	}
 	return fmt.Sprintf("kind(%d)", uint8(k))
 }

@@ -967,7 +967,7 @@ var schemaPutIdentityPolicyOutput = smithy.Schema{ID: "com.amazonaws.ses#PutIden
 
 var schemaRawMessage = smithy.Schema{ID: "com.amazonaws.ses#RawMessage", Type: smithy.TypeStructure}
 
-var memberRawMessage_Data = smithy.Member{Name: "Data", Index: 0, Required: true}
+var memberRawMessage_Data = smithy.Member{Name: "Data", Index: 0, Required: true, Sensitive: true}
 
 var schemaRawMessageData = smithy.Schema{ID: "com.amazonaws.ses#RawMessageData", Type: smithy.TypeBlob}
 
@@ -1219,7 +1219,7 @@ var memberSendEmailInput_Source = smithy.Member{Name: "Source", Index: 0, Requir
 
 var memberSendEmailInput_Destination = smithy.Member{Name: "Destination", Index: 1, Required: true}
 
-var memberSendEmailInput_Message = smithy.Member{Name: "Message", Index: 2, Required: true}
+var memberSendEmailInput_Message = smithy.Member{Name: "Message", Index: 2, Required: true, Sensitive: true}
 
 var memberSendEmailInput_ReplyToAddresses = smithy.Member{Name: "ReplyToAddresses", Index: 3}
 
@@ -1281,7 +1281,7 @@ var memberSendTemplatedEmailInput_Template = smithy.Member{Name: "Template", Ind
 
 var memberSendTemplatedEmailInput_TemplateArn = smithy.Member{Name: "TemplateArn", Index: 9}
 
-var memberSendTemplatedEmailInput_TemplateData = smithy.Member{Name: "TemplateData", Index: 10, Required: true}
+var memberSendTemplatedEmailInput_TemplateData = smithy.Member{Name: "TemplateData", Index: 10, Required: true, Sensitive: true}
 
 var schemaSendTemplatedEmailOutput = smithy.Schema{ID: "com.amazonaws.ses#SendTemplatedEmailResponse", Type: smithy.TypeStructure}
 

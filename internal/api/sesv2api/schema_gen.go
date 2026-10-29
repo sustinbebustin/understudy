@@ -61,7 +61,7 @@ var schemaAssociateEmailIdentityCertificateOutput = smithy.Schema{ID: "com.amazo
 
 var schemaAttachment = smithy.Schema{ID: "com.amazonaws.sesv2#Attachment", Type: smithy.TypeStructure}
 
-var memberAttachment_RawContent = smithy.Member{Name: "RawContent", Index: 0, Required: true}
+var memberAttachment_RawContent = smithy.Member{Name: "RawContent", Index: 0, Required: true, Sensitive: true}
 
 var memberAttachment_ContentDisposition = smithy.Member{Name: "ContentDisposition", Index: 1}
 
@@ -2003,9 +2003,9 @@ var schemaMaxSendRate = smithy.Schema{ID: "com.amazonaws.sesv2#MaxSendRate", Typ
 
 var schemaMessage = smithy.Schema{ID: "com.amazonaws.sesv2#Message", Type: smithy.TypeStructure}
 
-var memberMessage_Subject = smithy.Member{Name: "Subject", Index: 0, Required: true}
+var memberMessage_Subject = smithy.Member{Name: "Subject", Index: 0, Required: true, Sensitive: true}
 
-var memberMessage_Body = smithy.Member{Name: "Body", Index: 1, Required: true}
+var memberMessage_Body = smithy.Member{Name: "Body", Index: 1, Required: true, Sensitive: true}
 
 var memberMessage_Headers = smithy.Member{Name: "Headers", Index: 2}
 
@@ -2449,7 +2449,7 @@ var schemaRawAttachmentData = smithy.Schema{ID: "com.amazonaws.sesv2#RawAttachme
 
 var schemaRawMessage = smithy.Schema{ID: "com.amazonaws.sesv2#RawMessage", Type: smithy.TypeStructure}
 
-var memberRawMessage_Data = smithy.Member{Name: "Data", Index: 0, Required: true}
+var memberRawMessage_Data = smithy.Member{Name: "Data", Index: 0, Required: true, Sensitive: true}
 
 var schemaRawMessageData = smithy.Schema{ID: "com.amazonaws.sesv2#RawMessageData", Type: smithy.TypeBlob}
 
@@ -2849,9 +2849,9 @@ var memberTemplate_TemplateName = smithy.Member{Name: "TemplateName", Index: 0}
 
 var memberTemplate_TemplateArn = smithy.Member{Name: "TemplateArn", Index: 1}
 
-var memberTemplate_TemplateContent = smithy.Member{Name: "TemplateContent", Index: 2}
+var memberTemplate_TemplateContent = smithy.Member{Name: "TemplateContent", Index: 2, Sensitive: true}
 
-var memberTemplate_TemplateData = smithy.Member{Name: "TemplateData", Index: 3}
+var memberTemplate_TemplateData = smithy.Member{Name: "TemplateData", Index: 3, Sensitive: true}
 
 var memberTemplate_Headers = smithy.Member{Name: "Headers", Index: 4}
 

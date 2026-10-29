@@ -32,6 +32,36 @@
         ]
       }
     },
+    "com.amazonaws.ses#SendEmailRequest$Message": {
+      "type": "apply",
+      "traits": {
+        "smithy.api#sensitive": {},
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/ses.md#112-journal-only-what-is-recorded-and-how-tests-read-it: the subject and bodies of a send are the sender's mail, which the journal must not keep; the model marks no send content sensitive, so the generated Redact() would journal it whole"
+        }
+      }
+    },
+    "com.amazonaws.ses#RawMessage$Data": {
+      "type": "apply",
+      "traits": {
+        "smithy.api#sensitive": {},
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/ses.md#112-journal-only-what-is-recorded-and-how-tests-read-it: the raw MIME of a send (up to 10 MB, 2.2) is the sender's mail, which the journal must not keep; the model marks no send content sensitive"
+        }
+      }
+    },
+    "com.amazonaws.ses#SendTemplatedEmailRequest$TemplateData": {
+      "type": "apply",
+      "traits": {
+        "smithy.api#sensitive": {},
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/ses.md#112-journal-only-what-is-recorded-and-how-tests-read-it: TemplateData holds the replacement values of a templated send (4.3), part of the sender's mail, which the journal must not keep; the model marks no send content sensitive"
+        }
+      }
+    },
     "com.amazonaws.ses#Throttling": {
       "type": "structure",
       "members": {

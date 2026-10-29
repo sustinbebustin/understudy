@@ -89,6 +89,10 @@ export const idKindLabels: Readonly<Record<string, string>> = {
   "sfn-uuid": "Step Functions States.UUID",
   "sfn-math-random": "Step Functions States.MathRandom",
   "sfn-jitter": "Step Functions retry jitter seed",
+  "ses-message-id": "SES message ID",
+  "ses-domain-token": "SES domain verification token",
+  "ses-dkim-token": "SES DKIM token",
+  "ses-link-token": "SES verification link token",
 };
 
 // label returns table's label for name, or name when it has none.

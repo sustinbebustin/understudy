@@ -1195,10 +1195,10 @@ func (v *SendTemplatedEmailInput) validate(path awserr.Path, out *[]awserr.Viola
 		*out = append(*out, awserr.Violation{Path: at(path, "templateData"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if utf8.RuneCountInString(v.TemplateData) > 262144 {
-			*out = append(*out, awserr.Violation{Path: at(path, "templateData"), Value: awserr.RenderedText{Text: v.TemplateData}, Constraint: awserr.LengthMax{Max: 262144}})
+			*out = append(*out, awserr.Violation{Path: at(path, "templateData"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 262144}})
 		}
 		if utf8.RuneCountInString(v.TemplateData) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "templateData"), Value: awserr.RenderedText{Text: v.TemplateData}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "templateData"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 	}
 }

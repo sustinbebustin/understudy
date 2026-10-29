@@ -94,7 +94,11 @@ func (v *CreateDedicatedIpPoolOutput) Redact() *CreateDedicatedIpPoolOutput {
 
 // Redact returns v with its sensitive members cleared.
 func (v *CreateDeliverabilityTestReportInput) Redact() *CreateDeliverabilityTestReportInput {
-	return v
+	if v == nil {
+		return nil
+	}
+	c := v.redacted()
+	return &c
 }
 
 // Redact returns v with its sensitive members cleared.
@@ -1042,7 +1046,11 @@ func (v *PutTenantSuppressionAttributesOutput) Redact() *PutTenantSuppressionAtt
 
 // Redact returns v with its sensitive members cleared.
 func (v *SendBulkEmailInput) Redact() *SendBulkEmailInput {
-	return v
+	if v == nil {
+		return nil
+	}
+	c := v.redacted()
+	return &c
 }
 
 // Redact returns v with its sensitive members cleared.
@@ -1062,7 +1070,11 @@ func (v *SendCustomVerificationEmailOutput) Redact() *SendCustomVerificationEmai
 
 // Redact returns v with its sensitive members cleared.
 func (v *SendEmailInput) Redact() *SendEmailInput {
-	return v
+	if v == nil {
+		return nil
+	}
+	c := v.redacted()
+	return &c
 }
 
 // Redact returns v with its sensitive members cleared.
@@ -1190,6 +1202,11 @@ func (v *UpdateReputationEntityPolicyOutput) Redact() *UpdateReputationEntityPol
 	return v
 }
 
+func (v CreateDeliverabilityTestReportInput) redacted() CreateDeliverabilityTestReportInput {
+	v.Content = v.Content.redacted()
+	return v
+}
+
 func (v CreateEmailIdentityInput) redacted() CreateEmailIdentityInput {
 	if v.DkimSigningAttributes != nil {
 		c := v.DkimSigningAttributes.redacted()
@@ -1241,6 +1258,32 @@ func (v PutEmailIdentityDkimSigningAttributesInput) redacted() PutEmailIdentityD
 	return v
 }
 
+func (v SendBulkEmailInput) redacted() SendBulkEmailInput {
+	v.DefaultContent = v.DefaultContent.redacted()
+	return v
+}
+
+func (v SendEmailInput) redacted() SendEmailInput {
+	v.Content = v.Content.redacted()
+	return v
+}
+
+func (v EmailContent) redacted() EmailContent {
+	if v.Simple != nil {
+		c := v.Simple.redacted()
+		v.Simple = &c
+	}
+	if v.Raw != nil {
+		c := v.Raw.redacted()
+		v.Raw = &c
+	}
+	if v.Template != nil {
+		c := v.Template.redacted()
+		v.Template = &c
+	}
+	return v
+}
+
 func (v DkimSigningAttributes) redacted() DkimSigningAttributes {
 	v.DomainSigningPrivateKey = redactedPtr(v.DomainSigningPrivateKey)
 	return v
@@ -1272,6 +1315,33 @@ func redactEmailInsightsList(v []EmailInsights) []EmailInsights {
 	return out
 }
 
+func (v BulkEmailContent) redacted() BulkEmailContent {
+	if v.Template != nil {
+		c := v.Template.redacted()
+		v.Template = &c
+	}
+	return v
+}
+
+func (v Message) redacted() Message {
+	v.Subject = *new(Content)
+	v.Body = *new(Body)
+	v.Attachments = redactAttachmentList(v.Attachments)
+	return v
+}
+
+func (v RawMessage) redacted() RawMessage {
+	v.Data = nil
+	return v
+}
+
+func (v Template) redacted() Template {
+	v.TemplateContent = nil
+	v.TemplateData = redactedPtr(v.TemplateData)
+	v.Attachments = redactAttachmentList(v.Attachments)
+	return v
+}
+
 func (v MessageInsightsDataSource) redacted() MessageInsightsDataSource {
 	if v.Include != nil {
 		c := v.Include.redacted()
@@ -1289,10 +1359,26 @@ func (v EmailInsights) redacted() EmailInsights {
 	return v
 }
 
+func redactAttachmentList(v []Attachment) []Attachment {
+	if v == nil {
+		return nil
+	}
+	out := make([]Attachment, len(v))
+	for i, e := range v {
+		out[i] = e.redacted()
+	}
+	return out
+}
+
 func (v MessageInsightsFilters) redacted() MessageInsightsFilters {
 	v.FromEmailAddress = redactEmailAddressFilterList(v.FromEmailAddress)
 	v.Destination = redactEmailAddressFilterList(v.Destination)
 	v.Subject = redactEmailSubjectFilterList(v.Subject)
+	return v
+}
+
+func (v Attachment) redacted() Attachment {
+	v.RawContent = nil
 	return v
 }
 

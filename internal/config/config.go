@@ -37,9 +37,12 @@ type Config struct {
 	Lambda       Lambda
 	SQS          SQS
 	SNS          SNS
-	IAM          IAM
-	DynamoDB     DynamoDB
-	Journal      Journal
+	// SES is not read from any source yet: its keys are not implemented,
+	// so it is always the zero value.
+	SES      SES
+	IAM      IAM
+	DynamoDB DynamoDB
+	Journal  Journal
 	// Faults are fault rules active from the start.
 	Faults []fault.Rule
 	Log    Log
@@ -352,6 +355,25 @@ type SNSHTTPDelivery struct {
 	// certificates an https endpoint may chain to beside the system roots;
 	// nil when unset.
 	CABundle []*x509.Certificate
+}
+
+// SES holds the SES settings (ses.md 11.3).
+type SES struct {
+	// VerifiedIdentities is ses.verifiedIdentities classified.
+	VerifiedIdentities SESVerifiedIdentities
+	// ProductionAccess is ses.productionAccess: true takes every account
+	// and Region out of the sandbox.
+	ProductionAccess bool
+}
+
+// SESVerifiedIdentities is ses.verifiedIdentities, each entry in its class:
+// an exact address (case-sensitive), a domain (stored lower case) or
+// "*@domain" (its domain, stored lower case). Load refuses any other entry,
+// naming it.
+type SESVerifiedIdentities struct {
+	Addresses      []string
+	Domains        []string
+	AddressDomains []string
 }
 
 // IAM holds the IAM and STS settings.

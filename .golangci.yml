@@ -122,6 +122,9 @@ linters:
           list-mode: strict
           files: ["!$test"]
           allow: [$gostd, github.com/sustinbebustin/understudy]
+          deny:
+            - pkg: net/smtp
+              desc: understudy never sends mail; SES is journal-only (docs/research/ses.md 11.8, ADR 0015)
         tests:
           list-mode: strict
           files: ["$test"]

@@ -208,6 +208,10 @@ func importRules() []importRule {
 		// Never the kernel, clock, ids or store the service row allows; the
 		// service hands it times, draws and events.
 		{"internal/service/sfn/asl/...", []string{"internal/service/sfn/asl/...", "internal/protocol/smithy/document", "internal/protocol/jsonx"}},
+		// SES is journal-only: nothing is ever sent, so it gets the service
+		// rule and nothing more, in particular never internal/egress (ses.md
+		// 11.8); net/smtp is a depguard deny in .golangci.yml.
+		{"internal/service/ses", service},
 
 		// The AWS managed policy catalogue: the embedded data files import
 		// nothing, and the typed catalogue reads them and checks names and

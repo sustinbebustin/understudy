@@ -484,7 +484,11 @@ func (v *SendCustomVerificationEmailOutput) Redact() *SendCustomVerificationEmai
 
 // Redact returns v with its sensitive members cleared.
 func (v *SendEmailInput) Redact() *SendEmailInput {
-	return v
+	if v == nil {
+		return nil
+	}
+	c := v.redacted()
+	return &c
 }
 
 // Redact returns v with its sensitive members cleared.
@@ -494,7 +498,11 @@ func (v *SendEmailOutput) Redact() *SendEmailOutput {
 
 // Redact returns v with its sensitive members cleared.
 func (v *SendRawEmailInput) Redact() *SendRawEmailInput {
-	return v
+	if v == nil {
+		return nil
+	}
+	c := v.redacted()
+	return &c
 }
 
 // Redact returns v with its sensitive members cleared.
@@ -504,7 +512,11 @@ func (v *SendRawEmailOutput) Redact() *SendRawEmailOutput {
 
 // Redact returns v with its sensitive members cleared.
 func (v *SendTemplatedEmailInput) Redact() *SendTemplatedEmailInput {
-	return v
+	if v == nil {
+		return nil
+	}
+	c := v.redacted()
+	return &c
 }
 
 // Redact returns v with its sensitive members cleared.
@@ -711,3 +723,26 @@ func (v *VerifyEmailIdentityInput) Redact() *VerifyEmailIdentityInput {
 func (v *VerifyEmailIdentityOutput) Redact() *VerifyEmailIdentityOutput {
 	return v
 }
+
+func (v SendEmailInput) redacted() SendEmailInput {
+	v.Message = *new(Message)
+	return v
+}
+
+func (v SendRawEmailInput) redacted() SendRawEmailInput {
+	v.RawMessage = v.RawMessage.redacted()
+	return v
+}
+
+func (v SendTemplatedEmailInput) redacted() SendTemplatedEmailInput {
+	v.TemplateData = redactedText
+	return v
+}
+
+func (v RawMessage) redacted() RawMessage {
+	v.Data = nil
+	return v
+}
+
+// redactedText stands in for a sensitive string the client sent.
+const redactedText = "[redacted]"
