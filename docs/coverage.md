@@ -130,7 +130,7 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | s3 | 112 | 22 | 39 | 25 | 26 | 0 | 3 |
 | secretsmanager | 23 | 1 | 0 | 14 | 8 | 0 | 0 |
 | ses | 71 | 3 | 0 | 6 | 62 | 0 | 1 |
-| sesv2 | 116 | 2 | 0 | 6 | 108 | 0 | 0 |
+| sesv2 | 116 | 2 | 0 | 7 | 107 | 0 | 0 |
 | sfn | 37 | 7 | 0 | 9 | 21 | 0 | 0 |
 | sns | 42 | 12 | 0 | 7 | 23 | 0 | 3 |
 | sqs | 23 | 16 | 0 | 7 | 0 | 2 | 0 |
@@ -1225,6 +1225,7 @@ Raw operations:
 | GetAccount | partial | unassessed | ProductionAccessEnabled and SendQuota from understudy state; SendingEnabled true, since account sending cannot be paused yet; EnforcementStatus HEALTHY; no dedicated IP, VDM, pricing, suppression or account details |
 | ListEmailIdentities | partial | unassessed | the GET /v2/email/identities binding sent by SDKs generated before 2026-09-29 is not routed and answers sesv2's unknown operation |
 | ListTagsForResource | partial | unassessed | identity ARNs only; a template ARN answers NotFoundException until the v2 template operations land; an identity ARN with an empty account field names the caller's account, as Terraform sends it under skip_requesting_account_id (what AWS answers is unrecorded) |
+| SendEmail | partial | unassessed | journal-only as the v1 sends, for Simple (with Headers and Attachments) and Raw content; FeedbackForwardingEmailAddress must be verified, as ReturnPath (inferred); Template content, ConfigurationSetName, ConfigurationOverrides, EndpointId, TenantName, ListManagementOptions and the identity ARN members answer NotImplemented |
 | TagResource | partial | unassessed | identity ARNs only; a template ARN answers NotFoundException until the v2 template operations land; an identity ARN with an empty account field names the caller's account, as Terraform sends it under skip_requesting_account_id (what AWS answers is unrecorded) |
 | UntagResource | partial | unassessed | identity ARNs only; a template ARN answers NotFoundException until the v2 template operations land; an identity ARN with an empty account field names the caller's account, as Terraform sends it under skip_requesting_account_id (what AWS answers is unrecorded) |
 | AssociateEmailIdentityCertificate | unbound | unassessed |  |
@@ -1324,7 +1325,6 @@ Raw operations:
 | PutTenantSuppressionAttributes | unbound | unassessed |  |
 | SendBulkEmail | unbound | unassessed |  |
 | SendCustomVerificationEmail | unbound | unassessed |  |
-| SendEmail | unbound | unassessed |  |
 | TestRenderEmailTemplate | unbound | unassessed |  |
 | UpdateConfigurationSet | unbound | unassessed |  |
 | UpdateConfigurationSetEventDestination | unbound | unassessed |  |

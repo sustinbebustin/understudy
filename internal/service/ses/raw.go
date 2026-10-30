@@ -32,22 +32,29 @@ func (s *Service) bindSendRaw(b sesapi.Binder) {
 	b.SendRawEmail(s.sendRawEmail, registry.Partial{Note: sendRawEmailCoverage},
 		kernel.WithoutSecondaryActions(),
 		kernel.WithResources(func(c *kernel.Call, in *sesapi.SendRawEmailInput) []aws.ARN {
-			if in.Source != nil {
-				if a, bad := parseAddress(*in.Source); bad == nil {
-					return []aws.ARN{identityARN(c.Scope(), a.Address)}
-				}
-				return nil
-			}
-			m, bad := readRaw(in.RawMessage.Data)
-			if bad != nil {
-				return nil
-			}
-			from, err := m.header.AddressList("From")
-			if err != nil || len(from) == 0 {
-				return nil
-			}
-			return []aws.ARN{identityARN(c.Scope(), from[0].Address)}
+			return rawSenderARN(c.Scope(), in.Source, in.RawMessage.Data)
 		}))
+}
+
+// rawSenderARN is a raw send's resource: the identity ARN of source when
+// given, else of the raw message's first From address; none when the
+// address does not parse.
+func rawSenderARN(scope aws.Scope, source *string, data []byte) []aws.ARN {
+	if source != nil {
+		if a, bad := parseAddress(*source); bad == nil {
+			return []aws.ARN{identityARN(scope, a.Address)}
+		}
+		return nil
+	}
+	m, bad := readRaw(data)
+	if bad != nil {
+		return nil
+	}
+	from, err := m.header.AddressList("From")
+	if err != nil || len(from) == 0 {
+		return nil
+	}
+	return []aws.ARN{identityARN(scope, from[0].Address)}
 }
 
 // sendRawEmail runs v1 SendRawEmail's checks in SendChecks order, model
@@ -80,46 +87,80 @@ func (s *Service) sendRawEmail(ctx context.Context, c *kernel.Call, in *sesapi.S
 	return &sesapi.SendRawEmailOutput{MessageId: id}, nil
 }
 
-// rawSend is a raw message that passed the checks needing no state: who
-// sends it, its envelope, and what its record holds besides the bytes.
-type rawSend struct {
+// checkedSend is a send that passed the checks needing no state: who sends
+// it, its envelope, and what its record holds besides blob contents.
+type checkedSend struct {
 	senders  []string
 	envelope []string
 	fill     func(r *record)
 }
 
 // checkSendRawEmail runs the v1 SendRawEmail checks that need no state
-// (SendChecks; contract 2.1): the NotImplemented members, the raw message's
-// header block and NotImplemented headers, the tags with X-SES-MESSAGE-TAGS
-// after Tags, the addresses, then the size and MIME limits, and the
-// recipient count of the envelope ses.raw.envelope picks.
-func (s *Service) checkSendRawEmail(in *sesapi.SendRawEmailInput) (*rawSend, *refusal) {
-	for _, m := range []struct {
-		member, feature string
-		set             bool
-	}{
+// (SendChecks; contract 2.1): the NotImplemented members, then checkRaw.
+func (s *Service) checkSendRawEmail(in *sesapi.SendRawEmailInput) (*checkedSend, *refusal) {
+	if r := firstUnimplemented("ses", "SendRawEmail", []unimplemented{
 		{"ConfigurationSetName", "configuration sets", in.ConfigurationSetName != nil},
 		{"SourceArn", "sending authorization", in.SourceArn != nil},
 		{"FromArn", "sending authorization", in.FromArn != nil},
 		{"ReturnPathArn", "sending authorization", in.ReturnPathArn != nil},
-	} {
-		if m.set {
-			return nil, notImplementedMember("SendRawEmail", m.member, m.feature)
-		}
-	}
-	data := in.RawMessage.Data
-	m, r := readRaw(data)
-	if r != nil {
-		return nil, r
-	}
-	if r := m.notImplemented("SendRawEmail"); r != nil {
+	}); r != nil {
 		return nil, r
 	}
 	tags := make([]Tag, 0, len(in.Tags))
 	for _, t := range in.Tags {
 		tags = append(tags, Tag{Name: t.Name, Value: t.Value})
 	}
-	tags = append(tags, m.tags()...)
+	return s.checkRaw(rawRequest{
+		svc:          "ses",
+		op:           "SendRawEmail",
+		source:       in.Source,
+		destinations: in.Destinations,
+		tags:         tags,
+		data:         in.RawMessage.Data,
+		limit:        MaxV1MessageBytes,
+	})
+}
+
+// rawRequest is a raw send's members other than its API's NotImplemented
+// ones: v1 SendRawEmail, or v2 SendEmail with Raw content (contract 2.2).
+type rawRequest struct {
+	// svc and op name the operation in a NotImplemented answer.
+	svc, op string
+	// source is v1 Source or v2 FromEmailAddress, nil when absent.
+	source *string
+	// returnPath is v2 FeedbackForwardingEmailAddress, nil when absent. When
+	// given it stands in for the Return-Path header, as a given Source takes
+	// precedence over that header for feedback (model, ses.md 4.2; inferred
+	// for v2, spec conflict row 9).
+	returnPath *string
+	// replyTo is v2 ReplyToAddresses; when given they are recorded in place
+	// of the Reply-To header's (inferred: the model calls them the
+	// message's "Reply-to" addresses, ses.md 4.4).
+	replyTo []string
+	// destinations is v1 Destinations or the v2 Destination's To, Cc and
+	// Bcc in order.
+	destinations []string
+	// tags is the request's tags; X-SES-MESSAGE-TAGS follow them.
+	tags []Tag
+	data []byte
+	// limit is the API's message size limit.
+	limit int
+}
+
+// checkRaw runs a raw send's checks that need no state, after its API's
+// NotImplemented members (SendChecks; contract 2.1, 2.2): the raw message's
+// header block and NotImplemented headers, the tags with X-SES-MESSAGE-TAGS
+// after the request's, the addresses, then the size and MIME limits, and
+// the recipient count of the envelope ses.raw.envelope picks.
+func (s *Service) checkRaw(q rawRequest) (*checkedSend, *refusal) {
+	m, r := readRaw(q.data)
+	if r != nil {
+		return nil, r
+	}
+	if r := m.notImplemented(q.svc, q.op); r != nil {
+		return nil, r
+	}
+	tags := slices.Concat(q.tags, m.tags())
 	for _, t := range tags {
 		if r := checkTag(t.Name, t.Value); r != nil {
 			return nil, r
@@ -130,28 +171,37 @@ func (s *Service) checkSendRawEmail(in *sesapi.SendRawEmailInput) (*rawSend, *re
 	if r != nil {
 		return nil, r
 	}
-	senders, from, r := addrs.senders(in.Source)
+	if q.returnPath != nil {
+		if _, r := parseAddress(*q.returnPath); r != nil {
+			return nil, r
+		}
+		addrs.returnPath = *q.returnPath
+	}
+	senders, from, r := addrs.senders(q.source)
 	if r != nil {
 		return nil, r
 	}
-	for _, d := range in.Destinations {
+	for _, d := range slices.Concat(q.destinations, q.replyTo) {
 		if _, r := parseAddress(d); r != nil {
 			return nil, r
 		}
 	}
-	if r := checkRawMessage(m, data, MaxV1MessageBytes); r != nil {
+	if len(q.replyTo) > 0 {
+		addrs.replyTo = slices.Clone(q.replyTo)
+	}
+	if r := checkRawMessage(m, q.data, q.limit); r != nil {
 		return nil, r
 	}
-	envelope := rawEnvelope(s.opts.RawEnvelope, in.Destinations, slices.Concat(addrs.to, addrs.cc, addrs.bcc))
+	envelope := rawEnvelope(s.opts.RawEnvelope, q.destinations, slices.Concat(addrs.to, addrs.cc, addrs.bcc))
 	if r := checkRecipientCount(len(envelope)); r != nil {
 		return nil, r
 	}
-	return &rawSend{
+	return &checkedSend{
 		senders:  senders,
 		envelope: envelope,
 		fill: func(r *record) {
-			if in.Source != nil {
-				r.Source = *in.Source
+			if q.source != nil {
+				r.Source = *q.source
 			}
 			r.From = from
 			r.ReplyTo = addrs.replyTo
@@ -201,18 +251,17 @@ func readRaw(data []byte) (*rawMessage, *refusal) {
 // notImplemented refuses the first X-SES header standing in for a member
 // understudy does not implement that m carries, naming it in upper case
 // (ses.md 4.2; spec conflict rows 4 and 6).
-func (m *rawMessage) notImplemented(op string) *refusal {
-	for _, h := range []struct{ name, feature string }{
-		{"X-SES-CONFIGURATION-SET", "configuration sets"},
-		{"X-SES-SOURCE-ARN", "sending authorization"},
-		{"X-SES-FROM-ARN", "sending authorization"},
-		{"X-SES-RETURN-PATH-ARN", "sending authorization"},
-	} {
-		if _, ok := m.header[textproto.CanonicalMIMEHeaderKey(h.name)]; ok {
-			return notImplementedMember(op, h.name, h.feature)
-		}
+func (m *rawMessage) notImplemented(svc, op string) *refusal {
+	has := func(name string) bool {
+		_, ok := m.header[textproto.CanonicalMIMEHeaderKey(name)]
+		return ok
 	}
-	return nil
+	return firstUnimplemented(svc, op, []unimplemented{
+		{"X-SES-CONFIGURATION-SET", "configuration sets", has("X-SES-CONFIGURATION-SET")},
+		{"X-SES-SOURCE-ARN", "sending authorization", has("X-SES-SOURCE-ARN")},
+		{"X-SES-FROM-ARN", "sending authorization", has("X-SES-FROM-ARN")},
+		{"X-SES-RETURN-PATH-ARN", "sending authorization", has("X-SES-RETURN-PATH-ARN")},
+	})
 }
 
 // tags reads every X-SES-MESSAGE-TAGS header, "name1=value1, name2=value2"

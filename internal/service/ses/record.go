@@ -47,11 +47,25 @@ type record struct {
 	Text    *Content `json:"text,omitempty"`
 	HTML    *Content `json:"html,omitempty"`
 	Headers []Header `json:"headers,omitempty"`
+	// Attachments are v2 Simple attachments, each content in its own blob.
+	Attachments []attachmentRecord `json:"attachments,omitempty"`
 	// Raw is the raw MIME's blob, nil for Simple content.
 	Raw *blob.Ref `json:"raw,omitempty"`
 
 	Tags      []Tag               `json:"tags,omitempty"`
 	Simulator map[string]Scenario `json:"simulator,omitempty"`
+}
+
+// attachmentRecord is an Attachment as a record holds it: its content in
+// internal/blob, one reference held (contract 1.3).
+type attachmentRecord struct {
+	FileName                string   `json:"fileName"`
+	ContentType             string   `json:"contentType,omitempty"`
+	ContentDisposition      string   `json:"contentDisposition,omitempty"`
+	ContentDescription      string   `json:"contentDescription,omitempty"`
+	ContentID               string   `json:"contentId,omitempty"`
+	ContentTransferEncoding string   `json:"contentTransferEncoding,omitempty"`
+	Content                 blob.Ref `json:"content"`
 }
 
 // message is r in scope, sharing no memory with the state.
@@ -63,37 +77,58 @@ func (r *record) message(scope aws.Scope) Message {
 		v := *c
 		return &v
 	}
+	// Attachments stay nil when there are none; resolve reads their
+	// contents.
+	var attachments []Attachment
+	if len(r.Attachments) > 0 {
+		attachments = make([]Attachment, 0, len(r.Attachments))
+	}
+	for _, a := range r.Attachments {
+		attachments = append(attachments, Attachment{
+			FileName:                a.FileName,
+			ContentType:             a.ContentType,
+			ContentDisposition:      a.ContentDisposition,
+			ContentDescription:      a.ContentDescription,
+			ContentID:               a.ContentID,
+			ContentTransferEncoding: a.ContentTransferEncoding,
+		})
+	}
 	return Message{
-		MessageID:  r.MessageID,
-		API:        r.API,
-		Operation:  r.Operation,
-		RequestID:  r.RequestID,
-		Scope:      scope,
-		Accepted:   r.Accepted,
-		Kind:       r.Kind,
-		Source:     r.Source,
-		From:       slices.Clone(r.From),
-		ReplyTo:    slices.Clone(r.ReplyTo),
-		ReturnPath: r.ReturnPath,
-		To:         slices.Clone(r.To),
-		Cc:         slices.Clone(r.Cc),
-		Bcc:        slices.Clone(r.Bcc),
-		Envelope:   slices.Clone(r.Envelope),
-		Subject:    clone(r.Subject),
-		Text:       clone(r.Text),
-		HTML:       clone(r.HTML),
-		Headers:    slices.Clone(r.Headers),
-		Tags:       slices.Clone(r.Tags),
-		Simulator:  maps.Clone(r.Simulator),
+		MessageID:   r.MessageID,
+		API:         r.API,
+		Operation:   r.Operation,
+		RequestID:   r.RequestID,
+		Scope:       scope,
+		Accepted:    r.Accepted,
+		Kind:        r.Kind,
+		Source:      r.Source,
+		From:        slices.Clone(r.From),
+		ReplyTo:     slices.Clone(r.ReplyTo),
+		ReturnPath:  r.ReturnPath,
+		To:          slices.Clone(r.To),
+		Cc:          slices.Clone(r.Cc),
+		Bcc:         slices.Clone(r.Bcc),
+		Envelope:    slices.Clone(r.Envelope),
+		Subject:     clone(r.Subject),
+		Text:        clone(r.Text),
+		HTML:        clone(r.HTML),
+		Headers:     slices.Clone(r.Headers),
+		Attachments: attachments,
+		Tags:        slices.Clone(r.Tags),
+		Simulator:   maps.Clone(r.Simulator),
 	}
 }
 
 // blobRefs is the blob references r holds.
 func (r *record) blobRefs() []blob.Ref {
-	if r.Raw == nil {
-		return nil
+	var refs []blob.Ref
+	if r.Raw != nil {
+		refs = append(refs, *r.Raw)
 	}
-	return []blob.Ref{*r.Raw}
+	for _, a := range r.Attachments {
+		refs = append(refs, a.Content)
+	}
+	return refs
 }
 
 // record appends r, evicting the scope's oldest record and counting it

@@ -73,7 +73,9 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 // Every other v2 operation stays unbound and answers 501.
 func NewV2(d kernel.ServiceDeps, svc *Service) *V2 {
 	v := &V2{svc: svc}
-	v.bindV2(sesv2api.NewBinder(d.Binder))
+	b := sesv2api.NewBinder(d.Binder)
+	v.bindV2(b)
+	v.bindV2Send(b)
 	return v
 }
 
@@ -167,9 +169,9 @@ func storeSwitch(v StoreSharing) fidelity.Switch[StoreSharing] {
 
 // messageIDSwitch is switch ses.message-id.format at value v. Ops are the
 // v1 operations that mint a MessageId so far: the sends, and
-// VerifyEmailIdentity for its verification email. It governs v2
-// CreateEmailIdentity's verification email too, which, being another
-// service's operation, it does not list.
+// VerifyEmailIdentity for its verification email. It governs v2 SendEmail
+// and CreateEmailIdentity's verification email too, which, being another
+// service's operations, it does not list.
 func messageIDSwitch(v MessageIDFormat) fidelity.Switch[MessageIDFormat] {
 	return fidelity.Switch[MessageIDFormat]{
 		Name:    "ses.message-id.format",
@@ -182,7 +184,9 @@ func messageIDSwitch(v MessageIDFormat) fidelity.Switch[MessageIDFormat] {
 	}
 }
 
-// unverifiedTextSwitch is switch ses.error.unverified.text at value v.
+// unverifiedTextSwitch is switch ses.error.unverified.text at value v. It
+// governs v2 SendEmail too, which, being another service's operation, it
+// does not list.
 func unverifiedTextSwitch(v UnverifiedText) fidelity.Switch[UnverifiedText] {
 	return fidelity.Switch[UnverifiedText]{
 		Name:    "ses.error.unverified.text",
@@ -196,7 +200,9 @@ func unverifiedTextSwitch(v UnverifiedText) fidelity.Switch[UnverifiedText] {
 }
 
 // rawEnvelopeSwitch is switch ses.raw.envelope at value v: which
-// recipients a raw send's sandbox check and counter use (ses.md 4.2).
+// recipients a raw send's sandbox check and counter use (ses.md 4.2). It
+// governs v2 SendEmail's Raw content too, which, being another service's
+// operation, it does not list.
 func rawEnvelopeSwitch(v RawEnvelope) fidelity.Switch[RawEnvelope] {
 	return fidelity.Switch[RawEnvelope]{
 		Name:    "ses.raw.envelope",

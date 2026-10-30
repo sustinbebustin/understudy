@@ -218,10 +218,17 @@ func (s *Service) Messages(q MessageQuery) (MessagePage, error) {
 	return page, nil
 }
 
-// resolve is r in scope with its raw message read from the blob store; the
-// caller holds a reference on it.
+// resolve is r in scope with its raw message and attachment contents read
+// from the blob store; the caller holds a reference on each.
 func (s *Service) resolve(r *record, scope aws.Scope) (Message, error) {
 	m := r.message(scope)
+	for i, a := range r.Attachments {
+		content, err := s.readBlob(a.Content)
+		if err != nil {
+			return Message{}, fmt.Errorf("ses message %s attachment %q: %w", m.MessageID, a.FileName, err)
+		}
+		m.Attachments[i].Content = content
+	}
 	if r.Raw == nil {
 		return m, nil
 	}

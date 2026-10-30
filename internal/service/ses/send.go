@@ -72,12 +72,30 @@ func (r *refusal) v2() *awserr.Error {
 
 func invalid(text string) *refusal { return &refusal{class: refusalInvalid, text: text} }
 
-// notImplementedMember refuses member of op, which configures feature
-// understudy does not implement (invariant 3; spec conflict rows 4, 6).
-func notImplementedMember(op, member, feature string) *refusal {
+// notImplementedMember refuses member of operation op of service svc
+// ("ses" or "sesv2"), which configures feature understudy does not
+// implement (invariant 3; spec conflict rows 4, 6).
+func notImplementedMember(svc, op, member, feature string) *refusal {
 	return &refusal{class: refusalNotImplemented, text: op + " with " + member + " uses " + feature +
 		", which understudy does not implement; nothing was sent or recorded. Leave " + member +
-		" out. Run 'understudy coverage --service ses' for what is supported."}
+		" out. Run 'understudy coverage --service " + svc + "' for what is supported."}
+}
+
+// unimplemented is a request member understudy refuses when it is set, and
+// the feature it configures.
+type unimplemented struct {
+	member, feature string
+	set             bool
+}
+
+// firstUnimplemented refuses the first set member of ms, in order.
+func firstUnimplemented(svc, op string, ms []unimplemented) *refusal {
+	for _, m := range ms {
+		if m.set {
+			return notImplementedMember(svc, op, m.member, m.feature)
+		}
+	}
+	return nil
 }
 
 // sendEmailCoverage is v1 SendEmail's coverage note (ses.md 11.1).
@@ -156,17 +174,12 @@ func content(c *sesapi.Content) *Content {
 // NotImplemented members, tags, addresses with the message size, and the
 // recipient count (SendChecks; contract 2.1).
 func checkSendEmail(in *sesapi.SendEmailInput) *refusal {
-	for _, m := range []struct {
-		member, feature string
-		set             bool
-	}{
+	if r := firstUnimplemented("ses", "SendEmail", []unimplemented{
 		{"ConfigurationSetName", "configuration sets", in.ConfigurationSetName != nil},
 		{"SourceArn", "sending authorization", in.SourceArn != nil},
 		{"ReturnPathArn", "sending authorization", in.ReturnPathArn != nil},
-	} {
-		if m.set {
-			return notImplementedMember("SendEmail", m.member, m.feature)
-		}
+	}); r != nil {
+		return r
 	}
 	for _, t := range in.Tags {
 		if r := checkTag(t.Name, t.Value); r != nil {
