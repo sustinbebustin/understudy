@@ -1,5 +1,5 @@
 // SES v1 over awsQuery, through @aws-sdk/client-ses.
-// Expected behavior: docs/research/ses.md sections 4, 5, 6, 9.1 and 9.2.
+// Expected behavior: docs/research/ses.md sections 4 (4.2 for SendRawEmail), 5, 6, 9.1 and 9.2.
 
 import { describe, expect, test } from "bun:test";
 import {
@@ -9,6 +9,7 @@ import {
   GetSendQuotaCommand,
   paginateListIdentities,
   SendEmailCommand,
+  SendRawEmailCommand,
   SESClient,
   VerifyDomainIdentityCommand,
   VerifyEmailIdentityCommand,
@@ -128,5 +129,23 @@ describe("SES quota and notification attributes", () => {
     } finally {
       await ses.send(new DeleteIdentityCommand({ Identity: addr }));
     }
+  });
+});
+
+describe("SES SendRawEmail", () => {
+  test("an unverified raw From and destination answer MessageRejected", async () => {
+    // Golden test_send_email_raises_message_rejected (third-party-recorded
+    // 2025-09-11, ses.md 4.2; localstack@8b9a79f
+    // tests/aws/services/ses/test_ses.py:L1162-L1170, validated 2025-09-11).
+    const raw = "From: origin@example.com\r\nTo: invalid@example.com\r\nSubject: test\r\n\r\nThis is the message body.\r\n";
+    await expectFailure(
+      ses.send(
+        new SendRawEmailCommand({
+          Destinations: ["invalid@example.com"],
+          RawMessage: { Data: new TextEncoder().encode(raw) },
+        }),
+      ),
+      { name: "MessageRejected", status: 400 },
+    );
   });
 });

@@ -1,4 +1,4 @@
-"""SES v1: identities, SendEmail and the quota (ses.md sections 4, 5, 6, 9.1 and 9.2)."""
+"""SES v1: identities, SendEmail, SendRawEmail and the quota (ses.md sections 4, 5, 6, 9.1 and 9.2)."""
 
 from __future__ import annotations
 
@@ -99,3 +99,14 @@ def test_notification_attributes_key_a_known_identity(ses: Any, cleanup: Any) ->
     # The aws_ses_email_identity data source needs the key (ses.md 9.1).
     attrs = ses.get_identity_notification_attributes(Identities=[addr])["NotificationAttributes"]
     assert list(attrs) == [addr]
+
+
+def test_send_raw_email_raises_message_rejected(ses: Any) -> None:
+    # Golden test_send_email_raises_message_rejected: an unverified raw From
+    # and destination answer MessageRejected (third-party-recorded
+    # 2025-09-11, ses.md 4.2; localstack@8b9a79f
+    # tests/aws/services/ses/test_ses.py:L1162-L1170, validated 2025-09-11).
+    raw = "From: origin@example.com\r\nTo: invalid@example.com\r\nSubject: test\r\n\r\nThis is the message body.\r\n"
+    with pytest.raises(ClientError) as exc:
+        ses.send_raw_email(Destinations=["invalid@example.com"], RawMessage={"Data": raw})
+    assert error_code(exc.value) == "MessageRejected"

@@ -2,7 +2,7 @@
 # SES v1: email and domain identities (VerifyEmailIdentity,
 # VerifyDomainIdentity, GetIdentityVerificationAttributes,
 # GetIdentityNotificationAttributes, ListIdentities, DeleteIdentity), the
-# verification link, SendEmail and GetSendQuota.
+# verification link, SendEmail, SendRawEmail and GetSendQuota.
 # Arbiter: docs/research/ses.md sections 4, 5, 6, 9.1, 9.2 and 11.3.
 
 test_domain_identity_token_is_stable() {
@@ -142,5 +142,37 @@ test_notification_attributes_key_a_known_identity() {
   # The aws_ses_email_identity data source needs the key (ses.md 9.1).
   aws_ok ses get-identity-notification-attributes --identities "$addr"
   assert_jq '.NotificationAttributes | keys == ["'"$addr"'"]' 'true'
+  aws_ok ses delete-identity --identity "$addr"
+}
+
+test_send_raw_email_raises_message_rejected() {
+  local raw
+  # Golden test_send_email_raises_message_rejected: an unverified raw From
+  # and destination answer MessageRejected (third-party-recorded 2025-09-11,
+  # ses.md 4.2; localstack@8b9a79f tests/aws/services/ses/test_ses.py:L1162-L1170,
+  # validated 2025-09-11).
+  raw=$(printf 'From: origin@example.com\r\nTo: invalid@example.com\r\nSubject: test\r\n\r\nThis is the message body.\r\n' | base64 -w0)
+  aws_error MessageRejected 400 ses send-raw-email \
+    --destinations invalid@example.com --raw-message "{\"Data\":\"$raw\"}"
+}
+
+test_send_raw_email_from_a_verified_address_is_recorded() {
+  local addr link raw id
+  addr="$(new_name ses-raw-sender)@example.com"
+  aws_ok ses verify-email-identity --email-address "$addr"
+  link=$(curl -fsS --get --data-urlencode "to=$addr" "${UE_ADMIN_URL:?UE_ADMIN_URL unset}/ses/messages" |
+    jq -r '.messages[0].text.data' | grep -o 'http[^[:space:]]*/_understudy/ses/VerificationLink?token=[A-Za-z0-9_-]*')
+  curl -fsS -o /dev/null "$link"
+  # Without Destinations the To header gives the recipients (ses.md 4.2); the
+  # mailbox simulator is reachable from the sandbox (ses.md 6.2).
+  raw=$(printf 'From: %s\r\nTo: success@simulator.amazonses.com\r\nSubject: raw\r\n\r\nbody\r\n' "$addr" | base64 -w0)
+  aws_ok ses send-raw-email --raw-message "{\"Data\":\"$raw\"}"
+  assert_jq_match '.MessageId' '^[0-9a-f]{16}-[0-9a-f-]{36}-000000$'
+  id=$(jq -r '.MessageId' <<<"$AWS_OUT")
+  # Recorded as received, not sent (ses.md 11.2).
+  AWS_OUT=$(curl -fsS --get --data-urlencode "messageId=$id" "$UE_ADMIN_URL/ses/messages")
+  assert_jq '.messages[0].operation' 'SendRawEmail'
+  assert_jq '.messages[0].raw' "$raw"
+  assert_jq '.messages[0].envelope | join(",")' 'success@simulator.amazonses.com'
   aws_ok ses delete-identity --identity "$addr"
 }

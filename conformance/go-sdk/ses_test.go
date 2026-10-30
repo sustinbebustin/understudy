@@ -10,7 +10,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ses/types"
 )
 
-// Research: docs/research/ses.md sections 4, 5, 6 and 9.1.
+// Research: docs/research/ses.md sections 4, 5, 6 and 9.1; 4.2 for
+// SendRawEmail.
 
 // An email identity is Pending until its owner opens the link (ses.md
 // 5.2), keyed by the request string (9.1); after DeleteIdentity the key is
@@ -153,4 +154,18 @@ func TestSESNotificationAttributesKeyAKnownIdentity(t *testing.T) {
 	if _, found := out.NotificationAttributes[addr]; !found || len(out.NotificationAttributes) != 1 {
 		t.Errorf("NotificationAttributes = %+v, want the one key %s", out.NotificationAttributes, addr)
 	}
+}
+
+// Golden test_send_email_raises_message_rejected: a raw message from an
+// unverified From to an unverified destination answers MessageRejected
+// (third-party-recorded 2025-09-11, ses.md 4.2; localstack@8b9a79f
+// tests/aws/services/ses/test_ses.py:L1162-L1170, validated 2025-09-11).
+func TestSESSendRawEmailRaisesMessageRejected(t *testing.T) {
+	t.Parallel()
+	raw := "From: origin@example.com\r\nTo: invalid@example.com\r\nSubject: test\r\n\r\nThis is the message body.\r\n"
+	_, err := ses.NewFromConfig(awsCfg).SendRawEmail(t.Context(), &ses.SendRawEmailInput{
+		Destinations: []string{"invalid@example.com"},
+		RawMessage:   &types.RawMessage{Data: []byte(raw)},
+	})
+	apiErr(t, err, "SendRawEmail", "MessageRejected")
 }
