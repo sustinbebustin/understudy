@@ -246,7 +246,7 @@ From [TF] `internal/service/events/bus.go`:
 | Targets per `PutTargets` request | [DOC] 10 vs [MODEL] 100 | As decided in [secrets-logs-events-alarms.md](secrets-logs-events-alarms.md) section 6 |
 | Policy size | [DOC PutPermission] "10 KB" vs [DOC eb-quota] 10,240 characters | 10,240 characters; text UNVERIFIED (EBB-06) |
 | Bus quota | Classic 100 vs Custom Event Bus (V2) 5 [DOC eb-quota] | 100: different products (section 1, item 1) |
-| Scheduler rate units | [Scheduler guide](https://docs.aws.amazon.com/scheduler/latest/UserGuide/schedule-types.html) `minutes | hours | days` vs [CreateSchedule](https://docs.aws.amazon.com/scheduler/latest/APIReference/API_CreateSchedule.html) `minute | minutes | hour | hours | day | days` | EBB-11 |
+| Scheduler rate units | [Scheduler guide](https://docs.aws.amazon.com/scheduler/latest/UserGuide/schedule-types.html) `minutes | hours | days` vs [CreateSchedule](https://docs.aws.amazon.com/scheduler/latest/APIReference/API_CreateSchedule.html) `minute | minutes | hour | hours | day | days` | superseded: [scheduler.md](scheduler.md) section 13 (switch `scheduler.rate.unit-agreement`, SCH-03) |
 
 ## 10. Implications for understudy
 
@@ -334,6 +334,8 @@ The last two rows were added 2026-10-26: implications 12 and 14 chose them witho
 
 ## 11. EventBridge Scheduler (not on the roadmap)
 
+Superseded by [scheduler.md](scheduler.md), the primary-source research for the service (its section 13 lists what changed); this section is kept as history, and nothing in it binds the build.
+
 The task that commissioned this note reports that 16 of 129 Terraform serverless-patterns use Scheduler; that survey is not in the repository and was not re-checked here. This section is only enough to size the work.
 
 ### 11.1 Model and wire
@@ -366,6 +368,8 @@ The task that commissioned this note reports that 16 of 129 Terraform serverless
 [TF] `internal/service/scheduler/schedule.go`: create `CreateSchedule` retried for 2 minutes on `ValidationException` containing "The execution role you provide must allow AWS EventBridge Scheduler to assume the role." (L439-L513, L663-L665); id `<group>/<name>` parsed from the returned ARN (L505-L510, L705-L720); read `GetSchedule{Name, GroupName}`, `ResourceNotFoundException` is gone (L515-L541, L667-L693); update `UpdateSchedule` with the full body (L574-L630); delete `DeleteSchedule`, `ResourceNotFoundException` is success (L632-L653). No tags on schedules. Defaults the provider always sends: `schedule_expression_timezone = "UTC"` (L136-L141), `state = ENABLED` (L147-L152); Computed members AWS must fill: `action_after_completion` (L56-L61), `group_name` (L95-L104); `retry_policy` defaults 86400 and 185 with a missing-block diff suppression (L354-L380), which implies `GetSchedule` returns a retry policy when none was set. `target.input` is Optional, not Computed (L335-L339): `GetSchedule` must omit `Input` when none was sent. `aws_scheduler_schedule_group` (`schedule_group.go`): `CreateScheduleGroup`, then waits for `State = ACTIVE`; delete waits until the group is gone; tags by ARN (L33, L107-L116, L161-L172, L222-L249).
 
 ### 11.7 Size estimate and decisions if built
+
+Superseded by [scheduler.md](scheduler.md) sections 13 and 14: the switches and target decisions below are replaced by its section 14.12 and 14.1.
 
 Inferred estimate: a new `internal/service/scheduler` of 12 operations on the existing restJson1 codegen, an `at()` and time-zone extension of `internal/schedexpr`, and delivery through the existing SQS, SNS, Lambda and EventBridge targets: roughly half of `internal/service/events` (5,502 lines with tests today) plus 300 to 500 lines in `schedexpr`. Decisions if it is built: universal targets and templated targets other than SQS, SNS, Lambda and EventBridge answer NotImplemented at `CreateSchedule`; `KmsKeyArn` StoredOnly; switches `scheduler.default-input` and `scheduler.get-defaults` (both inferred, settled by EBB-12 and EBB-11).
 
@@ -681,6 +685,8 @@ env AWS_REGION="$R2" aws sqs delete-queue --queue-url "$Q2"
 
 ### 12.12 EBB-11: Scheduler control-plane shapes and texts
 
+Superseded: do not record. [scheduler.md](scheduler.md) cases SCH-01, SCH-02, SCH-03, SCH-04 and SCH-06 (section 15) replace it.
+
 Settles sections 11.3 and 11.6 and `scheduler.get-defaults`. USD 0.00, 10 minutes.
 
 ```sh
@@ -717,6 +723,8 @@ aws scheduler delete-schedule-group --name "$P-g"
 ```
 
 ### 12.13 EBB-12: Scheduler delivery payloads
+
+Superseded: do not record. [scheduler.md](scheduler.md) case SCH-07 (section 15) replaces it.
 
 Settles section 11.4 and `scheduler.default-input`. Under USD 0.01, 15 minutes.
 

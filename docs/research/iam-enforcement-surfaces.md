@@ -478,7 +478,7 @@ Replace the shared `com.amazon.coral.service#AccessDeniedException` 403 with per
 | API Gateway v2 | `AccessDeniedException` (the model's), key `Message` | 403 | grammar | inferred (IAM-ENF-34) |
 | DynamoDB Streams | `__type` `com.amazon.coral.service#AccessDeniedException`, as DynamoDB | 400 | grammar | inferred (IAM-ENF-35) |
 | Kinesis | `AccessDeniedException` (the model's) | 400 | grammar | inferred (IAM-ENF-36) |
-| Scheduler | `AccessDeniedException` (generic; the model declares none) | 403 | grammar | inferred (IAM-ENF-37) |
+| Scheduler | `AccessDeniedException` (generic `com.amazon.coral.service#AccessDeniedException`; the model declares none), key `Message` | 403 | grammar | inferred (`scheduler.denial.status`; IAM-ENF-37, scheduler.md SCH-10 step 01): 403 from Scheduler's CommonErrors page (scheduler.md 2.4), the restJson1 sibling of API Gateway v2; the other side of the switch is the 400 of EventBridge's row |
 | SES v1 | `AccessDenied`, `Sender`, the SES namespace | 403 | grammar | inferred from STS and IAM (`ses.denial.identity`; IAM-ENF-38, ses.md SES-28) |
 | SES v2 | `AccessDeniedException` (generic; the model declares none) in `x-amzn-ErrorType` | 403 | `{"message": "<grammar>"}`, key `message` as every v2 error shape names it (ses.md 3.2) | inferred (`ses.denial.identity`; IAM-ENF-39, ses.md SES-28) |
 | Step Functions | `__type` `com.amazon.coral.service#AccessDeniedException` (generic; the model declares none) | 400 | grammar | inferred (`sfn.denial.status`; IAM-ENF-40, stepfunctions-api.md 14.16 SFN-15): 400, as every plain awsJson service above (DynamoDB, EventBridge, Logs, KMS, Secrets Manager); 3.3 rules out the CommonErrors 403 template as sole ground |

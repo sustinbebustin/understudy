@@ -318,7 +318,7 @@ Scheduler calls these APIs with the assumed execution role (section 9); the guid
 
 ## 9. Identity: execution role, PassRole, KMS
 
-- Caller permissions: the operation's own action, plus `iam:PassRole` for `CreateSchedule` and `UpdateSchedule`, `scheduler:TagResource` for `CreateScheduleGroup` (with tags), and `scheduler:DeleteSchedule` for `DeleteScheduleGroup` (`third_party/aws-service-reference/actions.json`). The model's `aws.iam#requiredActions` on `UpdateSchedule` names `scheduler:TagResource` and `scheduler:UntagResource` instead (section 13). With `KmsKeyArn`: `kms:DescribeKey`, `kms:GenerateDataKey`, `kms:Decrypt`, and "EventBridge Scheduler does not support using grants" (aws-doc encryption-rest).
+- Caller permissions: the operation's own action, plus `iam:PassRole` for `CreateSchedule` and `UpdateSchedule`, `scheduler:TagResource` for `CreateScheduleGroup` (with tags), and `scheduler:DeleteSchedule` for `DeleteScheduleGroup` (`third_party/aws-service-reference/actions.json`). The table gives `iam:PassRole` no condition context, but the Service Authorization Reference fixes `iam:PassedToService` to the receiving service on every role-passing operation it lists (Lambda, EventBridge, SNS, S3; [iam-enforcement-surfaces.md](iam-enforcement-surfaces.md) 10.2), so understudy supplies `iam:PassedToService` = `scheduler.amazonaws.com` (inferred by analogy; SCH-10 step 02). Without it, a `PassRole` policy conditioned on that key as AWS's documentation advises would be denied by the absent-key rule. The model's `aws.iam#requiredActions` on `UpdateSchedule` names `scheduler:TagResource` and `scheduler:UntagResource` instead (section 13). With `KmsKeyArn`: `kms:DescribeKey`, `kms:GenerateDataKey`, `kms:Decrypt`, and "EventBridge Scheduler does not support using grants" (aws-doc encryption-rest).
 - Trust: the role trusts `scheduler.amazonaws.com` (aws-doc setting-up). Recommended conditions: `aws:SourceAccount`, and `aws:SourceArn` equal to the **schedule group** ARN: "Do not scope the `aws:SourceArn` statement to a specific schedule or a schedule name prefix. The ARN you specify must be a schedule group." ([cross-service-confused-deputy-prevention](https://docs.aws.amazon.com/scheduler/latest/UserGuide/cross-service-confused-deputy-prevention.html)). Terraform's test role uses the `aws:SourceAccount` condition (tf-acc `schedule_test.go:L1590-L1611`). The trust is checked at create and update (section 1 item 10).
 - At invocation the role session calls the target and, on failure, the dead-letter queue; with a customer managed key it also calls `kms:Decrypt` (aws-doc encryption-rest). The CloudTrail example shows the session as `assumed-role/<execution-role>/70abcd123a123a12345a1aa12aa1bc12`, a 32-hex session name (aws-doc encryption-rest), matching the dead-letter `SenderId` form (section 7.2).
 - "Verify the role exists in the same AWS account and region as your schedule" (aws-doc troubleshooting): whether a role in another account is refused is UNVERIFIED.
@@ -398,14 +398,20 @@ Candidates for an end-to-end pattern check, after the census's own caveats: `eve
 
 | Operation | Mark | Note |
 |---|---|---|
-| `CreateSchedule` | Partial | `templated Lambda, SQS, SNS and EventBridge event bus targets in the schedule's Region are invoked on the emulator clock as the execution role; Step Functions targets once Step Functions is served; universal (aws-sdk) targets and ECS, Kinesis, Firehose, CodeBuild, CodePipeline, Inspector and SageMaker targets answer NotImplemented; KmsKeyArn is stored and echoed, the payload is not encrypted` |
-| `UpdateSchedule` | Partial | the same note |
-| `GetSchedule`, `ListSchedules`, `DeleteSchedule` | Full | |
-| `CreateScheduleGroup`, `GetScheduleGroup`, `ListScheduleGroups` | Full | |
-| `DeleteScheduleGroup` | Partial | `the group and its schedules are deleted before the call returns, so DELETING is never reported (ARCHITECTURE.md 9, provisioning settle)` |
-| `TagResource`, `UntagResource`, `ListTagsForResource` | Full | schedule groups only, as AWS |
+An operation is `Full` only when its sole unrecorded detail is a refusal message (kept in the texts table, flagged `UNVERIFIED (SCH-xx)` in the code and listed in `docs/guide/differences.md`). An unrecorded success-path choice or an inferred error code makes it `Partial`, with an `unrecorded, understudy's choice: ...` clause naming each choice (CLAUDE.md invariant 2; `registry.Full` carries no note). By that rule no Scheduler operation is `Full`: even `DeleteSchedule` ignores its `?clientToken=` (2.5, SCH-02) and `UntagResource` answers an absent key and the default group (SCH-06).
 
-Kinesis joins the templated list when understudy serves `PutRecord` (ROADMAP.md item 8); universal targets are a later slice (14.4.6).
+| Operation | Mark | Note (outline; the binding states every clause) |
+|---|---|---|
+| `CreateSchedule` | Partial | which targets are invoked and which answer NotImplemented (below); `KmsKeyArn` stored and echoed, the payload never encrypted; role trust checked only under `iam.enforce=enforce`; `ClientToken` not used for idempotency; the schedule quota not counted; then the unrecorded choices of 14.3-14.6 |
+| `UpdateSchedule` | Partial | as `CreateSchedule`; every member replaced (4.3); the keep-next-fire rule (14.3.10) |
+| `GetSchedule` | Partial | unrecorded read-shape choices (4.2: absent members, `State` default, whole-second dates) |
+| `ListSchedules`, `ListScheduleGroups` | Partial | unrecorded order and page size (4.5, 3.2) |
+| `DeleteSchedule`, `CreateScheduleGroup` | Partial | `ClientToken` not used for idempotency; for groups, the duplicate and default-group answers and the quota text |
+| `GetScheduleGroup` | Partial | the default group always `ACTIVE`, dated at the instant the Scheduler state was created, loaded or reset |
+| `DeleteScheduleGroup` | Partial | `the group and its schedules are deleted before the call returns, so DELETING is never reported (ARCHITECTURE.md 9, provisioning settle)`; the default group refused |
+| `TagResource`, `UntagResource`, `ListTagsForResource` | Partial | schedule groups only, as AWS; the default group's tags, an absent key untagged with 200, insertion order (SCH-06) |
+
+Targets: templated Lambda, SQS, SNS and EventBridge event bus targets in the schedule's Region are invoked on the emulator clock as the execution role. Step Functions targets are either invoked or answer NotImplemented, and the note states which the binary does, never "once served" (CLAUDE.md invariant 3). Universal (aws-sdk) targets and ECS, Kinesis, Firehose, CodeBuild, CodePipeline, Inspector and SageMaker targets answer NotImplemented at create. Kinesis stays NotImplemented even where understudy serves `PutRecord`: no census pattern targets it, and it is a deferred slice beside universal targets (14.4.6).
 
 ### 14.2 Data model
 
@@ -432,9 +438,9 @@ Kinesis joins the templated list when understudy serves `PutRecord` (ROADMAP.md 
 ### 14.4 Target invocation
 
 1. Target ARNs are parsed at `CreateSchedule` and `UpdateSchedule` into the plan's `Target` sum (14.2.3): a Lambda function ARN (optional qualifier), an SQS queue ARN, an SNS topic ARN, an event bus ARN in the schedule's Region (any served account), and a state machine ARN once Step Functions is served. An ARN of another templated service answers NotImplemented naming the service; an ARN of a service that is not templated answers `ValidationException` `Invalid request provided: <service> is not a supported service for a target` (2.4; punctuation a named constant until SCH-04). The target need not exist (4.1).
-2. Each fire substitutes the four context attributes in `Input` (6.3): plain string replacement, values `schedule ARN`, `RFC 3339 seconds with Z`, `execution id`, `attempt number`. An absent `Input` becomes the payload of `scheduler.input.default`.
+2. Each attempt substitutes the four context attributes in `Input` (6.3): plain string replacement, values `schedule ARN`, `RFC 3339 seconds with Z` (the scheduled instant), `execution id`, `attempt number`. The invocation carries the template, not a rendered body, and the outbox renders the payload before every attempt (attempt number = the entry's prior attempts + 1), since `<aws.scheduler.attempt-number>` counts attempts (6.3). One execution id covers an invocation and its retries (inferred, SCH-08). An absent `Input` becomes the payload of `scheduler.input.default`.
 3. Deliveries go through the outbox as `delivery.Request`s with new mechanisms `SchedulerToLambda`, `SchedulerToSQS`, `SchedulerToSNS`, `SchedulerToEvents` and, with Step Functions, `SchedulerToStates`, added to the closed `delivery.Mechanism` set (`internal/delivery/delivery.go`; an ADR 0015 amendment and a row in the ARCHITECTURE.md 16 table, as [cloudwatch-alarms.md](cloudwatch-alarms.md) 12.4 says for alarm deliveries), and a new `ref.Via` for Scheduler deliveries. Targets: `LambdaFunction{Invocation: InvocationEvent, Event: payload}` (asynchronous, 6.4); `SQSQueue{Body: payload, GroupID: MessageGroupId}` with no deduplication id, so a FIFO queue without content-based deduplication fails the send (6.4); `SNSTopic{Message: payload}`; an event bus target with one entry `{Source, DetailType, Detail: payload, EventBusName: bus ARN}`, through the same event-bus delivery path that bus-to-bus targets need ([eventbridge-buses.md](eventbridge-buses.md) 10.4, implication 12); a state machine target is a new `delivery.Target` variant when Step Functions lands (ARCHITECTURE.md 21; ROADMAP.md item 7). Each request's `Source` is the schedule ARN.
-4. Deliveries run as the execution role (1 item 1, section 9): the access recorder and, under enforcement, the authorizer see a role-session principal for `Target.RoleArn`, with a 32-hex session name, and SQS records `SenderId` `<role id>:<session name>` (7.2). This is a new principal kind beside the service principal EventBridge rules use: a role session evaluated against the role's identity policies ([iam-enforcement-surfaces.md](iam-enforcement-surfaces.md) 12.2), not a service principal evaluated against the target's resource policy (12.4 there).
+4. Deliveries run as the execution role (1 item 1, section 9): the access recorder and, under enforcement, the authorizer see a role-session principal for `Target.RoleArn`, with a 32-hex session name, and SQS records `SenderId` `<role id>:<session name>` (7.2). It is not a new principal kind: understudy's existing execution-role principal (the one Lambda event source mappings deliver as) gains the role id and a session name, an empty session keeping today's name, and a delivery request names the principal it runs as (none = the mechanism's service principal). A role session is evaluated against the role's identity policies ([iam-enforcement-surfaces.md](iam-enforcement-surfaces.md) 12.2), not as a service principal against the target's resource policy (12.4 there), so a role-session delivery raises no missing-resource-policy advisory (1 item 1).
 5. The EventBridge entry's `resources`, `id` and `time` are SCH-07 findings; until then the event is whatever `PutEvents` builds for that entry (no `Resources`, `time` = the delivery instant), flagged inferred in the coverage note.
 6. Universal targets answer NotImplemented at create in the minimum. The later slice, for the census and Terraform's own test: an `aws-sdk:<service>:<action>` ARN whose service understudy serves over awsJson (SQS first), where the `Input` JSON is the operation's wire body, decoded with the generated codec and sent through `kernel.Invoke`; refused prefixes (6.2) answer `ValidationException`; restJson1 targets such as `lambda:invoke` need a member-name document decoder and come after.
 
@@ -442,7 +448,7 @@ Kinesis joins the templated list when understudy serves `PutRecord` (ROADMAP.md 
 
 1. `RetryPolicy` echo: as sent, else the default block (4.2). The outbox policy reuses `delivery.EventBridgeTarget`'s fields and backoff (`internal/outbox/schedule.go`): both are documented as exponential with these bounds and neither series is published (7.1). Age is measured from the invocation's due instant.
 2. Errors the outbox already classes as client-side refusals end without retry (`refused` in `internal/outbox/deadletter.go`), per `scheduler.retry.permanent-errors`; server-side and throttling errors retry until the policy is exhausted (7.1).
-3. A new dead-letter attribute builder for the Scheduler `ref.Via`, beside `eventBridgeAttributes`: `ERROR_CODE` = the target's own error code in the form a client of that service sees (the awsQuery code for SQS, `AWS.SimpleQueueService.NonExistentQueue`; the shape name otherwise), `ERROR_MESSAGE` = its message, `EXECUTION_ID`, `EXHAUSTED_RETRY_CONDITION` only when retries ran out (`exhausted`), `IS_PAYLOAD_TRUNCATED` (`true` when the body was cut to the 256 KiB SQS limit), `RETRY_ATTEMPTS`, `SCHEDULED_TIME`, `SCHEDULE_ARN` (with the group), and `TARGET_ARN` per `scheduler.dead-letter.target-arn` (7.2). All String. Body = the payload after substitution (inferred; SCH-08).
+3. A new dead-letter attribute builder for the Scheduler `ref.Via`, beside `eventBridgeAttributes`: `ERROR_CODE` = the target's own error code in the form a client of that service sees (the awsQuery code for SQS, `AWS.SimpleQueueService.NonExistentQueue`; the shape name otherwise), `ERROR_MESSAGE` = its message, `EXECUTION_ID`, `EXHAUSTED_RETRY_CONDITION` only when retries ran out (`exhausted`), `IS_PAYLOAD_TRUNCATED` (`true` when the body was cut to the 256 KiB SQS limit), `RETRY_ATTEMPTS`, `SCHEDULED_TIME`, `SCHEDULE_ARN` (with the group), and `TARGET_ARN` in the universal form `arn:aws:scheduler:::aws-sdk:<service>:<apiAction>` (7.2; a named constant, see 14.12). All String. Body = the payload of the failed attempt after substitution (inferred; SCH-08), cut to 262,144 bytes with `IS_PAYLOAD_TRUNCATED` `true`. An event bus target may name a dead-letter queue too (the census pattern `eventbridge-schedule-to-eventbridge-terraform` does): for Scheduler deliveries only, its body is the event's `Detail`, which is the payload (inferred, SCH-08); EventBridge rule targets on a bus keep their own rule.
 4. A `.fifo` dead-letter ARN is refused by the generated validator (model pattern, 7.2). A dead-letter queue that is missing or refuses the send drops the event and journals it (`InvocationsFailedToBeSentToDeadLetterCount`'s case).
 
 ### 14.6 ActionAfterCompletion
@@ -467,7 +473,7 @@ Kinesis joins the templated list when understudy serves `PutRecord` (ROADMAP.md 
 
 1. restJson1 errors: the shape name as the error type and a body `{"Message": "..."}` with a capital `M` (2.4); statuses from the model, including 402. The header-versus-body carrier follows the existing restJson1 writer until SCH-02 shows AWS's.
 2. Texts with evidence: `Invalid Schedule Expression <expr>.` (third-party-recorded); `The schedule expression <expr>, with StartDate null and EndDate null, is invalid.` (captured); `The execution role you provide must allow AWS EventBridge Scheduler to assume the role.` (captured, tf); `Schedule group <name> does not exist.` (aws-doc). Every other text is a named constant in one table, flagged inferred in the coverage note, each naming its SCH case.
-3. Order: model constraints, then the expression, then the role (4.7). The rest of the order is a list of named checks whose sequence SCH-04 settles; until then: expression, time zone, flexible window, dates and the future-fire check, target ARN, group lookup, role trust, KMS.
+3. Order: model constraints, then the expression, then the role (4.7). The rest of the order is a list of named checks whose sequence SCH-04 settles; until then: expression, time zone, flexible window, dates and the future-fire check (applied in either `State`), target ARN, group lookup, role trust, `iam:PassRole`, KMS.
 4. Throttling stays the overlay's `ThrottlingException` 429 (inferred label, 2.4); the overlay's two evidence sources move from eventbridge-buses.md 11.1 to this note's sections 2.4 and 4.7.
 
 ### 14.10 Terraform: apply and an empty second plan
@@ -483,11 +489,11 @@ Facts each `iam.enforce` mode needs ([iam-enforcement-surfaces.md](iam-enforceme
 
 | Behavior | AWS | off | advise | enforce |
 |---|---|---|---|---|
-| caller actions | the operation's action on the schedule or group ARN; `iam:PassRole` on `Target.RoleArn` for create and update; `scheduler:TagResource` for a tagged group create; `scheduler:DeleteSchedule` for a group delete (9) | recorded | recorded, advisory on a would-deny | AWS's denial: the operation's action is evaluated at pipeline step 8 ([iam-enforcement-surfaces.md](iam-enforcement-surfaces.md) 12.1); `iam:PassRole` names the role ARN, which only the handler parses, so it is evaluated in the handler after parsing and before the write |
+| caller actions | the operation's action on the schedule or group ARN; `iam:PassRole` on `Target.RoleArn` for create and update, with `iam:PassedToService` = `scheduler.amazonaws.com` (inferred, section 9); `scheduler:TagResource` for a tagged group create; `scheduler:DeleteSchedule` for a group delete (9) | recorded | recorded, advisory on a would-deny | AWS's denial: the operation's action is evaluated at pipeline step 8 ([iam-enforcement-surfaces.md](iam-enforcement-surfaces.md) 12.1); `iam:PassRole` names the role ARN, which only the handler parses, so it is evaluated in the handler after parsing and before the write |
 | execution role trust at create and update | `ValidationException` with the captured text (1 item 10) | not checked | advisory when the role is missing or does not trust `scheduler.amazonaws.com` | refused with the captured text, evaluating the trust policy with `aws:SourceAccount` and `aws:SourceArn` = the group ARN (9) |
 | target permission at invocation | the role session needs the target action (and the target's resource policy applies as usual); failure reaches the dead-letter queue (9) | delivered | delivered, advisory | refused as the target's access-denied error, then the retry policy and dead-letter queue; never delivered |
 | dead-letter permission | the role needs `sqs:SendMessage` on the dead-letter queue (7.2) | sent | sent, advisory | refused send, dropped and journaled |
-| `KmsKeyArn` | caller `kms:DescribeKey`, `GenerateDataKey`, `Decrypt` at create; role `kms:Decrypt` at invocation (9) | stored, not checked | stored, advisory | the caller's key permissions evaluated as for other services' keys ([iam-enforcement-surfaces.md](iam-enforcement-surfaces.md) 12.4, 8.7), or, until KMS key policies are evaluated, an advisory with a coverage note; the payload is never encrypted either way |
+| `KmsKeyArn` | caller `kms:DescribeKey`, `GenerateDataKey`, `Decrypt` at create; role `kms:Decrypt` at invocation (9) | stored, not checked | stored, advisory per missing action | at create and update, the caller's three actions authorized on the key ARN against identity policies (key policies advised, as for other services' keys, [iam-enforcement-surfaces.md](iam-enforcement-surfaces.md) 12.4, 8.7), a denial answering with Scheduler's denial identity naming the action (AWS's answer unrecorded, SCH-04 `04-kms-missing`); at invocation, the role session's `kms:Decrypt` evaluated before the target call, a denial being a permanent failure that is dead-lettered; where either evaluation is not available, an advisory under enforce with a coverage note; the payload is never encrypted either way |
 
 The policy generator (`/iam/policy`) lists the caller actions above and, for each execution role, the target and dead-letter actions its deliveries used, since those belong in the role's identity policy, not in a resource policy (9).
 
@@ -503,7 +509,9 @@ The policy generator (`/iam/policy`) lists the caller actions above and, for eac
 | `scheduler.dead-letter.target-arn` | `universal-form`: `arn:aws:scheduler:::aws-sdk:<service>:<apiAction>` for every target (or `configured`) | aws-doc | 7.2 | SCH-08 |
 | `scheduler.timezone.omitted` | `absent`: no `ScheduleExpressionTimezone` when none was sent (or `utc`) | inferred | 4.2 | SCH-01 |
 
-The first five carry the census patterns and the dead-letter path. The last two can start as named constants flagged in the coverage note and become switches only if SCH-08 or SCH-01 surprises.
+| `scheduler.denial.status` | `AccessDeniedException` at 403 (or 400) | inferred | 2.4; [iam-enforcement-surfaces.md](iam-enforcement-surfaces.md) 12.3 | SCH-10 step 01 |
+
+The first five carry the census patterns and the dead-letter path, and are switches. `scheduler.dead-letter.target-arn` and `scheduler.timezone.omitted` are not: each is a named constant in the service package with a coverage-note clause, promoted to a switch only if SCH-08 or SCH-01 contradicts it, which keeps the unit inside the roadmap's few switches per unit. The sixth switch is `scheduler.denial.status`, Scheduler's row of the denial-identity table ([iam-enforcement-surfaces.md](iam-enforcement-surfaces.md) 12.3), where every row names its own switch.
 
 ### 14.13 What must never be faked
 
@@ -569,7 +577,7 @@ recv() {  # recv <step> <queue name>: drain up to 30 messages with every attribu
 }
 ```
 
-`at_in` takes a signed offset (`+4`, `-2`). Run the cases in order: an enabled `rate` schedule without `StartDate` starts invoking at once (5.2), so SCH-01, SCH-02 and any SCH-04 step AWS unexpectedly accepts may put messages on `$P-sch`, which SCH-07 and SCH-09 purge first. Section 15.11 removes everything this setup creates.
+`at_in` takes a signed offset (`+4`, `-2`). Run the cases in order: an enabled `rate` schedule without `StartDate` starts invoking at once (5.2), so SCH-01, SCH-02 and any SCH-04 step AWS unexpectedly accepts may put messages on `$P-sch`, which SCH-07 and SCH-09 purge first. Section 15.12 removes everything this setup creates.
 
 ### 15.2 SCH-01: read shapes and defaults
 
@@ -817,15 +825,23 @@ mk 08-fifo-no-dedup x3 "at($AT)" --target "$(tgt "arn:aws:sqs:$R:$A:$P-schnd.fif
   "$(jq -nc --arg d "$DQ" --argjson p "$RP" '{Input:"nodedup",DeadLetterConfig:{Arn:$d},RetryPolicy:$p,SqsParameters:{MessageGroupId:"g"}}')")"
 mk 08-universal-gone x4 "at($AT)" --target "$(tgt "arn:aws:scheduler:::aws-sdk:sqs:sendMessage" "$SR" \
   "$(dl "$(jq -nc --arg u "$Q/$P-sch-gone" '{MessageBody:"u",QueueUrl:$u}')")")"
+# x5: a role deleted after create (its trust was checked at create)
+aws iam create-role --role-name "$P-sch-gone-role" --assume-role-policy-document "$TRUST" >/dev/null
+aws iam put-role-policy --role-name "$P-sch-gone-role" --policy-name send --policy-document \
+  '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"sqs:SendMessage","Resource":"*"}]}'
+sleep 15
+mk 08-role-gone x5 "at($AT)" --target "$(tgt "$SQ" "arn:aws:iam::$A:role/$P-sch-gone-role" "$(dl 'rolegone <aws.scheduler.execution-id>')")"
+aws iam delete-role-policy --role-name "$P-sch-gone-role" --policy-name send
+aws iam delete-role --role-name "$P-sch-gone-role"
 aws sqs delete-queue --queue-url "$Q/$P-sch-gone"
 sleep 540
 recv 08-recv-dlq "$P-sch-dlq"
 recv 08-recv-main "$P-sch"
 ```
 
-Expected, per dead letter: the body (`Input` with or without substitution); all nine attributes of 7.2; `TARGET_ARN` for the three templated targets in the universal form (switch default) or as configured; `ERROR_CODE` `AWS.SimpleQueueService.NonExistentQueue` for the deleted queue (`x1`, `x4`), an access-denied code for `x2`, SQS's `InvalidParameterValue` for `x3`; `EXHAUSTED_RETRY_CONDITION` absent for errors treated as permanent and `RETRY_ATTEMPTS` 0, or present with 2; `SCHEDULE_ARN` with the `default` group; `EXECUTION_ID` the same as the body's substituted id or not. `08-recv-main` must be empty.
+Expected for `x5`: no message on `$P-sch`, and a dead letter whose `ERROR_CODE` and `ERROR_MESSAGE` name the failed role assumption (the code understudy uses for a role missing at invocation under enforce is a named constant until this step), or, if the dead-letter send itself needs the deleted role, nothing at all, which the notes say. Expected, per dead letter: the body (`Input` with or without substitution); all nine attributes of 7.2; `TARGET_ARN` for the three templated targets in the universal form (switch default) or as configured; `ERROR_CODE` `AWS.SimpleQueueService.NonExistentQueue` for the deleted queue (`x1`, `x4`), an access-denied code for `x2`, SQS's `InvalidParameterValue` for `x3`; `EXHAUSTED_RETRY_CONDITION` absent for errors treated as permanent and `RETRY_ATTEMPTS` 0, or present with 2; `SCHEDULE_ARN` with the `default` group; `EXECUTION_ID` the same as the body's substituted id or not. `08-recv-main` must be empty.
 
-Teardown: `for s in x1 x2 x3 x4; do aws scheduler delete-schedule --name "$P-$s" 2>/dev/null; done; aws sqs delete-queue --queue-url "$Q/$P-schnd.fifo"`
+Teardown: `for s in x1 x2 x3 x4 x5; do aws scheduler delete-schedule --name "$P-$s" 2>/dev/null; done; aws sqs delete-queue --queue-url "$Q/$P-schnd.fifo"`
 
 ### 15.10 SCH-09: timing
 
@@ -861,7 +877,42 @@ In `notes.md`, take each create and update instant from the `Date` response head
 
 Teardown: `for s in w1 w2 w3 w4 w5 wf1 wf2 wf3 wf4 wf5; do aws scheduler delete-schedule --name "$P-$s" 2>/dev/null; done`
 
-### 15.11 Final sweep
+### 15.11 SCH-10: caller denials
+
+Settles `scheduler.denial.status` ([iam-enforcement-surfaces.md](iam-enforcement-surfaces.md) 12.3), the `iam:PassedToService` context of section 9, and the resource `DeleteScheduleGroup` authorizes `scheduler:DeleteSchedule` on. USD 0.00, 10 minutes.
+
+```sh
+aws iam create-user --user-name "$P-sch-caller"
+read -r UK US < <(aws iam create-access-key --user-name "$P-sch-caller" \
+  --query 'AccessKey.[AccessKeyId,SecretAccessKey]' --output text)
+asu() { AWS_ACCESS_KEY_ID=$UK AWS_SECRET_ACCESS_KEY=$US AWS_SESSION_TOKEN= "$@"; }   # asu <command...>: as the minted user
+sleep 15   # a new key can be refused for a few seconds
+# 01: no policy at all: a denied GetSchedule (status, envelope, error-type header, message grammar)
+rec SCH/10-01-denied-get asu aws scheduler get-schedule --name "$P-none"
+# 02: CreateSchedule, PassRole allowed only with iam:PassedToService = scheduler.amazonaws.com
+aws iam put-user-policy --user-name "$P-sch-caller" --policy-name pass --policy-document \
+  "$(jq -nc --arg r "$SR" '{Version:"2012-10-17",Statement:[{Effect:"Allow",Action:["scheduler:CreateSchedule","scheduler:DeleteSchedule","scheduler:CreateScheduleGroup","scheduler:DeleteScheduleGroup"],Resource:"*"},{Effect:"Allow",Action:"iam:PassRole",Resource:$r,Condition:{StringEquals:{"iam:PassedToService":"scheduler.amazonaws.com"}}}]}')"
+sleep 15
+rec SCH/10-02-passrole-conditioned asu aws scheduler create-schedule --name "$P-v1" --schedule-expression 'rate(1 hour)' \
+  --start-date "$(date -u -d '+1 day' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -v+1d +%Y-%m-%dT%H:%M:%SZ)" \
+  --flexible-time-window Mode=OFF --target "$(tgt "$SQ")"
+# 03: DeleteScheduleGroup of a one-schedule group by a caller denied scheduler:DeleteSchedule
+aws scheduler create-schedule-group --name "$P-sch-g10" >/dev/null
+aws scheduler create-schedule --group-name "$P-sch-g10" --name "$P-v2" --schedule-expression 'rate(1 hour)' \
+  --start-date "$(date -u -d '+1 day' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -v+1d +%Y-%m-%dT%H:%M:%SZ)" \
+  --flexible-time-window Mode=OFF --target "$(tgt "$SQ")" >/dev/null
+aws iam put-user-policy --user-name "$P-sch-caller" --policy-name nodelete --policy-document \
+  '{"Version":"2012-10-17","Statement":[{"Effect":"Deny","Action":"scheduler:DeleteSchedule","Resource":"*"}]}'
+sleep 15
+rec SCH/10-03-group-delete-denied asu aws scheduler delete-schedule-group --name "$P-sch-g10"
+rec SCH/10-03-after aws scheduler list-schedules --schedule-group "$P-sch-g10"
+```
+
+Expected: 01 answers `AccessDeniedException` at 403 (switch default) or 400, with the [iam-enforcement-surfaces.md](iam-enforcement-surfaces.md) 4.1 grammar naming `scheduler:GetSchedule` on the schedule ARN; 02 is accepted (the context key is supplied) or refused naming `iam:PassRole`; 03 is refused naming `scheduler:DeleteSchedule` and the resource it names (the member schedule's ARN, as understudy infers, or the group's), with `$P-v2` still listed after it, or accepted.
+
+Teardown: `aws scheduler delete-schedule --name "$P-v1" 2>/dev/null; aws scheduler delete-schedule-group --name "$P-sch-g10"; for p in pass nodelete; do aws iam delete-user-policy --user-name "$P-sch-caller" --policy-name $p; done; aws iam delete-access-key --user-name "$P-sch-caller" --access-key-id "$UK"; aws iam delete-user --user-name "$P-sch-caller"`
+
+### 15.12 Final sweep
 
 Run after the cases, then the sweep in [recording-kit.md](../recording-kit.md) section 5. Every list must come back empty.
 
