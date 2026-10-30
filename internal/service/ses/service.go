@@ -6,6 +6,7 @@ import (
 
 	"github.com/sustinbebustin/understudy/internal/api/sesapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
+	"github.com/sustinbebustin/understudy/internal/blob"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/evidence"
 	"github.com/sustinbebustin/understudy/internal/fidelity"
@@ -22,6 +23,8 @@ type Service struct {
 	opts  Options
 	ids   *ids.Source
 	cells *store.Partitioned[aws.Scope, state]
+	// blobs holds raw messages; a record holds one reference per blob.
+	blobs *blob.Store
 	// timers is the kernel's timer table, whose scheduler Rearm arms, and
 	// expiry the handled kind of TimerExpiry.
 	timers *kernel.Timers
@@ -51,6 +54,7 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 		opts:   o,
 		ids:    d.IDs,
 		cells:  store.NewPartitioned(d.Kernel.Gate(), codec(), newState),
+		blobs:  d.Blob,
 		timers: d.Kernel.Timers(),
 		log:    d.Log,
 	}
@@ -58,6 +62,7 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 	b := sesapi.NewBinder(d.Binder)
 	s.bindIdentities(b)
 	s.bindSends(b)
+	s.bindSendRaw(b)
 	s.bindQuota(b)
 	s.bindLink(b)
 	return s
@@ -97,7 +102,10 @@ func (s *Service) Import(ss []store.Section) error {
 	return nil
 }
 
-// Reset drops the scopes rs covers.
+// Reset drops the scopes rs covers. As in the other services that hold
+// blobs, the raw messages of dropped records are not released here, where
+// the gate is held and releasing may delete files: they stay until the next
+// snapshot load or --persist startup prunes unreferenced blobs.
 func (s *Service) Reset(rs kernel.ResetScope) {
 	s.cells.Reset(func(k aws.Scope) bool { return !rs.Covers(k) })
 }
@@ -129,11 +137,12 @@ func (s *Service) Switches() []fidelity.Entry {
 		messageIDSwitch(s.opts.MessageID).Entry(),
 		unverifiedTextSwitch(s.opts.UnverifiedText).Entry(),
 		unknownIdentitySwitch(s.opts.UnknownIdentity).Entry(),
+		rawEnvelopeSwitch(s.opts.RawEnvelope).Entry(),
 	}
 }
 
 // messageIDSwitch is switch ses.message-id.format at value v. Ops are the
-// operations that mint a MessageId so far: SendEmail, and
+// operations that mint a MessageId so far: the v1 sends, and
 // VerifyEmailIdentity for its verification email.
 func messageIDSwitch(v MessageIDFormat) fidelity.Switch[MessageIDFormat] {
 	return fidelity.Switch[MessageIDFormat]{
@@ -142,7 +151,7 @@ func messageIDSwitch(v MessageIDFormat) fidelity.Switch[MessageIDFormat] {
 		Label:   evidence.Inferred,
 		Ref:     "docs/research/ses.md#47-messageid",
 		Record:  "SES-07",
-		Ops:     []string{"ses.SendEmail", "ses.VerifyEmailIdentity"},
+		Ops:     []string{"ses.SendEmail", "ses.SendRawEmail", "ses.VerifyEmailIdentity"},
 		Settles: fidelity.NoScenario{Reason: "unrecorded: SES-07 in the recording queue (ses.md 12) settles it"},
 	}
 }
@@ -155,8 +164,22 @@ func unverifiedTextSwitch(v UnverifiedText) fidelity.Switch[UnverifiedText] {
 		Label:   evidence.Inferred,
 		Ref:     "docs/research/ses.md#61-sandbox-rules-per-send",
 		Record:  "SES-01, SES-03",
-		Ops:     []string{"ses.SendEmail"},
+		Ops:     []string{"ses.SendEmail", "ses.SendRawEmail"},
 		Settles: fidelity.NoScenario{Reason: "unrecorded: SES-01 and SES-03 in the recording queue (ses.md 12) settle it"},
+	}
+}
+
+// rawEnvelopeSwitch is switch ses.raw.envelope at value v: which
+// recipients a raw send's sandbox check and counter use (ses.md 4.2).
+func rawEnvelopeSwitch(v RawEnvelope) fidelity.Switch[RawEnvelope] {
+	return fidelity.Switch[RawEnvelope]{
+		Name:    "ses.raw.envelope",
+		Value:   v,
+		Label:   evidence.Inferred,
+		Ref:     "docs/research/ses.md#42-v1-sendrawemail",
+		Record:  "SES-20",
+		Ops:     []string{"ses.SendRawEmail"},
+		Settles: fidelity.NoScenario{Reason: "unrecorded: SES-20 in the recording queue (ses.md 12) settles it"},
 	}
 }
 

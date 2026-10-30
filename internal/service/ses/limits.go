@@ -194,6 +194,11 @@ const (
 	// TooManyPartsText answers a raw message above MaxMIMEParts; %d is
 	// MaxMIMEParts (SES-29).
 	TooManyPartsText = "Message has more than %d MIME parts."
+	// RawUnparseableText answers, as InvalidParameterValue, a raw message
+	// whose header block or multipart body does not parse (model,
+	// SendRawEmailRequest.RawMessage: a header, a blank line, the body,
+	// well-formed MIME parts); no recording case asks for the answer.
+	RawUnparseableText = "Message is not a valid MIME message: it needs header fields, a blank line and the body, with well-formed MIME parts."
 	// TooManyIdentitiesText answers GetIdentityVerificationAttributes
 	// naming more than MaxVerificationAttributesIdentities; %d is that
 	// limit (SES-08).

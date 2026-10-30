@@ -88,7 +88,7 @@ func (s *Service) bindSends(b sesapi.Binder) {
 // sendEmail runs v1 SendEmail's checks in SendChecks order, model
 // validation having run before the handler, then records the accepted
 // message (contract 2.1). Nothing is sent (ses.md 11.8).
-func (s *Service) sendEmail(_ context.Context, c *kernel.Call, in *sesapi.SendEmailInput) (*sesapi.SendEmailOutput, *awserr.Error) {
+func (s *Service) sendEmail(ctx context.Context, c *kernel.Call, in *sesapi.SendEmailInput) (*sesapi.SendEmailOutput, *awserr.Error) {
 	if r := checkSendEmail(in); r != nil {
 		return nil, r.v1()
 	}
@@ -97,7 +97,7 @@ func (s *Service) sendEmail(_ context.Context, c *kernel.Call, in *sesapi.SendEm
 	if in.ReturnPath != nil {
 		senders = append(senders, *in.ReturnPath)
 	}
-	id, err := s.accept(c, outgoing{
+	id, err := s.accept(ctx, c, outgoing{
 		api:      APIv1,
 		senders:  senders,
 		envelope: slices.Concat(d.ToAddresses, d.CcAddresses, d.BccAddresses),

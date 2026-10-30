@@ -129,7 +129,7 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | logs | 118 | 9 | 0 | 9 | 100 | 1 | 0 |
 | s3 | 112 | 22 | 39 | 25 | 26 | 0 | 3 |
 | secretsmanager | 23 | 1 | 0 | 14 | 8 | 0 | 0 |
-| ses | 71 | 3 | 0 | 5 | 63 | 0 | 1 |
+| ses | 71 | 3 | 0 | 6 | 62 | 0 | 1 |
 | sesv2 | 116 | 0 | 0 | 0 | 116 | 0 | 0 |
 | sfn | 37 | 7 | 0 | 9 | 21 | 0 | 0 |
 | sns | 42 | 12 | 0 | 7 | 23 | 0 | 3 |
@@ -1143,6 +1143,7 @@ Raw operations:
 | GetIdentityNotificationAttributes | partial | third-party-recorded, 1 of 1 claim | every identity reports no SNS topics, ForwardingEnabled true and headers disabled; SetIdentityNotificationTopic and the other setters are not implemented |
 | GetSendQuota | partial | third-party-recorded, 1 of 1 claim | Max24HourSend and MaxSendRate from the sandbox or production setting; SentLast24Hours counts accepted recipients on the emulator clock, mailbox simulator excluded; the send rate is not enforced; production values -1 and 14 are unrecorded (SES-26) |
 | SendEmail | partial | inferred, 3 of 4 claims | journal-only: validates and applies identity and sandbox rules, returns a MessageId and records the message for GET /_understudy/v1/ses/messages; no mail is sent, and no Send, Delivery, Bounce or Complaint event or notification is produced; ConfigurationSetName and the sending-authorization ARNs answer NotImplemented; chosen without a recording (docs/research/ses.md 11.4): address, recipient-count, size and daily-quota answers, tag boundaries and ses: names, check order, mailbox-simulator and label matching |
+| SendRawEmail | partial | inferred, 3 of 4 claims | journal-only as SendEmail; the raw MIME is recorded as received, without the Message-ID and Date headers SES would substitute; recipients come from Destinations, else the To, Cc and Bcc headers; X-SES-MESSAGE-TAGS is recorded; ConfigurationSetName, X-SES-CONFIGURATION-SET, the ARN members and the X-SES-*-ARN headers answer NotImplemented |
 | VerifyDomainIdentity | partial | third-party-recorded, 1 of 1 claim | the domain stays Pending until understudy.json lists it; DNS is never queried; Failed after 72 hours on the emulator clock |
 | VerifyEmailIdentity | partial | inferred, 1 of 2 claims | the identity stays Pending until its verification link under /_understudy/ses/VerificationLink is opened or understudy.json lists it; the verification email is recorded, never sent; Failed after 24 hours on the emulator clock; chosen without a recording (docs/research/ses.md 11.4): the invalid-address answers |
 | CloneReceiptRuleSet | unbound | unassessed |  |
@@ -1188,7 +1189,6 @@ Raw operations:
 | SendBounce | unbound | unassessed |  |
 | SendBulkTemplatedEmail | unbound | unassessed |  |
 | SendCustomVerificationEmail | unbound | unassessed |  |
-| SendRawEmail | unbound | unassessed |  |
 | SendTemplatedEmail | unbound | unassessed |  |
 | SetActiveReceiptRuleSet | unbound | unassessed |  |
 | SetIdentityDkimEnabled | unbound | unassessed |  |
@@ -1647,7 +1647,7 @@ Internal operations:
 
 Behaviors chosen without AWS-recorded evidence, with the research they rest on and the parity scenario step that settles them, or why none does. The count and order follow the label the code states; the Label column shows the recording's verdict where a replayed step settles or contradicts the switch.
 
-214 switches: 1 aws-recorded, 5 third-party-recorded, 24 aws-doc, 184 inferred.
+215 switches: 1 aws-recorded, 5 third-party-recorded, 24 aws-doc, 185 inferred.
 
 | Switch | Value | Label | Reference | Settled by |
 |---|---|---|---|---|
@@ -1808,6 +1808,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `secretsmanager.restore.not-scheduled` | `no-op` | inferred | docs/research/secrets-logs-events-alarms.md#25-deletion-window-force-delete-restore-clock-driven | none: secretsmanager/R15/05-restore-live.json is recorded; no scenario replays secretsmanager/R15 yet |
 | `ses.error.unverified.text` | `senders-first` | inferred | docs/research/ses.md#61-sandbox-rules-per-send | none: unrecorded: SES-01 and SES-03 in the recording queue (ses.md 12) settle it |
 | `ses.message-id.format` | `timestamped` | inferred | docs/research/ses.md#47-messageid | none: unrecorded: SES-07 in the recording queue (ses.md 12) settles it |
+| `ses.raw.envelope` | `destinations` | inferred | docs/research/ses.md#42-v1-sendrawemail | none: unrecorded: SES-20 in the recording queue (ses.md 12) settles it |
 | `ses.verification.unknown-identity` | `omitted` | inferred | docs/research/ses.md#53-v1-identity-operations | none: unrecorded: SES-08 in the recording queue (ses.md 12) settles it |
 | `sfn.choice.missing-variable` | `{States.Runtime true}` | inferred | docs/research/stepfunctions-asl.md#64-no-match-and-missing-variables | none: unrecorded: recording case ASL-08 (stepfunctions-asl.md 16.2) |
 | `sfn.choice.no-match` | `{States.NoChoiceMatched false}` | inferred | docs/research/stepfunctions-asl.md#64-no-match-and-missing-variables | none: unrecorded: recording case ASL-08 (stepfunctions-asl.md 16.2) |

@@ -1,12 +1,14 @@
 package ses
 
 import (
+	"context"
 	"slices"
 	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/api/sesapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/blob"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 )
@@ -33,11 +35,15 @@ type outgoing struct {
 // SendChecks order, on the caller's scope; a send that passes them is
 // counted and recorded, and accept returns its MessageId. Nothing changes
 // when a check fails.
-func (s *Service) accept(c *kernel.Call, o outgoing) (string, *awserr.Error) {
+func (s *Service) accept(ctx context.Context, c *kernel.Call, o outgoing) (string, *awserr.Error) {
+	type accepted struct {
+		id       string
+		released []blob.Ref
+	}
 	scope := c.Scope()
-	return kernel.Write(c, s.cells, scope, func(st *state, now clock.Instant, _ *kernel.Tx) (string, *awserr.Error) {
+	got, err := kernel.Write(c, s.cells, scope, func(st *state, now clock.Instant, _ *kernel.Tx) (accepted, *awserr.Error) {
 		if r := s.checkIdentities(st, scope.Region, o); r != nil {
-			return "", o.refuse(r)
+			return accepted{}, o.refuse(r)
 		}
 		counted := 0
 		var simulated map[string]Scenario
@@ -53,16 +59,20 @@ func (s *Service) accept(c *kernel.Call, o outgoing) (string, *awserr.Error) {
 			simulated[to] = sc
 		}
 		if !s.opts.ProductionAccess && float64(st.sentLast24Hours(now)+counted) > SandboxMax24HourSend {
-			return "", o.refuse(&refusal{class: refusalThrottled, text: DailyQuotaText})
+			return accepted{}, o.refuse(&refusal{class: refusalThrottled, text: DailyQuotaText})
 		}
 		st.count(now, counted)
 		r := s.newRecord(c, o.api, KindSend, now)
 		r.Envelope = slices.Clone(o.envelope)
 		r.Simulator = simulated
 		o.fill(&r)
-		st.record(r)
-		return r.MessageID, nil
+		return accepted{id: r.MessageID, released: st.record(r)}, nil
 	})
+	if err != nil {
+		return "", err
+	}
+	s.release(ctx, got.released...)
+	return got.id, nil
 }
 
 // checkIdentities runs CheckSender and, in the sandbox,

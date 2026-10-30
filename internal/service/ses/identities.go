@@ -9,6 +9,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/sesapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/blob"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/journal"
@@ -101,30 +102,32 @@ func (s *Service) pend(id *identity, scope aws.Scope, now clock.Instant, tx *ker
 // Each start and restart records a verification email, always with the
 // identity's one link token (contract 2.3). An invalid address is refused
 // as a send's address is (ses.md 4.6, SES-04).
-func (s *Service) verifyEmailIdentity(_ context.Context, c *kernel.Call, in *sesapi.VerifyEmailIdentityInput) (*sesapi.VerifyEmailIdentityOutput, *awserr.Error) {
+func (s *Service) verifyEmailIdentity(ctx context.Context, c *kernel.Call, in *sesapi.VerifyEmailIdentityInput) (*sesapi.VerifyEmailIdentityOutput, *awserr.Error) {
 	if _, r := parseAddress(in.EmailAddress); r != nil {
 		return nil, r.v1()
 	}
 	scope := c.Scope()
-	_, err := kernel.Write(c, s.cells, scope, func(st *state, now clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
+	// The write returns the blobs of a message the verification email
+	// evicted, released once it commits.
+	released, err := kernel.Write(c, s.cells, scope, func(st *state, now clock.Instant, tx *kernel.Tx) ([]blob.Ref, *awserr.Error) {
 		i := st.find(in.EmailAddress)
 		if i < 0 {
 			id, err := s.create(st, scope, sesapi.IdentityTypeEmailAddress, in.EmailAddress, now, tx)
 			if err != nil {
-				return struct{}{}, err
+				return nil, err
 			}
 			if _, verified := id.Status.(statusSuccess); !verified {
 				id.LinkToken = s.linkToken()
-				st.record(s.verificationEmail(c, APIv1, id.Name, id.LinkToken, now))
+				return st.record(s.verificationEmail(c, APIv1, id.Name, id.LinkToken, now)), nil
 			}
-			return struct{}{}, nil
+			return nil, nil
 		}
 		id := &st.Identities[i]
 		old := id.Status
 		switch old.(type) {
 		case statusSuccess:
 			tx.Unchanged()
-			return struct{}{}, nil
+			return nil, nil
 		case statusPending:
 		default:
 			tx.Record(scope, journal.StateChange{
@@ -136,12 +139,12 @@ func (s *Service) verifyEmailIdentity(_ context.Context, c *kernel.Call, in *ses
 		if id.LinkToken == "" {
 			id.LinkToken = s.linkToken()
 		}
-		st.record(s.verificationEmail(c, APIv1, id.Name, id.LinkToken, now))
-		return struct{}{}, nil
+		return st.record(s.verificationEmail(c, APIv1, id.Name, id.LinkToken, now)), nil
 	})
 	if err != nil {
 		return nil, err
 	}
+	s.release(ctx, released...)
 	return &sesapi.VerifyEmailIdentityOutput{}, nil
 }
 

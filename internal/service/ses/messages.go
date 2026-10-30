@@ -2,6 +2,7 @@ package ses
 
 import (
 	"cmp"
+	"context"
 	"fmt"
 	"net/mail"
 	"slices"
@@ -9,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/aws"
+	"github.com/sustinbebustin/understudy/internal/blob"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/store"
@@ -165,7 +167,8 @@ func (e *QueryError) Error() string { return "ses: message query " + e.Field + "
 // Messages returns the page of recorded messages q selects, oldest first:
 // in the order the store recorded them, across every account and Region q
 // covers. A limit outside 1..MaxMessageLimit or a cursor the store did not
-// issue is a *QueryError.
+// issue is a *QueryError; a raw message the blob store cannot read is any
+// other error.
 func (s *Service) Messages(q MessageQuery) (MessagePage, error) {
 	limit := q.Limit
 	switch {
@@ -181,26 +184,23 @@ func (s *Service) Messages(q MessageQuery) (MessagePage, error) {
 	if err != nil {
 		return MessagePage{}, err
 	}
-	type hit struct {
-		scope aws.Scope
-		r     record
-	}
 	var hits []hit
+	// held are the blob references taken under the cell lock, so a
+	// concurrent clear cannot delete a raw message before it is read.
+	var held []blob.Ref
+	defer func() { s.release(context.Background(), held...) }()
 	evicted := 0
 	for _, scope := range s.covered(q) {
 		cell, ok := s.cells.Lookup(scope)
 		if !ok {
 			continue
 		}
-		store.Read(cell, func(st *state) struct{} {
+		if err := store.Read(cell, func(st *state) error {
 			evicted += st.Evicted
-			for i := range st.Messages {
-				if r := &st.Messages[i]; r.Seq > after && q.selects(r) {
-					hits = append(hits, hit{scope: scope, r: *r})
-				}
-			}
-			return struct{}{}
-		})
+			return s.collect(st, scope, &q, after, &hits, &held)
+		}); err != nil {
+			return MessagePage{}, err
+		}
 	}
 	slices.SortFunc(hits, func(a, b hit) int { return cmp.Compare(a.r.Seq, b.r.Seq) })
 	page := MessagePage{Messages: []Message{}, Evicted: evicted}
@@ -209,9 +209,62 @@ func (s *Service) Messages(q MessageQuery) (MessagePage, error) {
 		page.Next = cursorAfter(hits[limit-1].r.Seq)
 	}
 	for i := range hits {
-		page.Messages = append(page.Messages, hits[i].r.message(hits[i].scope))
+		m, err := s.resolve(&hits[i].r, hits[i].scope)
+		if err != nil {
+			return MessagePage{}, err
+		}
+		page.Messages = append(page.Messages, m)
 	}
 	return page, nil
+}
+
+// resolve is r in scope with its raw message read from the blob store; the
+// caller holds a reference on it.
+func (s *Service) resolve(r *record, scope aws.Scope) (Message, error) {
+	m := r.message(scope)
+	if r.Raw == nil {
+		return m, nil
+	}
+	raw, err := s.readBlob(*r.Raw)
+	if err != nil {
+		return Message{}, fmt.Errorf("ses message %s: %w", m.MessageID, err)
+	}
+	m.Raw = raw
+	return m, nil
+}
+
+// hit is a record Messages selected, with its scope.
+type hit struct {
+	scope aws.Scope
+	r     record
+}
+
+// collect appends the records of st in scope that q selects after the
+// record numbered after to hits, taking a reference on each blob they hold.
+func (s *Service) collect(st *state, scope aws.Scope, q *MessageQuery, after uint64, hits *[]hit, held *[]blob.Ref) error {
+	for i := range st.Messages {
+		r := &st.Messages[i]
+		if r.Seq <= after || !q.selects(r) {
+			continue
+		}
+		if err := s.retain(r, held); err != nil {
+			return err
+		}
+		*hits = append(*hits, hit{scope: scope, r: *r})
+	}
+	return nil
+}
+
+// retain takes one more reference on each blob r holds, appending it to
+// held for the caller to release.
+func (s *Service) retain(r *record, held *[]blob.Ref) error {
+	for _, ref := range r.blobRefs() {
+		if err := s.blobs.Retain(ref); err != nil {
+			return fmt.Errorf("ses message %s names raw message blob %s, which the blob store does not hold: %w", r.MessageID, ref, err)
+		}
+		*held = append(*held, ref)
+	}
+	return nil
 }
 
 // ClearMessages deletes the messages q selects, ignoring Limit and Cursor,
@@ -220,6 +273,7 @@ func (s *Service) Messages(q MessageQuery) (MessagePage, error) {
 // MessageQuery can spell without Limit and Cursor is valid.
 func (s *Service) ClearMessages(q MessageQuery) (int, error) {
 	deleted := 0
+	var released []blob.Ref
 	for _, scope := range s.covered(q) {
 		cell, ok := s.cells.Lookup(scope)
 		if !ok {
@@ -228,7 +282,9 @@ func (s *Service) ClearMessages(q MessageQuery) (int, error) {
 		deleted += store.Update(cell, func(st *state) (int, bool) {
 			kept := st.Messages[:0]
 			for i := range st.Messages {
-				if !q.selects(&st.Messages[i]) {
+				if q.selects(&st.Messages[i]) {
+					released = append(released, st.Messages[i].blobRefs()...)
+				} else {
 					kept = append(kept, st.Messages[i])
 				}
 			}
@@ -238,6 +294,7 @@ func (s *Service) ClearMessages(q MessageQuery) (int, error) {
 			return n, n > 0
 		})
 	}
+	s.release(context.Background(), released...)
 	return deleted, nil
 }
 

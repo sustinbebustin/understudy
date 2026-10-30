@@ -1,21 +1,28 @@
 package ses
 
 import (
+	"bytes"
+	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
+	"io"
+	"log/slog"
 	"maps"
 	"slices"
 
 	"github.com/sustinbebustin/understudy/internal/aws"
+	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/blob"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // record is a Message as the "ses" snapshot section holds it (contract
-// 1.3): its scope is the cell's. Raw MIME and attachment contents are not
-// members: they belong in internal/blob, with the record holding the
-// references, and no operation that records them is bound yet.
+// 1.3): its scope is the cell's. Raw MIME lives in internal/blob, the
+// record holding one reference on it; Messages reads it back.
 type record struct {
 	// Seq numbers the records of the whole store in the order they were
 	// recorded: the order Messages answers in, and what its cursor names.
@@ -40,6 +47,8 @@ type record struct {
 	Text    *Content `json:"text,omitempty"`
 	HTML    *Content `json:"html,omitempty"`
 	Headers []Header `json:"headers,omitempty"`
+	// Raw is the raw MIME's blob, nil for Simple content.
+	Raw *blob.Ref `json:"raw,omitempty"`
 
 	Tags      []Tag               `json:"tags,omitempty"`
 	Simulator map[string]Scenario `json:"simulator,omitempty"`
@@ -79,16 +88,82 @@ func (r *record) message(scope aws.Scope) Message {
 	}
 }
 
+// blobRefs is the blob references r holds.
+func (r *record) blobRefs() []blob.Ref {
+	if r.Raw == nil {
+		return nil
+	}
+	return []blob.Ref{*r.Raw}
+}
+
 // record appends r, evicting the scope's oldest record and counting it
-// when the scope already holds MaxStoredMessages (ses.md 11.2).
-func (s *state) record(r record) {
+// when the scope already holds MaxStoredMessages (ses.md 11.2). It returns
+// the blob references the evicted record held, which the caller releases
+// once the write commits.
+func (s *state) record(r record) (released []blob.Ref) {
 	if len(s.Messages) >= MaxStoredMessages {
+		released = s.Messages[0].blobRefs()
 		s.Messages[0] = record{}
 		s.Messages = s.Messages[1:]
 		s.Evicted++
 	}
 	s.Messages = append(s.Messages, r)
+	return released
 }
+
+// putBlob stores data in the blob store, holding one reference for the
+// record that will name it.
+func (s *Service) putBlob(ctx context.Context, data []byte) (blob.Ref, *awserr.Error) {
+	if s.blobs == nil {
+		return blob.Ref{}, awserr.Internalf(errors.New("the SES service was built without a blob store, so it cannot keep raw messages; wire kernel.ServiceDeps.Blob"))
+	}
+	ref, _, err := s.blobs.Put(ctx, bytes.NewReader(data), int64(len(data)))
+	if err != nil {
+		return blob.Ref{}, awserr.Internalf(fmt.Errorf("storing a raw message of %d bytes in the blob store: %w; nothing was recorded", len(data), err))
+	}
+	return ref, nil
+}
+
+// release drops blob references no record holds any more. A failure is
+// logged: the blob then outlives its record until the next prune.
+func (s *Service) release(ctx context.Context, refs ...blob.Ref) {
+	for _, r := range refs {
+		if err := s.blobs.Release(r); err != nil {
+			s.log.LogAttrs(ctx, slog.LevelWarn, "releasing an SES raw message failed; the blob stays until the next prune",
+				slog.String("blob", r.String()), slog.String("error", err.Error()))
+		}
+	}
+}
+
+// readBlob is the bytes of ref.
+func (s *Service) readBlob(ref blob.Ref) ([]byte, error) {
+	r, err := s.blobs.Open(ref)
+	if err != nil {
+		return nil, fmt.Errorf("opening raw message blob %s: %w", ref, err)
+	}
+	defer func() { _ = r.Close() }()
+	b, err := io.ReadAll(r)
+	if err != nil {
+		return nil, fmt.Errorf("reading raw message blob %s: %w", ref, err)
+	}
+	return b, nil
+}
+
+// BlobRefs lists one entry per blob reference the scope's records hold,
+// which is how a snapshot archives the raw messages beside the section.
+func (s *state) BlobRefs() []string {
+	var refs []string
+	for i := range s.Messages {
+		for _, ref := range s.Messages[i].blobRefs() {
+			refs = append(refs, ref.String())
+		}
+	}
+	return refs
+}
+
+// Partitioned finds BlobRefs by type assertion; this keeps a rename from
+// silently dropping the blobs from snapshots.
+var _ store.BlobHolder = (*state)(nil)
 
 // newRecord starts the record of a message call c accepts at now: its
 // number, MessageId, API, operation and request id.
