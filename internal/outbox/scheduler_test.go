@@ -41,19 +41,9 @@ func schedRole() aws.ARN {
 var schedScheduled = time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
 
 // toSchedulerTarget is a Scheduler delivery of one invocation whose Input
-// is tmpl, as the fire write hands it over (contract section 4).
-func toSchedulerTarget(mech delivery.Mechanism, target delivery.Target, tmpl string, onPermanent delivery.PermanentErrors, retries int, dlq *aws.ARN) delivery.Request {
-	var targetARN aws.ARN
-	switch t := target.(type) {
-	case delivery.SQSQueue:
-		targetARN = t.ARN
-	case delivery.LambdaFunction:
-		targetARN = t.ARN
-	case delivery.SNSTopic:
-		targetARN = t.ARN
-	case delivery.EventBus:
-		targetARN = t.ARN
-	}
+// is tmpl, as the fire write hands it over (contract section 4); targetARN
+// is the target's ARN as configured.
+func toSchedulerTarget(mech delivery.Mechanism, target delivery.Target, targetARN aws.ARN, tmpl string, onPermanent delivery.PermanentErrors, retries int, dlq *aws.ARN) delivery.Request {
 	return delivery.Request{
 		Source:    schedARN(),
 		Mechanism: mech,
@@ -72,8 +62,10 @@ func toSchedulerTarget(mech delivery.Mechanism, target delivery.Target, tmpl str
 	}
 }
 
-func schedQueue(name, tmpl string) delivery.SQSQueue {
-	return delivery.SQSQueue{ARN: arn("sqs", name), Body: tmpl}
+// toSchedulerQueue is a Scheduler delivery to the standard queue name.
+func toSchedulerQueue(name, tmpl string, onPermanent delivery.PermanentErrors, retries int, dlq *aws.ARN) delivery.Request {
+	q := arn("sqs", name)
+	return toSchedulerTarget(delivery.SchedulerToSQS, delivery.SQSQueue{ARN: q, Body: tmpl}, q, tmpl, onPermanent, retries, dlq)
 }
 
 // wantRoleSession fails unless p is a session of the schedule's execution
@@ -90,6 +82,10 @@ func wantRoleSession(k *kerneltest.K, what string, p identity.Principal) {
 }
 
 var wantSchedulerOrigin ref.Origin = ref.Internal{Via: ref.SchedulerTarget}
+
+// universalTarget is the TARGET_ARN form, "arn:aws:scheduler:::aws-sdk:service:apiAction"
+// (aws-doc configuring-schedule-dlq; scheduler.md 7.2).
+var universalTarget = regexp.MustCompile(`^arn:aws:scheduler:::aws-sdk:[a-z0-9-]+:[a-zA-Z]+$`)
 
 // noAdvisories fails on any advisory: a role-session delivery needs no
 // resource-policy grant on its target, so none is advised (scheduler.md 1
@@ -116,7 +112,7 @@ func TestSchedulerDeliveryRendersEachAttemptAsTheRole(t *testing.T) {
 			return nil
 		})
 		tmpl := "hello <aws.scheduler.attempt-number>"
-		enqueue(k, o, toSchedulerTarget(delivery.SchedulerToSQS, schedQueue("tracer", tmpl), tmpl, delivery.PermanentNotRetried, 185, nil), source(k))
+		enqueue(k, o, toSchedulerQueue("tracer", tmpl, delivery.PermanentNotRetried, 185, nil), source(k))
 		settled(k)
 		for range 10 {
 			advance(k, time.Minute)
@@ -146,7 +142,7 @@ func TestSchedulerFIFOQueueGetsTheGroup(t *testing.T) {
 	run(t, func(k *kerneltest.K, o *outbox.Outbox) {
 		q := stubQueues(k, func(int, *sqsapi.SendMessageInput) *awserr.Error { return nil })
 		target := delivery.SQSQueue{ARN: arn("sqs", "orders.fifo"), Body: "x", GroupID: "g1"}
-		enqueue(k, o, toSchedulerTarget(delivery.SchedulerToSQS, target, "x", delivery.PermanentNotRetried, 185, nil), source(k))
+		enqueue(k, o, toSchedulerTarget(delivery.SchedulerToSQS, target, target.ARN, "x", delivery.PermanentNotRetried, 185, nil), source(k))
 		settled(k)
 		got := q.sent()
 		if len(got) != 1 {
@@ -191,7 +187,7 @@ func wantDeadLetterAttributes(k *kerneltest.K, attrs map[string]sqsapi.MessageAt
 	if got := str("IS_PAYLOAD_TRUNCATED"); got != "false" {
 		k.Errorf("IS_PAYLOAD_TRUNCATED = %q, want false for a small payload", got)
 	}
-	if ok, _ := regexp.MatchString(`^arn:aws:scheduler:::aws-sdk:[a-z0-9-]+:[a-zA-Z]+$`, str("TARGET_ARN")); !ok {
+	if !universalTarget.MatchString(str("TARGET_ARN")) {
 		// "in the following service ARN format:
 		// arn:aws:scheduler:::aws-sdk:service:apiAction" (aws-doc).
 		k.Errorf("TARGET_ARN = %q, want the arn:aws:scheduler:::aws-sdk:service:apiAction form", str("TARGET_ARN"))
@@ -216,7 +212,7 @@ func TestSchedulerMissingQueueDeadLettersAtOnce(t *testing.T) {
 		dlq := arn("sqs", "sch-dlq")
 		const input = "Hello, world!"
 		t0 := k.Clock.Now()
-		enqueue(k, o, toSchedulerTarget(delivery.SchedulerToSQS, schedQueue("gone", input), input, delivery.PermanentNotRetried, 185, &dlq), source(k))
+		enqueue(k, o, toSchedulerQueue("gone", input, delivery.PermanentNotRetried, 185, &dlq), source(k))
 		settled(k)
 
 		got := q.sent()
@@ -257,7 +253,7 @@ func TestSchedulerPermanentErrorRetriedWhenFlipped(t *testing.T) {
 			return nil
 		})
 		dlq := arn("sqs", "sch-dlq")
-		enqueue(k, o, toSchedulerTarget(delivery.SchedulerToSQS, schedQueue("gone", "x"), "x", delivery.PermanentRetried, 2, &dlq), source(k))
+		enqueue(k, o, toSchedulerQueue("gone", "x", delivery.PermanentRetried, 2, &dlq), source(k))
 		settled(k)
 		for range 60 {
 			advance(k, time.Minute)
@@ -288,7 +284,7 @@ func TestSchedulerRetryableErrorExhaustsTheRetries(t *testing.T) {
 		})
 		dlq := arn("sqs", "sch-dlq")
 		tmpl := "try <aws.scheduler.attempt-number>"
-		enqueue(k, o, toSchedulerTarget(delivery.SchedulerToSQS, schedQueue("busy", tmpl), tmpl, delivery.PermanentNotRetried, 1, &dlq), source(k))
+		enqueue(k, o, toSchedulerQueue("busy", tmpl, delivery.PermanentNotRetried, 1, &dlq), source(k))
 		settled(k)
 		for range 60 {
 			advance(k, time.Minute)
@@ -327,7 +323,7 @@ func TestSchedulerLambdaTargetIsInvokedAsynchronously(t *testing.T) {
 		tmpl := `{"attempt":"<aws.scheduler.attempt-number>"}`
 		fn := arn("lambda", "function:tick")
 		target := delivery.LambdaFunction{ARN: fn, Event: []byte(tmpl), Invocation: delivery.InvocationEvent}
-		enqueue(k, o, toSchedulerTarget(delivery.SchedulerToLambda, target, tmpl, delivery.PermanentNotRetried, 185, nil), source(k))
+		enqueue(k, o, toSchedulerTarget(delivery.SchedulerToLambda, target, fn, tmpl, delivery.PermanentNotRetried, 185, nil), source(k))
 		settled(k)
 		got := calls.all()
 		if len(got) != 1 {
@@ -361,7 +357,7 @@ func TestSchedulerSNSTargetPublishes(t *testing.T) {
 		})
 		tmpl := "tick <aws.scheduler.attempt-number>"
 		topicARN := arn("sns", "ticks")
-		enqueue(k, o, toSchedulerTarget(delivery.SchedulerToSNS, delivery.SNSTopic{ARN: topicARN, Message: tmpl}, tmpl, delivery.PermanentNotRetried, 185, nil), source(k))
+		enqueue(k, o, toSchedulerTarget(delivery.SchedulerToSNS, delivery.SNSTopic{ARN: topicARN, Message: tmpl}, topicARN, tmpl, delivery.PermanentNotRetried, 185, nil), source(k))
 		settled(k)
 		got := calls.all()
 		if len(got) != 1 {
@@ -385,7 +381,7 @@ func TestSchedulerEventBusTargetPutsOneEntry(t *testing.T) {
 		bus := arn("events", "event-bus/default")
 		tmpl := `{"attempt":"<aws.scheduler.attempt-number>"}`
 		target := delivery.EventBus{ARN: bus, Entries: []delivery.EventEntry{{Source: "my.app", DetailType: "tick", Detail: tmpl}}}
-		enqueue(k, o, toSchedulerTarget(delivery.SchedulerToEvents, target, tmpl, delivery.PermanentNotRetried, 185, nil), source(k))
+		enqueue(k, o, toSchedulerTarget(delivery.SchedulerToEvents, target, bus, tmpl, delivery.PermanentNotRetried, 185, nil), source(k))
 		settled(k)
 		got := calls.all()
 		if len(got) != 1 || len(got[0].in.Entries) != 1 {
@@ -409,7 +405,7 @@ func TestSchedulerEventBusTargetPutsOneEntry(t *testing.T) {
 func TestSchedulerRequestFieldsAreChecked(t *testing.T) {
 	run(t, func(k *kerneltest.K, o *outbox.Outbox) {
 		cause := source(k)
-		full := toSchedulerTarget(delivery.SchedulerToSQS, schedQueue("q", "x"), "x", delivery.PermanentNotRetried, 185, nil)
+		full := toSchedulerQueue("q", "x", delivery.PermanentNotRetried, 185, nil)
 		if _, err := o.Enqueue(full, cause, k.Clock.Now()); err != nil {
 			k.Errorf("Enqueue of a complete Scheduler request = %v, want accepted", err)
 		}

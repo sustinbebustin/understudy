@@ -41,7 +41,7 @@ func firstPass(x time.Time, loc *time.Location) bool {
 	return true
 }
 
-// zoneFireByBruteForce walks UTC minutes after after up to limit and returns
+// zoneFireByBruteForce walks the UTC minutes past after, up to limit, and returns
 // the first whose civil minute in loc satisfies c and is the first pass of
 // that civil minute (scheduler.md 14.3.3).
 func zoneFireByBruteForce(c cronCase, after, limit time.Time, loc *time.Location) (time.Time, bool) {
@@ -94,7 +94,7 @@ func TestPropertyNextInUTCEqualsNext(t *testing.T) {
 	})
 }
 
-// In any zone, NextIn returns the first instant after after whose civil
+// In any zone, NextIn returns the first instant later than after whose civil
 // minute matches and has not been passed before: a later whole minute, no
 // civil minute fired twice across a fall back, and no matching civil
 // minute lost outside a spring-forward gap (aws-doc
