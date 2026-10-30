@@ -14,8 +14,8 @@ github.com/aws/aws-sdk-go-v2/internal/configsources v1.5.8 h1:gzIWc3DTPfPbWKrQnm
 github.com/aws/aws-sdk-go-v2/internal/configsources v1.5.8/go.mod h1:vvUA5cDAZWGo4R14FZPZfXfJCmgsafOWEq78Kg0D+ug=
 github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.8.8 h1:PWv+vG8aCLS8qd+HPdYhK7Vees90aKHWFFQ1AGYD/8E=
 github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.8.8/go.mod h1:xxPZEpflYHJA12366ZGyq66z9dHPCoeCIu99Jck+MPw=
-github.com/aws/aws-sdk-go-v2/internal/v4a v1.5.6 h1:Qmn60RWuk9+bd2ddvJJqwf3Cpac3VvGMOdbGemtUhX4=
-github.com/aws/aws-sdk-go-v2/internal/v4a v1.5.6/go.mod h1:h/YJhe4AVyQxEUMluph10iqV7mjajH7A9L+BHF5ppis=
+github.com/aws/aws-sdk-go-v2/internal/v4a v1.5.8 h1:WOp5De9iWdEHDPh2Kb0tBP3vGBm/dVAuRGh4a4tqduo=
+github.com/aws/aws-sdk-go-v2/internal/v4a v1.5.8/go.mod h1:z8W8YgfhbWl62XqcTtK+CxPrE+iHGRVUOtrrbIOp7ZY=
 github.com/aws/aws-sdk-go-v2/service/apigatewayv2 v1.46.2 h1:esWh3X6MG5L/chg2r1ovg8SGy6Ps4+91xXCPfNciqlU=
 github.com/aws/aws-sdk-go-v2/service/apigatewayv2 v1.46.2/go.mod h1:tRcyrZcVgmh2kmIEb7na8EZUz/vdtjxUIeKN8RBpUhE=
 github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.73.3 h1:VmR1+YQW2vc3Sy2fLGSFtijUq9bAOMzzFxNC1zmHiA0=
@@ -52,6 +52,8 @@ github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.50.4 h1:+qOKY5eW7mwAEUWoI
 github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.50.4/go.mod h1:1C6Uc76IPws0N2nYeWJKxNoabSXbTdkDpAUnqAz4VCI=
 github.com/aws/aws-sdk-go-v2/service/ses v1.42.6 h1:sJ7H8VHuH+LTA+X7oQm1t0tFUW+ttNSP4Gpn92GiBLE=
 github.com/aws/aws-sdk-go-v2/service/ses v1.42.6/go.mod h1:wISClXAndOJlgtxwYSPZt8z6lOPxB37dQB0wr77ZomI=
+github.com/aws/aws-sdk-go-v2/service/sesv2 v1.79.4 h1:DxTb9AgYzJAIs8gtwCe1gn99m67HXJK7mD9L9kPd7NQ=
+github.com/aws/aws-sdk-go-v2/service/sesv2 v1.79.4/go.mod h1:Cko9LCpVO+mxJBZq8QgedINWtb5NAdcSlearticjqLM=
 github.com/aws/aws-sdk-go-v2/service/sfn v1.52.0 h1:vVMFVwWJPPRO67RyAVC4VGO/qeBJjfyxIAVRBtwOQ0k=
 github.com/aws/aws-sdk-go-v2/service/sfn v1.52.0/go.mod h1:8qrqjPA1uw7ePtY5I7qbS5hJD1QFDpT2+Vu0/lvBIoo=
 github.com/aws/aws-sdk-go-v2/service/signin v1.10.4 h1:tvpDjuUvgKURf3Yk4hOaGbZ4QdY+070OWcA5d6LUv2A=
