@@ -323,7 +323,9 @@ func TestSendChecksRunInOrder(t *testing.T) {
 		return i
 	}
 	runVerified(t, ses.Options{}, func(h *harness) {
-		rapid.Check(h.T, func(rt *rapid.T) {
+		// h.K, not h.T: rapid asks a *testing.T for its deadline, which a
+		// synctest bubble refuses; any other TB gets rapid's default.
+		rapid.Check(h.K, func(rt *rapid.T) {
 			picked := rapid.SliceOfNDistinct(rapid.IntRange(0, len(failures)-1), 1, len(failures), rapid.ID[int]).Draw(rt, "failures")
 			in := email(sender, recipient)
 			first := failures[picked[0]]
