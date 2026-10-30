@@ -294,7 +294,7 @@ A v2 template operation on a template the account and region do not hold is `Not
 
 ## Not implemented
 
-A member or header understudy would have to fake answers `NotImplemented` and names it: `ConfigurationSetName`, `X-SES-CONFIGURATION-SET`, the sending-authorization ARNs and their `X-SES-*-ARN` headers, `TemplateArn` (v1) and `Template.TemplateArn` (v2), and v2 `ConfigurationOverrides`, `EndpointId`, `TenantName` and `ListManagementOptions`. Operations outside [the coverage page](../coverage.md#ses) answer 501:
+A member or header understudy would have to fake answers `NotImplemented` and names it: `ConfigurationSetName`, `X-SES-CONFIGURATION-SET`, the sending-authorization ARNs and their `X-SES-*-ARN` headers, `TemplateArn` (v1) and `Template.TemplateArn` (v2), and v2 `ConfigurationOverrides`, `EndpointId`, `TenantName` and `ListManagementOptions`. The SDKs and the AWS CLI sign a send with `EndpointId` (`--endpoint-id`) with SigV4A, which understudy does not accept, so that send answers `UnknownOperationException` before it reaches SES; only a SigV4-signed request gets the `NotImplemented` naming `EndpointId`. Operations outside [the coverage page](../coverage.md#ses) answer 501:
 
 ```text
 An error occurred (NotImplemented) when calling the CreateConfigurationSet operation: understudy does not implement ses.CreateConfigurationSet. Run 'understudy coverage --service ses' for what is supported; to ask for it, see https://github.com/sustinbebustin/understudy/issues?q=ses.CreateConfigurationSet

@@ -18,7 +18,8 @@ const v2SendEmailCoverage = "journal-only as the v1 sends, for Simple (with Head
 	"Template content, stored by TemplateName or inline, renders and records as SendTemplatedEmail does; " +
 	"FeedbackForwardingEmailAddress must be verified, as ReturnPath (inferred); ConfigurationSetName, " +
 	"ConfigurationOverrides, EndpointId, TenantName, ListManagementOptions, Template.TemplateArn and the identity ARN members " +
-	"answer NotImplemented"
+	"answer NotImplemented; the SDKs sign a send with EndpointId SigV4A, which understudy refuses, so it answers sesv2's " +
+	"unknown operation at the edge and only a SigV4-signed one reaches the NotImplemented answer"
 
 // bindV2Send binds v2 SendEmail, whose resource is its sender's identity
 // ARN: FromEmailAddress, else, for Raw content, the first From header

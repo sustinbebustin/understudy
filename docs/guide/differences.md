@@ -219,6 +219,7 @@ No SES response has been recorded against AWS yet, so every SES answer rests on 
 - A templated send renders only `{{name}}` and dotted paths; any other Handlebars construct, a value the data lacks and a value whose rendering on SES is unrecorded leave their part unrendered and are listed as render gaps, where AWS would render the part or, for a rendering failure, drop the mail after accepting it ([SES](ses-email.md#templated-sends)).
 - Texts not yet recorded, and so possibly different from AWS's: the unverified-identity `MessageRejected` text (its region spelling and identity order), invalid-address and recipient-count answers, the daily quota error, and the production quota values -1 and 14.
 - An unknown v1 `Action` or v2 path answers as `sesv2`'s unknown operation; what AWS answers is not recorded.
+- A v2 `SendEmail` with `EndpointId`, which the SDKs sign with SigV4A, answers `sesv2`'s unknown operation, since understudy does not accept SigV4A; AWS would route it to a multi-region endpoint.
 
 ## KMS, Secrets Manager, IAM and STS
 
