@@ -170,8 +170,26 @@ mint_user() {
 # admin_get PATH: GET an admin API path.
 admin_get() { curl -fsS "$admin/$1"; }
 
-# evaluate BODY: POST /iam/evaluate.
-evaluate() { curl -fsS -X POST -H 'Content-Type: application/json' --data-binary "$1" "$admin/iam/evaluate"; }
+# policy_of PRINCIPAL OUT: write PRINCIPAL's rendered policy document to OUT.
+# Returns 1, writing nothing, when /iam/policy answers 404: the principal's
+# recorded calls need no permission (only sts:GetCallerIdentity, say).
+policy_of() {
+	local body="$work/policy-response.json" status
+	status="$(curl -sS -o "$body" -w '%{http_code}' "$admin/iam/policy?principal=$(urlencode "$1")")"
+	case "$status" in
+	200) jq '.document' "$body" >"$2" ;;
+	404) return 1 ;;
+	*)
+		note "GET /iam/policy for $1 answered $status: $(cat -- "$body")"
+		exit 1
+		;;
+	esac
+}
+
+# evaluate BODY_FILE: POST /iam/evaluate with the JSON body in BODY_FILE. A
+# policy document or pair list is never one command-line argument: the
+# user's can exceed the kernel's argument size limit.
+evaluate() { curl -fsS -X POST -H 'Content-Type: application/json' --data-binary "@$1" "$admin/iam/evaluate"; }
 
 urlencode() { jq -rn --arg s "$1" '$s | @uri'; }
 
@@ -200,13 +218,19 @@ user_key="$(mint_user "$user")"
 run_suites "$user_key" advise || fail_check "a suite failed under advise as $user_arn; see $work/advise-aws-cli.log and $work/advise-go-sdk.log"
 
 # 3: the user's policy and each role's.
-admin_get "iam/policy?principal=$(urlencode "$user_arn")" | jq '.document' >"$work/user-policy.json"
-note "the policy of $user_arn:"
-jq . "$work/user-policy.json" >&2
+if policy_of "$user_arn" "$work/user-policy.json"; then
+	note "the policy of $user_arn:"
+	jq . "$work/user-policy.json" >&2
+else
+	note "$user_arn has no policy to attach: its recorded calls need no permission"
+fi
 mkdir -p -- "$work/roles"
 while IFS= read -r role; do
 	[ -n "$role" ] || continue
-	admin_get "iam/policy?principal=$(urlencode "$role")" | jq '.document' >"$work/roles/${role##*/}.json"
+	if ! policy_of "$role" "$work/roles/${role##*/}.json"; then
+		note "$role has no policy to attach: its recorded calls need no permission"
+		continue
+	fi
 	note "the policy of $role:"
 	jq . "$work/roles/${role##*/}.json" >&2
 done < <(admin_get "iam/usage" | jq -r '.usage[].principal | select(test(":role/"))' | sort -u)
@@ -215,7 +239,9 @@ stop_server
 # 4: enforce, with the rendered policies attached.
 start_server enforce
 user_key="$(mint_user "$user")"
-root_aws iam put-user-policy --user-name "$user" --policy-name iam-loop --policy-document "file://$work/user-policy.json"
+if [ -e "$work/user-policy.json" ]; then
+	root_aws iam put-user-policy --user-name "$user" --policy-name iam-loop --policy-document "file://$work/user-policy.json"
+fi
 run_suites "$user_key" enforce "$work/roles" || fail_check "(b) a suite failed under enforce with the rendered policies; see $work/enforce-aws-cli.log and $work/enforce-go-sdk.log"
 
 # (a) the root made no call after setup but the loop's own.
@@ -233,21 +259,26 @@ fi
 # (c) with no identity policy every recorded pair is denied. A bucket's
 # objects are recorded as arn:aws:s3:::<bucket>/*, the pattern the policy
 # grants.
-pairs="$(admin_get "iam/usage?principal=$(urlencode "$user_arn")" | jq -c '[.usage[] | {action, resource}] | unique')"
-if [ "$(jq 'length' <<<"$pairs")" -eq 0 ]; then
+pairs="$work/user-pairs.json"
+admin_get "iam/usage?principal=$(urlencode "$user_arn")" | jq -c '[.usage[] | {action, resource}] | unique' >"$pairs"
+body="$work/evaluate-body.json"
+if [ "$(jq 'length' "$pairs")" -eq 0 ]; then
 	fail_check "(c) the user's calls recorded no pair"
 else
-	allowed="$(evaluate "$(jq -nc --arg p "$user_arn" --argjson r "$pairs" '{principal: $p, identityPolicies: [], requests: $r}')" |
-		jq -c '[.results[] | select(.decision == "allowed") | {action, resource}]')"
+	jq -nc --arg p "$user_arn" --slurpfile r "$pairs" '{principal: $p, identityPolicies: [], requests: $r[0]}' >"$body"
+	allowed="$(evaluate "$body" | jq -c '[.results[] | select(.decision == "allowed") | {action, resource}]')"
 	[ "$allowed" = "[]" ] || fail_check "(c) with no identity policy these pairs are still allowed: $allowed"
 fi
 
 # (d) each statement is needed.
-statements="$(jq '.Statement | length' "$work/user-policy.json")"
+statements=0
+[ ! -e "$work/user-policy.json" ] || statements="$(jq '.Statement | length' "$work/user-policy.json")"
 for ((i = 0; i < statements; i++)); do
 	actions="$(jq -c ".Statement[$i].Action | if type == \"string\" then [.] else . end" "$work/user-policy.json")"
-	without="$(jq -c "del(.Statement[$i]) | if (.Statement | length) == 0 then [] else [.] end" "$work/user-policy.json")"
-	message="$(evaluate "$(jq -nc --arg p "$user_arn" --argjson ip "$without" --argjson r "$pairs" '{principal: $p, identityPolicies: $ip, requests: $r}')" |
+	jq -c --argjson i "$i" --arg p "$user_arn" --slurpfile r "$pairs" \
+		'del(.Statement[$i]) | {principal: $p, identityPolicies: (if (.Statement | length) == 0 then [] else [.] end), requests: $r[0]}' \
+		"$work/user-policy.json" >"$body"
+	message="$(evaluate "$body" |
 		jq -r --argjson acts "$actions" '[.results[] | select(.decision != "allowed") | select(.action as $a | $acts | index($a))][0].message // empty')"
 	if [ -n "$message" ]; then
 		note "(d) without statement $i: $message"
@@ -318,8 +349,9 @@ if [ "${IAM_LOOP_ROOT_SUITES:-1}" != 0 ]; then
 		note "running $suite as the root under --iam-enforce enforce"
 		CONFORMANCE_IAM_ENFORCE=enforce CONFORMANCE_ADVISORIES_OUT="$out" "$script" >"$work/$suite.log" 2>&1 ||
 			fail_check "$suite failed under --iam-enforce enforce; see $work/$suite.log"
-		if [ ! -s "$out" ]; then
-			fail_check "$suite wrote no advisories to $out"
+		# An empty file is a run with no advisory, which passes.
+		if [ ! -e "$out" ]; then
+			fail_check "$suite wrote no advisories file $out"
 			continue
 		fi
 		bad="$(jq -r 'select(.detail.advisory == "access-denied") | .detail.text |
