@@ -58,6 +58,7 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 	b := sesapi.NewBinder(d.Binder)
 	s.bindIdentities(b)
 	s.bindSends(b)
+	s.bindQuota(b)
 	s.bindLink(b)
 	return s
 }
@@ -126,13 +127,14 @@ func (s *Service) Scopes() []aws.Scope { return s.cells.Keys(store.ScopeKeys()) 
 func (s *Service) Switches() []fidelity.Entry {
 	return []fidelity.Entry{
 		messageIDSwitch(s.opts.MessageID).Entry(),
+		unverifiedTextSwitch(s.opts.UnverifiedText).Entry(),
 		unknownIdentitySwitch(s.opts.UnknownIdentity).Entry(),
 	}
 }
 
 // messageIDSwitch is switch ses.message-id.format at value v. Ops are the
-// operations that mint a MessageId so far: VerifyEmailIdentity, for its
-// verification email.
+// operations that mint a MessageId so far: SendEmail, and
+// VerifyEmailIdentity for its verification email.
 func messageIDSwitch(v MessageIDFormat) fidelity.Switch[MessageIDFormat] {
 	return fidelity.Switch[MessageIDFormat]{
 		Name:    "ses.message-id.format",
@@ -140,8 +142,21 @@ func messageIDSwitch(v MessageIDFormat) fidelity.Switch[MessageIDFormat] {
 		Label:   evidence.Inferred,
 		Ref:     "docs/research/ses.md#47-messageid",
 		Record:  "SES-07",
-		Ops:     []string{"ses.VerifyEmailIdentity"},
+		Ops:     []string{"ses.SendEmail", "ses.VerifyEmailIdentity"},
 		Settles: fidelity.NoScenario{Reason: "unrecorded: SES-07 in the recording queue (ses.md 12) settles it"},
+	}
+}
+
+// unverifiedTextSwitch is switch ses.error.unverified.text at value v.
+func unverifiedTextSwitch(v UnverifiedText) fidelity.Switch[UnverifiedText] {
+	return fidelity.Switch[UnverifiedText]{
+		Name:    "ses.error.unverified.text",
+		Value:   v,
+		Label:   evidence.Inferred,
+		Ref:     "docs/research/ses.md#61-sandbox-rules-per-send",
+		Record:  "SES-01, SES-03",
+		Ops:     []string{"ses.SendEmail"},
+		Settles: fidelity.NoScenario{Reason: "unrecorded: SES-01 and SES-03 in the recording queue (ses.md 12) settle it"},
 	}
 }
 

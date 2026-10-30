@@ -81,7 +81,7 @@ const exampleFile = `  {
     },
     "sqs": {"queueDeletedRecently": "ignore"},
     "sns": {"httpDelivery": {"allow": ["127.0.0.1:8080"]}},
-    "ses": {"verifiedIdentities": ["sender@example.com", "example.org", "*@example.net"]},
+    "ses": {"verifiedIdentities": ["sender@example.com", "example.org", "*@example.net"], "productionAccess": false},
     "iam": {"assumeRole": "strict", "enforce": "off"},
     "dynamodb": {"enabled": true, "memoryLimit": 1073741824},
     "journal": {"capacity": 100000, "maxBytes": 134217728, "file": "/abs/path/to/journal.ndjson"},
@@ -103,6 +103,8 @@ const sectionChoices = `
   ses.verifiedIdentities     SES identities that start verified when created, in any account
                              and region: exact addresses (case-sensitive), domains, and
                              "*@domain" for every address of a domain, subdomains excluded
+  ses.productionAccess       true takes every account and region out of the SES sandbox:
+                             any recipient, the production quota; senders are still checked
   dynamodb.enabled           true, or false to turn DynamoDB off so DynamoDB Local is never
                              pulled; on, it is pulled on first use and runs under Amazon's
                              licence terms
@@ -264,9 +266,10 @@ func serverConfig(cfg config.Config, version string) (server.Config, error) {
 			Domains:        cfg.SES.VerifiedIdentities.Domains,
 			AddressDomains: cfg.SES.VerifiedIdentities.AddressDomains,
 		},
-		LogLevel:  cfg.Log.Level,
-		ReadyFile: cfg.ReadyFile,
-		Version:   version,
+		SESProductionAccess: cfg.SES.ProductionAccess,
+		LogLevel:            cfg.Log.Level,
+		ReadyFile:           cfg.ReadyFile,
+		Version:             version,
 		Lambda: server.LambdaLimits{
 			StartConcurrency: cfg.Lambda.StartConcurrency,
 			IdleTimeout:      cfg.Lambda.IdleTimeout,
@@ -419,9 +422,6 @@ func unappliedSettings() []unappliedSetting {
 	return []unappliedSetting{
 		{"s3.maxObjectBytes", file, func(cfg, def config.Config) bool { return cfg.S3.MaxObjectBytes != def.S3.MaxObjectBytes }},
 		{"dynamodb.registry", file, func(cfg, def config.Config) bool { return cfg.DynamoDB.Registry != def.DynamoDB.Registry }},
-		// No SES send or quota operation is bound yet, so production
-		// access would change nothing.
-		{"ses.productionAccess", file, func(cfg, def config.Config) bool { return cfg.SES.ProductionAccess != def.SES.ProductionAccess }},
 	}
 }
 

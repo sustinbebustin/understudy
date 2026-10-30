@@ -110,8 +110,11 @@ type Config struct {
 	// SESVerifiedIdentities is ses.verifiedIdentities: identities that
 	// start verified when they are created; the zero value lists none.
 	SESVerifiedIdentities SESVerifiedIdentities
-	LogFormat             LogFormat
-	LogLevel              slog.Level
+	// SESProductionAccess is ses.productionAccess: true takes every
+	// account and Region out of the SES sandbox.
+	SESProductionAccess bool
+	LogFormat           LogFormat
+	LogLevel            slog.Level
 	// ReadyFile, when set, receives {"endpoint", "pid"} once the listeners
 	// accept, plus "tlsEndpoint" with the TLS listener, and is removed at
 	// shutdown.

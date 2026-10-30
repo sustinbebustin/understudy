@@ -198,7 +198,7 @@ func wire(cfg Config, log *slog.Logger) (w *wiring, err error) {
 	}
 	c := &construction{
 		switches: cfg.Switches, regions: regions, local: w.local, images: w.images(), tlsPort: w.own.TLSPort,
-		sesVerified: cfg.SESVerifiedIdentities,
+		sesVerified: cfg.SESVerifiedIdentities, sesProduction: cfg.SESProductionAccess,
 	}
 	built, err := c.build(deps)
 	if err != nil {
@@ -941,7 +941,7 @@ func wiredServices() []wiredService {
 		// takes it (ses.md 2.3), and rule 8 tries sesv2's route table for a
 		// REST request signed for ses (ADR 0019).
 		{api{sesapi.Service(), sesapi.ThrottleError(), sesapi.UnknownOperationError}, func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
-			c.ses = ses.New(d, ses.Options{VerifiedIdentities: c.sesVerified})
+			c.ses = ses.New(d, ses.Options{VerifiedIdentities: c.sesVerified, ProductionAccess: c.sesProduction})
 			return c.ses
 		}},
 		{api{sesv2api.Service(), sesv2api.ThrottleError(), sesv2api.UnknownOperationError}, func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
@@ -981,6 +981,8 @@ type construction struct {
 	tlsPort func() (uint16, bool)
 	// sesVerified is ses.verifiedIdentities.
 	sesVerified ses.VerifiedIdentities
+	// sesProduction is ses.productionAccess.
+	sesProduction bool
 
 	s3         *s3.Service
 	dynamodb   *dynamodb.Service

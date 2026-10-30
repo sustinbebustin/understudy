@@ -34,6 +34,11 @@ func (s *Service) bindIdentities(b sesapi.Binder) {
 	b.GetIdentityVerificationAttributes(s.getIdentityVerificationAttributes, registry.Full{},
 		kernel.WithoutSecondaryActions(),
 		identitiesNamed(func(in *sesapi.GetIdentityVerificationAttributesInput) []string { return in.Identities }))
+	b.GetIdentityNotificationAttributes(s.getIdentityNotificationAttributes,
+		registry.Partial{Note: "every identity reports no SNS topics, ForwardingEnabled true and headers disabled; " +
+			"SetIdentityNotificationTopic and the other setters are not implemented"},
+		kernel.WithoutSecondaryActions(),
+		identitiesNamed(func(in *sesapi.GetIdentityNotificationAttributesInput) []string { return in.Identities }))
 	b.ListIdentities(s.listIdentities, registry.Full{}, kernel.WithoutSecondaryActions())
 	b.DeleteIdentity(s.deleteIdentity, registry.Full{},
 		kernel.WithoutSecondaryActions(),
@@ -225,6 +230,29 @@ func (s *Service) getIdentityVerificationAttributes(_ context.Context, c *kernel
 		}
 	}
 	return &sesapi.GetIdentityVerificationAttributesOutput{VerificationAttributes: known}, nil
+}
+
+// getIdentityNotificationAttributes answers each named identity the store
+// holds, keyed by the request string byte for byte (ses.md 9.1), with no
+// topics, forwarding on and headers off, since no notification setter is
+// bound. What AWS answers for an identity without topics is UNVERIFIED
+// (SES-08). An unknown identity is omitted under either value of
+// ses.verification.unknown-identity (contract 1.4).
+func (s *Service) getIdentityNotificationAttributes(_ context.Context, c *kernel.Call, in *sesapi.GetIdentityNotificationAttributesInput) (*sesapi.GetIdentityNotificationAttributesOutput, *awserr.Error) {
+	out := &sesapi.GetIdentityNotificationAttributesOutput{NotificationAttributes: map[string]sesapi.IdentityNotificationAttributes{}}
+	cell, ok := s.cells.Lookup(c.Scope())
+	if !ok {
+		return out, nil
+	}
+	store.Read(cell, func(st *state) struct{} {
+		for _, name := range in.Identities {
+			if st.find(name) >= 0 {
+				out.NotificationAttributes[name] = sesapi.IdentityNotificationAttributes{ForwardingEnabled: true}
+			}
+		}
+		return struct{}{}
+	})
+	return out, nil
 }
 
 // listIdentities lists the identities of the caller's scope "regardless of

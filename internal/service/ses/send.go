@@ -28,6 +28,9 @@ const (
 	// refusalNotImplemented is a member understudy does not implement:
 	// NotImplemented, 501.
 	refusalNotImplemented
+	// refusalThrottled is a send past the daily quota: v1 Throttling (the
+	// overlay's throttle error, ses.md 11.4; SES-22).
+	refusalThrottled
 )
 
 // refusal is the answer of a failed send check: its class and the whole
@@ -44,6 +47,8 @@ func (r *refusal) v1() *awserr.Error {
 		return sesapi.ErrMessageRejected(r.text)
 	case refusalNotImplemented:
 		return sesapi.ErrNotImplemented(r.text)
+	case refusalThrottled:
+		return sesapi.ErrThrottling(r.text)
 	case refusalInvalid:
 	}
 	return sesapi.ErrInvalidParameterValue(r.text)
@@ -59,12 +64,12 @@ func notImplementedMember(op, member, feature string) *refusal {
 		" out. Run 'understudy coverage --service ses' for what is supported."}
 }
 
-// sendEmailCoverage is v1 SendEmail's coverage note while sends are
-// validated but not yet accepted.
-const sendEmailCoverage = "validation only: model validation, ConfigurationSetName, SourceArn and ReturnPathArn (NotImplemented), " +
-	"tags, addresses, recipient count and message size are checked in that order; a send that passes them answers NotImplemented, " +
-	"since the sender, sandbox and daily-quota checks, the MessageId and the message record are not implemented yet; " +
-	"chosen without a recording (docs/research/ses.md 11.4): address, recipient-count and size answers, tag boundaries and ses: names, check order"
+// sendEmailCoverage is v1 SendEmail's coverage note (ses.md 11.1).
+const sendEmailCoverage = "journal-only: validates and applies identity and sandbox rules, returns a MessageId and records the message " +
+	"for GET /_understudy/v1/ses/messages; no mail is sent, and no Send, Delivery, Bounce or Complaint event or notification is produced; " +
+	"ConfigurationSetName and the sending-authorization ARNs answer NotImplemented; " +
+	"chosen without a recording (docs/research/ses.md 11.4): address, recipient-count, size and daily-quota answers, " +
+	"tag boundaries and ses: names, check order, mailbox-simulator and label matching"
 
 // bindSends binds the v1 send operations. A send's resource is its
 // sender's identity ARN (contract 2.6).
@@ -81,15 +86,54 @@ func (s *Service) bindSends(b sesapi.Binder) {
 }
 
 // sendEmail runs v1 SendEmail's checks in SendChecks order, model
-// validation having run before the handler. Accepting the message is not
-// implemented yet, so a send that passes them answers NotImplemented.
-func (s *Service) sendEmail(_ context.Context, _ *kernel.Call, in *sesapi.SendEmailInput) (*sesapi.SendEmailOutput, *awserr.Error) {
+// validation having run before the handler, then records the accepted
+// message (contract 2.1). Nothing is sent (ses.md 11.8).
+func (s *Service) sendEmail(_ context.Context, c *kernel.Call, in *sesapi.SendEmailInput) (*sesapi.SendEmailOutput, *awserr.Error) {
 	if r := checkSendEmail(in); r != nil {
 		return nil, r.v1()
 	}
-	return nil, sesapi.ErrNotImplemented("SendEmail passed validation, but understudy does not accept sends yet: " +
-		"the sender, sandbox and daily-quota checks and the message record are not implemented, so nothing was recorded. " +
-		"Run 'understudy coverage --service ses' for what is supported.")
+	d := in.Destination
+	senders := []string{in.Source}
+	if in.ReturnPath != nil {
+		senders = append(senders, *in.ReturnPath)
+	}
+	id, err := s.accept(c, outgoing{
+		api:      APIv1,
+		senders:  senders,
+		envelope: slices.Concat(d.ToAddresses, d.CcAddresses, d.BccAddresses),
+		refuse:   (*refusal).v1,
+		fill: func(r *record) {
+			r.Source = in.Source
+			r.From = []string{addrSpec(in.Source)}
+			r.ReplyTo = slices.Clone(in.ReplyToAddresses)
+			if in.ReturnPath != nil {
+				r.ReturnPath = *in.ReturnPath
+			}
+			r.To, r.Cc, r.Bcc = slices.Clone(d.ToAddresses), slices.Clone(d.CcAddresses), slices.Clone(d.BccAddresses)
+			r.Subject = content(&in.Message.Subject)
+			r.Text = content(in.Message.Body.Text)
+			r.HTML = content(in.Message.Body.Html)
+			for _, t := range in.Tags {
+				r.Tags = append(r.Tags, Tag{Name: t.Name, Value: t.Value})
+			}
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &sesapi.SendEmailOutput{MessageId: id}, nil
+}
+
+// content is a v1 subject or body as recorded, nil when absent.
+func content(c *sesapi.Content) *Content {
+	if c == nil {
+		return nil
+	}
+	out := &Content{Data: c.Data}
+	if c.Charset != nil {
+		out.Charset = *c.Charset
+	}
+	return out
 }
 
 // checkSendEmail runs the v1 SendEmail checks that need no state: the

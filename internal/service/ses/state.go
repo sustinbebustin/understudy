@@ -1,6 +1,8 @@
 package ses
 
 import (
+	"slices"
+
 	"github.com/sustinbebustin/understudy/internal/api/sesapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/clock"
@@ -22,14 +24,60 @@ type state struct {
 	Messages []record `json:"messages,omitempty"`
 	// Evicted counts the records evicted to keep MaxStoredMessages.
 	Evicted int `json:"evicted,omitempty"`
+	// Recipients counts accepted recipients per minute over the last 24
+	// hours, oldest first: SentLast24Hours and the daily quota (ses.md
+	// 6.3). Clearing messages leaves it; a reset drops it with the scope.
+	Recipients []minuteCount `json:"recipients,omitempty"`
 }
 
 func newState(aws.Scope) state { return state{} }
 
-// IsZero reports a scope without identities, messages or evictions, which
-// snapshots skip.
+// IsZero reports a scope without identities, messages, evictions or counted
+// recipients, which snapshots skip.
 func (s *state) IsZero() bool {
-	return len(s.Identities) == 0 && len(s.Messages) == 0 && s.Evicted == 0
+	return len(s.Identities) == 0 && len(s.Messages) == 0 && s.Evicted == 0 && len(s.Recipients) == 0
+}
+
+// minuteCount is the recipients counted in one minute of emulator time,
+// Minute being Unix seconds divided by 60.
+type minuteCount struct {
+	Minute int64 `json:"minute"`
+	Count  int   `json:"count"`
+}
+
+// quotaWindowMinutes is the 24-hour window quotas count over (ses.md 6.3),
+// in minutes.
+const quotaWindowMinutes = 24 * 60
+
+// minuteOf is the minute bucket of now.
+func minuteOf(now clock.Instant) int64 { return now.Wire().Unix() / 60 }
+
+// sentLast24Hours is the recipients counted in the 24 hours before now, to
+// the minute.
+func (s *state) sentLast24Hours(now clock.Instant) int {
+	oldest := minuteOf(now) - quotaWindowMinutes
+	n := 0
+	for _, b := range s.Recipients {
+		if b.Minute > oldest {
+			n += b.Count
+		}
+	}
+	return n
+}
+
+// count adds n recipients at now and drops the buckets the window has
+// passed.
+func (s *state) count(now clock.Instant, n int) {
+	m := minuteOf(now)
+	s.Recipients = slices.DeleteFunc(s.Recipients, func(b minuteCount) bool { return b.Minute <= m-quotaWindowMinutes })
+	if n == 0 {
+		return
+	}
+	if last := len(s.Recipients) - 1; last >= 0 && s.Recipients[last].Minute == m {
+		s.Recipients[last].Count += n
+		return
+	}
+	s.Recipients = append(s.Recipients, minuteCount{Minute: m, Count: n})
 }
 
 // Partitioned finds IsZero by a type assertion; this keeps a rename from
