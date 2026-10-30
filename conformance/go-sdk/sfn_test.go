@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -29,30 +28,6 @@ const routeMachine = `{"StartAt":"Route","States":{
 	"Hold":{"Type":"Wait","Seconds":3600,"Next":"Done"},
 	"Done":{"Type":"Pass","Result":{"finished":true},"ResultPath":"$.result","End":true}}}`
 
-// admin calls understudy's admin API (path under /_understudy/v1) and fails
-// the test on a non-2xx answer.
-func admin(t *testing.T, method, path, body string) []byte {
-	t.Helper()
-	var rd io.Reader = http.NoBody
-	if body != "" {
-		rd = strings.NewReader(body)
-	}
-	req, err := http.NewRequestWithContext(t.Context(), method, endpoint.String()+"/_understudy/v1"+path, rd)
-	ok(t, err, "admin request")
-	if body != "" {
-		req.Header.Set("Content-Type", "application/json")
-	}
-	resp, err := http.DefaultClient.Do(req)
-	ok(t, err, method+" "+path)
-	defer resp.Body.Close()
-	out, err := io.ReadAll(resp.Body)
-	ok(t, err, "reading "+path)
-	if resp.StatusCode/100 != 2 {
-		t.Fatalf("%s %s = %d: %s", method, path, resp.StatusCode, out)
-	}
-	return out
-}
-
 // advance moves emulator time forward and waits for what came due; the
 // clock is put back when the test ends.
 func advance(t *testing.T, seconds int) {
@@ -66,7 +41,7 @@ func advance(t *testing.T, seconds int) {
 			}
 		}
 	})
-	admin(t, http.MethodPost, "/clock", fmt.Sprintf(`{"op":"advance","by":"%ds"}`, seconds))
+	admin(t, http.MethodPost, "/clock", map[string]string{"op": "advance", "by": fmt.Sprintf("%ds", seconds)})
 	settleEmulator(t)
 }
 
@@ -75,7 +50,7 @@ func settleEmulator(t *testing.T) {
 	var out struct {
 		Settled bool `json:"settled"`
 	}
-	ok(t, json.Unmarshal(admin(t, http.MethodGet, "/settle?timeout=30s", ""), &out), "decoding /settle")
+	ok(t, json.Unmarshal(admin(t, http.MethodGet, "/settle?timeout=30s", nil), &out), "decoding /settle")
 	if !out.Settled {
 		t.Fatal("the emulator did not settle within 30s")
 	}
