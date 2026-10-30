@@ -24,7 +24,7 @@ func (s *Service) bindIdentities(b sesapi.Binder) {
 	b.VerifyEmailIdentity(s.verifyEmailIdentity,
 		registry.Partial{Note: "the identity stays Pending until its verification link under " + VerificationLinkPath +
 			" is opened or understudy.json lists it; the verification email is recorded, never sent; Failed after 24 hours on the emulator clock; " +
-			"the address is not validated yet"},
+			"chosen without a recording (docs/research/ses.md 11.4): the invalid-address answers"},
 		kernel.WithoutSecondaryActions(),
 		identitiesNamed(func(in *sesapi.VerifyEmailIdentityInput) []string { return []string{in.EmailAddress} }))
 	b.VerifyDomainIdentity(s.verifyDomainIdentity,
@@ -94,8 +94,12 @@ func (s *Service) pend(id *identity, scope aws.Scope, now clock.Instant, tx *ker
 // Pending, Failed or TemporaryFailure one restarts as Pending, its expiry
 // counted again, and a Success one is left as it is (inferred, SES-09).
 // Each start and restart records a verification email, always with the
-// identity's one link token (contract 2.3).
+// identity's one link token (contract 2.3). An invalid address is refused
+// as a send's address is (ses.md 4.6, SES-04).
 func (s *Service) verifyEmailIdentity(_ context.Context, c *kernel.Call, in *sesapi.VerifyEmailIdentityInput) (*sesapi.VerifyEmailIdentityOutput, *awserr.Error) {
+	if _, r := parseAddress(in.EmailAddress); r != nil {
+		return nil, r.v1()
+	}
 	scope := c.Scope()
 	_, err := kernel.Write(c, s.cells, scope, func(st *state, now clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
 		i := st.find(in.EmailAddress)

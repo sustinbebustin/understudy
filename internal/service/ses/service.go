@@ -57,6 +57,7 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 	s.expiry = s.timers.Handle(TimerExpiry, s.onExpiry)
 	b := sesapi.NewBinder(d.Binder)
 	s.bindIdentities(b)
+	s.bindSends(b)
 	s.bindLink(b)
 	return s
 }

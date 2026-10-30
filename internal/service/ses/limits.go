@@ -88,7 +88,8 @@ const (
 	CheckNotImplemented
 	// CheckTags validates message tags.
 	CheckTags
-	// CheckAddresses validates every address and the raw message.
+	// CheckAddresses validates every address, then the message: its size,
+	// and a raw message's MIME limits.
 	CheckAddresses
 	// CheckRecipientCount requires 1 to MaxRecipients envelope recipients.
 	CheckRecipientCount

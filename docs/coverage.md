@@ -129,7 +129,7 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | logs | 118 | 9 | 0 | 9 | 100 | 1 | 0 |
 | s3 | 112 | 22 | 39 | 25 | 26 | 0 | 3 |
 | secretsmanager | 23 | 1 | 0 | 14 | 8 | 0 | 0 |
-| ses | 71 | 3 | 0 | 2 | 66 | 0 | 1 |
+| ses | 71 | 3 | 0 | 3 | 65 | 0 | 1 |
 | sesv2 | 116 | 0 | 0 | 0 | 116 | 0 | 0 |
 | sfn | 37 | 7 | 0 | 9 | 21 | 0 | 0 |
 | sns | 42 | 12 | 0 | 7 | 23 | 0 | 3 |
@@ -1140,8 +1140,9 @@ Raw operations:
 | DeleteIdentity | full | third-party-recorded, 1 of 1 claim |  |
 | GetIdentityVerificationAttributes | full | inferred, 1 of 2 claims |  |
 | ListIdentities | full | third-party-recorded, 1 of 1 claim |  |
+| SendEmail | partial | inferred, 1 of 2 claims | validation only: model validation, ConfigurationSetName, SourceArn and ReturnPathArn (NotImplemented), tags, addresses, recipient count and message size are checked in that order; a send that passes them answers NotImplemented, since the sender, sandbox and daily-quota checks, the MessageId and the message record are not implemented yet; chosen without a recording (docs/research/ses.md 11.4): address, recipient-count and size answers, tag boundaries and ses: names, check order |
 | VerifyDomainIdentity | partial | third-party-recorded, 1 of 1 claim | the domain stays Pending until understudy.json lists it; DNS is never queried; Failed after 72 hours on the emulator clock |
-| VerifyEmailIdentity | partial | inferred, 1 of 2 claims | the identity stays Pending until its verification link under /_understudy/ses/VerificationLink is opened or understudy.json lists it; the verification email is recorded, never sent; Failed after 24 hours on the emulator clock; the address is not validated yet |
+| VerifyEmailIdentity | partial | inferred, 1 of 2 claims | the identity stays Pending until its verification link under /_understudy/ses/VerificationLink is opened or understudy.json lists it; the verification email is recorded, never sent; Failed after 24 hours on the emulator clock; chosen without a recording (docs/research/ses.md 11.4): the invalid-address answers |
 | CloneReceiptRuleSet | unbound | unassessed |  |
 | CreateConfigurationSet | unbound | unassessed |  |
 | CreateConfigurationSetEventDestination | unbound | unassessed |  |
@@ -1187,7 +1188,6 @@ Raw operations:
 | SendBounce | unbound | unassessed |  |
 | SendBulkTemplatedEmail | unbound | unassessed |  |
 | SendCustomVerificationEmail | unbound | unassessed |  |
-| SendEmail | unbound | unassessed |  |
 | SendRawEmail | unbound | unassessed |  |
 | SendTemplatedEmail | unbound | unassessed |  |
 | SetActiveReceiptRuleSet | unbound | unassessed |  |
