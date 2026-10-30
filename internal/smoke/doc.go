@@ -6,7 +6,7 @@
 // awsQuery with the delivery asserted in the journal, S3 over restXml (a
 // checksum header over HTTP, an aws-chunked trailer body over TLS,
 // SSE-KMS), Lambda and an API Gateway HTTP API over restJson1, CloudWatch
-// Logs, Secrets Manager, KMS and EventBridge over awsJson1_1, IAM and STS
+// Logs, Secrets Manager, KMS, EventBridge and Kinesis over awsJson1_1, IAM and STS
 // over awsQuery, and CloudWatch alarms over awsJson1_0 and rpcv2Cbor. It
 // then asks
 // `understudy iam policy` for the smoke principal's policy and reads the

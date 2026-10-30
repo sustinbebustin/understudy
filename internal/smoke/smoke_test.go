@@ -79,6 +79,7 @@ func (w *workload) run(t *testing.T) {
 		{"s3", w.s3},
 		{"dynamodb", w.dynamodb},
 		{"dynamodb streams", w.dynamodbStreams},
+		{"kinesis", w.kinesis},
 		{"iam", w.iam},
 		{"sts", w.sts},
 		{"lambda", w.lambda},
@@ -346,6 +347,38 @@ func (w *workload) dynamodbStreams(t *testing.T) {
 	must(t, "ListStreams", resp, http.StatusNotImplemented)
 	if !strings.Contains(resp.body, "which needs Docker") {
 		t.Fatalf("ListStreams with Docker disabled = %s, want the 501 saying DynamoDB Local needs Docker", resp.body)
+	}
+}
+
+// kinesis creates a one-shard stream over awsJson1_1, puts a record and
+// reads it back from TRIM_HORIZON (kinesis.md 5.1, 5.4, 5.5).
+func (w *workload) kinesis(t *testing.T) {
+	t.Helper()
+	must(t, "CreateStream", awsJSON(t, w.emu, "1.1", "kinesis", "Kinesis_20131202.CreateStream", `{"StreamName":"smoke","ShardCount":1}`), http.StatusOK)
+	data := base64.StdEncoding.EncodeToString([]byte("hello"))
+	var put struct {
+		ShardID        string `json:"ShardId"`
+		SequenceNumber string
+	}
+	decode(t, "PutRecord", must(t, "PutRecord", awsJSON(t, w.emu, "1.1", "kinesis", "Kinesis_20131202.PutRecord",
+		`{"StreamName":"smoke","PartitionKey":"k","Data":"`+data+`"}`), http.StatusOK).body, &put)
+	if put.ShardID != "shardId-000000000000" || put.SequenceNumber == "" {
+		t.Fatalf("PutRecord = %+v", put)
+	}
+	var it struct{ ShardIterator string }
+	decode(t, "GetShardIterator", must(t, "GetShardIterator", awsJSON(t, w.emu, "1.1", "kinesis", "Kinesis_20131202.GetShardIterator",
+		`{"StreamName":"smoke","ShardId":"shardId-000000000000","ShardIteratorType":"TRIM_HORIZON"}`), http.StatusOK).body, &it)
+	var got struct {
+		Records []struct {
+			Data, PartitionKey, SequenceNumber string
+		}
+		NextShardIterator string
+	}
+	decode(t, "GetRecords", must(t, "GetRecords", awsJSON(t, w.emu, "1.1", "kinesis", "Kinesis_20131202.GetRecords",
+		`{"ShardIterator":"`+it.ShardIterator+`"}`), http.StatusOK).body, &got)
+	if len(got.Records) != 1 || got.Records[0].Data != data || got.Records[0].PartitionKey != "k" ||
+		got.Records[0].SequenceNumber != put.SequenceNumber || got.NextShardIterator == "" {
+		t.Fatalf("GetRecords = %+v, want the one record put", got)
 	}
 }
 
