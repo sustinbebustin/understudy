@@ -1,10 +1,12 @@
 // SES v1 over awsQuery, through @aws-sdk/client-ses.
-// Expected behavior: docs/research/ses.md sections 5, 9.1 and 9.2.
+// Expected behavior: docs/research/ses.md sections 4, 5, 6, 9.1 and 9.2.
 
 import { describe, expect, test } from "bun:test";
 import {
   DeleteIdentityCommand,
+  GetIdentityNotificationAttributesCommand,
   GetIdentityVerificationAttributesCommand,
+  GetSendQuotaCommand,
   paginateListIdentities,
   SendEmailCommand,
   SESClient,
@@ -84,5 +86,47 @@ describe("SES SendEmail validation", () => {
     expect(failure.message).toBe(
       "Invalid tag name <test_invalid_name:123>: only alphanumeric ASCII characters, '_',  '-' are allowed.",
     );
+  });
+
+  test("an unverified Source answers MessageRejected naming it", async () => {
+    // The documented text (aws-doc and capture, ses.md 6.1).
+    const source = `${uniq("ses-unverified")}@example.com`;
+    const failure = await expectFailure(
+      ses.send(
+        new SendEmailCommand({
+          Source: source,
+          Destination: { ToAddresses: ["success@simulator.amazonses.com"] },
+          Message: { Subject: { Data: "subject" }, Body: { Text: { Data: "text" } } },
+        }),
+      ),
+      { name: "MessageRejected", status: 400 },
+    );
+    expect(failure.message).toStartWith(
+      "Email address is not verified. The following identities failed the check in region ",
+    );
+    expect(failure.message).toContain(source);
+  });
+});
+
+describe("SES quota and notification attributes", () => {
+  test("a sandbox account's quota is 200 a day at 1 a second", async () => {
+    // Golden get-quota-0 (third-party-recorded 2024-11-27, ses.md 6.3;
+    // localstack@8b9a79f tests/aws/services/ses/test_ses.snapshot.json:L905-L918,
+    // validated 2024-11-27).
+    const quota = await ses.send(new GetSendQuotaCommand({}));
+    expect(quota.Max24HourSend).toBe(200);
+    expect(quota.MaxSendRate).toBe(1);
+  });
+
+  test("GetIdentityNotificationAttributes keys a known identity", async () => {
+    const addr = `${uniq("ses-notif")}@example.com`;
+    await ses.send(new VerifyEmailIdentityCommand({ EmailAddress: addr }));
+    try {
+      // The aws_ses_email_identity data source needs the key (ses.md 9.1).
+      const out = await ses.send(new GetIdentityNotificationAttributesCommand({ Identities: [addr] }));
+      expect(Object.keys(out.NotificationAttributes ?? {})).toEqual([addr]);
+    } finally {
+      await ses.send(new DeleteIdentityCommand({ Identity: addr }));
+    }
   });
 });

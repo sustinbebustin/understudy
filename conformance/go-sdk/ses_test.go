@@ -10,7 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ses/types"
 )
 
-// Research: docs/research/ses.md sections 5 and 9.1.
+// Research: docs/research/ses.md sections 4, 5, 6 and 9.1.
 
 // An email identity is Pending until its owner opens the link (ses.md
 // 5.2), keyed by the request string (9.1); after DeleteIdentity the key is
@@ -102,4 +102,55 @@ func TestSESSendEmailRejectsAnInvalidTagName(t *testing.T) {
 	})
 	apiErr(t, err, "SendEmail", "InvalidParameterValue")
 	wantMessage(t, err, "SendEmail", "Invalid tag name <test_invalid_name:123>: only alphanumeric ASCII characters, '_',  '-' are allowed.")
+}
+
+// An unverified Source is refused with MessageRejected, the documented
+// text naming it (aws-doc and capture, ses.md 6.1).
+func TestSESSendEmailRejectsAnUnverifiedSource(t *testing.T) {
+	t.Parallel()
+	source := name(t, "ses-unverified") + "@example.com"
+	_, err := ses.NewFromConfig(awsCfg).SendEmail(t.Context(), &ses.SendEmailInput{
+		Source:      aws.String(source),
+		Destination: &types.Destination{ToAddresses: []string{"success@simulator.amazonses.com"}},
+		Message: &types.Message{
+			Subject: &types.Content{Data: aws.String("subject")},
+			Body:    &types.Body{Text: &types.Content{Data: aws.String("text")}},
+		},
+	})
+	apiErr(t, err, "SendEmail", "MessageRejected")
+	wantMessageContains(t, err, "SendEmail", "Email address is not verified. The following identities failed the check in region ")
+	wantMessageContains(t, err, "SendEmail", source)
+}
+
+// A sandbox account's quota is 200 messages a day at 1 a second (golden
+// get-quota-0, third-party-recorded 2024-11-27, ses.md 6.3;
+// localstack@8b9a79f tests/aws/services/ses/test_ses.snapshot.json:L905-L918,
+// validated 2024-11-27).
+func TestSESGetSendQuota(t *testing.T) {
+	t.Parallel()
+	q, err := ses.NewFromConfig(awsCfg).GetSendQuota(t.Context(), &ses.GetSendQuotaInput{})
+	ok(t, err, "GetSendQuota")
+	if q.Max24HourSend != 200 || q.MaxSendRate != 1 {
+		t.Errorf("GetSendQuota = %v a day at %v a second, want 200 and 1", q.Max24HourSend, q.MaxSendRate)
+	}
+}
+
+// GetIdentityNotificationAttributes keys a known identity by the request
+// string, which the aws_ses_email_identity data source requires (ses.md
+// 9.1).
+func TestSESNotificationAttributesKeyAKnownIdentity(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	client := ses.NewFromConfig(awsCfg)
+	addr := name(t, "ses-notif") + "@example.com"
+	_, err := client.VerifyEmailIdentity(ctx, &ses.VerifyEmailIdentityInput{EmailAddress: aws.String(addr)})
+	ok(t, err, "VerifyEmailIdentity")
+	t.Cleanup(func() {
+		_, _ = client.DeleteIdentity(context.Background(), &ses.DeleteIdentityInput{Identity: aws.String(addr)})
+	})
+	out, err := client.GetIdentityNotificationAttributes(ctx, &ses.GetIdentityNotificationAttributesInput{Identities: []string{addr}})
+	ok(t, err, "GetIdentityNotificationAttributes")
+	if _, found := out.NotificationAttributes[addr]; !found || len(out.NotificationAttributes) != 1 {
+		t.Errorf("NotificationAttributes = %+v, want the one key %s", out.NotificationAttributes, addr)
+	}
 }

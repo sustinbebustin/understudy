@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # SES v1: email and domain identities (VerifyEmailIdentity,
-# VerifyDomainIdentity, GetIdentityVerificationAttributes, ListIdentities,
-# DeleteIdentity) and the verification link.
-# Arbiter: docs/research/ses.md sections 5, 9.1, 9.2 and 11.3.
+# VerifyDomainIdentity, GetIdentityVerificationAttributes,
+# GetIdentityNotificationAttributes, ListIdentities, DeleteIdentity), the
+# verification link, SendEmail and GetSendQuota.
+# Arbiter: docs/research/ses.md sections 4, 5, 6, 9.1, 9.2 and 11.3.
 
 test_domain_identity_token_is_stable() {
   local domain token
@@ -88,4 +89,58 @@ test_send_email_rejects_an_invalid_tag_name() {
     --message 'Subject={Data=subject},Body={Text={Data=text}}' \
     --tags 'Name=test_invalid_name:123,Value=test'
   aws_error_message_contains "Invalid tag name <test_invalid_name:123>: only alphanumeric ASCII characters, '_',  '-' are allowed."
+}
+
+test_send_email_rejects_an_unverified_source() {
+  local source
+  source="$(new_name ses-unverified)@example.com"
+  # MessageRejected with the documented text naming the Source (aws-doc and
+  # capture, ses.md 6.1).
+  aws_error MessageRejected 400 ses send-email \
+    --from "$source" \
+    --destination ToAddresses=success@simulator.amazonses.com \
+    --message 'Subject={Data=subject},Body={Text={Data=text}}'
+  aws_error_message_contains 'Email address is not verified. The following identities failed the check in region '
+  aws_error_message_contains "$source"
+}
+
+test_send_email_from_a_verified_address_is_recorded() {
+  local addr link id
+  addr="$(new_name ses-sender)@example.com"
+  aws_ok ses verify-email-identity --email-address "$addr"
+  link=$(curl -fsS --get --data-urlencode "to=$addr" "${UE_ADMIN_URL:?UE_ADMIN_URL unset}/ses/messages" |
+    jq -r '.messages[0].text.data' | grep -o 'http[^[:space:]]*/_understudy/ses/VerificationLink?token=[A-Za-z0-9_-]*')
+  curl -fsS -o /dev/null "$link"
+  # A verified sender may mail the mailbox simulator from the sandbox (ses.md
+  # 6.1, 6.2); the MessageId is 60 characters (ses.md 4.7).
+  aws_ok ses send-email --from "$addr" \
+    --destination ToAddresses=success@simulator.amazonses.com \
+    --message 'Subject={Data=hello},Body={Text={Data=text}}'
+  assert_jq_match '.MessageId' '^[0-9a-f]{16}-[0-9a-f-]{36}-000000$'
+  id=$(jq -r '.MessageId' <<<"$AWS_OUT")
+  # understudy records the message instead of sending it (ses.md 11.2).
+  AWS_OUT=$(curl -fsS --get --data-urlencode "messageId=$id" "$UE_ADMIN_URL/ses/messages")
+  assert_jq '.messages[0].kind' 'send'
+  assert_jq '.messages[0].subject.data' 'hello'
+  assert_jq '.messages[0].simulator["success@simulator.amazonses.com"]' 'success'
+  aws_ok ses delete-identity --identity "$addr"
+}
+
+test_get_send_quota() {
+  # A sandbox account: 200 a day at 1 a second (golden get-quota-0,
+  # third-party-recorded 2024-11-27, ses.md 6.3; localstack@8b9a79f
+  # tests/aws/services/ses/test_ses.snapshot.json:L905-L918, validated
+  # 2024-11-27).
+  aws_ok ses get-send-quota
+  assert_jq '.Max24HourSend == 200 and .MaxSendRate == 1' 'true'
+}
+
+test_notification_attributes_key_a_known_identity() {
+  local addr
+  addr="$(new_name ses-notif)@example.com"
+  aws_ok ses verify-email-identity --email-address "$addr"
+  # The aws_ses_email_identity data source needs the key (ses.md 9.1).
+  aws_ok ses get-identity-notification-attributes --identities "$addr"
+  assert_jq '.NotificationAttributes | keys == ["'"$addr"'"]' 'true'
+  aws_ok ses delete-identity --identity "$addr"
 }

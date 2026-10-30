@@ -1,4 +1,4 @@
-"""SES v1: email and domain identities (ses.md sections 5, 9.1 and 9.2)."""
+"""SES v1: identities, SendEmail and the quota (ses.md sections 4, 5, 6, 9.1 and 9.2)."""
 
 from __future__ import annotations
 
@@ -64,3 +64,38 @@ def test_send_email_rejects_an_invalid_tag_name(ses: Any) -> None:
     assert exc.value.response["Error"]["Message"] == (
         "Invalid tag name <test_invalid_name:123>: only alphanumeric ASCII characters, '_',  '-' are allowed."
     )
+
+
+def test_send_email_rejects_an_unverified_source(ses: Any) -> None:
+    # MessageRejected with the documented text naming the Source (aws-doc and
+    # capture, ses.md 6.1).
+    source = uniq("conf-ses-unverified") + "@example.com"
+    with pytest.raises(ClientError) as exc:
+        ses.send_email(
+            Source=source,
+            Destination={"ToAddresses": ["success@simulator.amazonses.com"]},
+            Message={"Subject": {"Data": "subject"}, "Body": {"Text": {"Data": "text"}}},
+        )
+    assert error_code(exc.value) == "MessageRejected"
+    message = exc.value.response["Error"]["Message"]
+    assert message.startswith("Email address is not verified. The following identities failed the check in region ")
+    assert source in message
+
+
+def test_get_send_quota(ses: Any) -> None:
+    # A sandbox account: 200 a day at 1 a second (golden get-quota-0,
+    # third-party-recorded 2024-11-27, ses.md 6.3; localstack@8b9a79f
+    # tests/aws/services/ses/test_ses.snapshot.json:L905-L918, validated
+    # 2024-11-27).
+    quota = ses.get_send_quota()
+    assert quota["Max24HourSend"] == 200.0
+    assert quota["MaxSendRate"] == 1.0
+
+
+def test_notification_attributes_key_a_known_identity(ses: Any, cleanup: Any) -> None:
+    addr = uniq("conf-ses-notif") + "@example.com"
+    ses.verify_email_identity(EmailAddress=addr)
+    cleanup.add(ses.delete_identity, Identity=addr)
+    # The aws_ses_email_identity data source needs the key (ses.md 9.1).
+    attrs = ses.get_identity_notification_attributes(Identities=[addr])["NotificationAttributes"]
+    assert list(attrs) == [addr]
