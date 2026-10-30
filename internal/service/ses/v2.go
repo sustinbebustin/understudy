@@ -27,7 +27,9 @@ const (
 	listEmailIdentitiesCoverage = "the GET /v2/email/identities binding sent by SDKs generated before 2026-09-29 is not routed and answers sesv2's unknown operation"
 	getAccountCoverage          = "ProductionAccessEnabled and SendQuota from understudy state; SendingEnabled true, since account sending cannot be paused yet; " +
 		"EnforcementStatus HEALTHY; no dedicated IP, VDM, pricing, suppression or account details"
-	v2TagsCoverage = "identity ARNs only; a template ARN answers NotFoundException until the v2 template operations land"
+	v2TagsCoverage = "identity ARNs only; a template ARN answers NotFoundException until the v2 template operations land; " +
+		"an identity ARN with an empty account field names the caller's account, as Terraform sends it under skip_requesting_account_id " +
+		"(what AWS answers is unrecorded)"
 )
 
 // enforcementHealthy is GetAccount's EnforcementStatus: an emulated account
@@ -66,9 +68,13 @@ func (v *V2) bindV2(b sesv2api.Binder) {
 }
 
 // resourceNamed names a tag operation's ResourceArn as its resource
-// (contract 2.6); an ARN that does not parse names none.
+// (contract 2.6): the identity's full ARN when it names one of the
+// caller's, else the ARN as given; an ARN that does not parse names none.
 func resourceNamed[In any](arnOf func(*In) string) kernel.BindOption {
-	return kernel.WithResources(func(_ *kernel.Call, in *In) []aws.ARN {
+	return kernel.WithResources(func(c *kernel.Call, in *In) []aws.ARN {
+		if name, ok := identityNameOf(c.Scope(), arnOf(in)); ok {
+			return []aws.ARN{identityARN(c.Scope(), name)}
+		}
 		arn, err := aws.ParseARN(arnOf(in))
 		if err != nil {
 			return nil
@@ -337,11 +343,16 @@ func (v *V2) tagged(c *kernel.Call, resourceARN string, fn func(id *identity, tx
 	return err
 }
 
-// identityNameOf is the identity name of an SES identity ARN in scope.
+// identityNameOf is the identity name of an SES identity ARN in scope. An
+// empty account field is read as the caller's: Terraform builds the ARN
+// from its own account, which is empty under skip_requesting_account_id,
+// the setting understudy's Terraform guide needs at an IP endpoint
+// (apigateway-http.md 13.6 explains why). What AWS answers for such an
+// ARN is unrecorded.
 func identityNameOf(scope aws.Scope, resourceARN string) (string, bool) {
 	arn, err := aws.ParseARN(resourceARN)
 	if err != nil || arn.Service != "ses" || arn.Partition != scope.Partition.String() ||
-		arn.Region != scope.Region.String() || arn.Account != scope.Account.String() {
+		arn.Region != scope.Region.String() || (arn.Account != "" && arn.Account != scope.Account.String()) {
 		return "", false
 	}
 	return strings.CutPrefix(arn.Resource, "identity/")

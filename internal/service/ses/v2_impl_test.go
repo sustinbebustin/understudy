@@ -95,6 +95,26 @@ func TestTagOperationsRefuseOtherARNs(t *testing.T) {
 	})
 }
 
+// An identity ARN with an empty account field, which Terraform sends under
+// skip_requesting_account_id, names the caller's identity (the coverage
+// note; what AWS answers is unrecorded), and the journal names the full
+// ARN.
+func TestTagOperationsReadAnEmptyAccountAsTheCaller(t *testing.T) {
+	run(t, func(h *harness) {
+		h.createIdentity("example.org", sesv2api.Tag{Key: "env", Value: "dev"})
+		arn := "arn:aws:ses:" + h.Scope.Region.String() + "::identity/example.org"
+		got := must(h, sesv2api.OpListTagsForResource, &sesv2api.ListTagsForResourceInput{ResourceArn: arn}).Tags
+		if len(got) != 1 || got[0].Key != "env" {
+			h.Errorf("tags = %+v, want env", got)
+		}
+		calls := h.apiCalls("sesv2", "ListTagsForResource")
+		if len(calls) != 1 {
+			h.Fatalf("%d ListTagsForResource calls journaled", len(calls))
+		}
+		wantTouches(h, calls[0].Resources, h.identityARN("example.org"))
+	})
+}
+
 // TagResource of a key already set replaces its value.
 func TestTagResourceReplacesAValue(t *testing.T) {
 	run(t, func(h *harness) {

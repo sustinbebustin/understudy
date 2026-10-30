@@ -1224,9 +1224,9 @@ Raw operations:
 | CreateEmailIdentity | partial | unassessed | email identities start PENDING with DKIM NOT_STARTED; domains get three random Easy DKIM tokens and stay PENDING; DkimSigningAttributes are stored, never used; verification as VerifyEmailIdentity; ConfigurationSetName answers NotImplemented |
 | GetAccount | partial | unassessed | ProductionAccessEnabled and SendQuota from understudy state; SendingEnabled true, since account sending cannot be paused yet; EnforcementStatus HEALTHY; no dedicated IP, VDM, pricing, suppression or account details |
 | ListEmailIdentities | partial | unassessed | the GET /v2/email/identities binding sent by SDKs generated before 2026-09-29 is not routed and answers sesv2's unknown operation |
-| ListTagsForResource | partial | unassessed | identity ARNs only; a template ARN answers NotFoundException until the v2 template operations land |
-| TagResource | partial | unassessed | identity ARNs only; a template ARN answers NotFoundException until the v2 template operations land |
-| UntagResource | partial | unassessed | identity ARNs only; a template ARN answers NotFoundException until the v2 template operations land |
+| ListTagsForResource | partial | unassessed | identity ARNs only; a template ARN answers NotFoundException until the v2 template operations land; an identity ARN with an empty account field names the caller's account, as Terraform sends it under skip_requesting_account_id (what AWS answers is unrecorded) |
+| TagResource | partial | unassessed | identity ARNs only; a template ARN answers NotFoundException until the v2 template operations land; an identity ARN with an empty account field names the caller's account, as Terraform sends it under skip_requesting_account_id (what AWS answers is unrecorded) |
+| UntagResource | partial | unassessed | identity ARNs only; a template ARN answers NotFoundException until the v2 template operations land; an identity ARN with an empty account field names the caller's account, as Terraform sends it under skip_requesting_account_id (what AWS answers is unrecorded) |
 | AssociateEmailIdentityCertificate | unbound | unassessed |  |
 | BatchGetMetricData | unbound | unassessed |  |
 | CancelExportJob | unbound | unassessed |  |
