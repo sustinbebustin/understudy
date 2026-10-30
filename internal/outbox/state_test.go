@@ -251,7 +251,8 @@ func genEntry() *rapid.Generator[Entry] {
 // genMechanismInto draws a mechanism that delivers to target's service. A
 // mechanism names its target by registry service ID, which for EventBridge
 // is not its ARN namespace (internal/ref/ref.go). An S3 object is the
-// target of lambda-to-s3 alone.
+// target of lambda-to-s3 alone. The Scheduler mechanisms are left out: the
+// outbox refuses them (checkScheduler), not implemented yet.
 func genMechanismInto(target delivery.Target) *rapid.Generator[delivery.Mechanism] {
 	service := "s3"
 	if arn, ok := targetARN(target); ok {
@@ -262,7 +263,7 @@ func genMechanismInto(target delivery.Target) *rapid.Generator[delivery.Mechanis
 	}
 	var into []delivery.Mechanism
 	for _, m := range delivery.Mechanisms() {
-		if string(m.Target()) == service {
+		if string(m.Target()) == service && m.Via() != ref.SchedulerTarget {
 			into = append(into, m)
 		}
 	}

@@ -566,6 +566,9 @@ func servicePrincipal(m delivery.Mechanism) string {
 		return "lambda.alarms.cloudwatch.amazonaws.com"
 	case delivery.LambdaToSQS, delivery.LambdaToSNS, delivery.LambdaToLambda, delivery.LambdaToEvents, delivery.LambdaToS3,
 		delivery.ESMToSQS, delivery.ESMToSNS:
+	case delivery.SchedulerToLambda, delivery.SchedulerToSQS, delivery.SchedulerToEvents, delivery.SchedulerToSNS:
+		// Scheduler delivers as the schedule's execution role
+		// (delivery.Request.As, scheduler.md 14.4.4).
 	}
 	return ""
 }

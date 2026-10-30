@@ -113,6 +113,11 @@ func TestMechanismVia(t *testing.T) {
 		// cloudwatch-alarms.md 12.4.
 		delivery.CloudWatchToSNS:    ref.CloudWatchAlarm,
 		delivery.CloudWatchToLambda: ref.CloudWatchAlarm,
+		// scheduler.md 14.4.3.
+		delivery.SchedulerToLambda: ref.SchedulerTarget,
+		delivery.SchedulerToSQS:    ref.SchedulerTarget,
+		delivery.SchedulerToEvents: ref.SchedulerTarget,
+		delivery.SchedulerToSNS:    ref.SchedulerTarget,
 	}
 	for _, m := range delivery.Mechanisms() {
 		if got := m.Via(); got != want[m] {
@@ -144,6 +149,11 @@ func TestMechanismTarget(t *testing.T) {
 		// cloudwatch-alarms.md 7.2.
 		delivery.CloudWatchToSNS:    "sns",
 		delivery.CloudWatchToLambda: "lambda",
+		// scheduler.md 6.4.
+		delivery.SchedulerToLambda: "lambda",
+		delivery.SchedulerToSQS:    "sqs",
+		delivery.SchedulerToEvents: "eventbridge",
+		delivery.SchedulerToSNS:    "sns",
 	}
 	for _, m := range delivery.Mechanisms() {
 		if _, listed := want[m]; !listed {

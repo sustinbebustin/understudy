@@ -212,6 +212,9 @@ func checkRequest(req delivery.Request) (aws.Scope, *RequestError) {
 	if err != nil {
 		return aws.Scope{}, err
 	}
+	if err := checkScheduler(req); err != nil {
+		return aws.Scope{}, err
+	}
 	if err := checkPolicy(req.Mechanism, req.Policy); err != nil {
 		return aws.Scope{}, err
 	}
@@ -226,6 +229,17 @@ func checkRequest(req delivery.Request) (aws.Scope, *RequestError) {
 		return aws.Scope{}, &RequestError{Field: field, Reason: unservedScope, Err: serr}
 	}
 	return scope, nil
+}
+
+// checkScheduler refuses a Scheduler delivery (scheduler.md 14.4.3): not
+// implemented yet, the outbox neither renders its payload from
+// Request.Invocation nor runs it as Request.As, so it attempts none rather
+// than deliver one as a service principal.
+func checkScheduler(req delivery.Request) *RequestError {
+	if req.Mechanism.Via() != ref.SchedulerTarget {
+		return nil
+	}
+	return &RequestError{Field: "Mechanism", Reason: "is " + req.Mechanism.String() + ", a Scheduler delivery, which the outbox does not attempt: not implemented yet"}
 }
 
 // checkSender checks req's sender: set for the Lambda mechanisms, which

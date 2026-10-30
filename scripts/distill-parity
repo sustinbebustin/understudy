@@ -60,11 +60,12 @@ HOSTS = [
     (r"\.s3\.|s3\.[a-z0-9-]+\.amazonaws", "s3"), (r"lambda-url\.", "lambda"), (r"lambda\.", "lambda"),
     (r"logs\.", "logs"), (r"secretsmanager\.", "secretsmanager"), (r"kms\.", "kms"), (r"iam\.amazonaws", "iam"),
     (r"sts\.", "sts"), (r"events\.", "events"), (r"monitoring\.", "cloudwatch"), (r"sqs\.", "sqs"), (r"sns\.", "sns"),
+    (r"scheduler\.", "scheduler"),
 ]
 PRIMARY = {
     "R01": "sqs", "R02": "sqs", "R03": "lambda", "R04": "dynamodb", "R05": "sqs", "R06": "s3", "R07": "lambda",
     "R08": "s3", "R09": "sns", "R10": "logs", "R11": "sqs", "R12": "s3", "R13": "lambda", "R14": "events",
-    "R15": "kms", "R16": "sns", "R17": "s3", "R18": "s3", "KMS-alias": "kms",
+    "R15": "kms", "R16": "sns", "R17": "s3", "R18": "s3", "KMS-alias": "kms", "SCH": "scheduler",
 }
 
 

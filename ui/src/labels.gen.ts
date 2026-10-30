@@ -33,6 +33,7 @@ export const vias = [
   "sfn-log-destination",
   "sfn-task",
   "cloudwatch-alarm",
+  "scheduler-target",
 ] as const;
 
 export const mechanisms = [
@@ -55,6 +56,10 @@ export const mechanisms = [
   "esm-to-sns",
   "cloudwatch-to-sns",
   "cloudwatch-to-lambda",
+  "scheduler-to-lambda",
+  "scheduler-to-sqs",
+  "scheduler-to-events",
+  "scheduler-to-sns",
 ] as const;
 
 export const idKinds = [
@@ -91,4 +96,7 @@ export const idKinds = [
   "ses-domain-token",
   "ses-dkim-token",
   "ses-link-token",
+  "scheduler-execution-id",
+  "scheduler-role-session",
+  "scheduler-flex-offset",
 ] as const;

@@ -46,9 +46,18 @@ type PrincipalMode interface{ isPrincipalMode() }
 // package from S3.
 type AsCaller struct{}
 
-// AsExecutionRole is a call made as a function's execution role: event
-// source mapping polls and Lambda log writes.
-type AsExecutionRole struct{ Role aws.ARN }
+// AsExecutionRole is a call made as an execution role: event source
+// mapping polls and Lambda log writes as a function's, and Scheduler
+// deliveries as a schedule's (scheduler.md 14.4.4).
+type AsExecutionRole struct {
+	Role aws.ARN
+	// ID is the role's AROA... id, "" when unknown. Not implemented yet:
+	// the session's principal does not carry it.
+	ID string
+	// Session is the role session name; "" is "understudy". Not
+	// implemented yet: the session is always "understudy".
+	Session string
+}
 
 // AsService is a delivery a service principal makes, gated by the target's
 // resource policy. Source is the resource the delivery comes from (the

@@ -33,6 +33,15 @@ type Request struct {
 	// mapping's on-failure record (lambda-stream-sources.md 5.6), as the
 	// function's execution role.
 	Sender *LambdaSender
+	// As is the principal the Scheduler* mechanisms deliver as, the
+	// schedule's execution role (scheduler.md 14.4.4); nil for every other
+	// mechanism, whose principal is its service principal, or, for the
+	// Lambda* and ESM* mechanisms, Sender's role.
+	As Principal
+	// Invocation is set for the Scheduler* mechanisms and nil for every
+	// other: the outbox renders the target's payload from it before each
+	// attempt (scheduler.md 14.4.2).
+	Invocation *SchedulerInvocation
 }
 
 // LambdaSender is a Lambda* delivery's sender: the execution role it runs
@@ -633,6 +642,13 @@ const (
 	// lambda.alarms.cloudwatch.amazonaws.com (cloudwatch-alarms.md 12.4).
 	CloudWatchToSNS
 	CloudWatchToLambda
+	// The Scheduler mechanisms invoke a schedule's templated target as its
+	// execution role (scheduler.md 14.4.3, 14.4.4); Request.As and
+	// Request.Invocation are set.
+	SchedulerToLambda
+	SchedulerToSQS
+	SchedulerToEvents
+	SchedulerToSNS
 
 	// endMechanism follows the last value and is no mechanism: Mechanisms,
 	// valid and the MechanismError text count up to it, so a new value is
@@ -690,6 +706,14 @@ func (m Mechanism) String() string {
 		return "cloudwatch-to-sns"
 	case CloudWatchToLambda:
 		return "cloudwatch-to-lambda"
+	case SchedulerToLambda:
+		return "scheduler-to-lambda"
+	case SchedulerToSQS:
+		return "scheduler-to-sqs"
+	case SchedulerToEvents:
+		return "scheduler-to-events"
+	case SchedulerToSNS:
+		return "scheduler-to-sns"
 	default:
 		return fmt.Sprintf("Mechanism(%d)", uint8(m))
 	}
@@ -713,6 +737,8 @@ func (m Mechanism) Via() ref.Via {
 		return ref.LambdaESM
 	case CloudWatchToSNS, CloudWatchToLambda:
 		return ref.CloudWatchAlarm
+	case SchedulerToLambda, SchedulerToSQS, SchedulerToEvents, SchedulerToSNS:
+		return ref.SchedulerTarget
 	default:
 		return 0
 	}
@@ -722,13 +748,13 @@ func (m Mechanism) Via() ref.Via {
 // Mechanism, as for Via; any other m yields "".
 func (m Mechanism) Target() ref.ServiceID {
 	switch m {
-	case SNSToSQS, S3ToSQS, EventsToSQS, LambdaToSQS, ESMToSQS:
+	case SNSToSQS, S3ToSQS, EventsToSQS, LambdaToSQS, ESMToSQS, SchedulerToSQS:
 		return "sqs"
-	case SNSToLambda, S3ToLambda, EventsToLambda, LambdaToLambda, CloudWatchToLambda:
+	case SNSToLambda, S3ToLambda, EventsToLambda, LambdaToLambda, CloudWatchToLambda, SchedulerToLambda:
 		return "lambda"
-	case S3ToSNS, EventsToSNS, LambdaToSNS, ESMToSNS, CloudWatchToSNS:
+	case S3ToSNS, EventsToSNS, LambdaToSNS, ESMToSNS, CloudWatchToSNS, SchedulerToSNS:
 		return "sns"
-	case EventsToEvents, LambdaToEvents:
+	case EventsToEvents, LambdaToEvents, SchedulerToEvents:
 		return "eventbridge"
 	case LambdaToS3:
 		return "s3"

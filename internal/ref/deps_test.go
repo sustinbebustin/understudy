@@ -212,6 +212,11 @@ func importRules() []importRule {
 		// rule and nothing more, in particular never internal/egress (ses.md
 		// 11.8); net/smtp is a depguard deny in .golangci.yml.
 		{"internal/service/ses", service},
+		// Scheduler gets the service rule and nothing more: it reads roles
+		// through IAM's internal ResolveRole and reaches its targets through
+		// the outbox, both by kernel.Invoke, never by import (scheduler.md
+		// 14.4, 14.14.5).
+		{"internal/service/scheduler", service},
 
 		// The AWS managed policy catalogue: the embedded data files import
 		// nothing, and the typed catalogue reads them and checks names and

@@ -22,7 +22,7 @@ import (
 // TestEnqueueEventsToEventsChecks covers the bus under events-to-events.
 func TestEnqueueRefusesNewTargetsNoMechanismDeliversTo(t *testing.T) {
 	delivers := map[string][]delivery.Mechanism{
-		"EventBus":     {delivery.EventsToEvents, delivery.LambdaToEvents},
+		"EventBus":     {delivery.EventsToEvents, delivery.LambdaToEvents, delivery.SchedulerToEvents},
 		"S3Object":     {delivery.LambdaToS3},
 		"HTTPEndpoint": {delivery.SNSToHTTP},
 	}

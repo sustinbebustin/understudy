@@ -34,6 +34,7 @@ export const viaLabels: Readonly<Record<string, string>> = {
   "sfn-log-destination": "Step Functions log destination check",
   "sfn-task": "Step Functions Lambda task",
   "cloudwatch-alarm": "CloudWatch alarm",
+  "scheduler-target": "EventBridge Scheduler target",
 };
 
 export const mechanismLabels: Readonly<Record<string, string>> = {
@@ -56,6 +57,10 @@ export const mechanismLabels: Readonly<Record<string, string>> = {
   "esm-to-sns": "Event source mapping to SNS",
   "cloudwatch-to-sns": "CloudWatch alarm to SNS",
   "cloudwatch-to-lambda": "CloudWatch alarm to Lambda",
+  "scheduler-to-lambda": "Scheduler to Lambda",
+  "scheduler-to-sqs": "Scheduler to SQS",
+  "scheduler-to-events": "Scheduler to EventBridge",
+  "scheduler-to-sns": "Scheduler to SNS",
 };
 
 // ids.Kind: the generator streams (internal/ids/kind.go).
@@ -93,6 +98,9 @@ export const idKindLabels: Readonly<Record<string, string>> = {
   "ses-domain-token": "SES domain verification token",
   "ses-dkim-token": "SES DKIM token",
   "ses-link-token": "SES verification link token",
+  "scheduler-execution-id": "Scheduler execution id",
+  "scheduler-role-session": "Scheduler role session name",
+  "scheduler-flex-offset": "Scheduler flexible-window offset",
 };
 
 // label returns table's label for name, or name when it has none.

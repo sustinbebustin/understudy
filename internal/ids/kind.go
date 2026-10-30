@@ -79,6 +79,15 @@ const (
 	// KindSESLinkToken is the token of an SES verification link (ses.md
 	// 11.3).
 	KindSESLinkToken
+	// KindSchedulerExecution is an EventBridge Scheduler invocation's
+	// execution id: 16 lower-case hex digits (scheduler.md 7.2).
+	KindSchedulerExecution
+	// KindRoleSession is the 32-hex role session name a Scheduler
+	// invocation runs as, one per invocation (scheduler.md 7.2, 9).
+	KindRoleSession
+	// KindFlexOffset draws a Scheduler flexible-window offset when a fire is
+	// armed (scheduler.md 14.3.7), apart from delivery jitter (KindJitter).
+	KindFlexOffset
 
 	// endKind follows the last kind and is no kind: kindCount counts up to
 	// it, so a new kind is one line above it plus its String case.
@@ -166,6 +175,12 @@ func (k Kind) String() string {
 		return "ses-dkim-token"
 	case KindSESLinkToken:
 		return "ses-link-token"
+	case KindSchedulerExecution:
+		return "scheduler-execution-id"
+	case KindRoleSession:
+		return "scheduler-role-session"
+	case KindFlexOffset:
+		return "scheduler-flex-offset"
 	}
 	return fmt.Sprintf("kind(%d)", uint8(k))
 }

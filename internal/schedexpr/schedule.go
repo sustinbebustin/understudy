@@ -11,21 +11,29 @@ import (
 // cron expression (recorded).
 const message = "Parameter ScheduleExpression is not valid."
 
-// Error is an expression AWS would reject, which the events service returns
-// as a ValidationException. Message is the wire text; Detail names the
-// offending part for logs and never reaches the wire.
+// Error is an expression AWS would reject, which the events and scheduler
+// services return as a ValidationException. Message is the wire text;
+// Detail names the offending part for logs and never reaches the wire.
 type Error struct {
 	detail string
+	// text is the wire text of a Scheduler refusal, which echoes the
+	// expression (scheduler.md 2.4); "" for the rules' one text.
+	text string
 }
 
 // Message returns the ValidationException text.
-func (*Error) Message() string { return message }
+func (e *Error) Message() string {
+	if e.text != "" {
+		return e.text
+	}
+	return message
+}
 
 // Detail names the offending part of the expression, for logs only.
 func (e *Error) Detail() string { return e.detail }
 
 // Error returns the wire message.
-func (*Error) Error() string { return message }
+func (e *Error) Error() string { return e.Message() }
 
 func invalid(detail string) *Error { return &Error{detail: detail} }
 
