@@ -84,7 +84,9 @@ type realKinesisHarness struct {
 	topics *published
 }
 
-func runRealKinesis(t *testing.T, f esm.StreamFidelity, fn func(h *realKinesisHarness)) {
+// Further kerneltest options, such as an Authorizer, apply after the
+// harness's own.
+func runRealKinesis(t *testing.T, f esm.StreamFidelity, fn func(h *realKinesisHarness), opts ...kerneltest.Option) {
 	t.Helper()
 	box := outbox.New()
 	kerneltest.Run(t, func(k *kerneltest.K) {
@@ -115,7 +117,9 @@ func runRealKinesis(t *testing.T, f esm.StreamFidelity, fn func(h *realKinesisHa
 		withExec(k, rec.handle, nil, func(h *execHarness) {
 			fn(&realKinesisHarness{execHarness: h, rec: rec, topics: topics})
 		}, func(c *execConfig) { c.svc.Streams = f })
-	}, kerneltest.Deliver(box), kerneltest.Services(lambdaapi.Service(), logsapi.Service(), sqsapi.Service(), snsapi.Service(), kinesisapi.Service()))
+	}, append([]kerneltest.Option{
+		kerneltest.Deliver(box), kerneltest.Services(lambdaapi.Service(), logsapi.Service(), sqsapi.Service(), snsapi.Service(), kinesisapi.Service()),
+	}, opts...)...)
 }
 
 // createStream creates the stream orders with shards shards.

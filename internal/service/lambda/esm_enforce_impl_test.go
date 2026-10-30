@@ -121,7 +121,8 @@ func TestESMStaysEnabledWhenItsRoleLosesTheQueue(t *testing.T) {
 
 		want := map[string]string{
 			"lambda.esm.create-denied-text": "The provided execution role does not have permissions to call ReceiveMessage on SQS; " +
-				"for a DynamoDB stream: The provided execution role does not have permissions to call DescribeStream on DynamoDB",
+				"for a DynamoDB stream: The provided execution role does not have permissions to call DescribeStream on DynamoDB; " +
+				"for a Kinesis stream: The provided execution role does not have permissions to call DescribeStreamSummary on Kinesis",
 			"lambda.esm.permission-loss": "stay-enabled",
 		}
 		for _, e := range h.svc.Switches() {

@@ -527,9 +527,12 @@ func esmRoleDeniedText(action, service string) string {
 }
 
 // esmCreateDeniedValue is switch lambda.esm.create-denied-text's value:
-// the sentence for a queue, then for a stream.
+// the sentence for a queue, then for each kind of stream (08b contract
+// 6.1).
 func esmCreateDeniedValue() string {
-	return esmRoleDeniedText("ReceiveMessage", "SQS") + "; for a DynamoDB stream: " + esmRoleDeniedText("DescribeStream", "DynamoDB")
+	return esmRoleDeniedText("ReceiveMessage", "SQS") +
+		"; for a DynamoDB stream: " + esmRoleDeniedText("DescribeStream", "DynamoDB") +
+		"; for a Kinesis stream: " + esmRoleDeniedText("DescribeStreamSummary", "Kinesis")
 }
 
 func errESMRoleDenied(action, service string) *awserr.Error {
