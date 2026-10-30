@@ -156,7 +156,11 @@ describe("CloudWatch metric alarms", () => {
 
   test("DescribeAlarms filters by name prefix and state and pages with MaxRecords", async () => {
     const prefix = uniq("dp");
-    for (const suffix of ["a", "b", "c"]) await cw.send(new PutMetricAlarmCommand(alarmInput(`${prefix}-${suffix}`)));
+    // ignore keeps the set state across an evaluation between the set and
+    // the read, as above (cloudwatch-alarms.md 2.3).
+    for (const suffix of ["a", "b", "c"]) {
+      await cw.send(new PutMetricAlarmCommand(alarmInput(`${prefix}-${suffix}`, { TreatMissingData: "ignore" })));
+    }
     await cw.send(new SetAlarmStateCommand({ AlarmName: `${prefix}-b`, StateValue: "ALARM", StateReason: "x" }));
     const inAlarm = await cw.send(new DescribeAlarmsCommand({ AlarmNamePrefix: prefix, StateValue: "ALARM" }));
     expect(inAlarm.MetricAlarms?.map((a) => a.AlarmName)).toEqual([`${prefix}-b`]);
