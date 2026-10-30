@@ -11,6 +11,13 @@ resource "aws_ses_email_identity" "sender" {
   email = local.updated ? "${var.name_prefix}-updated@example.com" : "${var.name_prefix}@example.com"
 }
 
+# The data source reads the identity back through
+# GetIdentityNotificationAttributes and fails unless its key is in
+# NotificationAttributes (docs/research/ses.md 9.1).
+data "aws_ses_email_identity" "sender" {
+  email = aws_ses_email_identity.sender.email
+}
+
 resource "aws_ses_domain_identity" "verified" {
   domain = "ses-verified.example.org"
 }
@@ -52,6 +59,10 @@ output "sesv2_domain_arn" {
 
 output "ses_email_identity_arn" {
   value = aws_ses_email_identity.sender.arn
+}
+
+output "ses_email_identity_data_arn" {
+  value = data.aws_ses_email_identity.sender.arn
 }
 
 output "ses_domain_verification_token" {
