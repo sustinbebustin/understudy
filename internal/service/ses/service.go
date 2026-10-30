@@ -30,7 +30,9 @@ type Service struct {
 	// expiry the handled kind of TimerExpiry.
 	timers *kernel.Timers
 	expiry kernel.HandledKind
-	log    *slog.Logger
+	// bindings lists the operations ses.denial.identity governs.
+	bindings *kernel.Bindings
+	log      *slog.Logger
 	// seq is the number of the latest message record (record.Seq).
 	seq atomic.Uint64
 }
@@ -52,12 +54,13 @@ var (
 // operation stays unbound and answers 501.
 func New(d kernel.ServiceDeps, o Options) *Service {
 	s := &Service{
-		opts:   o,
-		ids:    d.IDs,
-		cells:  store.NewPartitioned(d.Kernel.Gate(), codec(), newState),
-		blobs:  d.Blob,
-		timers: d.Kernel.Timers(),
-		log:    d.Log,
+		opts:     o,
+		ids:      d.IDs,
+		cells:    store.NewPartitioned(d.Kernel.Gate(), codec(), newState),
+		blobs:    d.Blob,
+		timers:   d.Kernel.Timers(),
+		bindings: d.Kernel.Bindings(),
+		log:      d.Log,
 	}
 	s.expiry = s.timers.Handle(TimerExpiry, s.onExpiry)
 	b := sesapi.NewBinder(d.Binder)
@@ -141,7 +144,8 @@ func (s *Service) Resources(scope aws.Scope) []kernel.Resource {
 func (s *Service) Scopes() []aws.Scope { return s.cells.Keys(store.ScopeKeys()) }
 
 // Switches lists the SES switches whose behavior is implemented, with the
-// value in effect.
+// value in effect, and the denial identity (iam-enforcement-surfaces.md
+// 12.8).
 func (s *Service) Switches() []fidelity.Entry {
 	return []fidelity.Entry{
 		storeSwitch(s.opts.Store).Entry(),
@@ -149,6 +153,7 @@ func (s *Service) Switches() []fidelity.Entry {
 		unverifiedTextSwitch(s.opts.UnverifiedText).Entry(),
 		unknownIdentitySwitch(s.opts.UnknownIdentity).Entry(),
 		rawEnvelopeSwitch(s.opts.RawEnvelope).Entry(),
+		denialSwitch(s.bindings.AuthorizedOps(sesapi.Service())),
 	}
 }
 

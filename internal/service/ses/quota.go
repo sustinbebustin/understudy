@@ -16,7 +16,7 @@ func (s *Service) bindQuota(b sesapi.Binder) {
 		registry.Partial{Note: "Max24HourSend and MaxSendRate from the sandbox or production setting; " +
 			"SentLast24Hours counts accepted recipients on the emulator clock, mailbox simulator excluded; " +
 			"the send rate is not enforced; production values -1 and 14 are unrecorded (SES-26)"},
-		kernel.WithoutSecondaryActions())
+		kernel.WithoutSecondaryActions(), refusedConditionKeys())
 }
 
 // getSendQuota answers the caller's scope's quota: the sandbox values

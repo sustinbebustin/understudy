@@ -301,6 +301,8 @@ probe logs AccessDeniedException "" logs.denial.status logs describe-log-groups
 probe events AccessDeniedException "" events.denial.status events list-rules
 probe cloudwatch 'AccessDenied|AccessDeniedException' "" cloudwatch.denial.identity cloudwatch list-metrics
 probe lambda AccessDeniedException "" lambda.denial.body lambda list-functions
+probe ses AccessDenied "" ses.denial.identity ses list-identities
+probe sesv2 AccessDeniedException "" ses.denial.identity sesv2 get-account
 if [ "$conformance_ddb" = on ]; then
 	probe dynamodb AccessDeniedException "" dynamodb.denial.type dynamodb list-tables
 fi

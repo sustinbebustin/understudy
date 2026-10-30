@@ -27,23 +27,23 @@ func (s *Service) bindIdentities(b sesapi.Binder) {
 		registry.Partial{Note: "the identity stays Pending until its verification link under " + VerificationLinkPath +
 			" is opened or understudy.json lists it; the verification email is recorded, never sent; Failed after 24 hours on the emulator clock; " +
 			"chosen without a recording (docs/research/ses.md 11.4): the invalid-address answers"},
-		kernel.WithoutSecondaryActions(),
+		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
 		identitiesNamed(func(in *sesapi.VerifyEmailIdentityInput) []string { return []string{in.EmailAddress} }))
 	b.VerifyDomainIdentity(s.verifyDomainIdentity,
 		registry.Partial{Note: "the domain stays Pending until understudy.json lists it; DNS is never queried; Failed after 72 hours on the emulator clock"},
-		kernel.WithoutSecondaryActions(),
+		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
 		identitiesNamed(func(in *sesapi.VerifyDomainIdentityInput) []string { return []string{in.Domain} }))
 	b.GetIdentityVerificationAttributes(s.getIdentityVerificationAttributes, registry.Full{},
-		kernel.WithoutSecondaryActions(),
+		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
 		identitiesNamed(func(in *sesapi.GetIdentityVerificationAttributesInput) []string { return in.Identities }))
 	b.GetIdentityNotificationAttributes(s.getIdentityNotificationAttributes,
 		registry.Partial{Note: "every identity reports no SNS topics, ForwardingEnabled true and headers disabled; " +
 			"SetIdentityNotificationTopic and the other setters are not implemented"},
-		kernel.WithoutSecondaryActions(),
+		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
 		identitiesNamed(func(in *sesapi.GetIdentityNotificationAttributesInput) []string { return in.Identities }))
-	b.ListIdentities(s.listIdentities, registry.Full{}, kernel.WithoutSecondaryActions())
+	b.ListIdentities(s.listIdentities, registry.Full{}, kernel.WithoutSecondaryActions(), refusedConditionKeys())
 	b.DeleteIdentity(s.deleteIdentity, registry.Full{},
-		kernel.WithoutSecondaryActions(),
+		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
 		identitiesNamed(func(in *sesapi.DeleteIdentityInput) []string { return []string{in.Identity} }))
 }
 

@@ -53,18 +53,18 @@ func (s *state) findTemplate(name string) int {
 // resource (contract 2.6).
 func (s *Service) bindTemplates(b sesapi.Binder) {
 	b.CreateTemplate(s.createTemplate, registry.Full{},
-		kernel.WithoutSecondaryActions(),
+		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
 		templateNamed(func(in *sesapi.CreateTemplateInput) string { return in.Template.TemplateName }))
 	b.GetTemplate(s.getTemplate, registry.Full{},
-		kernel.WithoutSecondaryActions(),
+		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
 		templateNamed(func(in *sesapi.GetTemplateInput) string { return in.TemplateName }))
 	b.UpdateTemplate(s.updateTemplate, registry.Full{},
-		kernel.WithoutSecondaryActions(),
+		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
 		templateNamed(func(in *sesapi.UpdateTemplateInput) string { return in.Template.TemplateName }))
 	b.DeleteTemplate(s.deleteTemplate, registry.Full{},
-		kernel.WithoutSecondaryActions(),
+		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
 		templateNamed(func(in *sesapi.DeleteTemplateInput) string { return in.TemplateName }))
-	b.ListTemplates(s.listTemplates, registry.Full{}, kernel.WithoutSecondaryActions())
+	b.ListTemplates(s.listTemplates, registry.Full{}, kernel.WithoutSecondaryActions(), refusedConditionKeys())
 }
 
 // templateNamed names the template an input addresses as the call's

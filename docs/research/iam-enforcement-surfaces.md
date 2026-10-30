@@ -555,6 +555,7 @@ Leave unbound (501): EventBridge `PutPermission`/`RemovePermission`, Logs `PutRe
 | `events.denial.status` | 400 | inferred | 3.1, 3.2 | IAM-ENF-08 |
 | `cloudwatch.denial.identity` | `AccessDenied` 403 (Query); coral `__type` + header (JSON/CBOR) | inferred | 3.2 | IAM-ENF-09 |
 | `iam.denial.identity` | `AccessDenied` 403 with the IAM namespace | inferred | 3.2 | IAM-ENF-10 |
+| `ses.denial.identity` | v1 `AccessDenied`, `Sender`, 403; v2 `AccessDeniedException` in `x-amzn-ErrorType`, 403, `{"message": "<grammar>"}` (amended 2026-10-30) | inferred | 12.3 | IAM-ENF-38, IAM-ENF-39 ([ses.md](ses.md) SES-28) |
 | `lambda.denial.body` | `{"Message":"<grammar>"}` | inferred | 3.2 | IAM-ENF-11 |
 | `s3.denial.text` | S3 variant (4.2) | aws-doc | 4.2 | IAM-ENF-12 |
 | `sts.denial.reason` | omitted on every AssumeRole denial | aws-recorded for the implicit trust case, inferred for the others | 4.3 | IAM-ENF-16 |

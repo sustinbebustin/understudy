@@ -23,7 +23,7 @@ const v2SendEmailCoverage = "journal-only as the v1 sends, for Simple (with Head
 // address (contract 2.6).
 func (v *V2) bindV2Send(b sesv2api.Binder) {
 	b.SendEmail(v.sendEmail, registry.Partial{Note: v2SendEmailCoverage},
-		kernel.WithoutSecondaryActions(),
+		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
 		kernel.WithResources(func(c *kernel.Call, in *sesv2api.SendEmailInput) []aws.ARN {
 			if in.Content.Raw != nil {
 				return rawSenderARN(c.Scope(), in.FromEmailAddress, in.Content.Raw.Data)

@@ -47,24 +47,25 @@ func (v *V2) bindV2(b sesv2api.Binder) {
 			}
 			return []registry.IAMAction{{Prefix: "ses", Name: "TagResource"}}
 		}),
+		refusedConditionKeys(),
 		identitiesNamed(func(in *sesv2api.CreateEmailIdentityInput) []string { return []string{in.EmailIdentity} }))
 	b.GetEmailIdentity(v.getEmailIdentity, registry.Full{},
-		kernel.WithoutSecondaryActions(),
+		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
 		identitiesNamed(func(in *sesv2api.GetEmailIdentityInput) []string { return []string{in.EmailIdentity} }))
 	b.DeleteEmailIdentity(v.deleteEmailIdentity, registry.Full{},
-		kernel.WithoutSecondaryActions(),
+		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
 		identitiesNamed(func(in *sesv2api.DeleteEmailIdentityInput) []string { return []string{in.EmailIdentity} }))
-	b.ListEmailIdentities(v.listEmailIdentities, registry.Partial{Note: listEmailIdentitiesCoverage}, kernel.WithoutSecondaryActions())
+	b.ListEmailIdentities(v.listEmailIdentities, registry.Partial{Note: listEmailIdentitiesCoverage}, kernel.WithoutSecondaryActions(), refusedConditionKeys())
 	b.TagResource(v.tagResource, registry.Partial{Note: v2TagsCoverage},
-		kernel.WithoutSecondaryActions(),
+		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
 		resourceNamed(func(in *sesv2api.TagResourceInput) string { return in.ResourceArn }))
 	b.UntagResource(v.untagResource, registry.Partial{Note: v2TagsCoverage},
-		kernel.WithoutSecondaryActions(),
+		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
 		resourceNamed(func(in *sesv2api.UntagResourceInput) string { return in.ResourceArn }))
 	b.ListTagsForResource(v.listTagsForResource, registry.Partial{Note: v2TagsCoverage},
-		kernel.WithoutSecondaryActions(),
+		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
 		resourceNamed(func(in *sesv2api.ListTagsForResourceInput) string { return in.ResourceArn }))
-	b.GetAccount(v.getAccount, registry.Partial{Note: getAccountCoverage}, kernel.WithoutSecondaryActions())
+	b.GetAccount(v.getAccount, registry.Partial{Note: getAccountCoverage}, kernel.WithoutSecondaryActions(), refusedConditionKeys())
 }
 
 // resourceNamed names a tag operation's ResourceArn as its resource

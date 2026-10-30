@@ -109,7 +109,7 @@ const sendEmailCoverage = "journal-only: validates and applies identity and sand
 // sender's identity ARN (contract 2.6).
 func (s *Service) bindSends(b sesapi.Binder) {
 	b.SendEmail(s.sendEmail, registry.Partial{Note: sendEmailCoverage},
-		kernel.WithoutSecondaryActions(),
+		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
 		kernel.WithResources(func(c *kernel.Call, in *sesapi.SendEmailInput) []aws.ARN {
 			a, bad := parseAddress(in.Source)
 			if bad != nil {

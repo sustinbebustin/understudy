@@ -48,8 +48,8 @@ func TestEveryServiceNamesItsDenialIdentity(t *testing.T) {
 		"dynamodbstreams": {evidence.Inferred, "no source; follows dynamodb"},
 		"kinesis":         {evidence.Inferred, "no source"},
 		"scheduler":       {evidence.Inferred, "no source"},
-		"ses":             {evidence.Inferred, "no source"},
-		"sesv2":           {evidence.Inferred, "no source"},
+		"ses":             {evidence.Inferred, "switch ses.denial.identity, cases IAM-ENF-38 and ses.md SES-28; inferred from STS and IAM"},
+		"sesv2":           {evidence.Inferred, "switch ses.denial.identity, cases IAM-ENF-39 and ses.md SES-28"},
 		"sfn":             {evidence.Inferred, "switch sfn.denial.status, case SFN-15"},
 		"ssm":             {evidence.Inferred, "no source"},
 	}
