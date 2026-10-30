@@ -208,6 +208,17 @@ understudy has not recorded Step Functions against AWS yet. Its behavior comes f
 - Alarms on an `ExtendedStatistic`, `Metrics`, a `ThresholdMetricId` or `EvaluationCriteria`, or with a wall-clock window, are stored and never evaluated. EC2, Auto Scaling, Systems Manager and investigation actions are journaled and never run. `DescribeAlarmHistory` records `StateUpdate` items only, and `GetMetricStatistics` answers `ExtendedStatistics` with 501.
 - Alarm notifications to a FIFO topic get a deduplication id from the alarm ARN and the state change time. While the clock is frozen, several state changes share that time and that id, and SNS keeps only the first; advance the clock between `SetAlarmState` calls ([CloudWatch alarms](clock.md#cloudwatch-alarms)).
 
+## SES
+
+No SES response has been recorded against AWS yet, so every SES answer rests on documentation, LocalStack's recordings or inference, labelled per item on the [coverage page](../coverage.md#ses). By design:
+
+- No mail is sent and no `Send`, `Delivery`, `Bounce`, `Complaint` or `Reject` event or notification is produced, mailbox simulator addresses included. Accepted sends are recorded for `understudy ses messages` and `GET /_understudy/v1/ses/messages` ([SES](ses-email.md#reading-messages)).
+- An identity is verified only by opening its verification link or by `ses.verifiedIdentities`, never by DNS or a click elsewhere; a domain outside the list stays `Pending` and fails after 72 hours of emulator time.
+- A raw message is recorded as received, without the `Message-ID` and `Date` headers SES would substitute.
+- `MaxSendRate` is reported but not enforced.
+- Texts not yet recorded, and so possibly different from AWS's: the unverified-identity `MessageRejected` text (its region spelling and identity order), invalid-address and recipient-count answers, the daily quota error, and the production quota values -1 and 14.
+- An unknown v1 `Action` or v2 path answers as `sesv2`'s unknown operation; what AWS answers is not recorded.
+
 ## KMS, Secrets Manager, IAM and STS
 
 - KMS texts on AWS: pending deletion has no "(or pending replica deletion)"; `PendingWindowInDays` out of range is "PendingWindowInDays must be between 7 and 30"; `alias/aws/` is `NotAuthorizedException`; an oversize policy counts non-whitespace characters; a non-default policy name is "Invalid policy name"; a bad `ListKeys` marker has no message (`kms/R15/*.json`).

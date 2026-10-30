@@ -107,7 +107,8 @@ eval "$(understudy env --sdk terraform --account 100000000001)"
 ## Known gaps
 
 - `terraform import` of an SQS queue fails: the provider accepts only `https://sqs.<region>.<host>/...` queue URLs, and understudy's are `http://localhost:4566/...`. Create, read and destroy work.
-- Resource types outside the sixteen services fail with the 501 the provider receives for their first call.
+- Resource types outside the emulated services fail with the 501 the provider receives for their first call.
+- `aws_ses_domain_identity_verification` waits up to 45 minutes and fails unless its domain is listed in `ses.verifiedIdentities`, since understudy never checks DNS ([SES](ses-email.md#terraforms-45-minute-wait)).
 - Without an account id, the provider writes an API Gateway API's `execution_arn` as `arn:aws:execute-api:us-east-1::<api-id>`, so a Lambda permission built from it never matches; build the source ARN from `data.aws_caller_identity` ([API Gateway](apigateway.md#terraform)). A stage's `invoke_url` names `amazonaws.com`; call the API at `api_endpoint`.
 - An `aws_apigatewayv2_api` with `body` fails to apply: the provider creates the API, then imports the OpenAPI definition with `ReimportApi`, which answers 501. The API is left tainted, and `destroy` removes it.
 - Deleted KMS keys stay listed in `PendingDeletion` until their deletion window passes on the [emulator clock](clock.md), as on AWS.
