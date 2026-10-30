@@ -101,14 +101,15 @@ func (m Mapping) state() MappingState {
 }
 
 func (s *Service) bindMappings(b lambdaapi.Binder) {
-	const note = "SQS queues and DynamoDB streams; serve polls the source and invokes the function with each batch; " +
-		"Kinesis streams, ParallelizationFactor above 1, BisectBatchOnFunctionError, TumblingWindowInSeconds above 0, a valid FilterCriteria on a stream and an S3 on-failure destination answer 501; " +
+	const note = "SQS queues, DynamoDB streams and Kinesis data streams; serve polls the source and invokes the function with each batch; " +
+		"Kinesis stream consumers, AT_TIMESTAMP on a Kinesis stream, ParallelizationFactor above 1, BisectBatchOnFunctionError, TumblingWindowInSeconds above 0, a valid FilterCriteria on a stream and an S3 on-failure destination answer 501; " +
 		"a stream is read as soon as it receives a record rather than at AWS's polling rate (4 per second for DynamoDB, once per second for Kinesis), which is used as the delay before a retry; " +
-		"UNVERIFIED (lambda-stream-sources.md 3.3, 3.4, 3.7, 4.2, 5.1, 5.3, 5.5, 5.6): the text refusing MaximumRecordAgeInSeconds 0 to 59, an explicit BatchSize above 10 without a window being accepted on a stream, " +
+		"UNVERIFIED (lambda-stream-sources.md 3.3, 3.4, 3.7, 4.2, 5.1, 5.3, 5.5, 5.6, 7.1): the text refusing MaximumRecordAgeInSeconds 0 to 59, an explicit BatchSize above 10 without a window being accepted on a stream, " +
 		"members of the other source type being ignored, destination existence checked only at delivery, a retried batch keeping its records, the 6 MB limit counted over the serialized event, " +
 		"record age measured from the record's arrival in the stream, RetryAttemptsExhausted reported when the last retry fails after the records have also passed their age, one on-failure record per expired record, " +
 		"an itemIdentifier outside the batch counting as complete failure, batchItemFailures keys matched case-sensitively, records lost to stream retention dropped without an on-failure record, " +
-		"an on-failure record the execution role may not send dropped with a journal entry, LastProcessingResult unchanged by a failure, and on-failure messages without attributes; " +
+		"an on-failure record the execution role may not send dropped with a journal entry, LastProcessingResult unchanged by a failure, on-failure messages without attributes, " +
+		"and records written while a Kinesis mapping is disabled being delivered after re-enable; " +
 		"MetricsConfig is stored, no metrics are emitted; " +
 		"under iam.enforce=enforce an SQS mapping's execution role must be allowed sqs:GetQueueAttributes on the queue, where AWS is said to check sqs:ReceiveMessage, " +
 		"and a stream mapping's dynamodb:DescribeStream on the stream, and at LATEST dynamodb:GetShardIterator and dynamodb:GetRecords (lambda.esm.create-denied-text); " +
@@ -310,9 +311,11 @@ func fromSQS(err *awserr.Error) *awserr.Error {
 }
 
 // eventSource reads EventSourceArn and the kind of source it names: an
-// SQS queue's ARN, or a DynamoDB stream's, whose kind createStreamMapping
-// completes with its StartingPosition. Another service's source is
-// unimplemented; none is "Unrecognized event source.".
+// SQS queue's ARN, or a DynamoDB or Kinesis stream's, whose kind
+// createStreamMapping completes with its StartingPosition. A Kinesis
+// consumer, checked before anything else (08b contract 6.1), and another
+// service's source are unimplemented; none is "Unrecognized event
+// source.".
 func eventSource(arn *string) (aws.ARN, esm.EventSourceKind, *awserr.Error) {
 	if arn == nil {
 		return aws.ARN{}, nil, errUnrecognizedEventSource()
@@ -321,8 +324,13 @@ func eventSource(arn *string) (aws.ARN, esm.EventSourceKind, *awserr.Error) {
 	if err != nil {
 		return aws.ARN{}, nil, errUnrecognizedEventSource()
 	}
-	if isDynamoDBStream(a) {
+	switch {
+	case isDynamoDBStream(a):
 		return a, esm.DynamoDBStream{}, nil
+	case isKinesisStream(a):
+		return a, esm.KinesisStream{}, nil
+	case isKinesisConsumer(a):
+		return aws.ARN{}, nil, errKinesisConsumerUnsupported(*arn)
 	}
 	kind, ok := esm.SourceKindOf(a)
 	if !ok {
@@ -337,12 +345,8 @@ func (s *Service) createMapping(ctx context.Context, c *kernel.Call, in *lambdaa
 		return nil, err
 	}
 	switch kind.(type) {
-	case esm.DynamoDBStream:
-		return s.createStreamMapping(ctx, c, in, queue)
-	case esm.KinesisStream:
-		// eventSource names no Kinesis stream until Kinesis mappings are
-		// built; it answers errEventSourceUnsupported for one.
-		return nil, errEventSourceUnsupported(queue.String())
+	case esm.DynamoDBStream, esm.KinesisStream:
+		return s.createStreamMapping(ctx, c, in, queue, kind)
 	case esm.SQS:
 	}
 	m := Mapping{Source: queue.String(), SourceKind: kind, BatchSize: defaultBatchSize, Enabled: in.Enabled == nil || *in.Enabled, Tags: maps.Clone(in.Tags)}
@@ -478,7 +482,7 @@ func (s *Service) updateMapping(ctx context.Context, c *kernel.Call, in *lambdaa
 	if err != nil {
 		return nil, err
 	}
-	if _, stream := current.SourceKind.(esm.DynamoDBStream); stream {
+	if _, _, stream := esm.StreamOf(current.SourceKind); stream {
 		return s.updateStreamMapping(ctx, c, in, current)
 	}
 	target, err := s.retarget(ctx, c, in.UUID, in.FunctionName)
@@ -589,9 +593,9 @@ func renderMapping(scope aws.Scope, m Mapping) lambdaapi.EventSourceMappingConfi
 	case esm.SQS:
 		renderScaling(&out, kind.Scaling)
 	case esm.DynamoDBStream:
-		renderStreamMapping(&out, &m, kind)
+		renderStreamMapping(&out, &m, kind.Position, kind.Settings)
 	case esm.KinesisStream:
-		// Not implemented yet: no mapping of this kind is created.
+		renderStreamMapping(&out, &m, kind.Position, kind.Settings)
 	}
 	return out
 }

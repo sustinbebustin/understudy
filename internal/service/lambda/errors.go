@@ -413,9 +413,24 @@ func errUnrecognizedEventSource() *awserr.Error {
 }
 
 // errEventSourceUnsupported answers an event source other than an SQS
-// queue or a DynamoDB stream, the sources understudy polls (contract 8.2).
+// queue, a DynamoDB stream or a Kinesis data stream, the sources
+// understudy polls (08b contract 6.1).
 func errEventSourceUnsupported(arn string) *awserr.Error {
-	return lambdaapi.ErrNotImplemented("understudy implements event source mappings for Amazon SQS queues and DynamoDB streams only; " + arn + " is neither. Run 'understudy coverage --service lambda' for what is supported.")
+	return lambdaapi.ErrNotImplemented("understudy implements event source mappings for Amazon SQS queues, DynamoDB streams and Kinesis data streams only; " + arn + " is none of them. Run 'understudy coverage --service lambda' for what is supported.")
+}
+
+// errKinesisConsumerUnsupported answers a Kinesis stream consumer ARN:
+// enhanced fan-out is not built (lambda-stream-sources.md 12.1 item 2; 08b
+// contract 6.1).
+func errKinesisConsumerUnsupported(arn string) *awserr.Error {
+	return lambdaapi.ErrNotImplemented("understudy does not implement Kinesis stream consumers (enhanced fan-out); " + arn + " is a consumer ARN. Map the stream ARN instead. Run 'understudy coverage --service lambda' for what is supported.")
+}
+
+// errKinesisAtTimestampUnsupported answers StartingPosition AT_TIMESTAMP
+// on a Kinesis stream, which AWS accepts and understudy does not build
+// (lambda-stream-sources.md 12.1 item 2; 08b contract 6.1).
+func errKinesisAtTimestampUnsupported() *awserr.Error {
+	return lambdaapi.ErrNotImplemented("understudy does not implement StartingPosition AT_TIMESTAMP on a Kinesis stream event source mapping. Run 'understudy coverage --service lambda' for what is supported.")
 }
 
 // checkUnimplementedConfig refuses a configuration member whose feature
