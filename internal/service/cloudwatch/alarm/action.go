@@ -1,6 +1,10 @@
 package alarm
 
-import "github.com/sustinbebustin/understudy/internal/aws"
+import (
+	"strings"
+
+	"github.com/sustinbebustin/understudy/internal/aws"
+)
 
 // Action is one ARN of an alarm's OKActions, AlarmActions or
 // InsufficientDataActions, by what understudy can do with it
@@ -55,14 +59,73 @@ const (
 
 // String names the kind: "ec2", "autoscaling", "ssm", "investigation" or
 // "unrecognized".
-func (NotRunKind) String() string {
-	// not implemented yet
-	return ""
+func (k NotRunKind) String() string {
+	switch k {
+	case NotRunEC2:
+		return "ec2"
+	case NotRunAutoScaling:
+		return "autoscaling"
+	case NotRunSystemsManager:
+		return "ssm"
+	case NotRunInvestigation:
+		return "investigation"
+	case NotRunUnrecognized:
+		return "unrecognized"
+	default:
+		return "unrecognized"
+	}
+}
+
+// notRunForm is the resource prefix of the documented action kind
+// understudy does not run for an ARN service (cloudwatch-alarms.md 7.2);
+// ok is false for a service with no such form.
+func notRunForm(service string) (prefix string, kind NotRunKind, ok bool) {
+	switch service {
+	case "swf":
+		return "action/actions/AWS_EC2.InstanceId.", NotRunEC2, true
+	case "autoscaling":
+		return "scalingPolicy:", NotRunAutoScaling, true
+	case "ssm":
+		return "opsitem:", NotRunSystemsManager, true
+	case "ssm-incidents":
+		return "responseplan/", NotRunSystemsManager, true
+	case "aiops":
+		return "investigation-group:", NotRunInvestigation, true
+	}
+	return "", 0, false
 }
 
 // ParseAction classifies an action ARN by the forms of the model doc of
 // PutMetricAlarmInput$AlarmActions (cloudwatch-alarms.md 6.1, 7.2).
 func ParseAction(arn string) Action {
-	// not implemented yet
-	return NotRunAction{ARN: arn, Kind: NotRunUnrecognized}
+	a, err := aws.ParseARN(arn)
+	if err != nil {
+		return NotRunAction{ARN: arn, Kind: NotRunUnrecognized}
+	}
+	notRun := func(k NotRunKind) Action { return NotRunAction{ARN: arn, Kind: k} }
+	switch a.Service {
+	case "sns":
+		if !strings.Contains(a.Resource, ":") {
+			return SNSAction{Topic: a}
+		}
+	case "lambda":
+		rest, ok := strings.CutPrefix(a.Resource, "function:")
+		name, qualifier, _ := strings.Cut(rest, ":")
+		if ok && name != "" && !strings.Contains(qualifier, ":") {
+			a.Resource = "function:" + name
+			return LambdaAction{Function: a, Qualifier: qualifier}
+		}
+	case "automate":
+		switch a.Resource {
+		case "stop", "terminate", "reboot", "recover":
+			if a.Account == "ec2" {
+				return notRun(NotRunEC2)
+			}
+		}
+	default:
+		if prefix, kind, ok := notRunForm(a.Service); ok && strings.HasPrefix(a.Resource, prefix) {
+			return notRun(kind)
+		}
+	}
+	return notRun(NotRunUnrecognized)
 }
