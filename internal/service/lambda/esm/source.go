@@ -19,7 +19,7 @@ func (SQS) isEventSourceKind() {}
 
 // SourceKindOf returns the kind of source an EventSourceArn names: SQS,
 // unbounded, for an sqs ARN, and false for any other service. DynamoDB
-// streams are not named here: their kind needs the mapping's
+// and Kinesis streams are not named here: their kind needs the mapping's
 // StartingPosition, which the control plane reads.
 func SourceKindOf(source aws.ARN) (EventSourceKind, bool) {
 	if source.Service == "sqs" {

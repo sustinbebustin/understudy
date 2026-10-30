@@ -102,23 +102,24 @@ func (RecordAgeExceeded) isFailCondition()      {}
 // documented key order (lambda-stream-sources.md 12.6 item 1, 5.6). The
 // timestamp is UTC with milliseconds; a DynamoDB stream's arrival times are
 // floored to the second, as ApproximateCreationDateTime is
-// (dynamodb-streams.md 7.3). An SQS mapping has no on-failure record: nil.
+// (dynamodb-streams.md 7.3), and a Kinesis stream's keep their
+// milliseconds (recorded LS-K:L1343-L1351). An SQS mapping has no
+// on-failure record: nil.
 func FailureRecord(kind EventSourceKind, b FailedBatch) []byte {
 	switch kind.(type) {
 	case SQS:
 		return nil
 	case DynamoDBStream:
-		return ddbFailureRecord(b)
+		return encodeFailure(ddbFailure{failureHead: newFailureHead(b), BatchInfo: newBatchInfo(b, arrivalTime)})
 	case KinesisStream:
-		// Not implemented yet: KinesisBatchInfo with millisecond arrival
-		// times (lambda-stream-sources.md 5.6).
-		return nil
+		return encodeFailure(kinesisFailure{failureHead: newFailureHead(b), BatchInfo: newBatchInfo(b, failureTimestamp)})
 	}
 	return nil
 }
 
-// failureTimestamp is the on-failure record's timestamp layout; arrivalTime
-// is a DynamoDB batch info's arrival layout.
+// failureTimestamp is the on-failure record's timestamp layout and a
+// Kinesis batch info's arrival layout; arrivalTime is a DynamoDB batch
+// info's arrival layout.
 const (
 	failureTimestamp = "2006-01-02T15:04:05.000Z"
 	arrivalTime      = "2006-01-02T15:04:05Z"
@@ -139,7 +140,9 @@ type failureResponseContext struct {
 	FunctionError *string `json:"functionError"`
 }
 
-type ddbStreamBatchInfo struct {
+// streamBatchInfo is DDBStreamBatchInfo and KinesisBatchInfo: the same
+// members in the same order (lambda-stream-sources.md 5.6).
+type streamBatchInfo struct {
 	ShardID                         string `json:"shardId"`
 	StartSequenceNumber             string `json:"startSequenceNumber"`
 	EndSequenceNumber               string `json:"endSequenceNumber"`
@@ -149,16 +152,27 @@ type ddbStreamBatchInfo struct {
 	StreamARN                       string `json:"streamArn"`
 }
 
-type ddbFailure struct {
+// failureHead is the members every stream on-failure record starts with;
+// embedded, it encodes in place.
+type failureHead struct {
 	RequestContext  failureRequestContext   `json:"requestContext"`
 	ResponseContext *failureResponseContext `json:"responseContext,omitempty"`
 	Version         string                  `json:"version"`
 	Timestamp       string                  `json:"timestamp"`
-	BatchInfo       ddbStreamBatchInfo      `json:"DDBStreamBatchInfo"`
 }
 
-func ddbFailureRecord(b FailedBatch) []byte {
-	rec := ddbFailure{
+type ddbFailure struct {
+	failureHead
+	BatchInfo streamBatchInfo `json:"DDBStreamBatchInfo"`
+}
+
+type kinesisFailure struct {
+	failureHead
+	BatchInfo streamBatchInfo `json:"KinesisBatchInfo"`
+}
+
+func newFailureHead(b FailedBatch) failureHead {
+	h := failureHead{
 		RequestContext: failureRequestContext{
 			RequestID:              b.RequestID,
 			FunctionARN:            b.FunctionARN,
@@ -166,27 +180,35 @@ func ddbFailureRecord(b FailedBatch) []byte {
 		},
 		Version:   "1.0",
 		Timestamp: b.Timestamp.Wire().UTC().Format(failureTimestamp),
-		BatchInfo: ddbStreamBatchInfo{
-			ShardID:                         b.Shard,
-			StartSequenceNumber:             string(b.First.Seq),
-			EndSequenceNumber:               string(b.Last.Seq),
-			ApproximateArrivalOfFirstRecord: b.First.Arrival.Wire().UTC().Format(arrivalTime),
-			ApproximateArrivalOfLastRecord:  b.Last.Arrival.Wire().UTC().Format(arrivalTime),
-			BatchSize:                       b.Size,
-			StreamARN:                       b.Stream.String(),
-		},
 	}
 	switch c := b.Condition.(type) {
 	case RetryAttemptsExhausted:
-		rec.RequestContext.Condition = "RetryAttemptsExhausted"
+		h.RequestContext.Condition = "RetryAttemptsExhausted"
 		resp := failureResponseContext{StatusCode: c.StatusCode, ExecutedVersion: c.ExecutedVersion}
 		if c.FunctionError != "" {
 			resp.FunctionError = &c.FunctionError
 		}
-		rec.ResponseContext = &resp
+		h.ResponseContext = &resp
 	case RecordAgeExceeded:
-		rec.RequestContext.Condition = "RecordAgeExceeded"
+		h.RequestContext.Condition = "RecordAgeExceeded"
 	}
+	return h
+}
+
+// newBatchInfo renders b's batch info with its arrival times in layout.
+func newBatchInfo(b FailedBatch, layout string) streamBatchInfo {
+	return streamBatchInfo{
+		ShardID:                         b.Shard,
+		StartSequenceNumber:             string(b.First.Seq),
+		EndSequenceNumber:               string(b.Last.Seq),
+		ApproximateArrivalOfFirstRecord: b.First.Arrival.Wire().UTC().Format(layout),
+		ApproximateArrivalOfLastRecord:  b.Last.Arrival.Wire().UTC().Format(layout),
+		BatchSize:                       b.Size,
+		StreamARN:                       b.Stream.String(),
+	}
+}
+
+func encodeFailure(rec any) []byte {
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
 	enc.SetEscapeHTML(false)
