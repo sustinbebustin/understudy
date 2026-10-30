@@ -31,7 +31,7 @@ import (
 )
 
 // The Kinesis mapping over the real Kinesis service (08b contract 6;
-// spec B5, goldens 11-13, 16-19, 21-23). The blind tests'
+// spec B5, goldens 11-13, 16-19, 21-24). The blind tests'
 // fakeKinesis covers goldens 10, 14, 15, 20 and 25.
 
 // realStream is the Kinesis stream these tests map, in the harness's
@@ -88,6 +88,13 @@ type realKinesisHarness struct {
 // harness's own.
 func runRealKinesis(t *testing.T, f esm.StreamFidelity, fn func(h *realKinesisHarness), opts ...kerneltest.Option) {
 	t.Helper()
+	runRealKinesisExec(t, f, nil, fn, opts...)
+}
+
+// runRealKinesisExec is runRealKinesis with further Lambda settings, such
+// as transitionsClock, applied after the harness's own.
+func runRealKinesisExec(t *testing.T, f esm.StreamFidelity, exec []execOptions, fn func(h *realKinesisHarness), opts ...kerneltest.Option) {
+	t.Helper()
 	box := outbox.New()
 	kerneltest.Run(t, func(k *kerneltest.K) {
 		if err := box.Bind(k.Kernel, outbox.Options{}); err != nil {
@@ -116,7 +123,7 @@ func runRealKinesis(t *testing.T, f esm.StreamFidelity, fn func(h *realKinesisHa
 		rec := &kinesisRecorder{}
 		withExec(k, rec.handle, nil, func(h *execHarness) {
 			fn(&realKinesisHarness{execHarness: h, rec: rec, topics: topics})
-		}, func(c *execConfig) { c.svc.Streams = f })
+		}, append([]execOptions{func(c *execConfig) { c.svc.Streams = f }}, exec...)...)
 	}, append([]kerneltest.Option{
 		kerneltest.Deliver(box), kerneltest.Services(lambdaapi.Service(), logsapi.Service(), sqsapi.Service(), snsapi.Service(), kinesisapi.Service()),
 	}, opts...)...)
@@ -706,6 +713,28 @@ func TestKinesisMappingResumesAtTheCheckpointAfterReEnable(t *testing.T) {
 		h.quiesce()
 		if got := h.data(); !slices.Equal(got, []string{"a", "while disabled"}) {
 			h.Errorf("delivered %v, want [a while disabled]", got)
+		}
+	})
+}
+
+// Disabling a Kinesis mapping answers Disabling with "User action", then
+// the mapping reads Disabled (golden 24: localstack@8b9a79f
+// tests/aws/services/lambda_/event_source_mapping/test_lambda_integration_kinesis.snapshot.json:L1098-L1294,
+// validated 2025-11-25; lambda-stream-sources.md 3.6). The transient state
+// needs lambda.stateTransitions = clock (ARCHITECTURE.md 9).
+func TestKinesisMappingDisable(t *testing.T) {
+	runRealKinesisExec(t, esm.StreamFidelity{}, []execOptions{transitionsClock}, func(h *realKinesisHarness) {
+		h.createStream(1)
+		m := h.mapStream(lambdaapi.CreateEventSourceMappingInput{})
+		h.advancePolled(settleDelay)
+		up := call(h.harness, lambdaapi.OpUpdateEventSourceMapping, &lambdaapi.UpdateEventSourceMappingInput{UUID: *m.UUID, Enabled: new(false)})
+		if derefAny(up.State) != "Disabling" || derefAny(up.StateTransitionReason) != "User action" {
+			h.Errorf("disable = %v, %v; want Disabling, User action", derefAny(up.State), derefAny(up.StateTransitionReason))
+		}
+		h.advancePolled(settleDelay)
+		got := call(h.harness, lambdaapi.OpGetEventSourceMapping, &lambdaapi.GetEventSourceMappingInput{UUID: *m.UUID})
+		if derefAny(got.State) != "Disabled" {
+			h.Errorf("after the settle delay State = %v, want Disabled", derefAny(got.State))
 		}
 	})
 }

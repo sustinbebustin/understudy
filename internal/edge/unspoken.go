@@ -54,7 +54,8 @@ func isKinesisCBOR(r *http.Request) bool {
 // {"__type": "NotImplemented", "message": ...}, so the Java client parses
 // it and shows the message, and journals the request as Unclaimed
 // (contract 4; refusal golden 7: localstack@8b9a79f
-// tests/aws/services/kinesis/test_kinesis.py:L775-L814).
+// tests/aws/services/kinesis/test_kinesis.py:L775-L814 and
+// tests/aws/services/kinesis/test_kinesis.snapshot.json:L230-L237).
 func (h *Handler) answerKinesisCBOR(ctx context.Context, x *exchange, reasons []reason) {
 	h.journalUnclaimed(ctx, x, reasons)
 	if h.warned.first("kinesis cbor") {

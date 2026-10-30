@@ -53,7 +53,9 @@ func TestKinesisIsServed(t *testing.T) {
 // CBOR_ENABLED=false and -Daws.cborEnabled=false (kinesis.md 2.3, 13.4
 // item 2, 13.9: never a generic parse error; contract 4; refusal golden 7:
 // localstack@8b9a79f tests/aws/services/kinesis/test_kinesis.py:L775-L814,
-// validated 2024-07-31).
+// validated 2024-07-31, and
+// localstack@8b9a79f tests/aws/services/kinesis/test_kinesis.snapshot.json:L230-L237,
+// validated 2025-09-16).
 func TestKinesisCBORAnswersNotImplementedInCBOR(t *testing.T) {
 	srv, _ := build(t, server.Config{Docker: server.DockerDisabled{}, DynamoDB: server.DynamoDBDisabled{}})
 	rec := serveKinesis(t, srv, kinesisRequest(t, "ListStreams", "application/x-amz-cbor-1.1", []byte{0xa0}))
@@ -93,7 +95,14 @@ func TestHTTP2PrefaceAnswersNotImplemented(t *testing.T) {
 
 // The coverage report carries the 8b Kinesis notes exactly as the spec
 // words them ("Coverage marks", Kinesis): 21 operations bound, enhanced
-// monitoring stored-only, the rest partial; the 24 others unbound.
+// monitoring stored-only, the rest partial; the 24 others unbound. The
+// unbound list holds two refusal goldens: consumers and SubscribeToShard
+// answer 501 (golden 8: localstack@8b9a79f
+// tests/aws/services/kinesis/test_kinesis.snapshot.json:L89-L229; its
+// L146-L188 validated 2025-08-19, the span's other dates are not in
+// kinesis.md) and resource policies answer 501 (golden 9:
+// localstack@8b9a79f tests/aws/services/kinesis/test_kinesis.snapshot.json:L239-L318,
+// validated 2025-08-05).
 func TestKinesisCoverageNotes(t *testing.T) {
 	describe := "the optional fields of a fresh stream (EncryptionType NONE, StreamModeDetails, MaxRecordSizeInKiB 1024, no KeyId, WarmThroughput or ConsumerCount) and the not-found text over JSON are inferred; AWS's are UNVERIFIED (kinesis.md 4.4, finding 5)"
 	tags := "a 51st tag and an aws: key answer InvalidArgumentException; AWS's code and text are UNVERIFIED (kinesis.md 4.10)"
