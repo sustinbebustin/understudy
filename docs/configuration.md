@@ -184,6 +184,7 @@ setting has one; any key may be left out:
     },
     "sqs": {"queueDeletedRecently": "ignore"},
     "sns": {"httpDelivery": {"allow": ["127.0.0.1:8080"]}},
+    "ses": {"verifiedIdentities": ["sender@example.com", "example.org", "*@example.net"]},
     "iam": {"assumeRole": "strict", "enforce": "off"},
     "dynamodb": {"enabled": true, "memoryLimit": 1073741824},
     "journal": {"capacity": 100000, "maxBytes": 134217728, "file": "/abs/path/to/journal.ndjson"},
@@ -200,13 +201,16 @@ setting has one; any key may be left out:
   lambda.hotReload           functions whose code is read from a host directory; account and
                              region may be left out
   sqs.queueDeletedRecently   ignore or enforce
+  ses.verifiedIdentities     SES identities that start verified when created, in any account
+                             and region: exact addresses (case-sensitive), domains, and
+                             "*@domain" for every address of a domain, subdomains excluded
   dynamodb.enabled           true, or false to turn DynamoDB off so DynamoDB Local is never
                              pulled; on, it is pulled on first use and runs under Amazon's
                              licence terms
   journal.file               NDJSON file every event is appended to (default none)
   faults                     rules as 'understudy faults list --output json' prints each "rule"
 
-Not supported yet: this build refuses s3.maxObjectBytes, dynamodb.registry rather than ignore them.
+Not supported yet: this build refuses s3.maxObjectBytes, dynamodb.registry, ses.productionAccess rather than ignore them.
 
 Accounts: a request signed with a 12-digit access key id is in that account; an accounts.keys
 entry is in its account; any other key not minted by understudy, test among them, is in the

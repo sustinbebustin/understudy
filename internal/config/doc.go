@@ -17,7 +17,7 @@
 //     its iam section, and sns.httpDelivery.allow and
 //     sns.httpDelivery.caBundle, which it holds nested in its sns section;
 //     each is refused as a dotted top-level key. The structured
-//     settings (accounts, regions, s3, lambda, sqs, iam, dynamodb,
+//     settings (accounts, regions, s3, lambda, sqs, ses, iam, dynamodb,
 //     journal, faults) are file sections only. The fidelity switches are
 //     keyed by their switch names (s3.crossRegion,
 //     lambda.stateTransitions, sqs.queueDeletedRecently, iam.assumeRole).

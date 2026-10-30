@@ -28,6 +28,7 @@ type fileSections struct {
 	Lambda   *fileLambda       `json:"lambda"`
 	SQS      *fileSQS          `json:"sqs"`
 	SNS      *fileSNS          `json:"sns"`
+	SES      *fileSES          `json:"ses"`
 	IAM      *fileIAM          `json:"iam"`
 	DynamoDB *fileDynamoDB     `json:"dynamodb"`
 	Journal  *fileJournal      `json:"journal"`
@@ -80,6 +81,11 @@ type fileSNS struct {
 type fileSNSHTTPDelivery struct {
 	Allow    []string `json:"allow"`
 	CABundle *string  `json:"caBundle"`
+}
+
+type fileSES struct {
+	VerifiedIdentities []string `json:"verifiedIdentities"`
+	ProductionAccess   *bool    `json:"productionAccess"`
 }
 
 // fileIAM holds the scalar settings iam.assumeRole and iam.enforce, each

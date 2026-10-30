@@ -729,7 +729,7 @@ func TestSourcesAgree(t *testing.T) {
 // setting with a dotted key, such as sns.httpDelivery.allow, is written
 // nested under its section, which is the top-level key.
 func topKeys() []string {
-	sections := []string{"accounts", "regions", "s3", "lambda", "sqs", "sns", "iam", "dynamodb", "journal", "faults"}
+	sections := []string{"accounts", "regions", "s3", "lambda", "sqs", "sns", "ses", "iam", "dynamodb", "journal", "faults"}
 	keys := make([]string, 0, len(sections)+len(config.Settings()))
 	keys = append(keys, sections...)
 	for _, s := range config.Settings() {

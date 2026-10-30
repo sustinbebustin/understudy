@@ -22,6 +22,7 @@ func (d *draft) applySections(s fileSections, name string) *Error {
 		func() *Error { return d.applyRegions(s.Regions, name+": regions") },
 		func() *Error { return d.applyS3(s.S3, name+": s3") },
 		func() *Error { return d.applyLambda(s.Lambda, name+": lambda") },
+		func() *Error { return d.applySES(s.SES, name+": ses") },
 		func() *Error { return d.applyDynamoDB(s.DynamoDB, name+": dynamodb") },
 		func() *Error { return d.applyJournal(s.Journal, name+": journal") },
 		func() *Error { return d.applyFaults(s.Faults, name+": faults") },

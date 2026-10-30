@@ -13,6 +13,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/fault"
 	"github.com/sustinbebustin/understudy/internal/service/lambda"
 	"github.com/sustinbebustin/understudy/internal/service/s3"
+	"github.com/sustinbebustin/understudy/internal/service/ses"
 	"github.com/sustinbebustin/understudy/internal/service/sqs"
 	"github.com/sustinbebustin/understudy/internal/service/sts"
 )
@@ -106,8 +107,11 @@ type Config struct {
 	// SNSHTTPDelivery is SNS HTTP delivery's outbound settings
 	// (sns.httpDelivery.*); the zero value allows no host.
 	SNSHTTPDelivery SNSHTTPDelivery
-	LogFormat       LogFormat
-	LogLevel        slog.Level
+	// SESVerifiedIdentities is ses.verifiedIdentities: identities that
+	// start verified when they are created; the zero value lists none.
+	SESVerifiedIdentities SESVerifiedIdentities
+	LogFormat             LogFormat
+	LogLevel              slog.Level
 	// ReadyFile, when set, receives {"endpoint", "pid"} once the listeners
 	// accept, plus "tlsEndpoint" with the TLS listener, and is removed at
 	// shutdown.
@@ -448,6 +452,9 @@ type (
 	S3CrossRegion = s3.CrossRegion
 	// STSAssumeRole is iam.assumeRole.
 	STSAssumeRole = sts.RoleCheck
+	// SESVerifiedIdentities is ses.verifiedIdentities, re-exported for the
+	// CLI as the switch types are.
+	SESVerifiedIdentities = ses.VerifiedIdentities
 )
 
 // Switch values, each the service's own constant.

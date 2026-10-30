@@ -37,8 +37,7 @@ type Config struct {
 	Lambda       Lambda
 	SQS          SQS
 	SNS          SNS
-	// SES is not read from any source yet: its keys are not implemented,
-	// so it is always the zero value.
+	// SES is read from the file's ses section only.
 	SES      SES
 	IAM      IAM
 	DynamoDB DynamoDB
@@ -366,7 +365,8 @@ type SES struct {
 	ProductionAccess bool
 }
 
-// SESVerifiedIdentities is ses.verifiedIdentities, each entry in its class:
+// SESVerifiedIdentities is ses.verifiedIdentities, each entry in its class
+// in file order:
 // an exact address (case-sensitive), a domain (stored lower case) or
 // "*@domain" (its domain, stored lower case). Load refuses any other entry,
 // naming it.
