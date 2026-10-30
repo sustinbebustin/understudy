@@ -207,6 +207,9 @@ func TestRawOperations(t *testing.T) {
 		{Service: "s3", Name: "ListTagsForResource"}:      {"s3:ListTagsForResource"},
 		{Service: "s3", Name: "TagResource"}:              {"s3:TagResource"},
 		{Service: "s3", Name: "UntagResource"}:            {"s3:UntagResource"},
+		// The verification link is an understudy surface with no IAM check
+		// (ses.md 11.3 item 1).
+		{Service: "ses", Name: "VerificationLink"}:        nil,
 		{Service: "sns", Name: "ConfirmSubscriptionLink"}: {"sns:ConfirmSubscription"},
 		{Service: "sns", Name: "SigningCert"}:             nil,
 		{Service: "sns", Name: "UnsubscribeLink"}:         {"sns:Unsubscribe"},
