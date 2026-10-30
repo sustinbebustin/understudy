@@ -1,6 +1,7 @@
 package ses
 
 import (
+	"log/slog"
 	"sync/atomic"
 
 	"github.com/sustinbebustin/understudy/internal/api/sesapi"
@@ -21,6 +22,11 @@ type Service struct {
 	opts  Options
 	ids   *ids.Source
 	cells *store.Partitioned[aws.Scope, state]
+	// timers is the kernel's timer table, whose scheduler Rearm arms, and
+	// expiry the handled kind of TimerExpiry.
+	timers *kernel.Timers
+	expiry kernel.HandledKind
+	log    *slog.Logger
 	// seq is the number of the latest message record (record.Seq).
 	seq atomic.Uint64
 }
@@ -42,11 +48,16 @@ var (
 // operation stays unbound and answers 501.
 func New(d kernel.ServiceDeps, o Options) *Service {
 	s := &Service{
-		opts:  o,
-		ids:   d.IDs,
-		cells: store.NewPartitioned(d.Kernel.Gate(), codec(), newState),
+		opts:   o,
+		ids:    d.IDs,
+		cells:  store.NewPartitioned(d.Kernel.Gate(), codec(), newState),
+		timers: d.Kernel.Timers(),
+		log:    d.Log,
 	}
-	s.bindIdentities(sesapi.NewBinder(d.Binder))
+	s.expiry = s.timers.Handle(TimerExpiry, s.onExpiry)
+	b := sesapi.NewBinder(d.Binder)
+	s.bindIdentities(b)
+	s.bindLink(b)
 	return s
 }
 
@@ -88,10 +99,6 @@ func (s *Service) Import(ss []store.Section) error {
 func (s *Service) Reset(rs kernel.ResetScope) {
 	s.cells.Reset(func(k aws.Scope) bool { return !rs.Covers(k) })
 }
-
-// Rearm arms nothing: verification expiry is not implemented yet, so the
-// state holds no deadline.
-func (*Service) Rearm(clock.Instant) {}
 
 // Resources lists the identities of scope in creation order, each with
 // its v1 verification status.

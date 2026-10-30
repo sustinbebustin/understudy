@@ -561,6 +561,11 @@ func (b Binder) UpdateTemplate(h kernel.Handler[UpdateTemplateInput, UpdateTempl
 	kernel.Bind(b.b, OpUpdateTemplate, h, cov, opts...)
 }
 
+// VerificationLink binds the raw HTTP handler of VerificationLink.
+func (b Binder) VerificationLink(h kernel.RawHTTPHandler, cov registry.BindCoverage) {
+	kernel.BindRawHTTP(b.b, &descVerificationLink, h, cov)
+}
+
 // VerifyDomainDkim binds the handler of VerifyDomainDkim.
 func (b Binder) VerifyDomainDkim(h kernel.Handler[VerifyDomainDkimInput, VerifyDomainDkimOutput], cov registry.BindCoverage, opts ...kernel.BindOption) {
 	kernel.Bind(b.b, OpVerifyDomainDkim, h, cov, opts...)

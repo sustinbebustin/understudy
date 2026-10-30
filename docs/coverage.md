@@ -129,7 +129,7 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | logs | 118 | 9 | 0 | 9 | 100 | 1 | 0 |
 | s3 | 112 | 22 | 39 | 25 | 26 | 0 | 3 |
 | secretsmanager | 23 | 1 | 0 | 14 | 8 | 0 | 0 |
-| ses | 71 | 1 | 0 | 2 | 68 | 0 | 0 |
+| ses | 71 | 3 | 0 | 2 | 66 | 0 | 1 |
 | sesv2 | 116 | 0 | 0 | 0 | 116 | 0 | 0 |
 | sfn | 37 | 7 | 0 | 9 | 21 | 0 | 0 |
 | sns | 42 | 12 | 0 | 7 | 23 | 0 | 3 |
@@ -1138,8 +1138,10 @@ Raw operations:
 | Operation | Status | Evidence | Note |
 |---|---|---|---|
 | DeleteIdentity | full | third-party-recorded, 1 of 1 claim |  |
-| GetIdentityVerificationAttributes | partial | inferred, 1 of 2 claims | the 100-identity limit per call is not enforced yet |
-| VerifyEmailIdentity | partial | inferred, 1 of 2 claims | the verification email is recorded, never sent, for GET /_understudy/v1/ses/messages; the identity starts and stays Pending: the link the email carries is not served yet, and ses.verifiedIdentities, the 24-hour expiry, address validation and the 10,000-identity limit are not implemented yet |
+| GetIdentityVerificationAttributes | full | inferred, 1 of 2 claims |  |
+| ListIdentities | full | third-party-recorded, 1 of 1 claim |  |
+| VerifyDomainIdentity | partial | third-party-recorded, 1 of 1 claim | the domain stays Pending until understudy.json lists it; DNS is never queried; Failed after 72 hours on the emulator clock |
+| VerifyEmailIdentity | partial | inferred, 1 of 2 claims | the identity stays Pending until its verification link under /_understudy/ses/VerificationLink is opened or understudy.json lists it; the verification email is recorded, never sent; Failed after 24 hours on the emulator clock; the address is not validated yet |
 | CloneReceiptRuleSet | unbound | unassessed |  |
 | CreateConfigurationSet | unbound | unassessed |  |
 | CreateConfigurationSetEventDestination | unbound | unassessed |  |
@@ -1174,7 +1176,6 @@ Raw operations:
 | GetTemplate | unbound | unassessed |  |
 | ListConfigurationSets | unbound | unassessed |  |
 | ListCustomVerificationEmailTemplates | unbound | unassessed |  |
-| ListIdentities | unbound | unassessed |  |
 | ListIdentityPolicies | unbound | unassessed |  |
 | ListReceiptFilters | unbound | unassessed |  |
 | ListReceiptRuleSets | unbound | unassessed |  |
@@ -1206,8 +1207,13 @@ Raw operations:
 | UpdateReceiptRule | unbound | unassessed |  |
 | UpdateTemplate | unbound | unassessed |  |
 | VerifyDomainDkim | unbound | unassessed |  |
-| VerifyDomainIdentity | unbound | unassessed |  |
 | VerifyEmailAddress | unbound | unassessed |  |
+
+Raw operations:
+
+| Operation | Status | Evidence | Note |
+|---|---|---|---|
+| VerificationLink | full | unassessed |  |
 
 ### sesv2
 

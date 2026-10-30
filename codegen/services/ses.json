@@ -3,5 +3,8 @@
   "package": "sesapi",
   "model": "ses",
   "iamPrefix": "ses",
-  "sdkService": "ses"
+  "sdkService": "ses",
+  "rawOperations": [
+    {"name": "VerificationLink", "iam": []}
+  ]
 }

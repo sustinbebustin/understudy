@@ -879,10 +879,21 @@ var descUpdateTemplate = registry.Operation{
 	SuccessCode: 200,
 }
 
+// descVerificationLink is a raw operation (codegen/services rawOperations): its
+// handler owns the HTTP exchange, so it has no input or output schema.
+var descVerificationLink = registry.Operation{
+	Service:     &service,
+	ID:          ref.OperationID{Service: "ses", Name: "VerificationLink"},
+	Ordinal:     67,
+	Kind:        registry.Raw,
+	Shape:       "com.amazonaws.ses#VerificationLink",
+	SuccessCode: 200,
+}
+
 var descVerifyDomainDkim = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "ses", Name: "VerifyDomainDkim"},
-	Ordinal:     67,
+	Ordinal:     68,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.ses#VerifyDomainDkim",
 	Input:       &schemaVerifyDomainDkimInput,
@@ -895,7 +906,7 @@ var descVerifyDomainDkim = registry.Operation{
 var descVerifyDomainIdentity = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "ses", Name: "VerifyDomainIdentity"},
-	Ordinal:     68,
+	Ordinal:     69,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.ses#VerifyDomainIdentity",
 	Input:       &schemaVerifyDomainIdentityInput,
@@ -908,7 +919,7 @@ var descVerifyDomainIdentity = registry.Operation{
 var descVerifyEmailAddress = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "ses", Name: "VerifyEmailAddress"},
-	Ordinal:     69,
+	Ordinal:     70,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.ses#VerifyEmailAddress",
 	Input:       &schemaVerifyEmailAddressInput,
@@ -921,7 +932,7 @@ var descVerifyEmailAddress = registry.Operation{
 var descVerifyEmailIdentity = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "ses", Name: "VerifyEmailIdentity"},
-	Ordinal:     70,
+	Ordinal:     71,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.ses#VerifyEmailIdentity",
 	Input:       &schemaVerifyEmailIdentityInput,

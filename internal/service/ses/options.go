@@ -1,6 +1,12 @@
 package ses
 
-import "strconv"
+import (
+	"slices"
+	"strconv"
+	"strings"
+
+	"github.com/sustinbebustin/understudy/internal/api/sesapi"
+)
 
 // Options are the SES settings wire.go fills from the configuration and the
 // switches. The zero value is the sandbox, no configured identity and every
@@ -40,6 +46,20 @@ type VerifiedIdentities struct {
 	// identity whose domain part equals one, case-insensitively, starts
 	// verified. Subdomains do not match.
 	AddressDomains []string
+}
+
+// verifies reports whether an identity of kind named name starts
+// verified: an address listed exactly or whose domain part is an address
+// domain, or a domain listed (contract 6).
+func (v VerifiedIdentities) verifies(kind sesapi.IdentityType, name string) bool {
+	if kind == sesapi.IdentityTypeDomain {
+		return slices.ContainsFunc(v.Domains, func(d string) bool { return strings.EqualFold(d, name) })
+	}
+	if slices.Contains(v.Addresses, name) {
+		return true
+	}
+	at := strings.LastIndex(name, "@")
+	return at >= 0 && slices.ContainsFunc(v.AddressDomains, func(d string) bool { return strings.EqualFold(d, name[at+1:]) })
 }
 
 // StoreSharing is whether the v1 and v2 APIs share one identity and

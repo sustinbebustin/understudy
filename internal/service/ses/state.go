@@ -55,8 +55,34 @@ type identity struct {
 	Status status              `json:"status"`
 	// LinkToken is the token of an email identity's verification link,
 	// the same in every verification email it is sent (inferred, SES-09).
-	LinkToken string        `json:"linkToken,omitempty"`
-	Created   clock.Instant `json:"created"`
+	LinkToken string `json:"linkToken,omitempty"`
+	// DomainToken is a domain identity's verification token, minted once
+	// and answered unchanged on every read and repeated verify (ses.md
+	// 9.2; inferred, SES-10).
+	DomainToken string        `json:"domainToken,omitempty"`
+	Created     clock.Instant `json:"created"`
+}
+
+// deadline is when the identity, Pending since since, turns Failed:
+// EmailVerificationExpiry after its latest verification email for an
+// address, DomainVerificationExpiry after creation for a domain (ses.md
+// 5.2, SES-27).
+func (id *identity) deadline(since clock.Instant) clock.Instant {
+	if id.Kind == sesapi.IdentityTypeDomain {
+		return since.Add(DomainVerificationExpiry)
+	}
+	return since.Add(EmailVerificationExpiry)
+}
+
+// findToken is the index of the email identity whose link token is token,
+// or -1.
+func (s *state) findToken(token string) int {
+	for i := range s.Identities {
+		if s.Identities[i].LinkToken == token {
+			return i
+		}
+	}
+	return -1
 }
 
 // identityARN is the ARN of identity name in scope,

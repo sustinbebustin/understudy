@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"strconv"
 
 	"github.com/sustinbebustin/understudy/internal/api/sesapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
@@ -21,15 +22,19 @@ import (
 // these operations needs (contract 2.6).
 func (s *Service) bindIdentities(b sesapi.Binder) {
 	b.VerifyEmailIdentity(s.verifyEmailIdentity,
-		registry.Partial{Note: "the verification email is recorded, never sent, for GET /_understudy/v1/ses/messages; the identity starts and stays Pending: " +
-			"the link the email carries is not served yet, and ses.verifiedIdentities, the 24-hour expiry, address validation " +
-			"and the 10,000-identity limit are not implemented yet"},
+		registry.Partial{Note: "the identity stays Pending until its verification link under " + VerificationLinkPath +
+			" is opened or understudy.json lists it; the verification email is recorded, never sent; Failed after 24 hours on the emulator clock; " +
+			"the address is not validated yet"},
 		kernel.WithoutSecondaryActions(),
 		identitiesNamed(func(in *sesapi.VerifyEmailIdentityInput) []string { return []string{in.EmailAddress} }))
-	b.GetIdentityVerificationAttributes(s.getIdentityVerificationAttributes,
-		registry.Partial{Note: "the 100-identity limit per call is not enforced yet"},
+	b.VerifyDomainIdentity(s.verifyDomainIdentity,
+		registry.Partial{Note: "the domain stays Pending until understudy.json lists it; DNS is never queried; Failed after 72 hours on the emulator clock"},
+		kernel.WithoutSecondaryActions(),
+		identitiesNamed(func(in *sesapi.VerifyDomainIdentityInput) []string { return []string{in.Domain} }))
+	b.GetIdentityVerificationAttributes(s.getIdentityVerificationAttributes, registry.Full{},
 		kernel.WithoutSecondaryActions(),
 		identitiesNamed(func(in *sesapi.GetIdentityVerificationAttributesInput) []string { return in.Identities }))
+	b.ListIdentities(s.listIdentities, registry.Full{}, kernel.WithoutSecondaryActions())
 	b.DeleteIdentity(s.deleteIdentity, registry.Full{},
 		kernel.WithoutSecondaryActions(),
 		identitiesNamed(func(in *sesapi.DeleteIdentityInput) []string { return []string{in.Identity} }))
@@ -48,21 +53,61 @@ func identitiesNamed[In any](namesOf func(*In) []string) kernel.BindOption {
 	})
 }
 
+// errIdentityLimit answers a new identity past MaxIdentities in its
+// account and Region (ses.md 5.1; the text is inferred).
+func errIdentityLimit() *awserr.Error {
+	return sesapi.ErrLimitExceededException(fmt.Sprintf(IdentityLimitText, MaxIdentities))
+}
+
+// create appends a new identity of kind named name at now: Success with a
+// StateChange from NotStarted when ses.verifiedIdentities lists it (no
+// verification email, no timer), else Pending with its expiry timer armed
+// (contract 2.3, 6). A creation to Pending is not a transition, so it
+// journals none. It refuses the identity past MaxIdentities.
+func (s *Service) create(st *state, scope aws.Scope, kind sesapi.IdentityType, name string, now clock.Instant, tx *kernel.Tx) (*identity, *awserr.Error) {
+	if len(st.Identities) >= MaxIdentities {
+		return nil, errIdentityLimit()
+	}
+	st.Identities = append(st.Identities, identity{Name: name, Kind: kind, Created: now})
+	id := &st.Identities[len(st.Identities)-1]
+	if s.opts.VerifiedIdentities.verifies(kind, name) {
+		id.Status = statusSuccess{}
+		tx.Record(scope, journal.StateChange{
+			Resource: identityARN(scope, name),
+			From:     journal.ResourceState(sesapi.VerificationStatusNotStarted), To: journal.ResourceState(sesapi.VerificationStatusSuccess),
+		})
+		return id, nil
+	}
+	s.pend(id, scope, now, tx)
+	return id, nil
+}
+
+// pend makes id Pending from now and arms its expiry timer, replacing any
+// earlier one.
+func (s *Service) pend(id *identity, scope aws.Scope, now clock.Instant, tx *kernel.Tx) {
+	id.Status = statusPending{Since: now}
+	tx.Arm(s.expiry, expiryTimerID(scope, id.Name), id.deadline(now))
+}
+
 // verifyEmailIdentity starts verifying an email address: a new identity is
-// Pending (ses.md 5.2); a Pending, Failed or TemporaryFailure one restarts
-// as Pending, and a Success one is left as it is (inferred, SES-09). Each
-// start and restart records a verification email, always with the
+// Pending (ses.md 5.2), or Success when ses.verifiedIdentities lists it; a
+// Pending, Failed or TemporaryFailure one restarts as Pending, its expiry
+// counted again, and a Success one is left as it is (inferred, SES-09).
+// Each start and restart records a verification email, always with the
 // identity's one link token (contract 2.3).
 func (s *Service) verifyEmailIdentity(_ context.Context, c *kernel.Call, in *sesapi.VerifyEmailIdentityInput) (*sesapi.VerifyEmailIdentityOutput, *awserr.Error) {
 	scope := c.Scope()
 	_, err := kernel.Write(c, s.cells, scope, func(st *state, now clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
 		i := st.find(in.EmailAddress)
 		if i < 0 {
-			st.Identities = append(st.Identities, identity{
-				Name: in.EmailAddress, Kind: sesapi.IdentityTypeEmailAddress, Status: statusPending{Since: now},
-				LinkToken: s.linkToken(), Created: now,
-			})
-			st.record(s.verificationEmail(c, APIv1, in.EmailAddress, st.Identities[len(st.Identities)-1].LinkToken, now))
+			id, err := s.create(st, scope, sesapi.IdentityTypeEmailAddress, in.EmailAddress, now, tx)
+			if err != nil {
+				return struct{}{}, err
+			}
+			if _, verified := id.Status.(statusSuccess); !verified {
+				id.LinkToken = s.linkToken()
+				st.record(s.verificationEmail(c, APIv1, id.Name, id.LinkToken, now))
+			}
 			return struct{}{}, nil
 		}
 		id := &st.Identities[i]
@@ -78,7 +123,7 @@ func (s *Service) verifyEmailIdentity(_ context.Context, c *kernel.Call, in *ses
 				From:     journal.ResourceState(old.v1()), To: journal.ResourceState(sesapi.VerificationStatusPending),
 			})
 		}
-		id.Status = statusPending{Since: now}
+		s.pend(id, scope, now, tx)
 		if id.LinkToken == "" {
 			id.LinkToken = s.linkToken()
 		}
@@ -116,18 +161,53 @@ func (s *Service) verificationEmail(c *kernel.Call, api API, address, token stri
 	return r
 }
 
+// verifyDomainIdentity starts verifying a domain: a new one is Pending with
+// a token of 32 bytes as 44 base64 characters (ses.md 5.3), or Success when
+// ses.verifiedIdentities lists it. A repeat returns the same token and
+// changes nothing (inferred, SES-10), so Terraform reads a stable token
+// (ses.md 9.2).
+func (s *Service) verifyDomainIdentity(_ context.Context, c *kernel.Call, in *sesapi.VerifyDomainIdentityInput) (*sesapi.VerifyDomainIdentityOutput, *awserr.Error) {
+	scope := c.Scope()
+	token, err := kernel.Write(c, s.cells, scope, func(st *state, now clock.Instant, tx *kernel.Tx) (string, *awserr.Error) {
+		if i := st.find(in.Domain); i >= 0 {
+			tx.Unchanged()
+			return st.Identities[i].DomainToken, nil
+		}
+		id, err := s.create(st, scope, sesapi.IdentityTypeDomain, in.Domain, now, tx)
+		if err != nil {
+			return "", err
+		}
+		id.DomainToken = base64.StdEncoding.EncodeToString(s.ids.Draw(ids.KindSESDomainToken, 32))
+		return id.DomainToken, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &sesapi.VerifyDomainIdentityOutput{VerificationToken: token}, nil
+}
+
 // getIdentityVerificationAttributes answers each named identity's status,
-// keyed by the request string byte for byte (ses.md 9.1); an identity the
-// store does not hold follows switch ses.verification.unknown-identity.
-// An email identity carries no token (inferred, SES-08).
+// keyed by the request string byte for byte (ses.md 9.1), with a domain's
+// token; an identity the store does not hold follows switch
+// ses.verification.unknown-identity. An email identity carries no token
+// (inferred, SES-08). More than MaxVerificationAttributesIdentities is
+// refused (ses.md 5.3; the answer is inferred, SES-08).
 func (s *Service) getIdentityVerificationAttributes(_ context.Context, c *kernel.Call, in *sesapi.GetIdentityVerificationAttributesInput) (*sesapi.GetIdentityVerificationAttributesOutput, *awserr.Error) {
+	if len(in.Identities) > MaxVerificationAttributesIdentities {
+		return nil, sesapi.ErrInvalidParameterValue(fmt.Sprintf(TooManyIdentitiesText, MaxVerificationAttributesIdentities))
+	}
 	known := map[string]sesapi.IdentityVerificationAttributes{}
 	if cell, ok := s.cells.Lookup(c.Scope()); ok {
 		known = store.Read(cell, func(st *state) map[string]sesapi.IdentityVerificationAttributes {
 			out := make(map[string]sesapi.IdentityVerificationAttributes, len(in.Identities))
 			for _, name := range in.Identities {
 				if i := st.find(name); i >= 0 {
-					out[name] = sesapi.IdentityVerificationAttributes{VerificationStatus: st.Identities[i].Status.v1()}
+					id := &st.Identities[i]
+					a := sesapi.IdentityVerificationAttributes{VerificationStatus: id.Status.v1()}
+					if id.DomainToken != "" {
+						a.VerificationToken = new(id.DomainToken)
+					}
+					out[name] = a
 				}
 			}
 			return out
@@ -143,16 +223,75 @@ func (s *Service) getIdentityVerificationAttributes(_ context.Context, c *kernel
 	return &sesapi.GetIdentityVerificationAttributesOutput{VerificationAttributes: known}, nil
 }
 
-// deleteIdentity removes an identity; one the store does not hold
-// succeeds unchanged (inferred, SES-11). Sent messages stay.
+// listIdentities lists the identities of the caller's scope "regardless of
+// verification status", narrowed by IdentityType (ses.md 5.3), in creation
+// order (the order AWS uses is UNVERIFIED, SES-14). MaxItems is 1 to
+// ListIdentitiesMaxItems, its default the largest (aws-doc; the refusal's
+// text is inferred, SES-29). NextToken is understudy's own: the decimal
+// position of the next identity among those the filter keeps, base64url;
+// an identity deleted between pages moves the later ones up by one.
+func (s *Service) listIdentities(_ context.Context, c *kernel.Call, in *sesapi.ListIdentitiesInput) (*sesapi.ListIdentitiesOutput, *awserr.Error) {
+	limit := ListIdentitiesMaxItems
+	if in.MaxItems != nil {
+		if *in.MaxItems < 1 || *in.MaxItems > ListIdentitiesMaxItems {
+			return nil, sesapi.ErrInvalidParameterValue(fmt.Sprintf(MaxItemsText, ListIdentitiesMaxItems))
+		}
+		limit = int(*in.MaxItems)
+	}
+	start := 0
+	if in.NextToken != nil {
+		n, ok := parseNextToken(*in.NextToken)
+		if !ok {
+			return nil, sesapi.ErrInvalidParameterValue("NextToken " + strconv.Quote(*in.NextToken) + " was not returned by ListIdentities")
+		}
+		start = n
+	}
+	var names []string
+	if cell, ok := s.cells.Lookup(c.Scope()); ok {
+		names = store.Read(cell, func(st *state) []string {
+			var out []string
+			for i := range st.Identities {
+				if in.IdentityType == nil || st.Identities[i].Kind == *in.IdentityType {
+					out = append(out, st.Identities[i].Name)
+				}
+			}
+			return out
+		})
+	}
+	out := &sesapi.ListIdentitiesOutput{Identities: []string{}}
+	if start >= len(names) {
+		return out, nil
+	}
+	end := min(start+limit, len(names))
+	out.Identities = names[start:end]
+	if end < len(names) {
+		out.NextToken = new(base64.RawURLEncoding.EncodeToString([]byte(strconv.Itoa(end))))
+	}
+	return out, nil
+}
+
+// parseNextToken reads a ListIdentities NextToken back to its position.
+func parseNextToken(token string) (int, bool) {
+	raw, err := base64.RawURLEncoding.DecodeString(token)
+	if err != nil {
+		return 0, false
+	}
+	n, err := strconv.Atoi(string(raw))
+	return n, err == nil && n > 0
+}
+
+// deleteIdentity removes an identity and its expiry timer; one the store
+// does not hold succeeds unchanged (inferred, SES-11). Sent messages stay.
 func (s *Service) deleteIdentity(_ context.Context, c *kernel.Call, in *sesapi.DeleteIdentityInput) (*sesapi.DeleteIdentityOutput, *awserr.Error) {
-	_, err := kernel.Write(c, s.cells, c.Scope(), func(st *state, _ clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
+	scope := c.Scope()
+	_, err := kernel.Write(c, s.cells, scope, func(st *state, _ clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
 		i := st.find(in.Identity)
 		if i < 0 {
 			tx.Unchanged()
 			return struct{}{}, nil
 		}
 		st.Identities = append(st.Identities[:i:i], st.Identities[i+1:]...)
+		tx.Disarm(s.expiry, expiryTimerID(scope, in.Identity))
 		return struct{}{}, nil
 	})
 	if err != nil {

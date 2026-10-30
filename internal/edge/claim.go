@@ -49,12 +49,13 @@ type toRaw struct {
 }
 
 // toLink is a raw operation serving a link understudy hands out for a
-// browser to open from any page, as AWS serves its own: an SNS link or a
-// Lambda code link (rule 1), a function URL by path (rule 1) or by host
-// (rule 2), or the execute-api data plane by path (rule 1) or by host
-// (rule 2). The edge's browser
-// defences never refuse one. policy is cspSandbox for the path fallbacks,
-// a user's page on understudy's origin (ADR 0020).
+// browser to open from any page, as AWS serves its own: an SNS or SES link
+// or a Lambda code link (rule 1), a function URL by path (rule 1) or by
+// host (rule 2), or the execute-api data plane by path (rule 1) or by host
+// (rule 2). The edge's browser defences never refuse one. policy is
+// cspSandbox for the path fallbacks, a user's page on understudy's origin,
+// and for the SES verification link, which echoes an identity a client
+// wrote (ADR 0020).
 type toLink struct {
 	op     *registry.Operation
 	policy csp
@@ -179,7 +180,7 @@ func (h *Handler) claim(r *http.Request, a auth.Auth, parseErr auth.ParseError) 
 		c.decline(9, http2PrefaceMessage)
 		return http2Preface{reasons: c.reasons}
 	}
-	if rt, ok := c.snsLink(); ok {
+	if rt, ok := c.serviceLink(); ok {
 		return rt
 	}
 	if rt, ok := c.functionURLPath(); ok {
@@ -220,28 +221,53 @@ func (h *Handler) claim(r *http.Request, a auth.Auth, parseErr auth.ParseError) 
 	return unclaimed{reasons: c.reasons}
 }
 
-// snsLinkPrefix is where the links SNS writes into notifications live
-// (SigningCertURL, UnsubscribeURL, SubscribeURL): the reserved prefix, then
-// the raw SNS operation that serves the link.
-const snsLinkPrefix = adminPrefix + "sns/"
+// serviceLink is a service whose AWS-visible links live under
+// /_understudy/<service>/<Op>, Op naming the raw operation that serves the
+// link.
+type serviceLink struct {
+	service ref.ServiceID
+	// ops names the link operations, for the decline of any other path.
+	ops string
+	// policy is cspSandbox for a page that echoes what a client wrote, on
+	// understudy's origin (ADR 0020).
+	policy csp
+}
 
-// snsLink is rule 1's SNS part: on the main listener, /_understudy/sns/<Op>
-// goes to SNS's raw operation <Op>. The links carry no credentials; the
+// serviceLinks are the services with links: SNS's notification links
+// (SigningCertURL, UnsubscribeURL, SubscribeURL), and SES's verification
+// link (ses.md 11.3), sandboxed since its text names the identity a client
+// chose.
+func serviceLinks() []serviceLink {
+	return []serviceLink{
+		{service: "sns", ops: "SigningCert, UnsubscribeLink, ConfirmSubscriptionLink", policy: cspAsWritten},
+		{service: "ses", ops: "VerificationLink", policy: cspSandbox},
+	}
+}
+
+// serviceLink is rule 1's links part: on the main listener,
+// /_understudy/<service>/<Op> for a service of serviceLinks goes to that
+// service's raw operation <Op>. The links carry no credentials; the
 // operations serve them as AWS serves its own (ARCHITECTURE.md 4.1). Any
 // other request goes on to the admin part of rule 1, which says why it
 // declines.
-func (c *claimer) snsLink() (route, bool) {
-	rest, ok := strings.CutPrefix(c.path, snsLinkPrefix)
-	if !ok || c.h.opts.Listener != ref.ListenerMain {
+func (c *claimer) serviceLink() (route, bool) {
+	if c.h.opts.Listener != ref.ListenerMain {
 		return nil, false
 	}
-	name, _, _ := strings.Cut(rest, "/")
-	op, ok := c.h.opts.Registry.Operation(ref.OperationID{Service: "sns", Name: name})
-	if !ok || op.Kind != registry.Raw {
-		c.decline(1, "%s names no raw SNS link operation (SigningCert, UnsubscribeLink, ConfirmSubscriptionLink)", c.path)
-		return unclaimed{reasons: c.reasons}, true
+	for _, l := range serviceLinks() {
+		rest, ok := strings.CutPrefix(c.path, adminPrefix+string(l.service)+"/")
+		if !ok {
+			continue
+		}
+		name, _, _ := strings.Cut(rest, "/")
+		op, ok := c.h.opts.Registry.Operation(ref.OperationID{Service: l.service, Name: name})
+		if !ok || op.Kind != registry.Raw {
+			c.decline(1, "%s names no raw %s link operation (%s)", c.path, l.service, l.ops)
+			return unclaimed{reasons: c.reasons}, true
+		}
+		return toLink{op: op, policy: l.policy}, true
 	}
-	return toLink{op: op}, true
+	return nil, false
 }
 
 // functionURLPathPrefix is the function URL path fallback,
