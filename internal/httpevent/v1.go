@@ -24,9 +24,33 @@ type HTTPAPI struct{}
 
 func (HTTPAPI) isV1Front() {}
 
+// REST is an API Gateway REST API (apigateway-rest.md 5.1): no version
+// key, header names as received, the last value of a repeated header and
+// query parameter in the single-value maps, path relative to the stage
+// and left encoded, and requestContext naming the matched resource and
+// the stage's deployment.
+type REST struct {
+	// ResourceID is requestContext.resourceId.
+	ResourceID string
+	// ResourcePath is resource and requestContext.resourcePath: the matched
+	// resource's template, such as /{proxy+}.
+	ResourcePath string
+	// DeploymentID is requestContext.deploymentId.
+	DeploymentID string
+	// ExtendedRequestID is requestContext.extendedRequestId, which a REST
+	// API reports beside the requestId UUID.
+	ExtendedRequestID string
+}
+
+func (REST) isV1Front() {}
+
 // errNoFront is EventV1's answer to a nil V1Front: a caller bug, since the
 // event's shape depends on the front.
-var errNoFront = errors.New("httpevent: EventV1's V1Front is nil; pass HTTPAPI{} for an API Gateway HTTP API")
+var errNoFront = errors.New("httpevent: EventV1's V1Front is nil; pass HTTPAPI{} for an API Gateway HTTP API or REST{} for a REST API")
+
+// errRESTNotImplemented answers the REST front until its event and
+// response mapping are implemented.
+var errRESTNotImplemented = errors.New("httpevent: the REST API payload format 1.0 event and response mapping are not implemented yet; no event was built")
 
 // eventV1 is the payload format version 1.0 request event, with its keys
 // in the order of the HTTP API guide's example (apigateway-http.md 5.2).
@@ -110,6 +134,8 @@ type identityV1 struct {
 func EventV1(r Request, c Context, f V1Front) ([]byte, error) {
 	switch f.(type) {
 	case HTTPAPI:
+	case REST:
+		return nil, errRESTNotImplemented
 	case nil:
 		return nil, errNoFront
 	}
@@ -185,6 +211,27 @@ func nilIfEmpty(m map[string]string) map[string]string {
 		return nil
 	}
 	return m
+}
+
+// InferV1For turns a function's output into the HTTP response under
+// payload format 1.0 as front f maps it. HTTPAPI is InferV1. REST follows
+// apigateway-rest.md 5.2: a missing statusCode is 200, a string of digits
+// is a status, a key outside the five members, a non-list
+// multiValueHeaders value or a bare string is malformed, header values
+// that are booleans or numbers are stringified, isBase64Encoded does not
+// decode the body, and a response without a Content-Type gets
+// application/json. The REST mapping is not implemented yet and returns an
+// error.
+func InferV1For(payload []byte, f V1Front) (Response, error) {
+	switch f.(type) {
+	case HTTPAPI:
+		return InferV1(payload)
+	case REST:
+		return Response{}, errRESTNotImplemented
+	case nil:
+		return Response{}, errNoFront
+	}
+	return Response{}, errNoFront
 }
 
 // InferV1 turns a function's output into the HTTP response under payload

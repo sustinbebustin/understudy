@@ -245,6 +245,11 @@ func (s *Service) Resources(scope aws.Scope) []kernel.Resource {
 // Scopes returns the accounts and regions that hold a state cell.
 func (s *Service) Scopes() []aws.Scope { return s.cells.Keys(store.ScopeKeys()) }
 
+// OwnsExecuteAPI reports whether any account holds an HTTP API with id,
+// so the edge sends its execute-api requests to InvokeApi (ADR 0019). It
+// is not implemented yet and holds none.
+func (*Service) OwnsExecuteAPI(string) bool { return false }
+
 // readState runs fn on the state of scope without creating its cell; a
 // scope with no cell reads as empty.
 func readState[R any](s *Service, scope aws.Scope, fn func(st *State) R) R {

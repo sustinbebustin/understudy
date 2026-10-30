@@ -104,8 +104,27 @@ type Options struct {
 	// NotImplemented naming the legacy Query protocol, journaled Unclaimed
 	// (ARCHITECTURE.md 4.1 rule 8).
 	LegacyQuery []ref.ServiceID
+	// ExecuteAPI lists the execute-api fronts in registration order, HTTP
+	// APIs then REST APIs: a request goes to the raw operation of the one
+	// whose owner holds the API id (ADR 0019). It is not read yet; the
+	// raw apigatewayv2.InvokeApi serves both forms when registered.
+	ExecuteAPI []ExecuteAPIService
 	// Log receives edge diagnostics; nil discards them.
 	Log *slog.Logger
+}
+
+// ExecuteAPIOwner is a service that serves execute-api requests for the
+// API ids it holds.
+type ExecuteAPIOwner interface {
+	// OwnsExecuteAPI reports whether any account holds an API with id.
+	OwnsExecuteAPI(apiID string) bool
+}
+
+// ExecuteAPIService is one execute-api front: its raw operation and the
+// owner that says which API ids it serves.
+type ExecuteAPIService struct {
+	Op    ref.OperationID
+	Owner ExecuteAPIOwner
 }
 
 // Handler is the front door: pipeline steps 1 to 5 and 13 of

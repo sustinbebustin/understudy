@@ -24,7 +24,22 @@ type Options struct {
 	// Regions is the region table an execute-api host's region label is
 	// read against, as the edge's; the zero value is AWS's.
 	Regions aws.Regions
+	// Enforce is iam.enforce, which decides what an invocation of an API
+	// with a resource policy does (the spec's enforce matrix).
+	Enforce EnforceMode
 }
+
+// EnforceMode is the iam.enforce mode, as the data plane needs it for a
+// REST API's resource policy, which it does not evaluate: off ignores it,
+// advise records an advisory and serves, enforce answers 501.
+type EnforceMode uint8
+
+// The modes; the zero value is off.
+const (
+	EnforceOff EnforceMode = iota
+	EnforceAdvise
+	EnforceEnforce
+)
 
 // Service is Amazon API Gateway's REST APIs (apigateway): one state cell
 // per account and region holding its REST APIs, and the execute-api data
@@ -72,3 +87,8 @@ func (*Service) Resources(aws.Scope) []kernel.Resource { return nil }
 
 // Scopes lists the scopes that hold state. There are none yet.
 func (*Service) Scopes() []aws.Scope { return nil }
+
+// OwnsExecuteAPI reports whether any account holds a REST API with id, so
+// the edge sends its execute-api requests to InvokeRestApi. It is not
+// implemented yet and holds none.
+func (*Service) OwnsExecuteAPI(string) bool { return false }

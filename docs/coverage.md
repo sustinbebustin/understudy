@@ -1783,7 +1783,7 @@ Internal operations:
 
 Behaviors chosen without AWS-recorded evidence, with the research they rest on and the parity scenario step that settles them, or why none does. The count and order follow the label the code states; the Label column shows the recording's verdict where a replayed step settles or contradicts the switch.
 
-217 switches: 1 aws-recorded, 5 third-party-recorded, 24 aws-doc, 187 inferred.
+222 switches: 1 aws-recorded, 5 third-party-recorded, 24 aws-doc, 192 inferred.
 
 | Switch | Value | Label | Reference | Settled by |
 |---|---|---|---|---|
@@ -1817,6 +1817,11 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `sqs.move-task.message-identity` | `new-message` | aws-doc | docs/research/sqs.md#93-startmessagemovetask-listmessagemovetasks-cancelmessagemovetask | none: sqs/R02/std-06-recv-src.json and fifo-06-recv-src.json are recorded; no scenario replays sqs/R02 yet |
 | `sqs.policy.limits` | `bytes-and-statements` | aws-doc | docs/research/sqs.md#4-queue-attributes | none: unrecorded: no recording exceeds a Policy limit |
 | `sqs.receipt.stale-handle` | `succeed-without-delete` | contradicted (sqs/R01/03-recv-after-6s.json) | docs/research/sqs.md#72-receipt-handles-deletemessage-changemessagevisibility | sqs/R01#03-recv-after-6s |
+| `apigateway.invoke.routing` | `{{403 {"message":"Forbidden"} ForbiddenException} {403 {"message":"Forbidden"} ForbiddenException} {true false}}` | inferred | docs/research/apigateway-rest.md#47-gateway-responses-and-error-bodies | none: unrecorded: APIGW1-07 and APIGW1-08 (apigateway-rest.md 13) records it |
+| `apigateway.lambda.permission` | `{<api-id>/<stage>/<METHOD>/<resource path template without its leading slash>; ANY as written for an ANY method; an empty last segment for the root resource {500 {"message": "Internal server error"} }}` | inferred | docs/research/apigateway-rest.md#54-how-api-gateway-invokes-the-function | none: unrecorded: APIGW1-15 (apigateway-rest.md 13) records it |
+| `apigateway.mock.selection` | `{{415 {"message":"Unsupported Media Type"} } true true true true}` | inferred | docs/research/apigateway-rest.md#62-passthrough-behavior-and-415 | none: unrecorded: APIGW1-09, APIGW1-11 and APIGW1-12 (apigateway-rest.md 13) records it |
+| `apigateway.proxy.unrecorded` | `{{504 {"message": "Endpoint request timed out"} } true false}` | inferred | docs/research/apigateway-rest.md#53-failures | none: unrecorded: APIGW1-10 and APIGW1-16 (apigateway-rest.md 13) records it |
+| `apigateway.restapi.api-status` | `{AVAILABLE AVAILABLE}` | inferred | docs/research/apigateway-rest.md#31-restapi | none: unrecorded: APIGW1-03 (apigateway-rest.md 13) records it |
 | `apigatewayv2.front.answers` | `{true {403 Forbidden} {403 Forbidden} {404 Not Found} {404 Not Found} {404 Not Found} application/json {refused allowed refused}}` | inferred | docs/research/apigateway-http.md#45-responses-api-gateway-generates-itself | none: unrecorded: APIGW2-06 and APIGW2-04 (apigateway-http.md 14) records it |
 | `apigatewayv2.lambda.failure-answers` | `{{500 Internal Server Error} {503 Service Unavailable} {413 Request Entity Too Large} 10485760 6291456}` | inferred | docs/research/apigateway-http.md#56-failures-function-errors-malformed-output-timeouts | none: unrecorded: APIGW2-10 (apigateway-http.md 14) records it |
 | `apigatewayv2.lambda.permission` | `{<api-id>/<stage>/<METHOD>/<route path without its leading slash>, the route key's template and ANY as written; <api-id>/<stage>/$default for the $default route {500 Internal Server Error}}` | inferred | docs/research/apigateway-http.md#55-invocation-credentials-and-the-resource-policy | none: unrecorded: APIGW2-11 (apigateway-http.md 14) records it |

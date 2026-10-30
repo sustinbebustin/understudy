@@ -57,6 +57,18 @@ func (s *Source) APIGatewayDeploymentID() APIGatewayChildID {
 	return APIGatewayChildID(s.apigatewayChars(KindAPIGatewayChildID, apigatewayDeploymentIDLen))
 }
 
+// APIGatewayRootResourceID mints the id of a REST API's root resource
+// from KindAPIGatewayChildID: 10 characters, as the documented root ids
+// (apigateway-rest.md 3.10; UNVERIFIED, APIGW1-02). It is not implemented
+// yet and returns "".
+func (*Source) APIGatewayRootResourceID() APIGatewayChildID { return "" }
+
+// APIGatewayResourceID mints the id of a REST API's child resource from
+// KindAPIGatewayChildID: 6 characters, as the documented child ids
+// (apigateway-rest.md 3.10; UNVERIFIED, APIGW1-02). It is not implemented
+// yet and returns "".
+func (*Source) APIGatewayResourceID() APIGatewayChildID { return "" }
+
 // APIGatewayRequestIDFor derives the apigw-requestid of an execute-api
 // call from the call's request id, drawing nothing from any stream, as a
 // Lambda invocation's request id is the call's own. It is the padded
