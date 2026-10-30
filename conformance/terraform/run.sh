@@ -173,8 +173,12 @@ openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj "/CN=127.0.0.1" -addext 
   -keyout "$run_dir/receiver.key" -out "$run_dir/receiver.pem" >"$logs_dir/openssl.log" 2>&1 ||
   die "openssl could not make the SNS receiver's certificate; see $logs_dir/openssl.log"
 
+# ses.tf's domain is verified by configuration, so its
+# aws_ses_domain_identity_verification completes (docs/research/ses.md 11.7).
+printf '%s\n' '{"ses": {"verifiedIdentities": ["ses-verified.example.org"]}}' >"$run_dir/understudy.json"
+
 echo "==> starting understudy on $endpoint (data in $data_dir)"
-env "${conformance_serve_env[@]}" "$binary" serve --listen "127.0.0.1:$port" --persist "$data_dir" \
+env "${conformance_serve_env[@]}" "$binary" serve --config "$run_dir/understudy.json" --listen "127.0.0.1:$port" --persist "$data_dir" \
   --sigv4 "${SIGV4:-parse}" --iam-enforce "${CONFORMANCE_IAM_ENFORCE:-off}" --log-format json \
   --sns-http-delivery-allow "127.0.0.1:$receiver_port" --sns-http-delivery-ca-bundle "$run_dir/receiver.pem" \
   >"$logs_dir/server.log" 2>&1 &

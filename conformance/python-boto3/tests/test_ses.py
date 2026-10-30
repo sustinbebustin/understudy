@@ -1,4 +1,4 @@
-"""SES v1: email identities (ses.md sections 5 and 9.1)."""
+"""SES v1: email and domain identities (ses.md sections 5, 9.1 and 9.2)."""
 
 from __future__ import annotations
 
@@ -24,3 +24,21 @@ def test_delete_identity_removes_the_key(ses: Any) -> None:
     ses.delete_identity(Identity=addr)
     # Terraform reads a missing key as gone (ses.md 9.1).
     assert ses.get_identity_verification_attributes(Identities=[addr])["VerificationAttributes"] == {}
+
+
+def test_domain_identity_token_is_stable(ses: Any, cleanup: Any) -> None:
+    domain = uniq("conf-ses-domain") + ".example.org"
+    token = ses.verify_domain_identity(Domain=domain)["VerificationToken"]
+    cleanup.add(ses.delete_identity, Identity=domain)
+    # 44 base64 characters, the encoding of 32 bytes (ses.md 5.3), the same
+    # on a repeat and on every read (ses.md 9.2).
+    assert len(token) == 44
+    assert ses.verify_domain_identity(Domain=domain)["VerificationToken"] == token
+    attrs = ses.get_identity_verification_attributes(Identities=[domain])["VerificationAttributes"]
+    assert attrs[domain] == {"VerificationStatus": "Pending", "VerificationToken": token}
+    # Listed regardless of status, under its type only (ses.md 5.3).
+    pages = ses.get_paginator("list_identities")
+    domains = [i for p in pages.paginate(IdentityType="Domain") for i in p["Identities"]]
+    addresses = [i for p in pages.paginate(IdentityType="EmailAddress") for i in p["Identities"]]
+    assert domain in domains
+    assert domain not in addresses

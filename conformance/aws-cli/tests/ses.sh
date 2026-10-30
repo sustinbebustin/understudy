@@ -1,7 +1,43 @@
 #!/usr/bin/env bash
-# SES v1: email identities (VerifyEmailIdentity, GetIdentityVerificationAttributes,
-# DeleteIdentity).
-# Arbiter: docs/research/ses.md sections 5 and 9.1.
+# SES v1: email and domain identities (VerifyEmailIdentity,
+# VerifyDomainIdentity, GetIdentityVerificationAttributes, ListIdentities,
+# DeleteIdentity) and the verification link.
+# Arbiter: docs/research/ses.md sections 5, 9.1, 9.2 and 11.3.
+
+test_domain_identity_token_is_stable() {
+  local domain token
+  domain="$(new_name ses-domain).example.org"
+  aws_ok ses verify-domain-identity --domain "$domain"
+  # 44 base64 characters, the encoding of 32 bytes (ses.md 5.3).
+  assert_jq_match '.VerificationToken' '^[A-Za-z0-9+/]{43}=$'
+  token=$(jq -r '.VerificationToken' <<<"$AWS_OUT")
+  # The same token on a repeat and on every read (ses.md 9.2).
+  aws_ok ses verify-domain-identity --domain "$domain"
+  assert_jq '.VerificationToken' "$token"
+  aws_ok ses get-identity-verification-attributes --identities "$domain"
+  assert_jq ".VerificationAttributes[\"$domain\"].VerificationStatus" 'Pending'
+  assert_jq ".VerificationAttributes[\"$domain\"].VerificationToken" "$token"
+  # Listed regardless of status, under its type only (ses.md 5.3).
+  aws_ok ses list-identities --identity-type Domain
+  assert_jq "[.Identities[] | select(. == \"$domain\")] | length" '1'
+  aws_ok ses list-identities --identity-type EmailAddress
+  assert_jq "[.Identities[] | select(. == \"$domain\")] | length" '0'
+  aws_ok ses delete-identity --identity "$domain"
+}
+
+test_verification_link_verifies() {
+  local addr link
+  addr="$(new_name ses-link)@example.com"
+  aws_ok ses verify-email-identity --email-address "$addr"
+  # Opening the link in the recorded verification email verifies the
+  # address, as the owner's click does on AWS (ses.md 5.2, 11.3 item 1).
+  link=$(curl -fsS --get --data-urlencode "to=$addr" "${UE_ADMIN_URL:?UE_ADMIN_URL unset}/ses/messages" |
+    jq -r '.messages[0].text.data' | grep -o 'http[^[:space:]]*/_understudy/ses/VerificationLink?token=[A-Za-z0-9_-]*')
+  curl -fsS -o /dev/null "$link"
+  aws_ok ses get-identity-verification-attributes --identities "$addr"
+  assert_jq ".VerificationAttributes[\"$addr\"].VerificationStatus" 'Success'
+  aws_ok ses delete-identity --identity "$addr"
+}
 
 test_verify_email_identity_starts_pending() {
   local addr

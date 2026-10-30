@@ -1,6 +1,8 @@
 package gosdk_test
 
 import (
+	"context"
+	"slices"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -33,5 +35,51 @@ func TestSESEmailIdentityLifecycle(t *testing.T) {
 	ok(t, err, "GetIdentityVerificationAttributes after delete")
 	if len(got.VerificationAttributes) != 0 {
 		t.Errorf("VerificationAttributes after DeleteIdentity = %+v, want none", got.VerificationAttributes)
+	}
+}
+
+// A domain identity answers a 44-character token (ses.md 5.3), the same on
+// a repeat and on every read (9.2), and ListIdentities lists it under
+// IdentityType Domain, not EmailAddress (5.3).
+func TestSESDomainIdentity(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	client := ses.NewFromConfig(awsCfg)
+	domain := name(t, "ses-domain") + ".example.org"
+
+	first, err := client.VerifyDomainIdentity(ctx, &ses.VerifyDomainIdentityInput{Domain: aws.String(domain)})
+	ok(t, err, "VerifyDomainIdentity")
+	t.Cleanup(func() {
+		_, _ = client.DeleteIdentity(context.Background(), &ses.DeleteIdentityInput{Identity: aws.String(domain)})
+	})
+	token := aws.ToString(first.VerificationToken)
+	if len(token) != 44 {
+		t.Errorf("VerificationToken %q has %d characters, want 44", token, len(token))
+	}
+	again, err := client.VerifyDomainIdentity(ctx, &ses.VerifyDomainIdentityInput{Domain: aws.String(domain)})
+	ok(t, err, "VerifyDomainIdentity again")
+	if got := aws.ToString(again.VerificationToken); got != token {
+		t.Errorf("a repeated VerifyDomainIdentity answers %q, want %q", got, token)
+	}
+	attrs, err := client.GetIdentityVerificationAttributes(ctx, &ses.GetIdentityVerificationAttributesInput{Identities: []string{domain}})
+	ok(t, err, "GetIdentityVerificationAttributes")
+	if a := attrs.VerificationAttributes[domain]; a.VerificationStatus != types.VerificationStatusPending || aws.ToString(a.VerificationToken) != token {
+		t.Errorf("VerificationAttributes[%s] = %+v, want Pending with %q", domain, a, token)
+	}
+
+	listed := func(kind types.IdentityType) bool {
+		p := ses.NewListIdentitiesPaginator(client, &ses.ListIdentitiesInput{IdentityType: kind, MaxItems: aws.Int32(1000)})
+		for p.HasMorePages() {
+			page, err := p.NextPage(ctx)
+			ok(t, err, "ListIdentities")
+			if slices.Contains(page.Identities, domain) {
+				return true
+			}
+		}
+		return false
+	}
+	asDomain, asAddress := listed(types.IdentityTypeDomain), listed(types.IdentityTypeEmailAddress)
+	if !asDomain || asAddress {
+		t.Errorf("ListIdentities lists %s as Domain %v, as EmailAddress %v; want Domain only", domain, asDomain, asAddress)
 	}
 }
