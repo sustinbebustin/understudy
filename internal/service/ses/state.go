@@ -17,12 +17,20 @@ type state struct {
 	// Identities are in creation order, the order ListIdentities and
 	// Resources list them in (SES-14).
 	Identities []identity `json:"identities"`
+	// Messages are the recorded messages, oldest first, at most
+	// MaxStoredMessages (ses.md 11.2).
+	Messages []record `json:"messages,omitempty"`
+	// Evicted counts the records evicted to keep MaxStoredMessages.
+	Evicted int `json:"evicted,omitempty"`
 }
 
 func newState(aws.Scope) state { return state{} }
 
-// IsZero reports a scope without identities, which snapshots skip.
-func (s *state) IsZero() bool { return len(s.Identities) == 0 }
+// IsZero reports a scope without identities, messages or evictions, which
+// snapshots skip.
+func (s *state) IsZero() bool {
+	return len(s.Identities) == 0 && len(s.Messages) == 0 && s.Evicted == 0
+}
 
 // Partitioned finds IsZero by a type assertion; this keeps a rename from
 // silently dropping the skip.
@@ -42,10 +50,13 @@ func (s *state) find(name string) int {
 // identity is one verified or verifying email address or domain (ses.md
 // 5.1).
 type identity struct {
-	Name    string              `json:"name"`
-	Kind    sesapi.IdentityType `json:"kind"`
-	Status  status              `json:"status"`
-	Created clock.Instant       `json:"created"`
+	Name   string              `json:"name"`
+	Kind   sesapi.IdentityType `json:"kind"`
+	Status status              `json:"status"`
+	// LinkToken is the token of an email identity's verification link,
+	// the same in every verification email it is sent (inferred, SES-09).
+	LinkToken string        `json:"linkToken,omitempty"`
+	Created   clock.Instant `json:"created"`
 }
 
 // identityARN is the ARN of identity name in scope,

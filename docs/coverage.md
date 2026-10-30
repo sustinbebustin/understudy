@@ -1139,7 +1139,7 @@ Raw operations:
 |---|---|---|---|
 | DeleteIdentity | full | third-party-recorded, 1 of 1 claim |  |
 | GetIdentityVerificationAttributes | partial | inferred, 1 of 2 claims | the 100-identity limit per call is not enforced yet |
-| VerifyEmailIdentity | partial | third-party-recorded, 1 of 1 claim | the identity starts and stays Pending: the verification email and its link, ses.verifiedIdentities, the 24-hour expiry, address validation and the 10,000-identity limit are not implemented yet |
+| VerifyEmailIdentity | partial | inferred, 1 of 2 claims | the verification email is recorded, never sent, for GET /_understudy/v1/ses/messages; the identity starts and stays Pending: the link the email carries is not served yet, and ses.verifiedIdentities, the 24-hour expiry, address validation and the 10,000-identity limit are not implemented yet |
 | CloneReceiptRuleSet | unbound | unassessed |  |
 | CreateConfigurationSet | unbound | unassessed |  |
 | CreateConfigurationSetEventDestination | unbound | unassessed |  |
@@ -1641,7 +1641,7 @@ Internal operations:
 
 Behaviors chosen without AWS-recorded evidence, with the research they rest on and the parity scenario step that settles them, or why none does. The count and order follow the label the code states; the Label column shows the recording's verdict where a replayed step settles or contradicts the switch.
 
-212 switches: 1 aws-recorded, 5 third-party-recorded, 24 aws-doc, 182 inferred.
+213 switches: 1 aws-recorded, 5 third-party-recorded, 24 aws-doc, 183 inferred.
 
 | Switch | Value | Label | Reference | Settled by |
 |---|---|---|---|---|
@@ -1800,6 +1800,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `secretsmanager.list-secrets.all-filter-match` | `any-word,word-prefix` | inferred | https://docs.aws.amazon.com/secretsmanager/latest/userguide/manage_search-secret.html | none: unrecorded: no recording calls ListSecrets |
 | `secretsmanager.list-secrets.filter-combination` | `and-across-filters,or-across-values` | inferred | docs/research/secrets-logs-events-alarms.md#24-operations-request-and-response-facts | none: unrecorded: no recording calls ListSecrets |
 | `secretsmanager.restore.not-scheduled` | `no-op` | inferred | docs/research/secrets-logs-events-alarms.md#25-deletion-window-force-delete-restore-clock-driven | none: secretsmanager/R15/05-restore-live.json is recorded; no scenario replays secretsmanager/R15 yet |
+| `ses.message-id.format` | `timestamped` | inferred | docs/research/ses.md#47-messageid | none: unrecorded: SES-07 in the recording queue (ses.md 12) settles it |
 | `ses.verification.unknown-identity` | `omitted` | inferred | docs/research/ses.md#53-v1-identity-operations | none: unrecorded: SES-08 in the recording queue (ses.md 12) settles it |
 | `sfn.choice.missing-variable` | `{States.Runtime true}` | inferred | docs/research/stepfunctions-asl.md#64-no-match-and-missing-variables | none: unrecorded: recording case ASL-08 (stepfunctions-asl.md 16.2) |
 | `sfn.choice.no-match` | `{States.NoChoiceMatched false}` | inferred | docs/research/stepfunctions-asl.md#64-no-match-and-missing-variables | none: unrecorded: recording case ASL-08 (stepfunctions-asl.md 16.2) |

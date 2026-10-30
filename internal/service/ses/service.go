@@ -1,11 +1,14 @@
 package ses
 
 import (
+	"sync/atomic"
+
 	"github.com/sustinbebustin/understudy/internal/api/sesapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/evidence"
 	"github.com/sustinbebustin/understudy/internal/fidelity"
+	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/store"
@@ -16,7 +19,10 @@ import (
 // per account and Region.
 type Service struct {
 	opts  Options
+	ids   *ids.Source
 	cells *store.Partitioned[aws.Scope, state]
+	// seq is the number of the latest message record (record.Seq).
+	seq atomic.Uint64
 }
 
 // V2 is SES API v2: a view of the Service store that exports and lists
@@ -37,6 +43,7 @@ var (
 func New(d kernel.ServiceDeps, o Options) *Service {
 	s := &Service{
 		opts:  o,
+		ids:   d.IDs,
 		cells: store.NewPartitioned(d.Kernel.Gate(), codec(), newState),
 	}
 	s.bindIdentities(sesapi.NewBinder(d.Binder))
@@ -60,9 +67,21 @@ func (s *Service) Export() ([]store.Section, error) {
 	return s.cells.Export(store.ScopeKeys(), stateVersion)
 }
 
-// Import loads sections written by Export of this schema version.
+// Import loads sections written by Export of this schema version. Records
+// made after it number past the loaded ones, so they still read after
+// them.
 func (s *Service) Import(ss []store.Section) error {
-	return s.cells.Import(store.ScopeKeys(), stateVersion, ss)
+	if err := s.cells.Import(store.ScopeKeys(), stateVersion, ss); err != nil {
+		return err
+	}
+	for _, scope := range s.Scopes() {
+		if cell, ok := s.cells.Lookup(scope); ok {
+			loaded := store.Read(cell, func(st *state) uint64 { return st.maxSeq() })
+			for cur := s.seq.Load(); loaded > cur && !s.seq.CompareAndSwap(cur, loaded); cur = s.seq.Load() {
+			}
+		}
+	}
+	return nil
 }
 
 // Reset drops the scopes rs covers.
@@ -97,7 +116,25 @@ func (s *Service) Scopes() []aws.Scope { return s.cells.Keys(store.ScopeKeys()) 
 // Switches lists the SES switches whose behavior is implemented, with the
 // value in effect.
 func (s *Service) Switches() []fidelity.Entry {
-	return []fidelity.Entry{unknownIdentitySwitch(s.opts.UnknownIdentity).Entry()}
+	return []fidelity.Entry{
+		messageIDSwitch(s.opts.MessageID).Entry(),
+		unknownIdentitySwitch(s.opts.UnknownIdentity).Entry(),
+	}
+}
+
+// messageIDSwitch is switch ses.message-id.format at value v. Ops are the
+// operations that mint a MessageId so far: VerifyEmailIdentity, for its
+// verification email.
+func messageIDSwitch(v MessageIDFormat) fidelity.Switch[MessageIDFormat] {
+	return fidelity.Switch[MessageIDFormat]{
+		Name:    "ses.message-id.format",
+		Value:   v,
+		Label:   evidence.Inferred,
+		Ref:     "docs/research/ses.md#47-messageid",
+		Record:  "SES-07",
+		Ops:     []string{"ses.VerifyEmailIdentity"},
+		Settles: fidelity.NoScenario{Reason: "unrecorded: SES-07 in the recording queue (ses.md 12) settles it"},
+	}
 }
 
 // unknownIdentitySwitch is switch ses.verification.unknown-identity at

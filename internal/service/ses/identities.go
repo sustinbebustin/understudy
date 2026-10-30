@@ -2,11 +2,14 @@ package ses
 
 import (
 	"context"
+	"encoding/base64"
+	"fmt"
 
 	"github.com/sustinbebustin/understudy/internal/api/sesapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
+	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/registry"
@@ -18,8 +21,9 @@ import (
 // these operations needs (contract 2.6).
 func (s *Service) bindIdentities(b sesapi.Binder) {
 	b.VerifyEmailIdentity(s.verifyEmailIdentity,
-		registry.Partial{Note: "the identity starts and stays Pending: the verification email and its link, ses.verifiedIdentities, " +
-			"the 24-hour expiry, address validation and the 10,000-identity limit are not implemented yet"},
+		registry.Partial{Note: "the verification email is recorded, never sent, for GET /_understudy/v1/ses/messages; the identity starts and stays Pending: " +
+			"the link the email carries is not served yet, and ses.verifiedIdentities, the 24-hour expiry, address validation " +
+			"and the 10,000-identity limit are not implemented yet"},
 		kernel.WithoutSecondaryActions(),
 		identitiesNamed(func(in *sesapi.VerifyEmailIdentityInput) []string { return []string{in.EmailAddress} }))
 	b.GetIdentityVerificationAttributes(s.getIdentityVerificationAttributes,
@@ -46,18 +50,23 @@ func identitiesNamed[In any](namesOf func(*In) []string) kernel.BindOption {
 
 // verifyEmailIdentity starts verifying an email address: a new identity is
 // Pending (ses.md 5.2); a Pending, Failed or TemporaryFailure one restarts
-// as Pending, and a Success one is left as it is (inferred, SES-09).
+// as Pending, and a Success one is left as it is (inferred, SES-09). Each
+// start and restart records a verification email, always with the
+// identity's one link token (contract 2.3).
 func (s *Service) verifyEmailIdentity(_ context.Context, c *kernel.Call, in *sesapi.VerifyEmailIdentityInput) (*sesapi.VerifyEmailIdentityOutput, *awserr.Error) {
 	scope := c.Scope()
 	_, err := kernel.Write(c, s.cells, scope, func(st *state, now clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
 		i := st.find(in.EmailAddress)
 		if i < 0 {
 			st.Identities = append(st.Identities, identity{
-				Name: in.EmailAddress, Kind: sesapi.IdentityTypeEmailAddress, Status: statusPending{Since: now}, Created: now,
+				Name: in.EmailAddress, Kind: sesapi.IdentityTypeEmailAddress, Status: statusPending{Since: now},
+				LinkToken: s.linkToken(), Created: now,
 			})
+			st.record(s.verificationEmail(c, APIv1, in.EmailAddress, st.Identities[len(st.Identities)-1].LinkToken, now))
 			return struct{}{}, nil
 		}
-		old := st.Identities[i].Status
+		id := &st.Identities[i]
+		old := id.Status
 		switch old.(type) {
 		case statusSuccess:
 			tx.Unchanged()
@@ -69,13 +78,42 @@ func (s *Service) verifyEmailIdentity(_ context.Context, c *kernel.Call, in *ses
 				From:     journal.ResourceState(old.v1()), To: journal.ResourceState(sesapi.VerificationStatusPending),
 			})
 		}
-		st.Identities[i].Status = statusPending{Since: now}
+		id.Status = statusPending{Since: now}
+		if id.LinkToken == "" {
+			id.LinkToken = s.linkToken()
+		}
+		st.record(s.verificationEmail(c, APIv1, id.Name, id.LinkToken, now))
 		return struct{}{}, nil
 	})
 	if err != nil {
 		return nil, err
 	}
 	return &sesapi.VerifyEmailIdentityOutput{}, nil
+}
+
+// linkToken draws a verification link token: 32 bytes as base64url without
+// padding (contract 2.3).
+func (s *Service) linkToken() string {
+	return base64.RawURLEncoding.EncodeToString(s.ids.Draw(ids.KindSESLinkToken, 32))
+}
+
+// verificationEmail is the record of the verification email call c sends
+// to address (ses.md 5.2, 11.3 item 1): from VerificationSender, the
+// subject naming the Region, and a text body carrying the link, on its own
+// line, built from the host the call was sent to. AWS's body text is
+// unrecorded; this one is understudy's.
+func (s *Service) verificationEmail(c *kernel.Call, api API, address, token string, now clock.Instant) record {
+	region := c.Scope().Region.String()
+	link := c.Endpoint().String() + VerificationLinkPath + "?token=" + token
+	r := s.newRecord(c, api, KindVerification, now)
+	r.Source = VerificationSender
+	r.From = []string{VerificationSender}
+	r.To = []string{address}
+	r.Envelope = []string{address}
+	r.Subject = &Content{Data: fmt.Sprintf(VerificationSubjectText, region)}
+	r.Text = &Content{Data: "understudy recorded this verification email for " + address + " in " + region + " instead of sending it.\n" +
+		"Open this link to verify the address:\n\n" + link + "\n"}
+	return r
 }
 
 // getIdentityVerificationAttributes answers each named identity's status,
