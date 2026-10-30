@@ -54,7 +54,10 @@ understudy journal --kind invocation --since 1h
 A metric alarm is evaluated on the emulator clock: once a minute on the minute, every 10 seconds for a 10, 20 or 30-second period, and once an hour when its evaluation periods span more than a day. Creating an alarm does not evaluate it, so `describe-alarms` right after `put-metric-alarm` still shows the initial state. An alarm with an SNS or Lambda action notifies on each state change:
 
 ```sh
-understudy clock freeze
+understudy serve --clock frozen@2026-10-30T12:00:00Z
+```
+
+```sh
 aws sns create-topic --name alerts
 aws sqs create-queue --queue-name alerts-inbox
 aws sns subscribe --topic-arn arn:aws:sns:us-east-1:000000000000:alerts --protocol sqs \
@@ -70,11 +73,22 @@ understudy clock advance 1m --settle
 2026-10-30T12:01:00Z frozen
 fired 2 timer(s):
   cloudwatch.alarm-evaluation arn:aws:cloudwatch:us-east-1:000000000000:alarm:high-load
-  outbox.attempt 000000000000/us-east-1/19b1ded5-b3f8-41a0-b877-85fc10a26fc3
+  outbox.attempt 000000000000/us-east-1/95226da2-d5d3-4803-a6b0-ecb231ce5b92
 settled: no tracked work is pending
 ```
 
-The evaluation at 12:01 saw the point and moved the alarm to `ALARM` with AWS's reason text, `Threshold Crossed: 1 datapoint [20.0 (30/10/26 12:00:00)] was greater than the threshold (10.0).`, and the notification is in the queue. Five more minutes are five more evaluations. The point leaves the alarm's evaluation range after three periods, and with no data the default `missing` treatment goes to `INSUFFICIENT_DATA`:
+The evaluation at 12:01 saw the point and moved the alarm to `ALARM` with AWS's reason text, and the notification is in the queue:
+
+```sh
+aws sqs receive-message --queue-url http://127.0.0.1:4566/000000000000/alerts-inbox \
+  --query 'Messages[0].Body' --output text | jq -c '{AlarmName, NewStateValue, OldStateValue, NewStateReason}'
+```
+
+```
+{"AlarmName":"high-load","NewStateValue":"ALARM","OldStateValue":"INSUFFICIENT_DATA","NewStateReason":"Threshold Crossed: 1 datapoint [20.0 (30/10/26 12:00:00)] was greater than the threshold (10.0)."}
+```
+
+Five more minutes are five more evaluations. The point leaves the alarm's evaluation range after three periods, and with no data the default `missing` treatment goes to `INSUFFICIENT_DATA`:
 
 ```sh
 understudy clock advance 5m --settle
