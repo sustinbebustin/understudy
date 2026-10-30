@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # SES v2: email identities (CreateEmailIdentity, GetEmailIdentity,
-# ListEmailIdentities, DeleteEmailIdentity), the tag operations on an
-# identity ARN, GetAccount, and SendEmail with Simple, Raw and Template content. This
-# CLI sends ListEmailIdentities as POST /v2/email/list-identities (ses.md
-# 3.2).
-# Arbiter: docs/research/ses.md sections 2.3, 4.4, 5.4, 6 and 9.3.
+# ListEmailIdentities, DeleteEmailIdentity), email templates, the tag
+# operations on an identity or template ARN, GetAccount, and SendEmail with
+# Simple, Raw and Template content. This CLI sends ListEmailIdentities as
+# POST /v2/email/list-identities (ses.md 3.2).
+# Arbiter: docs/research/ses.md sections 2.3, 3.2, 4.4, 5.4, 6, 7 and 9.3.
 
 test_domain_identity_lifecycle() {
   local domain tokens arn
@@ -122,4 +122,30 @@ test_send_email_template_content_inline_is_rendered() {
   assert_jq '.messages[0].subject.data' 'Hi x'
   assert_jq '.messages[0].text.data' 'Dear x'
   aws_ok sesv2 delete-email-identity --email-identity "$addr"
+}
+
+test_email_template_lifecycle() {
+  local name arn
+  name=$(new_name sesv2-template)
+  aws_ok sesv2 create-email-template --template-name "$name" \
+    --template-content '{"Subject":"Hi {{name}}","Text":"Dear {{name}}"}' --tags Key=env,Value=dev
+  aws_ok sesv2 get-email-template --template-name "$name"
+  assert_jq '.TemplateContent | tojson' '{"Subject":"Hi {{name}}","Text":"Dear {{name}}"}'
+  assert_jq '.Tags | tojson' '[{"Key":"env","Value":"dev"}]'
+  # One store for v1 and v2 templates (ses.md 2.3).
+  aws_ok sesv2 update-email-template --template-name "$name" --template-content '{"Subject":"Hello {{name}}"}'
+  aws_ok ses get-template --template-name "$name"
+  assert_jq '.Template.SubjectPart' 'Hello {{name}}'
+  assert_jq '.Template | has("TextPart")' 'false'
+  aws_ok sesv2 list-email-templates --page-size 100
+  assert_jq "[.TemplatesMetadata[] | select(.TemplateName == \"$name\")] | length" '1'
+  # Tags through the tag operations on the template ARN (ses.md 3.2).
+  arn="arn:aws:ses:${AWS_REGION}:000000000000:template/$name"
+  aws_ok sesv2 tag-resource --resource-arn "$arn" --tags Key=team,Value=mail
+  aws_ok sesv2 untag-resource --resource-arn "$arn" --tag-keys env
+  aws_ok sesv2 list-tags-for-resource --resource-arn "$arn"
+  assert_jq '.Tags | tojson' '[{"Key":"team","Value":"mail"}]'
+  aws_ok sesv2 delete-email-template --template-name "$name"
+  # NotFoundException, 404 per the model (ses.md 3.3, 7).
+  aws_error NotFoundException 404 sesv2 get-email-template --template-name "$name"
 }
