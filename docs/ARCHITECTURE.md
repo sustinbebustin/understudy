@@ -1374,6 +1374,7 @@ understudy snapshot save FILE | load FILE | inspect FILE | diff A B [--normalize
 understudy resources [--service S] [--account A] [--region R]
 understudy coverage [--service S] [--format text|markdown|json] [--switches] [--overlays DIR] [--parity FILE]     # offline from the registry when no server is up
 understudy iam usage [--principal ARN] | iam policy --principal ARN
+understudy ses messages [--to ADDR] [--from ADDR] [--message-id ID] [--account A] [--region R] [--since RFC3339] [--limit N]
 understudy lambda hot-reload FUNCTION DIR
 understudy images pull [--runtime R]
 understudy env [--sdk go|python|js|cli|terraform] [--format sh|fish|dotenv|github]

@@ -287,6 +287,7 @@ func TestEveryCommandInBothOutputModes(t *testing.T) {
 		{args: fixed("coverage")},
 		{args: fixed("iam", "usage")},
 		{args: fixed("iam", "policy", "--principal", "arn:aws:iam::000000000000:root")},
+		{args: fixed("ses", "messages")},
 		{args: fixed("lambda", "hot-reload", "missing-function", dir), code: admin.ExitFailed},
 		{args: fixed("images", "pull"), code: admin.ExitFailed},
 		{args: fixed("env")},
