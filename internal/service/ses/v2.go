@@ -27,9 +27,8 @@ const (
 	listEmailIdentitiesCoverage = "the GET /v2/email/identities binding sent by SDKs generated before 2026-09-29 is not routed and answers sesv2's unknown operation"
 	getAccountCoverage          = "ProductionAccessEnabled and SendQuota from understudy state; SendingEnabled true, since account sending cannot be paused yet; " +
 		"EnforcementStatus HEALTHY; no dedicated IP, VDM, pricing, suppression or account details"
-	v2TagsCoverage = "identity ARNs only; a template ARN answers NotFoundException until the v2 template operations land; " +
-		"an identity ARN with an empty account field names the caller's account, as Terraform sends it under skip_requesting_account_id " +
-		"(what AWS answers is unrecorded)"
+	v2TagsCoverage = "identity and template ARNs; an ARN with an empty account field names the caller's account, " +
+		"as Terraform sends an identity's under skip_requesting_account_id (what AWS answers is unrecorded)"
 )
 
 // enforcementHealthy is GetAccount's EnforcementStatus: an emulated account
@@ -69,12 +68,13 @@ func (v *V2) bindV2(b sesv2api.Binder) {
 }
 
 // resourceNamed names a tag operation's ResourceArn as its resource
-// (contract 2.6): the identity's full ARN when it names one of the
-// caller's, else the ARN as given; an ARN that does not parse names none.
+// (contract 2.6): the identity's or template's full ARN when it names one
+// of the caller's, else the ARN as given; an ARN that does not parse names
+// none.
 func resourceNamed[In any](arnOf func(*In) string) kernel.BindOption {
 	return kernel.WithResources(func(c *kernel.Call, in *In) []aws.ARN {
-		if name, ok := identityNameOf(c.Scope(), arnOf(in)); ok {
-			return []aws.ARN{identityARN(c.Scope(), name)}
+		if r, ok := taggableOf(c.Scope(), arnOf(in)); ok {
+			return []aws.ARN{r.arn(c.Scope())}
 		}
 		arn, err := aws.ParseARN(arnOf(in))
 		if err != nil {
@@ -214,7 +214,7 @@ func (v *V2) getEmailIdentity(_ context.Context, c *kernel.Call, in *sesv2api.Ge
 			FeedbackForwardingStatus: true,
 			VerifiedForSendingStatus: id.verified(),
 			DkimAttributes:           id.dkim(),
-			Tags:                     id.v2Tags(),
+			Tags:                     tagList(id.Tags),
 			VerificationStatus:       new(id.Status.v2()),
 		}
 	})
@@ -322,41 +322,70 @@ func (id *identity) matches(filter map[sesv2api.IdentityFilterKey]string) bool {
 	return true
 }
 
-// tagged runs fn on the identity resourceARN names in the caller's view,
-// in a write; any other ARN, a template's included, is NotFoundException
-// naming its resource (contract 2.5).
-func (v *V2) tagged(c *kernel.Call, resourceARN string, fn func(id *identity, tx *kernel.Tx)) *awserr.Error {
+// tagged runs fn on the tags of the identity or template resourceARN names
+// in the caller's view, in a write; a missing one, or any other ARN, is
+// NotFoundException naming its resource (contract 2.5).
+func (v *V2) tagged(c *kernel.Call, resourceARN string, fn func(tags *[]tag, tx *kernel.Tx)) *awserr.Error {
 	s := v.svc
 	scope := c.Scope()
-	name, ok := identityNameOf(scope, resourceARN)
+	r, ok := taggableOf(scope, resourceARN)
 	if !ok {
 		return errIdentityMissing(arnResourceName(resourceARN))
 	}
 	vw := s.view(APIv2)
 	_, err := kernel.Write(c, s.cells, scope, func(st *state, _ clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
-		i := st.find(vw, name)
-		if i < 0 {
-			return struct{}{}, errIdentityMissing(name)
+		if r.template {
+			i := st.findTemplate(vw, r.name)
+			if i < 0 {
+				return struct{}{}, errEmailTemplateMissing(r.name)
+			}
+			fn(&st.Templates[i].Tags, tx)
+			return struct{}{}, nil
 		}
-		fn(&st.Identities[i], tx)
+		i := st.find(vw, r.name)
+		if i < 0 {
+			return struct{}{}, errIdentityMissing(r.name)
+		}
+		fn(&st.Identities[i].Tags, tx)
 		return struct{}{}, nil
 	})
 	return err
 }
 
-// identityNameOf is the identity name of an SES identity ARN in scope. An
-// empty account field is read as the caller's: Terraform builds the ARN
-// from its own account, which is empty under skip_requesting_account_id,
-// the setting understudy's Terraform guide needs at an IP endpoint
-// (apigateway-http.md 13.6 explains why). What AWS answers for such an
-// ARN is unrecorded.
-func identityNameOf(scope aws.Scope, resourceARN string) (string, bool) {
+// taggable is what a tag operation's ResourceArn names in the caller's
+// scope: an identity, or a template when template is set.
+type taggable struct {
+	template bool
+	name     string
+}
+
+// arn is r's full ARN in scope.
+func (r taggable) arn(scope aws.Scope) aws.ARN {
+	if r.template {
+		return templateARN(scope, r.name)
+	}
+	return identityARN(scope, r.name)
+}
+
+// taggableOf reads an SES identity or template ARN in scope. An empty
+// account field is read as the caller's: Terraform builds an identity's
+// ARN from its own account, which is empty under
+// skip_requesting_account_id, the setting understudy's Terraform guide
+// needs at an IP endpoint (apigateway-http.md 13.6 explains why). What AWS
+// answers for such an ARN is unrecorded.
+func taggableOf(scope aws.Scope, resourceARN string) (taggable, bool) {
 	arn, err := aws.ParseARN(resourceARN)
 	if err != nil || arn.Service != "ses" || arn.Partition != scope.Partition.String() ||
 		arn.Region != scope.Region.String() || (arn.Account != "" && arn.Account != scope.Account.String()) {
-		return "", false
+		return taggable{}, false
 	}
-	return strings.CutPrefix(arn.Resource, "identity/")
+	if name, ok := strings.CutPrefix(arn.Resource, "identity/"); ok {
+		return taggable{name: name}, true
+	}
+	if name, ok := strings.CutPrefix(arn.Resource, "template/"); ok {
+		return taggable{template: true, name: name}, true
+	}
+	return taggable{}, false
 }
 
 // arnResourceName is the name a NotFoundException names for an ARN that is
@@ -373,23 +402,23 @@ func arnResourceName(resourceARN string) string {
 	return arn.Resource
 }
 
-// tagResource sets tags on an identity, a key already set taking the new
-// value (ses.md 5.4).
+// tagResource sets tags on an identity or template, a key already set
+// taking the new value (ses.md 5.4).
 func (v *V2) tagResource(_ context.Context, c *kernel.Call, in *sesv2api.TagResourceInput) (*sesv2api.TagResourceOutput, *awserr.Error) {
-	err := v.tagged(c, in.ResourceArn, func(id *identity, _ *kernel.Tx) { id.Tags = mergeTags(id.Tags, in.Tags) })
+	err := v.tagged(c, in.ResourceArn, func(tags *[]tag, _ *kernel.Tx) { *tags = mergeTags(*tags, in.Tags) })
 	if err != nil {
 		return nil, err
 	}
 	return &sesv2api.TagResourceOutput{}, nil
 }
 
-// untagResource removes the named tag keys from an identity; a key it does
-// not carry is ignored.
+// untagResource removes the named tag keys from an identity or template; a
+// key it does not carry is ignored.
 func (v *V2) untagResource(_ context.Context, c *kernel.Call, in *sesv2api.UntagResourceInput) (*sesv2api.UntagResourceOutput, *awserr.Error) {
-	err := v.tagged(c, in.ResourceArn, func(id *identity, tx *kernel.Tx) {
-		before := len(id.Tags)
-		id.Tags = slices.DeleteFunc(id.Tags, func(t tag) bool { return slices.Contains(in.TagKeys, t.Key) })
-		if len(id.Tags) == before {
+	err := v.tagged(c, in.ResourceArn, func(tags *[]tag, tx *kernel.Tx) {
+		before := len(*tags)
+		*tags = slices.DeleteFunc(*tags, func(t tag) bool { return slices.Contains(in.TagKeys, t.Key) })
+		if len(*tags) == before {
 			tx.Unchanged()
 		}
 	})
@@ -399,13 +428,13 @@ func (v *V2) untagResource(_ context.Context, c *kernel.Call, in *sesv2api.Untag
 	return &sesv2api.UntagResourceOutput{}, nil
 }
 
-// listTagsForResource answers an identity's tags, which Terraform reads
-// for its tags (ses.md 9.3).
+// listTagsForResource answers an identity's or template's tags, which
+// Terraform reads for an identity's tags (ses.md 9.3).
 func (v *V2) listTagsForResource(_ context.Context, c *kernel.Call, in *sesv2api.ListTagsForResourceInput) (*sesv2api.ListTagsForResourceOutput, *awserr.Error) {
 	var tags []sesv2api.Tag
-	err := v.tagged(c, in.ResourceArn, func(id *identity, tx *kernel.Tx) {
+	err := v.tagged(c, in.ResourceArn, func(stored *[]tag, tx *kernel.Tx) {
 		tx.Unchanged()
-		tags = id.v2Tags()
+		tags = tagList(*stored)
 	})
 	if err != nil {
 		return nil, err
@@ -444,10 +473,10 @@ func mergeTags(tags []tag, add []sesv2api.Tag) []tag {
 	return tags
 }
 
-// v2Tags is id's tags as v2 answers them, an empty list when it has none.
-func (id *identity) v2Tags() []sesv2api.Tag {
-	out := make([]sesv2api.Tag, 0, len(id.Tags))
-	for _, t := range id.Tags {
+// tagList is tags as v2 answers them, an empty list when there are none.
+func tagList(tags []tag) []sesv2api.Tag {
+	out := make([]sesv2api.Tag, 0, len(tags))
+	for _, t := range tags {
 		out = append(out, sesv2api.Tag{Key: t.Key, Value: t.Value})
 	}
 	return out

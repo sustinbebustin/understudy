@@ -129,8 +129,8 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | logs | 118 | 9 | 0 | 9 | 100 | 1 | 0 |
 | s3 | 112 | 22 | 39 | 25 | 26 | 0 | 3 |
 | secretsmanager | 23 | 1 | 0 | 14 | 8 | 0 | 0 |
-| ses | 71 | 8 | 0 | 7 | 56 | 0 | 1 |
-| sesv2 | 116 | 2 | 0 | 7 | 107 | 0 | 0 |
+| ses | 71 | 10 | 0 | 8 | 53 | 0 | 1 |
+| sesv2 | 116 | 7 | 0 | 7 | 102 | 0 | 0 |
 | sfn | 37 | 7 | 0 | 9 | 21 | 0 | 0 |
 | sns | 42 | 12 | 0 | 7 | 23 | 0 | 3 |
 | sqs | 23 | 16 | 0 | 7 | 0 | 2 | 0 |
@@ -1140,10 +1140,12 @@ Raw operations:
 | CreateTemplate | full | inferred, 1 of 2 claims |  |
 | DeleteIdentity | full | inferred, 2 of 3 claims |  |
 | DeleteTemplate | full | inferred, 1 of 2 claims |  |
+| DeleteVerifiedEmailAddress | full | inferred, 1 of 2 claims |  |
 | GetIdentityVerificationAttributes | full | inferred, 3 of 4 claims |  |
 | GetTemplate | full | inferred, 1 of 2 claims |  |
 | ListIdentities | full | inferred, 2 of 3 claims |  |
 | ListTemplates | full | inferred, 1 of 2 claims |  |
+| ListVerifiedEmailAddresses | full | inferred, 1 of 2 claims |  |
 | UpdateTemplate | full | inferred, 1 of 2 claims |  |
 | GetIdentityNotificationAttributes | partial | inferred, 2 of 3 claims | every identity reports no SNS topics, ForwardingEnabled true and headers disabled; SetIdentityNotificationTopic and the other setters are not implemented |
 | GetSendQuota | partial | inferred, 1 of 2 claims | Max24HourSend and MaxSendRate from the sandbox or production setting; SentLast24Hours counts accepted recipients on the emulator clock, mailbox simulator excluded; the send rate is not enforced; production values -1 and 14 are unrecorded (SES-26) |
@@ -1151,6 +1153,7 @@ Raw operations:
 | SendRawEmail | partial | inferred, 5 of 6 claims | journal-only as SendEmail; the raw MIME is recorded as received, without the Message-ID and Date headers SES would substitute; recipients come from Destinations, else the To, Cc and Bcc headers; X-SES-MESSAGE-TAGS is recorded; ConfigurationSetName, X-SES-CONFIGURATION-SET, the ARN members and the X-SES-*-ARN headers answer NotImplemented |
 | SendTemplatedEmail | partial | inferred, 5 of 6 claims | journal-only as SendEmail; the stored template and TemplateData are recorded, and rendered subject and bodies only for {{name}} and dotted-path tags; other Handlebars constructs record a render gap, and the send is still accepted, as SES accepts before rendering; so do a value TemplateData lacks, a string holding a character Handlebars escapes and any value but a string, boolean or integer, whose rendering on SES is unrecorded; TemplateArn answers NotImplemented |
 | VerifyDomainIdentity | partial | inferred, 2 of 3 claims | the domain stays Pending until understudy.json lists it; DNS is never queried; Failed after 72 hours on the emulator clock |
+| VerifyEmailAddress | partial | inferred, 1 of 2 claims | the identity stays Pending until its verification link under /_understudy/ses/VerificationLink is opened or understudy.json lists it; the verification email is recorded, never sent; Failed after 24 hours on the emulator clock; chosen without a recording (docs/research/ses.md 11.4): the invalid-address answers |
 | VerifyEmailIdentity | partial | inferred, 3 of 4 claims | the identity stays Pending until its verification link under /_understudy/ses/VerificationLink is opened or understudy.json lists it; the verification email is recorded, never sent; Failed after 24 hours on the emulator clock; chosen without a recording (docs/research/ses.md 11.4): the invalid-address answers |
 | CloneReceiptRuleSet | unbound | unassessed |  |
 | CreateConfigurationSet | unbound | unassessed |  |
@@ -1168,7 +1171,6 @@ Raw operations:
 | DeleteReceiptFilter | unbound | unassessed |  |
 | DeleteReceiptRule | unbound | unassessed |  |
 | DeleteReceiptRuleSet | unbound | unassessed |  |
-| DeleteVerifiedEmailAddress | unbound | unassessed |  |
 | DescribeActiveReceiptRuleSet | unbound | unassessed |  |
 | DescribeConfigurationSet | unbound | unassessed |  |
 | DescribeReceiptRule | unbound | unassessed |  |
@@ -1184,7 +1186,6 @@ Raw operations:
 | ListIdentityPolicies | unbound | unassessed |  |
 | ListReceiptFilters | unbound | unassessed |  |
 | ListReceiptRuleSets | unbound | unassessed |  |
-| ListVerifiedEmailAddresses | unbound | unassessed |  |
 | PutConfigurationSetDeliveryOptions | unbound | unassessed |  |
 | PutIdentityPolicy | unbound | unassessed |  |
 | ReorderReceiptRuleSet | unbound | unassessed |  |
@@ -1207,7 +1208,6 @@ Raw operations:
 | UpdateCustomVerificationEmailTemplate | unbound | unassessed |  |
 | UpdateReceiptRule | unbound | unassessed |  |
 | VerifyDomainDkim | unbound | unassessed |  |
-| VerifyEmailAddress | unbound | unassessed |  |
 
 Raw operations:
 
@@ -1219,15 +1219,20 @@ Raw operations:
 
 | Operation | Status | Evidence | Note |
 |---|---|---|---|
+| CreateEmailTemplate | full | unassessed |  |
 | DeleteEmailIdentity | full | unassessed |  |
+| DeleteEmailTemplate | full | unassessed |  |
 | GetEmailIdentity | full | unassessed |  |
+| GetEmailTemplate | full | unassessed |  |
+| ListEmailTemplates | full | unassessed |  |
+| UpdateEmailTemplate | full | unassessed |  |
 | CreateEmailIdentity | partial | unassessed | email identities start PENDING with DKIM NOT_STARTED; domains get three random Easy DKIM tokens and stay PENDING; DkimSigningAttributes are stored, never used; verification as VerifyEmailIdentity; ConfigurationSetName answers NotImplemented |
 | GetAccount | partial | unassessed | ProductionAccessEnabled and SendQuota from understudy state; SendingEnabled true, since account sending cannot be paused yet; EnforcementStatus HEALTHY; no dedicated IP, VDM, pricing, suppression or account details |
 | ListEmailIdentities | partial | unassessed | the GET /v2/email/identities binding sent by SDKs generated before 2026-09-29 is not routed and answers sesv2's unknown operation |
-| ListTagsForResource | partial | unassessed | identity ARNs only; a template ARN answers NotFoundException until the v2 template operations land; an identity ARN with an empty account field names the caller's account, as Terraform sends it under skip_requesting_account_id (what AWS answers is unrecorded) |
+| ListTagsForResource | partial | unassessed | identity and template ARNs; an ARN with an empty account field names the caller's account, as Terraform sends an identity's under skip_requesting_account_id (what AWS answers is unrecorded) |
 | SendEmail | partial | unassessed | journal-only as the v1 sends, for Simple (with Headers and Attachments), Raw and Template content; Template content, stored by TemplateName or inline, renders and records as SendTemplatedEmail does; FeedbackForwardingEmailAddress must be verified, as ReturnPath (inferred); ConfigurationSetName, ConfigurationOverrides, EndpointId, TenantName, ListManagementOptions, Template.TemplateArn and the identity ARN members answer NotImplemented |
-| TagResource | partial | unassessed | identity ARNs only; a template ARN answers NotFoundException until the v2 template operations land; an identity ARN with an empty account field names the caller's account, as Terraform sends it under skip_requesting_account_id (what AWS answers is unrecorded) |
-| UntagResource | partial | unassessed | identity ARNs only; a template ARN answers NotFoundException until the v2 template operations land; an identity ARN with an empty account field names the caller's account, as Terraform sends it under skip_requesting_account_id (what AWS answers is unrecorded) |
+| TagResource | partial | unassessed | identity and template ARNs; an ARN with an empty account field names the caller's account, as Terraform sends an identity's under skip_requesting_account_id (what AWS answers is unrecorded) |
+| UntagResource | partial | unassessed | identity and template ARNs; an ARN with an empty account field names the caller's account, as Terraform sends an identity's under skip_requesting_account_id (what AWS answers is unrecorded) |
 | AssociateEmailIdentityCertificate | unbound | unassessed |  |
 | BatchGetMetricData | unbound | unassessed |  |
 | CancelExportJob | unbound | unassessed |  |
@@ -1239,7 +1244,6 @@ Raw operations:
 | CreateDedicatedIpPool | unbound | unassessed |  |
 | CreateDeliverabilityTestReport | unbound | unassessed |  |
 | CreateEmailIdentityPolicy | unbound | unassessed |  |
-| CreateEmailTemplate | unbound | unassessed |  |
 | CreateExportJob | unbound | unassessed |  |
 | CreateImportJob | unbound | unassessed |  |
 | CreateMultiRegionEndpoint | unbound | unassessed |  |
@@ -1252,7 +1256,6 @@ Raw operations:
 | DeleteCustomVerificationEmailTemplate | unbound | unassessed |  |
 | DeleteDedicatedIpPool | unbound | unassessed |  |
 | DeleteEmailIdentityPolicy | unbound | unassessed |  |
-| DeleteEmailTemplate | unbound | unassessed |  |
 | DeleteMultiRegionEndpoint | unbound | unassessed |  |
 | DeleteSuppressedDestination | unbound | unassessed |  |
 | DeleteTenant | unbound | unassessed |  |
@@ -1273,7 +1276,6 @@ Raw operations:
 | GetDomainStatisticsReport | unbound | unassessed |  |
 | GetEmailAddressInsights | unbound | unassessed |  |
 | GetEmailIdentityPolicies | unbound | unassessed |  |
-| GetEmailTemplate | unbound | unassessed |  |
 | GetExportJob | unbound | unassessed |  |
 | GetImportJob | unbound | unassessed |  |
 | GetMessageInsights | unbound | unassessed |  |
@@ -1289,7 +1291,6 @@ Raw operations:
 | ListDeliverabilityTestReports | unbound | unassessed |  |
 | ListDomainDeliverabilityCampaigns | unbound | unassessed |  |
 | ListEmailIdentityCertificates | unbound | unassessed |  |
-| ListEmailTemplates | unbound | unassessed |  |
 | ListExportJobs | unbound | unassessed |  |
 | ListImportJobs | unbound | unassessed |  |
 | ListMultiRegionEndpoints | unbound | unassessed |  |
@@ -1332,7 +1333,6 @@ Raw operations:
 | UpdateContactList | unbound | unassessed |  |
 | UpdateCustomVerificationEmailTemplate | unbound | unassessed |  |
 | UpdateEmailIdentityPolicy | unbound | unassessed |  |
-| UpdateEmailTemplate | unbound | unassessed |  |
 | UpdateReputationEntityCustomerManagedStatus | unbound | unassessed |  |
 | UpdateReputationEntityPolicy | unbound | unassessed |  |
 

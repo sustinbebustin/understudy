@@ -23,12 +23,19 @@ import (
 // action alone: the generated lists hold no other ses action a call of
 // these operations needs (contract 2.6).
 func (s *Service) bindIdentities(b sesapi.Binder) {
-	b.VerifyEmailIdentity(s.verifyEmailIdentity,
-		registry.Partial{Note: "the identity stays Pending until its verification link under " + VerificationLinkPath +
-			" is opened or understudy.json lists it; the verification email is recorded, never sent; Failed after 24 hours on the emulator clock; " +
-			"chosen without a recording (docs/research/ses.md 11.4): the invalid-address answers"},
+	verifyEmail := registry.Partial{Note: "the identity stays Pending until its verification link under " + VerificationLinkPath +
+		" is opened or understudy.json lists it; the verification email is recorded, never sent; Failed after 24 hours on the emulator clock; " +
+		"chosen without a recording (docs/research/ses.md 11.4): the invalid-address answers"}
+	b.VerifyEmailIdentity(s.verifyEmailIdentity, verifyEmail,
 		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
 		identitiesNamed(func(in *sesapi.VerifyEmailIdentityInput) []string { return []string{in.EmailAddress} }))
+	b.VerifyEmailAddress(s.verifyEmailAddress, verifyEmail,
+		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
+		identitiesNamed(func(in *sesapi.VerifyEmailAddressInput) []string { return []string{in.EmailAddress} }))
+	b.ListVerifiedEmailAddresses(s.listVerifiedEmailAddresses, registry.Full{}, kernel.WithoutSecondaryActions(), refusedConditionKeys())
+	b.DeleteVerifiedEmailAddress(s.deleteVerifiedEmailAddress, registry.Full{},
+		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
+		identitiesNamed(func(in *sesapi.DeleteVerifiedEmailAddressInput) []string { return []string{in.EmailAddress} }))
 	b.VerifyDomainIdentity(s.verifyDomainIdentity,
 		registry.Partial{Note: "the domain stays Pending until understudy.json lists it; DNS is never queried; Failed after 72 hours on the emulator clock"},
 		kernel.WithoutSecondaryActions(), refusedConditionKeys(),

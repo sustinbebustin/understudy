@@ -14,7 +14,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
-// template is one v1 email template (ses.md 7). Each part is kept exactly
+// template is one email template, v1's or v2's (ses.md 7). Each part is kept exactly
 // as given, nil when the request left it out, so GetTemplate echoes the
 // parts given and omits the rest (ses.md 9.4).
 type template struct {
@@ -22,6 +22,9 @@ type template struct {
 	Subject *string `json:"subject,omitempty"`
 	Text    *string `json:"text,omitempty"`
 	HTML    *string `json:"html,omitempty"`
+	// Tags are the template's v2 tags in the order they were first set;
+	// v1 neither sets nor answers them.
+	Tags []tag `json:"tags,omitempty"`
 	// API is the API whose call created the template, which switch
 	// ses.store.shared-v1-v2 reads when it keeps the APIs apart.
 	API     API           `json:"api"`

@@ -80,6 +80,7 @@ func NewV2(d kernel.ServiceDeps, svc *Service) *V2 {
 	v := &V2{svc: svc}
 	b := sesv2api.NewBinder(d.Binder)
 	v.bindV2(b)
+	v.bindV2Templates(b)
 	v.bindV2Send(b)
 	return v
 }

@@ -140,6 +140,9 @@ const (
 	// ListEmailIdentitiesMaxPageSize is the largest PageSize (model,
 	// com.amazonaws.sesv2#ListEmailIdentitiesRequest$PageSize).
 	ListEmailIdentitiesMaxPageSize = 1000
+	// ListEmailTemplatesMaxPageSize is the largest PageSize, whose least
+	// is 1 (model, com.amazonaws.sesv2#ListEmailTemplatesRequest$PageSize).
+	ListEmailTemplatesMaxPageSize = 100
 )
 
 // Limits whose exact value is UNVERIFIED (SES-29).
@@ -154,6 +157,10 @@ const (
 	// ListEmailIdentitiesDefaultPageSize is the page size of a
 	// ListEmailIdentities without PageSize, or with PageSize 0.
 	ListEmailIdentitiesDefaultPageSize = 100
+	// ListEmailTemplatesDefaultPageSize is the page size of a
+	// ListEmailTemplates without PageSize, read from v1 ListTemplates'
+	// documented default (model, com.amazonaws.ses#ListTemplatesRequest$MaxItems).
+	ListEmailTemplatesDefaultPageSize = ListTemplatesDefaultItems
 )
 
 // MaxStoredMessages is how many sent messages the store keeps per account
@@ -210,6 +217,10 @@ const (
 	// PageSizeText answers ListEmailIdentities with PageSize above
 	// ListEmailIdentitiesMaxPageSize; %d is that limit.
 	PageSizeText = "PageSize must be between 0 and %d."
+	// TemplatePageSizeText answers ListEmailTemplates with PageSize
+	// outside 1 to ListEmailTemplatesMaxPageSize; %d is that limit
+	// (SES-29).
+	TemplatePageSizeText = "PageSize must be between 1 and %d."
 	// IdentityLimitText answers an identity past MaxIdentities; %d is
 	// MaxIdentities.
 	IdentityLimitText = "Maximum number of identities (%d) reached."
@@ -220,7 +231,8 @@ const (
 	// is MaxTemplateBytes.
 	TemplateTooLargeText = "Template text and HTML parts exceed %d bytes."
 	// TemplateExistsText and TemplateMissingText answer a duplicate and a
-	// missing v1 template; %s is the template name (ses.md 7, SES-18).
+	// missing template, in v1 and v2; %s is the template name (ses.md 7,
+	// SES-18).
 	TemplateExistsText  = "Template %s already exists."
 	TemplateMissingText = "Template %s does not exist."
 	// IdentityExistsText and IdentityMissingText answer v2
