@@ -37,9 +37,11 @@ func (s *Service) setMonitoring(c *kernel.Call, name, arn *string, names []kines
 		return nil, err
 	}
 	named := expandMetrics(names)
+	// before and after are copies: the response is encoded after the lock
+	// is released, so it never aliases state (ADR 0005).
 	var before, after []kinesisapi.MetricsName
 	err = s.updateStream(c, r, func(str *Stream, _ clock.Instant) *awserr.Error {
-		before = str.Metrics
+		before = append([]kinesisapi.MetricsName{}, str.Metrics...)
 		after = make([]kinesisapi.MetricsName, 0, len(named))
 		for _, m := range metricNames() {
 			had, asked := slices.Contains(before, m), slices.Contains(named, m)
@@ -47,7 +49,7 @@ func (s *Service) setMonitoring(c *kernel.Call, name, arn *string, names []kines
 				after = append(after, m)
 			}
 		}
-		str.Metrics = after
+		str.Metrics = slices.Clone(after)
 		return nil
 	})
 	if err != nil {
@@ -57,7 +59,7 @@ func (s *Service) setMonitoring(c *kernel.Call, name, arn *string, names []kines
 	return &kinesisapi.EnhancedMonitoringOutput{
 		StreamName:               new(r.name),
 		StreamARN:                &stream,
-		CurrentShardLevelMetrics: append([]kinesisapi.MetricsName{}, before...),
+		CurrentShardLevelMetrics: before,
 		DesiredShardLevelMetrics: after,
 	}, nil
 }
