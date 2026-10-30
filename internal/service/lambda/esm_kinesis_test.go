@@ -94,7 +94,8 @@ func (s *fakeKinesis) summary(_ context.Context, c *kernel.Call, in *kinesisapi.
 	}
 	return &kinesisapi.DescribeStreamSummaryOutput{StreamDescriptionSummary: kinesisapi.StreamDescriptionSummary{
 		StreamName: "clicks", StreamARN: kinesisARN, StreamStatus: "ACTIVE", RetentionPeriodHours: 24, OpenShardCount: 1,
-		EnhancedMonitoring: []kinesisapi.EnhancedMetrics{{ShardLevelMetrics: []kinesisapi.MetricsName{}}},
+		StreamCreationTimestamp: s.k.Clock.Now().Wire(), // required member of StreamDescriptionSummary (kinesis.md 4.4)
+		EnhancedMonitoring:      []kinesisapi.EnhancedMetrics{{ShardLevelMetrics: []kinesisapi.MetricsName{}}},
 	}}, nil
 }
 

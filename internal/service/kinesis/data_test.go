@@ -238,14 +238,17 @@ func TestGetShardIteratorRefusals(t *testing.T) {
 		invalidArg(h, "another shard's number", fail(h, kinesisapi.OpGetShardIterator, get(kinesisapi.GetShardIteratorInput{ShardIteratorType: kinesisapi.ShardIteratorTypeAtSequenceNumber, StartingSequenceNumber: new(s1)})),
 			"Invalid StartingSequenceNumber. It encodes "+shardID(1)+", while it was used in a call to a shard with "+shardID(0))
 	})
-	// Under decimal-56 only the malformed check applies (contract 3.5).
+	// Under decimal-56 every number the model's SequenceNumber pattern admits
+	// decodes, so a non-number is refused by the generated validator with
+	// ValidationException before the handler (kinesis.md 3.4, 13.3; identity
+	// UNVERIFIED, KIN-07).
 	run(t, kinesis.Options{SequenceLayout: kinesis.LayoutDecimal56}, func(h *harness) {
 		h.create("s", 1)
-		invalidArg(h, "not a number", fail(h, kinesisapi.OpGetShardIterator, &kinesisapi.GetShardIteratorInput{
+		wantErr(h, "not a number", fail(h, kinesisapi.OpGetShardIterator, &kinesisapi.GetShardIteratorInput{
 			StreamName: new("s"), ShardId: shardID(0),
 			ShardIteratorType: kinesisapi.ShardIteratorTypeAtSequenceNumber, StartingSequenceNumber: new("12x"),
-		}),
-			"StartingSequenceNumber 12x used in GetShardIterator on shard "+shardID(0)+" in stream s under account "+account+" is invalid.")
+		}), "ValidationException", 400,
+			"1 validation error detected: Value '12x' at 'startingSequenceNumber' failed to satisfy constraint: Member must satisfy regular expression pattern: (0|([1-9]\\d{0,128}))")
 	})
 }
 

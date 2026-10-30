@@ -467,8 +467,12 @@ func TestStreamTagLimits(t *testing.T) {
 			"Tag key aws:x uses the reserved prefix aws:.")
 		consumer := arnOf("s") + "/consumer/c:1540591608"
 		wantNotImplemented(h, "consumer ARN", fail(h, kinesisapi.OpTagResource, &kinesisapi.TagResourceInput{ResourceARN: consumer, Tags: map[string]string{"a": "b"}}), "tags on Kinesis consumers and channels", "TagResource")
+		// The value fails the model's ResourceARN pattern, so the generated
+		// validator refuses it with ValidationException before any hand
+		// check (kinesis.md 13.3; identity UNVERIFIED, KIN-07).
 		other := "arn:aws:kinesis:us-east-1:" + account + ":thing/x"
-		invalidArg(h, "other ARN", fail(h, kinesisapi.OpTagResource, &kinesisapi.TagResourceInput{ResourceARN: other, Tags: map[string]string{"a": "b"}}), "Invalid ResourceARN "+other+".")
+		wantErr(h, "other ARN", fail(h, kinesisapi.OpTagResource, &kinesisapi.TagResourceInput{ResourceARN: other, Tags: map[string]string{"a": "b"}}), "ValidationException", 400,
+			"1 validation error detected: Value '"+other+"' at 'resourceARN' failed to satisfy constraint: Member must satisfy regular expression pattern: arn:aws.*:kinesis:.*:\\d{12}:.*(stream|channel)/\\S+")
 	})
 }
 
@@ -561,8 +565,12 @@ func TestStreamIdentification(t *testing.T) {
 			return fail(h, kinesisapi.OpDescribeStreamSummary, &in)
 		}
 		invalidArg(h, "neither", sum(kinesisapi.DescribeStreamSummaryInput{}), "Either StreamName or StreamARN must be provided.")
+		// The value fails the model's StreamARN pattern, so the generated
+		// validator refuses it with ValidationException before any hand
+		// check (kinesis.md 13.3; identity UNVERIFIED, KIN-07).
 		bad := "arn:aws:kinesis:us-east-1:" + account + ":table/s"
-		invalidArg(h, "not a stream ARN", sum(kinesisapi.DescribeStreamSummaryInput{StreamARN: new(bad)}), "Invalid StreamARN "+bad+".")
+		wantErr(h, "not a stream ARN", sum(kinesisapi.DescribeStreamSummaryInput{StreamARN: new(bad)}), "ValidationException", 400,
+			"1 validation error detected: Value '"+bad+"' at 'streamARN' failed to satisfy constraint: Member must satisfy regular expression pattern: arn:aws.*:kinesis:.*:\\d{12}:stream/\\S+")
 		invalidArg(h, "disagree", sum(kinesisapi.DescribeStreamSummaryInput{StreamName: new("s"), StreamARN: new(arnOf("t"))}),
 			"StreamName s and StreamARN "+arnOf("t")+" do not name the same stream.")
 		otherAccount := "arn:aws:kinesis:us-east-1:111111111111:stream/s"
