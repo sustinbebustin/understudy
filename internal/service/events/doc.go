@@ -146,4 +146,10 @@
 //     takes its group from the matched event. Where the path selects no
 //     string, number or boolean, AWS's behavior is unrecorded; understudy
 //     journals a dropped delivery instead of guessing a group.
+//   - Events of other AWS services, such as CloudWatch alarm state and
+//     configuration changes, arrive through the internal operation
+//     PutServiceEventInternal on the default bus of the call's scope,
+//     stamped with the admission instant to the second, and match rules as
+//     PutEvents events do; their aws. source is not refused, since the
+//     sender is AWS (cloudwatch-alarms.md 12.4).
 package events

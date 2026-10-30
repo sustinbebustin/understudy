@@ -115,6 +115,7 @@ func New(d kernel.ServiceDeps, _ Options) *Service {
 	s.bindTags(b)
 	s.bindTargets(b)
 	s.bindEvents(b)
+	s.bindServiceEvents(b)
 	declareAccess(d.Binder)
 	return s
 }

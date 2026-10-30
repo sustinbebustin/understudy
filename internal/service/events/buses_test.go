@@ -127,7 +127,10 @@ func TestBusOperationsCoverage(t *testing.T) {
 			"ListRuleNamesByTarget": registry.Partial{Note: foreign},
 			"ListTargetsByRule":     registry.Partial{Note: foreign},
 			"RemoveTargets":         registry.Partial{Note: foreign},
-			"TestEventPattern":      registry.Full{},
+			// The internal operation AWS services' events arrive by
+			// (cloudwatch-alarms.md 12.4).
+			"PutServiceEventInternal": registry.Full{},
+			"TestEventPattern":        registry.Full{},
 		}
 		for _, op := range eventbridgeapi.Service().Operations {
 			status := h.Kernel.Bindings().Status(op)
