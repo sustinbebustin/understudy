@@ -114,6 +114,8 @@ func (s *Service) bindMappings(b lambdaapi.Binder) {
 		"under iam.enforce=enforce an SQS mapping's execution role must be allowed sqs:GetQueueAttributes on the queue, where AWS is said to check sqs:ReceiveMessage, " +
 		"and a stream mapping's dynamodb:DescribeStream on the stream, and at LATEST dynamodb:GetShardIterator and dynamodb:GetRecords (lambda.esm.create-denied-text); " +
 		"a role lacking only dynamodb:ListStreams, or at TRIM_HORIZON only dynamodb:GetShardIterator or dynamodb:GetRecords, is accepted, where whether AWS refuses it is UNVERIFIED (iam-enforcement-surfaces.md 8.6); " +
+		"a Kinesis mapping's role must be allowed kinesis:DescribeStreamSummary on the stream, and at LATEST kinesis:ListShards, kinesis:GetShardIterator and kinesis:GetRecords; " +
+		"a role lacking only those reads at TRIM_HORIZON is accepted, where whether AWS refuses it is UNVERIFIED (iam-enforcement-surfaces.md 8.6); " +
 		"a role refused its polls or stream reads leaves the mapping Enabled and invoking nothing (lambda.esm.permission-loss)"
 	b.CreateEventSourceMapping(s.createMapping, partial(note), kernel.WithValidator(validateCreateMapping))
 	b.GetEventSourceMapping(s.getMapping, full())

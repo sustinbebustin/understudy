@@ -42,11 +42,14 @@ func TestDynamoDBStreamsCoverageNotes(t *testing.T) {
 	// Kinesis stream, and the re-enable clause (lambda-stream-sources.md 7.1)
 	// last in the UNVERIFIED list.
 	esm := "SQS queues, DynamoDB streams and Kinesis data streams; serve polls the source and invokes the function with each batch; Kinesis stream consumers, AT_TIMESTAMP on a Kinesis stream, ParallelizationFactor above 1, BisectBatchOnFunctionError, TumblingWindowInSeconds above 0, a valid FilterCriteria on a stream and an S3 on-failure destination answer 501; a stream is read as soon as it receives a record rather than at AWS's polling rate (4 per second for DynamoDB, once per second for Kinesis), which is used as the delay before a retry; UNVERIFIED (lambda-stream-sources.md 3.3, 3.4, 3.7, 4.2, 5.1, 5.3, 5.5, 5.6, 7.1): the text refusing MaximumRecordAgeInSeconds 0 to 59, an explicit BatchSize above 10 without a window being accepted on a stream, members of the other source type being ignored, destination existence checked only at delivery, a retried batch keeping its records, the 6 MB limit counted over the serialized event, record age measured from the record's arrival in the stream, RetryAttemptsExhausted reported when the last retry fails after the records have also passed their age, one on-failure record per expired record, an itemIdentifier outside the batch counting as complete failure, batchItemFailures keys matched case-sensitively, records lost to stream retention dropped without an on-failure record, an on-failure record the execution role may not send dropped with a journal entry, LastProcessingResult unchanged by a failure, on-failure messages without attributes, and records written while a Kinesis mapping is disabled being delivered after re-enable; MetricsConfig is stored, no metrics are emitted"
-	// The iam.enforce clause: 5b's SQS sentence, with A11's stream reads
-	// (spec "Enforce matrix" rows 2-3; iam-enforcement-surfaces.md 8.6).
+	// The iam.enforce clause: 5b's SQS sentence, with A11's DynamoDB stream
+	// reads and B6's Kinesis reads (spec "Enforce matrix" rows 2-3;
+	// iam-enforcement-surfaces.md 8.6).
 	esm += "; under iam.enforce=enforce an SQS mapping's execution role must be allowed sqs:GetQueueAttributes on the queue, where AWS is said to check sqs:ReceiveMessage, " +
 		"and a stream mapping's dynamodb:DescribeStream on the stream, and at LATEST dynamodb:GetShardIterator and dynamodb:GetRecords (lambda.esm.create-denied-text); " +
 		"a role lacking only dynamodb:ListStreams, or at TRIM_HORIZON only dynamodb:GetShardIterator or dynamodb:GetRecords, is accepted, where whether AWS refuses it is UNVERIFIED (iam-enforcement-surfaces.md 8.6); " +
+		"a Kinesis mapping's role must be allowed kinesis:DescribeStreamSummary on the stream, and at LATEST kinesis:ListShards, kinesis:GetShardIterator and kinesis:GetRecords; " +
+		"a role lacking only those reads at TRIM_HORIZON is accepted, where whether AWS refuses it is UNVERIFIED (iam-enforcement-surfaces.md 8.6); " +
 		"a role refused its polls or stream reads leaves the mapping Enabled and invoking nothing (lambda.esm.permission-loss)"
 	want["lambda.CreateEventSourceMapping"] = esm
 	want["lambda.UpdateEventSourceMapping"] = esm
