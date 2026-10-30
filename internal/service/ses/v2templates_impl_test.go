@@ -58,6 +58,16 @@ func TestEmailTemplatesFollowTheStoreSwitch(t *testing.T) {
 		_, err := call(h, sesv2api.OpGetEmailTemplate, &sesv2api.GetEmailTemplateInput{TemplateName: "v1"})
 		wantErr(h, err, sesv2api.IdentityNotFoundException(), fmt.Sprintf(ses.TemplateMissingText, "v1"))
 		h.createEmailTemplate("v1", sesv2api.EmailTemplateContent{Subject: new("s")})
+		h.createEmailTemplate("v2only", sesv2api.EmailTemplateContent{})
+		var v1 []string
+		for _, m := range must(h, sesapi.OpListTemplates, &sesapi.ListTemplatesInput{}).TemplatesMetadata {
+			if m.Name != nil {
+				v1 = append(v1, *m.Name)
+			}
+		}
+		if !slices.Equal(v1, []string{"v1"}) {
+			h.Errorf("switch ses.store.shared-v1-v2=%s: v1 ListTemplates = %q, want only v1's template", ses.StoreSeparate, v1)
+		}
 	})
 }
 

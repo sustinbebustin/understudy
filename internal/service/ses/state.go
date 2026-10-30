@@ -124,6 +124,17 @@ func (s *state) identities(v view) int {
 	return n
 }
 
+// templates is the number of templates in v, which MaxTemplates bounds.
+func (s *state) templates(v view) int {
+	n := 0
+	for i := range s.Templates {
+		if v.owns(s.Templates[i].API) {
+			n++
+		}
+	}
+	return n
+}
+
 // identity is one verified or verifying email address or domain (ses.md
 // 5.1).
 type identity struct {

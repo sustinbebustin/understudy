@@ -117,7 +117,7 @@ func (s *Service) createTemplate(_ context.Context, c *kernel.Call, in *sesapi.C
 			return struct{}{}, sesapi.ErrAlreadyExistsExceptionMembers(fmt.Sprintf(TemplateExistsText, t.TemplateName),
 				sesapi.AlreadyExistsException{Name: new(t.TemplateName)})
 		}
-		if len(st.Templates) >= MaxTemplates {
+		if st.templates(s.view(APIv1)) >= MaxTemplates {
 			return struct{}{}, sesapi.ErrLimitExceededException(fmt.Sprintf(TemplateLimitText, MaxTemplates))
 		}
 		st.Templates = append(st.Templates, template{Name: t.TemplateName, Subject: t.SubjectPart, Text: t.TextPart, HTML: t.HtmlPart, API: APIv1, Created: now})
@@ -142,7 +142,7 @@ func (s *Service) getTemplate(_ context.Context, c *kernel.Call, in *sesapi.GetT
 			return nil
 		}
 		t := &st.Templates[i]
-		return &sesapi.Template{TemplateName: t.Name, SubjectPart: t.Subject, TextPart: t.Text, HtmlPart: t.HTML}
+		return &sesapi.Template{TemplateName: t.Name, SubjectPart: clonePart(t.Subject), TextPart: clonePart(t.Text), HtmlPart: clonePart(t.HTML)}
 	})
 	if t == nil {
 		return nil, errTemplateMissing(in.TemplateName)
@@ -212,12 +212,15 @@ func (s *Service) listTemplates(_ context.Context, c *kernel.Call, in *sesapi.Li
 		start = n
 	}
 	var all []sesapi.TemplateMetadata
+	vw := s.view(APIv1)
 	if cell, ok := s.cells.Lookup(c.Scope()); ok {
 		all = store.Read(cell, func(st *state) []sesapi.TemplateMetadata {
-			out := make([]sesapi.TemplateMetadata, len(st.Templates))
+			var out []sesapi.TemplateMetadata
 			for i := range st.Templates {
 				t := &st.Templates[i]
-				out[i] = sesapi.TemplateMetadata{Name: new(t.Name), CreatedTimestamp: new(t.Created.Wire())}
+				if vw.owns(t.API) {
+					out = append(out, sesapi.TemplateMetadata{Name: new(t.Name), CreatedTimestamp: new(t.Created.Wire())})
+				}
 			}
 			return out
 		})

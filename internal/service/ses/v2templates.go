@@ -77,7 +77,7 @@ func (v *V2) createEmailTemplate(_ context.Context, c *kernel.Call, in *sesv2api
 		if st.findTemplate(vw, in.TemplateName) >= 0 {
 			return struct{}{}, sesv2api.ErrAlreadyExistsException(fmt.Sprintf(TemplateExistsText, in.TemplateName))
 		}
-		if len(st.Templates) >= MaxTemplates {
+		if st.templates(vw) >= MaxTemplates {
 			return struct{}{}, sesv2api.ErrLimitExceededException(fmt.Sprintf(TemplateLimitText, MaxTemplates))
 		}
 		st.Templates = append(st.Templates, template{
