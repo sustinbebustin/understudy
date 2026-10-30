@@ -261,6 +261,26 @@ The control-plane rates matter only for the recording queue; understudy should n
 - Documentation examples: REST API ids `fugvjdxtri`, `vaz7da96z6`, `7zw9uyk9kl`, `z0vprf0mdh` (10 lower-case alphanumerics); root resource ids `svzr2028x8` and `3kzxbg5sa2` (10, both with path `/`); child resource ids `6sxz2j`, `rjkmth`, `xdsvhp`, `x3o5ih` (6); deployment id `vakw79` (6); request validator `jgpyy6` (6) ([D] API_PutIntegration, [API_GetResources](https://docs.aws.amazon.com/apigateway/latest/api/API_GetResources.html) example, API_CreateStage example, api-gateway-method-settings-method-request, handle-errors-in-lambda-integration). No example shows a model id. The exact alphabet and length rules are UNVERIFIED (APIGW1-02); LocalStack masks every id.
 - execute-api ARNs for permissions: `arn:aws:execute-api:{region}:{account-id}:{api-id}/{stage}/{http-method}/{resource-path}` ([D] arn-format-reference). Terraform's `execution_arn` is `arn:aws:execute-api:<region>:<account>:<api-id>` and the stage's is `.../<api-id>/<stage>` (rest_api.go:L1014-L1016, stage.go:L669-L671); `aws_lambda_permission.source_arn` is usually `${execution_arn}/*/*`.
 
+Control-plane IAM resources. As for HTTP APIs (`apigateway-http.md` 8.1), the action of a call is `apigateway:<the method of its HTTP binding>` (2.2): "The API-managing `Action` expression has the format `apigateway:{action}`, where {action} is one of the following API Gateway actions: GET, POST, PUT, DELETE, PATCH (to update resources), or *", and "API Gateway resources have the following ARN format: `arn:aws:apigateway:{region}::{resource-path-specifier}`" ([D] [How Amazon API Gateway works with IAM](https://docs.aws.amazon.com/apigateway/latest/developerguide/security_iam_service-with-iam.html), Actions and Resources). `third_party/aws-service-reference/actions.json` (retrieved 2026-10-26) lists `apigateway:<method>` first for every operation below, plus `apigateway:PUT` and `apigateway:UpdateRestApiPolicy` on CreateRestApi, `apigateway:UpdateRestApiPolicy` on UpdateRestApi, `apigateway:PUT` on CreateStage, `iam:PassRole` on PutIntegration and UpdateIntegration, and `apigateway:POST`, `apigateway:PUT` and `apigateway:PATCH` beside TagResource's and UntagResource's methods; the method is the primary action (`iamPrimary`, as in `codegen/services/apigatewayv2.json`). The resource of a call is the ARN whose path is the operation's URI (2.2): every row below names a row of the ARN reference's "REST API resources" table ([D] [ARN reference](https://docs.aws.amazon.com/apigateway/latest/developerguide/arn-format-reference.html); read in the archived Markdown mirror awsdocs/amazon-api-gateway-developer-guide at `fbdb3eb6ae6e2bd89c59513e5ea414b002594a24`, doc_source/arn-format-reference.md, because the live page renders only in a browser). Form: collection for creates and lists, item for one resource, tags for the tag operations. Grounds: "path" where the ARN reference row whose path is the URI is the only source; open ones are UNVERIFIED with APIGW1-22.
+
+| Operations | Action | Form | Resource (after `arn:aws:apigateway:<region>::`) | ARN reference row | Grounds |
+|---|---|---|---|---|---|
+| CreateRestApi / GetRestApis | POST / GET | collection | `/restapis` | RestApis | path |
+| GetRestApi, UpdateRestApi, DeleteRestApi | GET, PATCH, DELETE | item | `/restapis/<api-id>` | RestApi | path |
+| GetResources | GET | collection | `/restapis/<api-id>/resources` | Resources | path |
+| CreateResource | POST | item (of the parent) | `/restapis/<api-id>/resources/<parent-id>` | Resource | path: the URI names the parent, so the parent's item row; whether AWS evaluates the parent's Resource or the Resources collection is UNVERIFIED (APIGW1-22) |
+| GetResource, UpdateResource, DeleteResource | GET, PATCH, DELETE | item | `/restapis/<api-id>/resources/<resource-id>` | Resource | path |
+| PutMethod, GetMethod, UpdateMethod, DeleteMethod | PUT, GET, PATCH, DELETE | item | `/restapis/<api-id>/resources/<resource-id>/methods/<http-method>` | Method | path |
+| PutMethodResponse, GetMethodResponse, UpdateMethodResponse, DeleteMethodResponse | PUT, GET, PATCH, DELETE | item | `/restapis/<api-id>/resources/<resource-id>/methods/<http-method>/responses/<status-code>` | MethodResponse | path |
+| PutIntegration, GetIntegration, UpdateIntegration, DeleteIntegration | PUT, GET, PATCH, DELETE | item | `/restapis/<api-id>/resources/<resource-id>/methods/<http-method>/integration` | Integration | path |
+| PutIntegrationResponse, GetIntegrationResponse, UpdateIntegrationResponse, DeleteIntegrationResponse | PUT, GET, PATCH, DELETE | item | `/restapis/<api-id>/resources/<resource-id>/methods/<http-method>/integration/responses/<status-code>` | IntegrationResponse | path |
+| CreateDeployment, GetDeployments | POST, GET | collection | `/restapis/<api-id>/deployments` | Deployments | path; whether a CreateDeployment with `stageName` also needs a permission on the stage it creates or repoints is UNVERIFIED (APIGW1-22) |
+| GetDeployment, UpdateDeployment, DeleteDeployment | GET, PATCH, DELETE | item | `/restapis/<api-id>/deployments/<deployment-id>` | Deployment | path |
+| CreateStage, GetStages | POST, GET | collection | `/restapis/<api-id>/stages` | Stages | path |
+| GetStage, UpdateStage, DeleteStage | GET, PATCH, DELETE | item | `/restapis/<api-id>/stages/<stage-name>` | Stage | path |
+| TagResource, GetTags, UntagResource | PUT, GET, DELETE | tags | `/tags/<url-encoded resource ARN>` | Tags (not in the archived mirror; `apigateway-http.md` 8.1 reads it in the live page's REST table) | UNVERIFIED (APIGW1-22): the form, which bytes are encoded, and a second pair on the tagged resource itself: "To get the tags for a resource, the user must have `GET` permissions for that resource. To update the tags for a resource, the user must have `PATCH` permissions for that resource" ([D] [tags and IAM](https://docs.aws.amazon.com/apigateway/latest/developerguide/apigateway-tagging-iam-policy.html), "Allow tagging operations") |
+| `InvokeRestApi` (raw) | none | | | | 12.2 |
+
 ## 4. Data plane: invoking a deployed stage
 
 ### 4.1 Invoke URL and what understudy can serve
@@ -688,59 +708,89 @@ All under localstack@8b9a79f tests/aws/services/apigateway/. Counts are test ids
 ### 12.1 Edge and codec
 
 1. Generate `internal/api/apigatewayapi` from the pinned v1 model like the other restJson1 services and register it as the service `apigateway` under signing name `apigateway`, beside `apigatewayv2` (roadmap item 6 does v2 first; [apigateway-http.md](apigateway-http.md) covers it). ADR 0019 (accepted 2026-10-26) makes them two registry services on one signing name: the registry accepts the pair because the `/v2/` prefix keeps their route tables disjoint (2.1), refuses an overlap at boot with `OverlappingRouteTables`, and tries the REST services of the name in registration order, so a request neither table matches is the first service's unknown operation. A single merged service was rejected there because the models share operation names (`CreateDeployment`, `TagResource`).
-2. Wire names from the model: `item` for list members, `httpMethod` for `integrationHttpMethod` (2.3); `createdDate` and `lastUpdatedDate` as epoch seconds; `PutIntegrationResponse`/`GetIntegrationResponse` and `GetIntegration` serialize empty-string template values as JSON `null` (switch `apigateway.templates.empty-value`, 12.3); the policy string escaped (2.3).
+2. Wire names from the model: `item` for list members, `httpMethod` for `integrationHttpMethod` (2.3); `createdDate` and `lastUpdatedDate` as epoch seconds; `PutIntegrationResponse`/`GetIntegrationResponse` and `GetIntegration` serialize empty-string template values as JSON `null` (coverage-note item `templates.empty-value`, 12.3); the policy string escaped (2.3).
 3. Errors: `X-Amzn-Errortype: <ShapeName>` plus `{"message": "..."}` with the modeled status (2.4). Emit `ValidationException` (400) for enum and pattern failures with the Coral message format and 1-based member indexes (`patchOperations.1.member.op`, `putIntegrationInput.type`) and `SerializationException` (400) for type mismatches, both unmodeled codes registered as protocol-level errors. Accept `Accept: application/json` and do not require it (2.1).
 
 ### 12.2 Operation coverage
 
-Full (no note): GetRestApi, GetRestApis, DeleteRestApi, CreateResource, GetResource, GetResources, UpdateResource, DeleteResource, GetMethod, DeleteMethod, PutMethodResponse, GetMethodResponse, UpdateMethodResponse, DeleteMethodResponse, GetIntegration, DeleteIntegration, GetIntegrationResponse, DeleteIntegrationResponse, GetDeployment, GetDeployments, UpdateDeployment, DeleteDeployment, GetStage, GetStages, DeleteStage, CreateRequestValidator, GetRequestValidator, GetRequestValidators, UpdateRequestValidator, DeleteRequestValidator, GetModel, GetModels, UpdateModel, DeleteModel, PutGatewayResponse, GetGatewayResponse, GetGatewayResponses, UpdateGatewayResponse, DeleteGatewayResponse, TagResource, UntagResource, GetTags.
+The marks and notes after the first paragraph below are the target. The first slice (roadmap item 6, REST APIs) binds the roadmap's minimum, and the operations it binds are at least Partial, each note starting with the base note `the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02)` (2.4, 3.10), so none is Full until those recordings land.
 
-Partial, with these coverage notes. Two rules shape them. A valid member understudy does not implement answers NotImplemented (501) naming the member and saying nothing was changed, never `BadRequestException`, which would claim that AWS refuses it (the repository's convention, `internal/service/lambda/errors.go` `checkUnimplementedConfig`). An invocation that needs something understudy cannot do (an unsupported template, selection pattern or construct, Docker missing, an unemulated target) answers 501 in API Gateway's JSON message shape, `{"message":"understudy does not implement ...; nothing was changed. ..."}`, journaled, never an AWS-shaped 500, which would be indistinguishable from a real configuration error (CLAUDE.md invariant 3; `apigateway-http.md` 13.3 item 2 and 13.7).
+First slice. Settings that change what the data plane does get exactly one treatment each, never silent storage:
+
+| Setting | First-slice treatment | Why |
+|---|---|---|
+| Integration `credentials` | stored and returned; an invocation that reaches the integration answers 501 naming `credentials`, journaled, before any function-policy check | AWS assumes the role instead of checking the function policy (3.4, 5.4); roles are not assumed yet |
+| `${stageVariables.*}` in an integration `uri` | stored and returned; an invocation that reaches it answers 501 naming the stage-variable URI | the target is resolved per stage (3.4, localstack@8b9a79f tests/aws/services/apigateway/test_apigateway_basic.py:L1380) |
+| `responseTransferMode` `STREAM`, `contentHandling` on an integration or integration response | stored and returned; an invocation that reaches it (or selects the response) answers 501 naming the setting | streaming and binary conversion are not emulated (3.4, 3.5) |
+| non-empty `binaryMediaTypes` in the stage's deployment snapshot | stored and returned; an invocation of the stage answers 501 naming `binaryMediaTypes` | they decide the event's `isBase64Encoded` and whether a response body is decoded (5.1, 5.2); the details are APIGW1-16 |
+| `disableExecuteApiEndpoint` true on the live API | stored and returned; every invocation answers 501 naming it, from the call that sets it | no REST source records AWS's answer or when it takes effect, so understudy refuses rather than serve |
+| `endpointConfiguration` type `PRIVATE` | stored and returned; every invocation answers 501 naming the PRIVATE endpoint | AWS serves private APIs only through VPC endpoints, never on a public host |
+| `policy` (execute-api resource policy) | stored and returned escaped (2.3), not evaluated; under `iam.enforce=advise` each invocation of an API with a policy adds an Advisory, under `enforce` it answers 501 naming the resource policy | never served open while unevaluated |
+| method `authorizationType` `AWS_IAM`; `CUSTOM` and `COGNITO_USER_POOLS` | `AWS_IAM` stored, an invocation answers 501; `CUSTOM` and `COGNITO_USER_POOLS` fail PutMethod with the recorded `Invalid authorizer ID specified...` text (2.4), since no authorizer can be created | authorizers unbound, SigV4 on execute-api not checked yet |
+| method `apiKeyRequired` true | stored; an invocation answers 403, since no API key can be created | 4.7, 12.9 |
+| integration types `HTTP`, `HTTP_PROXY`, `AWS` | stored and returned; an invocation that reaches them answers 501 naming the type | follow-ups: AWS integrations to understudy's own services, HTTP through `internal/egress` |
+| request and response templates | a template containing none of `$`, `#` or `\` is literal text and renders unchanged; any other answers 501 naming the template, journaled | VTL deferred (12.7) |
+| `vpcEndpointIds`; EDGE endpoint type | stored without effect; an EDGE API is served as a REGIONAL one, so the event has no `CloudFront-*`, `Via` or `X-Amz-Cf-Id` headers (5.1, inferred) | `vpcEndpointIds` matter only for PRIVATE |
+
+First-slice coverage notes, after the base note. Base note only: GetRestApi, GetRestApis, DeleteRestApi, CreateResource, GetResource, UpdateResource, DeleteResource, GetMethod, DeleteMethod, PutMethodResponse, GetMethodResponse, UpdateMethodResponse, DeleteMethodResponse, DeleteIntegration, GetIntegrationResponse, DeleteIntegrationResponse, GetDeployment, GetDeployments, UpdateDeployment, DeleteDeployment, GetStages, TagResource, UntagResource, GetTags.
+
+| Operation | First-slice note |
+|---|---|
+| CreateRestApi, UpdateRestApi | `cloneFrom answers NotImplemented; policy is stored and returned escaped, and under iam.enforce=enforce an invocation of an API with a policy answers 501; binaryMediaTypes, disableExecuteApiEndpoint and endpointConfiguration PRIVATE are stored and returned, and an invocation of an API that has them answers 501; vpcEndpointIds, securityPolicy, endpointAccessMode and minimumCompressionSize are stored without effect; an EDGE API is served as a REGIONAL one (no CloudFront headers in the event); a second API with the same name is allowed (inferred, APIGW1-14)` |
+| PutMethod, UpdateMethod | `AWS_IAM, CUSTOM and COGNITO_USER_POOLS methods answer 501 at invoke; apiKeyRequired methods answer 403 because API keys cannot be created; requestValidatorId and requestModels name only the seeded Empty and Error models until validators and models are bound` |
+| PutIntegration, UpdateIntegration, GetIntegration | `AWS_PROXY to Lambda and MOCK run; HTTP, HTTP_PROXY and AWS are stored and answer 501 at invoke; credentials, a stage variable in the uri, responseTransferMode STREAM and contentHandling are stored and returned, and an invocation that reaches them answers 501; connectionType VPC_LINK, tlsConfig and integrationTarget answer NotImplemented; an empty-string request template is returned as null (inferred, APIGW1-13)` (GetIntegration carries the last clause only) |
+| PutIntegrationResponse, UpdateIntegrationResponse | `selectionPattern runs as Go RE2; a Java-only construct (lookaround, backreference, possessive quantifier) answers 501 at invoke naming the pattern; only static responseParameters and literal templates run, anything else answers 501; contentHandling is stored and an invocation that selects the response answers 501` |
+| GetResources | `items in creation order, root first (inferred, APIGW1-04)` |
+| CreateDeployment | `canarySettings answers NotImplemented; cacheClusterEnabled, cacheClusterSize and tracingEnabled are stored without effect; the texts for deploying an API with no methods or a method with no integration are inferred (APIGW1-05)` |
+| CreateStage, UpdateStage, GetStage, DeleteStage | `cache settings, methodSettings, accessLogSettings, clientCertificateId, tracingEnabled and webAclArn are stored and echoed without effect; canarySettings answers NotImplemented; the duplicate-stage and missing-stage texts are inferred (APIGW1-06)` (GetStage and DeleteStage carry the last clause only) |
+| `InvokeRestApi` (raw) | `AWS_PROXY (payload 1.0) and MOCK with literal templates; mapping templates with VTL, request validation, authorizers, API keys, caching and throttling are not applied (501 where AWS would act); integration credentials, stage-variable URIs, STREAM, contentHandling, binaryMediaTypes, a disabled default endpoint and PRIVATE APIs answer 501; inferred, UNVERIFIED: unknown stage, ANY against explicit methods, HEAD (APIGW1-07, -08), the 415 text (APIGW1-09), timeout (APIGW1-10), empty-body event (APIGW1-16)` |
+| request validators, models, gateway responses, GetAccount, UpdateAccount, PutRestApi, ImportRestApi, and the unbound list at the end of this section | unbound (501) |
+
+Target, beyond the first slice. Full (no note): GetRestApi, GetRestApis, DeleteRestApi, CreateResource, GetResource, GetResources, UpdateResource, DeleteResource, GetMethod, DeleteMethod, PutMethodResponse, GetMethodResponse, UpdateMethodResponse, DeleteMethodResponse, GetIntegration, DeleteIntegration, GetIntegrationResponse, DeleteIntegrationResponse, GetDeployment, GetDeployments, UpdateDeployment, DeleteDeployment, GetStage, GetStages, DeleteStage, CreateRequestValidator, GetRequestValidator, GetRequestValidators, UpdateRequestValidator, DeleteRequestValidator, GetModel, GetModels, UpdateModel, DeleteModel, PutGatewayResponse, GetGatewayResponse, GetGatewayResponses, UpdateGatewayResponse, DeleteGatewayResponse, TagResource, UntagResource, GetTags.
+
+Partial, with these coverage notes (rows beyond the first slice say so). Two rules shape them. A valid member understudy does not implement answers NotImplemented (501) naming the member and saying nothing was changed, never `BadRequestException`, which would claim that AWS refuses it (the repository's convention, `internal/service/lambda/errors.go` `checkUnimplementedConfig`). An invocation that needs something understudy cannot do (an unsupported template, selection pattern or construct, Docker missing, an unemulated target) answers 501 in API Gateway's JSON message shape, `{"message":"understudy does not implement ...; nothing was changed. ..."}`, journaled, never an AWS-shaped 500, which would be indistinguishable from a real configuration error (CLAUDE.md invariant 3; `apigateway-http.md` 13.3 item 2 and 13.7).
 
 | Operation | Coverage note |
 |---|---|
 | CreateRestApi | `cloneFrom` answers NotImplemented; policy, securityPolicy, endpointAccessMode and minimumCompressionSize are stored without effect |
 | UpdateRestApi | the UpdateRestApi paths of the patch-operations reference; policy, securityPolicy, endpointAccessMode and minimumCompressionSize are stored without effect |
-| PutMethod, UpdateMethod | AWS_IAM checks only that the invoke request carries a SigV4 Authorization header for execute-api; CUSTOM and COGNITO_USER_POOLS need an authorizer, which cannot be created; apiKeyRequired methods answer 403 because API keys cannot be created |
-| PutIntegration, UpdateIntegration | HTTP and HTTP_PROXY reach the integration URI from the host and refuse AWS endpoints; connectionType VPC_LINK, tlsConfig and integrationTarget answer NotImplemented; AWS integrations reach understudy's own services only, and an integration naming a service understudy does not emulate answers 501 at invoke |
+| PutMethod, UpdateMethod | first slice: AWS_IAM answers 501 at invoke (table above); target: AWS_IAM checks only that the invoke request carries a SigV4 Authorization header for execute-api; CUSTOM and COGNITO_USER_POOLS need an authorizer, which cannot be created; apiKeyRequired methods answer 403 because API keys cannot be created |
+| PutIntegration, UpdateIntegration | first slice: HTTP, HTTP_PROXY and AWS stored, answering 501 at invoke (table above); target: HTTP and HTTP_PROXY reach the integration URI from the host and refuse AWS endpoints; connectionType VPC_LINK, tlsConfig and integrationTarget answer NotImplemented; AWS integrations reach understudy's own services only, and an integration naming a service understudy does not emulate answers 501 at invoke |
 | PutIntegrationResponse, UpdateIntegrationResponse | selectionPattern is compiled as Go RE2: a Java-only construct (lookaround, backreference, possessive quantifier) makes the invocation answer 501 naming the pattern, journaled |
 | CreateDeployment | canarySettings answers NotImplemented; cacheClusterEnabled, cacheClusterSize and tracingEnabled are stored without effect |
 | CreateStage, UpdateStage | cache settings, methodSettings, accessLogSettings, clientCertificateId, tracingEnabled and webAclArn are stored and echoed without effect; canarySettings answers NotImplemented |
-| CreateModel | schemas are JSON Schema draft 4 limited to type, properties, required, items, enum, minimum, maximum, minLength, maxLength, pattern and $ref to models of the same API; another keyword answers NotImplemented naming it |
+| CreateModel | first slice: unbound (501); target: schemas are JSON Schema draft 4 limited to type, properties, required, items, enum, minimum, maximum, minLength, maxLength, pattern and $ref to models of the same API; another keyword answers NotImplemented naming it |
 
-Stored only: GetAccount, UpdateAccount (`cloudwatchRoleArn is stored and echoed; no execution or access logs are written`).
+Stored only: GetAccount, UpdateAccount (first slice: unbound (501); target: `cloudwatchRoleArn is stored and echoed; no execution or access logs are written`).
 
-Raw operation (not in the model): `apigateway.InvokeRestApi` serving the execute-api data plane, IAM action `execute-api:Invoke` (4.1), journaled and faultable like `lambda.InvokeFunctionUrl` (ARCHITECTURE.md 14.7).
+Raw operation (not in the model): `apigateway.InvokeRestApi` serving the execute-api data plane, journaled and faultable like `lambda.InvokeFunctionUrl` (ARCHITECTURE.md 14.7). It declares no static IAM action, as v2's `InvokeApi` (`apigateway-http.md` 8.1): AWS evaluates no IAM on a `NONE` method, and an `AWS_IAM` method (501 in the first slice) would be authorized as `execute-api:Invoke` on its execute ARN when the request arrives (4.1, 3.10).
 
 Unbound (501) in the first slice: PutRestApi and ImportRestApi (the second slice, 9.6), authorizers, API keys, usage plans and keys, domain names, base path mappings, domain name access associations, VPC links, client certificates, documentation parts and versions, SDK and export, GetModelTemplate, TestInvokeMethod, TestInvokeAuthorizer, FlushStageCache, FlushStageAuthorizersCache, routing rules and portals.
 
 ### 12.3 Fidelity switches
 
-| Switch | Default | Label | Ground | Record |
-|---|---|---|---|---|
-| `apigateway.error.type-header` | bare shape name (`NotFoundException`) | inferred | 2.4 | APIGW1-01 |
-| `apigateway.ids.format` | API and root resource ids 10 lower-case alphanumerics, other resource, deployment, validator and model ids 6 | aws-doc (examples; alphabet and model ids inferred) | 3.10 | APIGW1-02 |
-| `apigateway.restapi.api-status` | `AVAILABLE` at once after create and update | inferred | 3.1 | APIGW1-03 |
-| `apigateway.resources.list-order` | creation order, root first | inferred | 2.5 | APIGW1-04 |
-| `apigateway.deployment.incomplete-api-errors` | `BadRequestException` `The REST API doesn't contain any methods` / `No integration defined for method` | inferred | 3.6 | APIGW1-05 |
-| `apigateway.stage.error-texts` | duplicate: `ConflictException` `Stage already exists`; missing: `NotFoundException` `Invalid stage identifier specified` | inferred | 3.7 | APIGW1-06 |
-| `apigateway.invoke.unknown-stage` | 403 `{"message":"Forbidden"}` with `x-amzn-ErrorType: ForbiddenException` | inferred | 4.7 | APIGW1-07 |
-| `apigateway.invoke.method-precedence` | explicit method before `ANY`; `HEAD` served only by `HEAD` or `ANY` | inferred | 4.4 | APIGW1-08 |
-| `apigateway.passthrough.unsupported-media-type` | 415 `{"message":"Unsupported Media Type"}`; media types matched by essence, case-insensitively | inferred | 6.2 | APIGW1-09 |
-| `apigateway.integration.timeout-response` | 504 `{"message": "Endpoint request timed out"}` | inferred | 5.3 | APIGW1-10 |
-| `apigateway.response-template.selection` | first `Accept` media type, else `application/json`, else the only template | inferred | 6.7 | APIGW1-11 |
-| `apigateway.selection-pattern.match` | full match; candidates in ascending status-code order, default last | inferred, consistent with third-party-recorded 6.5 | 6.7 | APIGW1-12 |
-| `apigateway.templates.empty-value` | `""` serialized as `null` in response and request templates | third-party-recorded (response), inferred (request) | 3.5 | APIGW1-13 |
-| `apigateway.restapi.duplicate-names` | allowed | inferred | 3.1 | APIGW1-14 |
-| `apigateway.lambda.permission-check` | on: an AWS_PROXY invoke without `credentials` runs only when the function's resource policy allows `apigateway.amazonaws.com` with the request's source ARN; otherwise it answers 500 `{"message": "Internal server error"}` and the function does not run | inferred | 5.4 | APIGW1-15 |
-| `apigateway.proxy.empty-body` | `body: null`, `isBase64Encoded: false` for a request with no body | third-party-recorded (GET), inferred (POST) | 5.1 | APIGW1-16 |
-| `apigateway.vtl.escape-javascript` | Apache Commons Lang 2 `escapeJavaScript` rules (`'`, `"`, `\`, `/` escaped; control and non-ASCII as `\uXXXX`) | inferred | 7.6 | APIGW1-17 |
-| `apigateway.vtl.input-json` | missing path renders `""`; numbers re-serialized in shortest form | inferred | 7.3 | APIGW1-18 |
-| `apigateway.aws-integration.error-status` | backend error selects the default integration response (status 200 unless a pattern matches) | inferred from aws-doc (Lambda case) | 6.4 | APIGW1-19 |
-| `apigateway.aws-integration.action-translation` | action URIs to JSON-protocol services get `X-Amz-Target <prefix>.<Action>` and the protocol content type unless overridden; to Query services the rendered body is the form | inferred | 6.4 | APIGW1-20 |
-| `apigateway.vtl.jsonpath` | `$`, dotted names, `[n]`, `['name']`; anything else answers 501 naming the expression, journaled | inferred | 7.7 | APIGW1-21 |
+Five switches, one per recording case or group of related cases, each struct-valued; every other unknown is a code comment plus a Partial coverage note naming its case (12.2). Each is a `fidelity.Switch` (`internal/fidelity/switch.go`), listed by the service's `Switches()`; `Ref` points at the first section of its grounds, `Record` at the cases. The last column names the switches an earlier draft of this section listed one per unknown (21 in all; the per-unit cap of five comes from the roadmap plan's "Process per unit", which settles the count conflict with this note).
 
-`apigateway.lambda.permission-check` is on under every `iam.enforce` mode, through the same Lambda-invoke check the HTTP API front end and function URLs use (`apigateway-http.md` finding 9 and 13.3 item 1, ARCHITECTURE.md 14.7): the refusal is observable without any IAM enforcement, the docs make the policy statement the way API Gateway gets permission (5.4, "Instead of supplying an IAM role for `credentials`, you can use the add-permission command"), and invoking a function its policy does not allow would be a silent success.
+| Name | Value | Label | Grounds | Record | Replaces |
+|---|---|---|---|---|---|
+| `apigateway.restapi.api-status` | `apiStatus` is `AVAILABLE` at once after CreateRestApi and UpdateRestApi | inferred | 3.1, finding 2 | APIGW1-03 | (unchanged) |
+| `apigateway.invoke.routing` | an unknown stage answers `403` `{"message":"Forbidden"}` with `x-amzn-ErrorType: ForbiddenException`; an explicit method is served before `ANY` on the same resource; `HEAD` is served only by a `HEAD` or `ANY` method | inferred | 4.7, 4.4 | APIGW1-07, APIGW1-08 | `invoke.unknown-stage`, `invoke.method-precedence` |
+| `apigateway.lambda.permission` | on under every `iam.enforce` mode: an AWS_PROXY invoke without `credentials` runs only when the function's resource policy allows `apigateway.amazonaws.com` with the source ARN `<api-id>/<stage>/<METHOD>/<resource path template without its leading slash>` after `arn:aws:execute-api:<region>:<account>:` (3.10; the documented example ends `/HTTP_METHOD/resource`, 5.4), with `ANY` as written for an `ANY` method and an empty last segment for the root resource (both inferred); otherwise it answers `500` `{"message": "Internal server error"}` and the function does not run | inferred | 5.4, 3.10 | APIGW1-15 | `lambda.permission-check` |
+| `apigateway.mock.selection` | an unmatched request media type under `NEVER` or `WHEN_NO_TEMPLATES` answers `415` `{"message":"Unsupported Media Type"}`, media types matched by essence, case-insensitively; the response template is chosen by the first `Accept` media type, else `application/json`, else the only template; a `selectionPattern` must match the whole status string, candidates tried in ascending status-code order, the default response last | inferred (selection consistent with third-party-recorded 6.5) | 6.2, 6.7 | APIGW1-09, APIGW1-11, APIGW1-12 | `passthrough.unsupported-media-type`, `response-template.selection`, `selection-pattern.match` |
+| `apigateway.proxy.unrecorded` | an integration timeout answers `504` `{"message": "Endpoint request timed out"}`; a request with no body (GET recorded, POST inferred) gives the event `body: null` and `isBase64Encoded: false` | inferred | 5.3, 5.1 | APIGW1-10, APIGW1-16 | `integration.timeout-response`, `proxy.empty-body` |
+
+Coverage-note items, no switch (each a clause of the 12.2 note it names; tests assert them only by code, status, presence and uniqueness, never as a literal):
+
+- `error.type-header` (the bare shape name in `X-Amzn-Errortype`; 2.4, APIGW1-01) and `ids.format` (API and root resource ids 10 lower-case alphanumerics, other ids 6; 3.10, APIGW1-02): the base note of every bound control-plane operation.
+- `resources.list-order` (creation order, root first; 2.5, APIGW1-04): the GetResources note.
+- `deployment.incomplete-api-errors` (`BadRequestException` `The REST API doesn't contain any methods` / `No integration defined for method`; 3.6, APIGW1-05): the CreateDeployment note.
+- `stage.error-texts` (duplicate `ConflictException` `Stage already exists`, missing `NotFoundException` `Invalid stage identifier specified`; 3.7, APIGW1-06): the CreateStage, UpdateStage, GetStage and DeleteStage notes.
+- `templates.empty-value` (`""` serialized as `null`; recorded for response templates, inferred for request templates; 3.5, APIGW1-13): the PutIntegration, UpdateIntegration and GetIntegration note.
+- `restapi.duplicate-names` (allowed; 3.1, APIGW1-14): the CreateRestApi note.
+
+Out of scope while the feature answers 501 (VTL deferred, 12.7; AWS integrations stored and answering 501 at invoke, 12.2): `vtl.escape-javascript` (7.6, APIGW1-17), `vtl.input-json` (7.3, APIGW1-18), `aws-integration.error-status` (6.4, APIGW1-19), `aws-integration.action-translation` (6.4, APIGW1-20) and `vtl.jsonpath` (7.7, APIGW1-21). Each becomes a switch, or a recorded value, with the follow-up that builds its feature.
+
+`apigateway.lambda.permission` is on under every `iam.enforce` mode, through the same Lambda-invoke check the HTTP API front end and function URLs use (`apigateway-http.md` finding 9 and 13.3 item 1, ARCHITECTURE.md 14.7): the refusal is observable without any IAM enforcement, the docs make the policy statement the way API Gateway gets permission (5.4, "Instead of supplying an IAM role for `credentials`, you can use the add-permission command"), and invoking a function its policy does not allow would be a silent success.
 
 ### 12.4 Validation and limits
 
@@ -767,7 +817,36 @@ Unbound (501) in the first slice: PutRestApi and ImportRestApi (the second slice
 
 ### 12.7 VTL engine
 
-ADR 0016 allows no runtime dependency, and AWS behavior is never delegated to a library, so write a VTL subset interpreter and a JSONPath subset in Go:
+**First slice: no VTL, literal templates only.** The roadmap plan makes the engine depend on a census of what users write. Census (2026-10-30): method, a read-only clone of aws-samples/serverless-patterns at `deb84afac5425dfb4cabbc3c33f7a11fa4a71555`, every `*.tf` file searched with `rg 'resource\s+"aws_api_gateway_'` (v1 only; v2 resources are `aws_apigatewayv2_*`), then each match read for `request_templates`, `response_templates`, integration `type` and `body`. 18 patterns have v1 resources, matching the state report's count ([P]):
+
+| Pattern | Integrations | `request_templates` | `response_templates` | In the first slice? |
+|---|---|---|---|---|
+| apigw-bedrock-nova-canvas | AWS_PROXY | none | none | yes (calls Bedrock from the function) |
+| apigw-data-validation-tf | AWS_PROXY | none | none | no: request validator and model (stretch) |
+| apigw-dynamodb-terraform | from `body` | in the OpenAPI document | in the OpenAPI document | no: `body` (PutRestApi, 9.6) |
+| apigw-lambda-bedrock-nova-terraform | AWS_PROXY | none | none | yes (calls Bedrock from the function) |
+| apigw-lambda-durable-tenant-isolation-callback | AWS, AWS_PROXY | `$input.body` on the AWS integration (VTL) | `{"message": "Workflow started"}` (literal) | no: AWS integration |
+| apigw-lambda-rekognition | AWS_PROXY | none | none | yes |
+| apigw-lambda-s3-terraform-java | AWS_PROXY | none | none | yes (runtime `java25`) |
+| apigw-lambda-snapstart-terraform | AWS_PROXY | none | none | yes (runtime `java25`, SnapStart) |
+| apigw-lambda-transcribe | AWS_PROXY | none | none | yes |
+| apigw-openapi-lambda-dynamodb-xray-terraform | from `body` | in the OpenAPI document | in the OpenAPI document | no: `body` |
+| apigw-rest-api-eventbridge-terraform | AWS | VTL (`#set`, `#foreach`) | VTL (`#set`) | no: AWS integration |
+| apigw-rest-api-http-integration-terraform | HTTP_PROXY | none | none | no: HTTP_PROXY answers 501 |
+| apigw-rest-vpclink-pvt-alb-terraform | HTTP_PROXY over VPC_LINK (CLI in a `local-exec`) | none | none | no: VPC_LINK |
+| apigw-sfn-crud-terraform | AWS (two) | VTL (`#set`, `$util.escapeJavaScript`) | VTL (`#set`) | no: AWS integration |
+| apigw-sqs-terraform | from `body` | in the OpenAPI document | in the OpenAPI document | no: `body` |
+| lambda-ddb-tenant-isolation-terraform | AWS_PROXY, MOCK (two OPTIONS) | `{"statusCode": 200}` on both MOCKs (literal) | `""` on both (literal) | no: request validator and model (stretch), integration `request_parameters` on AWS_PROXY, Lambda `tenancy_config` |
+| lambda-df-slack | AWS_PROXY | none | none | yes (ECR image, Secrets Manager, `null_resource`) |
+| public-alb-private-api-terraform | AWS_PROXY | none | none | no: PRIVATE endpoint |
+
+Result: four patterns set `request_templates` in HCL; the three VTL ones are on `AWS` integrations, outside the first slice, and the fourth (lambda-ddb-tenant-isolation-terraform) is literal on MOCK. No pattern inside the first slice needs a non-literal template, so VTL stays deferred. The three `body` patterns keep their templates in an OpenAPI document that PutRestApi would import; it stays unbound.
+
+The literal-only rule: a request or response template containing none of `$`, `#` or `\` is literal text and renders unchanged, since Velocity interprets only `$` references, `#` directives and `\` escapes ([Velocity 1.7 VTL reference](https://velocity.apache.org/engine/1.7/vtl-reference-guide.html), the dialect 7.1 infers for AWS). The recording supports the request side: a literal MOCK request template selects its status ([R] localstack@8b9a79f tests/aws/services/apigateway/test_apigateway_basic.py:L1697-L1724, snapshot L154-L161). Any other template answers 501 naming the template, journaled (12.2); that test's response template uses `$input.params()` and is the refusal check.
+
+The census pattern the first slice runs end to end is **apigw-lambda-rekognition**: one `POST /generate-presigned-url` AWS_PROXY Lambda method (`NONE`, no template, no parameter mapping, `source_arn` `${execution_arn}/*/*`) on a stage `dev`. Its documented check is a POST with `{"object_name": ..., "content_type": ...}` that answers 200 with `{"presigned_url": ...}`, then a PUT of an object to that URL, which triggers a function that calls Rekognition. The function code builds its S3 client with `endpoint_url='https://s3.<region>.amazonaws.com'` (`generate_presigned_url.zip`), so the URL it signs names AWS and the PUT would leave the machine; the code is not changed (the suite shape allows no code edits), so the check run is the POST and its 200 `presigned_url` answer, and the PUT and the Rekognition step are reported not run with that reason. Adjustments: runtime `python3.14` to `python3.13`. apigw-lambda-transcribe has the same shape and the same hard-coded endpoint, and is the fallback. No first-slice pattern uses `{proxy+}`; the Terraform conformance stack covers it.
+
+Target (beyond the first slice). ADR 0016 allows no runtime dependency, and AWS behavior is never delegated to a library, so write a VTL subset interpreter and a JSONPath subset in Go:
 
 - Grammar: text, `$ref`, `$!ref`, `${ref}`, property access with hyphenated identifiers, `[index]` and `["key"]`, method calls with arguments, string, number, boolean, list and map literals, `+` on strings and numbers, comparison and logical operators, `#set`, `#if`/`#elseif`/`#else`/`#end`, `#foreach` with `$foreach.hasNext`, `$foreach.count`, `$foreach.index`, and `##` and `#* *#` comments (comments are standard VTL, not seen in the corpus).
 - Values: JSON objects as insertion-ordered maps rendering `{k=v, ...}`, lists rendering compact JSON, null rendering empty, `null == ""` true (7.2). Java methods on strings (`replaceAll` with Java regex semantics translated to RE2 where possible, `contains`, `toString`, `length`, `substring`, `indexOf`, `toLowerCase`, `toUpperCase`, `trim`, `split`, `equals`), maps (`get`, `put`, `keySet`, `size`, `containsKey`, `isEmpty`), lists (`size`, `get`, `isEmpty`). A call outside the supported set fails the invocation with 501 naming the method, journaled (12.2), never a silent empty string.
@@ -860,7 +939,7 @@ aws sqs delete-queue --queue-url "$Q/$P-apigw1" 2>/dev/null || true
 
 ### 13.2 APIGW1-01: control-plane error wire form
 
-Settles `apigateway.error.type-header` (2.4): the exact `x-amzn-ErrorType` value (bare or with a `:http://...` suffix), whether the body has `message`, `Message` or `__type`, for a modeled 404, an unmodeled `ValidationException` and a `SerializationException`.
+Settles the base note's `error.type-header` item (12.3, 2.4): the exact `x-amzn-ErrorType` value (bare or with a `:http://...` suffix), whether the body has `message`, `Message` or `__type`, for a modeled 404, an unmodeled `ValidationException` and a `SerializationException`.
 
 ```sh
 SVC=apigateway recurl APIGW1/01-notfound -H 'Accept: application/json' "$G/restapis/$P-missing"
@@ -874,7 +953,7 @@ Expected: three `.http` files with status 404, 400, 400. Cost USD 0.00, 2 minute
 
 ### 13.3 APIGW1-02: identifier formats and seeded models
 
-Settles `apigateway.ids.format` (3.10) and whether `Empty` and `Error` models exist on a new API (3.9).
+Settles the base note's `ids.format` item (12.3, 3.10) and whether `Empty` and `Error` models exist on a new API (3.9).
 
 ```sh
 rec APIGW1/02-resources aws apigateway get-resources --rest-api-id "$API"
@@ -908,7 +987,7 @@ Expected: the `apiStatus` sequence; how soon `get-rest-api` answers `NotFoundExc
 
 ### 13.5 APIGW1-04: GetResources order and paging
 
-Settles `apigateway.resources.list-order` (2.5) and the raw `item` and `position` keys.
+Settles the GetResources note's `resources.list-order` item (12.3, 2.5) and the raw `item` and `position` keys.
 
 ```sh
 for p in zeta alpha mid; do res "$p"; done >/dev/null
@@ -923,7 +1002,7 @@ Expected: the order of `item` entries against creation order (`items`, then 13.3
 
 ### 13.6 APIGW1-05: deploying an incomplete API
 
-Settles `apigateway.deployment.incomplete-api-errors` (3.6).
+Settles the CreateDeployment note's `deployment.incomplete-api-errors` item (12.3, 3.6).
 
 ```sh
 Y=$(aws apigateway create-rest-api --name "$P-apigw1-empty" --endpoint-configuration types=REGIONAL --query id --output text)
@@ -937,7 +1016,7 @@ Expected: two error codes and messages. Cost USD 0.00, 2 minutes. Teardown: `sle
 
 ### 13.7 APIGW1-06: stage error texts
 
-Settles `apigateway.stage.error-texts` (3.7).
+Settles the stage notes' `stage.error-texts` item (12.3, 3.7).
 
 ```sh
 D1=$(aws apigateway get-deployments --rest-api-id "$API" --query 'items[0].id' --output text)
@@ -953,7 +1032,7 @@ Expected: six errors with codes and messages. Cost USD 0.00, 2 minutes. Teardown
 
 ### 13.8 APIGW1-07: unknown stage, stage root and unknown route
 
-Settles `apigateway.invoke.unknown-stage` (4.7) and the root matching rule of 4.3.
+Settles switch `apigateway.invoke.routing`, its unknown-stage answer (4.7), and the root matching rule of 4.3.
 
 ```sh
 inv 07-unknown-stage "$U/nosuch/items"
@@ -968,7 +1047,7 @@ Expected: status, body and `x-amzn-ErrorType` of each; `07-unknown-route` should
 
 ### 13.9 APIGW1-08: explicit method against ANY, and HEAD
 
-Settles `apigateway.invoke.method-precedence` (4.4).
+Settles switch `apigateway.invoke.routing`, its method precedence (4.4).
 
 ```sh
 mock "$ITEMS" ANY any
@@ -985,7 +1064,7 @@ Expected: which marker answers each (`get` or `any`), and the statuses for `HEAD
 
 ### 13.10 APIGW1-09: 415 text and media-type matching
 
-Settles `apigateway.passthrough.unsupported-media-type` (6.1, 6.2).
+Settles switch `apigateway.mock.selection`, its 415 answer and media-type matching (6.1, 6.2).
 
 ```sh
 PT=$(res pt); mock "$PT" POST pt
@@ -1003,7 +1082,7 @@ Expected: the 415 status, body and `x-amzn-ErrorType`; whether parameters and ca
 
 ### 13.11 APIGW1-10: integration timeout
 
-Settles `apigateway.integration.timeout-response` (5.3).
+Settles switch `apigateway.proxy.unrecorded`, its timeout answer (5.3).
 
 ```sh
 SL=$(res slow)
@@ -1018,7 +1097,7 @@ Expected: status (504?), body and `x-amzn-ErrorType` after about 1 s. Cost USD 0
 
 ### 13.12 APIGW1-11: response template selection
 
-Settles `apigateway.response-template.selection` (6.7).
+Settles switch `apigateway.mock.selection`, its response-template choice (6.7).
 
 ```sh
 RT=$(res rt)
@@ -1040,7 +1119,7 @@ Expected: which template renders and the response `Content-Type` for each. Cost 
 
 ### 13.13 APIGW1-12: selectionPattern anchoring and ties
 
-Settles `apigateway.selection-pattern.match` (6.7). A MOCK renders status 404; integration responses compete for it.
+Settles switch `apigateway.mock.selection`, its selectionPattern anchoring and order (6.7). A MOCK renders status 404; integration responses compete for it.
 
 ```sh
 sel() {  # sel <path-part> <method-statuses> then pairs "<status>=<pattern>" in creation order
@@ -1067,7 +1146,7 @@ Expected: `anchor` answering 200 means full-match semantics; the `tie-*` results
 
 ### 13.14 APIGW1-13: empty-string request templates on the wire
 
-Settles `apigateway.templates.empty-value` for request templates (3.5).
+Settles the integration notes' `templates.empty-value` item for request templates (12.3, 3.5).
 
 ```sh
 TM=$(res tmpl)
@@ -1082,7 +1161,7 @@ Expected: `"application/json": null` or `""` in both. Cost USD 0.00, 1 minute. T
 
 ### 13.15 APIGW1-14: duplicate REST API names
 
-Settles `apigateway.restapi.duplicate-names` (3.1).
+Settles the CreateRestApi note's `restapi.duplicate-names` item (12.3, 3.1).
 
 ```sh
 rec APIGW1/14-duplicate aws apigateway create-rest-api --name "$P-apigw1" --endpoint-configuration types=REGIONAL
@@ -1092,7 +1171,7 @@ Expected: success with a new id, or an error. Cost USD 0.00, 1 minute. Teardown:
 
 ### 13.16 APIGW1-15: Lambda proxy without invoke permission
 
-Settles what `apigateway.lambda.permission-check` must produce when on (5.3, 5.4).
+Settles what switch `apigateway.lambda.permission` must produce (5.3, 5.4).
 
 ```sh
 PX=$(res px)
@@ -1113,7 +1192,7 @@ Expected: status, body and `x-amzn-ErrorType` without permission. Cost USD 0.00,
 
 ### 13.17 APIGW1-16: proxy event edges
 
-Settles `apigateway.proxy.empty-body` and the REGIONAL event shape (5.1, 4.5). Run after 13.16.
+Settles switch `apigateway.proxy.unrecorded`, its empty-body event, and the REGIONAL event shape (5.1, 4.5). Run after 13.16.
 
 ```sh
 aws apigateway update-rest-api --rest-api-id "$API" --patch-operations op=add,path=/binaryMediaTypes/application~1octet-stream >/dev/null
@@ -1131,7 +1210,7 @@ Expected: the logged events in the response bodies: `body` and `isBase64Encoded`
 
 ### 13.18 APIGW1-17: escapeJavaScript
 
-Settles `apigateway.vtl.escape-javascript` (7.6). A Lambda custom integration receives `{"e": "<escaped body>"}`; the body has no single quote, so the payload stays valid JSON.
+Settles 12.3's out-of-scope `vtl.escape-javascript` item (7.6). A Lambda custom integration receives `{"e": "<escaped body>"}`; the body has no single quote, so the payload stays valid JSON.
 
 ```sh
 NP=$(res np17)
@@ -1150,7 +1229,7 @@ Expected: the echoed `e`, `u`, `b` values (after the Lambda's own JSON decoding,
 
 ### 13.19 APIGW1-18: $input.json on missing paths and numbers
 
-Settles `apigateway.vtl.input-json` (7.3).
+Settles 12.3's out-of-scope `vtl.input-json` item (7.3).
 
 ```sh
 # the template goes through a file: its '...' JSONPath literals cannot sit inside a single-quoted shell argument
@@ -1173,7 +1252,7 @@ Expected: each field's rendering; what a non-JSON body does to `$input.json('$')
 
 ### 13.20 APIGW1-19: AWS integration backend error with only a default response
 
-Settles `apigateway.aws-integration.error-status` (6.4) and records the JSON rendering of `SendMessageResponse` and of an SQS error.
+Settles 12.3's out-of-scope `aws-integration.error-status` item (6.4) and records the JSON rendering of `SendMessageResponse` and of an SQS error.
 
 ```sh
 aws sqs create-queue --queue-name "$P-apigw1" >/dev/null
@@ -1203,7 +1282,7 @@ Expected: 19-ok body is the JSON `SendMessageResponse`; 19-missing-queue status 
 
 ### 13.21 APIGW1-20: action URIs without header overrides
 
-Settles `apigateway.aws-integration.action-translation` (6.4).
+Settles 12.3's out-of-scope `aws-integration.action-translation` item (6.4).
 
 ```sh
 cat >eb.json <<'EOF'
@@ -1236,7 +1315,7 @@ Expected: whether PutEvents succeeds (`Entries` with an `EventId`) with no `X-Am
 
 ### 13.22 APIGW1-21: JSONPath beyond simple paths
 
-Settles `apigateway.vtl.jsonpath` (7.7).
+Settles 12.3's out-of-scope `vtl.jsonpath` item (7.7).
 
 ```sh
 # the template goes through a file: its '...' JSONPath literals cannot sit inside a single-quoted shell argument
@@ -1255,3 +1334,45 @@ inv 21-jsonpath "$U/s1/np21" -X POST -H 'Content-Type: application/json' -d '{"a
 ```
 
 Expected: each field's rendering, or a 500 if a construct breaks the template. Cost USD 0.00, 2 minutes. Teardown: `aws apigateway delete-resource --rest-api-id "$API" --resource-id "$NX"`.
+
+### 13.23 APIGW1-22: control-plane IAM denials and resources
+
+Settles: the identity of an IAM denial on a v1 control-plane call (status, `x-amzn-ErrorType`, message key and text; the v1 model has no `AccessDeniedException` shape, 2.4, `iam-enforcement-surfaces.md` 12.3); where the message names the resource, the resource of each call (3.10): the collection and item forms, CreateResource's parent item, the method, integration and response items, and the tags form with its encoding; and, from steps 14 to 16, whether a tag call also needs a permission on the tagged API (3.10). Step 01 repeats IAM-ENF-33 (`iam-enforcement-surfaces.md` 13.35); either recording settles the identity. In `notes.md`, write per step the status line, `x-amzn-ErrorType`, the body, and the action and resource the message names, if it names one. Five minutes, USD 0.
+
+The role `$P-apigw1-caller` has no policy, so every call below should be denied and change nothing until the policy before step 14 allows the tag resource.
+
+```sh
+aws iam create-role --role-name "$P-apigw1-caller" --assume-role-policy-document \
+  "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"AWS\":\"arn:aws:iam::$A:root\"},\"Action\":\"sts:AssumeRole\"}]}" >/dev/null
+sleep 15                                   # the new role must propagate
+read -r AK SK ST <<<"$(aws sts assume-role --role-arn "arn:aws:iam::$A:role/$P-apigw1-caller" --role-session-name gw22 \
+  --query 'Credentials.[AccessKeyId,SecretAccessKey,SessionToken]' --output text)"
+deny() {  # deny <step> <apigateway args...>: one call as the $P-apigw1-caller session, kept as rec keeps it
+  ( unset AWS_PROFILE; export AWS_ACCESS_KEY_ID="$AK" AWS_SECRET_ACCESS_KEY="$SK" AWS_SESSION_TOKEN="$ST"
+    rec "APIGW1/22-$1" aws apigateway "${@:2}" )
+}
+TAGGED="arn:aws:apigateway:$R::/restapis/$API"
+deny 01-get-rest-apis get-rest-apis
+deny 02-create-rest-api create-rest-api --name "$P-apigw1-denied"
+deny 03-get-rest-api get-rest-api --rest-api-id "$API"
+deny 04-update-rest-api update-rest-api --rest-api-id "$API" --patch-operations op=replace,path=/description,value=x
+deny 05-get-resources get-resources --rest-api-id "$API"
+deny 06-create-resource create-resource --rest-api-id "$API" --parent-id "$ROOT" --path-part denied
+deny 07-get-method get-method --rest-api-id "$API" --resource-id "$ITEMS" --http-method GET
+deny 08-get-method-response get-method-response --rest-api-id "$API" --resource-id "$ITEMS" --http-method GET --status-code 200
+deny 09-get-integration get-integration --rest-api-id "$API" --resource-id "$ITEMS" --http-method GET
+deny 10-get-integration-response get-integration-response --rest-api-id "$API" --resource-id "$ITEMS" --http-method GET --status-code 200
+deny 11-create-deployment create-deployment --rest-api-id "$API" --stage-name s1
+deny 12-get-stage get-stage --rest-api-id "$API" --stage-name s1
+deny 13-get-tags get-tags --resource-arn "$TAGGED"
+aws iam put-role-policy --role-name "$P-apigw1-caller" --policy-name tags --policy-document \
+  "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":\"apigateway:*\",\"Resource\":\"arn:aws:apigateway:$R::/tags/*\"}]}"
+sleep 15                                   # the new role policy must propagate
+deny 14-get-tags-tags-only get-tags --resource-arn "$TAGGED"
+deny 15-tag-resource-tags-only tag-resource --resource-arn "$TAGGED" --tags k=v
+deny 16-untag-resource-tags-only untag-resource --resource-arn "$TAGGED" --tag-keys k
+aws iam delete-role-policy --role-name "$P-apigw1-caller" --policy-name tags
+unset AK SK ST
+```
+
+A success in steps 14 to 16 means the `/tags/...` resource alone authorizes the call; a denial naming `$TAGGED` means the tagged API needs its own permission. If step 02 is not denied, delete its API with the shared teardown's `delete-rest-api` (after the 30 s wait); if step 06 or 11 is not denied, note it, since it changed the shared API. Teardown: `aws iam delete-role --role-name "$P-apigw1-caller"`.
