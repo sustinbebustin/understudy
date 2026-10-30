@@ -118,11 +118,39 @@ type SESMessage struct {
 	Attachments []SESAttachment `json:"attachments,omitempty"`
 	// Raw is the raw MIME as received, base64 in JSON.
 	Raw []byte `json:"raw,omitempty"`
+	// Template is the template of a v1 SendTemplatedEmail or a v2 send
+	// with Template content; Subject, Text and HTML are then its rendered
+	// parts, each absent when a gap left it unrendered.
+	Template *SESTemplate `json:"template,omitempty"`
 
 	Tags []SESTag `json:"tags,omitempty"`
 	// Simulator maps each mailbox simulator recipient to its scenario:
 	// "success", "bounce", "ooto", "complaint" or "suppressionlist".
 	Simulator map[string]string `json:"simulator,omitempty"`
+}
+
+// SESTemplate is the template a templated send used, as written.
+type SESTemplate struct {
+	// Name is the stored template's name, empty for v2 inline content.
+	Name    string  `json:"name,omitempty"`
+	Subject *string `json:"subject,omitempty"`
+	Text    *string `json:"text,omitempty"`
+	HTML    *string `json:"html,omitempty"`
+	// Data is TemplateData as given.
+	Data string `json:"data"`
+	// Gaps are the tags understudy did not render: it renders {{name}}
+	// and dotted paths only.
+	Gaps []SESRenderGap `json:"gaps,omitempty"`
+}
+
+// SESRenderGap is a template tag understudy did not render.
+type SESRenderGap struct {
+	// Part is "subject", "text" or "html", or empty when TemplateData
+	// itself could not be read and no part was rendered.
+	Part string `json:"part,omitempty"`
+	// Tag is the tag as written; empty for a TemplateData gap.
+	Tag    string `json:"tag,omitempty"`
+	Reason string `json:"reason"`
 }
 
 // SESContent is a subject or body and its charset.

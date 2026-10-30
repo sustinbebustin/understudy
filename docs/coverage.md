@@ -129,7 +129,7 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | logs | 118 | 9 | 0 | 9 | 100 | 1 | 0 |
 | s3 | 112 | 22 | 39 | 25 | 26 | 0 | 3 |
 | secretsmanager | 23 | 1 | 0 | 14 | 8 | 0 | 0 |
-| ses | 71 | 8 | 0 | 6 | 57 | 0 | 1 |
+| ses | 71 | 8 | 0 | 7 | 56 | 0 | 1 |
 | sesv2 | 116 | 2 | 0 | 7 | 107 | 0 | 0 |
 | sfn | 37 | 7 | 0 | 9 | 21 | 0 | 0 |
 | sns | 42 | 12 | 0 | 7 | 23 | 0 | 3 |
@@ -1149,6 +1149,7 @@ Raw operations:
 | GetSendQuota | partial | inferred, 1 of 2 claims | Max24HourSend and MaxSendRate from the sandbox or production setting; SentLast24Hours counts accepted recipients on the emulator clock, mailbox simulator excluded; the send rate is not enforced; production values -1 and 14 are unrecorded (SES-26) |
 | SendEmail | partial | inferred, 5 of 6 claims | journal-only: validates and applies identity and sandbox rules, returns a MessageId and records the message for GET /_understudy/v1/ses/messages; no mail is sent, and no Send, Delivery, Bounce or Complaint event or notification is produced; ConfigurationSetName and the sending-authorization ARNs answer NotImplemented; chosen without a recording (docs/research/ses.md 11.4): address, recipient-count, size and daily-quota answers, tag boundaries and ses: names, check order, mailbox-simulator and label matching |
 | SendRawEmail | partial | inferred, 5 of 6 claims | journal-only as SendEmail; the raw MIME is recorded as received, without the Message-ID and Date headers SES would substitute; recipients come from Destinations, else the To, Cc and Bcc headers; X-SES-MESSAGE-TAGS is recorded; ConfigurationSetName, X-SES-CONFIGURATION-SET, the ARN members and the X-SES-*-ARN headers answer NotImplemented |
+| SendTemplatedEmail | partial | inferred, 5 of 6 claims | journal-only as SendEmail; the stored template and TemplateData are recorded, and rendered subject and bodies only for {{name}} and dotted-path tags; other Handlebars constructs record a render gap, and the send is still accepted, as SES accepts before rendering; so do a value TemplateData lacks, a string holding a character Handlebars escapes and any value but a string, boolean or integer, whose rendering on SES is unrecorded; TemplateArn answers NotImplemented |
 | VerifyDomainIdentity | partial | inferred, 2 of 3 claims | the domain stays Pending until understudy.json lists it; DNS is never queried; Failed after 72 hours on the emulator clock |
 | VerifyEmailIdentity | partial | inferred, 3 of 4 claims | the identity stays Pending until its verification link under /_understudy/ses/VerificationLink is opened or understudy.json lists it; the verification email is recorded, never sent; Failed after 24 hours on the emulator clock; chosen without a recording (docs/research/ses.md 11.4): the invalid-address answers |
 | CloneReceiptRuleSet | unbound | unassessed |  |
@@ -1190,7 +1191,6 @@ Raw operations:
 | SendBounce | unbound | unassessed |  |
 | SendBulkTemplatedEmail | unbound | unassessed |  |
 | SendCustomVerificationEmail | unbound | unassessed |  |
-| SendTemplatedEmail | unbound | unassessed |  |
 | SetActiveReceiptRuleSet | unbound | unassessed |  |
 | SetIdentityDkimEnabled | unbound | unassessed |  |
 | SetIdentityFeedbackForwardingEnabled | unbound | unassessed |  |
@@ -1225,7 +1225,7 @@ Raw operations:
 | GetAccount | partial | unassessed | ProductionAccessEnabled and SendQuota from understudy state; SendingEnabled true, since account sending cannot be paused yet; EnforcementStatus HEALTHY; no dedicated IP, VDM, pricing, suppression or account details |
 | ListEmailIdentities | partial | unassessed | the GET /v2/email/identities binding sent by SDKs generated before 2026-09-29 is not routed and answers sesv2's unknown operation |
 | ListTagsForResource | partial | unassessed | identity ARNs only; a template ARN answers NotFoundException until the v2 template operations land; an identity ARN with an empty account field names the caller's account, as Terraform sends it under skip_requesting_account_id (what AWS answers is unrecorded) |
-| SendEmail | partial | unassessed | journal-only as the v1 sends, for Simple (with Headers and Attachments) and Raw content; FeedbackForwardingEmailAddress must be verified, as ReturnPath (inferred); Template content, ConfigurationSetName, ConfigurationOverrides, EndpointId, TenantName, ListManagementOptions and the identity ARN members answer NotImplemented |
+| SendEmail | partial | unassessed | journal-only as the v1 sends, for Simple (with Headers and Attachments), Raw and Template content; Template content, stored by TemplateName or inline, renders and records as SendTemplatedEmail does; FeedbackForwardingEmailAddress must be verified, as ReturnPath (inferred); ConfigurationSetName, ConfigurationOverrides, EndpointId, TenantName, ListManagementOptions, Template.TemplateArn and the identity ARN members answer NotImplemented |
 | TagResource | partial | unassessed | identity ARNs only; a template ARN answers NotFoundException until the v2 template operations land; an identity ARN with an empty account field names the caller's account, as Terraform sends it under skip_requesting_account_id (what AWS answers is unrecorded) |
 | UntagResource | partial | unassessed | identity ARNs only; a template ARN answers NotFoundException until the v2 template operations land; an identity ARN with an empty account field names the caller's account, as Terraform sends it under skip_requesting_account_id (what AWS answers is unrecorded) |
 | AssociateEmailIdentityCertificate | unbound | unassessed |  |

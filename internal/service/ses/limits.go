@@ -233,10 +233,14 @@ const (
 	// identity, which the model documents as domains only (ses.md 5.4).
 	DkimOnAddressText = "DkimSigningAttributes can only be set on a domain identity."
 	// ContentShapeText answers a v2 Content with none or more than one of
-	// Simple, Raw and Template; MissingFromText a Simple send without
-	// FromEmailAddress (ses.md 4.4, SES-23).
+	// Simple, Raw and Template; MissingFromText a Simple or Template send
+	// without FromEmailAddress (ses.md 4.4, SES-23).
 	ContentShapeText = "Exactly one of Simple, Raw or Template content must be specified."
-	MissingFromText  = "FromEmailAddress is required for Simple content."
+	MissingFromText  = "FromEmailAddress is required for Simple and Template content."
+	// TemplateSourceText answers v2 Template content with none or more
+	// than one of TemplateName, TemplateArn and TemplateContent (model
+	// com.amazonaws.sesv2#Template; the answer is inferred, SES-23).
+	TemplateSourceText = "Exactly one of TemplateName, TemplateArn or TemplateContent must be specified."
 )
 
 // The verification email (ses.md 5.2): its sender, and its subject, a fmt

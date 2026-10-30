@@ -32,13 +32,24 @@ const (
 	// refusalThrottled is a send past the daily quota: v1 Throttling (the
 	// overlay's throttle error, ses.md 11.4; SES-22).
 	refusalThrottled
+	// refusalTemplateMissing is a templated send naming a template the
+	// scope does not hold: v1 TemplateDoesNotExist (model), v2
+	// NotFoundException (inferred, SES-18).
+	refusalTemplateMissing
 )
 
 // refusal is the answer of a failed send check: its class and the whole
-// message.
+// message, and for refusalTemplateMissing the template's name.
 type refusal struct {
-	class refusalClass
-	text  string
+	class    refusalClass
+	text     string
+	template string
+}
+
+// templateMissing refuses a send of template name, which the scope does
+// not hold (the text is inferred, SES-18).
+func templateMissing(name string) *refusal {
+	return &refusal{class: refusalTemplateMissing, text: fmt.Sprintf(TemplateMissingText, name), template: name}
 }
 
 // v1 is r as a v1 error.
@@ -50,6 +61,8 @@ func (r *refusal) v1() *awserr.Error {
 		return sesapi.ErrNotImplemented(r.text)
 	case refusalThrottled:
 		return sesapi.ErrThrottling(r.text)
+	case refusalTemplateMissing:
+		return errTemplateMissing(r.template)
 	case refusalInvalid:
 	}
 	return sesapi.ErrInvalidParameterValue(r.text)
@@ -65,6 +78,8 @@ func (r *refusal) v2() *awserr.Error {
 		return sesv2api.ErrNotImplemented(r.text)
 	case refusalThrottled:
 		return sesv2api.ErrTooManyRequestsException(r.text)
+	case refusalTemplateMissing:
+		return sesv2api.ErrNotFoundException(r.text)
 	case refusalInvalid:
 	}
 	return sesv2api.ErrBadRequestException(r.text)

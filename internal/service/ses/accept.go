@@ -25,16 +25,19 @@ type outgoing struct {
 	// envelope is the recipients the sandbox check and the counter use, as
 	// given, in request order.
 	envelope []string
+	// prepare, when set, reads what the send needs from the scope's state
+	// before the identity checks: a templated send's stored template.
+	prepare func(st *state) *refusal
 	// fill writes the message's own fields into its record.
 	fill func(r *record)
 	// refuse is the answer of a failed check in the send's API.
 	refuse func(r *refusal) *awserr.Error
 }
 
-// accept runs the sender, sandbox-recipient and daily-quota checks, in
-// SendChecks order, on the caller's scope; a send that passes them is
-// counted and recorded, and accept returns its MessageId. Nothing changes
-// when a check fails.
+// accept runs o.prepare, then the sender, sandbox-recipient and
+// daily-quota checks, in SendChecks order, on the caller's scope; a send
+// that passes them is counted and recorded, and accept returns its
+// MessageId. Nothing changes when a check fails.
 func (s *Service) accept(ctx context.Context, c *kernel.Call, o outgoing) (string, *awserr.Error) {
 	type accepted struct {
 		id       string
@@ -42,6 +45,11 @@ func (s *Service) accept(ctx context.Context, c *kernel.Call, o outgoing) (strin
 	}
 	scope := c.Scope()
 	got, err := kernel.Write(c, s.cells, scope, func(st *state, now clock.Instant, _ *kernel.Tx) (accepted, *awserr.Error) {
+		if o.prepare != nil {
+			if r := o.prepare(st); r != nil {
+				return accepted{}, o.refuse(r)
+			}
+		}
 		if r := s.checkIdentities(st, scope.Region, o); r != nil {
 			return accepted{}, o.refuse(r)
 		}

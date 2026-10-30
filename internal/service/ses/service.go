@@ -67,6 +67,7 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 	s.bindIdentities(b)
 	s.bindSends(b)
 	s.bindSendRaw(b)
+	s.bindSendTemplated(b)
 	s.bindQuota(b)
 	s.bindTemplates(b)
 	s.bindLink(b)
@@ -171,7 +172,7 @@ func storeSwitch(v StoreSharing) fidelity.Switch[StoreSharing] {
 		Ops: []string{
 			"ses.VerifyEmailIdentity", "ses.VerifyDomainIdentity", "ses.GetIdentityVerificationAttributes",
 			"ses.GetIdentityNotificationAttributes", "ses.ListIdentities", "ses.DeleteIdentity",
-			"ses.SendEmail", "ses.SendRawEmail",
+			"ses.SendEmail", "ses.SendRawEmail", "ses.SendTemplatedEmail",
 		},
 		Settles: fidelity.NoScenario{Reason: "unrecorded: SES-12 in the recording queue (ses.md 12) settles it"},
 	}
@@ -189,7 +190,7 @@ func messageIDSwitch(v MessageIDFormat) fidelity.Switch[MessageIDFormat] {
 		Label:   evidence.Inferred,
 		Ref:     "docs/research/ses.md#47-messageid",
 		Record:  "SES-07",
-		Ops:     []string{"ses.SendEmail", "ses.SendRawEmail", "ses.VerifyEmailIdentity"},
+		Ops:     []string{"ses.SendEmail", "ses.SendRawEmail", "ses.SendTemplatedEmail", "ses.VerifyEmailIdentity"},
 		Settles: fidelity.NoScenario{Reason: "unrecorded: SES-07 in the recording queue (ses.md 12) settles it"},
 	}
 }
@@ -204,7 +205,7 @@ func unverifiedTextSwitch(v UnverifiedText) fidelity.Switch[UnverifiedText] {
 		Label:   evidence.Inferred,
 		Ref:     "docs/research/ses.md#61-sandbox-rules-per-send",
 		Record:  "SES-01, SES-03",
-		Ops:     []string{"ses.SendEmail", "ses.SendRawEmail"},
+		Ops:     []string{"ses.SendEmail", "ses.SendRawEmail", "ses.SendTemplatedEmail"},
 		Settles: fidelity.NoScenario{Reason: "unrecorded: SES-01 and SES-03 in the recording queue (ses.md 12) settle it"},
 	}
 }

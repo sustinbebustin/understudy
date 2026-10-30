@@ -216,6 +216,7 @@ No SES response has been recorded against AWS yet, so every SES answer rests on 
 - An identity is verified only by opening its verification link or by `ses.verifiedIdentities`, never by DNS or a click elsewhere; a domain outside the list stays `Pending` and fails after 72 hours of emulator time.
 - A raw message is recorded as received, without the `Message-ID` and `Date` headers SES would substitute.
 - `MaxSendRate` is reported but not enforced.
+- A templated send renders only `{{name}}` and dotted paths; any other Handlebars construct, a value the data lacks and a value whose rendering on SES is unrecorded leave their part unrendered and are listed as render gaps, where AWS would render the part or, for a rendering failure, drop the mail after accepting it ([SES](ses-email.md#templated-sends)).
 - Texts not yet recorded, and so possibly different from AWS's: the unverified-identity `MessageRejected` text (its region spelling and identity order), invalid-address and recipient-count answers, the daily quota error, and the production quota values -1 and 14.
 - An unknown v1 `Action` or v2 path answers as `sesv2`'s unknown operation; what AWS answers is not recorded.
 

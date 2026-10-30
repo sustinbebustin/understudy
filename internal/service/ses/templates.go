@@ -18,10 +18,13 @@ import (
 // as given, nil when the request left it out, so GetTemplate echoes the
 // parts given and omits the rest (ses.md 9.4).
 type template struct {
-	Name    string        `json:"name"`
-	Subject *string       `json:"subject,omitempty"`
-	Text    *string       `json:"text,omitempty"`
-	HTML    *string       `json:"html,omitempty"`
+	Name    string  `json:"name"`
+	Subject *string `json:"subject,omitempty"`
+	Text    *string `json:"text,omitempty"`
+	HTML    *string `json:"html,omitempty"`
+	// API is the API whose call created the template, which switch
+	// ses.store.shared-v1-v2 reads when it keeps the APIs apart.
+	API     API           `json:"api"`
 	Created clock.Instant `json:"created"`
 }
 
@@ -37,11 +40,11 @@ func templateARN(scope aws.Scope, name string) aws.ARN {
 	}
 }
 
-// findTemplate is the index of the template named name, byte for byte, or
-// -1.
-func (s *state) findTemplate(name string) int {
+// findTemplate is the index of the template in v named name, byte for
+// byte, or -1.
+func (s *state) findTemplate(v view, name string) int {
 	for i := range s.Templates {
-		if s.Templates[i].Name == name {
+		if s.Templates[i].Name == name && v.owns(s.Templates[i].API) {
 			return i
 		}
 	}
@@ -107,14 +110,14 @@ func (s *Service) createTemplate(_ context.Context, c *kernel.Call, in *sesapi.C
 	}
 	t := in.Template
 	_, err := kernel.Write(c, s.cells, c.Scope(), func(st *state, now clock.Instant, _ *kernel.Tx) (struct{}, *awserr.Error) {
-		if st.findTemplate(t.TemplateName) >= 0 {
+		if st.findTemplate(s.view(APIv1), t.TemplateName) >= 0 {
 			return struct{}{}, sesapi.ErrAlreadyExistsExceptionMembers(fmt.Sprintf(TemplateExistsText, t.TemplateName),
 				sesapi.AlreadyExistsException{Name: new(t.TemplateName)})
 		}
 		if len(st.Templates) >= MaxTemplates {
 			return struct{}{}, sesapi.ErrLimitExceededException(fmt.Sprintf(TemplateLimitText, MaxTemplates))
 		}
-		st.Templates = append(st.Templates, template{Name: t.TemplateName, Subject: t.SubjectPart, Text: t.TextPart, HTML: t.HtmlPart, Created: now})
+		st.Templates = append(st.Templates, template{Name: t.TemplateName, Subject: t.SubjectPart, Text: t.TextPart, HTML: t.HtmlPart, API: APIv1, Created: now})
 		return struct{}{}, nil
 	})
 	if err != nil {
@@ -131,7 +134,7 @@ func (s *Service) getTemplate(_ context.Context, c *kernel.Call, in *sesapi.GetT
 		return nil, errTemplateMissing(in.TemplateName)
 	}
 	t := store.Read(cell, func(st *state) *sesapi.Template {
-		i := st.findTemplate(in.TemplateName)
+		i := st.findTemplate(s.view(APIv1), in.TemplateName)
 		if i < 0 {
 			return nil
 		}
@@ -152,7 +155,7 @@ func (s *Service) updateTemplate(_ context.Context, c *kernel.Call, in *sesapi.U
 	}
 	t := in.Template
 	_, err := kernel.Write(c, s.cells, c.Scope(), func(st *state, _ clock.Instant, _ *kernel.Tx) (struct{}, *awserr.Error) {
-		i := st.findTemplate(t.TemplateName)
+		i := st.findTemplate(s.view(APIv1), t.TemplateName)
 		if i < 0 {
 			return struct{}{}, errTemplateMissing(t.TemplateName)
 		}
@@ -170,7 +173,7 @@ func (s *Service) updateTemplate(_ context.Context, c *kernel.Call, in *sesapi.U
 // unchanged, as the model declares no error for it (ses.md 7).
 func (s *Service) deleteTemplate(_ context.Context, c *kernel.Call, in *sesapi.DeleteTemplateInput) (*sesapi.DeleteTemplateOutput, *awserr.Error) {
 	_, err := kernel.Write(c, s.cells, c.Scope(), func(st *state, _ clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
-		i := st.findTemplate(in.TemplateName)
+		i := st.findTemplate(s.view(APIv1), in.TemplateName)
 		if i < 0 {
 			tx.Unchanged()
 			return struct{}{}, nil

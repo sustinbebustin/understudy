@@ -69,7 +69,8 @@ type Message struct {
 	// as given.
 	Envelope []string
 
-	// Subject, Text and HTML are Simple content; nil when absent.
+	// Subject, Text and HTML are Simple content, or a template's rendered
+	// parts; nil when absent or, for a template part, not rendered.
 	Subject, Text, HTML *Content
 	// Headers are v2 Simple Headers in request order.
 	Headers []Header
@@ -78,6 +79,9 @@ type Message struct {
 	// Raw is the raw MIME as received, without SES's substituted
 	// Message-ID and Date headers; nil for Simple content.
 	Raw []byte
+	// Template is the template of a templated send with its data and
+	// render gaps; nil for any other message.
+	Template *TemplateSend
 
 	// Tags are the send's tags in request order, then any
 	// X-SES-MESSAGE-TAGS of a raw send.

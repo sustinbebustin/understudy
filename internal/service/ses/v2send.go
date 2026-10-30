@@ -14,9 +14,11 @@ import (
 )
 
 // v2SendEmailCoverage is v2 SendEmail's coverage note (ses.md 11.1).
-const v2SendEmailCoverage = "journal-only as the v1 sends, for Simple (with Headers and Attachments) and Raw content; " +
-	"FeedbackForwardingEmailAddress must be verified, as ReturnPath (inferred); Template content, ConfigurationSetName, " +
-	"ConfigurationOverrides, EndpointId, TenantName, ListManagementOptions and the identity ARN members answer NotImplemented"
+const v2SendEmailCoverage = "journal-only as the v1 sends, for Simple (with Headers and Attachments), Raw and Template content; " +
+	"Template content, stored by TemplateName or inline, renders and records as SendTemplatedEmail does; " +
+	"FeedbackForwardingEmailAddress must be verified, as ReturnPath (inferred); ConfigurationSetName, " +
+	"ConfigurationOverrides, EndpointId, TenantName, ListManagementOptions, Template.TemplateArn and the identity ARN members " +
+	"answer NotImplemented"
 
 // bindV2Send binds v2 SendEmail, whose resource is its sender's identity
 // ARN: FromEmailAddress, else, for Raw content, the first From header
@@ -52,7 +54,8 @@ func (v *V2) sendEmail(ctx context.Context, c *kernel.Call, in *sesv2api.SendEma
 		send *checkedSend
 		r    *refusal
 	)
-	if in.Content.Raw != nil {
+	switch {
+	case in.Content.Raw != nil:
 		send, r = s.checkRaw(rawRequest{
 			svc:          "sesv2",
 			op:           "SendEmail",
@@ -64,7 +67,9 @@ func (v *V2) sendEmail(ctx context.Context, c *kernel.Call, in *sesv2api.SendEma
 			data:         in.Content.Raw.Data,
 			limit:        MaxV2MessageBytes,
 		})
-	} else {
+	case in.Content.Template != nil:
+		send, r = checkTemplateContent(in)
+	default:
 		send, r = checkSimple(in)
 	}
 	if r != nil {
@@ -74,14 +79,15 @@ func (v *V2) sendEmail(ctx context.Context, c *kernel.Call, in *sesv2api.SendEma
 	var stored []blob.Ref
 	var raw *blob.Ref
 	var attachments []attachmentRecord
-	if in.Content.Raw != nil {
+	switch {
+	case in.Content.Raw != nil:
 		ref, err := s.putBlob(ctx, in.Content.Raw.Data)
 		if err != nil {
 			return nil, err
 		}
 		stored, raw = append(stored, ref), &ref
-	} else {
-		for _, a := range in.Content.Simple.Attachments {
+	default:
+		for _, a := range attachmentsOf(&in.Content) {
 			ref, err := s.putBlob(ctx, a.RawContent)
 			if err != nil {
 				s.release(ctx, stored...)
@@ -91,17 +97,31 @@ func (v *V2) sendEmail(ctx context.Context, c *kernel.Call, in *sesv2api.SendEma
 			attachments = append(attachments, attachmentOf(&a, ref))
 		}
 	}
-	id, err := s.accept(ctx, c, outgoing{
+	o := outgoing{
 		api:      APIv2,
 		senders:  send.senders,
 		envelope: send.envelope,
 		refuse:   (*refusal).v2,
-		fill: func(r *record) {
-			send.fill(r)
-			r.Raw = raw
-			r.Attachments = attachments
-		},
-	})
+	}
+	var used *TemplateSend
+	t := in.Content.Template
+	if t != nil {
+		o.prepare = func(st *state) *refusal {
+			var r *refusal
+			used, r = s.templateContent(st, t)
+			return r
+		}
+	}
+	o.fill = func(r *record) {
+		send.fill(r)
+		r.Raw = raw
+		r.Attachments = attachments
+		if used != nil {
+			r.Subject, r.Text, r.HTML = used.render(t.TemplateData == nil)
+			r.Template = used
+		}
+	}
+	id, err := s.accept(ctx, c, o)
 	if err != nil {
 		s.release(ctx, stored...)
 		return nil, err
@@ -110,24 +130,22 @@ func (v *V2) sendEmail(ctx context.Context, c *kernel.Call, in *sesv2api.SendEma
 }
 
 // checkV2Send runs the v2 SendEmail checks every content kind shares,
-// before the content's own: the Content shape and Simple's sender, which
-// the overlay's validation identity answers (SES-23, inferred), then the
-// NotImplemented members (contract 2.2; spec conflict rows 4, 6, 9).
+// before the content's own: the Content shape, the sender of Simple and
+// Template content and the Template's source, which the overlay's
+// validation identity answers (SES-23, inferred), then the NotImplemented
+// members (contract 2.2; spec conflict rows 4, 6, 9).
 func checkV2Send(in *sesv2api.SendEmailInput) *refusal {
-	kinds := 0
-	for _, set := range []bool{in.Content.Simple != nil, in.Content.Raw != nil, in.Content.Template != nil} {
-		if set {
-			kinds++
-		}
-	}
+	t := in.Content.Template
 	switch {
-	case kinds != 1:
+	case count(in.Content.Simple != nil, in.Content.Raw != nil, t != nil) != 1:
 		return invalid(ContentShapeText)
-	case in.Content.Simple != nil && in.FromEmailAddress == nil:
+	case in.Content.Raw == nil && in.FromEmailAddress == nil:
 		return invalid(MissingFromText)
+	case t != nil && count(t.TemplateName != nil, t.TemplateArn != nil, t.TemplateContent != nil) != 1:
+		return invalid(TemplateSourceText)
 	}
 	return firstUnimplemented("sesv2", "SendEmail", []unimplemented{
-		{"Content.Template", "email templates", in.Content.Template != nil},
+		{"Content.Template.TemplateArn", "template ARNs", t != nil && t.TemplateArn != nil},
 		{"ConfigurationSetName", "configuration sets", in.ConfigurationSetName != nil},
 		{"ConfigurationOverrides", "configuration sets", in.ConfigurationOverrides != nil},
 		{"EndpointId", "multi-region endpoints", in.EndpointId != nil},
@@ -138,14 +156,98 @@ func checkV2Send(in *sesv2api.SendEmailInput) *refusal {
 	})
 }
 
-// checkSimple runs the checks of v2 Simple content that need no state, as
-// v1 SendEmail's (contract 2.2): tags, addresses (FeedbackForwardingEmail-
+// count is how many of set are true.
+func count(set ...bool) int {
+	n := 0
+	for _, b := range set {
+		if b {
+			n++
+		}
+	}
+	return n
+}
+
+// attachmentsOf is the Attachments of Simple or Template content.
+func attachmentsOf(c *sesv2api.EmailContent) []sesv2api.Attachment {
+	switch {
+	case c.Simple != nil:
+		return c.Simple.Attachments
+	case c.Template != nil:
+		return c.Template.Attachments
+	}
+	return nil
+}
+
+// checkSimple runs the checks of v2 Simple content that need no state
+// (checkAddressed) and records its subject, bodies and Headers.
+func checkSimple(in *sesv2api.SendEmailInput) (*checkedSend, *refusal) {
+	m := in.Content.Simple
+	send, r := checkAddressed(in, v2SimpleSize(m))
+	if r != nil {
+		return nil, r
+	}
+	fill := send.fill
+	send.fill = func(r *record) {
+		fill(r)
+		r.Subject = v2Content(&m.Subject)
+		r.Text = v2Content(m.Body.Text)
+		r.HTML = v2Content(m.Body.Html)
+		r.Headers = v2Headers(m.Headers)
+	}
+	return send, nil
+}
+
+// checkTemplateContent runs the checks of v2 Template content that need no
+// state (checkAddressed) and records its Headers; accept's prepare finds a
+// stored template (templateContent), and the fill renders it.
+func checkTemplateContent(in *sesv2api.SendEmailInput) (*checkedSend, *refusal) {
+	t := in.Content.Template
+	send, r := checkAddressed(in, v2TemplateSize(t))
+	if r != nil {
+		return nil, r
+	}
+	fill := send.fill
+	send.fill = func(r *record) {
+		fill(r)
+		r.Headers = v2Headers(t.Headers)
+	}
+	return send, nil
+}
+
+// templateContent is the template Template content t uses: the stored
+// template in v2's view named TemplateName, or the inline TemplateContent,
+// with its TemplateData ("" when absent).
+func (s *Service) templateContent(st *state, t *sesv2api.Template) (*TemplateSend, *refusal) {
+	var data string
+	if t.TemplateData != nil {
+		data = *t.TemplateData
+	}
+	if t.TemplateName != nil {
+		return st.storedTemplate(s.view(APIv2), *t.TemplateName, data)
+	}
+	c := t.TemplateContent
+	return &TemplateSend{Subject: clonePart(c.Subject), Text: clonePart(c.Text), HTML: clonePart(c.Html), Data: data}, nil
+}
+
+// v2Headers is v2 message headers as recorded, nil when there are none.
+func v2Headers(in []sesv2api.MessageHeader) []Header {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]Header, 0, len(in))
+	for _, h := range in {
+		out = append(out, Header{Name: h.Name, Value: h.Value})
+	}
+	return out
+}
+
+// checkAddressed runs the checks Simple and Template content share, as v1
+// SendEmail's (contract 2.2): tags, addresses (FeedbackForwardingEmail-
 // Address checked as ReturnPath, spec conflict row 9), the message size
 // against MaxV2MessageBytes, and the recipient count. Headers' names and
 // values were checked against their model patterns before the handler
-// (ses.md 4.4).
-func checkSimple(in *sesv2api.SendEmailInput) (*checkedSend, *refusal) {
-	m := in.Content.Simple
+// (ses.md 4.4). The fill records the addressing and tags.
+func checkAddressed(in *sesv2api.SendEmailInput, size int) (*checkedSend, *refusal) {
 	tags := v2Tags(in.EmailTags)
 	for _, t := range tags {
 		if r := checkTag(t.Name, t.Value); r != nil {
@@ -166,7 +268,7 @@ func checkSimple(in *sesv2api.SendEmailInput) (*checkedSend, *refusal) {
 			return nil, r
 		}
 	}
-	if r := checkSize(v2SimpleSize(m), MaxV2MessageBytes); r != nil {
+	if r := checkSize(size, MaxV2MessageBytes); r != nil {
 		return nil, r
 	}
 	envelope := destinations(in.Destination)
@@ -184,12 +286,6 @@ func checkSimple(in *sesv2api.SendEmailInput) (*checkedSend, *refusal) {
 				r.ReturnPath = *in.FeedbackForwardingEmailAddress
 			}
 			r.To, r.Cc, r.Bcc = slices.Clone(d.ToAddresses), slices.Clone(d.CcAddresses), slices.Clone(d.BccAddresses)
-			r.Subject = v2Content(&m.Subject)
-			r.Text = v2Content(m.Body.Text)
-			r.HTML = v2Content(m.Body.Html)
-			for _, h := range m.Headers {
-				r.Headers = append(r.Headers, Header{Name: h.Name, Value: h.Value})
-			}
 			r.Tags = tags
 		},
 	}, nil
@@ -206,10 +302,32 @@ func v2SimpleSize(m *sesv2api.Message) int {
 			n += len(b.Data)
 		}
 	}
-	for _, h := range m.Headers {
+	return n + headersSize(m.Headers, m.Attachments)
+}
+
+// v2TemplateSize is the bytes of Template content as v2SimpleSize counts
+// them: inline parts, headers and attachments. A stored template's parts
+// are held to MaxTemplateBytes when stored, and rendering is not measured.
+func v2TemplateSize(t *sesv2api.Template) int {
+	n := 0
+	if c := t.TemplateContent; c != nil {
+		for _, p := range []*string{c.Subject, c.Text, c.Html} {
+			if p != nil {
+				n += len(*p)
+			}
+		}
+	}
+	return n + headersSize(t.Headers, t.Attachments)
+}
+
+// headersSize is the bytes of header names and values and of attachments
+// as base64.
+func headersSize(hs []sesv2api.MessageHeader, as []sesv2api.Attachment) int {
+	n := 0
+	for _, h := range hs {
 		n += len(h.Name) + len(h.Value)
 	}
-	for _, a := range m.Attachments {
+	for _, a := range as {
 		n += base64.StdEncoding.EncodedLen(len(a.RawContent))
 	}
 	return n

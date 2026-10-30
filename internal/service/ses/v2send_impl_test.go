@@ -18,17 +18,6 @@ func rawV2(data []byte) *sesv2api.SendEmailInput {
 	return &sesv2api.SendEmailInput{Content: sesv2api.EmailContent{Raw: &sesv2api.RawMessage{Data: data}}}
 }
 
-// Template content answers NotImplemented naming it until the template
-// send lands (spec ticket 13; invariant 3).
-func TestV2TemplateContentIsNotImplemented(t *testing.T) {
-	runVerified(t, ses.Options{}, func(h *harness) {
-		in := simpleEmail(sender, simulator)
-		in.Content = sesv2api.EmailContent{Template: &sesv2api.Template{TemplateName: new("welcome")}}
-		_, err := call(h, sesv2api.OpSendEmail, in)
-		wantNotImplemented(h, err, "Content.Template")
-	})
-}
-
 // Simple content runs v1 SendEmail's address and recipient-count checks,
 // answering through v2's validation identity (contract 1.6).
 func TestV2SimpleAddressAndRecipientChecks(t *testing.T) {

@@ -97,7 +97,10 @@ type view struct {
 }
 
 // sees reports whether id is in v.
-func (v view) sees(id *identity) bool { return !v.separate || id.API == v.api }
+func (v view) sees(id *identity) bool { return v.owns(id.API) }
+
+// owns reports whether what api made is in v.
+func (v view) owns(api API) bool { return !v.separate || api == v.api }
 
 // find is the index of the identity in v named name, byte for byte
 // (ses.md 9.1), or -1.

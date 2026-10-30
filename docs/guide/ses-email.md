@@ -1,6 +1,6 @@
 # SES
 
-understudy emulates SES v1 (`aws ses`) and v2 (`aws sesv2`) over one store, so an identity created with one API is read by the other. It sends no mail. An accepted send is recorded instead, and a test reads it back through the admin API or `understudy ses messages`. No delivery, bounce or complaint event or notification is produced, because nothing was delivered. What each operation supports is on [the coverage page](../coverage.md#ses). Configuration sets, receipt rules, sending authorization and templated sends answer 501.
+understudy emulates SES v1 (`aws ses`) and v2 (`aws sesv2`) over one store, so an identity created with one API is read by the other. It sends no mail. An accepted send is recorded instead, and a test reads it back through the admin API or `understudy ses messages`. No delivery, bounce or complaint event or notification is produced, because nothing was delivered. What each operation supports is on [the coverage page](../coverage.md#ses). Configuration sets, receipt rules, sending authorization and the v2 template operations answer 501.
 
 The `aws` commands below run with `eval "$(understudy env)"` in effect, against `understudy serve --clock frozen@2026-10-30T09:00:00Z` with this `understudy.json`:
 
@@ -233,9 +233,47 @@ aws ses get-send-quota
 
 The store keeps 10,000 messages per account and region and evicts the oldest; `evicted` counts them. `understudy reset --service ses` clears identities, templates, messages and the counter for both APIs.
 
+## Templated sends
+
+`aws ses send-templated-email`, and `aws sesv2 send-email` with `Template` content (a stored template's name or inline content), render `{{name}}` and dotted paths such as `{{order.id}}` from the template data. SES renders with Handlebars; understudy guesses at nothing beyond that subset. Any other construct (`{{#if}}`, `{{#each}}`, `{{{raw}}}`, partials) leaves its part unrendered and is listed under `template.gaps`. So is a value the data lacks, a string holding a character Handlebars escapes (`&`, `<`, `>`, `"`, `'`, `=` and the backtick), and a value that is not a string, boolean or integer, since what SES renders for each is not recorded. The send is accepted either way, as on AWS, which accepts before it renders:
+
+```sh
+aws ses create-template --template '{"TemplateName":"welcome","SubjectPart":"Hi {{name}}","TextPart":"Your order {{order.id}} has shipped.","HtmlPart":"{{#if vip}}<p>Thanks!</p>{{/if}}"}'
+aws ses send-templated-email --source sender@example.com --destination ToAddresses=success@simulator.amazonses.com \
+  --template welcome --template-data '{"name":"Ana","order":{"id":"A-17"}}'
+understudy ses messages --output json | jq '.messages[0] | {subject, text, html, gaps: [.template.gaps[] | {part, tag}]}'
+```
+
+```text
+{
+    "MessageId": "010001a18c099280-9716e924-ab4f-46d0-9631-b7bf8834b094-000000"
+}
+{
+  "subject": {
+    "data": "Hi Ana"
+  },
+  "text": {
+    "data": "Your order A-17 has shipped."
+  },
+  "html": null,
+  "gaps": [
+    {
+      "part": "html",
+      "tag": "{{#if vip}}"
+    },
+    {
+      "part": "html",
+      "tag": "{{/if}}"
+    }
+  ]
+}
+```
+
+`template` also carries the template's parts as used and the data as given. A template the account and region do not hold is `TemplateDoesNotExist` (v2: `NotFoundException`), and nothing is recorded. Until the v2 template operations land, v2 `Template` content names a template created with `aws ses create-template`.
+
 ## Not implemented
 
-A member or header understudy would have to fake answers `NotImplemented` and names it: `ConfigurationSetName`, `X-SES-CONFIGURATION-SET`, the sending-authorization ARNs and their `X-SES-*-ARN` headers, and v2 `Template` content, `ConfigurationOverrides`, `EndpointId`, `TenantName` and `ListManagementOptions`. Operations outside [the coverage page](../coverage.md#ses) answer 501:
+A member or header understudy would have to fake answers `NotImplemented` and names it: `ConfigurationSetName`, `X-SES-CONFIGURATION-SET`, the sending-authorization ARNs and their `X-SES-*-ARN` headers, `TemplateArn` (v1) and `Template.TemplateArn` (v2), and v2 `ConfigurationOverrides`, `EndpointId`, `TenantName` and `ListManagementOptions`. Operations outside [the coverage page](../coverage.md#ses) answer 501:
 
 ```text
 An error occurred (NotImplemented) when calling the CreateConfigurationSet operation: understudy does not implement ses.CreateConfigurationSet. Run 'understudy coverage --service ses' for what is supported; to ask for it, see https://github.com/sustinbebustin/understudy/issues?q=ses.CreateConfigurationSet

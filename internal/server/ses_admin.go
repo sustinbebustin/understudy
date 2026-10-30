@@ -110,6 +110,12 @@ func wireSESMessage(m *ses.Message) admin.SESMessage {
 		HTML:     content(m.HTML),
 		Raw:      m.Raw,
 	}
+	if t := m.Template; t != nil {
+		out.Template = &admin.SESTemplate{Name: t.Name, Subject: t.Subject, Text: t.Text, HTML: t.HTML, Data: t.Data}
+		for _, g := range t.Gaps {
+			out.Template.Gaps = append(out.Template.Gaps, admin.SESRenderGap{Part: g.Part, Tag: g.Tag, Reason: g.Reason})
+		}
+	}
 	for _, h := range m.Headers {
 		out.Headers = append(out.Headers, admin.SESHeader{Name: h.Name, Value: h.Value})
 	}
