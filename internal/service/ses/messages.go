@@ -137,6 +137,10 @@ type MessageQuery struct {
 	// Limit is the page size; 0 is DefaultMessageLimit. Clear ignores it.
 	Limit int
 	// Cursor is MessagePage.Next of the previous page. Clear ignores it.
+	// Records are numbered from one store-wide counter but committed under
+	// their own scope's lock, so paging never skips a record within one
+	// account and Region; across scopes, a send still committing when a
+	// page is read can number below that page's cursor and be skipped.
 	Cursor string
 }
 
@@ -195,11 +199,7 @@ func (s *Service) Messages(q MessageQuery) (MessagePage, error) {
 	defer func() { s.release(context.Background(), held...) }()
 	evicted := 0
 	for _, scope := range s.covered(q) {
-		cell, ok := s.cells.Lookup(scope)
-		if !ok {
-			continue
-		}
-		if err := store.Read(cell, func(st *state) error {
+		if err := s.readLive(scope, func(st *state) error {
 			evicted += st.Evicted
 			return s.collect(st, scope, &q, after, &hits, &held)
 		}); err != nil {
@@ -286,11 +286,7 @@ func (s *Service) ClearMessages(q MessageQuery) (int, error) {
 	deleted := 0
 	var released []blob.Ref
 	for _, scope := range s.covered(q) {
-		cell, ok := s.cells.Lookup(scope)
-		if !ok {
-			continue
-		}
-		deleted += store.Update(cell, func(st *state) (int, bool) {
+		deleted += s.updateLive(scope, func(st *state) (int, bool) {
 			kept := st.Messages[:0]
 			for i := range st.Messages {
 				if q.selects(&st.Messages[i]) {
@@ -307,6 +303,53 @@ func (s *Service) ClearMessages(q MessageQuery) (int, error) {
 	}
 	s.release(context.Background(), released...)
 	return deleted, nil
+}
+
+// readLive runs fn on scope's cell under its read lock; a scope with no
+// cell runs nothing. A reset or snapshot load that retires the cell between
+// Lookup and the lock re-resolves it (store.Cell.Retired): the load has
+// already released the retired state's blob references, so reading them
+// would retain blobs that may be gone.
+func (s *Service) readLive(scope aws.Scope, fn func(st *state) error) error {
+	for {
+		cell, ok := s.cells.Lookup(scope)
+		if !ok {
+			return nil
+		}
+		retired := false
+		err := store.Read(cell, func(st *state) error {
+			if cell.Retired() {
+				retired = true
+				return nil
+			}
+			return fn(st)
+		})
+		if !retired {
+			return err
+		}
+	}
+}
+
+// updateLive is readLive for a write: releasing a retired cell's blob
+// references a second time would delete blobs the loaded state still names.
+func (s *Service) updateLive(scope aws.Scope, fn func(st *state) (int, bool)) int {
+	for {
+		cell, ok := s.cells.Lookup(scope)
+		if !ok {
+			return 0
+		}
+		retired := false
+		n := store.Update(cell, func(st *state) (int, bool) {
+			if cell.Retired() {
+				retired = true
+				return 0, false
+			}
+			return fn(st)
+		})
+		if !retired {
+			return n
+		}
+	}
 }
 
 // covered is the scopes holding state that q's Account and Region select.
