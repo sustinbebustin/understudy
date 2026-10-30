@@ -26,6 +26,11 @@ const (
 	// objectsARN is how a policy grants objectARN: every object of its
 	// bucket.
 	objectsARN = "arn:aws:s3:::uploads/*"
+	// keysARN and streamsARN are how a policy grants keyARN, whose id
+	// understudy mints, and streamARN when Lambda wrote it as the
+	// execution role: every id of the type (ARCHITECTURE.md 17).
+	keysARN    = "arn:aws:kms:us-east-1:111111111111:key/*"
+	streamsARN = groupARN + ":log-stream:*"
 )
 
 // t0 is an arbitrary emulator instant.
@@ -130,7 +135,7 @@ func TestPolicyCoversLambdaSQSExecutionRoles(t *testing.T) {
 	}
 	want := `{"Version":"2012-10-17","Statement":[` +
 		`{"Effect":"Allow","Action":["logs:CreateLogGroup","logs:CreateLogStream"],"Resource":"` + groupARN + `"},` +
-		`{"Effect":"Allow","Action":"logs:PutLogEvents","Resource":"` + streamARN + `"},` +
+		`{"Effect":"Allow","Action":"logs:PutLogEvents","Resource":"` + streamsARN + `"},` +
 		`{"Effect":"Allow","Action":["sqs:ChangeMessageVisibility","sqs:DeleteMessage","sqs:GetQueueAttributes","sqs:ReceiveMessage"],"Resource":"` + queueARN + `"}]}`
 	if enc := string(policydoc.Encode(got)); enc != want {
 		t.Errorf("Policy =\n%s\nwant\n%s", enc, want)
@@ -182,7 +187,7 @@ func TestPolicyMergesEverySessionOfARoleWithItsExecutionRoleCalls(t *testing.T) 
 		t.Fatal("Policy reports no policy for the role")
 	}
 	want := `{"Version":"2012-10-17","Statement":[` +
-		`{"Effect":"Allow","Action":"kms:GenerateDataKey","Resource":"` + keyARN + `"},` +
+		`{"Effect":"Allow","Action":"kms:GenerateDataKey","Resource":"` + keysARN + `"},` +
 		`{"Effect":"Allow","Action":"s3:PutObject","Resource":"` + objectsARN + `"},` +
 		`{"Effect":"Allow","Action":"sqs:ReceiveMessage","Resource":"` + queueARN + `"}]}`
 	if enc := string(policydoc.Encode(got)); enc != want {
@@ -212,7 +217,7 @@ func TestPolicyCarriesForwardAccessKMSActions(t *testing.T) {
 	)
 
 	want := `{"Version":"2012-10-17","Statement":[` +
-		`{"Effect":"Allow","Action":["kms:Decrypt","kms:GenerateDataKey"],"Resource":"` + keyARN + `"},` +
+		`{"Effect":"Allow","Action":["kms:Decrypt","kms:GenerateDataKey"],"Resource":"` + keysARN + `"},` +
 		`{"Effect":"Allow","Action":["s3:GetObject","s3:PutObject"],"Resource":"` + objectsARN + `"}]}`
 	if got := userPolicy(t, &r); got != want {
 		t.Errorf("Policy =\n%s\nwant\n%s", got, want)
