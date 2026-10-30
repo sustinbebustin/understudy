@@ -9,6 +9,7 @@ import (
 	"unicode"
 
 	"github.com/sustinbebustin/understudy/internal/api/sesapi"
+	"github.com/sustinbebustin/understudy/internal/api/sesv2api"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/kernel"
@@ -52,6 +53,21 @@ func (r *refusal) v1() *awserr.Error {
 	case refusalInvalid:
 	}
 	return sesapi.ErrInvalidParameterValue(r.text)
+}
+
+// v2 is r as a v2 error (contract 1.6): the daily quota is
+// TooManyRequestsException (the overlay's v2 throttle identity, inferred).
+func (r *refusal) v2() *awserr.Error {
+	switch r.class {
+	case refusalRejected:
+		return sesv2api.ErrMessageRejected(r.text)
+	case refusalNotImplemented:
+		return sesv2api.ErrNotImplemented(r.text)
+	case refusalThrottled:
+		return sesv2api.ErrTooManyRequestsException(r.text)
+	case refusalInvalid:
+	}
+	return sesv2api.ErrBadRequestException(r.text)
 }
 
 func invalid(text string) *refusal { return &refusal{class: refusalInvalid, text: text} }

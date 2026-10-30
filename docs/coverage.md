@@ -130,7 +130,7 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | s3 | 112 | 22 | 39 | 25 | 26 | 0 | 3 |
 | secretsmanager | 23 | 1 | 0 | 14 | 8 | 0 | 0 |
 | ses | 71 | 3 | 0 | 6 | 62 | 0 | 1 |
-| sesv2 | 116 | 0 | 0 | 0 | 116 | 0 | 0 |
+| sesv2 | 116 | 2 | 0 | 6 | 108 | 0 | 0 |
 | sfn | 37 | 7 | 0 | 9 | 21 | 0 | 0 |
 | sns | 42 | 12 | 0 | 7 | 23 | 0 | 3 |
 | sqs | 23 | 16 | 0 | 7 | 0 | 2 | 0 |
@@ -1137,15 +1137,15 @@ Raw operations:
 
 | Operation | Status | Evidence | Note |
 |---|---|---|---|
-| DeleteIdentity | full | third-party-recorded, 1 of 1 claim |  |
-| GetIdentityVerificationAttributes | full | inferred, 1 of 2 claims |  |
-| ListIdentities | full | third-party-recorded, 1 of 1 claim |  |
-| GetIdentityNotificationAttributes | partial | third-party-recorded, 1 of 1 claim | every identity reports no SNS topics, ForwardingEnabled true and headers disabled; SetIdentityNotificationTopic and the other setters are not implemented |
+| DeleteIdentity | full | inferred, 1 of 2 claims |  |
+| GetIdentityVerificationAttributes | full | inferred, 2 of 3 claims |  |
+| ListIdentities | full | inferred, 1 of 2 claims |  |
+| GetIdentityNotificationAttributes | partial | inferred, 1 of 2 claims | every identity reports no SNS topics, ForwardingEnabled true and headers disabled; SetIdentityNotificationTopic and the other setters are not implemented |
 | GetSendQuota | partial | third-party-recorded, 1 of 1 claim | Max24HourSend and MaxSendRate from the sandbox or production setting; SentLast24Hours counts accepted recipients on the emulator clock, mailbox simulator excluded; the send rate is not enforced; production values -1 and 14 are unrecorded (SES-26) |
-| SendEmail | partial | inferred, 3 of 4 claims | journal-only: validates and applies identity and sandbox rules, returns a MessageId and records the message for GET /_understudy/v1/ses/messages; no mail is sent, and no Send, Delivery, Bounce or Complaint event or notification is produced; ConfigurationSetName and the sending-authorization ARNs answer NotImplemented; chosen without a recording (docs/research/ses.md 11.4): address, recipient-count, size and daily-quota answers, tag boundaries and ses: names, check order, mailbox-simulator and label matching |
-| SendRawEmail | partial | inferred, 3 of 4 claims | journal-only as SendEmail; the raw MIME is recorded as received, without the Message-ID and Date headers SES would substitute; recipients come from Destinations, else the To, Cc and Bcc headers; X-SES-MESSAGE-TAGS is recorded; ConfigurationSetName, X-SES-CONFIGURATION-SET, the ARN members and the X-SES-*-ARN headers answer NotImplemented |
-| VerifyDomainIdentity | partial | third-party-recorded, 1 of 1 claim | the domain stays Pending until understudy.json lists it; DNS is never queried; Failed after 72 hours on the emulator clock |
-| VerifyEmailIdentity | partial | inferred, 1 of 2 claims | the identity stays Pending until its verification link under /_understudy/ses/VerificationLink is opened or understudy.json lists it; the verification email is recorded, never sent; Failed after 24 hours on the emulator clock; chosen without a recording (docs/research/ses.md 11.4): the invalid-address answers |
+| SendEmail | partial | inferred, 4 of 5 claims | journal-only: validates and applies identity and sandbox rules, returns a MessageId and records the message for GET /_understudy/v1/ses/messages; no mail is sent, and no Send, Delivery, Bounce or Complaint event or notification is produced; ConfigurationSetName and the sending-authorization ARNs answer NotImplemented; chosen without a recording (docs/research/ses.md 11.4): address, recipient-count, size and daily-quota answers, tag boundaries and ses: names, check order, mailbox-simulator and label matching |
+| SendRawEmail | partial | inferred, 4 of 5 claims | journal-only as SendEmail; the raw MIME is recorded as received, without the Message-ID and Date headers SES would substitute; recipients come from Destinations, else the To, Cc and Bcc headers; X-SES-MESSAGE-TAGS is recorded; ConfigurationSetName, X-SES-CONFIGURATION-SET, the ARN members and the X-SES-*-ARN headers answer NotImplemented |
+| VerifyDomainIdentity | partial | inferred, 1 of 2 claims | the domain stays Pending until understudy.json lists it; DNS is never queried; Failed after 72 hours on the emulator clock |
+| VerifyEmailIdentity | partial | inferred, 2 of 3 claims | the identity stays Pending until its verification link under /_understudy/ses/VerificationLink is opened or understudy.json lists it; the verification email is recorded, never sent; Failed after 24 hours on the emulator clock; chosen without a recording (docs/research/ses.md 11.4): the invalid-address answers |
 | CloneReceiptRuleSet | unbound | unassessed |  |
 | CreateConfigurationSet | unbound | unassessed |  |
 | CreateConfigurationSetEventDestination | unbound | unassessed |  |
@@ -1219,6 +1219,14 @@ Raw operations:
 
 | Operation | Status | Evidence | Note |
 |---|---|---|---|
+| DeleteEmailIdentity | full | unassessed |  |
+| GetEmailIdentity | full | unassessed |  |
+| CreateEmailIdentity | partial | unassessed | email identities start PENDING with DKIM NOT_STARTED; domains get three random Easy DKIM tokens and stay PENDING; DkimSigningAttributes are stored, never used; verification as VerifyEmailIdentity; ConfigurationSetName answers NotImplemented |
+| GetAccount | partial | unassessed | ProductionAccessEnabled and SendQuota from understudy state; SendingEnabled true, since account sending cannot be paused yet; EnforcementStatus HEALTHY; no dedicated IP, VDM, pricing, suppression or account details |
+| ListEmailIdentities | partial | unassessed | the GET /v2/email/identities binding sent by SDKs generated before 2026-09-29 is not routed and answers sesv2's unknown operation |
+| ListTagsForResource | partial | unassessed | identity ARNs only; a template ARN answers NotFoundException until the v2 template operations land |
+| TagResource | partial | unassessed | identity ARNs only; a template ARN answers NotFoundException until the v2 template operations land |
+| UntagResource | partial | unassessed | identity ARNs only; a template ARN answers NotFoundException until the v2 template operations land |
 | AssociateEmailIdentityCertificate | unbound | unassessed |  |
 | BatchGetMetricData | unbound | unassessed |  |
 | CancelExportJob | unbound | unassessed |  |
@@ -1229,7 +1237,6 @@ Raw operations:
 | CreateCustomVerificationEmailTemplate | unbound | unassessed |  |
 | CreateDedicatedIpPool | unbound | unassessed |  |
 | CreateDeliverabilityTestReport | unbound | unassessed |  |
-| CreateEmailIdentity | unbound | unassessed |  |
 | CreateEmailIdentityPolicy | unbound | unassessed |  |
 | CreateEmailTemplate | unbound | unassessed |  |
 | CreateExportJob | unbound | unassessed |  |
@@ -1243,7 +1250,6 @@ Raw operations:
 | DeleteContactList | unbound | unassessed |  |
 | DeleteCustomVerificationEmailTemplate | unbound | unassessed |  |
 | DeleteDedicatedIpPool | unbound | unassessed |  |
-| DeleteEmailIdentity | unbound | unassessed |  |
 | DeleteEmailIdentityPolicy | unbound | unassessed |  |
 | DeleteEmailTemplate | unbound | unassessed |  |
 | DeleteMultiRegionEndpoint | unbound | unassessed |  |
@@ -1251,7 +1257,6 @@ Raw operations:
 | DeleteTenant | unbound | unassessed |  |
 | DeleteTenantResourceAssociation | unbound | unassessed |  |
 | DisassociateEmailIdentityCertificate | unbound | unassessed |  |
-| GetAccount | unbound | unassessed |  |
 | GetBlacklistReports | unbound | unassessed |  |
 | GetConfigurationSet | unbound | unassessed |  |
 | GetConfigurationSetEventDestinations | unbound | unassessed |  |
@@ -1266,7 +1271,6 @@ Raw operations:
 | GetDomainDeliverabilityCampaign | unbound | unassessed |  |
 | GetDomainStatisticsReport | unbound | unassessed |  |
 | GetEmailAddressInsights | unbound | unassessed |  |
-| GetEmailIdentity | unbound | unassessed |  |
 | GetEmailIdentityPolicies | unbound | unassessed |  |
 | GetEmailTemplate | unbound | unassessed |  |
 | GetExportJob | unbound | unassessed |  |
@@ -1283,7 +1287,6 @@ Raw operations:
 | ListDedicatedIpPools | unbound | unassessed |  |
 | ListDeliverabilityTestReports | unbound | unassessed |  |
 | ListDomainDeliverabilityCampaigns | unbound | unassessed |  |
-| ListEmailIdentities | unbound | unassessed |  |
 | ListEmailIdentityCertificates | unbound | unassessed |  |
 | ListEmailTemplates | unbound | unassessed |  |
 | ListExportJobs | unbound | unassessed |  |
@@ -1293,7 +1296,6 @@ Raw operations:
 | ListReputationEntities | unbound | unassessed |  |
 | ListResourceTenants | unbound | unassessed |  |
 | ListSuppressedDestinations | unbound | unassessed |  |
-| ListTagsForResource | unbound | unassessed |  |
 | ListTenantResources | unbound | unassessed |  |
 | ListTenants | unbound | unassessed |  |
 | PutAccountDedicatedIpWarmupAttributes | unbound | unassessed |  |
@@ -1323,9 +1325,7 @@ Raw operations:
 | SendBulkEmail | unbound | unassessed |  |
 | SendCustomVerificationEmail | unbound | unassessed |  |
 | SendEmail | unbound | unassessed |  |
-| TagResource | unbound | unassessed |  |
 | TestRenderEmailTemplate | unbound | unassessed |  |
-| UntagResource | unbound | unassessed |  |
 | UpdateConfigurationSet | unbound | unassessed |  |
 | UpdateConfigurationSetEventDestination | unbound | unassessed |  |
 | UpdateContact | unbound | unassessed |  |
@@ -1647,7 +1647,7 @@ Internal operations:
 
 Behaviors chosen without AWS-recorded evidence, with the research they rest on and the parity scenario step that settles them, or why none does. The count and order follow the label the code states; the Label column shows the recording's verdict where a replayed step settles or contradicts the switch.
 
-215 switches: 1 aws-recorded, 5 third-party-recorded, 24 aws-doc, 185 inferred.
+216 switches: 1 aws-recorded, 5 third-party-recorded, 24 aws-doc, 186 inferred.
 
 | Switch | Value | Label | Reference | Settled by |
 |---|---|---|---|---|
@@ -1809,6 +1809,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `ses.error.unverified.text` | `senders-first` | inferred | docs/research/ses.md#61-sandbox-rules-per-send | none: unrecorded: SES-01 and SES-03 in the recording queue (ses.md 12) settle it |
 | `ses.message-id.format` | `timestamped` | inferred | docs/research/ses.md#47-messageid | none: unrecorded: SES-07 in the recording queue (ses.md 12) settles it |
 | `ses.raw.envelope` | `destinations` | inferred | docs/research/ses.md#42-v1-sendrawemail | none: unrecorded: SES-20 in the recording queue (ses.md 12) settles it |
+| `ses.store.shared-v1-v2` | `shared` | inferred | docs/research/ses.md#23-decision | none: unrecorded: SES-12 in the recording queue (ses.md 12) settles it |
 | `ses.verification.unknown-identity` | `omitted` | inferred | docs/research/ses.md#53-v1-identity-operations | none: unrecorded: SES-08 in the recording queue (ses.md 12) settles it |
 | `sfn.choice.missing-variable` | `{States.Runtime true}` | inferred | docs/research/stepfunctions-asl.md#64-no-match-and-missing-variables | none: unrecorded: recording case ASL-08 (stepfunctions-asl.md 16.2) |
 | `sfn.choice.no-match` | `{States.NoChoiceMatched false}` | inferred | docs/research/stepfunctions-asl.md#64-no-match-and-missing-variables | none: unrecorded: recording case ASL-08 (stepfunctions-asl.md 16.2) |

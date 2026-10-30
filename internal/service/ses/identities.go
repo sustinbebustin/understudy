@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/sustinbebustin/understudy/internal/api/sesapi"
+	"github.com/sustinbebustin/understudy/internal/api/sesv2api"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/blob"
@@ -60,21 +61,26 @@ func identitiesNamed[In any](namesOf func(*In) []string) kernel.BindOption {
 }
 
 // errIdentityLimit answers a new identity past MaxIdentities in its
-// account and Region (ses.md 5.1; the text is inferred).
-func errIdentityLimit() *awserr.Error {
-	return sesapi.ErrLimitExceededException(fmt.Sprintf(IdentityLimitText, MaxIdentities))
+// account and Region in api (ses.md 5.1; the text is inferred).
+func errIdentityLimit(api API) *awserr.Error {
+	text := fmt.Sprintf(IdentityLimitText, MaxIdentities)
+	if api == APIv2 {
+		return sesv2api.ErrLimitExceededException(text)
+	}
+	return sesapi.ErrLimitExceededException(text)
 }
 
-// create appends a new identity of kind named name at now: Success with a
-// StateChange from NotStarted when ses.verifiedIdentities lists it (no
-// verification email, no timer), else Pending with its expiry timer armed
-// (contract 2.3, 6). A creation to Pending is not a transition, so it
-// journals none. It refuses the identity past MaxIdentities.
-func (s *Service) create(st *state, scope aws.Scope, kind sesapi.IdentityType, name string, now clock.Instant, tx *kernel.Tx) (*identity, *awserr.Error) {
-	if len(st.Identities) >= MaxIdentities {
-		return nil, errIdentityLimit()
+// create appends a new identity of kind named name at now, created through
+// v.api: Success with a StateChange from NotStarted when
+// ses.verifiedIdentities lists it (no verification email, no timer), else
+// Pending with its expiry timer armed (contract 2.3, 6). A creation to
+// Pending is not a transition, so it journals none. It refuses the
+// identity past MaxIdentities in v.
+func (s *Service) create(st *state, v view, scope aws.Scope, kind sesapi.IdentityType, name string, now clock.Instant, tx *kernel.Tx) (*identity, *awserr.Error) {
+	if st.identities(v) >= MaxIdentities {
+		return nil, errIdentityLimit(v.api)
 	}
-	st.Identities = append(st.Identities, identity{Name: name, Kind: kind, Created: now})
+	st.Identities = append(st.Identities, identity{Name: name, Kind: kind, API: v.api, Created: now})
 	id := &st.Identities[len(st.Identities)-1]
 	if s.opts.VerifiedIdentities.verifies(kind, name) {
 		id.Status = statusSuccess{}
@@ -88,11 +94,27 @@ func (s *Service) create(st *state, scope aws.Scope, kind sesapi.IdentityType, n
 	return id, nil
 }
 
+// createEmail creates email identity address through v.api as create does
+// and, when it starts Pending, gives it a link token and records its
+// verification email (contract 2.3, 2.5). It returns the blobs of a
+// message the email evicted, to release once the write commits.
+func (s *Service) createEmail(c *kernel.Call, st *state, v view, address string, now clock.Instant, tx *kernel.Tx) ([]blob.Ref, *awserr.Error) {
+	id, err := s.create(st, v, c.Scope(), sesapi.IdentityTypeEmailAddress, address, now, tx)
+	if err != nil {
+		return nil, err
+	}
+	if _, verified := id.Status.(statusSuccess); verified {
+		return nil, nil
+	}
+	id.LinkToken = s.linkToken()
+	return st.record(s.verificationEmail(c, v.api, id.Name, id.LinkToken, now)), nil
+}
+
 // pend makes id Pending from now and arms its expiry timer, replacing any
 // earlier one.
 func (s *Service) pend(id *identity, scope aws.Scope, now clock.Instant, tx *kernel.Tx) {
 	id.Status = statusPending{Since: now}
-	tx.Arm(s.expiry, expiryTimerID(scope, id.Name), id.deadline(now))
+	tx.Arm(s.expiry, expiryTimerID(scope, id), id.deadline(now))
 }
 
 // verifyEmailIdentity starts verifying an email address: a new identity is
@@ -107,20 +129,13 @@ func (s *Service) verifyEmailIdentity(ctx context.Context, c *kernel.Call, in *s
 		return nil, r.v1()
 	}
 	scope := c.Scope()
+	v := s.view(APIv1)
 	// The write returns the blobs of a message the verification email
 	// evicted, released once it commits.
 	released, err := kernel.Write(c, s.cells, scope, func(st *state, now clock.Instant, tx *kernel.Tx) ([]blob.Ref, *awserr.Error) {
-		i := st.find(in.EmailAddress)
+		i := st.find(v, in.EmailAddress)
 		if i < 0 {
-			id, err := s.create(st, scope, sesapi.IdentityTypeEmailAddress, in.EmailAddress, now, tx)
-			if err != nil {
-				return nil, err
-			}
-			if _, verified := id.Status.(statusSuccess); !verified {
-				id.LinkToken = s.linkToken()
-				return st.record(s.verificationEmail(c, APIv1, id.Name, id.LinkToken, now)), nil
-			}
-			return nil, nil
+			return s.createEmail(c, st, v, in.EmailAddress, now, tx)
 		}
 		id := &st.Identities[i]
 		old := id.Status
@@ -180,12 +195,13 @@ func (s *Service) verificationEmail(c *kernel.Call, api API, address, token stri
 // (ses.md 9.2).
 func (s *Service) verifyDomainIdentity(_ context.Context, c *kernel.Call, in *sesapi.VerifyDomainIdentityInput) (*sesapi.VerifyDomainIdentityOutput, *awserr.Error) {
 	scope := c.Scope()
+	v := s.view(APIv1)
 	token, err := kernel.Write(c, s.cells, scope, func(st *state, now clock.Instant, tx *kernel.Tx) (string, *awserr.Error) {
-		if i := st.find(in.Domain); i >= 0 {
+		if i := st.find(v, in.Domain); i >= 0 {
 			tx.Unchanged()
 			return st.Identities[i].DomainToken, nil
 		}
-		id, err := s.create(st, scope, sesapi.IdentityTypeDomain, in.Domain, now, tx)
+		id, err := s.create(st, v, scope, sesapi.IdentityTypeDomain, in.Domain, now, tx)
 		if err != nil {
 			return "", err
 		}
@@ -210,10 +226,11 @@ func (s *Service) getIdentityVerificationAttributes(_ context.Context, c *kernel
 	}
 	known := map[string]sesapi.IdentityVerificationAttributes{}
 	if cell, ok := s.cells.Lookup(c.Scope()); ok {
+		v := s.view(APIv1)
 		known = store.Read(cell, func(st *state) map[string]sesapi.IdentityVerificationAttributes {
 			out := make(map[string]sesapi.IdentityVerificationAttributes, len(in.Identities))
 			for _, name := range in.Identities {
-				if i := st.find(name); i >= 0 {
+				if i := st.find(v, name); i >= 0 {
 					id := &st.Identities[i]
 					a := sesapi.IdentityVerificationAttributes{VerificationStatus: id.Status.v1()}
 					if id.DomainToken != "" {
@@ -247,9 +264,10 @@ func (s *Service) getIdentityNotificationAttributes(_ context.Context, c *kernel
 	if !ok {
 		return out, nil
 	}
+	v := s.view(APIv1)
 	store.Read(cell, func(st *state) struct{} {
 		for _, name := range in.Identities {
-			if st.find(name) >= 0 {
+			if st.find(v, name) >= 0 {
 				out.NotificationAttributes[name] = sesapi.IdentityNotificationAttributes{ForwardingEnabled: true}
 			}
 		}
@@ -283,26 +301,23 @@ func (s *Service) listIdentities(_ context.Context, c *kernel.Call, in *sesapi.L
 	}
 	var names []string
 	if cell, ok := s.cells.Lookup(c.Scope()); ok {
+		v := s.view(APIv1)
 		names = store.Read(cell, func(st *state) []string {
 			var out []string
 			for i := range st.Identities {
-				if in.IdentityType == nil || st.Identities[i].Kind == *in.IdentityType {
-					out = append(out, st.Identities[i].Name)
+				id := &st.Identities[i]
+				if v.sees(id) && (in.IdentityType == nil || id.Kind == *in.IdentityType) {
+					out = append(out, id.Name)
 				}
 			}
 			return out
 		})
 	}
-	out := &sesapi.ListIdentitiesOutput{Identities: []string{}}
-	if start >= len(names) {
-		return out, nil
+	items, next := page(names, start, limit)
+	if items == nil {
+		items = []string{}
 	}
-	end := min(start+limit, len(names))
-	out.Identities = names[start:end]
-	if end < len(names) {
-		out.NextToken = new(base64.RawURLEncoding.EncodeToString([]byte(strconv.Itoa(end))))
-	}
-	return out, nil
+	return &sesapi.ListIdentitiesOutput{Identities: items, NextToken: next}, nil
 }
 
 // parseNextToken reads a ListIdentities NextToken back to its position.
@@ -319,18 +334,38 @@ func parseNextToken(token string) (int, bool) {
 // does not hold succeeds unchanged (inferred, SES-11). Sent messages stay.
 func (s *Service) deleteIdentity(_ context.Context, c *kernel.Call, in *sesapi.DeleteIdentityInput) (*sesapi.DeleteIdentityOutput, *awserr.Error) {
 	scope := c.Scope()
+	v := s.view(APIv1)
 	_, err := kernel.Write(c, s.cells, scope, func(st *state, _ clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
-		i := st.find(in.Identity)
+		i := st.find(v, in.Identity)
 		if i < 0 {
 			tx.Unchanged()
 			return struct{}{}, nil
 		}
-		st.Identities = append(st.Identities[:i:i], st.Identities[i+1:]...)
-		tx.Disarm(s.expiry, expiryTimerID(scope, in.Identity))
+		s.drop(st, scope, i, tx)
 		return struct{}{}, nil
 	})
 	if err != nil {
 		return nil, err
 	}
 	return &sesapi.DeleteIdentityOutput{}, nil
+}
+
+// drop removes identity i of st and disarms its expiry timer.
+func (s *Service) drop(st *state, scope aws.Scope, i int, tx *kernel.Tx) {
+	tx.Disarm(s.expiry, expiryTimerID(scope, &st.Identities[i]))
+	st.Identities = append(st.Identities[:i:i], st.Identities[i+1:]...)
+}
+
+// page is the part of items a list call answers: limit of them from
+// position start, and the NextToken naming the position after them when
+// more remain (understudy's own token: the decimal position, base64url).
+func page[T any](items []T, start, limit int) (part []T, next *string) {
+	if start >= len(items) {
+		return nil, nil
+	}
+	end := min(start+limit, len(items))
+	if end < len(items) {
+		return items[start:end], new(base64.RawURLEncoding.EncodeToString([]byte(strconv.Itoa(end))))
+	}
+	return items[start:end], nil
 }

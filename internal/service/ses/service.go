@@ -5,6 +5,7 @@ import (
 	"sync/atomic"
 
 	"github.com/sustinbebustin/understudy/internal/api/sesapi"
+	"github.com/sustinbebustin/understudy/internal/api/sesv2api"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/blob"
 	"github.com/sustinbebustin/understudy/internal/clock"
@@ -68,10 +69,12 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 	return s
 }
 
-// NewV2 binds the SES v2 operations understudy implements over svc's store;
-// not implemented yet, so every v2 operation stays unbound and answers 501.
-func NewV2(_ kernel.ServiceDeps, svc *Service) *V2 {
-	return &V2{svc: svc}
+// NewV2 binds the SES v2 operations understudy implements over svc's store.
+// Every other v2 operation stays unbound and answers 501.
+func NewV2(d kernel.ServiceDeps, svc *Service) *V2 {
+	v := &V2{svc: svc}
+	v.bindV2(sesv2api.NewBinder(d.Binder))
+	return v
 }
 
 // Name returns "ses".
@@ -134,6 +137,7 @@ func (s *Service) Scopes() []aws.Scope { return s.cells.Keys(store.ScopeKeys()) 
 // value in effect.
 func (s *Service) Switches() []fidelity.Entry {
 	return []fidelity.Entry{
+		storeSwitch(s.opts.Store).Entry(),
 		messageIDSwitch(s.opts.MessageID).Entry(),
 		unverifiedTextSwitch(s.opts.UnverifiedText).Entry(),
 		unknownIdentitySwitch(s.opts.UnknownIdentity).Entry(),
@@ -141,9 +145,31 @@ func (s *Service) Switches() []fidelity.Entry {
 	}
 }
 
+// storeSwitch is switch ses.store.shared-v1-v2 at value v. Ops are the v1
+// operations that read or write identities so far; a switch lists only
+// operations of the service that declares it, so the v2 identity and tag
+// operations it governs as well are not listed.
+func storeSwitch(v StoreSharing) fidelity.Switch[StoreSharing] {
+	return fidelity.Switch[StoreSharing]{
+		Name:   "ses.store.shared-v1-v2",
+		Value:  v,
+		Label:  evidence.Inferred,
+		Ref:    "docs/research/ses.md#23-decision",
+		Record: "SES-12",
+		Ops: []string{
+			"ses.VerifyEmailIdentity", "ses.VerifyDomainIdentity", "ses.GetIdentityVerificationAttributes",
+			"ses.GetIdentityNotificationAttributes", "ses.ListIdentities", "ses.DeleteIdentity",
+			"ses.SendEmail", "ses.SendRawEmail",
+		},
+		Settles: fidelity.NoScenario{Reason: "unrecorded: SES-12 in the recording queue (ses.md 12) settles it"},
+	}
+}
+
 // messageIDSwitch is switch ses.message-id.format at value v. Ops are the
-// operations that mint a MessageId so far: the v1 sends, and
-// VerifyEmailIdentity for its verification email.
+// v1 operations that mint a MessageId so far: the sends, and
+// VerifyEmailIdentity for its verification email. It governs v2
+// CreateEmailIdentity's verification email too, which, being another
+// service's operation, it does not list.
 func messageIDSwitch(v MessageIDFormat) fidelity.Switch[MessageIDFormat] {
 	return fidelity.Switch[MessageIDFormat]{
 		Name:    "ses.message-id.format",

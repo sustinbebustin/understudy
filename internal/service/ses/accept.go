@@ -83,15 +83,16 @@ func (s *Service) accept(ctx context.Context, c *kernel.Call, o outgoing) (strin
 // ses.error.unverified.text.
 func (s *Service) checkIdentities(st *state, region aws.Region, o outgoing) *refusal {
 	var senders, recipients []string
+	v := s.view(o.api)
 	for _, a := range o.senders {
-		if !st.verified(addrSpec(a), true) {
+		if !st.verified(v, addrSpec(a), true) {
 			senders = append(senders, a)
 		}
 	}
 	if !s.opts.ProductionAccess {
 		for _, a := range o.envelope {
 			spec := addrSpec(a)
-			if _, sim := simulatorScenario(spec); !sim && !st.verified(spec, SandboxRecipientLabels) {
+			if _, sim := simulatorScenario(spec); !sim && !st.verified(v, spec, SandboxRecipientLabels) {
 				recipients = append(recipients, a)
 			}
 		}
@@ -107,10 +108,11 @@ func (s *Service) checkIdentities(st *state, region aws.Region, o outgoing) *ref
 }
 
 // verified reports whether addr-spec addr passes the identity rules
-// (ses.md 5.1): with any +label removed from its local part when labels is
-// set, it equals a Success email identity, byte for byte, or its domain
-// equals or is a subdomain of a Success domain identity, regardless of case.
-func (s *state) verified(addr string, labels bool) bool {
+// (ses.md 5.1) in v: with any +label removed from its local part when
+// labels is set, it equals a Success email identity, byte for byte, or its
+// domain equals or is a subdomain of a Success domain identity, regardless
+// of case.
+func (s *state) verified(v view, addr string, labels bool) bool {
 	at := strings.LastIndexByte(addr, '@')
 	if at < 0 {
 		return false
@@ -122,7 +124,7 @@ func (s *state) verified(addr string, labels bool) bool {
 	exact := local + addr[at:]
 	for i := range s.Identities {
 		id := &s.Identities[i]
-		if _, ok := id.Status.(statusSuccess); !ok {
+		if _, ok := id.Status.(statusSuccess); !ok || !v.sees(id) {
 			continue
 		}
 		switch id.Kind {

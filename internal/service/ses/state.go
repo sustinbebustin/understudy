@@ -4,6 +4,7 @@ import (
 	"slices"
 
 	"github.com/sustinbebustin/understudy/internal/api/sesapi"
+	"github.com/sustinbebustin/understudy/internal/api/sesv2api"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/protocol/jsonx"
@@ -84,15 +85,37 @@ func (s *state) count(now clock.Instant, n int) {
 // silently dropping the skip.
 var _ store.Zeroer = (*state)(nil)
 
-// find is the index of the identity named name, byte for byte (ses.md
-// 9.1), or -1.
-func (s *state) find(name string) int {
+// view is the identities one API's calls see, per switch
+// ses.store.shared-v1-v2 (ses.md 2.3, SES-12): every identity of the scope
+// when shared, only those the API created when separate.
+type view struct {
+	api      API
+	separate bool
+}
+
+// sees reports whether id is in v.
+func (v view) sees(id *identity) bool { return !v.separate || id.API == v.api }
+
+// find is the index of the identity in v named name, byte for byte
+// (ses.md 9.1), or -1.
+func (s *state) find(v view, name string) int {
 	for i := range s.Identities {
-		if s.Identities[i].Name == name {
+		if s.Identities[i].Name == name && v.sees(&s.Identities[i]) {
 			return i
 		}
 	}
 	return -1
+}
+
+// identities is the number of identities in v.
+func (s *state) identities(v view) int {
+	n := 0
+	for i := range s.Identities {
+		if v.sees(&s.Identities[i]) {
+			n++
+		}
+	}
+	return n
 }
 
 // identity is one verified or verifying email address or domain (ses.md
@@ -101,14 +124,41 @@ type identity struct {
 	Name   string              `json:"name"`
 	Kind   sesapi.IdentityType `json:"kind"`
 	Status status              `json:"status"`
+	// API is the API whose call created the identity, which switch
+	// ses.store.shared-v1-v2 reads when it keeps the APIs apart.
+	API API `json:"api"`
 	// LinkToken is the token of an email identity's verification link,
 	// the same in every verification email it is sent (inferred, SES-09).
 	LinkToken string `json:"linkToken,omitempty"`
 	// DomainToken is a domain identity's verification token, minted once
 	// and answered unchanged on every read and repeated verify (ses.md
 	// 9.2; inferred, SES-10).
-	DomainToken string        `json:"domainToken,omitempty"`
-	Created     clock.Instant `json:"created"`
+	DomainToken string `json:"domainToken,omitempty"`
+	// DkimTokens are the three Easy DKIM tokens v2 CreateEmailIdentity
+	// mints for a domain, stable across reads (ses.md 5.4, 9.3; format
+	// inferred, SES-13). Empty for an address and for a domain v1 created.
+	DkimTokens []string `json:"dkimTokens,omitempty"`
+	// DkimSigningAttributes is what CreateEmailIdentity stored of its
+	// DkimSigningAttributes; it signs nothing (StoredOnly, ses.md 11.1).
+	DkimSigningAttributes *dkimSigning `json:"dkimSigningAttributes,omitempty"`
+	// Tags are the identity's tags in the order they were first set
+	// (ses.md 5.4).
+	Tags    []tag         `json:"tags,omitempty"`
+	Created clock.Instant `json:"created"`
+}
+
+// dkimSigning is the part of a stored DkimSigningAttributes GetEmailIdentity
+// reads back: whether a Bring Your Own DKIM selector was given, which makes
+// SigningAttributesOrigin EXTERNAL (contract 2.5). The private key is never
+// kept.
+type dkimSigning struct {
+	Selector string `json:"selector,omitempty"`
+}
+
+// tag is one identity tag.
+type tag struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
 }
 
 // deadline is when the identity, Pending since since, turns Failed:
@@ -121,6 +171,14 @@ func (id *identity) deadline(since clock.Instant) clock.Instant {
 	}
 	return since.Add(EmailVerificationExpiry)
 }
+
+// view is the identities api's calls see under the configured
+// ses.store.shared-v1-v2.
+func (s *Service) view(api API) view { return view{api: api, separate: s.opts.Store == StoreSeparate} }
+
+// own is the identities api created, whatever the switch: the view an
+// identity's own timer finds it in.
+func own(api API) view { return view{api: api, separate: true} }
 
 // findToken is the index of the email identity whose link token is token,
 // or -1.
@@ -150,6 +208,9 @@ func identityARN(scope aws.Scope, name string) aws.ARN {
 type status interface {
 	// v1 is the status as v1 VerificationStatus spells it.
 	v1() sesapi.VerificationStatus
+	// v2 is the status as v2 VerificationStatus spells it: v1's in upper
+	// snake case (contract 2.5).
+	v2() sesv2api.VerificationStatus
 }
 
 // statusPending is an identity whose verification started at Since and has
@@ -173,6 +234,13 @@ func (statusSuccess) v1() sesapi.VerificationStatus { return sesapi.Verification
 func (statusFailed) v1() sesapi.VerificationStatus  { return sesapi.VerificationStatusFailed }
 func (statusTemporaryFailure) v1() sesapi.VerificationStatus {
 	return sesapi.VerificationStatusTemporaryFailure
+}
+
+func (statusPending) v2() sesv2api.VerificationStatus { return sesv2api.VerificationStatusPending }
+func (statusSuccess) v2() sesv2api.VerificationStatus { return sesv2api.VerificationStatusSuccess }
+func (statusFailed) v2() sesv2api.VerificationStatus  { return sesv2api.VerificationStatusFailed }
+func (statusTemporaryFailure) v2() sesv2api.VerificationStatus {
+	return sesv2api.VerificationStatusTemporaryFailure
 }
 
 // codec is the state codec: jsonx with the status union. The table is

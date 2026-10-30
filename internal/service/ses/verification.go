@@ -21,24 +21,30 @@ import (
 // (ses.md 5.2, SES-27).
 const TimerExpiry kernel.TimerKind = "ses.verification-expiry"
 
-// expiryTimerID is the id of identity name's expiry timer: its ARN, which
-// names the scope.
-func expiryTimerID(scope aws.Scope, name string) string {
-	return identityARN(scope, name).String()
+// expiryTimerID is the id of id's expiry timer: the API that created it, a
+// space, and its ARN, which names the scope. The API keeps apart the
+// timers of two identities of one name that switch ses.store.shared-v1-v2
+// separates.
+func expiryTimerID(scope aws.Scope, id *identity) string {
+	return string(id.API) + " " + identityARN(scope, id.Name).String()
 }
 
 // parseExpiryTimerID reads an expiryTimerID back.
-func parseExpiryTimerID(id string) (aws.Scope, string, bool) {
-	arn, err := aws.ParseARN(id)
+func parseExpiryTimerID(id string) (aws.Scope, API, string, bool) {
+	api, rest, ok := strings.Cut(id, " ")
+	if !ok {
+		return aws.Scope{}, "", "", false
+	}
+	arn, err := aws.ParseARN(rest)
 	if err != nil {
-		return aws.Scope{}, "", false
+		return aws.Scope{}, "", "", false
 	}
 	scope, err := aws.ScopeOf(arn)
 	if err != nil {
-		return aws.Scope{}, "", false
+		return aws.Scope{}, "", "", false
 	}
 	name, ok := strings.CutPrefix(arn.Resource, "identity/")
-	return scope, name, ok
+	return scope, API(api), name, ok
 }
 
 // onExpiry turns the timer's identity Failed when it is still Pending at
@@ -46,7 +52,7 @@ func parseExpiryTimerID(id string) (aws.Scope, string, bool) {
 // the change is a StateChange on the identity ARN. An identity deleted,
 // verified or restarted since the timer was armed is left alone.
 func (s *Service) onExpiry(c *kernel.Call, key clock.TimerKey, _ clock.Instant) {
-	scope, name, ok := parseExpiryTimerID(key.ID)
+	scope, api, name, ok := parseExpiryTimerID(key.ID)
 	if !ok {
 		return
 	}
@@ -54,7 +60,7 @@ func (s *Service) onExpiry(c *kernel.Call, key clock.TimerKey, _ clock.Instant) 
 		return
 	}
 	_, err := kernel.Write(c, s.cells, scope, func(st *state, now clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
-		i := st.find(name)
+		i := st.find(own(api), name)
 		if i < 0 {
 			tx.Unchanged()
 			return struct{}{}, nil
@@ -94,7 +100,7 @@ func (s *Service) Rearm(clock.Instant) {
 			for i := range st.Identities {
 				id := &st.Identities[i]
 				if pending, ok := id.Status.(statusPending); ok {
-					sched.Arm(s.expiry.Key(expiryTimerID(scope, id.Name)), id.deadline(pending.Since))
+					sched.Arm(s.expiry.Key(expiryTimerID(scope, id)), id.deadline(pending.Since))
 				}
 			}
 			return struct{}{}
@@ -149,7 +155,7 @@ func (s *Service) verificationLink(_ context.Context, c *kernel.Call, r *http.Re
 		id := &st.Identities[i]
 		if pending, ok := id.Status.(statusPending); ok && now.Before(id.deadline(pending.Since)) {
 			id.Status = statusSuccess{}
-			tx.Disarm(s.expiry, expiryTimerID(scope, id.Name))
+			tx.Disarm(s.expiry, expiryTimerID(scope, id))
 			tx.Record(scope, journal.StateChange{
 				Resource: identityARN(scope, id.Name),
 				From:     journal.ResourceState(sesapi.VerificationStatusPending), To: journal.ResourceState(sesapi.VerificationStatusSuccess),
