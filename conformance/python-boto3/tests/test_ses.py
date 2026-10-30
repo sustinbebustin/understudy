@@ -1,12 +1,17 @@
-"""SES v1: identities, SendEmail, SendRawEmail and the quota (ses.md sections 4, 5, 6, 9.1 and 9.2)."""
+"""SES v1: identities, SendEmail, SendRawEmail, templates, SendTemplatedEmail and the quota.
+
+Arbiter: ses.md sections 4, 5, 6, 7, 9.1 and 9.2.
+"""
 
 from __future__ import annotations
 
+import re
+import urllib.request
 from typing import Any
 
 import pytest
 from botocore.exceptions import ClientError
-from support import error_code, status_of, uniq
+from support import Admin, error_code, status_of, uniq
 
 
 def test_verify_email_identity_starts_pending(ses: Any, cleanup: Any) -> None:
@@ -146,3 +151,34 @@ def test_template_lifecycle(ses: Any) -> None:
     with pytest.raises(ClientError) as exc:
         ses.get_template(TemplateName=name)
     assert error_code(exc.value) == "TemplateDoesNotExist"
+
+
+def test_send_templated_email_renders_names(ses: Any, admin: Admin, cleanup: Any) -> None:
+    sender = uniq("conf-ses-tmpl") + "@example.com"
+    ses.verify_email_identity(EmailAddress=sender)
+    cleanup.add(ses.delete_identity, Identity=sender)
+    [verification] = admin.ses_messages(to=sender)
+    link = re.search(r"http\S*/_understudy/ses/VerificationLink\?token=[A-Za-z0-9_-]+", verification["text"]["data"])
+    assert link is not None, verification
+    with urllib.request.urlopen(link.group(0), timeout=10) as resp:  # noqa: S310 -- the loopback endpoint's own link
+        assert resp.status == 200
+    name = uniq("conf-ses-tmpl")
+    send = {
+        "Source": sender,
+        "Destination": {"ToAddresses": ["success@simulator.amazonses.com"]},
+        "Template": name,
+        "TemplateData": '{"name": "x"}',
+    }
+    # A missing template is TemplateDoesNotExist (model, ses.md 3.3).
+    with pytest.raises(ClientError) as exc:
+        ses.send_templated_email(**send)
+    assert error_code(exc.value) == "TemplateDoesNotExist"
+    # SES-18/07's send: accepted with a MessageId (ses.md 4.3); understudy
+    # records the {{name}} substitution (ses.md 7, 11.6 item 6).
+    ses.create_template(Template={"TemplateName": name, "SubjectPart": "Hi {{name}}", "TextPart": "Dear {{name}}"})
+    cleanup.add(ses.delete_template, TemplateName=name)
+    message_id = ses.send_templated_email(**send)["MessageId"]
+    [sent] = admin.ses_messages(messageId=message_id)
+    assert sent["operation"] == "SendTemplatedEmail"
+    assert (sent["subject"]["data"], sent["text"]["data"]) == ("Hi x", "Dear x")
+    assert sent["template"]["name"] == name

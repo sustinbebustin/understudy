@@ -193,6 +193,10 @@ type sesMessage struct {
 		FileName string `json:"fileName"`
 		Content  []byte `json:"content"`
 	} `json:"attachments"`
+	Template *struct {
+		Name string `json:"name"`
+		Data string `json:"data"`
+	} `json:"template"`
 }
 
 // sesMessages is the recorded messages q selects.

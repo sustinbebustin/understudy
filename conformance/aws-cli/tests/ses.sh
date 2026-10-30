@@ -2,7 +2,7 @@
 # SES v1: email and domain identities (VerifyEmailIdentity,
 # VerifyDomainIdentity, GetIdentityVerificationAttributes,
 # GetIdentityNotificationAttributes, ListIdentities, DeleteIdentity), the
-# verification link, SendEmail, SendRawEmail, GetSendQuota and the
+# verification link, SendEmail, SendRawEmail, SendTemplatedEmail, GetSendQuota and the
 # templates (CreateTemplate, GetTemplate, UpdateTemplate, ListTemplates,
 # DeleteTemplate).
 # Arbiter: docs/research/ses.md sections 4, 5, 6, 7, 9.1, 9.2, 9.4 and 11.3.
@@ -202,5 +202,33 @@ test_send_raw_email_from_a_verified_address_is_recorded() {
   assert_jq '.messages[0].operation' 'SendRawEmail'
   assert_jq '.messages[0].raw' "$raw"
   assert_jq '.messages[0].envelope | join(",")' 'success@simulator.amazonses.com'
+  aws_ok ses delete-identity --identity "$addr"
+}
+
+test_send_templated_email_renders_names_and_is_recorded() {
+  local addr link tmpl id
+  addr="$(new_name ses-tmpl-sender)@example.com"
+  tmpl="$(new_name ses-tmpl)"
+  aws_ok ses verify-email-identity --email-address "$addr"
+  link=$(curl -fsS --get --data-urlencode "to=$addr" "${UE_ADMIN_URL:?UE_ADMIN_URL unset}/ses/messages" |
+    jq -r '.messages[0].text.data' | grep -o 'http[^[:space:]]*/_understudy/ses/VerificationLink?token=[A-Za-z0-9_-]*')
+  curl -fsS -o /dev/null "$link"
+  # A missing template is TemplateDoesNotExist (model, ses.md 3.3).
+  aws_error TemplateDoesNotExist 400 ses send-templated-email --source "$addr" \
+    --destination ToAddresses=success@simulator.amazonses.com --template "$tmpl" --template-data '{}'
+  # SES-18/07's send: accepted with a MessageId (ses.md 4.3); understudy
+  # records the {{name}} substitution (ses.md 7, 11.6 item 6).
+  aws_ok ses create-template --template "{\"TemplateName\":\"$tmpl\",\"SubjectPart\":\"Hi {{name}}\",\"TextPart\":\"Dear {{name}}\"}"
+  aws_ok ses send-templated-email --source "$addr" \
+    --destination ToAddresses=success@simulator.amazonses.com --template "$tmpl" --template-data '{"name":"x"}'
+  assert_jq_match '.MessageId' '^[0-9a-f]{16}-[0-9a-f-]{36}-000000$'
+  id=$(jq -r '.MessageId' <<<"$AWS_OUT")
+  AWS_OUT=$(curl -fsS --get --data-urlencode "messageId=$id" "$UE_ADMIN_URL/ses/messages")
+  assert_jq '.messages[0].operation' 'SendTemplatedEmail'
+  assert_jq '.messages[0].subject.data' 'Hi x'
+  assert_jq '.messages[0].text.data' 'Dear x'
+  assert_jq '.messages[0].template.name' "$tmpl"
+  assert_jq '.messages[0].template.data' '{"name":"x"}'
+  aws_ok ses delete-template --template-name "$tmpl"
   aws_ok ses delete-identity --identity "$addr"
 }

@@ -96,6 +96,7 @@ interface SesMessage {
   subject?: { data: string };
   text?: { data: string };
   attachments?: Array<{ fileName: string; content: string }>;
+  template?: { name?: string; data: string };
 }
 
 /** The recorded SES messages the filters select (GET /_understudy/v1/ses/messages). */
@@ -148,6 +149,37 @@ describe("SES v2 SendEmail", () => {
       expect(record?.api).toBe("sesv2");
       expect(record?.subject?.data).toBe("hello");
       expect(record?.attachments?.map((a) => [a.fileName, atob(a.content)])).toEqual([["report.txt", "attached"]]);
+    } finally {
+      await sesv2.send(new DeleteEmailIdentityCommand({ EmailIdentity: from }));
+    }
+  });
+
+  test("inline Template content renders {{name}} and is recorded", async () => {
+    const from = `${uniq("sesv2-tmpl-sender")}@example.com`;
+    await sesv2.send(new CreateEmailIdentityCommand({ EmailIdentity: from }));
+    try {
+      const [verification] = await sesMessages({ to: from });
+      const link = /http\S*\/_understudy\/ses\/VerificationLink\?token=[A-Za-z0-9_-]+/.exec(verification?.text?.data ?? "");
+      expect(link).not.toBeNull();
+      expect((await fetch(link?.[0] ?? "")).status).toBe(200);
+      // Inline TemplateContent supports "only simple substitutions" (model,
+      // ses.md 4.4); understudy renders {{name}} (ses.md 11.6 item 6).
+      const sent = await sesv2.send(
+        new SendEmailCommand({
+          FromEmailAddress: from,
+          Destination: { ToAddresses: [simulator] },
+          Content: {
+            Template: {
+              TemplateContent: { Subject: "Hi {{name}}", Text: "Dear {{name}}" },
+              TemplateData: JSON.stringify({ name: "x" }),
+            },
+          },
+        }),
+      );
+      const [record] = await sesMessages({ messageId: sent.MessageId ?? "" });
+      expect(record?.subject?.data).toBe("Hi x");
+      expect(record?.text?.data).toBe("Dear x");
+      expect(record?.template?.data).toBe('{"name":"x"}');
     } finally {
       await sesv2.send(new DeleteEmailIdentityCommand({ EmailIdentity: from }));
     }

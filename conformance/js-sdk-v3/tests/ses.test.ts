@@ -1,5 +1,6 @@
 // SES v1 over awsQuery, through @aws-sdk/client-ses.
-// Expected behavior: docs/research/ses.md sections 4 (4.2 for SendRawEmail), 5, 6, 9.1 and 9.2.
+// Expected behavior: docs/research/ses.md sections 4 (4.2 for SendRawEmail, 4.3 for
+// SendTemplatedEmail), 5, 6, 7, 9.1 and 9.2.
 
 import { describe, expect, test } from "bun:test";
 import {
@@ -14,12 +15,13 @@ import {
   paginateListIdentities,
   SendEmailCommand,
   SendRawEmailCommand,
+  SendTemplatedEmailCommand,
   SESClient,
   UpdateTemplateCommand,
   VerifyDomainIdentityCommand,
   VerifyEmailIdentityCommand,
 } from "@aws-sdk/client-ses";
-import { clientConfig } from "../support/env";
+import { clientConfig, endpoint } from "../support/env";
 import { expectFailure, uniq } from "../support/helpers";
 
 const ses = new SESClient(clientConfig());
@@ -200,4 +202,54 @@ describe("SES templates", () => {
       status: 400,
     });
   });
+
+  test("SendTemplatedEmail renders {{name}} from a stored template and is recorded", async () => {
+    const from = `${uniq("ses-tmpl-sender")}@example.com`;
+    const name = uniq("ses-tmpl");
+    await ses.send(new VerifyEmailIdentityCommand({ EmailAddress: from }));
+    try {
+      const [verification] = await sesMessages({ to: from });
+      const link = /http\S*\/_understudy\/ses\/VerificationLink\?token=[A-Za-z0-9_-]+/.exec(verification?.text?.data ?? "");
+      expect(link).not.toBeNull();
+      expect((await fetch(link?.[0] ?? "")).status).toBe(200);
+      const send = new SendTemplatedEmailCommand({
+        Source: from,
+        Destination: { ToAddresses: ["success@simulator.amazonses.com"] },
+        Template: name,
+        TemplateData: JSON.stringify({ name: "x" }),
+      });
+      // A missing template is TemplateDoesNotExist (model, ses.md 3.3).
+      await expectFailure(ses.send(send), { name: "TemplateDoesNotExistException", status: 400 });
+      // SES-18/07's send: accepted with a MessageId (ses.md 4.3); understudy
+      // records the {{name}} substitution (ses.md 7, 11.6 item 6).
+      await ses.send(
+        new CreateTemplateCommand({ Template: { TemplateName: name, SubjectPart: "Hi {{name}}", TextPart: "Dear {{name}}" } }),
+      );
+      const sent = await ses.send(send);
+      const [record] = await sesMessages({ messageId: sent.MessageId ?? "" });
+      expect(record?.operation).toBe("SendTemplatedEmail");
+      expect(record?.subject?.data).toBe("Hi x");
+      expect(record?.text?.data).toBe("Dear x");
+      expect(record?.template?.name).toBe(name);
+    } finally {
+      await ses.send(new DeleteTemplateCommand({ TemplateName: name }));
+      await ses.send(new DeleteIdentityCommand({ Identity: from }));
+    }
+  });
 });
+
+/** The part of a recorded message these tests read. */
+interface SesMessage {
+  operation?: string;
+  subject?: { data: string };
+  text?: { data: string };
+  template?: { name?: string; data: string };
+}
+
+/** The recorded SES messages the filters select (GET /_understudy/v1/ses/messages). */
+async function sesMessages(query: Record<string, string>): Promise<SesMessage[]> {
+  const res = await fetch(`${endpoint}/_understudy/v1/ses/messages?${new URLSearchParams(query)}`);
+  expect(res.status).toBe(200);
+  // SAFETY: the admin API answers SESMessagePage (admin/ses.go); the test reads only these members.
+  return ((await res.json()) as { messages: SesMessage[] }).messages;
+}

@@ -110,3 +110,28 @@ def test_send_email_from_a_verified_address_is_recorded(sesv2: Any, admin: Admin
     assert sent["api"] == "sesv2"
     assert sent["subject"]["data"] == "hello"
     assert [(a["fileName"], base64.b64decode(a["content"])) for a in sent["attachments"]] == [("report.txt", b"attached")]
+
+
+def test_send_email_template_content_inline_is_rendered(sesv2: Any, admin: Admin, cleanup: Any) -> None:
+    sender = uniq("conf-sesv2-tmpl") + "@example.com"
+    sesv2.create_email_identity(EmailIdentity=sender)
+    cleanup.add(sesv2.delete_email_identity, EmailIdentity=sender)
+    [verification] = admin.ses_messages(to=sender)
+    link = re.search(r"http\S*/_understudy/ses/VerificationLink\?token=[A-Za-z0-9_-]+", verification["text"]["data"])
+    assert link is not None, verification
+    with urllib.request.urlopen(link.group(0), timeout=10) as resp:  # noqa: S310 -- the loopback endpoint's own link
+        assert resp.status == 200
+    # Inline TemplateContent supports "only simple substitutions" (model,
+    # ses.md 4.4); understudy renders {{name}} (ses.md 11.6 item 6).
+    content = {
+        "Template": {
+            "TemplateContent": {"Subject": "Hi {{name}}", "Text": "Dear {{name}}"},
+            "TemplateData": '{"name": "x"}',
+        }
+    }
+    message_id = sesv2.send_email(FromEmailAddress=sender, Destination={"ToAddresses": [SIMULATOR]}, Content=content)[
+        "MessageId"
+    ]
+    [sent] = admin.ses_messages(messageId=message_id)
+    assert (sent["subject"]["data"], sent["text"]["data"]) == ("Hi x", "Dear x")
+    assert sent["template"]["data"] == '{"name": "x"}'

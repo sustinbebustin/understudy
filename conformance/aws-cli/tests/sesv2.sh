@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # SES v2: email identities (CreateEmailIdentity, GetEmailIdentity,
 # ListEmailIdentities, DeleteEmailIdentity), the tag operations on an
-# identity ARN, GetAccount, and SendEmail with Simple and Raw content. This
+# identity ARN, GetAccount, and SendEmail with Simple, Raw and Template content. This
 # CLI sends ListEmailIdentities as POST /v2/email/list-identities (ses.md
 # 3.2).
 # Arbiter: docs/research/ses.md sections 2.3, 4.4, 5.4, 6 and 9.3.
@@ -100,5 +100,26 @@ test_send_email_simple_and_raw_from_a_verified_address_are_recorded() {
   AWS_OUT=$(curl -fsS --get --data-urlencode "messageId=$id" "$UE_ADMIN_URL/ses/messages")
   assert_jq '.messages[0].raw' "$raw"
   assert_jq '.messages[0].envelope | join(",")' 'success@simulator.amazonses.com'
+  aws_ok sesv2 delete-email-identity --email-identity "$addr"
+}
+
+test_send_email_template_content_inline_is_rendered() {
+  local addr link id
+  addr="$(new_name sesv2-tmpl-sender)@example.com"
+  aws_ok sesv2 create-email-identity --email-identity "$addr"
+  link=$(curl -fsS --get --data-urlencode "to=$addr" "${UE_ADMIN_URL:?UE_ADMIN_URL unset}/ses/messages" |
+    jq -r '.messages[0].text.data' | grep -o 'http[^[:space:]]*/_understudy/ses/VerificationLink?token=[A-Za-z0-9_-]*')
+  curl -fsS -o /dev/null "$link"
+  # Inline TemplateContent supports "only simple substitutions" (model,
+  # ses.md 4.4); understudy renders {{name}} (ses.md 11.6 item 6).
+  aws_ok sesv2 send-email --from-email-address "$addr" \
+    --destination ToAddresses=success@simulator.amazonses.com \
+    --content '{"Template":{"TemplateContent":{"Subject":"Hi {{name}}","Text":"Dear {{name}}"},"TemplateData":"{\"name\":\"x\"}"}}'
+  assert_jq_match '.MessageId' '^[0-9a-f]{16}-[0-9a-f-]{36}-000000$'
+  id=$(jq -r '.MessageId' <<<"$AWS_OUT")
+  AWS_OUT=$(curl -fsS --get --data-urlencode "messageId=$id" "$UE_ADMIN_URL/ses/messages")
+  assert_jq '.messages[0].api' 'sesv2'
+  assert_jq '.messages[0].subject.data' 'Hi x'
+  assert_jq '.messages[0].text.data' 'Dear x'
   aws_ok sesv2 delete-email-identity --email-identity "$addr"
 }
