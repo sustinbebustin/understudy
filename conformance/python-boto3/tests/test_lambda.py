@@ -18,7 +18,7 @@ from typing import Any
 
 import pytest
 
-from support import Admin, eventually, lambda_zip, raises, status_of, uniq, url_host_port
+from support import REGION, Admin, eventually, lambda_zip, raises, status_of, uniq, url_host_port
 
 pytestmark = pytest.mark.docker
 
@@ -865,6 +865,101 @@ def test_dynamodb_stream_mapping(
     lines = eventually(seen, lambda s: len(s) == 1, timeout=60, what="the stream record to reach the function")
     # dynamodb-streams.md 7.8: eventSourceARN is the stream; eventVersion 1.1 (ESM-SNAP:L73).
     assert lines[0].split()[1:] == ["INSERT", "hello", arn, "1.1"]
+    eventually(
+        lambda: lambda_.get_event_source_mapping(UUID=mapping["UUID"]),
+        lambda m: m["LastProcessingResult"] == "OK",
+        what="LastProcessingResult OK",
+    )
+
+
+KINESIS_HANDLER = """
+import json
+
+def handler(event, context):
+    for record in event["Records"]:
+        print("conformance-kinesis " + json.dumps(record))
+"""
+
+
+def test_kinesis_stream_mapping(
+    lambda_: Any,
+    kinesis: Any,
+    logs: Any,
+    admin: Admin,
+    cleanup: Any,
+    role_arn: str,
+    make_function: Callable[..., dict[str, Any]],
+    make_mapping: Callable[..., dict[str, Any]],
+) -> None:
+    stream = uniq("conf-esm-kin")
+    kinesis.create_stream(StreamName=stream, ShardCount=1)
+    cleanup.add(kinesis.delete_stream, StreamName=stream)
+    kinesis.get_waiter("stream_exists").wait(StreamName=stream, WaiterConfig={"Delay": 1, "MaxAttempts": 60})
+    arn = kinesis.describe_stream_summary(StreamName=stream)["StreamDescriptionSummary"]["StreamARN"]
+    function = make_function(KINESIS_HANDLER)["FunctionName"]
+
+    # lambda-stream-sources.md 3.3 rows 1 and 4 (third-party-recorded LS-API:L18250-L18260, LS-K:L3160-L3175).
+    with raises("InvalidParameterValueException") as no_position:
+        lambda_.create_event_source_mapping(FunctionName=function, EventSourceArn=arn)
+    assert no_position.value.response["Error"]["Message"] == (
+        "1 validation error detected: Value null at 'startingPosition' failed to satisfy constraint: Member must not be null."
+    )
+    missing = arn + "x"
+    with raises("InvalidParameterValueException") as not_found:
+        lambda_.create_event_source_mapping(FunctionName=function, EventSourceArn=missing, StartingPosition="TRIM_HORIZON")
+    assert not_found.value.response["Error"]["Message"] == f"Stream not found: {missing}"
+
+    # lambda-stream-sources.md 3.5 (third-party-recorded LS-K:L5-L29).
+    mapping = make_mapping(function, arn, StartingPosition="TRIM_HORIZON")
+    for key, want in {
+        "BatchSize": 100,
+        "BisectBatchOnFunctionError": False,
+        "DestinationConfig": {"OnFailure": {}},
+        "EventSourceArn": arn,
+        "FunctionResponseTypes": [],
+        "LastProcessingResult": "No records processed",
+        "MaximumBatchingWindowInSeconds": 0,
+        "MaximumRecordAgeInSeconds": -1,
+        "MaximumRetryAttempts": -1,
+        "ParallelizationFactor": 1,
+        "StartingPosition": "TRIM_HORIZON",
+        "StateTransitionReason": "User action",
+        "TumblingWindowInSeconds": 0,
+    }.items():
+        assert mapping[key] == want, key
+    eventually(
+        lambda: lambda_.get_event_source_mapping(UUID=mapping["UUID"]),
+        lambda m: m["State"] == "Enabled",
+        what="the mapping to be Enabled",
+    )
+
+    put = kinesis.put_record(StreamName=stream, PartitionKey="pk-1", Data=b"hello")
+
+    def seen() -> list[str]:
+        admin.settle()
+        return _log_messages(logs, function, "conformance-kinesis")
+
+    lines = eventually(seen, lambda s: len(s) == 1, timeout=60, what="the Kinesis record to reach the function")
+    record = json.loads(lines[0].split(" ", 1)[1])
+    # lambda-stream-sources.md 8.1 (LS-K:L33-L48; kinesis.md 8.1); approximateArrivalTimestamp has ten
+    # integral digits (LS-K.py:L159-L162).
+    assert {k: record[k] for k in ("eventSource", "eventName", "eventVersion", "eventID", "eventSourceARN", "awsRegion", "invokeIdentityArn")} == {
+        "eventSource": "aws:kinesis",
+        "eventName": "aws:kinesis:record",
+        "eventVersion": "1.0",
+        "eventID": f"{put['ShardId']}:{put['SequenceNumber']}",
+        "eventSourceARN": arn,
+        "awsRegion": REGION,
+        "invokeIdentityArn": role_arn,
+    }
+    k = record["kinesis"]
+    assert (k["kinesisSchemaVersion"], k["partitionKey"], k["sequenceNumber"], k["data"]) == (
+        "1.0",
+        "pk-1",
+        put["SequenceNumber"],
+        base64.b64encode(b"hello").decode(),
+    )
+    assert len(str(int(k["approximateArrivalTimestamp"]))) == 10 and "encryptionType" not in k
     eventually(
         lambda: lambda_.get_event_source_mapping(UUID=mapping["UUID"]),
         lambda m: m["LastProcessingResult"] == "OK",
