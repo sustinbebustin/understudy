@@ -246,6 +246,7 @@ func wire(cfg Config, log *slog.Logger) (w *wiring, err error) {
 		ImagePuller:   w.lambda,
 		TTLSweeper:    c.dynamodb,
 		Subscriptions: c.sns,
+		SES:           sesMessages{svc: c.ses, regions: regions},
 		IAM:           authorizer,
 	}
 	if err := w.snapshotDirs(&opts); err != nil {

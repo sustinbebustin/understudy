@@ -91,6 +91,9 @@ type Options struct {
 	ImagePuller   ImagePuller
 	TTLSweeper    TTLSweeper
 	Subscriptions SubscriptionTokens
+	// SES answers GET and DELETE /ses/messages; nil answers them
+	// unavailable.
+	SES SESMessages
 	// IAM answers POST /iam/evaluate; nil answers it unavailable.
 	IAM IAMEvaluator
 	// Components reports Docker and DynamoDB Local for health; nil leaves
@@ -302,6 +305,8 @@ func routes() []route {
 		{method: http.MethodPost, path: []string{"lambda", "images", "pull"}, serve: (*Handler).imagePull},
 		{method: http.MethodPost, path: []string{"dynamodb", "ttl-sweep"}, serve: (*Handler).ttlSweep},
 		{method: http.MethodGet, path: []string{"sns", "subscriptions", "{arn}", "token"}, serve: (*Handler).subscriptionToken},
+		{method: http.MethodGet, path: []string{"ses", "messages"}, params: append(sesFilterParams(), admin.ParamLimit, admin.ParamCursor), serve: (*Handler).sesMessages},
+		{method: http.MethodDelete, path: []string{"ses", "messages"}, params: sesFilterParams(), serve: (*Handler).sesMessagesClear},
 	}
 }
 

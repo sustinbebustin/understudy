@@ -2,7 +2,9 @@ package admin
 
 import (
 	"context"
+	"net/http"
 	"net/url"
+	"strconv"
 	"time"
 )
 
@@ -40,8 +42,28 @@ const (
 
 // Values encodes q as the query parameters the SES message endpoints read:
 // Since as RFC 3339 with nanoseconds, Limit and Cursor under ParamLimit and
-// ParamCursor; not implemented yet, so it encodes nothing.
-func (SESMessageQuery) Values() url.Values { return url.Values{} }
+// ParamCursor. Zero members are left out.
+func (q SESMessageQuery) Values() url.Values {
+	v := url.Values{}
+	set := func(k, s string) {
+		if s != "" {
+			v.Set(k, s)
+		}
+	}
+	set(ParamSESAccount, q.Account)
+	set(ParamSESRegion, q.Region)
+	set(ParamSESMessageID, q.MessageID)
+	set(ParamSESFrom, q.From)
+	set(ParamSESTo, q.To)
+	if !q.Since.IsZero() {
+		v.Set(ParamSESSince, q.Since.UTC().Format(time.RFC3339Nano))
+	}
+	if q.Limit != 0 {
+		v.Set(ParamLimit, strconv.Itoa(q.Limit))
+	}
+	set(ParamCursor, q.Cursor)
+	return v
+}
 
 // SESMessagePage is GET /ses/messages: messages oldest first.
 type SESMessagePage struct {
@@ -132,23 +154,17 @@ type SESTag struct {
 	Value string `json:"value"`
 }
 
-// SESMessages returns one page of the SES sent messages q selects; not
-// implemented yet, so it sends no request and answers unavailable.
-func (*Client) SESMessages(context.Context, SESMessageQuery) (*SESMessagePage, error) {
-	return nil, sesNotImplemented("reading SES sent messages")
+// SESMessages returns one page of the SES sent messages q selects, oldest
+// first.
+func (c *Client) SESMessages(ctx context.Context, q SESMessageQuery) (*SESMessagePage, error) {
+	return fetch[SESMessagePage](ctx, c, http.MethodGet, "/ses/messages", q.Values(), nil)
 }
 
-// ClearSESMessages deletes the SES sent messages q selects, ignoring Limit
-// and Cursor; not implemented yet, so it sends no request and answers
-// unavailable.
-func (*Client) ClearSESMessages(context.Context, SESMessageQuery) (*SESClearResult, error) {
-	return nil, sesNotImplemented("deleting SES sent messages")
-}
-
-func sesNotImplemented(what string) *Error {
-	return &Error{
-		Code:    Unavailable,
-		Message: what + " is not implemented yet in this client; no request was sent",
-		Hint:    "read the SES calls from the journal instead: understudy journal --service ses",
-	}
+// ClearSESMessages deletes the SES sent messages q selects; Limit and
+// Cursor are not sent.
+func (c *Client) ClearSESMessages(ctx context.Context, q SESMessageQuery) (*SESClearResult, error) {
+	v := q.Values()
+	v.Del(ParamLimit)
+	v.Del(ParamCursor)
+	return fetch[SESClearResult](ctx, c, http.MethodDelete, "/ses/messages", v, nil)
 }
