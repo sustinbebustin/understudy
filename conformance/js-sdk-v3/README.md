@@ -46,6 +46,7 @@ One file per service, so each can be fixed on its own.
 | `tests/s3.test.ts` | S3, including `lib-storage` multipart uploads, default checksums, presigned URLs, virtual-hosted and path-style addressing |
 | `tests/dynamodb.test.ts` | DynamoDB, DynamoDB document client |
 | `tests/dynamodbstreams.test.ts` | DynamoDB Streams |
+| `tests/kinesis.test.ts` | Kinesis Data Streams, on an HTTP/1.1 request handler (the client's Node default opens HTTP/2, which understudy does not speak) |
 | `tests/lambda.test.ts` | Lambda |
 | `tests/lambda-layers.test.ts` | Lambda layers and asynchronous invocation destinations |
 | `tests/logs.test.ts` | CloudWatch Logs |
@@ -57,4 +58,4 @@ One file per service, so each can be fixed on its own.
 | `tests/cloudwatch.test.ts` | CloudWatch metrics and alarms |
 | `tests/apigatewayv2.test.ts` | API Gateway HTTP APIs: the control plane and Lambda proxy invocations through the execute-api path fallback |
 
-`support/` holds the connection settings (`env.ts`), shared helpers (`helpers.ts`), independent checksum reference implementations (`checksums.ts`), a zip writer for Lambda packages (`zip.ts`) and the types of `sns-validator` (`sns-validator.d.ts`).
+`support/` holds the connection settings (`env.ts`), shared helpers (`helpers.ts`), independent checksum reference implementations (`checksums.ts`), a zip writer for Lambda packages (`zip.ts`), the Kinesis client and stream fixture (`kinesis.ts`) and the types of `sns-validator` (`sns-validator.d.ts`).
