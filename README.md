@@ -150,7 +150,7 @@ From [docs/coverage.md](docs/coverage.md), which `understudy coverage` regenerat
 | API Gateway (HTTP APIs) | 103 | 0 | 2 | 29 | 72 |
 | SSM (Parameter Store) | 152 | 0 | 0 | 13 | 139 |
 | Step Functions | 37 | 7 | 0 | 9 | 21 |
-| SES (v1 and v2) | 187 | 10 | 0 | 13 | 164 |
+| SES (v1 and v2) | 187 | 17 | 0 | 15 | 155 |
 
 The implemented operations are the ones an event-driven pipeline uses: an API Gateway HTTP API in front of Lambda, a Step Functions Standard workflow calling Lambda, SNS fan-out with filter policies to SQS, SQS with dead-letter queues feeding Lambda, S3 with SSE-KMS, a DynamoDB lock table with TTL, a DynamoDB table's stream feeding Lambda, Secrets Manager and SSM Parameter Store, CloudWatch Logs, EventBridge schedules and custom buses, SES sends recorded for a test to read, and the IAM, KMS and CloudWatch resources Terraform declares around them.
 
