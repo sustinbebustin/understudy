@@ -442,7 +442,9 @@ func (r *Recorder) Usage(f Filter) []Use {
 
 // Policy returns the least-privilege identity policy for principal
 // (ARCHITECTURE.md 17): one Allow statement per (service, resource) with the
-// exact resource ARN, arn:aws:s3:::<bucket>/* for the objects of a bucket,
+// exact resource ARN, the MintedPattern of a resource whose id understudy
+// minted (so N minted keys under the same actions give one statement),
+// arn:aws:s3:::<bucket>/* for the objects of a bucket,
 // or "*" for an action of its operation's service without a resource of
 // that service, listing every action used there in any mode, failed calls
 // included. sts:GetCallerIdentity is left out: it needs no permission and
@@ -462,7 +464,7 @@ func (r *Recorder) Policy(principal Identity) (doc policydoc.Document, ok bool) 
 		if needsNoPermission(u.Action) {
 			continue
 		}
-		g := group{service: u.Action.Prefix, resource: scopeText(u.Resource), passedTo: u.PassedToService}
+		g := group{service: u.Action.Prefix, resource: renderedScope(u.Mode, u.Resource), passedTo: u.PassedToService}
 		actions[g] = append(actions[g], u.Action.String())
 	}
 	grants := make([]policydoc.Grant, 0, len(actions))
@@ -470,6 +472,17 @@ func (r *Recorder) Policy(principal Identity) (doc policydoc.Document, ok bool) 
 		grants = append(grants, policydoc.Grant{Actions: as, Resources: []string{g.resource}, Condition: passedToCondition(g.passedTo)})
 	}
 	return policydoc.Render(grants)
+}
+
+// renderedScope is the Resource text Policy renders and groups a use by:
+// MintedPattern of a minted resource, scopeText otherwise.
+func renderedScope(mode Mode, s Scope) string {
+	if on, ok := s.(OnResource); ok {
+		if pattern, minted := MintedPattern(mode, on.ARN); minted {
+			return pattern
+		}
+	}
+	return scopeText(s)
 }
 
 // passedToCondition is the Condition of a grant of iam:PassRole to
