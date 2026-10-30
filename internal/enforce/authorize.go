@@ -15,7 +15,9 @@ import (
 // authz.Decide in order, every condition key understudy cannot supply is
 // journaled, and the first denying pair ends the question: answered with
 // the service's denial under Enforce, journaled and served under Advise
-// (iam-enforcement-surfaces.md 12.1, 12.2). A pair it cannot decide, such
+// (iam-enforcement-surfaces.md 12.1, 12.2). Under Enforce a pair whose
+// statements test one of q.Refused ends the call Unsupported first, whatever
+// the decision, since that decision took the key as absent. A pair it cannot decide, such
 // as on a stored policy that does not parse, ends the call Internal under
 // Enforce and is journaled and passed over under Advise; it is never read as
 // no policy (12.10). Unbound, it answers a nil Verdict, which the kernel
@@ -48,6 +50,9 @@ func (a *Authorizer) Authorize(ctx context.Context, c *kernel.Call, q kernel.Aut
 		}
 		for _, u := range decided.outcome.Unsupplied {
 			c.Record(ctx, c.Scope(), journal.Advisory{Kind: journal.AdvisoryConditionKeyUnsupplied, Resource: pairARN(pair), Text: unsuppliedText(u, pair)})
+		}
+		if u, ok := refused(decided.outcome.Unsupplied, q.Refused); ok && a.mode == Enforce {
+			return kernel.Unsupported{Message: refusedText(u, pair)}
 		}
 		if _, allowed := decided.outcome.Decision.(authz.Allow); allowed {
 			continue

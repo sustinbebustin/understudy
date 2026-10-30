@@ -21,8 +21,8 @@ type Binder struct {
 
 // BindOption adjusts one binding: WithValidator, WithCheck, WithResources,
 // WithResourcesFor, WithItemCount, WithActions, WithoutSecondaryActions,
-// WithConditionKeys, AuthorizedInHandler, NeverAuthorized and
-// AuthorizedAfterResolve build them.
+// WithConditionKeys, RefuseConditionKeys, AuthorizedInHandler,
+// NeverAuthorized and AuthorizedAfterResolve build them.
 type BindOption interface {
 	// apply adds the option to cfg, the *bindConfig of the operation's input
 	// type, and reports false when the option is for another input type.
@@ -50,6 +50,8 @@ type bindConfig struct {
 	// authorization is the last AuthorizedInHandler, NeverAuthorized or
 	// AuthorizedAfterResolve; atStep8 without one.
 	authorization authorization
+	// refused are every RefuseConditionKeys option's keys.
+	refused []string
 }
 
 // erasedConfig is what WithResourcesFor and WithConditionKeys add: what the
@@ -373,6 +375,7 @@ func (cfg *bindConfig) clone() bindConfig {
 		erased:        cfg.erased.clone(),
 		count:         cfg.count,
 		authorization: cfg.authorization,
+		refused:       slices.Clone(cfg.refused),
 	}
 }
 
@@ -411,6 +414,7 @@ func configured(b *Binder, id ref.OperationID, base bindConfig, opts []BindOptio
 		run:           t.run,
 		extend:        func(more []BindOption) *binding { return configured(b, id, cfg, more, t) },
 		authorization: cfg.authorization,
+		refused:       cfg.refused,
 	}
 	if len(cfg.actions) > 0 {
 		bnd.actions = func(c *Call, in any) []registry.IAMAction {
@@ -485,6 +489,10 @@ type binding struct {
 	// authorization is what step 8 asks about the binding's calls
 	// (AuthorizedInHandler, NeverAuthorized, AuthorizedAfterResolve).
 	authorization authorization
+	// refused are the condition keys step 8 passes as AuthzQuery.Refused
+	// (RefuseConditionKeys); nil without the option and for raw HTTP
+	// bindings.
+	refused []string
 }
 
 // scoping resolves the binding's WithResourcesFor options for the valid

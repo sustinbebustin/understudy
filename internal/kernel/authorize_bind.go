@@ -123,9 +123,10 @@ func conditionKeys(keys []func(*Call, any) ConditionKeys, c *Call, in any) Condi
 // Invoke or the handler's successful return asks it, once.
 type deferred struct {
 	// ctx is the pipeline's context, since Write takes none.
-	ctx  context.Context //nolint:containedctx // Write has no context to pass; the call lives within the pipeline's.
-	used secondaries
-	keys ConditionKeys
+	ctx     context.Context //nolint:containedctx // Write has no context to pass; the call lives within the pipeline's.
+	used    secondaries
+	keys    ConditionKeys
+	refused []string
 
 	once sync.Once
 	err  *awserr.Error
@@ -144,7 +145,7 @@ func (c *Call) authorizeDeferred() *awserr.Error {
 		if len(pairs) == 0 {
 			return
 		}
-		d.err = verdictError(c, c.k.authorizer.Authorize(d.ctx, c, AuthzQuery{Pairs: pairs, Keys: d.keys}))
+		d.err = verdictError(c, c.k.authorizer.Authorize(d.ctx, c, AuthzQuery{Pairs: pairs, Keys: d.keys, Refused: d.refused}))
 	})
 	return d.err
 }

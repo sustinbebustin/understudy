@@ -1,7 +1,9 @@
 package enforce
 
 import (
+	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/authz"
 	"github.com/sustinbebustin/understudy/internal/aws"
@@ -36,6 +38,26 @@ func unsuppliedText(u authz.Unsupplied, pair kernel.Pair) string {
 	return "the condition key " + u.Key + " in " + named(u.PolicyType, u.Policy) + " statement " + statementName(u) +
 		" was evaluated as absent for " + pair.Action.String() + " on " + resourceText(pair) +
 		": AWS sends it with this request and understudy cannot compute it, so AWS may decide differently (iam-enforcement-surfaces.md 12.2)"
+}
+
+// refused returns the first of unsupplied whose key is one of keys, compared
+// case-insensitively as IAM compares condition keys.
+func refused(unsupplied []authz.Unsupplied, keys []string) (authz.Unsupplied, bool) {
+	for _, u := range unsupplied {
+		if slices.ContainsFunc(keys, func(k string) bool { return strings.EqualFold(k, u.Key) }) {
+			return u, true
+		}
+	}
+	return authz.Unsupplied{}, false
+}
+
+// refusedText is the message of a call refused for a condition on a key its
+// binding refuses (kernel.RefuseConditionKeys).
+func refusedText(u authz.Unsupplied, pair kernel.Pair) string {
+	return "understudy cannot evaluate the condition key " + u.Key + " in " + named(u.PolicyType, u.Policy) + " statement " + statementName(u) +
+		" for " + pair.Action.String() + " on " + resourceText(pair) +
+		": AWS sends it with this request and understudy does not supply it, and taking it as absent could allow a call AWS denies. " +
+		"Nothing was done. Remove the condition, or run with iam.enforce advise, which journals it and serves the call"
 }
 
 // decidedBy names the policy type of a denial and, for an explicit deny in

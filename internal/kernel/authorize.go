@@ -28,6 +28,10 @@ type AuthzQuery struct {
 	// Keys are condition keys the asker supplies beyond what an Authorizer
 	// derives from the call itself; nil at step 8.
 	Keys ConditionKeys
+	// Refused are condition keys the call's binding refuses to have
+	// evaluated as absent (RefuseConditionKeys); nil when it names none and
+	// for a pair a handler asks about through Authorize.
+	Refused []string
 }
 
 // Pair is one action on one resource.
@@ -81,9 +85,16 @@ type Denied struct {
 // never as if no policy existed (iam-enforcement-surfaces.md 12.10).
 type Unevaluable struct{ Cause error }
 
+// Unsupported is a call whose decision rests on what understudy cannot
+// evaluate as AWS would, such as a condition on a key the binding refuses
+// (RefuseConditionKeys): the call ends 501 NotImplemented with Message,
+// never decided as if the condition were absent (CLAUDE.md invariant 3).
+type Unsupported struct{ Message string }
+
 func (Allowed) isVerdict()     {}
 func (Denied) isVerdict()      {}
 func (Unevaluable) isVerdict() {}
+func (Unsupported) isVerdict() {}
 
 // DenialIdentityError is a denial of a call whose service descriptor names
 // no denial identity, so the kernel cannot render it as AWS would.
@@ -141,6 +152,33 @@ func (o authorizationOption) apply(cfg any) bool {
 
 func (cfg *bindConfig) setAuthorization(a authorization) { cfg.authorization = a }
 
+// refusedKeysOption is the option RefuseConditionKeys returns. It fits
+// every input type.
+type refusedKeysOption []string
+
+// refuses is a binding configuration that can record refused condition
+// keys.
+type refuses interface{ addRefused(keys []string) }
+
+func (o refusedKeysOption) apply(cfg any) bool {
+	c, ok := cfg.(refuses)
+	if ok {
+		c.addRefused(o)
+	}
+	return ok
+}
+
+func (cfg *bindConfig) addRefused(keys []string) { cfg.refused = append(cfg.refused, keys...) }
+
+// RefuseConditionKeys names condition keys AWS sends with the operation's
+// request that understudy cannot supply and must not evaluate as absent:
+// under the absent-key rule (iam-evaluation.md 6.14) a Deny on a positive
+// condition never applies, so a call AWS denies would go through. Step 8
+// passes them as AuthzQuery.Refused, and an Authorizer that enforces
+// answers Unsupported when a statement matching a pair tests one. Several
+// options add up.
+func RefuseConditionKeys(keys ...string) BindOption { return refusedKeysOption(slices.Clone(keys)) }
+
 // AuthorizedInHandler marks an operation whose handler resolves its
 // resource itself and asks about the operation's primary action on it
 // through Authorize, such as IAM GetRole on the role it reads. Step 8
@@ -183,14 +221,14 @@ func (k *Kernel) authorize(ctx context.Context, c *Call, bnd *binding, used seco
 	case never:
 		return nil
 	case afterResolve:
-		c.deferred = &deferred{ctx: ctx, used: used, keys: keys}
+		c.deferred = &deferred{ctx: ctx, used: used, keys: keys, refused: bnd.refused}
 		return nil
 	}
 	pairs := pairsOf(actions, c.op.Service.IAMPrefix, c.Touched(), c.scoped)
 	if len(pairs) == 0 {
 		return nil
 	}
-	return verdictError(c, k.authorizer.Authorize(ctx, c, AuthzQuery{Pairs: pairs, Keys: keys}))
+	return verdictError(c, k.authorizer.Authorize(ctx, c, AuthzQuery{Pairs: pairs, Keys: keys, Refused: bnd.refused}))
 }
 
 // verdictError returns the error c ends with for v, nil for Allowed.
@@ -202,6 +240,8 @@ func verdictError(c *Call, v Verdict) *awserr.Error {
 		return denial(c, v)
 	case Unevaluable:
 		return awserr.Internalf(v.Cause)
+	case Unsupported:
+		return &awserr.Error{ID: awserr.NotImplemented(), Message: v.Message, Origin: awserr.Generic{}}
 	case nil:
 	}
 	return awserr.Internalf(&VerdictError{Op: c.opID})
