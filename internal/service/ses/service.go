@@ -65,6 +65,7 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 	s.bindSends(b)
 	s.bindSendRaw(b)
 	s.bindQuota(b)
+	s.bindTemplates(b)
 	s.bindLink(b)
 	return s
 }
@@ -116,17 +117,21 @@ func (s *Service) Reset(rs kernel.ResetScope) {
 }
 
 // Resources lists the identities of scope in creation order, each with
-// its v1 verification status.
+// its v1 verification status, then the templates in creation order, each
+// summarized "template" (contract 1.2).
 func (s *Service) Resources(scope aws.Scope) []kernel.Resource {
 	cell, ok := s.cells.Lookup(scope)
 	if !ok {
 		return nil
 	}
 	return store.Read(cell, func(st *state) []kernel.Resource {
-		out := make([]kernel.Resource, 0, len(st.Identities))
+		out := make([]kernel.Resource, 0, len(st.Identities)+len(st.Templates))
 		for i := range st.Identities {
 			id := &st.Identities[i]
 			out = append(out, kernel.Resource{ARN: identityARN(scope, id.Name), Summary: string(id.Status.v1())})
+		}
+		for i := range st.Templates {
+			out = append(out, kernel.Resource{ARN: templateARN(scope, st.Templates[i].Name), Summary: "template"})
 		}
 		return out
 	})

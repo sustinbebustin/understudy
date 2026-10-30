@@ -20,6 +20,9 @@ type state struct {
 	// Identities are in creation order, the order ListIdentities and
 	// Resources list them in (SES-14).
 	Identities []identity `json:"identities"`
+	// Templates are the v1 templates in creation order, the order
+	// ListTemplates and Resources list them in.
+	Templates []template `json:"templates,omitempty"`
 	// Messages are the recorded messages, oldest first, at most
 	// MaxStoredMessages (ses.md 11.2).
 	Messages []record `json:"messages,omitempty"`
@@ -33,10 +36,10 @@ type state struct {
 
 func newState(aws.Scope) state { return state{} }
 
-// IsZero reports a scope without identities, messages, evictions or counted
-// recipients, which snapshots skip.
+// IsZero reports a scope without identities, templates, messages, evictions
+// or counted recipients, which snapshots skip.
 func (s *state) IsZero() bool {
-	return len(s.Identities) == 0 && len(s.Messages) == 0 && s.Evicted == 0 && len(s.Recipients) == 0
+	return len(s.Identities) == 0 && len(s.Templates) == 0 && len(s.Messages) == 0 && s.Evicted == 0 && len(s.Recipients) == 0
 }
 
 // minuteCount is the recipients counted in one minute of emulator time,
