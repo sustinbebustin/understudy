@@ -75,3 +75,17 @@ test_verification_email_is_recorded() {
   AWS_OUT=$(curl -fsS -X DELETE --get --data-urlencode "to=$addr" "$UE_ADMIN_URL/ses/messages")
   assert_jq '.deleted' '1'
 }
+
+test_send_email_rejects_an_invalid_tag_name() {
+  # Tag validation runs before the sender check: an unverified Source with an
+  # invalid tag name answers the recorded text (third-party-recorded
+  # 2024-07-30, ses.md 4.5; localstack@8b9a79f
+  # tests/aws/services/ses/test_ses.snapshot.json:L592-L735, validated
+  # 2024-07-30).
+  aws_error InvalidParameterValue 400 ses send-email \
+    --from "$(new_name ses-unverified)@example.com" \
+    --destination ToAddresses=success@example.com \
+    --message 'Subject={Data=subject},Body={Text={Data=text}}' \
+    --tags 'Name=test_invalid_name:123,Value=test'
+  aws_error_message_contains "Invalid tag name <test_invalid_name:123>: only alphanumeric ASCII characters, '_',  '-' are allowed."
+}

@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from support import uniq
+import pytest
+from botocore.exceptions import ClientError
+from support import error_code, status_of, uniq
 
 
 def test_verify_email_identity_starts_pending(ses: Any, cleanup: Any) -> None:
@@ -42,3 +44,23 @@ def test_domain_identity_token_is_stable(ses: Any, cleanup: Any) -> None:
     addresses = [i for p in pages.paginate(IdentityType="EmailAddress") for i in p["Identities"]]
     assert domain in domains
     assert domain not in addresses
+
+
+def test_send_email_rejects_an_invalid_tag_name(ses: Any) -> None:
+    # Tag validation runs before the sender check: an unverified Source with
+    # an invalid tag name answers the recorded text (third-party-recorded
+    # 2024-07-30, ses.md 4.5; localstack@8b9a79f
+    # tests/aws/services/ses/test_ses.snapshot.json:L592-L735, validated
+    # 2024-07-30).
+    with pytest.raises(ClientError) as exc:
+        ses.send_email(
+            Source=uniq("conf-ses-unverified") + "@example.com",
+            Destination={"ToAddresses": ["success@example.com"]},
+            Message={"Subject": {"Data": "subject"}, "Body": {"Text": {"Data": "text"}}},
+            Tags=[{"Name": "test_invalid_name:123", "Value": "test"}],
+        )
+    assert error_code(exc.value) == "InvalidParameterValue"
+    assert status_of(exc.value) == 400
+    assert exc.value.response["Error"]["Message"] == (
+        "Invalid tag name <test_invalid_name:123>: only alphanumeric ASCII characters, '_',  '-' are allowed."
+    )

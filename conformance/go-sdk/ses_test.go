@@ -83,3 +83,23 @@ func TestSESDomainIdentity(t *testing.T) {
 		t.Errorf("ListIdentities lists %s as Domain %v, as EmailAddress %v; want Domain only", domain, asDomain, asAddress)
 	}
 }
+
+// Tag validation runs before the sender check: an invalid tag name from an
+// unverified Source answers InvalidParameterValue with the recorded text
+// (third-party-recorded 2024-07-30, ses.md 4.5; localstack@8b9a79f
+// tests/aws/services/ses/test_ses.snapshot.json:L592-L735, validated
+// 2024-07-30).
+func TestSESSendEmailRejectsAnInvalidTagName(t *testing.T) {
+	t.Parallel()
+	_, err := ses.NewFromConfig(awsCfg).SendEmail(t.Context(), &ses.SendEmailInput{
+		Source:      aws.String(name(t, "ses-unverified") + "@example.com"),
+		Destination: &types.Destination{ToAddresses: []string{"success@example.com"}},
+		Message: &types.Message{
+			Subject: &types.Content{Data: aws.String("subject")},
+			Body:    &types.Body{Text: &types.Content{Data: aws.String("text")}},
+		},
+		Tags: []types.MessageTag{{Name: aws.String("test_invalid_name:123"), Value: aws.String("test")}},
+	})
+	apiErr(t, err, "SendEmail", "InvalidParameterValue")
+	wantMessage(t, err, "SendEmail", "Invalid tag name <test_invalid_name:123>: only alphanumeric ASCII characters, '_',  '-' are allowed.")
+}

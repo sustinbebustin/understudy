@@ -6,12 +6,13 @@ import {
   DeleteIdentityCommand,
   GetIdentityVerificationAttributesCommand,
   paginateListIdentities,
+  SendEmailCommand,
   SESClient,
   VerifyDomainIdentityCommand,
   VerifyEmailIdentityCommand,
 } from "@aws-sdk/client-ses";
 import { clientConfig } from "../support/env";
-import { uniq } from "../support/helpers";
+import { expectFailure, uniq } from "../support/helpers";
 
 const ses = new SESClient(clientConfig());
 
@@ -61,5 +62,27 @@ describe("SES domain identities", () => {
     } finally {
       await ses.send(new DeleteIdentityCommand({ Identity: domain }));
     }
+  });
+});
+
+describe("SES SendEmail validation", () => {
+  test("an invalid tag name answers InvalidParameterValue before the sender check", async () => {
+    // Recorded text (third-party-recorded 2024-07-30, ses.md 4.5;
+    // localstack@8b9a79f tests/aws/services/ses/test_ses.snapshot.json:L592-L735,
+    // validated 2024-07-30), from an unverified Source.
+    const failure = await expectFailure(
+      ses.send(
+        new SendEmailCommand({
+          Source: `${uniq("ses-unverified")}@example.com`,
+          Destination: { ToAddresses: ["success@example.com"] },
+          Message: { Subject: { Data: "subject" }, Body: { Text: { Data: "text" } } },
+          Tags: [{ Name: "test_invalid_name:123", Value: "test" }],
+        }),
+      ),
+      { name: "InvalidParameterValue", status: 400 },
+    );
+    expect(failure.message).toBe(
+      "Invalid tag name <test_invalid_name:123>: only alphanumeric ASCII characters, '_',  '-' are allowed.",
+    );
   });
 });
