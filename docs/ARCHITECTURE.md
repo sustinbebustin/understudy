@@ -1346,6 +1346,8 @@ Mounted at `/_understudy/v1/` on the main listener; JSON both ways; errors `{"er
 | `POST /lambda/images/pull` | pre-warm pinned runtime images |
 | `POST /dynamodb/ttl-sweep` | run the TTL sweep now |
 | `GET /sns/subscriptions/{arn}/token` | read a pending confirmation token |
+| `GET /ses/messages` | the messages SES recorded instead of sending them, oldest first, across accounts and Regions: filters `account`, `region`, `messageId`, `from`, `to` (any recipient), `since` (RFC 3339 emulator time), paged by `limit` (1 to 1000, default 100) and `cursor`; `{"messages", "next", "evicted"}`, where `evicted` counts what the store dropped at 10,000 per account and Region (ses.md 11.2) |
+| `DELETE /ses/messages` | delete what the same filters, without `limit` and `cursor`, select; `{"deleted": n}`. The send quota's `SentLast24Hours` is not changed |
 
 Unversioned AWS-visible URLs under `/_understudy/` (outside `/v1`): SNS `SigningCertURL`, unsubscribe and confirm links, Lambda code links, the function URL and execute-api path fallbacks. ADR 0020 lists every sub-prefix, who controls its content and the headers it is served with.
 

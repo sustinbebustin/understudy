@@ -57,3 +57,10 @@ Approved by the maintainer with the three Testcontainers modules (testcontainers
 - It imports only `admin` from the root module, never `internal/`, so it constrains internal churn no more than `admin` already does; its helpers are `admin.Client` calls and its error types carry `admin` wire types. The import sets the module's Go floor to the root's (testcontainers.md 8.10).
 - Versioning is lockstep: understudy `vX.Y.Z` is also tagged `testcontainers/go/vX.Y.Z` on the same commit, the Go form for a module in a subdirectory, and the module's `DefaultImage` is `ghcr.io/sustinbebustin/understudy:X.Y.Z` (testcontainers.md 4.6, 8.8). In-repo builds use `replace github.com/sustinbebustin/understudy => ../..`, which consumers ignore; a released module requires the root at the same tag. Nothing is tagged before the GHCR image exists.
 - Its dependencies are the nested module's own, outside the root allow-list and the release binary: ADR 0016, amendment 2026-10-26.
+
+## Amendment (SES sent messages, 2026-10-26)
+
+Approved by the maintainer for the SES unit (ses.md 11.2), and for this surface only.
+
+- `GET /_understudy/v1/ses/messages` and `DELETE /_understudy/v1/ses/messages`, with `admin.Client.SESMessages` and `ClearSESMessages` and the `understudy ses messages` command. SES records every message it accepts, and each email identity's verification email, instead of sending it; these are the only way to read them. They refuse browser calls and need the admin token beyond loopback like every other endpoint, since a message's content is the application's.
+- Not approved: an endpoint or client method that verifies an identity or sets production access (`POST /ses/identities/{identity}/verification`, `PUT /ses/account`). Verification completes through the identity's verification link or `ses.verifiedIdentities`, and production access is configuration.
