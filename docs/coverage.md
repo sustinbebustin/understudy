@@ -118,7 +118,7 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | Service | Operations | Full | Stored only | Partial | Unbound | Internal | Raw |
 |---|---|---|---|---|---|---|---|
 | apigatewayv2 | 103 | 0 | 2 | 29 | 72 | 0 | 1 |
-| cloudwatch | 55 | 2 | 2 | 10 | 41 | 0 | 0 |
+| cloudwatch | 55 | 2 | 2 | 11 | 40 | 0 | 0 |
 | dynamodb | 58 | 4 | 2 | 20 | 32 | 0 | 0 |
 | dynamodbstreams | 4 | 0 | 0 | 4 | 0 | 0 | 0 |
 | eventbridge | 57 | 6 | 1 | 15 | 35 | 1 | 0 |
@@ -256,14 +256,15 @@ Raw operations:
 | DescribeAlarmsForMetric | full | inferred, 1 of 3 claims |  |
 | DisableAlarmActions | stored-only | inferred, 1 of 3 claims | ActionsEnabled is stored and echoed; alarm actions never run |
 | EnableAlarmActions | stored-only | inferred, 1 of 3 claims | ActionsEnabled is stored and echoed; alarm actions never run |
-| DescribeAlarms | partial | inferred, 8 of 14 claims | metric alarms only: composite and log alarms are never stored, so ChildrenOfAlarmName and ParentsOfAlarmName select nothing |
+| DescribeAlarmHistory | partial | inferred, 3 of 5 claims | StateUpdate items only, kept 30 days on the emulator clock and after the alarm is deleted; ConfigurationUpdate and Action items are never recorded, and AlarmContributorId selects nothing |
+| DescribeAlarms | partial | inferred, 9 of 15 claims | metric alarms only: composite and log alarms are never stored, so ChildrenOfAlarmName and ParentsOfAlarmName select nothing |
 | GetMetricData | partial | inferred, 1 of 4 claims | MetricStat queries with SampleCount, Average, Sum, Minimum or Maximum; metric math, Metrics Insights and percentiles answer 501; LabelOptions is ignored |
 | GetMetricStatistics | partial | inferred, 3 of 6 claims | Statistics only: ExtendedStatistics answers 501; points are kept until reset, not aged out by resolution |
 | ListMetrics | partial | inferred, 1 of 3 claims | no linked accounts: IncludeLinkedAccounts and OwningAccount select nothing more |
 | ListTagsForResource | partial | inferred, 1 of 3 claims | alarms only: insight rules and metric streams are never stored |
-| PutMetricAlarm | partial | inferred, 8 of 15 claims | stored and echoed; alarms are never evaluated, so their state changes only through SetAlarmState, and their actions never run |
+| PutMetricAlarm | partial | inferred, 9 of 16 claims | alarms on a Statistic with a sliding window are evaluated on the emulator clock; alarms on an ExtendedStatistic, Metrics, a ThresholdMetricId or EvaluationCriteria, or with a WallClockWindow, are stored and never evaluated; alarm actions never run; EvaluationState is never reported |
 | PutMetricData | partial | inferred, 2 of 5 claims | entities are not kept; with StrictEntityValidation false an entity error stores the data without the X-Amzn-Failure-Message header; points are kept until reset, not aged out by resolution |
-| SetAlarmState | partial | inferred, 1 of 5 claims | the state is set and echoed; no action runs and no evaluation follows |
+| SetAlarmState | partial | inferred, 1 of 5 claims | the state is set and no action runs; the next evaluation re-derives it, except on alarms that are never evaluated (see PutMetricAlarm) |
 | TagResource | partial | inferred, 1 of 3 claims | alarms only: insight rules and metric streams are never stored |
 | UntagResource | partial | inferred, 1 of 3 claims | alarms only: insight rules and metric streams are never stored |
 | AssociateDatasetKmsKey | unbound | unassessed |  |
@@ -275,7 +276,6 @@ Raw operations:
 | DeleteMetricStream | unbound | unassessed |  |
 | DeleteResourceMetricsConfiguration | unbound | unassessed |  |
 | DescribeAlarmContributors | unbound | unassessed |  |
-| DescribeAlarmHistory | unbound | unassessed |  |
 | DescribeAnomalyDetectors | unbound | unassessed |  |
 | DescribeInsightRules | unbound | unassessed |  |
 | DisableInsightRules | unbound | unassessed |  |
@@ -1391,7 +1391,7 @@ Internal operations:
 
 Behaviors chosen without AWS-recorded evidence, with the research they rest on and the parity scenario step that settles them, or why none does. The count and order follow the label the code states; the Label column shows the recording's verdict where a replayed step settles or contradicts the switch.
 
-197 switches: 1 aws-recorded, 5 third-party-recorded, 24 aws-doc, 167 inferred.
+199 switches: 1 aws-recorded, 5 third-party-recorded, 24 aws-doc, 169 inferred.
 
 | Switch | Value | Label | Reference | Settled by |
 |---|---|---|---|---|
@@ -1433,7 +1433,9 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `cloudwatch.alarm.evaluation-phase` | `minute-boundary` | inferred | docs/research/cloudwatch-alarms.md#31-cadence-and-phase | none: AWS evaluates at an arbitrary second, which does not change the data a minute's evaluation reads; no recording can pin it |
 | `cloudwatch.alarm.evaluation-range` | `n-plus-2` | inferred | docs/research/cloudwatch-alarms.md#34-evaluation-range-n-and-m | none: unrecorded: CWA-01 |
 | `cloudwatch.alarm.first-evaluation` | `next-boundary` | inferred | docs/research/cloudwatch-alarms.md#31-cadence-and-phase | none: unrecorded: CWA-03 |
+| `cloudwatch.alarm.history.page-size` | `50` | inferred | docs/research/cloudwatch-alarms.md#81-describealarmhistory | none: unrecorded: CWA-18 |
 | `cloudwatch.alarm.mixed-units` | `first-unit-by-name` | inferred | docs/research/cloudwatch-alarms.md#33-which-series-and-which-statistic | none: AWS documents an alarm on a metric of several units without Unit as undefined, so no recording can settle it |
+| `cloudwatch.alarm.number-format` | `java-double,event-configuration-plain-whole-numbers` | inferred | docs/research/cloudwatch-alarms.md#43-formatting | none: unrecorded: CWA-09, CWA-15 |
 | `cloudwatch.alarm.reason-format` | `count-form-unless-datapoints-to-alarm` | inferred | docs/research/cloudwatch-alarms.md#41-statereason-texts | none: unrecorded: CWA-06, CWA-07, CWA-08 |
 | `cloudwatch.alarm.unaged-breach` | `retain` | inferred | docs/research/cloudwatch-alarms.md#35-missing-data-the-algorithm | none: unrecorded: CWA-04 |
 | `cloudwatch.alarm.unchanged-state` | `no-update` | inferred | docs/research/cloudwatch-alarms.md#38-what-a-transition-does-and-what-no-transition-does | none: unrecorded: CWA-05 |

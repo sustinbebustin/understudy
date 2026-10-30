@@ -7,12 +7,22 @@
 //
 // Decisions the architecture and the research leave open:
 //
-//   - Alarms are stored, never evaluated: an alarm's state changes only
-//     through SetAlarmState, and its actions never run. A new alarm starts
-//     in INSUFFICIENT_DATA, a PromQL alarm in OK (AWS-documented), both
-//     with the recorded initial reason. Its configuration is the
-//     PutMetricAlarm request as sent, which DescribeAlarms echoes, with the
-//     three action lists and Dimensions always present (AWS-recorded).
+//   - An alarm on one Statistic with a sliding window is evaluated by its
+//     own emulator-clock timer at each minute boundary (ten seconds for a
+//     sub-minute period, an hour past a day of periods), never at
+//     PutMetricAlarm, so clock advance runs one evaluation per boundary in
+//     order (cloudwatch-alarms.md 3.1, 12.3). A snapshot keeps no timers:
+//     Rearm arms each evaluable alarm's next one. Other alarm kinds are
+//     stored with an Advisory and never evaluated (cloudwatch-alarms.md
+//     12.7); their state changes only through SetAlarmState. Alarm actions
+//     never run. A transition writes the state, journals a StateChange and
+//     appends a StateUpdate history item; history lives in its own store,
+//     outlives the alarm and is dropped after 30 days of emulator time
+//     (cloudwatch-alarms.md 8.1). A new alarm starts in INSUFFICIENT_DATA, a
+//     PromQL alarm in OK (AWS-documented), both with the recorded initial
+//     reason. Its configuration is the PutMetricAlarm request as sent, which
+//     DescribeAlarms echoes, with the three action lists and Dimensions
+//     always present (AWS-recorded).
 //   - PutMetricAlarm and GetMetricData accept the extended statistics of
 //     the grammar AWS's statistics definitions give (validExtendedStat).
 //     The 10% to 90% bound the PutMetricAlarm page puts on alarm ranges is

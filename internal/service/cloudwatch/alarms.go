@@ -12,6 +12,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/registry"
+	"github.com/sustinbebustin/understudy/internal/service/cloudwatch/alarm"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
@@ -26,7 +27,7 @@ const initialReason = "Unchecked: Initial alarm creation"
 // bindAlarms binds the metric alarm operations.
 func (s *Service) bindAlarms(b cloudwatchapi.Binder) {
 	b.PutMetricAlarm(s.putMetricAlarm,
-		registry.Partial{Note: "stored and echoed; alarms are never evaluated, so their state changes only through SetAlarmState, and their actions never run"},
+		registry.Partial{Note: "alarms on a Statistic with a sliding window are evaluated on the emulator clock; alarms on an ExtendedStatistic, Metrics, a ThresholdMetricId or EvaluationCriteria, or with a WallClockWindow, are stored and never evaluated; alarm actions never run; EvaluationState is never reported"},
 		kernel.WithCheck(checkPutMetricAlarm),
 		alarmsNamed(func(in *cloudwatchapi.PutMetricAlarmInput) []string { return []string{in.AlarmName} }),
 		// cloudwatch:TagResource only for an alarm created with tags: a tag
@@ -42,6 +43,8 @@ func (s *Service) bindAlarms(b cloudwatchapi.Binder) {
 		registry.Partial{Note: "metric alarms only: composite and log alarms are never stored, so ChildrenOfAlarmName and ParentsOfAlarmName select nothing"},
 		kernel.WithCheck(checkDescribeAlarms))
 	b.DescribeAlarmsForMetric(s.describeAlarmsForMetric, registry.Full{})
+	b.DescribeAlarmHistory(s.describeAlarmHistory,
+		registry.Partial{Note: "StateUpdate items only, kept 30 days on the emulator clock and after the alarm is deleted; ConfigurationUpdate and Action items are never recorded, and AlarmContributorId selects nothing"})
 	b.DeleteAlarms(s.deleteAlarms, registry.Full{},
 		alarmsNamed(func(in *cloudwatchapi.DeleteAlarmsInput) []string { return in.AlarmNames }))
 	b.EnableAlarmActions(s.enableAlarmActions,
@@ -51,7 +54,7 @@ func (s *Service) bindAlarms(b cloudwatchapi.Binder) {
 		registry.StoredOnly{Note: "ActionsEnabled is stored and echoed; alarm actions never run"},
 		alarmsNamed(func(in *cloudwatchapi.DisableAlarmActionsInput) []string { return in.AlarmNames }))
 	b.SetAlarmState(s.setAlarmState,
-		registry.Partial{Note: "the state is set and echoed; no action runs and no evaluation follows"},
+		registry.Partial{Note: "the state is set and no action runs; the next evaluation re-derives it, except on alarms that are never evaluated (see PutMetricAlarm)"},
 		kernel.WithValidator(validateSetAlarmState),
 		kernel.WithCheck(checkSetAlarmState),
 		alarmsNamed(func(in *cloudwatchapi.SetAlarmStateInput) []string { return []string{in.AlarmName} }))
@@ -92,24 +95,31 @@ func alarmsNamed[In any](namesOf func(*In) []string) kernel.BindOption {
 }
 
 // putMetricAlarm creates an alarm in its initial state or replaces the
-// configuration of an existing one, which keeps its state and tags: AWS
-// ignores Tags on an update.
+// configuration of an existing one, which keeps its state, creation
+// instant and tags: AWS ignores Tags on an update. Either way the next
+// evaluation is armed at the next boundary, with no evaluation now
+// (cloudwatch-alarms.md 3.1), or, for an alarm understudy cannot evaluate,
+// disarmed with an Advisory naming why (cloudwatch-alarms.md 12.7).
 func (s *Service) putMetricAlarm(_ context.Context, c *kernel.Call, in *cloudwatchapi.PutMetricAlarmInput) (*cloudwatchapi.PutMetricAlarmOutput, *awserr.Error) {
 	cfg := *in
 	cfg.Tags, cfg.ActionsEnabled = nil, nil
 	enabled := in.ActionsEnabled == nil || *in.ActionsEnabled
 	tags := tagMap(nil, in.Tags)
 	initial := initialStateValue(in)
-	_, err := kernel.Write(c, s.cells, c.Scope(), func(st *State, now clock.Instant, _ *kernel.Tx) (struct{}, *awserr.Error) {
+	eval, notEvaluable := alarm.ConfigOf(&cfg)
+	ref := named(c, in.AlarmName)
+	_, err := kernel.Write(c, s.cells, c.Scope(), func(st *State, now clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
 		a, ok := st.Alarms[in.AlarmName]
 		if !ok {
 			a = Alarm{
-				State: AlarmState{Value: initial, Reason: initialReason, Updated: now, Transitioned: now},
-				Tags:  tags,
+				State:   AlarmState{Value: initial, Reason: initialReason, Updated: now, Transitioned: now},
+				Tags:    tags,
+				Created: now,
 			}
 		}
 		a.Config, a.ActionsEnabled, a.ConfigUpdated = cfg, enabled, now
 		st.Alarms[in.AlarmName] = a
+		s.armEvaluation(tx, ref, &eval, notEvaluable, now)
 		return struct{}{}, nil
 	})
 	if err != nil {
@@ -299,12 +309,14 @@ func echoQueries(qs []cloudwatchapi.MetricDataQuery) []cloudwatchapi.MetricDataQ
 	return out
 }
 
-// deleteAlarms deletes the named alarms with their tags. Names that match
+// deleteAlarms deletes the named alarms with their tags and evaluation
+// timers; their history stays (cloudwatch-alarms.md 8.1). Names that match
 // no alarm are skipped, as AWS documents, so deleting a missing alarm
 // succeeds (wire-cbor.md 3.5).
 func (s *Service) deleteAlarms(_ context.Context, c *kernel.Call, in *cloudwatchapi.DeleteAlarmsInput) (*cloudwatchapi.DeleteAlarmsOutput, *awserr.Error) {
-	err := s.eachAlarm(c, in.AlarmNames, func(st *State, name string, _ Alarm) {
+	err := s.eachAlarm(c, in.AlarmNames, func(st *State, name string, _ Alarm, tx *kernel.Tx) {
 		delete(st.Alarms, name)
+		tx.Disarm(s.evaluation, named(c, name).arn().String())
 	})
 	if err != nil {
 		return nil, err
@@ -330,7 +342,7 @@ func (s *Service) disableAlarmActions(_ context.Context, c *kernel.Call, in *clo
 // match no alarm are skipped, as DeleteAlarms skips them (inferred: the
 // documentation is silent).
 func (s *Service) setActionsEnabled(c *kernel.Call, names []string, enabled bool) *awserr.Error {
-	return s.eachAlarm(c, names, func(st *State, name string, a Alarm) {
+	return s.eachAlarm(c, names, func(st *State, name string, a Alarm, _ *kernel.Tx) {
 		a.ActionsEnabled = enabled
 		st.Alarms[name] = a
 	})
@@ -338,7 +350,7 @@ func (s *Service) setActionsEnabled(c *kernel.Call, names []string, enabled bool
 
 // eachAlarm runs fn on every named alarm that exists, under the scope's
 // lock.
-func (s *Service) eachAlarm(c *kernel.Call, names []string, fn func(st *State, name string, a Alarm)) *awserr.Error {
+func (s *Service) eachAlarm(c *kernel.Call, names []string, fn func(st *State, name string, a Alarm, tx *kernel.Tx)) *awserr.Error {
 	if _, ok := s.cells.Lookup(c.Scope()); !ok {
 		return nil
 	}
@@ -346,7 +358,7 @@ func (s *Service) eachAlarm(c *kernel.Call, names []string, fn func(st *State, n
 		found := false
 		for _, name := range names {
 			if a, ok := st.Alarms[name]; ok {
-				fn(st, name, a)
+				fn(st, name, a, tx)
 				found = true
 			}
 		}
@@ -358,25 +370,33 @@ func (s *Service) eachAlarm(c *kernel.Call, names []string, fn func(st *State, n
 	return err
 }
 
-// setAlarmState sets an alarm's state and reason. Only a change of value
-// moves StateTransitionedTimestamp.
+// setAlarmState sets an alarm's state and reason; the timer is untouched,
+// so the next evaluation re-derives the state (cloudwatch-alarms.md 2.3).
+// A change of value is a transition: it moves StateTransitionedTimestamp,
+// journals the StateChange and writes a history item.
 func (s *Service) setAlarmState(_ context.Context, c *kernel.Call, in *cloudwatchapi.SetAlarmStateInput) (*cloudwatchapi.SetAlarmStateOutput, *awserr.Error) {
 	if _, ok := s.cells.Lookup(c.Scope()); !ok {
 		return nil, errAlarmNotFound()
 	}
-	_, err := kernel.Write(c, s.cells, c.Scope(), func(st *State, now clock.Instant, _ *kernel.Tx) (struct{}, *awserr.Error) {
+	ref := named(c, in.AlarmName)
+	item, err := kernel.Write(c, s.cells, c.Scope(), func(st *State, now clock.Instant, tx *kernel.Tx) (*HistoryItem, *awserr.Error) {
 		a, ok := st.Alarms[in.AlarmName]
 		if !ok {
-			return struct{}{}, errAlarmNotFound()
+			return nil, errAlarmNotFound()
 		}
 		next := AlarmState{Value: in.StateValue, Reason: in.StateReason, ReasonData: in.StateReasonData, Updated: now, Transitioned: a.State.Transitioned}
+		var it *HistoryItem
 		if in.StateValue != a.State.Value {
 			next.Transitioned = now
+			it = new(transition(tx, ref, &a, next))
 		}
 		a.State = next
 		st.Alarms[in.AlarmName] = a
-		return struct{}{}, nil
+		return it, nil
 	})
+	if err == nil && item != nil {
+		err = s.appendHistory(c, ref.scope, ref.name, *item)
+	}
 	if err != nil {
 		return nil, err
 	}

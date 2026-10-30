@@ -75,8 +75,8 @@ type HistoryItem struct {
 	Data    string        `json:"data"`
 }
 
-// AlarmState is an alarm's state as PutMetricAlarm created it or
-// SetAlarmState last set it; understudy never evaluates an alarm.
+// AlarmState is an alarm's state as PutMetricAlarm created it, or as the
+// last evaluation transition or SetAlarmState set it.
 type AlarmState struct {
 	Value      cloudwatchapi.StateValue `json:"value"`
 	Reason     string                   `json:"reason"`

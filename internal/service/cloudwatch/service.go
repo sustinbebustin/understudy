@@ -23,15 +23,23 @@ const TimerAlarmEvaluation kernel.TimerKind = "cloudwatch.alarm-evaluation"
 type Service struct {
 	k     *kernel.Kernel
 	cells *store.Partitioned[aws.Scope, State]
+	// history is the alarm history per account and region, apart from
+	// cells because it outlives the alarms (cloudwatch-alarms.md 8.1).
+	history *store.Partitioned[aws.Scope, History]
+	// evaluation is TimerAlarmEvaluation as registered with the kernel.
+	evaluation kernel.HandledKind
 }
 
-// New binds the CloudWatch operations understudy implements. Every other
-// operation stays unbound and answers 501 in CloudWatch's own error format.
+// New binds the CloudWatch operations understudy implements and registers
+// the alarm evaluation timer. Every other operation stays unbound and
+// answers 501 in CloudWatch's own error format.
 func New(d kernel.ServiceDeps, _ Options) *Service {
 	s := &Service{
-		k:     d.Kernel,
-		cells: store.NewPartitioned(d.Kernel.Gate(), stateCodec(), newState),
+		k:       d.Kernel,
+		cells:   store.NewPartitioned(d.Kernel.Gate(), stateCodec(), newState),
+		history: store.NewPartitioned(d.Kernel.Gate(), stateCodec(), newHistory),
 	}
+	s.evaluation = d.Kernel.Timers().Handle(TimerAlarmEvaluation, s.onEvaluation)
 	b := cloudwatchapi.NewBinder(d.Binder)
 	s.bindAlarms(b)
 	s.bindTags(b)
