@@ -175,6 +175,10 @@ func (c *claimer) decline(rule int, format string, args ...any) {
 // parsed credentials, nil when they cannot be read, and parseErr says why.
 func (h *Handler) claim(r *http.Request, a auth.Auth, parseErr auth.ParseError) route {
 	c := &claimer{h: h, r: r, path: requestPath(r), host: hostname(r.Host), auth: a, parseErr: parseErr}
+	if isHTTP2Preface(r) {
+		c.decline(9, http2PrefaceMessage)
+		return http2Preface{reasons: c.reasons}
+	}
 	if rt, ok := c.snsLink(); ok {
 		return rt
 	}
@@ -444,6 +448,10 @@ func (c *claimer) awsJSON() (route, bool) {
 	if c.r.Header.Get("X-Amz-Target") == "" {
 		c.decline(6, "no X-Amz-Target header")
 		return nil, false
+	}
+	if isKinesisCBOR(c.r) {
+		c.decline(6, "X-Amz-Target names a Kinesis operation in CBOR (%s), which understudy does not serve; it serves Kinesis in JSON", cborMediaType)
+		return kinesisCBOR{reasons: c.reasons}, true
 	}
 	for _, p := range []ref.ProtocolID{ref.AWSJSON10, ref.AWSJSON11} {
 		if rt, ok := c.codecClaim(p, 6); ok {

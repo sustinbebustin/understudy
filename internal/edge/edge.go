@@ -302,6 +302,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.localStack(ctx, x, rt.reasons)
 	case toExecuteAPI:
 		h.executeAPI(ctx, x, rt.reasons)
+	case kinesisCBOR:
+		h.answerKinesisCBOR(ctx, x, rt.reasons)
+	case http2Preface:
+		h.answerHTTP2Preface(ctx, x, rt.reasons)
 	}
 }
 
@@ -314,7 +318,7 @@ func (h *Handler) refusedPage(ctx context.Context, x *exchange, rt route) bool {
 	switch rt.(type) {
 	case toAdmin, toLink, toExecuteAPI:
 		return false
-	case toOperation, toUnknown, toRaw, toService, legacyQuery, notEmulated, misscoped, unclaimed, toLocalStack:
+	case toOperation, toUnknown, toRaw, toService, legacyQuery, notEmulated, misscoped, unclaimed, toLocalStack, kinesisCBOR, http2Preface:
 	}
 	why, refused := h.crossSitePage(x.r)
 	if !refused {

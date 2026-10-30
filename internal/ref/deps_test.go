@@ -229,6 +229,9 @@ func importRules() []importRule {
 			// (ARCHITECTURE.md 4.1 rule 1); admin imports nothing in the
 			// repository.
 			"admin",
+			// Kinesis's CBOR refusal is written in CBOR, so the AWS SDK for
+			// Java can parse it (kinesis.md 13.4 item 2, 13.9).
+			"internal/protocol/cbor",
 		}},
 		{"internal/server", []string{"internal/...", "admin"}},
 		// The web UI's static files and session secret: standard library
