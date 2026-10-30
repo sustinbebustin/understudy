@@ -1,6 +1,6 @@
 # SES
 
-understudy emulates SES v1 (`aws ses`) and v2 (`aws sesv2`) over one store, so an identity created with one API is read by the other. It sends no mail. An accepted send is recorded instead, and a test reads it back through the admin API or `understudy ses messages`. No delivery, bounce or complaint event or notification is produced, because nothing was delivered. What each operation supports is on [the coverage page](../coverage.md#ses). Configuration sets, receipt rules, sending authorization and the v2 template operations answer 501.
+understudy emulates SES v1 (`aws ses`) and v2 (`aws sesv2`) over one store, so an identity created with one API is read by the other. It sends no mail. An accepted send is recorded instead, and a test reads it back through the admin API or `understudy ses messages`. No delivery, bounce or complaint event or notification is produced, because nothing was delivered. What each operation supports is on [the coverage page](../coverage.md#ses). Configuration sets, receipt rules and sending authorization answer 501.
 
 The `aws` commands below run with `eval "$(understudy env)"` in effect, against `understudy serve --clock frozen@2026-10-30T09:00:00Z` with this `understudy.json`:
 
@@ -269,7 +269,28 @@ understudy ses messages --output json | jq '.messages[0] | {subject, text, html,
 }
 ```
 
-`template` also carries the template's parts as used and the data as given. A template the account and region do not hold is `TemplateDoesNotExist` (v2: `NotFoundException`), and nothing is recorded. Until the v2 template operations land, v2 `Template` content names a template created with `aws ses create-template`.
+`template` also carries the template's parts as used and the data as given. A template the account and region do not hold is `TemplateDoesNotExist` (v2: `NotFoundException`), and nothing is recorded.
+
+v1 and v2 templates are one store: `aws sesv2 create-email-template` makes a template `aws ses send-templated-email` can use, and `aws ses create-template` one that v2 `Template` content can name. v2 templates also carry tags, read and changed through the template's ARN:
+
+```sh
+aws sesv2 create-email-template --template-name welcome \
+  --template-content '{"Subject":"Hi {{name}}","Text":"Dear {{name}}"}' --tags Key=team,Value=mail
+aws sesv2 list-tags-for-resource --resource-arn arn:aws:ses:us-east-1:000000000000:template/welcome
+```
+
+```json
+{
+    "Tags": [
+        {
+            "Key": "team",
+            "Value": "mail"
+        }
+    ]
+}
+```
+
+A v2 template operation on a template the account and region do not hold is `NotFoundException`, `DeleteEmailTemplate` included; v1 `DeleteTemplate` of one succeeds.
 
 ## Not implemented
 
