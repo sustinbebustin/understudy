@@ -224,12 +224,19 @@ func TestEventBridgePutEvents(t *testing.T) {
 	acct := account(t)
 	source := "conformance." + name(t, "app")
 	ruleName := name(t, "orders")
-	putRule(t, &eventbridge.PutRuleInput{Name: aws.String(ruleName), EventPattern: aws.String(`{"source":["` + source + `"],"detail":{"amount":[{"numeric":[">",100]}]}}`)})
+	ruleArn := putRule(t, &eventbridge.PutRuleInput{Name: aws.String(ruleName), EventPattern: aws.String(`{"source":["` + source + `"],"detail":{"amount":[{"numeric":[">",100]}]}}`)})
 	whole := createQueue(t, name(t, "eb-whole"), nil)
 	path := createQueue(t, name(t, "eb-path"), nil)
 	transformed := createQueue(t, name(t, "eb-tx"), nil)
 	topicArn := createTopic(t, name(t, "eb-topic"), nil)
 	viaTopic, _ := subscribeQueue(t, topicArn, name(t, "eb-via-topic"), nil, map[string]string{"RawMessageDelivery": "true"})
+	// EventBridge delivers as events.amazonaws.com with aws:SourceArn the
+	// rule's ARN, and PutTargets grants nothing on the target
+	// (iam-enforcement-surfaces.md 8.1, 8.4).
+	for _, q := range []string{whole, path, transformed} {
+		allowQueueDelivery(t, q, "events.amazonaws.com", ruleArn)
+	}
+	allowTopicDelivery(t, topicArn, "events.amazonaws.com", ruleArn)
 	putTargets(t, ruleName,
 		types.Target{Id: aws.String("whole"), Arn: aws.String(queueArn(t, whole))},
 		types.Target{Id: aws.String("path"), Arn: aws.String(queueArn(t, path)), InputPath: aws.String("$.detail.customer")},
@@ -464,6 +471,9 @@ func TestEventBridgeSchedule(t *testing.T) {
 	ruleName := name(t, "every-minute")
 	created := time.Now()
 	ruleArn := putRule(t, &eventbridge.PutRuleInput{Name: aws.String(ruleName), ScheduleExpression: aws.String("rate(1 minute)")})
+	// iam-enforcement-surfaces.md 8.1, 8.4: the target queue must allow
+	// events.amazonaws.com for the rule.
+	allowQueueDelivery(t, queueURL, "events.amazonaws.com", ruleArn)
 	putTargets(t, ruleName, types.Target{Id: aws.String("q"), Arn: aws.String(queueArn(t, queueURL))})
 	var msgs []sqstypes.Message
 	deadline := time.Now().Add(150 * time.Second)

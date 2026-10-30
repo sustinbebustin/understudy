@@ -301,7 +301,8 @@ PY
 # Trust policy documents.
 LAMBDA_TRUST='{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"lambda.amazonaws.com"},"Action":"sts:AssumeRole"}]}'
 
-# make_role NAME: create an IAM role Lambda and others can use; print its ARN.
+# make_role NAME [TRUST]: create an IAM role with trust policy TRUST
+# (default $LAMBDA_TRUST, one Lambda and others can use); print its ARN.
 #
 # With CONFORMANCE_ROLE_POLICY_DIR set and a file NAME.json in it, the
 # account root then puts that file as the role's inline policy iam-loop: the
@@ -309,7 +310,7 @@ LAMBDA_TRUST='{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal"
 # rendered from its first run, under iam.enforce=enforce.
 make_role() {
   local arn policy
-  aws_ok iam create-role --role-name "$1" --assume-role-policy-document "$LAMBDA_TRUST" --output json
+  aws_ok iam create-role --role-name "$1" --assume-role-policy-document "${2:-$LAMBDA_TRUST}" --output json
   arn=$(jqv '.Role.Arn')
   policy="${CONFORMANCE_ROLE_POLICY_DIR:-}/$1.json"
   if [ -n "${CONFORMANCE_ROLE_POLICY_DIR:-}" ] && [ -f "$policy" ]; then

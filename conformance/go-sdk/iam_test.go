@@ -569,11 +569,20 @@ func TestIAMUsers(t *testing.T) {
 			t.Errorf("GetCallerIdentity with the user's key = {Arn %q, UserId %q, Account %q}, want the user's ARN, id and account",
 				aws.ToString(id.Arn), aws.ToString(id.UserId), aws.ToString(id.Account))
 		}
+		// sts:GetCallerIdentity is the call documented to need no
+		// permission (iam-enforcement-surfaces.md 5.1); iam:GetUser on
+		// oneself is not, so the user gets it before the signed call and
+		// loses it after.
+		selfRead := `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"iam:GetUser","Resource":"` + aws.ToString(u.Arn) + `"}]}`
+		_, err = client.PutUserPolicy(ctx, &iam.PutUserPolicyInput{UserName: aws.String(userName), PolicyName: aws.String("self-read"), PolicyDocument: aws.String(selfRead)})
+		ok(t, err, "PutUserPolicy self-read")
 		self, err := iam.NewFromConfig(cfg).GetUser(ctx, &iam.GetUserInput{})
 		ok(t, err, "GetUser without UserName, signed by the user")
 		if aws.ToString(self.User.UserName) != userName {
 			t.Errorf("GetUser without UserName = %q, want %q", aws.ToString(self.User.UserName), userName)
 		}
+		_, err = client.DeleteUserPolicy(ctx, &iam.DeleteUserPolicyInput{UserName: aws.String(userName), PolicyName: aws.String("self-read")})
+		ok(t, err, "DeleteUserPolicy self-read")
 
 		list, err := client.ListAccessKeys(ctx, &iam.ListAccessKeysInput{UserName: aws.String(userName)})
 		ok(t, err, "ListAccessKeys")

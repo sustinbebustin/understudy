@@ -34,6 +34,33 @@ func createQueue(t *testing.T, queueName string, attrs map[string]string) string
 	return aws.ToString(out.QueueUrl)
 }
 
+// deliveryPolicy is a resource policy letting service call action on
+// resource for source only (ArnEquals aws:SourceArn, the key every
+// delivering service sends; iam-enforcement-surfaces.md 8.1).
+func deliveryPolicy(t *testing.T, service, action, resource, source string) string {
+	t.Helper()
+	doc, err := json.Marshal(map[string]any{
+		"Version": "2012-10-17",
+		"Statement": []map[string]any{{
+			"Effect": "Allow", "Principal": map[string]string{"Service": service}, "Action": action, "Resource": resource,
+			"Condition": map[string]any{"ArnEquals": map[string]string{"aws:SourceArn": source}},
+		}},
+	})
+	ok(t, err, "encoding the delivery policy")
+	return string(doc)
+}
+
+// allowQueueDelivery sets the policy of the queue at queueURL so service
+// may send to it for source: a new queue has no policy, and AWS refuses a
+// delivery its target's policy does not allow (iam-enforcement-surfaces.md
+// 7.1, 8.2, 8.4).
+func allowQueueDelivery(t *testing.T, queueURL, service, source string) {
+	t.Helper()
+	policy := deliveryPolicy(t, service, "sqs:SendMessage", queueArn(t, queueURL), source)
+	_, err := sqs.NewFromConfig(awsCfg).SetQueueAttributes(t.Context(), &sqs.SetQueueAttributesInput{QueueUrl: aws.String(queueURL), Attributes: map[string]string{"Policy": policy}})
+	ok(t, err, "SetQueueAttributes Policy for "+service)
+}
+
 // queueArn returns the ARN of the queue at queueURL.
 func queueArn(t *testing.T, queueURL string) string {
 	t.Helper()

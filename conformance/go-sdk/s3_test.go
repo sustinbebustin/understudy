@@ -1149,6 +1149,9 @@ func TestS3Notifications(t *testing.T) {
 	bucket := createBucket(t, client)
 	queueURL := createQueue(t, name(t, "s3-events"), nil)
 	arn := queueArn(t, queueURL)
+	// S3 delivers as s3.amazonaws.com with aws:SourceArn the bucket's ARN
+	// (iam-enforcement-surfaces.md 8.1).
+	allowQueueDelivery(t, queueURL, "s3.amazonaws.com", "arn:aws:s3:::"+bucket)
 
 	_, err := client.PutBucketNotificationConfiguration(ctx, &s3.PutBucketNotificationConfigurationInput{Bucket: aws.String(bucket), NotificationConfiguration: &types.NotificationConfiguration{
 		QueueConfigurations: []types.QueueConfiguration{{QueueArn: aws.String("not-an-arn"), Events: []types.Event{"s3:ObjectCreated:*"}}},

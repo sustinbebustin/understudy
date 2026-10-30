@@ -291,8 +291,15 @@ type recorded struct {
 	Header http.Header
 }
 
+// newRecordingClient wraps awsCfg's client, or the SDK's default one when
+// the config carries none (no CA bundle was loaded), so Do never calls a
+// nil client.
 func newRecordingClient() *recordingClient {
-	return &recordingClient{next: awsCfg.HTTPClient}
+	var next aws.HTTPClient = awshttp.NewBuildableClient()
+	if awsCfg.HTTPClient != nil {
+		next = awsCfg.HTTPClient
+	}
+	return &recordingClient{next: next}
 }
 
 func (c *recordingClient) Do(r *http.Request) (*http.Response, error) {

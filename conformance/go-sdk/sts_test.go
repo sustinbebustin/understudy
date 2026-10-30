@@ -37,9 +37,9 @@ func TestSTSGetCallerIdentity(t *testing.T) {
 func TestSTSAssumeRole(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
-	role := createRole(t, name(t, "sts-role"), lambdaTrustPolicy)
-	client := sts.NewFromConfig(awsCfg)
 	acct := account(t)
+	role := createRole(t, name(t, "sts-role"), assumableTrustPolicy(acct))
+	client := sts.NewFromConfig(awsCfg)
 	session := "conformance-session"
 
 	before := time.Now().Add(-time.Minute)
@@ -131,6 +131,15 @@ func TestSTSGetSessionToken(t *testing.T) {
 
 // lambdaTrustPolicy lets Lambda assume a role.
 const lambdaTrustPolicy = `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"lambda.amazonaws.com"},"Action":"sts:AssumeRole"}]}`
+
+// assumableTrustPolicy admits Lambda and the root of account acct, so a
+// non-root caller of that account may assume the role: AWS requires the
+// trust policy to admit the caller (iam-evaluation.md 3.1, 3.2; vector 9.8
+// H7 shows a service-only trust denies).
+func assumableTrustPolicy(acct string) string {
+	return `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"lambda.amazonaws.com","AWS":"arn:aws:iam::` +
+		acct + `:root"},"Action":"sts:AssumeRole"}]}`
+}
 
 // rolePolicyDirEnv names the directory of per-role policies the IAM loop
 // gives the roles it re-creates (conformance/iam-loop).

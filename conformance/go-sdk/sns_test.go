@@ -29,11 +29,24 @@ func createTopic(t *testing.T, topicName string, attrs map[string]string) string
 	return aws.ToString(out.TopicArn)
 }
 
-// subscribeQueue subscribes a new queue to the topic and returns the
-// queue URL and the subscription ARN.
+// allowTopicDelivery sets the topic's policy so service may publish to it
+// for source; AWS refuses a delivery the topic's policy does not allow
+// (iam-enforcement-surfaces.md 7.2, 8.1, 8.4).
+func allowTopicDelivery(t *testing.T, topicArn, service, source string) {
+	t.Helper()
+	_, err := sns.NewFromConfig(awsCfg).SetTopicAttributes(t.Context(), &sns.SetTopicAttributesInput{
+		TopicArn: aws.String(topicArn), AttributeName: aws.String("Policy"), AttributeValue: aws.String(deliveryPolicy(t, service, "sns:Publish", topicArn, source)),
+	})
+	ok(t, err, "SetTopicAttributes Policy for "+service)
+}
+
+// subscribeQueue subscribes a new queue to the topic, after letting SNS
+// deliver from the topic to it, and returns the queue URL and the
+// subscription ARN.
 func subscribeQueue(t *testing.T, topicArn, queueName string, queueAttrs, subAttrs map[string]string) (string, string) {
 	t.Helper()
 	queueURL := createQueue(t, queueName, queueAttrs)
+	allowQueueDelivery(t, queueURL, "sns.amazonaws.com", topicArn)
 	out, err := sns.NewFromConfig(awsCfg).Subscribe(t.Context(), &sns.SubscribeInput{
 		TopicArn: aws.String(topicArn), Protocol: aws.String("sqs"), Endpoint: aws.String(queueArn(t, queueURL)),
 		Attributes: subAttrs, ReturnSubscriptionArn: true,
