@@ -47,6 +47,7 @@ func (t *TemplateSend) clone() *TemplateSend {
 		return nil
 	}
 	c := *t
+	c.Subject, c.Text, c.HTML = clonePart(t.Subject), clonePart(t.Text), clonePart(t.HTML)
 	c.Gaps = append([]RenderGap(nil), t.Gaps...)
 	return &c
 }
