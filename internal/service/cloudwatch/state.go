@@ -81,8 +81,10 @@ type AlarmState struct {
 	Value      cloudwatchapi.StateValue `json:"value"`
 	Reason     string                   `json:"reason"`
 	ReasonData *string                  `json:"reasonData,omitempty"`
-	// Updated is the last state change or SetAlarmState; Transitioned the
-	// last change of Value.
+	// Updated and Transitioned are both the last change of Value; they are
+	// kept apart because AWS documents Updated as also moving with
+	// EvaluationState, which understudy never reports (cloudwatch-alarms.md
+	// 2.2).
 	Updated      clock.Instant `json:"updated"`
 	Transitioned clock.Instant `json:"transitioned"`
 }

@@ -70,6 +70,12 @@ func alarmSwitches() []fidelity.Entry {
 			Settles: unrecorded("CWA-05"),
 		},
 		{
+			Name: "cloudwatch.alarm.set-same-state", Value: "reason-and-data-only",
+			Label: evidence.Inferred, Ref: alarmResearch + "#23-updates-setalarmstate-and-the-next-evaluation", Record: "CWA-17",
+			Ops:     []string{"cloudwatch.SetAlarmState", "cloudwatch.DescribeAlarms", "cloudwatch.DescribeAlarmHistory"},
+			Settles: unrecorded("CWA-17"),
+		},
+		{
 			Name: "cloudwatch.alarm.dynamodb-missing-data", Value: "always-ignore",
 			Label: evidence.AWSDoc, Ref: alarmResearch + "#37-special-cases", Record: "CWA-21", Ops: alarmEvaluationOps(),
 			Settles: unrecorded("CWA-21"),
