@@ -193,7 +193,10 @@ func TestSSMIAMPolicy(t *testing.T) {
 		t.Fatal(err)
 	}
 	got2 := policyPairs(t, policy2.Document)
-	for _, want := range []string{"kms:Encrypt " + key.KeyMetadata.Arn, "kms:Decrypt " + key.KeyMetadata.Arn} {
+	// The key id is minted, so the policy names every key of the account and
+	// region (ARCHITECTURE.md 17).
+	keys := strings.TrimSuffix(key.KeyMetadata.Arn, key.KeyMetadata.KeyID) + "*"
+	for _, want := range []string{"kms:Encrypt " + keys, "kms:Decrypt " + keys} {
 		if !slices.Contains(got2, want) {
 			t.Errorf("policy lacks %q for a customer-managed-key SecureString; policy = %v", want, got2)
 		}

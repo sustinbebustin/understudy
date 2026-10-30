@@ -447,7 +447,10 @@ func (r *Recorder) Usage(f Filter) []Use {
 // arn:aws:s3:::<bucket>/* for the objects of a bucket,
 // or "*" for an action of its operation's service without a resource of
 // that service, listing every action used there in any mode, failed calls
-// included. sts:GetCallerIdentity is left out: it needs no permission and
+// included. An action the document grants on "*" without a condition is
+// left out of every other statement, and a statement left with no action is
+// dropped: the document allows the same pairs and is smaller, while the
+// record itself is unchanged. sts:GetCallerIdentity is left out: it needs no permission and
 // no policy can deny it (iam-enforcement-surfaces.md 5.1, 12.6). A Role's
 // policy covers every session of the role. ok is false when principal is
 // nil or has no recorded use but those: there is no policy to write, and
@@ -467,8 +470,22 @@ func (r *Recorder) Policy(principal Identity) (doc policydoc.Document, ok bool) 
 		g := group{service: u.Action.Prefix, resource: renderedScope(u.Mode, u.Resource), passedTo: u.PassedToService}
 		actions[g] = append(actions[g], u.Action.String())
 	}
+	onStar := map[string]bool{}
+	for g, as := range actions {
+		if g.resource == "*" && g.passedTo == "" {
+			for _, a := range as {
+				onStar[a] = true
+			}
+		}
+	}
 	grants := make([]policydoc.Grant, 0, len(actions))
 	for g, as := range actions {
+		if g.resource != "*" || g.passedTo != "" {
+			as = slices.DeleteFunc(as, func(a string) bool { return onStar[a] })
+		}
+		if len(as) == 0 {
+			continue
+		}
 		grants = append(grants, policydoc.Grant{Actions: as, Resources: []string{g.resource}, Condition: passedToCondition(g.passedTo)})
 	}
 	return policydoc.Render(grants)
