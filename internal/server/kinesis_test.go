@@ -100,7 +100,7 @@ func TestKinesisCoverageNotes(t *testing.T) {
 	retention := "error texts follow kinesalite and are UNVERIFIED (kinesis.md 4.7)"
 	monitoring := "shard-level metrics are stored and reported on the stream; no metrics are published to CloudWatch"
 	partial := map[string]string{
-		"CreateStream":                  "ON_DEMAND streams start with four shards and never scale; WarmThroughputMiBps and RecordDistributionStrategy AUTO are answered with 501 NotImplemented; the account shard and on-demand stream quotas are not enforced; the stream is ACTIVE when CreateStream returns, where AWS reports CREATING first",
+		"CreateStream":                  "ON_DEMAND streams start with four shards and never scale; WarmThroughputMiBps and RecordDistributionStrategy AUTO are answered with 501 NotImplemented; a stream that would take the region's shards above 20000 is refused with LimitExceededException, whose text is understudy's and UNVERIFIED (kinesis.md 4.1), and the on-demand stream quota is not enforced; the stream is ACTIVE when CreateStream returns, where AWS reports CREATING first",
 		"DeleteStream":                  "the stream is gone when DeleteStream returns, where AWS reports DELETING first",
 		"DescribeStream":                describe,
 		"DescribeStreamSummary":         describe,
@@ -118,7 +118,7 @@ func TestKinesisCoverageNotes(t *testing.T) {
 		"PutRecords":                    "per-shard write limits (1 MiB/s, 1,000 records/s) are not enforced; no entry fails: a fault rule fails the whole call, and entry-level fault injection is not built; argument, record-size and request-size error texts follow kinesalite or are understudy's and are UNVERIFIED (kinesis.md 13.3)",
 		"GetShardIterator":              "the five calls per second per shard limit is not enforced; DryRun answers 501 NotImplemented; argument error texts follow kinesalite and are UNVERIFIED (kinesis.md 5.4, 13.3)",
 		"GetRecords":                    "per-shard read limits (5 calls/s, 2 MiB/s and the 5-second wait after a 10 MiB read) are not enforced; DryRun answers 501 NotImplemented; the Limit and expired-iterator texts follow kinesalite or are understudy's and are UNVERIFIED (kinesis.md 5.6, 13.3)",
-		"DescribeLimits":                "ShardLimit is 20000 and OnDemandStreamCountLimit 50 in every region, and neither is enforced",
+		"DescribeLimits":                "ShardLimit is 20000 and OnDemandStreamCountLimit 50 in every region; CreateStream enforces the shard limit, not the on-demand stream limit",
 	}
 	unbound := []string{
 		"SplitShard", "MergeShards", "UpdateShardCount", "UpdateStreamMode", "UpdateMaxRecordSize", "StartStreamEncryption", "StopStreamEncryption",

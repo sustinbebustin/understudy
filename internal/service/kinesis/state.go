@@ -45,6 +45,16 @@ func (s *State) BlobRefs() []string {
 	return out
 }
 
+// shardCount is the scope's shards, all open in slice 1 (no resharding),
+// counted against shardLimit (aws-doc kinesis.md 4.1).
+func (s *State) shardCount() int {
+	n := 0
+	for _, str := range s.Streams {
+		n += len(str.Shards)
+	}
+	return n
+}
+
 // Partitioned finds BlobRefs by a type assertion; this keeps a rename from
 // silently dropping the records' data from a snapshot.
 var _ store.BlobHolder = (*State)(nil)

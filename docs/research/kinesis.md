@@ -458,7 +458,7 @@ Slice 1 is the tracer bullet the shared stream poller needs: create, describe, l
 
 | Operation | Slice | Coverage | Exact coverage note |
 |---|---|---|---|
-| CreateStream | 1 | Partial | `ON_DEMAND streams start with four shards and never scale; WarmThroughputMiBps and RecordDistributionStrategy AUTO are answered with 501 NotImplemented; the account shard and on-demand stream quotas are not enforced` |
+| CreateStream | 1 | Partial | `ON_DEMAND streams start with four shards and never scale; WarmThroughputMiBps and RecordDistributionStrategy AUTO are answered with 501 NotImplemented; a stream that would take the region's shards above 20000 is refused with LimitExceededException, whose text is understudy's and UNVERIFIED (kinesis.md 4.1), and the on-demand stream quota is not enforced` |
 | DeleteStream | 1 | Full | |
 | DescribeStream | 1 | Full | |
 | DescribeStreamSummary | 1 | Full | |
@@ -472,7 +472,7 @@ Slice 1 is the tracer bullet the shared stream poller needs: create, describe, l
 | GetRecords | 1 | Partial | `per-shard read limits (5 calls/s, 2 MiB/s and the 5-second wait after a 10 MiB read) are not enforced` |
 | AddTagsToStream, RemoveTagsFromStream, ListTagsForStream | 1 | Full | |
 | TagResource, UntagResource, ListTagsForResource | 1 | Full | |
-| DescribeLimits | 1 | Partial | `ShardLimit is 20000 and OnDemandStreamCountLimit 50 in every region, and neither is enforced` |
+| DescribeLimits | 1 | Partial | `ShardLimit is 20000 and OnDemandStreamCountLimit 50 in every region; CreateStream enforces the shard limit, not the on-demand stream limit` |
 | EnableEnhancedMonitoring, DisableEnhancedMonitoring | 1 | StoredOnly | `shard-level metrics are stored and reported on the stream; no metrics are published to CloudWatch` |
 | SplitShard, MergeShards | 2 | Full | |
 | UpdateShardCount | 2 | Partial | `the stream moves straight to TargetShardCount evenly split shards, children of the open shards they replace; AWS's short-lived intermediate shards and its scaling limits (ten per 24 hours, at most double, at least half) are not reproduced` |

@@ -27,8 +27,9 @@ const (
 	// DescribeStream page holds (aws-doc kinesis.md 4.4, 4.5).
 	streamPage = 100
 	// shardLimit and onDemandStreamLimit are the documented us-east-1
-	// quotas DescribeLimits reports; neither is enforced (aws-doc
-	// kinesis.md 4.1, DescribeLimits note).
+	// quotas DescribeLimits reports (aws-doc kinesis.md 4.1). CreateStream
+	// enforces shardLimit per scope, which also bounds the memory one
+	// request can take; onDemandStreamLimit is not enforced.
 	shardLimit          = 20000
 	onDemandStreamLimit = 50
 )
@@ -40,15 +41,17 @@ const retentionNote = "error texts follow kinesalite and are UNVERIFIED (kinesis
 // bindStreams binds the stream lifecycle, description, listing, retention
 // and limit operations.
 func (s *Service) bindStreams(b kinesisapi.Binder) {
-	b.CreateStream(s.createStream, registry.Partial{Note: "ON_DEMAND streams start with four shards and never scale; WarmThroughputMiBps and RecordDistributionStrategy AUTO are answered with 501 NotImplemented; the account shard and on-demand stream quotas are not enforced; the stream is ACTIVE when CreateStream returns, where AWS reports CREATING first"})
+	b.CreateStream(s.createStream, registry.Partial{Note: createStreamNote})
 	b.DeleteStream(s.deleteStream, registry.Partial{Note: "the stream is gone when DeleteStream returns, where AWS reports DELETING first"})
 	b.DescribeStreamSummary(s.describeStreamSummary, registry.Partial{Note: describeNote})
 	b.DescribeStream(s.describeStream, registry.Partial{Note: describeNote})
 	b.ListStreams(s.listStreams, registry.Partial{Note: "names are listed in lexical order; AWS's order and token lifetime are UNVERIFIED (kinesis.md 4.5)"})
 	b.IncreaseStreamRetentionPeriod(s.increaseRetention, registry.Partial{Note: retentionNote})
 	b.DecreaseStreamRetentionPeriod(s.decreaseRetention, registry.Partial{Note: retentionNote})
-	b.DescribeLimits(s.describeLimits, registry.Partial{Note: "ShardLimit is 20000 and OnDemandStreamCountLimit 50 in every region, and neither is enforced"})
+	b.DescribeLimits(s.describeLimits, registry.Partial{Note: "ShardLimit is 20000 and OnDemandStreamCountLimit 50 in every region; CreateStream enforces the shard limit, not the on-demand stream limit"})
 }
+
+const createStreamNote = "ON_DEMAND streams start with four shards and never scale; WarmThroughputMiBps and RecordDistributionStrategy AUTO are answered with 501 NotImplemented; a stream that would take the region's shards above 20000 is refused with LimitExceededException, whose text is understudy's and UNVERIFIED (kinesis.md 4.1), and the on-demand stream quota is not enforced; the stream is ACTIVE when CreateStream returns, where AWS reports CREATING first"
 
 func (s *Service) createStream(_ context.Context, c *kernel.Call, in *kinesisapi.CreateStreamInput) (*kinesisapi.CreateStreamOutput, *awserr.Error) {
 	// Settings with no test-time effect are refused, never stored without
@@ -78,6 +81,10 @@ func (s *Service) createStream(_ context.Context, c *kernel.Call, in *kinesisapi
 		shards = int(*in.ShardCount)
 	}
 	account := c.Scope().Account.String()
+	// Refused before Split, which allocates per shard (aws-doc kinesis.md 4.1).
+	if shards > shardLimit {
+		return nil, errShardLimit(c.Scope(), 0, shards)
+	}
 	if err := checkTags(in.StreamName, account, nil, in.Tags); err != nil {
 		return nil, err
 	}
@@ -89,6 +96,9 @@ func (s *Service) createStream(_ context.Context, c *kernel.Call, in *kinesisapi
 	_, err := kernel.Write(c, s.cells, c.Scope(), func(st *State, now clock.Instant, _ *kernel.Tx) (struct{}, *awserr.Error) {
 		if _, taken := st.Streams[in.StreamName]; taken {
 			return struct{}{}, errStreamInUse(in.StreamName, account)
+		}
+		if open := st.shardCount(); open+len(ranges) > shardLimit {
+			return struct{}{}, errShardLimit(c.Scope(), open, len(ranges))
 		}
 		if st.TokenKey == nil {
 			st.TokenKey = s.ids.StreamIteratorKey()
@@ -340,8 +350,8 @@ func (s *Service) decreaseRetention(ctx context.Context, c *kernel.Call, in *kin
 func (s *Service) describeLimits(_ context.Context, c *kernel.Call, _ *kinesisapi.DescribeLimitsInput) (*kinesisapi.DescribeLimitsOutput, *awserr.Error) {
 	out := readState(s, c.Scope(), func(st *State) *kinesisapi.DescribeLimitsOutput {
 		out := &kinesisapi.DescribeLimitsOutput{ShardLimit: shardLimit, OnDemandStreamCountLimit: onDemandStreamLimit}
+		out.OpenShardCount = int32(st.shardCount()) //nolint:gosec // at most shardLimit, enforced by CreateStream
 		for _, str := range st.Streams {
-			out.OpenShardCount += int32(len(str.Shards)) //nolint:gosec // CreateStream's ShardCount is an int32
 			if str.Mode == kinesisapi.StreamModeOnDemand {
 				out.OnDemandStreamCount++
 			}

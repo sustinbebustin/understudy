@@ -10,6 +10,29 @@ import (
 	"github.com/sustinbebustin/understudy/internal/service/kinesis"
 )
 
+// CreateStream refuses a stream that would take the scope's shards above
+// the 20,000 shard quota with LimitExceededException (aws-doc kinesis.md
+// 4.1; understudy's text, UNVERIFIED, KIN-23), counting ON_DEMAND streams'
+// four shards; a stream that reaches the quota exactly is accepted.
+func TestCreateStreamShardLimit(t *testing.T) {
+	limit := func(open, adding int) string {
+		return fmt.Sprintf("This request would exceed the shard limit for the account %s in us-east-1. Current shard count for the account: %d. Limit: 20000. Number of additional shards that would have resulted from this request: %d.", account, open, adding)
+	}
+	run(t, kinesis.Options{}, func(h *harness) {
+		wantErr(h, "one request above the quota", fail(h, kinesisapi.OpCreateStream, &kinesisapi.CreateStreamInput{StreamName: "huge", ShardCount: new(int32(2_000_000_000))}),
+			"LimitExceededException", 400, limit(0, 2_000_000_000))
+		h.create("s", 19_997)
+		wantErr(h, "ON_DEMAND past the quota", fail(h, kinesisapi.OpCreateStream, &kinesisapi.CreateStreamInput{StreamName: "od"}),
+			"LimitExceededException", 400, limit(19_997, 4))
+		h.create("t", 3)
+		if got := call(h, kinesisapi.OpDescribeLimits, &kinesisapi.DescribeLimitsInput{}).OpenShardCount; got != 20_000 {
+			h.Errorf("OpenShardCount = %d, want 20000", got)
+		}
+		wantErr(h, "one more shard", fail(h, kinesisapi.OpCreateStream, &kinesisapi.CreateStreamInput{StreamName: "u", ShardCount: new(int32(1))}),
+			"LimitExceededException", 400, limit(20_000, 1))
+	})
+}
+
 // CreateStream tags are listed by ListTagsForStream (kinesis.md 10.3: the
 // tags Terraform reads include CreateStream's) and checked as
 // AddTagsToStream checks them: more than 50 is refused with the tag text

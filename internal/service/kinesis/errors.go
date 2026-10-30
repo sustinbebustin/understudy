@@ -4,6 +4,7 @@ import (
 	"strconv"
 
 	"github.com/sustinbebustin/understudy/internal/api/kinesisapi"
+	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
 )
@@ -52,6 +53,15 @@ func errShardCountOnDemand() *awserr.Error {
 
 func errShardCountProvisioned() *awserr.Error {
 	return kinesisapi.ErrInvalidArgumentException("ShardCount must be specified for a stream in PROVISIONED mode.")
+}
+
+// errShardLimit refuses a CreateStream that would take the scope's shards
+// above shardLimit (aws-doc kinesis.md 4.1); the text is understudy's,
+// UNVERIFIED (KIN-23).
+func errShardLimit(scope aws.Scope, open, adding int) *awserr.Error {
+	return kinesisapi.ErrLimitExceededException("This request would exceed the shard limit for the account " + scope.Account.String() + " in " + scope.Region.String() +
+		". Current shard count for the account: " + strconv.Itoa(open) + ". Limit: " + strconv.Itoa(shardLimit) +
+		". Number of additional shards that would have resulted from this request: " + strconv.Itoa(adding) + ".")
 }
 
 // The tag refusals are understudy's (kinesis.md 4.10, KIN-07).
