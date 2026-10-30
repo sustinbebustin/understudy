@@ -14,9 +14,16 @@ func alarmEvaluationOps() []string {
 	return []string{"cloudwatch.PutMetricAlarm", "cloudwatch.DescribeAlarms"}
 }
 
-// alarmSwitches are the rows of cloudwatch-alarms.md 12.2 that the pure
-// evaluator in package alarm implements: cadence, window, range, the
-// missing-data algorithm, warm-up and the operator phrases.
+// alarmActionOps are the operations whose transitions run actions and send
+// events: an evaluation (armed by PutMetricAlarm) or SetAlarmState.
+func alarmActionOps() []string {
+	return []string{"cloudwatch.PutMetricAlarm", "cloudwatch.SetAlarmState"}
+}
+
+// alarmSwitches are the rows of cloudwatch-alarms.md 12.2 that package
+// alarm and the service implement: cadence, window, range, the
+// missing-data algorithm, warm-up, the texts, the notification and event
+// payloads, and what a refused action does (12.4).
 func alarmSwitches() []fidelity.Entry {
 	unrecorded := func(item string) fidelity.NoScenario {
 		return fidelity.NoScenario{Reason: "unrecorded: " + item}
@@ -82,6 +89,38 @@ func alarmSwitches() []fidelity.Entry {
 			Label: evidence.Inferred, Ref: alarmResearch + "#43-formatting", Record: "CWA-09, CWA-15",
 			Ops:     append(alarmEvaluationOps(), "cloudwatch.DescribeAlarmHistory"),
 			Settles: unrecorded("CWA-09, CWA-15"),
+		},
+		{
+			Name: "cloudwatch.alarm.sns.unset-fields", Value: "description-null,treat-missing-data-empty,unit-null,low-sample-empty,datapoints-to-alarm-omitted,mute-window-false",
+			Label: evidence.Inferred, Ref: alarmResearch + "#51-message-body", Record: "CWA-11", Ops: alarmActionOps(),
+			Settles: unrecorded("CWA-11"),
+		},
+		{
+			Name: "cloudwatch.alarm.sns.subject", Value: "state-quoted-name-in-region-long-name,100-chars",
+			Label: evidence.Inferred, Ref: alarmResearch + "#52-subject-and-region", Record: "CWA-12", Ops: alarmActionOps(),
+			Settles: unrecorded("CWA-12"),
+		},
+		{
+			Name: "cloudwatch.alarm.sns.fifo-group", Value: "sha256-hex-of-alarm-arn",
+			Label: evidence.Inferred, Ref: alarmResearch + "#53-delivery", Record: "CWA-13", Ops: alarmActionOps(),
+			Settles: unrecorded("CWA-13"),
+		},
+		{
+			Name: "cloudwatch.alarm.events.actions-disabled", Value: "events-sent",
+			Label: evidence.Inferred, Ref: alarmResearch + "#62-eventbridge-events", Record: "CWA-14",
+			Ops:     append(alarmActionOps(), "cloudwatch.EnableAlarmActions", "cloudwatch.DisableAlarmActions"),
+			Settles: unrecorded("CWA-14"),
+		},
+		{
+			Name: "cloudwatch.alarm.events.metric-id", Value: "one-per-configuration",
+			Label: evidence.Inferred, Ref: alarmResearch + "#62-eventbridge-events", Record: "CWA-15",
+			Ops:     append(alarmActionOps(), "cloudwatch.DeleteAlarms"),
+			Settles: unrecorded("CWA-15"),
+		},
+		{
+			Name: "cloudwatch.alarm.actions.denied", Value: "dropped",
+			Label: evidence.Inferred, Ref: alarmResearch + "#124-actions-and-delivery", Record: "CWA-23", Ops: alarmActionOps(),
+			Settles: unrecorded("CWA-23"),
 		},
 		{
 			Name: "cloudwatch.alarm.history.page-size", Value: "50",

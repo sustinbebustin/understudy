@@ -430,6 +430,7 @@ The guide (`docs/guide/`) must say that understudy publishes no vended `AWS/*` m
 | `cloudwatch.alarm.sns.fifo-group` | `sha256-hex-of-alarm-arn` | inferred | 5.3 | CWA-13 |
 | `cloudwatch.alarm.events.actions-disabled` | `events-sent` | inferred | 6.2 | CWA-14 |
 | `cloudwatch.alarm.events.metric-id` | `one-per-configuration` | inferred | 6.2 | CWA-15 |
+| `cloudwatch.alarm.actions.denied` | `dropped` | inferred | 12.4 | CWA-23 |
 | `cloudwatch.alarm.history.page-size` | `50` | inferred | 8.1 | CWA-18 |
 | `cloudwatch.get-metric-statistics.datapoint-limit` | `ceil-unrounded` | inferred | 9.3 | CWA-20 |
 | `cloudwatch.get-metric-statistics.order` | `timestamp-ascending,then-unit` | inferred | 9.2 | AWS documents no order |
@@ -451,7 +452,7 @@ The guide (`docs/guide/`) must say that understudy publishes no vended `AWS/*` m
 1. Alarm deliveries cross packages: `internal/delivery`'s closed `Mechanism` set (`SNSToSQS ... EventsToSNS`, `internal/delivery/delivery.go`) needs `AlarmToSNS` and `AlarmToLambda`, which is an ADR 0015 amendment and a row in the [ARCHITECTURE.md](../ARCHITECTURE.md) section 16 table. Read both first.
 2. EventBridge events (6.2) need a way into a bus. Options: a new `delivery.Target` variant for an event bus, or an internal `PutEvents` operation as Lambda's logs use `PutLogEventsInternal` (ARCHITECTURE.md 16). The internal operation is smaller and keeps matching inside EventBridge; recommended. Events go to the default bus of the alarm's account and Region, "the EventBridge default event bus, which automatically receives events from AWS services" ([eb-event-bus](https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-event-bus.html)).
 3. Retry: AWS documents guarantees, not a policy (5.3, 6.1, 6.2). A missing topic or function is journaled and dropped, as CloudWatch "doesn't test or validate the actions" (5.3); Lambda's own asynchronous retries apply after acceptance. No invented retry schedule.
-4. Policies: before delivery the access recorder checks the topic policy for `cloudwatch.amazonaws.com` and the function policy for `lambda.alarms.cloudwatch.amazonaws.com` and journals an `Advisory` when AWS would refuse, then delivers (ARCHITECTURE.md 16).
+4. Policies: before delivery the access recorder checks the topic policy for `cloudwatch.amazonaws.com` and the function policy for `lambda.alarms.cloudwatch.amazonaws.com` and journals an `Advisory` when AWS would refuse, then delivers (ARCHITECTURE.md 16). Under `iam.enforce=enforce` the refused delivery is dropped after its one attempt, with no retry and no dead-letter queue: AWS states no outcome for a publish its topic refuses ("doesn't ... detect any ... Amazon SNS errors", 5.3) and does not guarantee a Lambda invocation it is not authorized for (6.1). UNVERIFIED: whether AWS checks the topic policy at all. Switch `cloudwatch.alarm.actions.denied` `dropped`; recording case CWA-23.
 5. Per transition, in this order: state write, history item, then for each ARN of the new state's list in list order, a delivery when `ActionsEnabled`; then the state change event. `PutMetricAlarm` and `DeleteAlarms` emit the configuration change events.
 6. Builders are pure functions with golden fixtures owned by the cloudwatch package: SNS subject and body (5.1, 5.2), Lambda event (6.1), the two EventBridge details (6.2), `StateReason` (4.1, 4.3) and `StateReasonData` (4.2). Golden bytes come from the recorded and documented examples above, with recorded values where the snapshot masks none.
 
@@ -966,7 +967,27 @@ cwrec CWA-22/warm warm
 
 `breaching` makes the first evaluation after warm-up go to ALARM, so the transition time marks the end of warm-up; a put every 30 seconds fills every minute. Expected: no transition in the 90 seconds before the first put (warm-up holds a `breaching` alarm with no data); `EvaluationState` `IN_WARM_UP` in the captures until warm-up ends, then the ALARM transition about one minute after the first put under (b), or about three under (a), the default. Teardown: `cwdel warm`. Cost under USD 0.01; 9 minutes.
 
-### 13.24 Fixture teardown and sweep
+### 13.24 CWA-23: an action to a topic that does not allow CloudWatch
+
+Settles `cloudwatch.alarm.actions.denied` (5.3, 12.4). A topic whose policy grants only the account root, so `cloudwatch.amazonaws.com` has no `SNS:Publish`, subscribed by a queue that accepts the topic.
+
+```sh
+TD=$(aws sns create-topic --name "$P-cwa-deny" --query TopicArn --output text)
+aws sns set-topic-attributes --topic-arn "$TD" --attribute-name Policy --attribute-value "$(jq -nc --arg t "$TD" --arg a "$A" \
+  '{Version: "2012-10-17", Statement: [{Effect: "Allow", Principal: {AWS: ("arn:aws:iam::" + $a + ":root")}, Action: "SNS:Publish", Resource: $t}]}')"
+aws sqs create-queue --queue-name "$P-cwa-deny" >/dev/null
+cwqueue "$P-cwa-deny" "$TD" sns.amazonaws.com
+aws sns subscribe --topic-arn "$TD" --protocol sqs --notification-endpoint "arn:aws:sqs:$R:$A:$P-cwa-deny" >/dev/null
+cwalarm deny deny-none 60 1 '' ignore --alarm-actions "$TD"
+aws cloudwatch set-alarm-state --alarm-name "$P-deny" --state-value ALARM --state-reason denied
+sleep 60
+cwdrain CWA-23/receive "$P-cwa-deny"
+rec CWA-23/history aws cloudwatch describe-alarm-history --alarm-name "$P-deny"
+```
+
+Expected (default `dropped`): no message in the queue, the alarm in ALARM, and at most an `Action` history item saying the publish failed (8.3). A message in the queue means CloudWatch's publish is not checked against the topic policy, and the enforce mode must then deliver. Teardown: `for s in $(aws sns list-subscriptions-by-topic --topic-arn "$TD" --query 'Subscriptions[].SubscriptionArn' --output text); do aws sns unsubscribe --subscription-arn "$s"; done; aws sns delete-topic --topic-arn "$TD"; aws sqs delete-queue --queue-url "$Q/$P-cwa-deny"; cwdel deny`. Cost under USD 0.01; 3 minutes.
+
+### 13.25 Fixture teardown and sweep
 
 ```sh
 # SNS fixture, after CWA-11, CWA-12, CWA-16 and CWA-17. Subscriptions first: they outlive their topics.

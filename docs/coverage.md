@@ -118,7 +118,7 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | Service | Operations | Full | Stored only | Partial | Unbound | Internal | Raw |
 |---|---|---|---|---|---|---|---|
 | apigatewayv2 | 103 | 0 | 2 | 29 | 72 | 0 | 1 |
-| cloudwatch | 55 | 2 | 2 | 11 | 40 | 0 | 0 |
+| cloudwatch | 55 | 4 | 0 | 11 | 40 | 0 | 0 |
 | dynamodb | 58 | 4 | 2 | 20 | 32 | 0 | 0 |
 | dynamodbstreams | 4 | 0 | 0 | 4 | 0 | 0 | 0 |
 | eventbridge | 57 | 6 | 1 | 15 | 35 | 1 | 0 |
@@ -252,19 +252,19 @@ Raw operations:
 
 | Operation | Status | Evidence | Note |
 |---|---|---|---|
-| DeleteAlarms | full | inferred, 1 of 4 claims |  |
+| DeleteAlarms | full | inferred, 2 of 5 claims |  |
 | DescribeAlarmsForMetric | full | inferred, 1 of 3 claims |  |
-| DisableAlarmActions | stored-only | inferred, 1 of 3 claims | ActionsEnabled is stored and echoed; alarm actions never run |
-| EnableAlarmActions | stored-only | inferred, 1 of 3 claims | ActionsEnabled is stored and echoed; alarm actions never run |
+| DisableAlarmActions | full | inferred, 2 of 4 claims |  |
+| EnableAlarmActions | full | inferred, 2 of 4 claims |  |
 | DescribeAlarmHistory | partial | inferred, 3 of 5 claims | StateUpdate items only, kept 30 days on the emulator clock and after the alarm is deleted; ConfigurationUpdate and Action items are never recorded, and AlarmContributorId selects nothing |
 | DescribeAlarms | partial | inferred, 9 of 15 claims | metric alarms only: composite and log alarms are never stored, so ChildrenOfAlarmName and ParentsOfAlarmName select nothing |
 | GetMetricData | partial | inferred, 1 of 4 claims | MetricStat queries with SampleCount, Average, Sum, Minimum or Maximum; metric math, Metrics Insights and percentiles answer 501; LabelOptions is ignored |
 | GetMetricStatistics | partial | inferred, 3 of 6 claims | Statistics only: ExtendedStatistics answers 501; points are kept until reset, not aged out by resolution |
 | ListMetrics | partial | inferred, 1 of 3 claims | no linked accounts: IncludeLinkedAccounts and OwningAccount select nothing more |
 | ListTagsForResource | partial | inferred, 1 of 3 claims | alarms only: insight rules and metric streams are never stored |
-| PutMetricAlarm | partial | inferred, 9 of 16 claims | alarms on a Statistic with a sliding window are evaluated on the emulator clock; alarms on an ExtendedStatistic, Metrics, a ThresholdMetricId or EvaluationCriteria, or with a WallClockWindow, are stored and never evaluated; alarm actions never run; EvaluationState is never reported |
+| PutMetricAlarm | partial | inferred, 15 of 22 claims | alarms on a Statistic with a sliding window are evaluated on the emulator clock; alarms on an ExtendedStatistic, Metrics, a ThresholdMetricId or EvaluationCriteria, or with a WallClockWindow, are stored and never evaluated; SNS and Lambda actions run, and EC2, Auto Scaling, Systems Manager and investigation actions are journaled and never run; EvaluationState is never reported |
 | PutMetricData | partial | inferred, 2 of 5 claims | entities are not kept; with StrictEntityValidation false an entity error stores the data without the X-Amzn-Failure-Message header; points are kept until reset, not aged out by resolution |
-| SetAlarmState | partial | inferred, 1 of 5 claims | the state is set and no action runs; the next evaluation re-derives it, except on alarms that are never evaluated (see PutMetricAlarm) |
+| SetAlarmState | partial | inferred, 7 of 11 claims | the state is set and its actions run when it changes; the next evaluation re-derives it, except on alarms that are never evaluated (see PutMetricAlarm) |
 | TagResource | partial | inferred, 1 of 3 claims | alarms only: insight rules and metric streams are never stored |
 | UntagResource | partial | inferred, 1 of 3 claims | alarms only: insight rules and metric streams are never stored |
 | AssociateDatasetKmsKey | unbound | unassessed |  |
@@ -446,7 +446,7 @@ Internal operations:
 
 | Operation | Status | Evidence | Note |
 |---|---|---|---|
-| PutServiceEventInternal | unbound | unassessed |  |
+| PutServiceEventInternal | full | inferred, 2 of 4 claims |  |
 
 ### iam
 
@@ -1391,7 +1391,7 @@ Internal operations:
 
 Behaviors chosen without AWS-recorded evidence, with the research they rest on and the parity scenario step that settles them, or why none does. The count and order follow the label the code states; the Label column shows the recording's verdict where a replayed step settles or contradicts the switch.
 
-199 switches: 1 aws-recorded, 5 third-party-recorded, 24 aws-doc, 169 inferred.
+205 switches: 1 aws-recorded, 5 third-party-recorded, 24 aws-doc, 175 inferred.
 
 | Switch | Value | Label | Reference | Settled by |
 |---|---|---|---|---|
@@ -1430,13 +1430,19 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `apigatewayv2.lambda.permission` | `{<api-id>/<stage>/<METHOD>/<route path without its leading slash>, the route key's template and ANY as written; <api-id>/<stage>/$default for the $default route {500 Internal Server Error}}` | inferred | docs/research/apigateway-http.md#55-invocation-credentials-and-the-resource-policy | none: unrecorded: APIGW2-11 (apigateway-http.md 14) records it |
 | `apigatewayv2.payload.unrecorded` | `{false true text/plain; charset=utf-8 false last first}` | inferred | docs/research/apigateway-http.md#51-payload-format-20-request-event | none: unrecorded: APIGW2-07, APIGW2-08 and APIGW2-09 (apigateway-http.md 14) records it |
 | `apigatewayv2.route.matching` | `{{true true false} {404 Not Found}}` | inferred | docs/research/apigateway-http.md#44-methods-head-trailing-slashes-case-and-decoding | none: unrecorded: APIGW2-05 (apigateway-http.md 14) records it |
+| `cloudwatch.alarm.actions.denied` | `dropped` | inferred | docs/research/cloudwatch-alarms.md#124-actions-and-delivery | none: unrecorded: CWA-23 |
 | `cloudwatch.alarm.evaluation-phase` | `minute-boundary` | inferred | docs/research/cloudwatch-alarms.md#31-cadence-and-phase | none: AWS evaluates at an arbitrary second, which does not change the data a minute's evaluation reads; no recording can pin it |
 | `cloudwatch.alarm.evaluation-range` | `n-plus-2` | inferred | docs/research/cloudwatch-alarms.md#34-evaluation-range-n-and-m | none: unrecorded: CWA-01 |
+| `cloudwatch.alarm.events.actions-disabled` | `events-sent` | inferred | docs/research/cloudwatch-alarms.md#62-eventbridge-events | none: unrecorded: CWA-14 |
+| `cloudwatch.alarm.events.metric-id` | `one-per-configuration` | inferred | docs/research/cloudwatch-alarms.md#62-eventbridge-events | none: unrecorded: CWA-15 |
 | `cloudwatch.alarm.first-evaluation` | `next-boundary` | inferred | docs/research/cloudwatch-alarms.md#31-cadence-and-phase | none: unrecorded: CWA-03 |
 | `cloudwatch.alarm.history.page-size` | `50` | inferred | docs/research/cloudwatch-alarms.md#81-describealarmhistory | none: unrecorded: CWA-18 |
 | `cloudwatch.alarm.mixed-units` | `first-unit-by-name` | inferred | docs/research/cloudwatch-alarms.md#33-which-series-and-which-statistic | none: AWS documents an alarm on a metric of several units without Unit as undefined, so no recording can settle it |
 | `cloudwatch.alarm.number-format` | `java-double,event-configuration-plain-whole-numbers` | inferred | docs/research/cloudwatch-alarms.md#43-formatting | none: unrecorded: CWA-09, CWA-15 |
 | `cloudwatch.alarm.reason-format` | `count-form-unless-datapoints-to-alarm` | inferred | docs/research/cloudwatch-alarms.md#41-statereason-texts | none: unrecorded: CWA-06, CWA-07, CWA-08 |
+| `cloudwatch.alarm.sns.fifo-group` | `sha256-hex-of-alarm-arn` | inferred | docs/research/cloudwatch-alarms.md#53-delivery | none: unrecorded: CWA-13 |
+| `cloudwatch.alarm.sns.subject` | `state-quoted-name-in-region-long-name,100-chars` | inferred | docs/research/cloudwatch-alarms.md#52-subject-and-region | none: unrecorded: CWA-12 |
+| `cloudwatch.alarm.sns.unset-fields` | `description-null,treat-missing-data-empty,unit-null,low-sample-empty,datapoints-to-alarm-omitted,mute-window-false` | inferred | docs/research/cloudwatch-alarms.md#51-message-body | none: unrecorded: CWA-11 |
 | `cloudwatch.alarm.unaged-breach` | `retain` | inferred | docs/research/cloudwatch-alarms.md#35-missing-data-the-algorithm | none: unrecorded: CWA-04 |
 | `cloudwatch.alarm.unchanged-state` | `no-update` | inferred | docs/research/cloudwatch-alarms.md#38-what-a-transition-does-and-what-no-transition-does | none: unrecorded: CWA-05 |
 | `cloudwatch.denial.identity` | `AccessDenied 403 over Query; __type com.amazon.coral.service#AccessDeniedException with header AccessDenied;Sender over JSON and CBOR` | inferred | docs/research/iam-enforcement-surfaces.md#3.2 | none: unrecorded: IAM-ENF-09 waits in the recording queue (iam-enforcement-surfaces.md 13) |

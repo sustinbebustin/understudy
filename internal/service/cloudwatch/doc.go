@@ -14,11 +14,22 @@
 //     order (cloudwatch-alarms.md 3.1, 12.3). A snapshot keeps no timers:
 //     Rearm arms each evaluable alarm's next one. Other alarm kinds are
 //     stored with an Advisory and never evaluated (cloudwatch-alarms.md
-//     12.7); their state changes only through SetAlarmState. Alarm actions
-//     never run. A transition writes the state, journals a StateChange and
-//     appends a StateUpdate history item; history lives in its own store,
-//     outlives the alarm and is dropped after 30 days of emulator time
-//     (cloudwatch-alarms.md 8.1). A new alarm starts in INSUFFICIENT_DATA, a
+//     12.7); their state changes only through SetAlarmState. A transition
+//     writes the state, journals a StateChange, runs the new state's actions
+//     when ActionsEnabled and appends a StateUpdate history item; history
+//     lives in its own store, outlives the alarm and is dropped after 30 days
+//     of emulator time (cloudwatch-alarms.md 8.1).
+//   - SNS and Lambda actions are outbox deliveries (CloudWatchToSNS,
+//     CloudWatchToLambda) as cloudwatch.amazonaws.com and
+//     lambda.alarms.cloudwatch.amazonaws.com, attempted once with no retry
+//     schedule and no dead-letter queue: AWS documents guarantees, not a
+//     policy (cloudwatch-alarms.md 12.4). EC2, Auto Scaling, Systems
+//     Manager and investigation actions are journaled as not run. The
+//     state change event, and the configuration change events of
+//     PutMetricAlarm and DeleteAlarms, go to the default event bus through
+//     EventBridge's PutServiceEventInternal after the write commits,
+//     whatever ActionsEnabled is; a kernel without EventBridge skips them
+//     (cloudwatch-alarms.md 6.2). A new alarm starts in INSUFFICIENT_DATA, a
 //     PromQL alarm in OK (AWS-documented), both with the recorded initial
 //     reason. Its configuration is the PutMetricAlarm request as sent, which
 //     DescribeAlarms echoes, with the three action lists and Dimensions
