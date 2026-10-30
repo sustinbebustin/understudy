@@ -1,6 +1,6 @@
 # The clock
 
-Every time-based behavior in understudy runs on one emulator clock: SQS visibility timeouts, delays and retention, SNS and EventBridge delivery retries, Lambda batching windows and asynchronous retries, EventBridge schedules, DynamoDB TTL, Secrets Manager and KMS deletion windows, log retention, S3 presigned URL expiry (under `--sigv4 verify`, SigV4 URLs only, see [Signature verification](../configuration.md#signature-verification); without `verify` a presigned URL never expires), S3 Object Lock retention ([example](sdks.md#s3-sse-c-and-object-lock)), and the timestamps the APIs return. You can stop it, move it forward, or speed it up. A test keeps AWS's real settings (a 30-second visibility timeout, a 15-minute delay, a 7-day deletion window) and still finishes in milliseconds.
+Every time-based behavior in understudy runs on one emulator clock: SQS visibility timeouts, delays and retention, SNS and EventBridge delivery retries, Lambda batching windows and asynchronous retries, EventBridge schedules, CloudWatch alarm evaluation, DynamoDB TTL, Secrets Manager and KMS deletion windows, log retention, S3 presigned URL expiry (under `--sigv4 verify`, SigV4 URLs only, see [Signature verification](../configuration.md#signature-verification); without `verify` a presigned URL never expires), S3 Object Lock retention ([example](sdks.md#s3-sse-c-and-object-lock)), and the timestamps the APIs return. You can stop it, move it forward, or speed it up. A test keeps AWS's real settings (a 30-second visibility timeout, a 15-minute delay, a 7-day deletion window) and still finishes in milliseconds.
 
 ## Commands
 
@@ -48,6 +48,50 @@ aws events put-targets --rule every-5m --targets Id=hello,Arn=arn:aws:lambda:us-
 understudy clock advance 1h --settle
 understudy journal --kind invocation --since 1h
 ```
+
+## CloudWatch alarms
+
+A metric alarm is evaluated on the emulator clock: once a minute on the minute, every 10 seconds for a 10, 20 or 30-second period, and once an hour when its evaluation periods span more than a day. Creating an alarm does not evaluate it, so `describe-alarms` right after `put-metric-alarm` still shows the initial state. An alarm with an SNS or Lambda action notifies on each state change:
+
+```sh
+understudy clock freeze
+aws sns create-topic --name alerts
+aws sqs create-queue --queue-name alerts-inbox
+aws sns subscribe --topic-arn arn:aws:sns:us-east-1:000000000000:alerts --protocol sqs \
+  --notification-endpoint arn:aws:sqs:us-east-1:000000000000:alerts-inbox --attributes RawMessageDelivery=true
+aws cloudwatch put-metric-alarm --alarm-name high-load --namespace App --metric-name Load \
+  --statistic Sum --period 60 --evaluation-periods 1 --threshold 10 --comparison-operator GreaterThanThreshold \
+  --alarm-actions arn:aws:sns:us-east-1:000000000000:alerts
+aws cloudwatch put-metric-data --namespace App --metric-name Load --value 20
+understudy clock advance 1m --settle
+```
+
+```
+2026-10-30T12:01:00Z frozen
+fired 2 timer(s):
+  cloudwatch.alarm-evaluation arn:aws:cloudwatch:us-east-1:000000000000:alarm:high-load
+  outbox.attempt 000000000000/us-east-1/19b1ded5-b3f8-41a0-b877-85fc10a26fc3
+settled: no tracked work is pending
+```
+
+The evaluation at 12:01 saw the point and moved the alarm to `ALARM` with AWS's reason text, `Threshold Crossed: 1 datapoint [20.0 (30/10/26 12:00:00)] was greater than the threshold (10.0).`, and the notification is in the queue. Five more minutes are five more evaluations. The point leaves the alarm's evaluation range after three periods, and with no data the default `missing` treatment goes to `INSUFFICIENT_DATA`:
+
+```sh
+understudy clock advance 5m --settle
+aws cloudwatch describe-alarm-history --alarm-name high-load --query 'AlarmHistoryItems[].[Timestamp,HistorySummary]' --output text
+```
+
+```
+2026-10-30T12:04:00+00:00	Alarm updated from ALARM to INSUFFICIENT_DATA
+2026-10-30T12:01:00+00:00	Alarm updated from INSUFFICIENT_DATA to ALARM
+```
+
+`set-alarm-state` holds only until the next evaluation recomputes the state, as on AWS. To keep a set state on a clock that runs, give the alarm `--treat-missing-data ignore` and no data. An alarm with `--extended-statistic`, `--metrics`, a threshold metric, evaluation criteria or a wall-clock window is stored and never evaluated, and the journal says so with an `alarm-not-evaluated` advisory.
+
+Two things differ from an alarm on AWS:
+
+- understudy publishes no `AWS/*` metrics of its own. An alarm on `AWS/SQS` `NumberOfMessagesSent` sees only missing data, so with `--treat-missing-data breaching` it goes to `ALARM` at its first evaluation: `Threshold Crossed: no datapoints were received for 1 period and 1 missing datapoint was treated as [Breaching].` Put the data an alarm watches with `put-metric-data`.
+- Data put without `--timestamp` is stamped with emulator time and always lines up with the alarm's windows. Data stamped with wall time does not when the clock is frozen, set or scaled: with the clock at 12:07 a point put with `--timestamp 2026-10-30T00:38:06Z` falls outside the window, and an alarm with `--treat-missing-data notBreaching` on that metric goes to `OK` over a value of 20 against a threshold of 10.
 
 ## Starting frozen
 

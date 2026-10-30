@@ -1266,7 +1266,7 @@ type HTTPEndpoint struct { // POST through internal/egress
 	DeadLetterAttributes []MessageAttribute // a raw notification's attributes, sent with its dead letter only
 }
 
-type Mechanism uint8 // closed: SNSToSQS | SNSToLambda | S3ToSQS | S3ToSNS | S3ToLambda | EventsToLambda | EventsToSQS | EventsToSNS | EventsToEvents | SNSToHTTP | LambdaToSQS | LambdaToSNS | LambdaToLambda | LambdaToEvents | LambdaToS3 | ESMToSQS | ESMToSNS; EventsToEvents and LambdaToEvents deliver to EventBus, LambdaToS3 alone to S3Object, SNSToHTTP alone to HTTPEndpoint
+type Mechanism uint8 // closed: SNSToSQS | SNSToLambda | S3ToSQS | S3ToSNS | S3ToLambda | EventsToLambda | EventsToSQS | EventsToSNS | EventsToEvents | SNSToHTTP | LambdaToSQS | LambdaToSNS | LambdaToLambda | LambdaToEvents | LambdaToS3 | ESMToSQS | ESMToSNS | CloudWatchToSNS | CloudWatchToLambda; EventsToEvents and LambdaToEvents deliver to EventBus, LambdaToS3 alone to S3Object, SNSToHTTP alone to HTTPEndpoint
 
 type Request struct {
 	Source    aws.ARN
@@ -1313,6 +1313,7 @@ SNS to HTTP (`SNSToHTTP`, `sns-http-delivery.md 8.2`) is the one mechanism that 
 | S3, Secrets Manager, SQS (SSE) -> KMS | synchronous, before the caller's lock | `GenerateDataKey`, `Decrypt`, `Encrypt` as `AsCaller` (forward access, `iam-sts-kms.md 5.8`), `Via: KMSForward` | journaled as KMS calls, faultable; recorded against the caller so the generated policy carries `kms:GenerateDataKey` and `kms:Decrypt` |
 | Lambda -> Logs | container log stream | internal `PutLogEventsInternal` as `AsExecutionRole` | none |
 | Lambda -> SQS, SNS, Lambda, EventBridge, S3 | an asynchronous invocation settling (`Deliver` effect in the write that removes the event) | the invocation record to an on-success or on-failure destination: `SendMessage` with `AWSTraceHeader`, `Publish`, async `Invoke`, `PutEvents` (source `lambda`), `HeadBucket` then `PutObject`; the event as invoked to the dead-letter queue or topic with `ErrorCode`, `ErrorMessage`, `RequestID`; all as `AsExecutionRole` | none: one attempt; a FIFO target is never called; a failure is journaled with `DestinationDeliveryFailures` or `DeadLetterErrors` (`lambda-destinations-layers.md 4.6, 5.4, 11.3`) |
+| CloudWatch alarm -> SNS, Lambda | a state change, by evaluation on the emulator clock or `SetAlarmState`, while `ActionsEnabled` (`Deliver` effect in the transition's write) | `Publish` of the notification JSON with its `Subject` (FIFO topics get group and deduplication ids), async `Invoke` of the alarm event; the state change event goes to the default bus through `PutServiceEventInternal`, not the outbox (ADR 0015 amendment of 2026-10-30) | none: one attempt, no DLQ; a missing topic or function is journaled and dropped (`cloudwatch-alarms.md 12.4`) |
 
 Envelope and event builders are pure functions with golden fixtures and rapid properties, owned by the producing service: `service/sns/envelope` (SQS envelope with the recorded key order, the three HTTP bodies and their headers, FIFO variant without signature fields, Lambda `Records[0].Sns` casing; one RSA key per account-region, persisted, cert at `SigningCertURL`), `service/s3/notify` (`eventVersion 2.1`, URL-encoded key, unquoted `eTag`, `sequencer`), `service/events/envelope` (version `0`, second-precision `time`, `InputPath` and `InputTransformer`), `service/sqs` (shared attribute MD5).
 
