@@ -19,9 +19,12 @@
 #                                                        # serve with --iam-enforce enforce (default off)
 #
 # A pattern's documented preparation and check live in checks/<pattern>.sh,
-# which defines pattern_prepare DIR and pattern_check DIR; both are optional.
-# pattern_check calls the AWS CLI as pattern_aws ARGS..., sealed and in the
-# pattern's account, and prints why it failed before returning non-zero.
+# which defines pattern_prepare DIR and pattern_check DIR, and
+# pattern_cleanup DIR, run after destroy to remove what the preparation
+# created outside Terraform; all are optional. They call the AWS CLI as
+# pattern_aws ARGS..., sealed and in the pattern's account, and
+# pattern_check prints why it failed before returning non-zero. serve reads
+# understudy.json, the settings a pattern's documented prerequisites need.
 #
 # Every Terraform and AWS CLI call goes through scripts/sealed, so no real AWS
 # setting or credential is ever used. The run ends with a summary on stderr:
@@ -135,7 +138,7 @@ trap 'exit 143' TERM
 conformance_isolate_serve_env
 
 echo "==> starting understudy on $endpoint (data in $data_dir)"
-env "${conformance_serve_env[@]}" "$binary" serve --listen "127.0.0.1:$port" --persist "$data_dir" \
+env "${conformance_serve_env[@]}" "$binary" serve --config "$suite_dir/understudy.json" --listen "127.0.0.1:$port" --persist "$data_dir" \
   --sigv4 "${SIGV4:-parse}" --iam-enforce "${CONFORMANCE_IAM_ENFORCE:-off}" --log-format json >"$logs_dir/server.log" 2>&1 &
 server_pid=$!
 if ! "$binary" health --endpoint "$endpoint" --wait 60s >"$logs_dir/health.txt" 2>&1; then
@@ -238,7 +241,7 @@ run_pattern() {
   current_pattern=$p
   mkdir -p -- "$logs_dir/$p"
   cp -R -- "$suite_dir/$p" "$dir"
-  unset -f pattern_prepare pattern_check
+  unset -f pattern_prepare pattern_check pattern_cleanup
   if [[ -f "$suite_dir/checks/$p.sh" ]]; then
     # shellcheck source=/dev/null # one file per pattern
     source "$suite_dir/checks/$p.sh"
@@ -294,6 +297,11 @@ run_pattern() {
     record "$p/destroy" PASS ""
   else
     record "$p/destroy" FAIL "$(error_summary "$logs_dir/$p/destroy.log")"
+  fi
+  # A failed cleanup leaves what it should have removed, which nothing_left
+  # then reports.
+  if declare -F pattern_cleanup >/dev/null; then
+    pattern_cleanup "$dir" >"$logs_dir/$p/cleanup.log" 2>&1 || true
   fi
   nothing_left "$p"
 }

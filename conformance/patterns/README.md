@@ -9,13 +9,13 @@ conformance/patterns/run.sh                          # every pattern
 conformance/patterns/run.sh lambda-layer-terraform   # only these
 ```
 
-`run.sh` builds understudy into `.build/conformance/patterns/understudy`, starts it on `127.0.0.1:45667` with a fresh temporary data directory and no `UNDERSTUDY_*` or `AWS_*` setting from your shell, and runs each pattern, in a copy of its directory under `.build/conformance/patterns/run/work/`, through:
+`run.sh` builds understudy into `.build/conformance/patterns/understudy`, starts it on `127.0.0.1:45667` with a fresh temporary data directory, the settings in `understudy.json` and no `UNDERSTUDY_*` or `AWS_*` setting from your shell, and runs each pattern, in a copy of its directory under `.build/conformance/patterns/run/work/`, through:
 
 1. `prepare`: the pattern's documented preparation, such as installing a layer's dependencies;
 2. `init` and `apply`;
 3. `check`: the pattern's documented test;
 4. `plan-no-changes`: a plan that must show no changes;
-5. `destroy`, then `nothing-left`: the state is empty and understudy lists nothing in the pattern's account but what AWS keeps after a destroy: the `/aws/lambda/<function>` log group of each function the pattern created, which Lambda makes when the function first runs and `DeleteFunction` leaves in place (`docs/research/lambda-api.md` 6.4, `docs/research/tf-compute.md` 5).
+5. `destroy`, then the pattern's cleanup of what its preparation created outside Terraform, then `nothing-left`: the state is empty and understudy lists nothing in the pattern's account but what AWS keeps after a destroy: the `/aws/lambda/<function>` log group of each function the pattern created, which Lambda makes when the function first runs and `DeleteFunction` leaves in place (`docs/research/lambda-api.md` 6.4, `docs/research/tf-compute.md` 5).
 
 Each pattern runs in an account of its own. Every Terraform and AWS CLI call goes through `scripts/sealed`, so no real AWS setting or credential is used. The run prints one line per step and ends with a summary on stderr (`run.sh: passed=N failed=N skipped=N`, then a `run.sh: SKIP <pattern>/<step>: <reason>` line per skip). Logs are under `.build/conformance/patterns/run/logs/<pattern>/`.
 
@@ -33,7 +33,8 @@ Requirements: Go, Terraform 1.16 or later, the AWS CLI, Docker (patterns run Lam
 | Path | Contents |
 |---|---|
 | `<pattern>/` | The pattern as copied, with `ADJUSTMENTS.md`. |
-| `checks/<pattern>.sh` | The pattern's documented preparation and test, as `pattern_prepare DIR` and `pattern_check DIR`. |
+| `checks/<pattern>.sh` | The pattern's documented preparation and test, as `pattern_prepare DIR` and `pattern_check DIR`, and `pattern_cleanup DIR` when the preparation creates something Terraform does not manage. |
+| `understudy.json` | The configuration serve reads: settings a pattern's documented prerequisites need, such as an SES sender in `ses.verifiedIdentities`. |
 | `run.sh` | Build, serve, run every step, always clean up. |
 
 ## Patterns
@@ -45,4 +46,5 @@ Requirements: Go, Terraform 1.16 or later, the AWS CLI, Docker (patterns run Lam
 | `kinesis-lambda-terraform` | A provisioned `aws_kinesis_stream` (`docs/research/kinesis.md` 10.3), a `nodejs22.x` function, an identity policy that grants the Kinesis read actions on the stream, and an `aws_lambda_event_source_mapping` at `LATEST` (`docs/research/lambda-stream-sources.md` 3.2) | Records of the generator's `Sensor1` template, put after the apply with `aws kinesis put-records` in place of the hosted Kinesis Data Generator (see its `ADJUSTMENTS.md`), reach the function, which logs each decoded payload to its CloudWatch Logs group (`docs/research/kinesis.md` 8.1). Under `CONFORMANCE_IAM_ENFORCE=enforce` the journal shows one refused `CreateEventSourceMapping`, which the provider retries: the mapping does not depend on the policy attachment, so it can be created before the role holds its policy. |
 | `lambda-layer-terraform` | `aws_lambda_layer_version`, and a function using it beside one without it (`docs/research/lambda-destinations-layers.md` 6, 7, 8) | The function with the layer lists the layer's files under `/opt`; the one without fails with `Unable to import module 'app': No module named 'mysql'`. |
 | `lambda-ssm-parameter-terraform` | An `aws_ssm_parameter` String on provider 5.100.0, and a `nodejs22.x` function calling `GetParameter` and `PutParameter` with `Overwrite` (`docs/research/ssm-parameters.md` 6.1, 10.4) | The GET event answers the parameter as created, version 1; the PUT event answers `{"Version": 2, "Tier": "Standard"}`; the GET event again answers the new value, version 2. The check then puts the configured value back, so `plan-no-changes` measures understudy rather than the PUT event's drift. |
+| `s3-lambda-ses-terraform` | A bucket notification on `s3:ObjectCreated:*` to a function with a layer, which downloads the object and attaches it to a `SendRawEmail` from a verified sender to the mailbox simulator, in the sandbox (`docs/research/ses.md` 4.2, 6.1, 6.2, 11.2) | After `aws s3 cp ./src/example.txt s3://<bucket>`, understudy records one `SendRawEmail` from the sender to `success@simulator.amazonses.com` whose MIME carries the attachment `example.txt`, and `understudy iam policy` for the function's role allows `ses:SendRawEmail` on the sender's identity ARN. `plan-no-changes` fails, against AWS too: the pattern's `random_id` keeps `timestamp()`, which changes on every plan (`ADJUSTMENTS.md`). |
 | `sfn-lambda-function-crossaccount-terraform` | A Standard state machine whose `arn:aws:states:::lambda:invoke` Task calls a function in a second account, allowed by an `aws_lambda_permission` naming the execution role (`docs/research/stepfunctions-api.md` 9.2) | An execution started with `{"payload": "testing"}` succeeds with the function's answer as the result's `Payload`. |

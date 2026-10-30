@@ -1,0 +1,5 @@
+{
+  "ses": {
+    "verifiedIdentities": ["sender@s3-lambda-ses.example.org"]
+  }
+}
