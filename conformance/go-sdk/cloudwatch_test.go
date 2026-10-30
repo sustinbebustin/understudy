@@ -86,15 +86,22 @@ func TestCloudWatchAlarms(t *testing.T) {
 	})
 
 	t.Run("SetAlarmState", func(t *testing.T) {
-		_, err := client.SetAlarmState(ctx, &cloudwatch.SetAlarmStateInput{AlarmName: aws.String(alarmName), StateValue: types.StateValueAlarm, StateReason: aws.String("conformance test")})
+		// The set state lasts until the next evaluation, which a running
+		// clock can reach between the set and the reads below; with ignore
+		// and no data that evaluation keeps it (cloudwatch-alarms.md 2.3).
+		set := name(t, "set")
+		in := alarmInput(set)
+		in.TreatMissingData = aws.String("ignore")
+		putAlarm(t, in)
+		_, err := client.SetAlarmState(ctx, &cloudwatch.SetAlarmStateInput{AlarmName: aws.String(set), StateValue: types.StateValueAlarm, StateReason: aws.String("conformance test")})
 		ok(t, err, "SetAlarmState ALARM")
-		a := describeAlarm(t, client, alarmName)
+		a := describeAlarm(t, client, set)
 		if a.StateValue != types.StateValueAlarm || aws.ToString(a.StateReason) != "conformance test" {
 			t.Errorf("state after SetAlarmState = %q %q", a.StateValue, aws.ToString(a.StateReason))
 		}
-		_, err = client.PutMetricAlarm(ctx, alarmInput(alarmName))
+		_, err = client.PutMetricAlarm(ctx, in)
 		ok(t, err, "PutMetricAlarm update")
-		if a := describeAlarm(t, client, alarmName); a.StateValue != types.StateValueAlarm {
+		if a := describeAlarm(t, client, set); a.StateValue != types.StateValueAlarm {
 			t.Errorf("state after updating the alarm = %q, want ALARM kept", a.StateValue)
 		}
 		_, err = client.SetAlarmState(ctx, &cloudwatch.SetAlarmStateInput{AlarmName: aws.String(name(t, "missing")), StateValue: types.StateValueOk, StateReason: aws.String("x")})
