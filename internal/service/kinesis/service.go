@@ -45,6 +45,7 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 	s.bindData(b)
 	s.bindMonitoring(b)
 	s.bindTags(b)
+	declareAccess(d.Binder)
 	return s
 }
 
