@@ -1284,3 +1284,117 @@ test_stream_mapping_delivers_a_write() {
   assert_jq '.Records[0].dynamodb.StreamViewType' 'NEW_IMAGE'
   assert_jq '.Records[0].dynamodb.ApproximateCreationDateTime | floor | tostring | length' '10'
 }
+
+# Event source mappings (Kinesis streams)
+# Arbiter: docs/research/lambda-stream-sources.md (sections 3, 8.1 and 12) and
+# docs/research/kinesis.md 8.
+
+# new_kinesis_stream: create a one-shard stream and wait for it to be ACTIVE;
+# sets KSTREAM and KSTREAM_ARN.
+new_kinesis_stream() {
+  KSTREAM=$(new_name lambda-esm-k)
+  aws_ok kinesis create-stream --stream-name "$KSTREAM" --shard-count 1
+  local deadline=$((SECONDS + 60))
+  while :; do
+    aws_run kinesis describe-stream-summary --stream-name "$KSTREAM"
+    if [ "$AWS_RC" -eq 0 ] && [ "$(jqv '.StreamDescriptionSummary.StreamStatus')" = ACTIVE ]; then
+      break
+    fi
+    [ "$SECONDS" -lt "$deadline" ] || fail "stream $KSTREAM never became ACTIVE"
+    sleep 1
+  done
+  KSTREAM_ARN=$(jqv '.StreamDescriptionSummary.StreamARN')
+}
+
+test_kinesis_mapping_requires_starting_position() {
+  # lambda-stream-sources.md 3.3 row 1 (third-party-recorded LS-API:L18250-L18260).
+  new_fn
+  new_kinesis_stream
+  aws_error InvalidParameterValueException 400 lambda create-event-source-mapping --function-name "$FN" --event-source-arn "$KSTREAM_ARN"
+  aws_error_message_contains "1 validation error detected: Value null at 'startingPosition' failed to satisfy constraint: Member must not be null."
+}
+
+test_kinesis_mapping_stream_not_found() {
+  # lambda-stream-sources.md 3.3 row 4 (third-party-recorded LS-K:L3160-L3175).
+  new_fn
+  new_kinesis_stream
+  local missing="${KSTREAM_ARN}x"
+  aws_error InvalidParameterValueException 400 lambda create-event-source-mapping --function-name "$FN" \
+    --event-source-arn "$missing" --starting-position TRIM_HORIZON
+  aws_error_message_contains "Stream not found: ${missing}"
+}
+
+test_kinesis_mapping_create_response() {
+  # lambda-stream-sources.md 3.5 (third-party-recorded LS-K:L5-L29).
+  new_fn
+  new_kinesis_stream
+  aws_ok lambda create-event-source-mapping --function-name "$FN" --event-source-arn "$KSTREAM_ARN" --starting-position LATEST
+  assert_eq 202 "$AWS_STATUS" 'CreateEventSourceMapping status'
+  assert_jq '.BatchSize' '100'
+  assert_jq '.BisectBatchOnFunctionError' 'false'
+  assert_jq_true '.DestinationConfig == {"OnFailure":{}}'
+  assert_jq_true '.FunctionResponseTypes == []'
+  assert_jq '.LastProcessingResult' 'No records processed'
+  assert_jq '.MaximumBatchingWindowInSeconds' '0'
+  assert_jq '.MaximumRecordAgeInSeconds' '-1'
+  assert_jq '.MaximumRetryAttempts' '-1'
+  assert_jq '.ParallelizationFactor' '1'
+  assert_jq '.StartingPosition' 'LATEST'
+  assert_jq '.State' 'Creating'
+  assert_jq '.StateTransitionReason' 'User action'
+  assert_jq '.TumblingWindowInSeconds' '0'
+  assert_jq '.EventSourceArn' "$KSTREAM_ARN"
+  assert_jq_true 'has("ScalingConfig") or has("FilterCriteria") or has("Queues") or has("StartingPositionTimestamp") | not'
+}
+
+test_kinesis_mapping_duplicate() {
+  # lambda-stream-sources.md 3.3 row 5 (third-party-recorded LS-K:L1478-L1489).
+  new_fn
+  new_kinesis_stream
+  aws_ok lambda create-event-source-mapping --function-name "$FN" --event-source-arn "$KSTREAM_ARN" --starting-position LATEST
+  local uuid
+  uuid=$(jqv '.UUID')
+  aws_error ResourceConflictException 409 lambda create-event-source-mapping --function-name "$FN" --event-source-arn "$KSTREAM_ARN" --starting-position LATEST
+  aws_error_message_contains "The event source arn (\" ${KSTREAM_ARN} \") and function (\" ${FN} \") provided mapping already exists. Please update or delete the existing mapping with UUID ${uuid}"
+}
+
+test_kinesis_mapping_at_timestamp_not_implemented() {
+  # lambda-stream-sources.md 12.1 item 2: AWS accepts AT_TIMESTAMP on Kinesis;
+  # understudy does not build it, so it answers 501 rather than ignoring it.
+  new_fn
+  new_kinesis_stream
+  aws_error NotImplemented 501 lambda create-event-source-mapping --function-name "$FN" --event-source-arn "$KSTREAM_ARN" \
+    --starting-position AT_TIMESTAMP --starting-position-timestamp 2026-01-01T00:00:00Z
+}
+
+test_kinesis_mapping_delivers_a_record() {
+  require_docker
+  new_fn
+  wait_active "$FN"
+  new_kinesis_stream
+  aws_ok lambda create-event-source-mapping --function-name "$FN" --event-source-arn "$KSTREAM_ARN" --starting-position TRIM_HORIZON
+  aws_ok kinesis put-record --stream-name "$KSTREAM" --partition-key kinesis-marker-7e43 --data aGVsbG8= --cli-binary-format base64
+  local seq
+  seq=$(jqv '.SequenceNumber')
+  wait_logs "/aws/lambda/$FN" kinesis-marker-7e43 120
+  aws_ok logs filter-log-events --log-group-name "/aws/lambda/$FN" --filter-pattern '"kinesis-marker-7e43"'
+  local record
+  record=$(jqv '[.events[].message | select(startswith("conformance-log-line"))][0] | ltrimstr("conformance-log-line ")')
+  AWS_OUT=$record
+  # lambda-stream-sources.md 8.1 (LS-K:L33-L48; kinesis.md 8.1): the record
+  # form; approximateArrivalTimestamp has ten integral digits (LS-K.py:L159-L162).
+  assert_jq '.Records | length' '1'
+  assert_jq '.Records[0].eventSource' 'aws:kinesis'
+  assert_jq '.Records[0].eventName' 'aws:kinesis:record'
+  assert_jq '.Records[0].eventVersion' '1.0'
+  assert_jq '.Records[0].eventID' "shardId-000000000000:${seq}"
+  assert_jq '.Records[0].eventSourceARN' "$KSTREAM_ARN"
+  assert_jq '.Records[0].awsRegion' "$AWS_REGION"
+  assert_jq '.Records[0].invokeIdentityArn' "$ROLE_ARN"
+  assert_jq '.Records[0].kinesis.kinesisSchemaVersion' '1.0'
+  assert_jq '.Records[0].kinesis.partitionKey' 'kinesis-marker-7e43'
+  assert_jq '.Records[0].kinesis.sequenceNumber' "$seq"
+  assert_jq '.Records[0].kinesis.data' 'aGVsbG8='
+  assert_jq '.Records[0].kinesis.approximateArrivalTimestamp | floor | tostring | length' '10'
+  assert_jq_true '.Records[0].kinesis | has("encryptionType") | not'
+}
