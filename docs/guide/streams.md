@@ -1,4 +1,6 @@
-# DynamoDB Streams
+# DynamoDB Streams and Kinesis
+
+This page covers the two stream sources understudy serves: DynamoDB Streams, below, and [Kinesis Data Streams](#kinesis-data-streams). Lambda event source mappings read both through the same poller.
 
 understudy serves DynamoDB Streams from a stream log of its own, one per stream-enabled table. After every write to such a table (`PutItem`, `UpdateItem`, `DeleteItem`, `BatchWriteItem`, `TransactWriteItems`, the PartiQL writes and TTL deletes) it copies DynamoDB Local's change records into the log before it answers, so a record is readable as soon as the write returns. Labels, sequence numbers, iterators and retention run on the emulator clock. Lambda event source mappings read the log and invoke a function with each batch.
 
@@ -199,8 +201,181 @@ The mapping reads the stream as its execution role. `understudy iam policy --pri
 ## Limitations
 
 - A stream has one shard, which never splits or rolls over; AWS opens a shard per table partition. A stream is `ENABLED` or `DISABLED` at once, never `ENABLING` or `DISABLING`.
-- Kinesis Data Streams is not emulated yet; a Kinesis mapping answers 501, as does a DynamoDB table's Kinesis streaming destination.
+- A DynamoDB table's Kinesis streaming destination answers 501.
 - On a stream mapping, `ParallelizationFactor` above 1, `BisectBatchOnFunctionError`, `TumblingWindowInSeconds` above 0, a `FilterCriteria` pattern that compiles and an S3 on-failure destination answer 501 `NotImplemented`, naming the setting. A pattern that does not compile answers AWS's `InvalidParameterValueException`.
 - Stream ARNs cannot be tagged: `TagResource`, `UntagResource` and `ListTagsOfResource` on one answer 501. AWS tags existing streams.
 - More than two concurrent readers of a shard are never throttled; inject `LimitExceededException` with a [fault rule](faults.md).
 - Several error texts are DynamoDB Local's or understudy's where AWS's are unrecorded. `understudy coverage --service dynamodbstreams` lists each operation's differences, and [Differences from AWS](differences.md#dynamodb) the recorded ones.
+
+## Kinesis Data Streams
+
+understudy serves Kinesis Data Streams itself; no container is needed. Streams, shards, records, sequence numbers, iterators and retention live in understudy's state, run on the emulator clock and survive a snapshot save and load ([Snapshots](snapshots.md)). The AWS CLI, boto3 and the Go and JavaScript SDKs speak the JSON protocol understudy serves; Java clients need two settings ([Java, KCL and JavaScript clients](#java-kcl-and-javascript-clients)).
+
+```sh
+aws kinesis create-stream --stream-name orders --shard-count 2
+aws kinesis describe-stream-summary --stream-name orders
+```
+
+```text
+{
+    "StreamDescriptionSummary": {
+        "StreamName": "orders",
+        "StreamARN": "arn:aws:kinesis:us-east-1:000000000000:stream/orders",
+        "StreamStatus": "ACTIVE",
+        "StreamModeDetails": {
+            "StreamMode": "PROVISIONED"
+        },
+        "RetentionPeriodHours": 24,
+        "StreamCreationTimestamp": "2026-10-30T01:07:21.001000+00:00",
+        "EnhancedMonitoring": [
+            {
+                "ShardLevelMetrics": []
+            }
+        ],
+        "EncryptionType": "NONE",
+        "OpenShardCount": 2,
+        "MaxRecordSizeInKiB": 1024
+    }
+}
+```
+
+The stream is `ACTIVE` as soon as `create-stream` returns. The shards split the hash key space evenly, as the documented three-shard example does. A stream created with only a name is `ON_DEMAND` with four shards. Retention can be raised and lowered between 24 and 8,760 hours, and tags work through both the stream and the resource APIs. Terraform's `aws_kinesis_stream` applies with an empty second plan.
+
+## Reading Kinesis records
+
+```sh
+aws kinesis put-record --stream-name orders --partition-key o-1 \
+  --data '{"id":"o-1","status":"new"}' --cli-binary-format raw-in-base64-out
+aws kinesis put-record --stream-name orders --partition-key o-1 \
+  --data '{"id":"o-1","status":"paid"}' --cli-binary-format raw-in-base64-out --query ShardId --output text
+IT=$(aws kinesis get-shard-iterator --stream-name orders --shard-id shardId-000000000001 \
+  --shard-iterator-type TRIM_HORIZON --query ShardIterator --output text)
+aws kinesis get-records --shard-iterator "$IT" --query 'Records[].[PartitionKey,SequenceNumber]' --output text
+```
+
+```text
+{
+    "ShardId": "shardId-000000000001",
+    "SequenceNumber": "49679736136779511679952514256454943654176979123706003474"
+}
+shardId-000000000001
+o-1	49679736136779511679952514256454943654176979123706003474
+o-1	49679736136779511679952514256456152579996594508794953746
+```
+
+A partition key's MD5 hash picks the shard, or `ExplicitHashKey` does. Sequence numbers have AWS's 56-digit form and increase within a shard. All five iterator types work, and `get-records` never waits: it returns what the shard holds, with a `NextShardIterator` every time.
+
+Iterators expire 5 minutes after they are issued, and records are trimmed when the stream's retention passes, both on the emulator clock:
+
+```sh
+understudy clock advance 6m
+aws kinesis get-records --shard-iterator "$IT"
+```
+
+```text
+aws: [ERROR]: An error occurred (ExpiredIteratorException) when calling the GetRecords operation: Iterator expired. The iterator was created at time Fri Oct 30 01:07:52 UTC 2026 while right now it is Fri Oct 30 01:13:53 UTC 2026 which is further in the future than the tolerated delay of 300000 milliseconds.
+```
+
+After `understudy clock advance 24h`, a new `TRIM_HORIZON` iterator reads no records.
+
+## Delivering Kinesis records to Lambda
+
+A function that logs each record's partition key and data:
+
+```python
+# handler.py
+import base64
+
+
+def handler(event, context):
+    for record in event["Records"]:
+        k = record["kinesis"]
+        print(k["partitionKey"], base64.b64decode(k["data"]).decode())
+```
+
+```sh
+python3 -m zipfile -c function.zip handler.py
+aws lambda create-function --function-name order-events --runtime python3.13 --handler handler.handler \
+  --role arn:aws:iam::000000000000:role/worker --zip-file fileb://function.zip
+aws lambda create-event-source-mapping --function-name order-events \
+  --event-source-arn arn:aws:kinesis:us-east-1:000000000000:stream/orders --starting-position LATEST --batch-size 10
+aws kinesis put-record --stream-name orders --partition-key o-3 \
+  --data '{"id":"o-3","status":"new"}' --cli-binary-format raw-in-base64-out
+aws logs filter-log-events --log-group-name /aws/lambda/order-events --filter-pattern '"o-3"' --query 'events[].message'
+```
+
+```text
+[
+    "o-3 {\"id\":\"o-3\",\"status\":\"new\"}\n"
+]
+```
+
+Each record arrives in AWS's form: `eventSource` `aws:kinesis`, `eventID` `<shard id>:<sequence number>`, `invokeIdentityArn` the execution role, and `kinesis.data` the record's bytes in base64. One reader per shard batches up to `BatchSize` records, the batching window or 6 MB of event. As for DynamoDB streams, it reads a shard as soon as a record arrives rather than once a second as AWS does, resumes at its checkpoint after a disable and re-enable or a snapshot load, and drops records that age out of the stream's retention, resuming at the oldest record left.
+
+A failing batch is retried one second of emulator time after the failure, until `MaximumRetryAttempts` or `MaximumRecordAgeInSeconds` ends it. `ReportBatchItemFailures` works as AWS documents it, and an on-failure destination receives a record with `KinesisBatchInfo`:
+
+```python
+# failing.py
+def handler(event, context):
+    raise RuntimeError("payment service unavailable")
+```
+
+```sh
+python3 -m zipfile -c failing.zip failing.py
+aws sqs create-queue --queue-name order-failures
+aws lambda create-function --function-name charge --runtime python3.13 --handler failing.handler \
+  --role arn:aws:iam::000000000000:role/worker --zip-file fileb://failing.zip
+aws lambda create-event-source-mapping --function-name charge \
+  --event-source-arn arn:aws:kinesis:us-east-1:000000000000:stream/orders --starting-position LATEST \
+  --maximum-retry-attempts 1 --destination-config '{"OnFailure":{"Destination":"arn:aws:sqs:us-east-1:000000000000:order-failures"}}'
+aws kinesis put-record --stream-name orders --partition-key o-4 \
+  --data '{"id":"o-4","status":"new"}' --cli-binary-format raw-in-base64-out
+aws sqs receive-message --queue-url "$(aws sqs get-queue-url --queue-name order-failures --query QueueUrl --output text)" \
+  --wait-time-seconds 10 --query 'Messages[0].Body' --output text | jq .
+```
+
+```text
+{
+  "requestContext": {
+    "requestId": "bdcca587-4ba6-49f7-b460-cc6871027376",
+    "functionArn": "arn:aws:lambda:us-east-1:000000000000:function:charge",
+    "condition": "RetryAttemptsExhausted",
+    "approximateInvokeCount": 2
+  },
+  "responseContext": {
+    "statusCode": 200,
+    "executedVersion": "$LATEST",
+    "functionError": "Unhandled"
+  },
+  "version": "1.0",
+  "timestamp": "2026-10-31T01:14:33.838Z",
+  "KinesisBatchInfo": {
+    "shardId": "shardId-000000000000",
+    "startSequenceNumber": "49679736136757210934753983633314616861729911685064425474",
+    "endSequenceNumber": "49679736136757210934753983633314616861729911685064425474",
+    "approximateArrivalOfFirstRecord": "2026-10-31T01:14:32.449Z",
+    "approximateArrivalOfLastRecord": "2026-10-31T01:14:32.449Z",
+    "batchSize": 1,
+    "streamArn": "arn:aws:kinesis:us-east-1:000000000000:stream/orders"
+  }
+}
+```
+
+The mapping reads the stream as its execution role: `understudy iam policy --principal <role ARN>` lists `kinesis:DescribeStreamSummary`, `kinesis:ListShards`, `kinesis:GetShardIterator` and `kinesis:GetRecords` on the stream. Under `--iam-enforce enforce`, a mapping whose role may not call `DescribeStreamSummary` is refused at create, and every Kinesis call asks IAM for its own action on the stream it names ([Enforce](policy.md#enforce)).
+
+## Java, KCL and JavaScript clients
+
+understudy speaks the JSON protocol over HTTP/1.1. Some clients default to something else:
+
+- **AWS SDK for Java v2** sends Kinesis requests in CBOR. Turn it off with the environment variable `CBOR_ENABLED=false` or the system property `-Daws.cborEnabled=false`; a CBOR request otherwise gets a 501 `NotImplemented` that names both settings.
+- **`KinesisAsyncClient`**, on Netty, opens `http://` endpoints with HTTP/2. Build its HTTP client with `NettyNioAsyncHttpClient.builder().protocol(Protocol.HTTP1_1)`. Otherwise understudy answers the HTTP/2 preface with a 501 that the client cannot read, and logs `a client sent an HTTP/2 prior-knowledge preface; understudy speaks HTTP/1.1 only`.
+- **The Kinesis Client Library** uses both, and by default reads through enhanced fan-out (`SubscribeToShard`), which understudy does not serve. Give it the two settings above and a polling retrieval configuration, `new PollingConfig(streamName, kinesisClient)` as the `retrievalSpecificConfig` of its `RetrievalConfig`.
+- **AWS SDK for JavaScript v3** on Node also defaults to HTTP/2 for Kinesis and fails with `Protocol error`. Pass an HTTP/1.1 handler: `new KinesisClient({ requestHandler: new NodeHttpHandler() })`, with `NodeHttpHandler` from `@smithy/node-http-handler`.
+
+## Kinesis limitations
+
+- Streams never reshard or scale: `SplitShard`, `MergeShards`, `UpdateShardCount` and `UpdateStreamMode` answer 501, and an on-demand stream keeps its four shards.
+- Enhanced fan-out consumers, `SubscribeToShard`, server-side encryption, resource policies, warm throughput, `RecordDistributionStrategy` `AUTO`, channels and `DryRun` answer 501. A Kinesis mapping on a consumer ARN, or at `AT_TIMESTAMP`, answers 501 as well.
+- Per-shard read and write limits are not enforced; inject `ProvisionedThroughputExceededException` with a [fault rule](faults.md). A rule fails a whole `PutRecords` call; no single entry fails.
+- Enhanced monitoring is stored and reported on the stream; no metrics reach CloudWatch.
+- Many error texts follow kinesalite, an open-source emulator, where AWS's are unrecorded. `understudy coverage --service kinesis` lists each operation's differences.

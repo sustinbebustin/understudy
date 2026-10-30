@@ -9,7 +9,7 @@ Task-oriented pages. Each command shown was run against a build of this reposito
 | [SDKs and the AWS CLI](sdks.md) | Go v2, boto3, JS v3 and the CLI, S3 addressing, TLS, Go tests with `understudytest` |
 | [Terraform](terraform.md) | The provider block, a plan that stays empty, what is slow and why |
 | [Lambda](lambda.md) | Runtimes, zip and image functions, hot reload, networking, logs, event sources, function URLs |
-| [DynamoDB Streams](streams.md) | Stream-enabled tables, reading records, Lambda mappings with retries and on-failure destinations, iterator expiry and trimming on the emulator clock |
+| [DynamoDB Streams and Kinesis](streams.md) | Stream-enabled tables and Kinesis data streams, reading records, Lambda mappings with retries and on-failure destinations, iterator expiry and trimming on the emulator clock, settings for Java, KCL and JavaScript Kinesis clients |
 | [API Gateway HTTP APIs](apigateway.md) | APIs, routes, Lambda proxy integrations with payload 1.0 and 2.0, stages and deployments, the execute-api host and path, Terraform |
 | [SSM Parameter Store](ssm.md) | String and SecureString parameters, by path, versions and labels, Terraform, what answers 501 |
 | [Step Functions](stepfunctions.md) | Standard workflows, executions on the emulator clock, Lambda tasks with Retry and Catch, history, what is refused |

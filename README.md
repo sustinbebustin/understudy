@@ -138,6 +138,7 @@ From [docs/coverage.md](docs/coverage.md), which `understudy coverage` regenerat
 | S3 | 112 | 22 | 39 | 25 | 26 |
 | DynamoDB | 58 | 4 | 2 | 20 | 32 |
 | DynamoDB Streams | 4 | 0 | 0 | 4 | 0 |
+| Kinesis Data Streams | 45 | 0 | 2 | 19 | 24 |
 | Lambda | 88 | 30 | 2 | 18 | 38 |
 | CloudWatch Logs | 118 | 9 | 0 | 9 | 100 |
 | Secrets Manager | 23 | 1 | 0 | 14 | 8 |
