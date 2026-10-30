@@ -91,6 +91,7 @@ func (w *workload) run(t *testing.T) {
 		{"cloudwatch", w.cloudwatch},
 		{"step functions", w.stepFunctions},
 		{"ses", w.ses},
+		{"sesv2", w.sesv2},
 		{"iam policy", w.policy},
 		{"coverage", w.coverage},
 	}
@@ -651,6 +652,29 @@ func (w *workload) ses(t *testing.T) {
 	}), http.StatusOK)
 	if element(t, attrs.body, "key") != addr || element(t, attrs.body, "VerificationStatus") != "Pending" {
 		t.Fatalf("GetIdentityVerificationAttributes = %s, want %s Pending", attrs.body, addr)
+	}
+}
+
+// sesv2 creates a domain identity over restJson1, a REST request signed
+// ses that rule 8 routes to sesv2 (ADR 0019), and reads it back PENDING
+// with three DKIM tokens (ses.md 5.4).
+func (w *workload) sesv2(t *testing.T) {
+	t.Helper()
+	const domain = "smoke.example"
+	must(t, "CreateEmailIdentity", send(t, w.emu, request{
+		path: "/v2/email/identities", service: "ses",
+		header: map[string]string{"Content-Type": "application/json"}, body: []byte(`{"EmailIdentity":"` + domain + `"}`),
+	}), http.StatusOK)
+	got := must(t, "GetEmailIdentity", send(t, w.emu, request{
+		method: http.MethodGet, path: "/v2/email/identities/" + domain, service: "ses",
+	}), http.StatusOK)
+	var identity struct {
+		VerificationStatus string
+		DkimAttributes     struct{ Tokens []string }
+	}
+	decode(t, "GetEmailIdentity", got.body, &identity)
+	if identity.VerificationStatus != "PENDING" || len(identity.DkimAttributes.Tokens) != 3 {
+		t.Fatalf("GetEmailIdentity = %s, want PENDING with three DKIM tokens", got.body)
 	}
 }
 

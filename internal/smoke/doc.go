@@ -8,8 +8,9 @@
 // SSE-KMS), Lambda and an API Gateway HTTP API over restJson1, CloudWatch
 // Logs, Secrets Manager, KMS, EventBridge and Kinesis over awsJson1_1, IAM
 // and STS over awsQuery, CloudWatch alarms over awsJson1_0 and rpcv2Cbor,
-// and an SES email identity over awsQuery. It then asks `understudy iam
-// policy` for the smoke principal's policy and reads the coverage report.
+// an SES email identity over awsQuery, and an SES v2 domain identity over
+// restJson1. It then asks `understudy iam policy` for the smoke
+// principal's policy and reads the coverage report.
 //
 // With the docker tag as well, the workload invokes its zip function on a
 // provided.al2023 runtime, directly and through the HTTP API's execute-api
