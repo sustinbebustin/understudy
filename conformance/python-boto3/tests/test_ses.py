@@ -110,3 +110,39 @@ def test_send_raw_email_raises_message_rejected(ses: Any) -> None:
     with pytest.raises(ClientError) as exc:
         ses.send_raw_email(Destinations=["invalid@example.com"], RawMessage={"Data": raw})
     assert error_code(exc.value) == "MessageRejected"
+
+
+def _template_names(ses: Any) -> list[str]:
+    pages = ses.get_paginator("list_templates").paginate()
+    metadata = [m for p in pages for m in p["TemplatesMetadata"]]
+    assert all({"Name", "CreatedTimestamp"} <= set(m) for m in metadata)
+    return [m["Name"] for m in metadata]
+
+
+def test_template_lifecycle(ses: Any) -> None:
+    # Goldens test_list_templates and test_delete_template: TemplatesMetadata
+    # of {CreatedTimestamp, Name}, and the template gone after DeleteTemplate
+    # (third-party-recorded 2023-08-25, ses.md 7; localstack@8b9a79f
+    # tests/aws/services/ses/test_ses.snapshot.json:L736-L807, validated
+    # 2023-08-25).
+    name = uniq("conf-ses-template")
+    ses.create_template(Template={"TemplateName": name, "SubjectPart": "Hi {{name}}", "TextPart": "Dear {{name}}"})
+    assert name in _template_names(ses)
+    # GetTemplate echoes the parts given and omits the rest; UpdateTemplate
+    # replaces them (ses.md 9.4).
+    assert ses.get_template(TemplateName=name)["Template"] == {
+        "TemplateName": name,
+        "SubjectPart": "Hi {{name}}",
+        "TextPart": "Dear {{name}}",
+    }
+    with pytest.raises(ClientError) as exc:
+        ses.create_template(Template={"TemplateName": name})
+    assert error_code(exc.value) == "AlreadyExists"
+    ses.update_template(Template={"TemplateName": name, "HtmlPart": "<p>new</p>"})
+    assert ses.get_template(TemplateName=name)["Template"] == {"TemplateName": name, "HtmlPart": "<p>new</p>"}
+    ses.delete_template(TemplateName=name)
+    assert name not in _template_names(ses)
+    # A missing template is TemplateDoesNotExist (ses.md 7).
+    with pytest.raises(ClientError) as exc:
+        ses.get_template(TemplateName=name)
+    assert error_code(exc.value) == "TemplateDoesNotExist"

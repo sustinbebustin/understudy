@@ -3,14 +3,19 @@
 
 import { describe, expect, test } from "bun:test";
 import {
+  CreateTemplateCommand,
   DeleteIdentityCommand,
+  DeleteTemplateCommand,
   GetIdentityNotificationAttributesCommand,
   GetIdentityVerificationAttributesCommand,
   GetSendQuotaCommand,
+  GetTemplateCommand,
+  ListTemplatesCommand,
   paginateListIdentities,
   SendEmailCommand,
   SendRawEmailCommand,
   SESClient,
+  UpdateTemplateCommand,
   VerifyDomainIdentityCommand,
   VerifyEmailIdentityCommand,
 } from "@aws-sdk/client-ses";
@@ -147,5 +152,52 @@ describe("SES SendRawEmail", () => {
       ),
       { name: "MessageRejected", status: 400 },
     );
+  });
+});
+
+describe("SES templates", () => {
+  const templateNames = async () => {
+    const names: string[] = [];
+    let NextToken: string | undefined;
+    do {
+      const page = await ses.send(new ListTemplatesCommand({ NextToken }));
+      for (const m of page.TemplatesMetadata ?? []) {
+        expect(m.CreatedTimestamp).toBeInstanceOf(Date);
+        names.push(m.Name ?? "");
+      }
+      NextToken = page.NextToken;
+    } while (NextToken);
+    return names;
+  };
+
+  test("create, read, update, list and delete a template", async () => {
+    // Goldens test_list_templates and test_delete_template: TemplatesMetadata
+    // of {CreatedTimestamp, Name}, and the template gone after DeleteTemplate
+    // (third-party-recorded 2023-08-25, ses.md 7; localstack@8b9a79f
+    // tests/aws/services/ses/test_ses.snapshot.json:L736-L807, validated
+    // 2023-08-25).
+    const name = uniq("ses-template");
+    await ses.send(
+      new CreateTemplateCommand({ Template: { TemplateName: name, SubjectPart: "Hi {{name}}", TextPart: "Dear {{name}}" } }),
+    );
+    expect(await templateNames()).toContain(name);
+    // GetTemplate echoes the parts given and omits the rest; UpdateTemplate
+    // replaces them (ses.md 9.4).
+    const got = await ses.send(new GetTemplateCommand({ TemplateName: name }));
+    expect(got.Template).toEqual({ TemplateName: name, SubjectPart: "Hi {{name}}", TextPart: "Dear {{name}}" });
+    await expectFailure(ses.send(new CreateTemplateCommand({ Template: { TemplateName: name } })), {
+      name: "AlreadyExistsException",
+      status: 400,
+    });
+    await ses.send(new UpdateTemplateCommand({ Template: { TemplateName: name, HtmlPart: "<p>new</p>" } }));
+    const updated = await ses.send(new GetTemplateCommand({ TemplateName: name }));
+    expect(updated.Template).toEqual({ TemplateName: name, HtmlPart: "<p>new</p>" });
+    await ses.send(new DeleteTemplateCommand({ TemplateName: name }));
+    expect(await templateNames()).not.toContain(name);
+    // A missing template is TemplateDoesNotExist (ses.md 7).
+    await expectFailure(ses.send(new GetTemplateCommand({ TemplateName: name })), {
+      name: "TemplateDoesNotExistException",
+      status: 400,
+    });
   });
 });

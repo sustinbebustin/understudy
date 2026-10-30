@@ -36,6 +36,16 @@ resource "aws_sesv2_email_identity" "domain" {
   tags           = local.updated ? { env = "prod", team = "mail" } : { env = "dev" }
 }
 
+# A v1 template; the update step changes its text in place (UpdateTemplate).
+# The provider reads the parts back with GetTemplate, so each must echo
+# exactly and an unset one stay unset (docs/research/ses.md 9.4).
+resource "aws_ses_template" "welcome" {
+  name    = "${var.name_prefix}-welcome"
+  subject = "Hello {{name}}"
+  html    = "<p>Hello {{name}}</p>"
+  text    = local.updated ? "Hello again {{name}}" : "Hello {{name}}"
+}
+
 output "sesv2_domain_arn" {
   value = aws_sesv2_email_identity.domain.arn
 }

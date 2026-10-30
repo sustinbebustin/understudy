@@ -2,8 +2,36 @@
 # SES v1: email and domain identities (VerifyEmailIdentity,
 # VerifyDomainIdentity, GetIdentityVerificationAttributes,
 # GetIdentityNotificationAttributes, ListIdentities, DeleteIdentity), the
-# verification link, SendEmail, SendRawEmail and GetSendQuota.
-# Arbiter: docs/research/ses.md sections 4, 5, 6, 9.1, 9.2 and 11.3.
+# verification link, SendEmail, SendRawEmail, GetSendQuota and the
+# templates (CreateTemplate, GetTemplate, UpdateTemplate, ListTemplates,
+# DeleteTemplate).
+# Arbiter: docs/research/ses.md sections 4, 5, 6, 7, 9.1, 9.2, 9.4 and 11.3.
+
+test_template_lifecycle() {
+  local tmpl
+  tmpl="$(new_name ses-template)"
+  aws_ok ses create-template --template "{\"TemplateName\":\"$tmpl\",\"SubjectPart\":\"Hi {{name}}\",\"TextPart\":\"Dear {{name}}\"}"
+  # Goldens test_list_templates and test_delete_template: TemplatesMetadata
+  # of {CreatedTimestamp, Name}, and the template gone after DeleteTemplate
+  # (third-party-recorded 2023-08-25, ses.md 7; localstack@8b9a79f
+  # tests/aws/services/ses/test_ses.snapshot.json:L736-L807, validated
+  # 2023-08-25). The CLI follows NextToken itself.
+  aws_ok ses list-templates
+  assert_jq "[.TemplatesMetadata[] | select(.Name == \"$tmpl\" and .CreatedTimestamp != null)] | length" '1'
+  # GetTemplate echoes the parts given and omits the rest (ses.md 9.4).
+  aws_ok ses get-template --template-name "$tmpl"
+  assert_jq '.Template | keys | join(",")' 'SubjectPart,TemplateName,TextPart'
+  assert_jq '.Template.SubjectPart' 'Hi {{name}}'
+  aws_error AlreadyExists 400 ses create-template --template "{\"TemplateName\":\"$tmpl\"}"
+  aws_ok ses update-template --template "{\"TemplateName\":\"$tmpl\",\"HtmlPart\":\"<p>new</p>\"}"
+  aws_ok ses get-template --template-name "$tmpl"
+  assert_jq '.Template | keys | join(",")' 'HtmlPart,TemplateName'
+  aws_ok ses delete-template --template-name "$tmpl"
+  aws_ok ses list-templates
+  assert_jq "[.TemplatesMetadata[] | select(.Name == \"$tmpl\")] | length" '0'
+  # A missing template is TemplateDoesNotExist (ses.md 7).
+  aws_error TemplateDoesNotExist 400 ses get-template --template-name "$tmpl"
+}
 
 test_domain_identity_token_is_stable() {
   local domain token

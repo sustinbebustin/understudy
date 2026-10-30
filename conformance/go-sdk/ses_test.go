@@ -169,3 +169,58 @@ func TestSESSendRawEmailRaisesMessageRejected(t *testing.T) {
 	})
 	apiErr(t, err, "SendRawEmail", "MessageRejected")
 }
+
+// Goldens test_list_templates and test_delete_template: ListTemplates
+// lists a template by Name with its CreatedTimestamp and not after
+// DeleteTemplate (third-party-recorded 2023-08-25, ses.md 7;
+// localstack@8b9a79f tests/aws/services/ses/test_ses.snapshot.json:L736-L807,
+// validated 2023-08-25). GetTemplate echoes the parts given and omits the
+// rest; UpdateTemplate replaces them; a missing template is
+// TemplateDoesNotExist and a duplicate AlreadyExists (ses.md 7, 9.4).
+func TestSESTemplateLifecycle(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	client := ses.NewFromConfig(awsCfg)
+	tmpl := name(t, "ses-template")
+	listed := func() bool {
+		t.Helper()
+		out, err := client.ListTemplates(ctx, &ses.ListTemplatesInput{MaxItems: aws.Int32(100)})
+		ok(t, err, "ListTemplates")
+		return slices.ContainsFunc(out.TemplatesMetadata, func(m types.TemplateMetadata) bool {
+			return aws.ToString(m.Name) == tmpl && m.CreatedTimestamp != nil
+		})
+	}
+
+	_, err := client.CreateTemplate(ctx, &ses.CreateTemplateInput{Template: &types.Template{
+		TemplateName: aws.String(tmpl), SubjectPart: aws.String("Hi {{name}}"), TextPart: aws.String("Dear {{name}}"),
+	}})
+	ok(t, err, "CreateTemplate")
+	if !listed() {
+		t.Errorf("ListTemplates omits %s", tmpl)
+	}
+	got, err := client.GetTemplate(ctx, &ses.GetTemplateInput{TemplateName: aws.String(tmpl)})
+	ok(t, err, "GetTemplate")
+	if aws.ToString(got.Template.SubjectPart) != "Hi {{name}}" || aws.ToString(got.Template.TextPart) != "Dear {{name}}" || got.Template.HtmlPart != nil {
+		t.Errorf("GetTemplate = %+v, want the parts as given and no HtmlPart", got.Template)
+	}
+	_, err = client.CreateTemplate(ctx, &ses.CreateTemplateInput{Template: &types.Template{TemplateName: aws.String(tmpl)}})
+	apiErr(t, err, "CreateTemplate", "AlreadyExists")
+
+	_, err = client.UpdateTemplate(ctx, &ses.UpdateTemplateInput{Template: &types.Template{
+		TemplateName: aws.String(tmpl), HtmlPart: aws.String("<p>new</p>"),
+	}})
+	ok(t, err, "UpdateTemplate")
+	got, err = client.GetTemplate(ctx, &ses.GetTemplateInput{TemplateName: aws.String(tmpl)})
+	ok(t, err, "GetTemplate after UpdateTemplate")
+	if aws.ToString(got.Template.HtmlPart) != "<p>new</p>" || got.Template.SubjectPart != nil {
+		t.Errorf("GetTemplate after UpdateTemplate = %+v, want only HtmlPart", got.Template)
+	}
+
+	_, err = client.DeleteTemplate(ctx, &ses.DeleteTemplateInput{TemplateName: aws.String(tmpl)})
+	ok(t, err, "DeleteTemplate")
+	if listed() {
+		t.Errorf("ListTemplates still lists %s after DeleteTemplate", tmpl)
+	}
+	_, err = client.GetTemplate(ctx, &ses.GetTemplateInput{TemplateName: aws.String(tmpl)})
+	apiErr(t, err, "GetTemplate", "TemplateDoesNotExist")
+}
