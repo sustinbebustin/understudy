@@ -93,7 +93,7 @@ func declareAccess(b *kernel.Binder) {
 			if in.StreamARN != nil {
 				return claimedStream(*in.StreamARN)
 			}
-			stream, ok := shardlog.ClaimedOpaqueStream([]byte(in.ShardIterator))
+			stream, ok := shardlog.ClaimedOpaqueStream([]byte(unquoteIterator(in.ShardIterator)))
 			if !ok || stream.Service != "kinesis" {
 				return nil
 			}

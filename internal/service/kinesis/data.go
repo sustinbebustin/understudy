@@ -136,6 +136,14 @@ func (s *Service) put(ctx context.Context, c *kernel.Call, name, arn *string, en
 			// Deleted, or deleted and created again, since it was read.
 			return result{}, r.notFound()
 		}
+		// Every check before the first mutation: kernel.Write does not roll
+		// back, so nothing after expire may fail. Slice 1 never closes a
+		// shard, so a closed one is an emulator bug.
+		for _, p := range plan {
+			if _, open := cur.Shards[p.shard].log.Range().(shardlog.Open); !open {
+				return result{}, awserr.Internalf(fmt.Errorf("put to closed Kinesis shard %s of stream %s", shardID(p.shard), r.name))
+			}
+		}
 		released := expire(cur, now)
 		out := make([]appended, len(plan))
 		for i, p := range plan {
@@ -143,7 +151,7 @@ func (s *Service) put(ctx context.Context, c *kernel.Call, name, arn *string, en
 				PartitionKey: deref(p.entry.key), Data: refs[i], Size: len(p.entry.data), ExplicitHashKey: deref(p.entry.ehk),
 			})
 			if aerr != nil {
-				// Slice 1 never closes a shard.
+				// Unreachable: every target shard was checked open above.
 				return result{}, awserr.Internalf(aerr)
 			}
 			out[i] = appended{shard: shardID(p.shard), seq: e.Seq}
@@ -468,9 +476,7 @@ func (s *Service) readRecords(ctx context.Context, p page) ([]kinesisapi.Record,
 // scope, is kinesalite's "Invalid ShardIterator." (KIN-12); one at or past
 // its 5 minutes is ExpiredIteratorException (KIN-11).
 func (s *Service) iteratorOf(scope aws.Scope, text string, now clock.Instant) (shardlog.Iterator, string, *awserr.Error) {
-	if len(text) >= 2 && strings.HasPrefix(text, `"`) && strings.HasSuffix(text, `"`) {
-		text = text[1 : len(text)-1]
-	}
+	text = unquoteIterator(text)
 	key := readState(s, scope, func(st *State) []byte { return st.TokenKey })
 	if key == nil {
 		return shardlog.Iterator{}, "", errInvalidIterator()
@@ -487,6 +493,16 @@ func (s *Service) iteratorOf(scope aws.Scope, text string, now clock.Instant) (s
 		return shardlog.Iterator{}, "", errInvalidIterator()
 	}
 	return it, name, nil
+}
+
+// unquoteIterator drops one pair of surrounding double quotes from a
+// ShardIterator, which GetRecords accepts (R-weak, kinesis.md 3.5); the
+// handler and the IAM resource claim both read the iterator through it.
+func unquoteIterator(text string) string {
+	if len(text) >= 2 && strings.HasPrefix(text, `"`) && strings.HasSuffix(text, `"`) {
+		return text[1 : len(text)-1]
+	}
+	return text
 }
 
 // pageRead is a page and the position its NextShardIterator carries.

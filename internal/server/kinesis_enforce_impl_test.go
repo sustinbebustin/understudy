@@ -139,6 +139,11 @@ func TestKinesisCallsUnderEachEnforceMode(t *testing.T) {
 	if w := kinesisCall(t, u, endpoint, "GetRecords", `{"ShardIterator":"`+iterator.ShardIterator+`"}`); w.status != http.StatusOK {
 		t.Errorf("enforce, allowed on the stream: GetRecords = %d %s, want 200", w.status, w.body)
 	}
+	// An iterator in one pair of double quotes, which the handler accepts
+	// (R-weak, kinesis.md 3.5), is asked on the same stream ARN.
+	if w := kinesisCall(t, u, endpoint, "GetRecords", `{"ShardIterator":"\"`+iterator.ShardIterator+`\""}`); w.status != http.StatusOK {
+		t.Errorf("enforce, allowed on the stream: GetRecords with a quoted iterator = %d %s, want 200", w.status, w.body)
+	}
 	for op, body := range map[string]string{
 		"DescribeStreamSummary": `{"StreamName":"other"}`,
 		"PutRecord":             `{"StreamARN":"arn:aws:kinesis:us-east-1:000000000000:stream/other","PartitionKey":"k","Data":"YQ=="}`,
