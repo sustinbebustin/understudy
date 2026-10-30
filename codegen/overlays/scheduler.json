@@ -15,12 +15,12 @@
           },
           {
             "label": "inferred",
-            "source": "docs/research/eventbridge-buses.md#111-model-and-wire: the model declares ThrottlingException (429) on every operation while CommonErrors.html lists a 400 ThrottlingException; no recording shows which Scheduler emits; the EBB queue has no throttle case, so J14 (error-matrix.md 10) run against scheduler settles it",
+            "source": "docs/research/scheduler.md#24-errors: the model declares ThrottlingException (429) on every operation while CommonErrors.html lists a 400 ThrottlingException; no recording shows which Scheduler emits (scheduler.md 13 keeps the model's); the SCH queue has no throttle case, so J14 (error-matrix.md 10) run against scheduler settles it",
             "covers": ["dev.understudy#throttleError"]
           },
           {
             "label": "inferred",
-            "source": "docs/research/eventbridge-buses.md#111-model-and-wire: the only Scheduler error recording (LocalStack test_scheduler.snapshot.json L33-L44, AWS-validated 2025-01-26) is the handler's 'Invalid Schedule Expression <expr>.' check, which shows ValidationException 400 with body key Message; UNVERIFIED: no capture shows a model-constraint violation (required, length, range, pattern, enum) or its text, so the Coral text is the cross-service rule of error-matrix.md 4; a constraint-violation step not yet in recording-queue EBB-11 (create-schedule with a 65-character Name, model length 1-64) settles it",
+            "source": "docs/research/scheduler.md#47-validation-order-and-texts: the only Scheduler error recording (LocalStack test_scheduler.snapshot.json L31-L46, AWS-validated 2025-01-26, scheduler.md 2.4) is the handler's 'Invalid Schedule Expression <expr>.' check, which shows ValidationException 400 with body key Message; UNVERIFIED: no capture shows a model-constraint violation (required, length, range, pattern, enum) or its text, so the Coral text is the cross-service rule of error-matrix.md 4; recording SCH-04 step 04-name-65 (create-schedule with a 65-character Name, model length 1-64) settles it",
             "covers": ["dev.understudy#validationError"]
           }
         ]
