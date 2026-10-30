@@ -22,6 +22,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	ddbtypes "github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/aws/aws-sdk-go-v2/service/kinesis"
 	"github.com/aws/aws-sdk-go-v2/service/lambda"
 	"github.com/aws/aws-sdk-go-v2/service/lambda/types"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
@@ -981,6 +982,103 @@ func TestLambdaDynamoDBStreamEventSourceMapping(t *testing.T) {
 		r.Dynamodb.Keys["id"]["S"] != "hello" || r.Dynamodb.NewImage["id"]["S"] != "hello" || r.Dynamodb.StreamViewType != "NEW_IMAGE" || r.Dynamodb.SequenceNumber == "" ||
 		len(strconv.FormatInt(int64(r.Dynamodb.ApproximateCreationDateTime), 10)) != 10 {
 		t.Errorf("stream record = %+v", r)
+	}
+	eventually(t, 30*time.Second, 500*time.Millisecond, "LastProcessingResult OK", func() (bool, string) {
+		got, err := client.GetEventSourceMapping(ctx, &lambda.GetEventSourceMappingInput{UUID: aws.String(uuid)})
+		if err != nil {
+			return false, err.Error()
+		}
+		return aws.ToString(got.LastProcessingResult) == "OK", "LastProcessingResult " + aws.ToString(got.LastProcessingResult)
+	})
+}
+
+// A Kinesis stream mapping: the refusals of lambda-stream-sources.md 3.3
+// rows 1 and 4, the create shape of 3.5 (third-party-recorded LS-K:L5-L29),
+// and a put record reaching the function in the form of 8.1 (LS-K:L33-L48;
+// kinesis.md 8.1).
+func TestLambdaKinesisEventSourceMapping(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	client := lambda.NewFromConfig(awsCfg)
+	kin := kinesis.NewFromConfig(awsCfg)
+	resultURL := createQueue(t, name(t, "kin-esm-result"), nil)
+	fn := deployFunction(t, name(t, "kin-esm"), "handler.forward", map[string]string{"FORWARD_QUEUE_URL": resultURL})
+	fnName := aws.ToString(fn.FunctionName)
+	streamName := name(t, "kin-esm")
+	createKinesisStream(t, streamName, 1)
+	streamArn := "arn:aws:kinesis:" + region() + ":" + account(t) + ":stream/" + streamName
+
+	t.Run("validation", func(t *testing.T) {
+		_, err := client.CreateEventSourceMapping(ctx, &lambda.CreateEventSourceMappingInput{FunctionName: aws.String(fnName), EventSourceArn: aws.String(streamArn)})
+		errAs[*types.InvalidParameterValueException](t, err, "CreateEventSourceMapping without StartingPosition")
+		wantMessage(t, err, "CreateEventSourceMapping without StartingPosition", "1 validation error detected: Value null at 'startingPosition' failed to satisfy constraint: Member must not be null.")
+		missing := streamArn + "x"
+		_, err = client.CreateEventSourceMapping(ctx, &lambda.CreateEventSourceMappingInput{FunctionName: aws.String(fnName), EventSourceArn: aws.String(missing), StartingPosition: types.EventSourcePositionTrimHorizon})
+		errAs[*types.InvalidParameterValueException](t, err, "CreateEventSourceMapping on a missing stream")
+		wantMessage(t, err, "CreateEventSourceMapping on a missing stream", "Stream not found: "+missing)
+	})
+
+	created, err := client.CreateEventSourceMapping(ctx, &lambda.CreateEventSourceMappingInput{
+		FunctionName: aws.String(fnName), EventSourceArn: aws.String(streamArn), StartingPosition: types.EventSourcePositionTrimHorizon,
+	})
+	ok(t, err, "CreateEventSourceMapping")
+	uuid := aws.ToString(created.UUID)
+	t.Cleanup(func() {
+		_, _ = client.DeleteEventSourceMapping(context.Background(), &lambda.DeleteEventSourceMappingInput{UUID: aws.String(uuid)})
+	})
+	if aws.ToInt32(created.BatchSize) != 100 || aws.ToBool(created.BisectBatchOnFunctionError) || created.DestinationConfig == nil || created.DestinationConfig.OnFailure == nil ||
+		created.DestinationConfig.OnFailure.Destination != nil || aws.ToString(created.LastProcessingResult) != "No records processed" ||
+		aws.ToInt32(created.MaximumRecordAgeInSeconds) != -1 || aws.ToInt32(created.MaximumRetryAttempts) != -1 || aws.ToInt32(created.ParallelizationFactor) != 1 ||
+		created.StartingPosition != types.EventSourcePositionTrimHorizon || aws.ToString(created.StateTransitionReason) != "User action" ||
+		aws.ToInt32(created.TumblingWindowInSeconds) != 0 || created.FunctionResponseTypes == nil || aws.ToString(created.EventSourceArn) != streamArn {
+		t.Errorf("CreateEventSourceMapping = %+v, want the recorded stream defaults", created)
+	}
+	eventually(t, time.Minute, 500*time.Millisecond, "the mapping to be Enabled", func() (bool, string) {
+		got, err := client.GetEventSourceMapping(ctx, &lambda.GetEventSourceMappingInput{UUID: aws.String(uuid)})
+		if err != nil {
+			return false, err.Error()
+		}
+		return aws.ToString(got.State) == "Enabled", "State " + aws.ToString(got.State)
+	})
+
+	put, err := kin.PutRecord(ctx, &kinesis.PutRecordInput{StreamName: aws.String(streamName), PartitionKey: aws.String("pk-1"), Data: []byte("hello")})
+	ok(t, err, "PutRecord")
+	type record struct {
+		EventID           string `json:"eventID"`
+		EventName         string `json:"eventName"`
+		EventVersion      string `json:"eventVersion"`
+		EventSource       string `json:"eventSource"`
+		AwsRegion         string `json:"awsRegion"`
+		EventSourceARN    string `json:"eventSourceARN"`
+		InvokeIdentityArn string `json:"invokeIdentityArn"`
+		Kinesis           struct {
+			KinesisSchemaVersion        string  `json:"kinesisSchemaVersion"`
+			PartitionKey                string  `json:"partitionKey"`
+			SequenceNumber              string  `json:"sequenceNumber"`
+			Data                        string  `json:"data"`
+			ApproximateArrivalTimestamp float64 `json:"approximateArrivalTimestamp"`
+		} `json:"kinesis"`
+	}
+	var got []record
+	deadline := time.Now().Add(60 * time.Second)
+	for len(got) == 0 && time.Now().Before(deadline) {
+		for _, m := range drain(t, resultURL, 2*time.Second) {
+			var ev struct{ Records []record }
+			if err := json.Unmarshal([]byte(aws.ToString(m.Body)), &ev); err != nil {
+				t.Fatalf("the function received %s, want a Kinesis event", aws.ToString(m.Body))
+			}
+			got = append(got, ev.Records...)
+		}
+	}
+	if len(got) != 1 {
+		t.Fatalf("the function received %d records, want the one PutRecord's", len(got))
+	}
+	r, seq := got[0], aws.ToString(put.SequenceNumber)
+	if r.EventName != "aws:kinesis:record" || r.EventVersion != "1.0" || r.EventSource != "aws:kinesis" || r.AwsRegion != region() || r.EventSourceARN != streamArn ||
+		r.EventID != aws.ToString(put.ShardId)+":"+seq || r.InvokeIdentityArn != aws.ToString(fn.Role) || r.Kinesis.KinesisSchemaVersion != "1.0" ||
+		r.Kinesis.PartitionKey != "pk-1" || r.Kinesis.SequenceNumber != seq || r.Kinesis.Data != base64.StdEncoding.EncodeToString([]byte("hello")) ||
+		len(strconv.FormatInt(int64(r.Kinesis.ApproximateArrivalTimestamp), 10)) != 10 {
+		t.Errorf("Kinesis record = %+v", r)
 	}
 	eventually(t, 30*time.Second, 500*time.Millisecond, "LastProcessingResult OK", func() (bool, string) {
 		got, err := client.GetEventSourceMapping(ctx, &lambda.GetEventSourceMappingInput{UUID: aws.String(uuid)})
