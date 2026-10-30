@@ -6,6 +6,8 @@ import (
 
 	"github.com/sustinbebustin/understudy/internal/api/kinesisapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
+	"github.com/sustinbebustin/understudy/internal/blob"
+	"github.com/sustinbebustin/understudy/internal/kernel/kerneltest"
 	"github.com/sustinbebustin/understudy/internal/service/kinesis"
 	"github.com/sustinbebustin/understudy/internal/shardlog"
 )
@@ -63,6 +65,36 @@ func TestDeleteStreamDropsItsRecords(t *testing.T) {
 			h.Errorf("after DeleteStream a snapshot holds %d records' data, want only t's 1", n)
 		}
 	})
+}
+
+// GetRecords pins a page's data under the cell lock and reads it after
+// (ADR 0005: no I/O under a lock); the pins are released once the data is
+// read, so a stream read and then deleted leaves nothing in the blob store.
+func TestGetRecordsReleasesItsPins(t *testing.T) {
+	kerneltest.Run(t, func(k *kerneltest.K) {
+		blobs, err := blob.NewMemory(k.TempDir(), 0)
+		if err != nil {
+			k.Fatal(err)
+		}
+		d := k.Deps(kinesisapi.Service())
+		d.Blob = blobs
+		h := &harness{K: k, svc: kinesis.New(d, kinesis.Options{})}
+		h.create("s", 1)
+		h.put("s", "k", "a")
+		h.put("s", "k", "b")
+		it := call(h, kinesisapi.OpGetShardIterator, &kinesisapi.GetShardIteratorInput{StreamName: new("s"), ShardId: "shardId-000000000000", ShardIteratorType: kinesisapi.ShardIteratorTypeTrimHorizon})
+		if it.ShardIterator == nil {
+			h.Fatal("GetShardIterator returned no iterator")
+		}
+		out := call(h, kinesisapi.OpGetRecords, &kinesisapi.GetRecordsInput{ShardIterator: *it.ShardIterator})
+		if len(out.Records) != 2 || string(out.Records[0].Data) != "a" || string(out.Records[1].Data) != "b" {
+			h.Fatalf("GetRecords = %+v, want a then b", out.Records)
+		}
+		call(h, kinesisapi.OpDeleteStream, &kinesisapi.DeleteStreamInput{StreamName: new("s")})
+		if refs := blobs.Refs(); len(refs) != 0 {
+			h.Errorf("after GetRecords and DeleteStream the blob store holds %v, want nothing", refs)
+		}
+	}, kerneltest.Services(kinesisapi.Service()))
 }
 
 // A put wakes whoever waits on the stream's shardlog.WaitKey, the key the

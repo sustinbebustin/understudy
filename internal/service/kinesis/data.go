@@ -6,7 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"math"
+	"slices"
 	"strings"
 	"time"
 
@@ -369,9 +371,13 @@ func startingSequence(text string, layout SequenceLayout, i int, name, account s
 	return seq, nil
 }
 
-// page is one GetRecords answer read under the cell's lock.
+// page is one GetRecords answer read under the cell's lock: the entries,
+// whose data is read from the blob store after the lock is released (ADR
+// 0005: no I/O under a lock), with their refs pinned until then so a
+// concurrent trim cannot delete them.
 type page struct {
-	records []kinesisapi.Record
+	entries []shardlog.Entry[Record]
+	unpin   func() error
 	next    string
 	behind  int64
 }
@@ -422,8 +428,38 @@ func (s *Service) getRecords(ctx context.Context, c *kernel.Call, in *kinesisapi
 	if got.err != nil {
 		return nil, got.err
 	}
+	records, err := s.readRecords(ctx, got.v)
+	if err != nil {
+		return nil, err
+	}
 	c.Touch(it.Stream)
-	return &kinesisapi.GetRecordsOutput{Records: got.v.records, NextShardIterator: new(got.v.next), MillisBehindLatest: new(got.v.behind)}, nil
+	return &kinesisapi.GetRecordsOutput{Records: records, NextShardIterator: new(got.v.next), MillisBehindLatest: new(got.v.behind)}, nil
+}
+
+// readRecords reads p's data from the blob store, outside the cell lock,
+// then releases p's pins.
+func (s *Service) readRecords(ctx context.Context, p page) ([]kinesisapi.Record, *awserr.Error) {
+	defer func() {
+		if err := p.unpin(); err != nil {
+			s.k.Log().LogAttrs(ctx, slog.LevelWarn, "unpinning a GetRecords page's data failed; the bytes stay in the blob store until the next restart prunes them",
+				slog.String("error", err.Error()))
+		}
+	}()
+	records := make([]kinesisapi.Record, 0, len(p.entries))
+	for _, e := range p.entries {
+		data, err := s.readData(e.Value)
+		if err != nil {
+			return nil, err
+		}
+		records = append(records, kinesisapi.Record{
+			SequenceNumber: string(e.Seq),
+			// Millisecond precision (aws-doc kinesis.md 5.10).
+			ApproximateArrivalTimestamp: new(millis(e.Arrival).Wire()),
+			Data:                        data,
+			PartitionKey:                new(e.Value.PartitionKey),
+		})
+	}
+	return records, nil
 }
 
 // iteratorOf decodes a ShardIterator sent to GetRecords, without one pair
@@ -462,7 +498,8 @@ type pageRead struct {
 // readPage reads up to limit records, and at most 10 MiB of data plus
 // keys (the first record always), from pos. GetRecords never fails for
 // trimming: a position behind the trim point reads from the oldest
-// untrimmed record (contract 3.5).
+// untrimmed record (contract 3.5). It runs under the cell lock, so it pins
+// the entries' data and leaves reading it to readRecords.
 func (s *Service) readPage(log *shardlog.Shard[Record], pos shardlog.Position, limit int, now clock.Instant) (pageRead, *awserr.Error) {
 	es, next, err := log.Read(pos, limit, maxRecordsBytes, Record.bytes)
 	if _, trimmed := errors.AsType[*shardlog.TrimmedError](err); trimmed {
@@ -471,21 +508,16 @@ func (s *Service) readPage(log *shardlog.Shard[Record], pos shardlog.Position, l
 	if err != nil {
 		return pageRead{}, awserr.Internalf(err)
 	}
-	records := make([]kinesisapi.Record, 0, len(es))
-	for _, e := range es {
-		data, err := s.readData(e.Value)
-		if err != nil {
-			return pageRead{}, err
-		}
-		records = append(records, kinesisapi.Record{
-			SequenceNumber: string(e.Seq),
-			// Millisecond precision (aws-doc kinesis.md 5.10).
-			ApproximateArrivalTimestamp: new(millis(e.Arrival).Wire()),
-			Data:                        data,
-			PartitionKey:                new(e.Value.PartitionKey),
-		})
+	refs := make([]blob.Ref, len(es))
+	for i, e := range es {
+		refs[i] = e.Value.Data
 	}
-	return pageRead{page: page{records: records, behind: s.millisBehind(log, es, next, now)}, nextPos: next}, nil
+	unpin, err := s.blobs.Pin(refs)
+	if err != nil {
+		return pageRead{}, awserr.Internalf(fmt.Errorf("pin a GetRecords page's data in the blob store: %w", err))
+	}
+	behind := s.millisBehind(log, es, next, now)
+	return pageRead{page: page{entries: slices.Clone(es), unpin: unpin, behind: behind}, nextPos: next}, nil
 }
 
 // readData returns a record's bytes from the blob store.
