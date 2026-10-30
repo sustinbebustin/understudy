@@ -123,7 +123,7 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | dynamodbstreams | 4 | 0 | 0 | 4 | 0 | 0 | 0 |
 | eventbridge | 57 | 6 | 1 | 15 | 35 | 1 | 0 |
 | iam | 180 | 10 | 1 | 53 | 116 | 1 | 0 |
-| kinesis | 45 | 0 | 2 | 15 | 28 | 0 | 0 |
+| kinesis | 45 | 0 | 2 | 19 | 24 | 0 | 0 |
 | kms | 54 | 16 | 2 | 9 | 27 | 0 | 0 |
 | lambda | 88 | 30 | 2 | 18 | 38 | 0 | 2 |
 | logs | 118 | 9 | 0 | 9 | 100 | 1 | 0 |
@@ -653,11 +653,15 @@ Internal operations:
 | DescribeLimits | partial | third-party-recorded, 2 of 2 claims | ShardLimit is 20000 and OnDemandStreamCountLimit 50 in every region, and neither is enforced |
 | DescribeStream | partial | inferred, 2 of 4 claims | the optional fields of a fresh stream (EncryptionType NONE, StreamModeDetails, MaxRecordSizeInKiB 1024, no KeyId, WarmThroughput or ConsumerCount) and the not-found text over JSON are inferred; AWS's are UNVERIFIED (kinesis.md 4.4, finding 5) |
 | DescribeStreamSummary | partial | third-party-recorded, 2 of 2 claims | the optional fields of a fresh stream (EncryptionType NONE, StreamModeDetails, MaxRecordSizeInKiB 1024, no KeyId, WarmThroughput or ConsumerCount) and the not-found text over JSON are inferred; AWS's are UNVERIFIED (kinesis.md 4.4, finding 5) |
+| GetRecords | partial | inferred, 2 of 5 claims | per-shard read limits (5 calls/s, 2 MiB/s and the 5-second wait after a 10 MiB read) are not enforced; DryRun answers 501 NotImplemented; the Limit and expired-iterator texts follow kinesalite or are understudy's and are UNVERIFIED (kinesis.md 5.6, 13.3) |
+| GetShardIterator | partial | third-party-recorded, 2 of 2 claims | the five calls per second per shard limit is not enforced; DryRun answers 501 NotImplemented; argument error texts follow kinesalite and are UNVERIFIED (kinesis.md 5.4, 13.3) |
 | IncreaseStreamRetentionPeriod | partial | inferred, 1 of 3 claims | error texts follow kinesalite and are UNVERIFIED (kinesis.md 4.7) |
 | ListShards | partial | inferred, 2 of 4 claims | the errors for NextToken combined with StreamName, StreamCreationTimestamp or ExclusiveStartShardId, or for neither stream nor token, follow kinesalite and are UNVERIFIED (kinesis.md 4.6) |
 | ListStreams | partial | third-party-recorded, 2 of 2 claims | names are listed in lexical order; AWS's order and token lifetime are UNVERIFIED (kinesis.md 4.5) |
 | ListTagsForResource | partial | third-party-recorded, 2 of 2 claims | a 51st tag and an aws: key answer InvalidArgumentException; AWS's code and text are UNVERIFIED (kinesis.md 4.10) |
 | ListTagsForStream | partial | third-party-recorded, 2 of 2 claims | a 51st tag and an aws: key answer InvalidArgumentException; AWS's code and text are UNVERIFIED (kinesis.md 4.10) |
+| PutRecord | partial | inferred, 2 of 4 claims | per-shard write limits (1 MiB/s, 1,000 records/s) are not enforced and ProvisionedThroughputExceededException comes only from fault injection; DryRun answers 501 NotImplemented; argument and record-size error texts follow kinesalite or are understudy's and are UNVERIFIED (kinesis.md 13.3) |
+| PutRecords | partial | inferred, 2 of 4 claims | per-shard write limits (1 MiB/s, 1,000 records/s) are not enforced; no entry fails: a fault rule fails the whole call, and entry-level fault injection is not built; argument, record-size and request-size error texts follow kinesalite or are understudy's and are UNVERIFIED (kinesis.md 13.3) |
 | RemoveTagsFromStream | partial | third-party-recorded, 2 of 2 claims | a 51st tag and an aws: key answer InvalidArgumentException; AWS's code and text are UNVERIFIED (kinesis.md 4.10) |
 | TagResource | partial | third-party-recorded, 2 of 2 claims | a 51st tag and an aws: key answer InvalidArgumentException; AWS's code and text are UNVERIFIED (kinesis.md 4.10) |
 | UntagResource | partial | third-party-recorded, 2 of 2 claims | a 51st tag and an aws: key answer InvalidArgumentException; AWS's code and text are UNVERIFIED (kinesis.md 4.10) |
@@ -668,14 +672,10 @@ Internal operations:
 | DescribeAccountSettings | unbound | unassessed |  |
 | DescribeChannel | unbound | unassessed |  |
 | DescribeStreamConsumer | unbound | unassessed |  |
-| GetRecords | unbound | unassessed |  |
 | GetResourcePolicy | unbound | unassessed |  |
-| GetShardIterator | unbound | unassessed |  |
 | ListChannels | unbound | unassessed |  |
 | ListStreamConsumers | unbound | unassessed |  |
 | MergeShards | unbound | unassessed |  |
-| PutRecord | unbound | unassessed |  |
-| PutRecords | unbound | unassessed |  |
 | PutResourcePolicy | unbound | unassessed |  |
 | RegisterStreamConsumer | unbound | unassessed |  |
 | SplitShard | unbound | unassessed |  |
@@ -1662,7 +1662,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 
 Corrections to the vendored models in `codegen/overlays`, one row per evidence item. The count and order, strongest evidence first, follow the label the overlay states; the Label column shows the recording's verdict where a replayed step settles or contradicts the item.
 
-340 evidence items: 50 aws-recorded, 108 third-party-recorded, 56 aws-doc, 5 sdk-source, 121 inferred.
+341 evidence items: 50 aws-recorded, 108 third-party-recorded, 57 aws-doc, 5 sdk-source, 121 inferred.
 
 | Label | Overlay | Shape | Covers | Source |
 |---|---|---|---|---|
@@ -1849,6 +1849,7 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | aws-doc | dynamodb.json | `com.amazon.coral.service#AccessDeniedException` |  | https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Programming.Errors.html: AccessDeniedException is listed under HTTP status code 400 (docs/research/iam-enforcement-surfaces.md#32-per-service-identity) |
 | aws-doc | dynamodb.json | `com.amazonaws.dynamodb#DynamoDB_20120810` | dev.understudy#throttleError | https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Programming.Errors.html |
 | aws-doc | iam.json | `com.amazonaws.iam#AWSIdentityManagementV20100508` | dev.understudy#throttleError | https://docs.aws.amazon.com/IAM/latest/APIReference/CommonErrors.html |
+| aws-doc | kinesis.json | `com.amazonaws.kinesis#GetRecordsInput$Limit` | dev.understudy#validationError | https://docs.aws.amazon.com/kinesis/latest/APIReference/API_GetRecords.html: Limit "If you specify a value that is greater than 10,000, GetRecords throws InvalidArgumentException" (kinesis.md 5.5); the Coral text is understudy's, UNVERIFIED until recording KIN-07 |
 | aws-doc | kms.json | `com.amazonaws.kms#DependencyTimeoutException` |  | https://docs.aws.amazon.com/kms/latest/APIReference/API_GetKeyRotationStatus.html |
 | aws-doc | kms.json | `com.amazonaws.kms#DisabledException` |  | https://docs.aws.amazon.com/kms/latest/APIReference/API_GetKeyRotationStatus.html |
 | aws-doc | kms.json | `com.amazonaws.kms#KMSInvalidStateException` |  | https://docs.aws.amazon.com/kms/latest/APIReference/API_GetKeyRotationStatus.html |

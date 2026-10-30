@@ -2,9 +2,6 @@
 // (kinesis.md 13.1): streams with even-split shards, the record log on
 // internal/shardlog, shard iterators, retention, tags and the calls
 // Terraform makes. Resharding, consumers, encryption, resource policies,
-// CBOR and HTTP/2 answer 501.
-//
-// Not built yet, and so unbound (501): ListShards, the data plane
-// (PutRecord, PutRecords, GetShardIterator, GetRecords) and enhanced
-// monitoring.
+// CBOR and HTTP/2 answer 501. Record data lives in the blob store, one
+// reference per record.
 package kinesis

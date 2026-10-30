@@ -6,7 +6,7 @@ import (
 
 	"github.com/sustinbebustin/understudy/internal/api/kinesisapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
-	"github.com/sustinbebustin/understudy/internal/clock"
+	"github.com/sustinbebustin/understudy/internal/blob"
 	"github.com/sustinbebustin/understudy/internal/evidence"
 	"github.com/sustinbebustin/understudy/internal/fidelity"
 	"github.com/sustinbebustin/understudy/internal/ids"
@@ -20,8 +20,12 @@ import (
 // account and region.
 type Service struct {
 	opts  Options
+	k     *kernel.Kernel
 	ids   *ids.Source
+	blobs *blob.Store
 	cells *store.Partitioned[aws.Scope, State]
+	// retention is TimerRetention as registered with the kernel.
+	retention kernel.HandledKind
 }
 
 // The service is the snapshot and reset view of its state.
@@ -30,13 +34,15 @@ var _ kernel.Stateful = (*Service)(nil)
 // stateVersion is the schema version of the service's snapshot section.
 const stateVersion = 1
 
-// New binds the operations of slice 1 built so far (kinesis.md 13.1);
-// every other operation stays unbound and answers 501.
+// New binds the 21 operations of slice 1 (kinesis.md 13.1) and the
+// retention timer; every other operation stays unbound and answers 501.
 func New(d kernel.ServiceDeps, o Options) *Service {
-	s := &Service{opts: o, ids: d.IDs, cells: store.NewPartitioned(d.Kernel.Gate(), stateCodec(), newState)}
+	s := &Service{opts: o, k: d.Kernel, ids: d.IDs, blobs: d.Blob, cells: store.NewPartitioned(d.Kernel.Gate(), stateCodec(), newState)}
+	s.retention = d.Kernel.Timers().Handle(TimerRetention, s.onRetention)
 	b := kinesisapi.NewBinder(d.Binder)
 	s.bindStreams(b)
 	s.bindShards(b)
+	s.bindData(b)
 	s.bindMonitoring(b)
 	s.bindTags(b)
 	return s
@@ -62,9 +68,6 @@ func (s *Service) Import(ss []store.Section) error {
 func (s *Service) Reset(rs kernel.ResetScope) {
 	s.cells.Reset(func(k aws.Scope) bool { return !rs.Covers(k) })
 }
-
-// Rearm has no timers to arm: nothing the service holds yet expires.
-func (*Service) Rearm(clock.Instant) {}
 
 // Resources lists the streams of scope in name order, each ACTIVE.
 func (s *Service) Resources(scope aws.Scope) []kernel.Resource {
@@ -112,9 +115,10 @@ func (s *Service) Switches() []fidelity.Entry {
 	}
 }
 
-// sequencer is the kinesis.sequence.layout switch's Sequencer.
-func (s *Service) sequencer() shardlog.Sequencer {
-	if s.opts.SequenceLayout == LayoutDecimal56 {
+// sequencer is the layout's Sequencer: decimal-56 is a 56-digit decimal
+// counter, anything else V2Sequencer (contract 3.1).
+func (l SequenceLayout) sequencer() shardlog.Sequencer {
+	if l == LayoutDecimal56 {
 		return shardlog.DecimalCounter{Digits: 56}
 	}
 	return V2Sequencer{}

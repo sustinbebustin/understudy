@@ -7,6 +7,7 @@ import (
 
 	"github.com/sustinbebustin/understudy/internal/api/kinesisapi"
 	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/blob"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/paging"
@@ -98,7 +99,7 @@ func (s *Service) createStream(_ context.Context, c *kernel.Call, in *kinesisapi
 			Tags: maps.Clone(in.Tags), Shards: make([]Shard, len(ranges)),
 		}
 		for i, r := range ranges {
-			str.Shards[i] = Shard{Range: r}
+			str.Shards[i] = newShard(i, r, now, s.opts.SequenceLayout)
 		}
 		st.Streams[in.StreamName] = str
 		return struct{}{}, nil
@@ -110,9 +111,10 @@ func (s *Service) createStream(_ context.Context, c *kernel.Call, in *kinesisapi
 	return &kinesisapi.CreateStreamOutput{}, nil
 }
 
-// deleteStream removes the stream with its tags at once (contract 0).
+// deleteStream removes the stream with its tags and records at once
+// (contract 0) and wakes its readers, which find it gone.
 // EnforceConsumerDeletion has nothing to act on: no consumer exists.
-func (s *Service) deleteStream(_ context.Context, c *kernel.Call, in *kinesisapi.DeleteStreamInput) (*kinesisapi.DeleteStreamOutput, *awserr.Error) {
+func (s *Service) deleteStream(ctx context.Context, c *kernel.Call, in *kinesisapi.DeleteStreamInput) (*kinesisapi.DeleteStreamOutput, *awserr.Error) {
 	r, err := streamOf(c, in.StreamName, in.StreamARN)
 	if err != nil {
 		return nil, err
@@ -120,17 +122,23 @@ func (s *Service) deleteStream(_ context.Context, c *kernel.Call, in *kinesisapi
 	if r.foreign {
 		return nil, r.notFound()
 	}
-	_, err = kernel.Write(c, s.cells, c.Scope(), func(st *State, _ clock.Instant, _ *kernel.Tx) (struct{}, *awserr.Error) {
-		if _, ok := st.Streams[r.name]; !ok {
-			return struct{}{}, r.notFound()
+	scope := c.Scope()
+	arn := streamARN(scope, r.name)
+	released, err := kernel.Write(c, s.cells, scope, func(st *State, _ clock.Instant, tx *kernel.Tx) ([]blob.Ref, *awserr.Error) {
+		str, ok := st.Streams[r.name]
+		if !ok {
+			return nil, r.notFound()
 		}
 		delete(st.Streams, r.name)
-		return struct{}{}, nil
+		tx.Disarm(s.retention, arn.String())
+		tx.Wake(shardlog.WaitKey(arn))
+		return str.blobRefs(), nil
 	})
 	if err != nil {
 		return nil, err
 	}
-	c.Touch(streamARN(c.Scope(), r.name))
+	s.release(ctx, released)
+	c.Touch(arn)
 	return &kinesisapi.DeleteStreamOutput{}, nil
 }
 
@@ -216,7 +224,7 @@ func (s *Service) describeStream(_ context.Context, c *kernel.Call, in *kinesisa
 // number, and never a child, so without parents.
 func (s *Service) shardOf(str Stream, i int) kinesisapi.Shard {
 	r := str.Shards[i].Range
-	start := s.sequencer().Start(shardlog.ShardInfo{ID: shardID(i), Index: i, Opened: str.Created})
+	start := str.Shards[i].Layout.sequencer().Start(shardlog.ShardInfo{ID: shardID(i), Index: i, Opened: str.Created})
 	return kinesisapi.Shard{
 		ShardId:             shardID(i),
 		HashKeyRange:        kinesisapi.HashKeyRange{StartingHashKey: r.Start.String(), EndingHashKey: r.End.String()},
@@ -281,13 +289,15 @@ const (
 
 // setRetention applies Increase or DecreaseStreamRetentionPeriod: 24 to
 // 8760 hours (aws-doc kinesis.md 4.7), not against the direction, and an
-// equal value per kinesis.retention.equal-value (KIN-06).
-func (s *Service) setRetention(c *kernel.Call, name, arn *string, n int32, dir retentionChange) *awserr.Error {
+// equal value per kinesis.retention.equal-value (KIN-06). The new period
+// applies at once: records already trimmed stay gone, and a Decrease trims
+// what it now expires (aws-doc kinesis.md 4.7).
+func (s *Service) setRetention(ctx context.Context, c *kernel.Call, name, arn *string, n int32, dir retentionChange) *awserr.Error {
 	r, err := streamOf(c, name, arn)
 	if err != nil {
 		return err
 	}
-	return s.updateStream(c, r, func(str *Stream, _ clock.Instant) *awserr.Error {
+	if err := s.updateStream(c, r, func(str *Stream, _ clock.Instant) *awserr.Error {
 		cur := str.RetentionHours
 		switch {
 		case n < defaultRetentionHours:
@@ -305,18 +315,21 @@ func (s *Service) setRetention(c *kernel.Call, name, arn *string, n int32, dir r
 		}
 		str.RetentionHours = n
 		return nil
-	})
+	}); err != nil {
+		return err
+	}
+	return s.trimStream(ctx, c, c.Scope(), r.name)
 }
 
-func (s *Service) increaseRetention(_ context.Context, c *kernel.Call, in *kinesisapi.IncreaseStreamRetentionPeriodInput) (*kinesisapi.IncreaseStreamRetentionPeriodOutput, *awserr.Error) {
-	if err := s.setRetention(c, in.StreamName, in.StreamARN, in.RetentionPeriodHours, increase); err != nil {
+func (s *Service) increaseRetention(ctx context.Context, c *kernel.Call, in *kinesisapi.IncreaseStreamRetentionPeriodInput) (*kinesisapi.IncreaseStreamRetentionPeriodOutput, *awserr.Error) {
+	if err := s.setRetention(ctx, c, in.StreamName, in.StreamARN, in.RetentionPeriodHours, increase); err != nil {
 		return nil, err
 	}
 	return &kinesisapi.IncreaseStreamRetentionPeriodOutput{}, nil
 }
 
-func (s *Service) decreaseRetention(_ context.Context, c *kernel.Call, in *kinesisapi.DecreaseStreamRetentionPeriodInput) (*kinesisapi.DecreaseStreamRetentionPeriodOutput, *awserr.Error) {
-	if err := s.setRetention(c, in.StreamName, in.StreamARN, in.RetentionPeriodHours, decrease); err != nil {
+func (s *Service) decreaseRetention(ctx context.Context, c *kernel.Call, in *kinesisapi.DecreaseStreamRetentionPeriodInput) (*kinesisapi.DecreaseStreamRetentionPeriodOutput, *awserr.Error) {
+	if err := s.setRetention(ctx, c, in.StreamName, in.StreamARN, in.RetentionPeriodHours, decrease); err != nil {
 		return nil, err
 	}
 	return &kinesisapi.DecreaseStreamRetentionPeriodOutput{}, nil

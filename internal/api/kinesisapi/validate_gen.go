@@ -3288,7 +3288,7 @@ func (*EnableEnhancedMonitoringInput) ValidationError(vs []awserr.Violation) *aw
 var policyGetRecords = validationPolicy{
 	paths: []validationPath{
 		{segments: []string{"shardIterator"}, param: "ShardIterator"},
-		{segments: []string{"limit"}, param: "Limit"},
+		{segments: []string{"limit"}, param: "Limit", rules: []validationRule{{kinds: kindRange, id: IdentityInvalidArgumentException, style: styleCoral}}},
 		{segments: []string{"streamARN"}, param: "StreamARN"},
 		{segments: []string{"streamId"}, param: "StreamId"},
 		{segments: []string{"dryRun"}, param: "DryRun"},
