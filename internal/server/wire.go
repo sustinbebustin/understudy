@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/access"
+	"github.com/sustinbebustin/understudy/internal/api/apigatewayapi"
 	"github.com/sustinbebustin/understudy/internal/api/apigatewayv2api"
 	"github.com/sustinbebustin/understudy/internal/api/cloudwatchapi"
 	"github.com/sustinbebustin/understudy/internal/api/dynamodbapi"
@@ -58,6 +59,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/registry"
 	serveradmin "github.com/sustinbebustin/understudy/internal/server/admin"
 	"github.com/sustinbebustin/understudy/internal/server/ui"
+	"github.com/sustinbebustin/understudy/internal/service/apigateway"
 	"github.com/sustinbebustin/understudy/internal/service/apigatewayv2"
 	"github.com/sustinbebustin/understudy/internal/service/cloudwatch"
 	"github.com/sustinbebustin/understudy/internal/service/dynamodb"
@@ -905,6 +907,13 @@ func wiredServices() []wiredService {
 		// policies of the Lambda service built above (apigateway-http.md 5.5).
 		{api{apigatewayv2api.Service(), apigatewayv2api.ThrottleError(), apigatewayv2api.UnknownOperationError}, func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
 			return apigatewayv2.New(d, apigatewayv2.Options{FunctionPolicies: c.lambda, Regions: c.regions})
+		}},
+		// REST APIs after HTTP APIs: the two share the signing name
+		// apigateway, and a request neither route table matches is the first
+		// registered service's unknown operation (ADR 0019), so the order is
+		// pinned by TestAPIGatewayUnmatchedPathIsV2Unknown.
+		{api{apigatewayapi.Service(), apigatewayapi.ThrottleError(), apigatewayapi.UnknownOperationError}, func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
+			return apigateway.New(d, apigateway.Options{FunctionPolicies: c.lambda, Regions: c.regions})
 		}},
 		{api{logsapi.Service(), logsapi.ThrottleError(), logsapi.UnknownOperationError}, func(d kernel.ServiceDeps, _ *construction) serveradmin.Service {
 			return logs.New(d, logs.Options{})

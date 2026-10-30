@@ -4,6 +4,9 @@
   "model": "api-gateway",
   "iamPrefix": "apigateway",
   "sdkService": "apigateway",
+  "rawOperations": [
+    {"name": "InvokeRestApi", "iam": []}
+  ],
   "iamPrimary": [
     {
       "operation": "CreateApiKey",

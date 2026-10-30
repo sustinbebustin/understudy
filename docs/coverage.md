@@ -117,6 +117,7 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 
 | Service | Operations | Full | Stored only | Partial | Unbound | Internal | Raw |
 |---|---|---|---|---|---|---|---|
+| apigateway | 124 | 0 | 0 | 0 | 124 | 0 | 1 |
 | apigatewayv2 | 103 | 0 | 2 | 29 | 72 | 0 | 1 |
 | cloudwatch | 55 | 4 | 0 | 11 | 40 | 0 | 0 |
 | dynamodb | 58 | 4 | 2 | 20 | 32 | 0 | 0 |
@@ -136,6 +137,141 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | sqs | 23 | 16 | 0 | 7 | 0 | 2 | 0 |
 | ssm | 152 | 0 | 0 | 13 | 139 | 0 | 0 |
 | sts | 11 | 1 | 0 | 2 | 8 | 0 | 0 |
+
+### apigateway
+
+| Operation | Status | Evidence | Note |
+|---|---|---|---|
+| CreateApiKey | unbound | unassessed |  |
+| CreateAuthorizer | unbound | unassessed |  |
+| CreateBasePathMapping | unbound | unassessed |  |
+| CreateDeployment | unbound | unassessed |  |
+| CreateDocumentationPart | unbound | unassessed |  |
+| CreateDocumentationVersion | unbound | unassessed |  |
+| CreateDomainName | unbound | unassessed |  |
+| CreateDomainNameAccessAssociation | unbound | unassessed |  |
+| CreateModel | unbound | unassessed |  |
+| CreateRequestValidator | unbound | unassessed |  |
+| CreateResource | unbound | unassessed |  |
+| CreateRestApi | unbound | unassessed |  |
+| CreateStage | unbound | unassessed |  |
+| CreateUsagePlan | unbound | unassessed |  |
+| CreateUsagePlanKey | unbound | unassessed |  |
+| CreateVpcLink | unbound | unassessed |  |
+| DeleteApiKey | unbound | unassessed |  |
+| DeleteAuthorizer | unbound | unassessed |  |
+| DeleteBasePathMapping | unbound | unassessed |  |
+| DeleteClientCertificate | unbound | unassessed |  |
+| DeleteDeployment | unbound | unassessed |  |
+| DeleteDocumentationPart | unbound | unassessed |  |
+| DeleteDocumentationVersion | unbound | unassessed |  |
+| DeleteDomainName | unbound | unassessed |  |
+| DeleteDomainNameAccessAssociation | unbound | unassessed |  |
+| DeleteGatewayResponse | unbound | unassessed |  |
+| DeleteIntegration | unbound | unassessed |  |
+| DeleteIntegrationResponse | unbound | unassessed |  |
+| DeleteMethod | unbound | unassessed |  |
+| DeleteMethodResponse | unbound | unassessed |  |
+| DeleteModel | unbound | unassessed |  |
+| DeleteRequestValidator | unbound | unassessed |  |
+| DeleteResource | unbound | unassessed |  |
+| DeleteRestApi | unbound | unassessed |  |
+| DeleteStage | unbound | unassessed |  |
+| DeleteUsagePlan | unbound | unassessed |  |
+| DeleteUsagePlanKey | unbound | unassessed |  |
+| DeleteVpcLink | unbound | unassessed |  |
+| FlushStageAuthorizersCache | unbound | unassessed |  |
+| FlushStageCache | unbound | unassessed |  |
+| GenerateClientCertificate | unbound | unassessed |  |
+| GetAccount | unbound | unassessed |  |
+| GetApiKey | unbound | unassessed |  |
+| GetApiKeys | unbound | unassessed |  |
+| GetAuthorizer | unbound | unassessed |  |
+| GetAuthorizers | unbound | unassessed |  |
+| GetBasePathMapping | unbound | unassessed |  |
+| GetBasePathMappings | unbound | unassessed |  |
+| GetClientCertificate | unbound | unassessed |  |
+| GetClientCertificates | unbound | unassessed |  |
+| GetDeployment | unbound | unassessed |  |
+| GetDeployments | unbound | unassessed |  |
+| GetDocumentationPart | unbound | unassessed |  |
+| GetDocumentationParts | unbound | unassessed |  |
+| GetDocumentationVersion | unbound | unassessed |  |
+| GetDocumentationVersions | unbound | unassessed |  |
+| GetDomainName | unbound | unassessed |  |
+| GetDomainNameAccessAssociations | unbound | unassessed |  |
+| GetDomainNames | unbound | unassessed |  |
+| GetExport | unbound | unassessed |  |
+| GetGatewayResponse | unbound | unassessed |  |
+| GetGatewayResponses | unbound | unassessed |  |
+| GetIntegration | unbound | unassessed |  |
+| GetIntegrationResponse | unbound | unassessed |  |
+| GetMethod | unbound | unassessed |  |
+| GetMethodResponse | unbound | unassessed |  |
+| GetModel | unbound | unassessed |  |
+| GetModelTemplate | unbound | unassessed |  |
+| GetModels | unbound | unassessed |  |
+| GetRequestValidator | unbound | unassessed |  |
+| GetRequestValidators | unbound | unassessed |  |
+| GetResource | unbound | unassessed |  |
+| GetResources | unbound | unassessed |  |
+| GetRestApi | unbound | unassessed |  |
+| GetRestApis | unbound | unassessed |  |
+| GetSdk | unbound | unassessed |  |
+| GetSdkType | unbound | unassessed |  |
+| GetSdkTypes | unbound | unassessed |  |
+| GetStage | unbound | unassessed |  |
+| GetStages | unbound | unassessed |  |
+| GetTags | unbound | unassessed |  |
+| GetUsage | unbound | unassessed |  |
+| GetUsagePlan | unbound | unassessed |  |
+| GetUsagePlanKey | unbound | unassessed |  |
+| GetUsagePlanKeys | unbound | unassessed |  |
+| GetUsagePlans | unbound | unassessed |  |
+| GetVpcLink | unbound | unassessed |  |
+| GetVpcLinks | unbound | unassessed |  |
+| ImportApiKeys | unbound | unassessed |  |
+| ImportDocumentationParts | unbound | unassessed |  |
+| ImportRestApi | unbound | unassessed |  |
+| PutGatewayResponse | unbound | unassessed |  |
+| PutIntegration | unbound | unassessed |  |
+| PutIntegrationResponse | unbound | unassessed |  |
+| PutMethod | unbound | unassessed |  |
+| PutMethodResponse | unbound | unassessed |  |
+| PutRestApi | unbound | unassessed |  |
+| RejectDomainNameAccessAssociation | unbound | unassessed |  |
+| TagResource | unbound | unassessed |  |
+| TestInvokeAuthorizer | unbound | unassessed |  |
+| TestInvokeMethod | unbound | unassessed |  |
+| UntagResource | unbound | unassessed |  |
+| UpdateAccount | unbound | unassessed |  |
+| UpdateApiKey | unbound | unassessed |  |
+| UpdateAuthorizer | unbound | unassessed |  |
+| UpdateBasePathMapping | unbound | unassessed |  |
+| UpdateClientCertificate | unbound | unassessed |  |
+| UpdateDeployment | unbound | unassessed |  |
+| UpdateDocumentationPart | unbound | unassessed |  |
+| UpdateDocumentationVersion | unbound | unassessed |  |
+| UpdateDomainName | unbound | unassessed |  |
+| UpdateGatewayResponse | unbound | unassessed |  |
+| UpdateIntegration | unbound | unassessed |  |
+| UpdateIntegrationResponse | unbound | unassessed |  |
+| UpdateMethod | unbound | unassessed |  |
+| UpdateMethodResponse | unbound | unassessed |  |
+| UpdateModel | unbound | unassessed |  |
+| UpdateRequestValidator | unbound | unassessed |  |
+| UpdateResource | unbound | unassessed |  |
+| UpdateRestApi | unbound | unassessed |  |
+| UpdateStage | unbound | unassessed |  |
+| UpdateUsage | unbound | unassessed |  |
+| UpdateUsagePlan | unbound | unassessed |  |
+| UpdateVpcLink | unbound | unassessed |  |
+
+Raw operations:
+
+| Operation | Status | Evidence | Note |
+|---|---|---|---|
+| InvokeRestApi | unbound | unassessed |  |
 
 ### apigatewayv2
 

@@ -1282,10 +1282,21 @@ var descImportRestApi = registry.Operation{
 	SuccessCode: 201,
 }
 
+// descInvokeRestApi is a raw operation (codegen/services rawOperations): its
+// handler owns the HTTP exchange, so it has no input or output schema.
+var descInvokeRestApi = registry.Operation{
+	Service:     &service,
+	ID:          ref.OperationID{Service: "apigateway", Name: "InvokeRestApi"},
+	Ordinal:     91,
+	Kind:        registry.Raw,
+	Shape:       "com.amazonaws.apigateway#InvokeRestApi",
+	SuccessCode: 200,
+}
+
 var descPutGatewayResponse = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "apigateway", Name: "PutGatewayResponse"},
-	Ordinal:     91,
+	Ordinal:     92,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.apigateway#PutGatewayResponse",
 	Input:       &schemaPutGatewayResponseInput,
@@ -1299,7 +1310,7 @@ var descPutGatewayResponse = registry.Operation{
 var descPutIntegration = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "apigateway", Name: "PutIntegration"},
-	Ordinal:     92,
+	Ordinal:     93,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.apigateway#PutIntegration",
 	Input:       &schemaPutIntegrationInput,
@@ -1313,7 +1324,7 @@ var descPutIntegration = registry.Operation{
 var descPutIntegrationResponse = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "apigateway", Name: "PutIntegrationResponse"},
-	Ordinal:     93,
+	Ordinal:     94,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.apigateway#PutIntegrationResponse",
 	Input:       &schemaPutIntegrationResponseInput,
@@ -1327,7 +1338,7 @@ var descPutIntegrationResponse = registry.Operation{
 var descPutMethod = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "apigateway", Name: "PutMethod"},
-	Ordinal:     94,
+	Ordinal:     95,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.apigateway#PutMethod",
 	Input:       &schemaPutMethodInput,
@@ -1341,7 +1352,7 @@ var descPutMethod = registry.Operation{
 var descPutMethodResponse = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "apigateway", Name: "PutMethodResponse"},
-	Ordinal:     95,
+	Ordinal:     96,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.apigateway#PutMethodResponse",
 	Input:       &schemaPutMethodResponseInput,
@@ -1355,7 +1366,7 @@ var descPutMethodResponse = registry.Operation{
 var descPutRestApi = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "apigateway", Name: "PutRestApi"},
-	Ordinal:     96,
+	Ordinal:     97,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.apigateway#PutRestApi",
 	Input:       &schemaPutRestApiInput,
@@ -1369,7 +1380,7 @@ var descPutRestApi = registry.Operation{
 var descRejectDomainNameAccessAssociation = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "apigateway", Name: "RejectDomainNameAccessAssociation"},
-	Ordinal:     97,
+	Ordinal:     98,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.apigateway#RejectDomainNameAccessAssociation",
 	Input:       &schemaRejectDomainNameAccessAssociationInput,
@@ -1383,7 +1394,7 @@ var descRejectDomainNameAccessAssociation = registry.Operation{
 var descTagResource = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "apigateway", Name: "TagResource"},
-	Ordinal:     98,
+	Ordinal:     99,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.apigateway#TagResource",
 	Input:       &schemaTagResourceInput,
@@ -1397,7 +1408,7 @@ var descTagResource = registry.Operation{
 var descTestInvokeAuthorizer = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "apigateway", Name: "TestInvokeAuthorizer"},
-	Ordinal:     99,
+	Ordinal:     100,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.apigateway#TestInvokeAuthorizer",
 	Input:       &schemaTestInvokeAuthorizerInput,
@@ -1411,7 +1422,7 @@ var descTestInvokeAuthorizer = registry.Operation{
 var descTestInvokeMethod = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "apigateway", Name: "TestInvokeMethod"},
-	Ordinal:     100,
+	Ordinal:     101,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.apigateway#TestInvokeMethod",
 	Input:       &schemaTestInvokeMethodInput,
@@ -1425,7 +1436,7 @@ var descTestInvokeMethod = registry.Operation{
 var descUntagResource = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "apigateway", Name: "UntagResource"},
-	Ordinal:     101,
+	Ordinal:     102,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.apigateway#UntagResource",
 	Input:       &schemaUntagResourceInput,
@@ -1439,7 +1450,7 @@ var descUntagResource = registry.Operation{
 var descUpdateAccount = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "apigateway", Name: "UpdateAccount"},
-	Ordinal:     102,
+	Ordinal:     103,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.apigateway#UpdateAccount",
 	Input:       &schemaUpdateAccountInput,
@@ -1453,7 +1464,7 @@ var descUpdateAccount = registry.Operation{
 var descUpdateApiKey = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "apigateway", Name: "UpdateApiKey"},
-	Ordinal:     103,
+	Ordinal:     104,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.apigateway#UpdateApiKey",
 	Input:       &schemaUpdateApiKeyInput,
@@ -1467,7 +1478,7 @@ var descUpdateApiKey = registry.Operation{
 var descUpdateAuthorizer = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "apigateway", Name: "UpdateAuthorizer"},
-	Ordinal:     104,
+	Ordinal:     105,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.apigateway#UpdateAuthorizer",
 	Input:       &schemaUpdateAuthorizerInput,
@@ -1481,7 +1492,7 @@ var descUpdateAuthorizer = registry.Operation{
 var descUpdateBasePathMapping = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "apigateway", Name: "UpdateBasePathMapping"},
-	Ordinal:     105,
+	Ordinal:     106,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.apigateway#UpdateBasePathMapping",
 	Input:       &schemaUpdateBasePathMappingInput,
@@ -1495,7 +1506,7 @@ var descUpdateBasePathMapping = registry.Operation{
 var descUpdateClientCertificate = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "apigateway", Name: "UpdateClientCertificate"},
-	Ordinal:     106,
+	Ordinal:     107,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.apigateway#UpdateClientCertificate",
 	Input:       &schemaUpdateClientCertificateInput,
@@ -1509,7 +1520,7 @@ var descUpdateClientCertificate = registry.Operation{
 var descUpdateDeployment = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "apigateway", Name: "UpdateDeployment"},
-	Ordinal:     107,
+	Ordinal:     108,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.apigateway#UpdateDeployment",
 	Input:       &schemaUpdateDeploymentInput,
@@ -1523,7 +1534,7 @@ var descUpdateDeployment = registry.Operation{
 var descUpdateDocumentationPart = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "apigateway", Name: "UpdateDocumentationPart"},
-	Ordinal:     108,
+	Ordinal:     109,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.apigateway#UpdateDocumentationPart",
 	Input:       &schemaUpdateDocumentationPartInput,
@@ -1537,7 +1548,7 @@ var descUpdateDocumentationPart = registry.Operation{
 var descUpdateDocumentationVersion = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "apigateway", Name: "UpdateDocumentationVersion"},
-	Ordinal:     109,
+	Ordinal:     110,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.apigateway#UpdateDocumentationVersion",
 	Input:       &schemaUpdateDocumentationVersionInput,
@@ -1551,7 +1562,7 @@ var descUpdateDocumentationVersion = registry.Operation{
 var descUpdateDomainName = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "apigateway", Name: "UpdateDomainName"},
-	Ordinal:     110,
+	Ordinal:     111,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.apigateway#UpdateDomainName",
 	Input:       &schemaUpdateDomainNameInput,
@@ -1565,7 +1576,7 @@ var descUpdateDomainName = registry.Operation{
 var descUpdateGatewayResponse = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "apigateway", Name: "UpdateGatewayResponse"},
-	Ordinal:     111,
+	Ordinal:     112,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.apigateway#UpdateGatewayResponse",
 	Input:       &schemaUpdateGatewayResponseInput,
@@ -1579,7 +1590,7 @@ var descUpdateGatewayResponse = registry.Operation{
 var descUpdateIntegration = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "apigateway", Name: "UpdateIntegration"},
-	Ordinal:     112,
+	Ordinal:     113,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.apigateway#UpdateIntegration",
 	Input:       &schemaUpdateIntegrationInput,
@@ -1593,7 +1604,7 @@ var descUpdateIntegration = registry.Operation{
 var descUpdateIntegrationResponse = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "apigateway", Name: "UpdateIntegrationResponse"},
-	Ordinal:     113,
+	Ordinal:     114,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.apigateway#UpdateIntegrationResponse",
 	Input:       &schemaUpdateIntegrationResponseInput,
@@ -1607,7 +1618,7 @@ var descUpdateIntegrationResponse = registry.Operation{
 var descUpdateMethod = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "apigateway", Name: "UpdateMethod"},
-	Ordinal:     114,
+	Ordinal:     115,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.apigateway#UpdateMethod",
 	Input:       &schemaUpdateMethodInput,
@@ -1621,7 +1632,7 @@ var descUpdateMethod = registry.Operation{
 var descUpdateMethodResponse = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "apigateway", Name: "UpdateMethodResponse"},
-	Ordinal:     115,
+	Ordinal:     116,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.apigateway#UpdateMethodResponse",
 	Input:       &schemaUpdateMethodResponseInput,
@@ -1635,7 +1646,7 @@ var descUpdateMethodResponse = registry.Operation{
 var descUpdateModel = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "apigateway", Name: "UpdateModel"},
-	Ordinal:     116,
+	Ordinal:     117,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.apigateway#UpdateModel",
 	Input:       &schemaUpdateModelInput,
@@ -1649,7 +1660,7 @@ var descUpdateModel = registry.Operation{
 var descUpdateRequestValidator = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "apigateway", Name: "UpdateRequestValidator"},
-	Ordinal:     117,
+	Ordinal:     118,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.apigateway#UpdateRequestValidator",
 	Input:       &schemaUpdateRequestValidatorInput,
@@ -1663,7 +1674,7 @@ var descUpdateRequestValidator = registry.Operation{
 var descUpdateResource = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "apigateway", Name: "UpdateResource"},
-	Ordinal:     118,
+	Ordinal:     119,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.apigateway#UpdateResource",
 	Input:       &schemaUpdateResourceInput,
@@ -1677,7 +1688,7 @@ var descUpdateResource = registry.Operation{
 var descUpdateRestApi = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "apigateway", Name: "UpdateRestApi"},
-	Ordinal:     119,
+	Ordinal:     120,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.apigateway#UpdateRestApi",
 	Input:       &schemaUpdateRestApiInput,
@@ -1691,7 +1702,7 @@ var descUpdateRestApi = registry.Operation{
 var descUpdateStage = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "apigateway", Name: "UpdateStage"},
-	Ordinal:     120,
+	Ordinal:     121,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.apigateway#UpdateStage",
 	Input:       &schemaUpdateStageInput,
@@ -1705,7 +1716,7 @@ var descUpdateStage = registry.Operation{
 var descUpdateUsage = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "apigateway", Name: "UpdateUsage"},
-	Ordinal:     121,
+	Ordinal:     122,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.apigateway#UpdateUsage",
 	Input:       &schemaUpdateUsageInput,
@@ -1719,7 +1730,7 @@ var descUpdateUsage = registry.Operation{
 var descUpdateUsagePlan = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "apigateway", Name: "UpdateUsagePlan"},
-	Ordinal:     122,
+	Ordinal:     123,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.apigateway#UpdateUsagePlan",
 	Input:       &schemaUpdateUsagePlanInput,
@@ -1733,7 +1744,7 @@ var descUpdateUsagePlan = registry.Operation{
 var descUpdateVpcLink = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "apigateway", Name: "UpdateVpcLink"},
-	Ordinal:     123,
+	Ordinal:     124,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.apigateway#UpdateVpcLink",
 	Input:       &schemaUpdateVpcLinkInput,

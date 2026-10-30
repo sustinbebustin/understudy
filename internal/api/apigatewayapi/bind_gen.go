@@ -840,6 +840,11 @@ func (b Binder) ImportRestApi(h kernel.Handler[ImportRestApiInput, RestApi], cov
 	kernel.Bind(b.b, OpImportRestApi, h, cov, opts...)
 }
 
+// InvokeRestApi binds the raw HTTP handler of InvokeRestApi.
+func (b Binder) InvokeRestApi(h kernel.RawHTTPHandler, cov registry.BindCoverage) {
+	kernel.BindRawHTTP(b.b, &descInvokeRestApi, h, cov)
+}
+
 // PutGatewayResponse binds the handler of PutGatewayResponse.
 func (b Binder) PutGatewayResponse(h kernel.Handler[PutGatewayResponseInput, GatewayResponse], cov registry.BindCoverage, opts ...kernel.BindOption) {
 	kernel.Bind(b.b, OpPutGatewayResponse, h, cov, opts...)

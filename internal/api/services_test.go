@@ -201,7 +201,10 @@ func TestRawOperations(t *testing.T) {
 	want := map[ref.OperationID][]string{
 		// The execute-api data plane declares no action: AWS evaluates no
 		// IAM on a NONE route (apigateway-http.md 8.2, 8.3).
-		{Service: "apigatewayv2", Name: "InvokeApi"}:      nil,
+		{Service: "apigatewayv2", Name: "InvokeApi"}: nil,
+		// Nor does REST's: AWS evaluates no IAM on a NONE method
+		// (apigateway-rest.md 12.2, 3.10).
+		{Service: "apigateway", Name: "InvokeRestApi"}:    nil,
 		{Service: "lambda", Name: "InvokeFunctionUrl"}:    {"lambda:InvokeFunctionUrl"},
 		{Service: "lambda", Name: "DownloadFunctionCode"}: nil,
 		{Service: "s3", Name: "ListTagsForResource"}:      {"s3:ListTagsForResource"},
