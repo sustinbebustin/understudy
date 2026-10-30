@@ -28,6 +28,8 @@ type Service struct {
 	history *store.Partitioned[aws.Scope, History]
 	// evaluation is TimerAlarmEvaluation as registered with the kernel.
 	evaluation kernel.HandledKind
+	// events are the alarm events not sent yet, in commit order.
+	events eventQueue
 }
 
 // New binds the CloudWatch operations understudy implements and registers

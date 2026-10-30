@@ -18,12 +18,14 @@ type harness struct {
 	svc *cloudwatch.Service
 }
 
+// run runs fn against a kernel with CloudWatch alone: alarm actions go to a
+// sink no test reads, and alarm events find no EventBridge.
 func run(t *testing.T, fn func(h *harness)) {
 	t.Helper()
 	kerneltest.Run(t, func(k *kerneltest.K) {
 		svc := cloudwatch.New(k.Deps(cloudwatchapi.Service()), cloudwatch.Options{})
 		fn(&harness{K: k, svc: svc})
-	}, kerneltest.Services(cloudwatchapi.Service()))
+	}, kerneltest.Services(cloudwatchapi.Service()), kerneltest.Deliver(&sink{}))
 }
 
 // call runs op as a client request.

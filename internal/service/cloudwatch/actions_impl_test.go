@@ -2,13 +2,18 @@ package cloudwatch_test
 
 import (
 	"encoding/json"
+	"slices"
 	"strings"
 	"testing"
 	"testing/synctest"
+	"time"
 
 	"github.com/sustinbebustin/understudy/internal/api/cloudwatchapi"
 	"github.com/sustinbebustin/understudy/internal/delivery"
 	"github.com/sustinbebustin/understudy/internal/journal"
+	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/kernel/kerneltest"
+	"github.com/sustinbebustin/understudy/internal/service/cloudwatch"
 )
 
 // SetAlarmState to a different value runs the new state's actions with the
@@ -54,7 +59,7 @@ func TestNotRunActionsAreJournaled(t *testing.T) {
 		notRun := h.advisories(journal.AdvisoryAlarmActionNotRun)
 		if len(notRun) != 2 ||
 			notRun[0].Text != "autoscaling action "+scaling+" is not run: understudy does not emulate EC2 Auto Scaling" ||
-			notRun[1].Text != "unrecognized action "+queue+" is not run: understudy does not emulate the service the ARN names" {
+			notRun[1].Text != "unrecognized action "+queue+" is not run: it is not an SNS topic or Lambda function in a valid account and Region, nor another documented action form (cloudwatch-alarms.md 7.2)" {
 			h.Errorf("not-run advisories = %+v", notRun)
 		}
 		if d := fx.sink.all(); len(d) != 0 {
@@ -100,4 +105,92 @@ func TestEachConfigurationHasItsOwnMetricID(t *testing.T) {
 			h.Errorf("metric ids: create %q, update %q, update's previous %q", created, updated, details[1].PreviousConfiguration.Metrics[0].ID)
 		}
 	})
+}
+
+// A topic ARN in no account understudy serves cannot be delivered to: it is
+// journaled as not run, and the transition still answers, writes its
+// history item, runs the actions after it and sends its event
+// (cloudwatch-alarms.md 5.3: CloudWatch "doesn't test or validate the
+// actions").
+func TestUnservableActionIsNotRunAndTheRestRun(t *testing.T) {
+	runAlarms(t, func(h *harness, fx *effects) {
+		bad := "arn:aws:sns:us-east-1:111:t"
+		in := evalAlarm("cpu")
+		in.TreatMissingData = new("ignore")
+		in.AlarmActions = []string{bad, onAlarmFn}
+		must(h, cloudwatchapi.OpPutMetricAlarm, in)
+		must(h, cloudwatchapi.OpSetAlarmState, &cloudwatchapi.SetAlarmStateInput{AlarmName: "cpu", StateValue: cloudwatchapi.StateValueAlarm, StateReason: "set"})
+		synctest.Wait()
+		if d := fx.sink.all(); len(d) != 1 || d[0].Request.Mechanism != delivery.CloudWatchToLambda {
+			h.Errorf("deliveries = %+v, want the Lambda action alone", d)
+		}
+		if notRun := h.advisories(journal.AdvisoryAlarmActionNotRun); len(notRun) != 1 || !strings.Contains(notRun[0].Text, bad) {
+			h.Errorf("not-run advisories = %+v, want the unservable topic", notRun)
+		}
+		if s := summaries(h.history(&cloudwatchapi.DescribeAlarmHistoryInput{AlarmName: new("cpu")})); len(s) != 1 {
+			h.Errorf("history = %v, want the transition", s)
+		}
+		if ev := fx.bus.of("CloudWatch Alarm State Change"); len(ev) != 1 {
+			h.Errorf("state change events = %d, want one", len(ev))
+		}
+	})
+}
+
+// Two transitions in one clock advance reach the default bus in the order
+// the clock ran them, whatever the goroutine schedule (ADR 0018, hardening
+// round 3).
+func TestTransitionEventsReachTheBusInClockOrder(t *testing.T) {
+	runAlarms(t, func(h *harness, fx *effects) {
+		h.put("Load", cloudwatchapi.StandardUnitCount, 20)
+		must(h, cloudwatchapi.OpPutMetricAlarm, evalAlarm("cpu"))
+		h.settle(10 * time.Minute)
+		events := fx.bus.of("CloudWatch Alarm State Change")
+		got := make([]string, 0, len(events))
+		for _, e := range events {
+			var d struct {
+				State struct {
+					Value string `json:"value"`
+				} `json:"state"`
+			}
+			if err := json.Unmarshal([]byte(e.in.Detail), &d); err != nil {
+				h.Fatalf("detail is not JSON: %v", err)
+			}
+			got = append(got, d.State.Value)
+		}
+		if !slices.Equal(got, []string{"ALARM", "INSUFFICIENT_DATA"}) {
+			h.Errorf("state change events = %v, want ALARM then INSUFFICIENT_DATA", got)
+		}
+	})
+}
+
+// historySink is a DeliverSink that reads the alarm's history as each
+// delivery arrives.
+type historySink struct {
+	h     *harness
+	items []int
+}
+
+func (s *historySink) Deliver(kernel.Delivery) error {
+	s.items = append(s.items, len(s.h.history(&cloudwatchapi.DescribeAlarmHistoryInput{AlarmName: new("cpu")})))
+	return nil
+}
+
+// A transition's actions are delivered once its history item exists, so a
+// subscriber that reads the history on notification finds it
+// (cloudwatch-alarms.md 12.4 item 5).
+func TestActionsAreDeliveredAfterTheHistoryItem(t *testing.T) {
+	hs := &historySink{}
+	kerneltest.Run(t, func(k *kerneltest.K) {
+		h := &harness{K: k, svc: cloudwatch.New(k.Deps(cloudwatchapi.Service()), cloudwatch.Options{})}
+		hs.h = h
+		in := evalAlarm("cpu")
+		in.TreatMissingData = new("ignore")
+		in.AlarmActions = []string{alertsTopic}
+		must(h, cloudwatchapi.OpPutMetricAlarm, in)
+		must(h, cloudwatchapi.OpSetAlarmState, &cloudwatchapi.SetAlarmStateInput{AlarmName: "cpu", StateValue: cloudwatchapi.StateValueAlarm, StateReason: "set"})
+		synctest.Wait()
+		if !slices.Equal(hs.items, []int{1}) {
+			h.Errorf("history items seen at each delivery = %v, want [1]", hs.items)
+		}
+	}, kerneltest.Services(cloudwatchapi.Service()), kerneltest.Deliver(hs))
 }

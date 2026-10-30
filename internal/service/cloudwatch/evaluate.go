@@ -16,9 +16,11 @@ import (
 // onEvaluation evaluates the alarm a TimerAlarmEvaluation names at its due
 // instant and arms the next evaluation (cloudwatch-alarms.md 12.3). An
 // alarm that is gone or no longer evaluable is left alone and its timer
-// dies. An evaluation that keeps the state writes nothing and journals
-// nothing (cloudwatch.alarm.unchanged-state); a transition writes the
-// state, journals a StateChange and appends a history item.
+// dies. Every evaluation is the kernel's TimerFired journal event and one
+// seeded request id; one that keeps the state writes nothing and journals
+// nothing more (cloudwatch.alarm.unchanged-state), and a transition writes
+// the state and journals a StateChange under it, then finishes as
+// finishTransition says.
 func (s *Service) onEvaluation(c *kernel.Call, key clock.TimerKey, due clock.Instant) {
 	ref, ok := parseAlarmARN(key.ID)
 	if !ok {
@@ -26,16 +28,20 @@ func (s *Service) onEvaluation(c *kernel.Call, key clock.TimerKey, due clock.Ins
 			slog.String("timer", key.ID))
 		return
 	}
-	done, err := kernel.Write(c, s.cells, ref.scope, func(st *State, _ clock.Instant, tx *kernel.Tx) (*changed, *awserr.Error) {
+	// Set in the write, as Write answers its zero result when an effect
+	// fails after the commit, and a committed transition is finished
+	// either way.
+	var done *changed
+	_, err := kernel.Write(c, s.cells, ref.scope, func(st *State, _ clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
 		a, ok := st.Alarms[ref.name]
 		if !ok {
 			tx.Unchanged()
-			return nil, nil
+			return struct{}{}, nil
 		}
 		cfg, notEvaluable := alarm.ConfigOf(&a.Config)
 		if notEvaluable != nil {
 			tx.Unchanged()
-			return nil, nil
+			return struct{}{}, nil
 		}
 		tx.Arm(s.evaluation, key.ID, clock.FromWire(cfg.Next(due.Wire())))
 		bins := alarmBins(st, &a.Config, cfg, due)
@@ -45,7 +51,7 @@ func (s *Service) onEvaluation(c *kernel.Call, key clock.TimerKey, due clock.Ins
 			// (cloudwatch-alarms.md 2.4).
 			if !cfg.WarmUp.Over(due.Sub(a.Created), bins, cfg.N) {
 				tx.Unchanged()
-				return nil, nil
+				return struct{}{}, nil
 			}
 			a.WarmedUp, warmedNow = true, true
 			st.Alarms[ref.name] = a
@@ -55,52 +61,70 @@ func (s *Service) onEvaluation(c *kernel.Call, key clock.TimerKey, due clock.Ins
 			if !warmedNow {
 				tx.Unchanged()
 			}
-			return nil, nil
+			return struct{}{}, nil
 		}
 		data := alarm.ReasonData(cfg, tr, due.Wire())
 		next := AlarmState{Value: tr.To, Reason: alarm.Reason(cfg, tr), ReasonData: &data, Updated: due, Transitioned: due}
-		ch := s.transition(tx, ref, &a, next)
+		done = new(s.transition(tx, ref, &a, next))
 		st.Alarms[ref.name] = a
-		return &ch, nil
+		return struct{}{}, nil
 	})
 	if err != nil {
-		s.k.Log().LogAttrs(context.Background(), slog.LevelError, "alarm evaluation failed; the alarm keeps its state and the next evaluation is not armed until a snapshot load re-arms it",
+		// The write function never fails, so this is an effect that
+		// failed after the commit: the evaluation's state and its next
+		// evaluation stand.
+		s.k.Log().LogAttrs(context.Background(), slog.LevelError, "an effect of an alarm evaluation failed after its write committed; the alarm's state and its next evaluation stand",
 			slog.String("alarm", key.ID), slog.String("error", err.Message))
-		return
 	}
 	if done == nil {
 		return
 	}
-	if err := s.appendHistory(c, ref.scope, ref.name, done.item); err != nil {
-		s.k.Log().LogAttrs(context.Background(), slog.LevelError, "writing an alarm history item failed; the transition, its actions and its event stand without it",
-			slog.String("alarm", key.ID), slog.String("error", err.Message))
-	}
-	// The event is sent as tracked work, which never blocks the clock.
-	events := []alarmEvent{done.event}
-	s.k.Go(kernel.DeliveryAttempt, func(ctx context.Context) { s.sendEvents(ctx, c, due, events) })
+	s.finishTransition(context.Background(), c, ref, done, due)
+	s.flushEventsLater()
 }
 
 // changed is what a transition leaves to do once its write commits: the
-// StateUpdate history item to append and the state change event to send.
+// StateUpdate history item to append, the actions to run and the state
+// change event to send.
 type changed struct {
-	item  HistoryItem
-	event alarmEvent
+	item    HistoryItem
+	actions []func(tx *kernel.Tx)
+	event   alarmEvent
 }
 
 // transition moves a to next, a state of a different value, in the write
-// tx, in the order cloudwatch-alarms.md 12.4 gives: the state, the
-// StateChange journal event (cloudwatch-alarms.md 3.8), then the actions
-// of the new state. It returns the StateUpdate history item
-// (cloudwatch-alarms.md 8.2) and the state change event, which are written
-// and sent after the commit.
+// tx: the state and the StateChange journal event (cloudwatch-alarms.md
+// 3.8). It returns the rest of the transition for finishTransition.
 func (s *Service) transition(tx *kernel.Tx, ref alarmRef, a *Alarm, next AlarmState) changed {
 	old := a.State
 	a.State = next
 	tx.Record(ref.scope, journal.StateChange{Resource: ref.arn(), From: journal.ResourceState(old.Value), To: journal.ResourceState(next.Value)})
 	ch := alarm.Change{Old: old.record(), New: next.record()}
-	s.runActions(tx, ref, a, ch)
 	summary, data := alarm.StateUpdate(ch)
-	return changed{item: HistoryItem{At: next.Updated, Summary: summary, Data: data}, event: stateChangeEvent(ref, a, ch)}
+	return changed{
+		item:    HistoryItem{At: next.Updated, Summary: summary, Data: data},
+		actions: actionRuns(ref, a, ch),
+		event:   stateChangeEvent(ref, a, ch),
+	}
+}
+
+// finishTransition completes a committed transition in the order
+// cloudwatch-alarms.md 12.4 item 5 gives after the state write: the
+// StateUpdate history item (cloudwatch-alarms.md 8.2), then the new
+// state's actions, as the effects of the history write, so no delivery
+// starts before the item exists; then the state change event, queued
+// behind every earlier alarm event and admitted at (zero: the call's
+// admission). It returns the queued event for the caller to flush.
+//
+// A failed history write is logged rather than returned: the transition
+// has committed, and the event is queued either way so EventBridge sees
+// every transition.
+func (s *Service) finishTransition(ctx context.Context, c *kernel.Call, ref alarmRef, ch *changed, at clock.Instant) *queuedEvent {
+	if err := s.appendHistory(c, ref.scope, ref.name, ch.item, ch.actions); err != nil {
+		s.k.Log().LogAttrs(ctx, slog.LevelError, "the history write of an alarm transition failed; the transition stands, and its history item or actions may be lost",
+			slog.String("alarm", ref.arn().String()), slog.String("error", err.Message))
+	}
+	return s.pushEvent(c, at, ch.event)
 }
 
 // record is the state as one side of an alarm.Change.

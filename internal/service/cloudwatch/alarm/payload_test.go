@@ -469,6 +469,14 @@ func TestParseAction(t *testing.T) {
 		},
 		{"arn:aws:sqs:us-east-1:123456789012:jobs", alarm.NotRunAction{ARN: "arn:aws:sqs:us-east-1:123456789012:jobs", Kind: alarm.NotRunUnrecognized}},
 		{"not an arn", alarm.NotRunAction{ARN: "not an arn", Kind: alarm.NotRunUnrecognized}},
+		// A topic or function outside any account and Region understudy
+		// serves cannot be delivered to.
+		{"arn:aws:sns:us-east-1:111:alerts", alarm.NotRunAction{ARN: "arn:aws:sns:us-east-1:111:alerts", Kind: alarm.NotRunUnrecognized}},
+		{"arn:aws:sns::123456789012:alerts", alarm.NotRunAction{ARN: "arn:aws:sns::123456789012:alerts", Kind: alarm.NotRunUnrecognized}},
+		{
+			"arn:aws:lambda:us-east-1:12345:function:on-alarm",
+			alarm.NotRunAction{ARN: "arn:aws:lambda:us-east-1:12345:function:on-alarm", Kind: alarm.NotRunUnrecognized},
+		},
 	} {
 		if got := alarm.ParseAction(tc.arn); !reflect.DeepEqual(got, tc.want) {
 			t.Errorf("ParseAction(%q) = %#v\nwant %#v", tc.arn, got, tc.want)

@@ -178,12 +178,6 @@ func (k *Kernel) Clock() *clock.Clock { return k.clock }
 // IDs returns the identifier source.
 func (k *Kernel) IDs() *ids.Source { return k.ids }
 
-// Delivers reports whether the kernel has a DeliverSink, without which
-// Tx.Deliver fails the write: a service whose deliveries are a side effect
-// of a change the caller asked for, such as an alarm's actions, skips them
-// in a kernel built without one.
-func (k *Kernel) Delivers() bool { return k.deliver != nil }
-
 // Journal returns the journal every call is recorded in.
 func (k *Kernel) Journal() *journal.Journal { return k.journal }
 

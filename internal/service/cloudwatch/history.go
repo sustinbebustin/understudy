@@ -67,16 +67,21 @@ func splitHistory(ss []store.Section) (state, history []store.Section) {
 	return state, history
 }
 
-// appendHistory writes item to the alarm's history in scope and drops the
-// scope's items older than historyRetention at the write's instant.
+// appendHistory writes item to the alarm's history in scope, drops the
+// scope's items older than historyRetention at the write's instant, and
+// applies effects, the transition's actions, in the same write, so they
+// follow the item (cloudwatch-alarms.md 12.4 item 5).
 //
 // It is a second write after the state write that made the transition: a
 // snapshot cut between the two saves the new state without its history
-// item, and the item is lost. Merging the two stores would make history
-// part of the alarm's lifetime, which AWS's history outlives
+// item or actions, and they are lost. Merging the two stores would make
+// history part of the alarm's lifetime, which AWS's history outlives
 // (cloudwatch-alarms.md 8.1).
-func (s *Service) appendHistory(c *kernel.Call, scope aws.Scope, name string, item HistoryItem) *awserr.Error {
-	_, err := kernel.Write(c, s.history, scope, func(h *History, now clock.Instant, _ *kernel.Tx) (struct{}, *awserr.Error) {
+func (s *Service) appendHistory(c *kernel.Call, scope aws.Scope, name string, item HistoryItem, effects []func(tx *kernel.Tx)) *awserr.Error {
+	_, err := kernel.Write(c, s.history, scope, func(h *History, now clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
+		for _, apply := range effects {
+			apply(tx)
+		}
 		cutoff := now.Add(-historyRetention)
 		for n, items := range h.Items {
 			kept := slices.DeleteFunc(slices.Clone(items), func(it HistoryItem) bool { return it.At.Before(cutoff) })

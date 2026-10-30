@@ -106,7 +106,11 @@ func (s *Service) putMetricAlarm(ctx context.Context, c *kernel.Call, in *cloudw
 	initial := initialStateValue(in)
 	eval, notEvaluable := alarm.ConfigOf(&cfg)
 	ref := named(c, in.AlarmName)
-	event, err := kernel.Write(c, s.cells, c.Scope(), func(st *State, now clock.Instant, tx *kernel.Tx) (alarmEvent, *awserr.Error) {
+	// Set in the write, as Write answers its zero result when an effect
+	// fails after the commit, and the event of a committed change is sent
+	// either way.
+	var queued *queuedEvent
+	_, err := kernel.Write(c, s.cells, c.Scope(), func(st *State, now clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
 		a, ok := st.Alarms[in.AlarmName]
 		var previous *Alarm
 		if ok {
@@ -123,15 +127,17 @@ func (s *Service) putMetricAlarm(ctx context.Context, c *kernel.Call, in *cloudw
 		a.MetricID = alarm.MetricID(ref.arn().String(), now.Wire(), a.MetricID)
 		st.Alarms[in.AlarmName] = a
 		s.armEvaluation(tx, ref, &eval, notEvaluable, now)
+		event := configChangeEvent(alarm.ConfigCreate, ref, &a, nil)
 		if previous != nil {
-			return configChangeEvent(alarm.ConfigUpdate, ref, &a, previous), nil
+			event = configChangeEvent(alarm.ConfigUpdate, ref, &a, previous)
 		}
-		return configChangeEvent(alarm.ConfigCreate, ref, &a, nil), nil
+		queued = s.pushEvent(c, clock.Instant{}, event)
+		return struct{}{}, nil
 	})
+	s.flushEvents(ctx, queued)
 	if err != nil {
 		return nil, err
 	}
-	s.sendEvents(ctx, c, clock.Instant{}, []alarmEvent{event})
 	return &cloudwatchapi.PutMetricAlarmOutput{}, nil
 }
 
@@ -321,17 +327,17 @@ func echoQueries(qs []cloudwatchapi.MetricDataQuery) []cloudwatchapi.MetricDataQ
 // no alarm are skipped, as AWS documents, so deleting a missing alarm
 // succeeds (wire-cbor.md 3.5).
 func (s *Service) deleteAlarms(ctx context.Context, c *kernel.Call, in *cloudwatchapi.DeleteAlarmsInput) (*cloudwatchapi.DeleteAlarmsOutput, *awserr.Error) {
-	var events []alarmEvent
+	var last *queuedEvent
 	err := s.eachAlarm(c, in.AlarmNames, func(st *State, name string, a Alarm, tx *kernel.Tx) {
 		delete(st.Alarms, name)
 		ref := named(c, name)
 		tx.Disarm(s.evaluation, ref.arn().String())
-		events = append(events, configChangeEvent(alarm.ConfigDelete, ref, &a, nil))
+		last = s.pushEvent(c, clock.Instant{}, configChangeEvent(alarm.ConfigDelete, ref, &a, nil))
 	})
+	s.flushEvents(ctx, last)
 	if err != nil {
 		return nil, err
 	}
-	s.sendEvents(ctx, c, clock.Instant{}, events)
 	return &cloudwatchapi.DeleteAlarmsOutput{}, nil
 }
 
@@ -392,29 +398,29 @@ func (s *Service) setAlarmState(ctx context.Context, c *kernel.Call, in *cloudwa
 		return nil, errAlarmNotFound()
 	}
 	ref := named(c, in.AlarmName)
-	done, err := kernel.Write(c, s.cells, c.Scope(), func(st *State, now clock.Instant, tx *kernel.Tx) (*changed, *awserr.Error) {
+	// Set in the write, as Write answers its zero result when an effect
+	// fails after the commit, and a committed transition is finished
+	// either way.
+	var done *changed
+	_, err := kernel.Write(c, s.cells, c.Scope(), func(st *State, now clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
 		a, ok := st.Alarms[in.AlarmName]
 		if !ok {
-			return nil, errAlarmNotFound()
+			return struct{}{}, errAlarmNotFound()
 		}
 		next := AlarmState{Value: in.StateValue, Reason: in.StateReason, ReasonData: in.StateReasonData, Updated: a.State.Updated, Transitioned: a.State.Transitioned}
-		var ch *changed
 		if in.StateValue != a.State.Value {
 			next.Updated, next.Transitioned = now, now
-			ch = new(s.transition(tx, ref, &a, next))
+			done = new(s.transition(tx, ref, &a, next))
 		}
 		a.State = next
 		st.Alarms[in.AlarmName] = a
-		return ch, nil
+		return struct{}{}, nil
 	})
+	if done != nil {
+		s.flushEvents(ctx, s.finishTransition(ctx, c, ref, done, clock.Instant{}))
+	}
 	if err != nil {
 		return nil, err
-	}
-	if done != nil {
-		if err := s.appendHistory(c, ref.scope, ref.name, done.item); err != nil {
-			return nil, err
-		}
-		s.sendEvents(ctx, c, clock.Instant{}, []alarmEvent{done.event})
 	}
 	return &cloudwatchapi.SetAlarmStateOutput{}, nil
 }

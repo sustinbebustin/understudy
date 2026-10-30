@@ -43,28 +43,19 @@ func actionsOf(cfg *cloudwatchapi.PutMetricAlarmInput, v cloudwatchapi.StateValu
 	}
 }
 
-// runActions runs, in the write tx, the actions of a transition the alarm
-// a has made, in list order, when its actions are enabled
-// (cloudwatch-alarms.md 7.1, 12.4): SNS and Lambda actions are deliveries
-// with no retry schedule, as CloudWatch "doesn't test or validate the
-// actions" (cloudwatch-alarms.md 5.3), and every other kind is journaled
-// as not run (cloudwatch-alarms.md 12.7). A kernel built without a
-// delivery sink, as unit harnesses are, cannot deliver: the transition
-// stands and the SNS and Lambda actions are logged as not delivered.
-func (s *Service) runActions(tx *kernel.Tx, r alarmRef, a *Alarm, ch alarm.Change) {
+// actionRuns are the actions of a transition the alarm a has made, in list
+// order, when its actions are enabled (cloudwatch-alarms.md 7.1, 12.4),
+// each an effect to apply in a write tx: SNS and Lambda actions are
+// deliveries with no retry schedule, as CloudWatch "doesn't test or
+// validate the actions" (cloudwatch-alarms.md 5.3), and every other kind
+// is journaled as not run (cloudwatch-alarms.md 12.7).
+func actionRuns(r alarmRef, a *Alarm, ch alarm.Change) []func(tx *kernel.Tx) {
 	if !a.ActionsEnabled {
-		return
-	}
-	deliver := func(req delivery.Request) {
-		if s.k.Delivers() {
-			tx.Deliver(req)
-			return
-		}
-		s.k.Log().Warn("an alarm action is not delivered: this kernel has no delivery sink",
-			slog.String("alarm", req.Source.String()), slog.String("mechanism", req.Mechanism.String()))
+		return nil
 	}
 	subject := subjectOf(r, a)
 	source := r.arn()
+	var runs []func(tx *kernel.Tx)
 	for _, arn := range actionsOf(&a.Config, ch.New.Value) {
 		req := delivery.Request{Source: source, SourceAccount: r.scope.Account, Policy: delivery.None{}}
 		switch act := alarm.ParseAction(arn).(type) {
@@ -76,38 +67,39 @@ func (s *Service) runActions(tx *kernel.Tx, r alarmRef, a *Alarm, ch alarm.Chang
 				topic.DedupID = alarm.FIFODedupID(source.String(), ch.New.Timestamp)
 			}
 			req.Mechanism, req.Target = delivery.CloudWatchToSNS, topic
-			deliver(req)
+			runs = append(runs, func(tx *kernel.Tx) { tx.Deliver(req) })
 		case alarm.LambdaAction:
 			req.Mechanism = delivery.CloudWatchToLambda
 			req.Target = delivery.LambdaFunction{
 				ARN: act.Function, Qualifier: act.Qualifier, Event: alarm.LambdaEvent(subject, ch), Invocation: delivery.InvocationEvent,
 			}
-			deliver(req)
+			runs = append(runs, func(tx *kernel.Tx) { tx.Deliver(req) })
 		case alarm.NotRunAction:
-			tx.Record(r.scope, journal.Advisory{
+			adv := journal.Advisory{
 				Kind: journal.AdvisoryAlarmActionNotRun, Resource: source,
-				Text: act.Kind.String() + " action " + act.ARN + " is not run: understudy does not emulate " + notRunService(act.Kind),
-			})
+				Text: act.Kind.String() + " action " + act.ARN + " is not run: " + notRunWhy(act.Kind),
+			}
+			runs = append(runs, func(tx *kernel.Tx) { tx.Record(r.scope, adv) })
 		}
 	}
+	return runs
 }
 
-// notRunService names what an action kind understudy does not run would
-// need.
-func notRunService(k alarm.NotRunKind) string {
+// notRunWhy says why an action kind understudy does not run is not run.
+func notRunWhy(k alarm.NotRunKind) string {
 	switch k {
 	case alarm.NotRunEC2:
-		return "EC2"
+		return "understudy does not emulate EC2"
 	case alarm.NotRunAutoScaling:
-		return "EC2 Auto Scaling"
+		return "understudy does not emulate EC2 Auto Scaling"
 	case alarm.NotRunSystemsManager:
-		return "Systems Manager OpsCenter or Incident Manager"
+		return "understudy does not emulate Systems Manager OpsCenter or Incident Manager"
 	case alarm.NotRunInvestigation:
-		return "CloudWatch investigations"
+		return "understudy does not emulate CloudWatch investigations"
 	case alarm.NotRunUnrecognized:
-		return "the service the ARN names"
+		return "it is not an SNS topic or Lambda function in a valid account and Region, nor another documented action form (cloudwatch-alarms.md 7.2)"
 	default:
-		return "the service the ARN names"
+		return "it is not an SNS topic or Lambda function in a valid account and Region, nor another documented action form (cloudwatch-alarms.md 7.2)"
 	}
 }
 
@@ -142,26 +134,24 @@ func configChangeEvent(op alarm.ConfigOp, r alarmRef, a, previous *Alarm) alarmE
 	}
 }
 
-// sendEvents puts events on the default bus of their alarm's scope as
+// sendEvent puts e on the default bus of its alarm's scope as
 // cloudwatch.amazonaws.com, through EventBridge's internal operation, on
-// behalf of parent and admitted at (zero: parent's admission). It must
-// run after the write that made the change, which holds no lock then. A
-// kernel without EventBridge skips them; a failure is logged and not
-// retried (contract 3.6).
-func (s *Service) sendEvents(ctx context.Context, parent *kernel.Call, at clock.Instant, events []alarmEvent) {
-	if len(events) == 0 {
-		return
+// behalf of parent and admitted at (zero: parent's admission). It runs
+// from the event queue, after the write that made the change, which holds
+// no lock then. A kernel without EventBridge, or a failed send, loses the
+// event with a warning; it is not retried (contract 3.6).
+func (s *Service) sendEvent(ctx context.Context, parent *kernel.Call, at clock.Instant, e *alarmEvent) {
+	lost := func(why string) {
+		s.k.Log().LogAttrs(ctx, slog.LevelWarn, "an alarm event did not reach the default event bus and is not sent again; the alarm's state and actions are unaffected",
+			slog.String("alarm", e.alarm.String()), slog.String("detail_type", e.detailType), slog.String("error", why))
 	}
 	if _, bound := s.k.Bindings().Status(eventbridgeapi.OpPutServiceEventInternal.Descriptor()).(kernel.Bound); !bound {
+		lost("this kernel has no EventBridge PutServiceEventInternal")
 		return
 	}
-	for i := range events {
-		e := &events[i]
-		t := kernel.Target{Scope: e.scope, As: kernel.AsPlatform{Name: cloudWatchPrincipal}, Via: ref.CloudWatchAlarm, At: at}
-		in := &eventbridgeapi.PutServiceEventInternalInput{Source: alarm.EventSource, DetailType: e.detailType, Detail: e.detail, Resources: []string{e.alarm.String()}}
-		if _, err := kernel.Invoke(ctx, s.k, parent, eventbridgeapi.OpPutServiceEventInternal, t, in); err != nil {
-			s.k.Log().LogAttrs(ctx, slog.LevelWarn, "sending an alarm event to the default event bus failed; the alarm's state and actions are unaffected and the event is not sent again",
-				slog.String("alarm", e.alarm.String()), slog.String("detail_type", e.detailType), slog.String("error", err.Message))
-		}
+	t := kernel.Target{Scope: e.scope, As: kernel.AsPlatform{Name: cloudWatchPrincipal}, Via: ref.CloudWatchAlarm, At: at}
+	in := &eventbridgeapi.PutServiceEventInternalInput{Source: alarm.EventSource, DetailType: e.detailType, Detail: e.detail, Resources: []string{e.alarm.String()}}
+	if _, err := kernel.Invoke(ctx, s.k, parent, eventbridgeapi.OpPutServiceEventInternal, t, in); err != nil {
+		lost(err.Message)
 	}
 }

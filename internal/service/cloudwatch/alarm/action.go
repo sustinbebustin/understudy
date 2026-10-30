@@ -103,6 +103,14 @@ func ParseAction(arn string) Action {
 		return NotRunAction{ARN: arn, Kind: NotRunUnrecognized}
 	}
 	notRun := func(k NotRunKind) Action { return NotRunAction{ARN: arn, Kind: k} }
+	if a.Service == "sns" || a.Service == "lambda" {
+		// A topic or function outside every account and Region understudy
+		// serves can never be delivered to; it is journaled as not run
+		// rather than failing the transition's write.
+		if _, err := aws.ScopeOf(a); err != nil {
+			return notRun(NotRunUnrecognized)
+		}
+	}
 	switch a.Service {
 	case "sns":
 		if !strings.Contains(a.Resource, ":") {
