@@ -23,7 +23,10 @@ import (
 // a Lambda delivery keeps its sender (senderRecord) and a queue target its
 // trace header. 4: a request keeps the aws:SourceAccount its delivery sends
 // (sourceAccount), which an earlier entry left implied, so an earlier
-// section is refused rather than restored without it (ADR 0009).
+// section is refused rather than restored without it (ADR 0009). A
+// Scheduler entry's principal and invocation (requestRecord.As,
+// Invocation) are absent from every other entry, so they need no new
+// version.
 const stateVersion = 4
 
 // State is the outbox of one account and region, the scope of the targets
@@ -119,6 +122,28 @@ type requestRecord struct {
 	Policy        policyRecord       `json:"policy"`
 	DLQ           string             `json:"dlq,omitempty"`
 	Sender        *senderRecord      `json:"sender,omitempty"`
+	// As and Invocation are a Scheduler delivery's (scheduler.md 14.4.2,
+	// 14.4.4); absent for every other, so earlier entries load unchanged.
+	As         *executionRoleRecord `json:"as,omitempty"`
+	Invocation *invocationRecord    `json:"invocation,omitempty"`
+}
+
+// executionRoleRecord is the persisted form of a delivery.ExecutionRole,
+// the one delivery.Principal.
+type executionRoleRecord struct {
+	Role    string `json:"role"`
+	RoleID  string `json:"roleId,omitempty"`
+	Session string `json:"session,omitempty"`
+}
+
+// invocationRecord is the persisted form of a delivery.SchedulerInvocation.
+type invocationRecord struct {
+	Schedule    string                   `json:"schedule"`
+	TargetARN   string                   `json:"targetArn"`
+	Scheduled   time.Time                `json:"scheduled"`
+	ExecutionID string                   `json:"executionId"`
+	Template    string                   `json:"template"`
+	OnPermanent delivery.PermanentErrors `json:"onPermanent"`
 }
 
 // senderRecord is the persisted form of a delivery.LambdaSender.
@@ -336,6 +361,17 @@ func recordOf(e *Entry) entryRecord {
 	if s := req.Sender; s != nil {
 		r.Request.Sender = &senderRecord{Role: s.Role.String(), Carries: s.Carries}
 	}
+	switch p := req.As.(type) {
+	case delivery.ExecutionRole:
+		r.Request.As = &executionRoleRecord{Role: p.Role.String(), RoleID: p.RoleID, Session: p.Session}
+	case nil:
+	}
+	if inv := req.Invocation; inv != nil {
+		r.Request.Invocation = &invocationRecord{
+			Schedule: inv.ScheduleARN.String(), TargetARN: inv.TargetARN, Scheduled: inv.Scheduled,
+			ExecutionID: inv.ExecutionID, Template: inv.Template, OnPermanent: inv.OnPermanent,
+		}
+	}
 	return r
 }
 
@@ -409,6 +445,23 @@ func requestOf(r *requestRecord) (delivery.Request, *RequestError) {
 			return delivery.Request{}, err
 		}
 		req.Sender = &delivery.LambdaSender{Role: role, Carries: s.Carries}
+	}
+	if as := r.As; as != nil {
+		role, err := parseARN("As.Role", as.Role)
+		if err != nil {
+			return delivery.Request{}, err
+		}
+		req.As = delivery.ExecutionRole{Role: role, RoleID: as.RoleID, Session: as.Session}
+	}
+	if inv := r.Invocation; inv != nil {
+		schedule, err := parseARN("Invocation.ScheduleARN", inv.Schedule)
+		if err != nil {
+			return delivery.Request{}, err
+		}
+		req.Invocation = &delivery.SchedulerInvocation{
+			ScheduleARN: schedule, TargetARN: inv.TargetARN, Scheduled: inv.Scheduled,
+			ExecutionID: inv.ExecutionID, Template: inv.Template, OnPermanent: inv.OnPermanent,
+		}
 	}
 	return req, nil
 }

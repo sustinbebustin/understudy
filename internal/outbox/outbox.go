@@ -231,15 +231,38 @@ func checkRequest(req delivery.Request) (aws.Scope, *RequestError) {
 	return scope, nil
 }
 
-// checkScheduler refuses a Scheduler delivery (scheduler.md 14.4.3): not
-// implemented yet, the outbox neither renders its payload from
-// Request.Invocation nor runs it as Request.As, so it attempts none rather
-// than deliver one as a service principal.
+// checkScheduler checks req's principal and invocation: both set for the
+// Scheduler mechanisms, which run as the schedule's execution role and
+// render each attempt's payload from the invocation (scheduler.md 14.4.2,
+// 14.4.4), and both nil for every other mechanism. A Scheduler delivery
+// has no Lambda sender.
 func checkScheduler(req delivery.Request) *RequestError {
-	if req.Mechanism.Via() != ref.SchedulerTarget {
+	m := req.Mechanism
+	if m.Via() != ref.SchedulerTarget {
+		switch {
+		case req.As != nil:
+			return &RequestError{Field: "As", Reason: "is set, but only the Scheduler mechanisms run as a principal they name, and this delivery is " + m.String()}
+		case req.Invocation != nil:
+			return &RequestError{Field: "Invocation", Reason: "is set, but only the Scheduler mechanisms render their payload from a schedule invocation, and this delivery is " + m.String()}
+		}
 		return nil
 	}
-	return &RequestError{Field: "Mechanism", Reason: "is " + req.Mechanism.String() + ", a Scheduler delivery, which the outbox does not attempt: not implemented yet"}
+	switch {
+	case req.Invocation == nil:
+		return &RequestError{Field: "Invocation", Reason: "is nil, but a " + m.String() + " delivery renders each attempt's payload from its schedule invocation"}
+	case req.Sender != nil:
+		return &RequestError{Field: "Sender", Reason: "is set, but a " + m.String() + " delivery runs as Request.As, the schedule's execution role"}
+	}
+	switch as := req.As.(type) {
+	case nil:
+		return &RequestError{Field: "As", Reason: "is nil, but a " + m.String() + " delivery runs as the schedule's execution role"}
+	case delivery.ExecutionRole:
+		name, isRole := strings.CutPrefix(as.Role.Resource, "role/")
+		if _, err := aws.ParseAccountID(as.Role.Account); as.Role.Service != "iam" || !isRole || name == "" || err != nil {
+			return &RequestError{Field: "As.Role", Reason: fmt.Sprintf("%s is not an IAM role, arn:<partition>:iam::<account>:role/<path><name>", as.Role)}
+		}
+	}
+	return nil
 }
 
 // checkSender checks req's sender: set for the Lambda mechanisms, which

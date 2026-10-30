@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"slices"
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/access"
@@ -243,7 +244,40 @@ func (a *attempt) run(ctx context.Context) (journal.DeliveryOutcome, bool) {
 		return journal.Dropped{Reason: reason}, true
 	}
 	a.advise(ctx)
-	return a.send(ctx, a.entry.Request.Target)
+	return a.send(ctx, rendered(a.entry.Request, a.entry.Attempt+1))
+}
+
+// rendered is req's target as attempt number attempt sends it: a Scheduler
+// delivery's payload rendered from its invocation, whose
+// <aws.scheduler.attempt-number> counts this attempt (scheduler.md 6.3,
+// 14.4.2), and any other target unchanged. An EventBus target carries one
+// entry (checkEventBus), whose Detail is the payload.
+func rendered(req delivery.Request, attempt int) delivery.Target {
+	inv := req.Invocation
+	if inv == nil {
+		return req.Target
+	}
+	payload := inv.Payload(attempt)
+	switch t := req.Target.(type) {
+	case delivery.SQSQueue:
+		t.Body = payload
+		return t
+	case delivery.LambdaFunction:
+		t.Event = []byte(payload)
+		return t
+	case delivery.SNSTopic:
+		t.Message = payload
+		return t
+	case delivery.EventBus:
+		entries := slices.Clone(t.Entries)
+		for i := range entries {
+			entries[i].Detail = payload
+		}
+		t.Entries = entries
+		return t
+	case delivery.S3Object, delivery.HTTPEndpoint:
+	}
+	return req.Target
 }
 
 // end is the outcome of an attempt whose target call answered err, nil
@@ -397,10 +431,12 @@ func (a *attempt) wait(ctx context.Context, d time.Duration) bool {
 // to grant the role as well (iam-evaluation.md 2.4), and that is not
 // checked here either. Both wait for IAM enforcement (ROADMAP.md item 5),
 // which can decide the attempt's calls as the role; until then nothing
-// advises them (docs/guide/differences.md).
+// advises them (docs/guide/differences.md). A Scheduler delivery runs as a
+// session of the schedule's execution role too, which needs no grant in
+// the target's resource policy (scheduler.md 1 item 1, 14.4.4).
 func (a *attempt) advise(ctx context.Context) {
 	req := a.entry.Request
-	if a.e.policies == nil || req.Mechanism == delivery.EventsToEvents || req.Sender != nil {
+	if a.e.policies == nil || req.Mechanism == delivery.EventsToEvents || req.Sender != nil || req.As != nil {
 		return
 	}
 	target := deliveredTo(req)
@@ -420,8 +456,10 @@ func (a *attempt) advise(ctx context.Context) {
 
 // as is how every call of the attempt runs: in scope, as the delivering
 // service on behalf of the source, with the aws:SourceAccount the request
-// says it sends, or as the function's execution role for a Lambda delivery
-// (lambda-destinations-layers.md 2.5, 11.3.2), admitted at the due instant
+// says it sends, as the function's execution role for a Lambda delivery
+// (lambda-destinations-layers.md 2.5, 11.3.2), or as the session of the
+// schedule's execution role a Scheduler delivery names in Request.As
+// (scheduler.md 14.4.4), admitted at the due instant
 // and caused by the source call, like the attempt's Delivery event. A dead
 // letter is sent the same way: AWS documents only aws:SourceArn for an
 // EventBridge dead letter (iam-enforcement-surfaces.md 8.1), so its
@@ -431,6 +469,11 @@ func (a *attempt) as(scope aws.Scope) kernel.Target {
 	var as kernel.PrincipalMode = kernel.AsService{Name: servicePrincipal(req.Mechanism), Source: req.Source, SourceAccount: req.SourceAccount}
 	if req.Sender != nil {
 		as = kernel.AsExecutionRole{Role: req.Sender.Role}
+	}
+	switch p := req.As.(type) {
+	case delivery.ExecutionRole:
+		as = kernel.AsExecutionRole{Role: p.Role, ID: p.RoleID, Session: p.Session}
+	case nil:
 	}
 	return kernel.Target{
 		Scope:  scope,

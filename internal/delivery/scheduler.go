@@ -2,6 +2,8 @@ package delivery
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/aws"
@@ -56,9 +58,16 @@ type SchedulerInvocation struct {
 // string replacement (scheduler.md 6.3): <aws.scheduler.schedule-arn>,
 // <aws.scheduler.scheduled-time> (RFC 3339, whole seconds, Z),
 // <aws.scheduler.execution-id> and <aws.scheduler.attempt-number>, which is
-// attempt in decimal, 1 for the first attempt. Not implemented yet: it
-// returns "".
-func (SchedulerInvocation) Payload(int) string { return "" }
+// attempt in decimal, 1 for the first attempt. The replacement is one pass,
+// so a value that contains an attribute name is not replaced again.
+func (s SchedulerInvocation) Payload(attempt int) string {
+	return strings.NewReplacer(
+		"<aws.scheduler.schedule-arn>", s.ScheduleARN.String(),
+		"<aws.scheduler.scheduled-time>", s.Scheduled.UTC().Format("2006-01-02T15:04:05Z"),
+		"<aws.scheduler.execution-id>", s.ExecutionID,
+		"<aws.scheduler.attempt-number>", strconv.Itoa(attempt),
+	).Replace(s.Template)
+}
 
 // PermanentErrors is what a Scheduler delivery does with a client-side
 // target error: switch scheduler.retry.permanent-errors (scheduler.md 7.1).
@@ -83,4 +92,30 @@ func (p PermanentErrors) String() string {
 		return "retried"
 	}
 	return fmt.Sprintf("PermanentErrors(%d)", uint8(p))
+}
+
+// PermanentErrorsError is a PermanentErrors that is not a declared value.
+type PermanentErrorsError struct{ Text string }
+
+func (e *PermanentErrorsError) Error() string {
+	return "delivery: " + e.Text + " is not a scheduler.retry.permanent-errors value; want not-retried or retried"
+}
+
+// MarshalText encodes the switch value; an undeclared value is an error.
+func (p PermanentErrors) MarshalText() ([]byte, error) {
+	if p != PermanentNotRetried && p != PermanentRetried {
+		return nil, &PermanentErrorsError{Text: p.String()}
+	}
+	return []byte(p.String()), nil
+}
+
+// UnmarshalText decodes a switch value.
+func (p *PermanentErrors) UnmarshalText(text []byte) error {
+	for _, v := range []PermanentErrors{PermanentNotRetried, PermanentRetried} {
+		if v.String() == string(text) {
+			*p = v
+			return nil
+		}
+	}
+	return &PermanentErrorsError{Text: string(text)}
 }

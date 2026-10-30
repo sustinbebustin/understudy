@@ -51,11 +51,9 @@ type AsCaller struct{}
 // deliveries as a schedule's (scheduler.md 14.4.4).
 type AsExecutionRole struct {
 	Role aws.ARN
-	// ID is the role's AROA... id, "" when unknown. Not implemented yet:
-	// the session's principal does not carry it.
+	// ID is the role's AROA... id the session carries, "" when unknown.
 	ID string
-	// Session is the role session name; "" is "understudy". Not
-	// implemented yet: the session is always "understudy".
+	// Session is the role session name; "" is "understudy".
 	Session string
 }
 
@@ -210,7 +208,7 @@ func resolvePrincipal(parent *Call, m PrincipalMode) identity.Principal {
 	case AsCaller:
 		return parent.principal
 	case AsExecutionRole:
-		return executionRole(m.Role)
+		return executionRole(m)
 	case AsService:
 		return identity.ServicePrincipal{Name: m.Name}
 	case AsPlatform:
@@ -219,14 +217,19 @@ func resolvePrincipal(parent *Call, m PrincipalMode) identity.Principal {
 	return identity.Anonymous{}
 }
 
-// executionRole is the session a function's execution role runs internal
-// calls as: the role from its ARN (arn:aws:iam::<account>:role<path><name>)
-// under the session name "understudy", since the access recorder keys on
-// the role and no session of a real environment is involved. An ARN that
-// names no role is anonymous.
-func executionRole(role aws.ARN) identity.Principal {
-	account, err := aws.ParseAccountID(role.Account)
-	rest, ok := strings.CutPrefix(role.Resource, "role/")
+// defaultSession is the session name of an execution role call that names
+// none: a function's execution role, since the access recorder keys on the
+// role and no session of a real environment is involved.
+const defaultSession = "understudy"
+
+// executionRole is the session m runs internal calls as: the role from its
+// ARN (arn:aws:iam::<account>:role<path><name>) with m's role id, under
+// m's session name or defaultSession. A Scheduler delivery names its
+// invocation's session and the role id IAM resolved (scheduler.md 7.2,
+// 14.4.4). An ARN that names no role is anonymous.
+func executionRole(m AsExecutionRole) identity.Principal {
+	account, err := aws.ParseAccountID(m.Role.Account)
+	rest, ok := strings.CutPrefix(m.Role.Resource, "role/")
 	if err != nil || !ok || rest == "" {
 		return identity.Anonymous{}
 	}
@@ -234,10 +237,14 @@ func executionRole(role aws.ARN) identity.Principal {
 	if i := strings.LastIndexByte(rest, '/'); i >= 0 {
 		path, name = "/"+rest[:i+1], rest[i+1:]
 	}
+	session := m.Session
+	if session == "" {
+		session = defaultSession
+	}
 	return identity.AssumedRole{
 		Account: account,
-		Role:    identity.RoleRef{Name: name, Path: path},
-		Session: "understudy",
+		Role:    identity.RoleRef{Name: name, Path: path, ID: m.ID},
+		Session: session,
 		Source:  identity.FromAssumeRole{},
 	}
 }
