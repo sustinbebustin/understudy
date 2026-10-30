@@ -138,6 +138,10 @@ class Admin:
         """
         self._call("POST", "/reset", {"services": ["sts"], "clock": True})
 
+    def ses_messages(self, **query: str) -> list[dict[str, Any]]:
+        """The recorded SES messages the filters select (GET /ses/messages)."""
+        return self._call("GET", "/ses/messages?" + urllib.parse.urlencode(query))["messages"]
+
 
 def lambda_zip(files: dict[str, str]) -> bytes:
     """A zip archive of text files for CreateFunction."""

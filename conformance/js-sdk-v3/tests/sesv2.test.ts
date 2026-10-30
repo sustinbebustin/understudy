@@ -1,5 +1,5 @@
 // SES v2 over restJson1, through @aws-sdk/client-sesv2.
-// Expected behavior: docs/research/ses.md sections 2.3, 5.4, 6.3 and 9.3.
+// Expected behavior: docs/research/ses.md sections 2.3, 4.4, 5.4, 6 and 9.3.
 // This client (3.1160.0) sends ListEmailIdentities as POST
 // /v2/email/list-identities (ses.md 3.2).
 
@@ -12,11 +12,12 @@ import {
   GetEmailIdentityCommand,
   ListEmailIdentitiesCommand,
   ListTagsForResourceCommand,
+  SendEmailCommand,
   SESv2Client,
   TagResourceCommand,
   UntagResourceCommand,
 } from "@aws-sdk/client-sesv2";
-import { clientConfig, defaultAccount, region } from "../support/env";
+import { clientConfig, defaultAccount, endpoint, region } from "../support/env";
 import { expectFailure, uniq } from "../support/helpers";
 
 const sesv2 = new SESv2Client(clientConfig());
@@ -83,5 +84,72 @@ describe("SES v2 account", () => {
     expect(account.ProductionAccessEnabled).toBe(false);
     expect(account.SendQuota?.Max24HourSend).toBe(200);
     expect(account.SendQuota?.MaxSendRate).toBe(1);
+  });
+});
+
+const simulator = "success@simulator.amazonses.com";
+const simple = { Simple: { Subject: { Data: "hello" }, Body: { Text: { Data: "text" } } } };
+
+/** The part of a recorded message these tests read. */
+interface SesMessage {
+  api?: string;
+  subject?: { data: string };
+  text?: { data: string };
+  attachments?: Array<{ fileName: string; content: string }>;
+}
+
+/** The recorded SES messages the filters select (GET /_understudy/v1/ses/messages). */
+async function sesMessages(query: Record<string, string>): Promise<SesMessage[]> {
+  const res = await fetch(`${endpoint}/_understudy/v1/ses/messages?${new URLSearchParams(query)}`);
+  expect(res.status).toBe(200);
+  // SAFETY: the admin API answers SESMessagePage (admin/ses.go); the test reads only these members.
+  return ((await res.json()) as { messages: SesMessage[] }).messages;
+}
+
+describe("SES v2 SendEmail", () => {
+  test("an unverified FromEmailAddress is MessageRejected", async () => {
+    const from = `${uniq("sesv2-unverified")}@example.com`;
+    // FromEmailAddress "has to be verified" (model, ses.md 4.4); the text is
+    // the documented one (ses.md 6.1).
+    const failure = await expectFailure(
+      sesv2.send(new SendEmailCommand({ FromEmailAddress: from, Destination: { ToAddresses: [simulator] }, Content: simple })),
+      {
+        name: "MessageRejected",
+        status: 400,
+        messageIncludes: "Email address is not verified. The following identities failed the check in region ",
+      },
+    );
+    expect(failure.message).toContain(from);
+  });
+
+  test("a verified sender's Simple send is recorded with its attachment", async () => {
+    const from = `${uniq("sesv2-sender")}@example.com`;
+    await sesv2.send(new CreateEmailIdentityCommand({ EmailIdentity: from }));
+    try {
+      const [verification] = await sesMessages({ to: from });
+      const link = /http\S*\/_understudy\/ses\/VerificationLink\?token=[A-Za-z0-9_-]+/.exec(verification?.text?.data ?? "");
+      expect(link).not.toBeNull();
+      expect((await fetch(link?.[0] ?? "")).status).toBe(200);
+      // A verified sender may mail the mailbox simulator from the sandbox
+      // (ses.md 6.1, 6.2); understudy records instead of sending (ses.md 11.2).
+      const sent = await sesv2.send(
+        new SendEmailCommand({
+          FromEmailAddress: from,
+          Destination: { ToAddresses: [simulator] },
+          Content: {
+            Simple: {
+              ...simple.Simple,
+              Attachments: [{ FileName: "report.txt", RawContent: new TextEncoder().encode("attached") }],
+            },
+          },
+        }),
+      );
+      const [record] = await sesMessages({ messageId: sent.MessageId ?? "" });
+      expect(record?.api).toBe("sesv2");
+      expect(record?.subject?.data).toBe("hello");
+      expect(record?.attachments?.map((a) => [a.fileName, atob(a.content)])).toEqual([["report.txt", "attached"]]);
+    } finally {
+      await sesv2.send(new DeleteEmailIdentityCommand({ EmailIdentity: from }));
+    }
   });
 });

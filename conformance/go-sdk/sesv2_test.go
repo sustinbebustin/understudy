@@ -2,7 +2,11 @@ package gosdk_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"net/http"
+	"net/url"
+	"regexp"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -11,7 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sesv2/types"
 )
 
-// Research: docs/research/ses.md sections 2.3, 5.4, 6.3 and 9.3. This
+// Research: docs/research/ses.md sections 2.3, 4.4, 5.4, 6 and 9.3. This
 // client (service/sesv2 v1.79.4, after v1.77.0) sends ListEmailIdentities
 // as POST /v2/email/list-identities (ses.md 3.2).
 
@@ -102,6 +106,111 @@ func TestSESv2EmailIdentitySharedWithV1(t *testing.T) {
 	if a, found := attrs.VerificationAttributes[addr]; !found || a.VerificationStatus != "Pending" {
 		t.Errorf("v1 reads the v2 address as %+v, want Pending", attrs.VerificationAttributes)
 	}
+}
+
+// An unverified FromEmailAddress "has to be verified" (model, ses.md 4.4):
+// MessageRejected with the documented text naming it (ses.md 6.1).
+func TestSESv2SendEmailRejectsAnUnverifiedFrom(t *testing.T) {
+	t.Parallel()
+	from := name(t, "sesv2-unverified") + "@example.com"
+	_, err := sesv2.NewFromConfig(awsCfg).SendEmail(t.Context(), simpleV2(from))
+	apiErr(t, err, "SendEmail", "MessageRejected")
+	wantMessageContains(t, err, "SendEmail", "Email address is not verified. The following identities failed the check in region ")
+	wantMessageContains(t, err, "SendEmail", from)
+}
+
+// A verified sender's Simple send to the mailbox simulator is accepted
+// from the sandbox (ses.md 6.1, 6.2) and understudy records it, with its
+// attachment, instead of sending it (ses.md 11.2).
+func TestSESv2SendEmailFromAVerifiedAddressIsRecorded(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	client := sesv2.NewFromConfig(awsCfg)
+	addr := name(t, "sesv2-sender") + "@example.com"
+	_, err := client.CreateEmailIdentity(ctx, &sesv2.CreateEmailIdentityInput{EmailIdentity: aws.String(addr)})
+	ok(t, err, "CreateEmailIdentity")
+	t.Cleanup(func() {
+		_, _ = client.DeleteEmailIdentity(context.Background(), &sesv2.DeleteEmailIdentityInput{EmailIdentity: aws.String(addr)})
+	})
+	verification := sesMessages(t, url.Values{"to": {addr}})
+	if len(verification) != 1 {
+		t.Fatalf("messages to %s = %+v, want the verification email", addr, verification)
+	}
+	link := verificationLink.FindString(verification[0].Text.Data)
+	if link == "" {
+		t.Fatalf("verification email has no link: %q", verification[0].Text.Data)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, link, http.NoBody)
+	ok(t, err, "GET verification link")
+	resp, err := http.DefaultClient.Do(req)
+	ok(t, err, "GET verification link")
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("GET %s = %d, want 200", link, resp.StatusCode)
+	}
+
+	in := simpleV2(addr)
+	in.Content.Simple.Attachments = []types.Attachment{{FileName: aws.String("report.txt"), RawContent: []byte("attached")}}
+	out, err := client.SendEmail(ctx, in)
+	ok(t, err, "SendEmail")
+	id := aws.ToString(out.MessageId)
+	got := sesMessages(t, url.Values{"messageId": {id}})
+	if len(got) != 1 || got[0].Kind != "send" || got[0].API != "sesv2" || got[0].Subject == nil || got[0].Subject.Data != "subject" ||
+		len(got[0].Attachments) != 1 || got[0].Attachments[0].FileName != "report.txt" || string(got[0].Attachments[0].Content) != "attached" {
+		t.Errorf("recorded %+v, want the v2 send with its attachment", got)
+	}
+}
+
+// simpleV2 is a v2 Simple send from the given address to the mailbox
+// simulator.
+func simpleV2(from string) *sesv2.SendEmailInput {
+	return &sesv2.SendEmailInput{
+		FromEmailAddress: aws.String(from),
+		Destination:      &types.Destination{ToAddresses: []string{"success@simulator.amazonses.com"}},
+		Content: &types.EmailContent{Simple: &types.Message{
+			Subject: &types.Content{Data: aws.String("subject")},
+			Body:    &types.Body{Text: &types.Content{Data: aws.String("text")}},
+		}},
+	}
+}
+
+// verificationLink finds the link in a verification email.
+var verificationLink = regexp.MustCompile(`http\S*/_understudy/ses/VerificationLink\?token=[A-Za-z0-9_-]+`)
+
+// sesMessage is the part of a recorded message these tests read, as GET
+// /_understudy/v1/ses/messages answers it.
+type sesMessage struct {
+	MessageID string `json:"messageId"`
+	API       string `json:"api"`
+	Kind      string `json:"kind"`
+	Subject   *struct {
+		Data string `json:"data"`
+	} `json:"subject"`
+	Text struct {
+		Data string `json:"data"`
+	} `json:"text"`
+	Attachments []struct {
+		FileName string `json:"fileName"`
+		Content  []byte `json:"content"`
+	} `json:"attachments"`
+}
+
+// sesMessages is the recorded messages q selects.
+func sesMessages(t *testing.T, q url.Values) []sesMessage {
+	t.Helper()
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, endpoint.String()+"/_understudy/v1/ses/messages?"+q.Encode(), http.NoBody)
+	ok(t, err, "GET /_understudy/v1/ses/messages")
+	resp, err := http.DefaultClient.Do(req)
+	ok(t, err, "GET /_understudy/v1/ses/messages")
+	defer func() { _ = resp.Body.Close() }()
+	var page struct {
+		Messages []sesMessage `json:"messages"`
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("GET /_understudy/v1/ses/messages = %d", resp.StatusCode)
+	}
+	ok(t, json.NewDecoder(resp.Body).Decode(&page), "decoding the SES messages page")
+	return page.Messages
 }
 
 // GetAccount reports the sandbox (ProductionAccessEnabled false, ses.md

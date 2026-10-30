@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # SES v2: email identities (CreateEmailIdentity, GetEmailIdentity,
 # ListEmailIdentities, DeleteEmailIdentity), the tag operations on an
-# identity ARN, and GetAccount. This CLI sends ListEmailIdentities as POST
-# /v2/email/list-identities (ses.md 3.2).
-# Arbiter: docs/research/ses.md sections 2.3, 5.4, 6.3 and 9.3.
+# identity ARN, GetAccount, and SendEmail with Simple and Raw content. This
+# CLI sends ListEmailIdentities as POST /v2/email/list-identities (ses.md
+# 3.2).
+# Arbiter: docs/research/ses.md sections 2.3, 4.4, 5.4, 6 and 9.3.
 
 test_domain_identity_lifecycle() {
   local domain tokens arn
@@ -58,4 +59,46 @@ test_get_account_reports_the_sandbox() {
   assert_jq '.ProductionAccessEnabled' 'false'
   assert_jq '.SendQuota.Max24HourSend == 200' 'true'
   assert_jq '.SendQuota.MaxSendRate == 1' 'true'
+}
+
+test_send_email_rejects_an_unverified_from() {
+  local from
+  from="$(new_name sesv2-unverified)@example.com"
+  # FromEmailAddress "has to be verified" (model, ses.md 4.4); the text is
+  # the documented one (ses.md 6.1).
+  aws_error MessageRejected 400 sesv2 send-email \
+    --from-email-address "$from" \
+    --destination ToAddresses=success@simulator.amazonses.com \
+    --content 'Simple={Subject={Data=subject},Body={Text={Data=text}}}'
+  aws_error_message_contains 'Email address is not verified. The following identities failed the check in region '
+  aws_error_message_contains "$from"
+}
+
+test_send_email_simple_and_raw_from_a_verified_address_are_recorded() {
+  local addr link raw id
+  addr="$(new_name sesv2-sender)@example.com"
+  aws_ok sesv2 create-email-identity --email-identity "$addr"
+  link=$(curl -fsS --get --data-urlencode "to=$addr" "${UE_ADMIN_URL:?UE_ADMIN_URL unset}/ses/messages" |
+    jq -r '.messages[0].text.data' | grep -o 'http[^[:space:]]*/_understudy/ses/VerificationLink?token=[A-Za-z0-9_-]*')
+  curl -fsS -o /dev/null "$link"
+  # A verified sender may mail the mailbox simulator from the sandbox
+  # (ses.md 6.1, 6.2); understudy records instead of sending (ses.md 11.2).
+  aws_ok sesv2 send-email --from-email-address "$addr" \
+    --destination ToAddresses=success@simulator.amazonses.com \
+    --content 'Simple={Subject={Data=hello},Body={Text={Data=text}},Headers=[{Name=X-Custom,Value=one}]}'
+  assert_jq_match '.MessageId' '^[0-9a-f]{16}-[0-9a-f-]{36}-000000$'
+  id=$(jq -r '.MessageId' <<<"$AWS_OUT")
+  AWS_OUT=$(curl -fsS --get --data-urlencode "messageId=$id" "$UE_ADMIN_URL/ses/messages")
+  assert_jq '.messages[0].api' 'sesv2'
+  assert_jq '.messages[0].subject.data' 'hello'
+  assert_jq '.messages[0].headers | tojson' '[{"name":"X-Custom","value":"one"}]'
+  # Raw content without a Destination: the To header gives the recipients
+  # (ses.md 4.2, switch ses.raw.envelope).
+  raw=$(printf 'From: %s\r\nTo: success@simulator.amazonses.com\r\nSubject: raw\r\n\r\nbody\r\n' "$addr" | base64 -w0)
+  aws_ok sesv2 send-email --content "{\"Raw\":{\"Data\":\"$raw\"}}"
+  id=$(jq -r '.MessageId' <<<"$AWS_OUT")
+  AWS_OUT=$(curl -fsS --get --data-urlencode "messageId=$id" "$UE_ADMIN_URL/ses/messages")
+  assert_jq '.messages[0].raw' "$raw"
+  assert_jq '.messages[0].envelope | join(",")' 'success@simulator.amazonses.com'
+  aws_ok sesv2 delete-email-identity --email-identity "$addr"
 }

@@ -1,4 +1,4 @@
-"""SES v2: email identities, their tags and GetAccount (ses.md sections 2.3, 5.4, 6.3 and 9.3).
+"""SES v2: email identities, their tags, GetAccount and SendEmail (ses.md sections 2.3, 4.4, 5.4, 6 and 9.3).
 
 This client (botocore 1.43.111) sends ListEmailIdentities as POST
 /v2/email/list-identities (ses.md 3.2).
@@ -6,9 +6,12 @@ This client (botocore 1.43.111) sends ListEmailIdentities as POST
 
 from __future__ import annotations
 
+import base64
+import re
+import urllib.request
 from typing import Any
 
-from support import REGION, raises, status_of, uniq
+from support import REGION, Admin, raises, status_of, uniq
 
 
 def test_domain_identity_lifecycle(sesv2: Any, cleanup: Any) -> None:
@@ -70,3 +73,40 @@ def test_get_account_reports_the_sandbox(sesv2: Any) -> None:
     assert account["ProductionAccessEnabled"] is False
     assert account["SendQuota"]["Max24HourSend"] == 200
     assert account["SendQuota"]["MaxSendRate"] == 1
+
+
+SIMULATOR = "success@simulator.amazonses.com"
+SIMPLE = {"Simple": {"Subject": {"Data": "hello"}, "Body": {"Text": {"Data": "text"}}}}
+
+
+def test_send_email_rejects_an_unverified_from(sesv2: Any) -> None:
+    sender = uniq("conf-sesv2-unverified") + "@example.com"
+    # FromEmailAddress "has to be verified" (model, ses.md 4.4); the text is
+    # the documented one (ses.md 6.1).
+    with raises("MessageRejected") as info:
+        sesv2.send_email(FromEmailAddress=sender, Destination={"ToAddresses": [SIMULATOR]}, Content=SIMPLE)
+    message = info.value.response["Error"]["Message"]
+    assert "Email address is not verified. The following identities failed the check in region " in message
+    assert sender in message
+
+
+def test_send_email_from_a_verified_address_is_recorded(sesv2: Any, admin: Admin, cleanup: Any) -> None:
+    sender = uniq("conf-sesv2-sender") + "@example.com"
+    sesv2.create_email_identity(EmailIdentity=sender)
+    cleanup.add(sesv2.delete_email_identity, EmailIdentity=sender)
+    [verification] = admin.ses_messages(to=sender)
+    link = re.search(r"http\S*/_understudy/ses/VerificationLink\?token=[A-Za-z0-9_-]+", verification["text"]["data"])
+    assert link is not None, verification
+    with urllib.request.urlopen(link.group(0), timeout=10) as resp:  # noqa: S310 -- the loopback endpoint's own link
+        assert resp.status == 200
+    # A verified sender may mail the mailbox simulator from the sandbox
+    # (ses.md 6.1, 6.2); understudy records the message and its attachment
+    # instead of sending it (ses.md 11.2).
+    content = {"Simple": {**SIMPLE["Simple"], "Attachments": [{"FileName": "report.txt", "RawContent": b"attached"}]}}
+    message_id = sesv2.send_email(FromEmailAddress=sender, Destination={"ToAddresses": [SIMULATOR]}, Content=content)[
+        "MessageId"
+    ]
+    [sent] = admin.ses_messages(messageId=message_id)
+    assert sent["api"] == "sesv2"
+    assert sent["subject"]["data"] == "hello"
+    assert [(a["fileName"], base64.b64decode(a["content"])) for a in sent["attachments"]] == [("report.txt", b"attached")]
