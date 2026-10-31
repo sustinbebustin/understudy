@@ -31,8 +31,8 @@ var (
 
 const (
 	propOtherKey     = "arn:aws:kms:us-east-1:111111111111:key/0f0e0d0c-0b0a-4908-8706-050403020100"
-	propSecret       = "arn:aws:secretsmanager:us-east-1:111111111111:secret:db-a1b2c3"
-	propSecretAgain  = "arn:aws:secretsmanager:us-east-1:111111111111:secret:db-Z9y8X7"
+	propSecret       = "arn:aws:secretsmanager:us-east-1:111111111111:secret:db-a1b2c3" //nolint:gosec // G101: an ARN, not a credential
+	propSecretAgain  = "arn:aws:secretsmanager:us-east-1:111111111111:secret:db-Z9y8X7" //nolint:gosec // G101: an ARN, not a credential
 	propSubscription = topicARN + ":0f1e2d3c-4b5a-4968-8778-695a4b3c2d1e"
 	propMapping      = "arn:aws:lambda:us-east-1:111111111111:event-source-mapping:6b2f1c3a-1d2e-4f5a-8b6c-7d8e9f0a1b2c"
 )
@@ -269,13 +269,12 @@ func TestPolicyGrantsExactlyTheUsedPairsProperty(t *testing.T) {
 
 		// P4.
 		for i, st := range doc.Statements {
-			rs, _ := st.Resource.(policydoc.Resource)
-			as, _ := st.Action.(policydoc.Action)
+			as, rs := renderedLists(t, st)
 			if len(st.Condition) != 0 || !slices.Equal([]string(rs), []string{"*"}) {
 				continue
 			}
 			for j, other := range doc.Statements {
-				oas, _ := other.Action.(policydoc.Action)
+				oas, _ := renderedLists(t, other)
 				for _, a := range as {
 					if j != i && slices.Contains(oas, a) {
 						t.Errorf("P4: %s is granted on * by statement %d and again by statement %d", a, i, j)
@@ -287,7 +286,7 @@ func TestPolicyGrantsExactlyTheUsedPairsProperty(t *testing.T) {
 		// P5.
 		var objectLevel []string
 		for _, st := range doc.Statements {
-			rs, _ := st.Resource.(policydoc.Resource)
+			_, rs := renderedLists(t, st)
 			for _, res := range rs {
 				if buckets[res] {
 					objectLevel = append(objectLevel, res)
@@ -299,4 +298,16 @@ func TestPolicyGrantsExactlyTheUsedPairsProperty(t *testing.T) {
 			t.Errorf("P5: Policy names object resources %v, want each bucket's once", objectLevel)
 		}
 	})
+}
+
+// renderedLists returns a rendered statement's Action and Resource, which
+// policydoc.Render always writes as lists.
+func renderedLists(t *rapid.T, st policydoc.Statement) (policydoc.Action, policydoc.Resource) {
+	t.Helper()
+	as, actionOK := st.Action.(policydoc.Action)
+	rs, resourceOK := st.Resource.(policydoc.Resource)
+	if !actionOK || !resourceOK {
+		t.Fatalf("rendered statement has Action %T and Resource %T, want policydoc.Action and policydoc.Resource", st.Action, st.Resource)
+	}
+	return as, rs
 }

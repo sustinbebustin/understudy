@@ -16,7 +16,7 @@ import (
 // format (aws-doc).
 const (
 	sarKMS     = "https://docs.aws.amazon.com/service-authorization/latest/reference/list_kms.html"
-	sarSecrets = "https://docs.aws.amazon.com/service-authorization/latest/reference/list_secretsmanager.html"
+	sarSecrets = "https://docs.aws.amazon.com/service-authorization/latest/reference/list_secretsmanager.html" //nolint:gosec // G101: a documentation URL, not a credential
 	sarSNS     = "https://docs.aws.amazon.com/service-authorization/latest/reference/list_sns.html"
 	sarLambda  = "https://docs.aws.amazon.com/service-authorization/latest/reference/list_lambda.html"
 	sarLogs    = "https://docs.aws.amazon.com/service-authorization/latest/reference/list_logs.html"
@@ -32,7 +32,7 @@ const (
 // ARNs that stay exact.
 func TestMintedPatternRendersEachResourceType(t *testing.T) {
 	const (
-		secretARN  = "arn:aws:secretsmanager:us-east-1:111111111111:secret:prod/db-a1B2c3"
+		secretARN  = "arn:aws:secretsmanager:us-east-1:111111111111:secret:prod/db-a1B2c3" //nolint:gosec // G101: an ARN, not a credential
 		subARN     = topicARN + ":0f1e2d3c-4b5a-4968-8778-695a4b3c2d1e"
 		mappingARN = "arn:aws:lambda:us-east-1:111111111111:event-source-mapping:6b2f1c3a-1d2e-4f5a-8b6c-7d8e9f0a1b2c"
 		// lambdaStream is the form Lambda names an execution
@@ -52,7 +52,8 @@ func TestMintedPatternRendersEachResourceType(t *testing.T) {
 		{"kms key, as caller", sarKMS, access.AsCaller{}, arn(t, keyARN), "arn:aws:kms:us-east-1:111111111111:key/*"},
 		{"kms key, as execution role", sarKMS, access.AsExecutionRole{}, arn(t, keyARN), "arn:aws:kms:us-east-1:111111111111:key/*"},
 		{
-			"kms key, other partition", sarKMS, access.Direct{},
+			"kms key, other partition", sarKMS,
+			access.Direct{},
 			arn(t, "arn:aws-us-gov:kms:us-gov-west-1:222222222222:key/mrk-1234abcd12ab34cd56ef1234567890ab"),
 			"arn:aws-us-gov:kms:us-gov-west-1:222222222222:key/*",
 		},
@@ -64,7 +65,8 @@ func TestMintedPatternRendersEachResourceType(t *testing.T) {
 		// (secrets-logs-events-alarms.md 2.1).
 		{"secret with its suffix", sarSecrets, access.Direct{}, arn(t, secretARN), "arn:aws:secretsmanager:us-east-1:111111111111:secret:prod/db-??????"},
 		{
-			"secret whose name holds hyphens", sarSecrets, access.AsCaller{},
+			"secret whose name holds hyphens", sarSecrets,
+			access.AsCaller{},
 			arn(t, "arn:aws:secretsmanager:eu-west-1:333333333333:secret:my-app-key-ZMysbk"),
 			"arn:aws:secretsmanager:eu-west-1:333333333333:secret:my-app-key-??????",
 		},
@@ -95,7 +97,8 @@ func TestMintedPatternRendersEachResourceType(t *testing.T) {
 		{
 			// The caller-named group is escaped as an exact ARN is
 			// (policydoc.Literal); the added * is not.
-			"log stream of a group holding a wildcard character", sarLogs, access.AsExecutionRole{},
+			"log stream of a group holding a wildcard character", sarLogs,
+			access.AsExecutionRole{},
 			arn(t, "arn:aws:logs:us-east-1:111111111111:log-group:run?1:log-stream:abc"),
 			"arn:aws:logs:us-east-1:111111111111:log-group:run${?}1:log-stream:*",
 		},

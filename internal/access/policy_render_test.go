@@ -24,9 +24,9 @@ func TestPolicyRendersMintedSegmentsAsWildcards(t *testing.T) {
 	const (
 		otherKey  = "arn:aws:kms:us-east-1:111111111111:key/0f0e0d0c-0b0a-4908-8706-050403020100"
 		aliasARN  = "arn:aws:kms:us-east-1:111111111111:alias/app"
-		dbSecret  = "arn:aws:secretsmanager:us-east-1:111111111111:secret:db-a1b2c3"
+		dbSecret  = "arn:aws:secretsmanager:us-east-1:111111111111:secret:db-a1b2c3" //nolint:gosec // G101: an ARN, not a credential
 		dbAgain   = "arn:aws:secretsmanager:us-east-1:111111111111:secret:db-Z9y8X7"
-		apiSecret = "arn:aws:secretsmanager:us-east-1:111111111111:secret:api-k3K3k3"
+		apiSecret = "arn:aws:secretsmanager:us-east-1:111111111111:secret:api-k3K3k3" //nolint:gosec // G101: an ARN, not a credential
 		subA      = topicARN + ":0f1e2d3c-4b5a-4968-8778-695a4b3c2d1e"
 		subB      = topicARN + ":1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d"
 		mappingA  = "arn:aws:lambda:us-east-1:111111111111:event-source-mapping:6b2f1c3a-1d2e-4f5a-8b6c-7d8e9f0a1b2c"
@@ -47,6 +47,7 @@ func TestPolicyRendersMintedSegmentsAsWildcards(t *testing.T) {
 		{
 			"kms keys, one statement; an alias stays exact", app,
 			func(t *testing.T) []access.Entry {
+				t.Helper()
 				return []access.Entry{
 					use(app, access.AsCaller{}, act("kms", "Decrypt"), arn(t, keyARN)),
 					use(app, access.Direct{}, act("kms", "Decrypt"), arn(t, otherKey)),
@@ -60,6 +61,7 @@ func TestPolicyRendersMintedSegmentsAsWildcards(t *testing.T) {
 		{
 			"secrets, one statement per name", app,
 			func(t *testing.T) []access.Entry {
+				t.Helper()
 				return []access.Entry{
 					use(app, access.Direct{}, act("secretsmanager", "GetSecretValue"), arn(t, dbSecret)),
 					use(app, access.Direct{}, act("secretsmanager", "GetSecretValue"), arn(t, dbAgain)),
@@ -73,6 +75,7 @@ func TestPolicyRendersMintedSegmentsAsWildcards(t *testing.T) {
 		{
 			"sns subscriptions, one statement; the topic stays exact", app,
 			func(t *testing.T) []access.Entry {
+				t.Helper()
 				return []access.Entry{
 					use(app, access.Direct{}, act("sns", "Unsubscribe"), arn(t, subA)),
 					use(app, access.Direct{}, act("sns", "Unsubscribe"), arn(t, subB)),
@@ -86,6 +89,7 @@ func TestPolicyRendersMintedSegmentsAsWildcards(t *testing.T) {
 		{
 			"event source mappings, one statement", app,
 			func(t *testing.T) []access.Entry {
+				t.Helper()
 				return []access.Entry{
 					use(app, access.Direct{}, act("lambda", "DeleteEventSourceMapping"), arn(t, mappingA)),
 					use(app, access.Direct{}, act("lambda", "DeleteEventSourceMapping"), arn(t, mappingB)),
@@ -97,6 +101,7 @@ func TestPolicyRendersMintedSegmentsAsWildcards(t *testing.T) {
 		{
 			"execution-role log streams, one statement; a stream the function names stays exact", worker,
 			func(t *testing.T) []access.Entry {
+				t.Helper()
 				return []access.Entry{
 					use(worker, access.AsExecutionRole{}, act("logs", "PutLogEvents"), arn(t, envA)),
 					use(worker, access.AsExecutionRole{}, act("logs", "PutLogEvents"), arn(t, envB)),
@@ -157,6 +162,7 @@ func TestPolicyLeavesOutActionsGrantedOnStar(t *testing.T) {
 		{
 			"an action on * leaves the resource statement, which keeps its other actions", 3,
 			func(t *testing.T) []access.Entry {
+				t.Helper()
 				return []access.Entry{
 					use(app, access.Direct{}, act("sqs", "GetQueueUrl")),
 					{Principal: app, Mode: access.Direct{}, Service: "sqs", Actions: []registry.IAMAction{act("sqs", "GetQueueUrl")}, Resources: []aws.ARN{arn(t, queueARN)}, Outcome: access.Failed{Code: "AWS.SimpleQueueService.NonExistentQueue"}, At: t0},
@@ -170,6 +176,7 @@ func TestPolicyLeavesOutActionsGrantedOnStar(t *testing.T) {
 		{
 			"a statement left with no action is dropped", 2,
 			func(t *testing.T) []access.Entry {
+				t.Helper()
 				return []access.Entry{
 					use(app, access.Direct{}, act("kinesis", "ListStreams")),
 					use(app, access.Direct{}, act("kinesis", "ListStreams"), arn(t, stream)),
@@ -180,6 +187,7 @@ func TestPolicyLeavesOutActionsGrantedOnStar(t *testing.T) {
 		{
 			"an action on * in any mode subsumes a minted pattern too", 3,
 			func(t *testing.T) []access.Entry {
+				t.Helper()
 				return []access.Entry{
 					use(app, access.Direct{}, act("kms", "Decrypt")),
 					use(app, access.AsCaller{}, act("kms", "Decrypt"), arn(t, keyARN)),
@@ -193,6 +201,7 @@ func TestPolicyLeavesOutActionsGrantedOnStar(t *testing.T) {
 		{
 			"a conditioned grant on * subsumes nothing", 3,
 			func(t *testing.T) []access.Entry {
+				t.Helper()
 				return []access.Entry{
 					passRole(t, sm, access.AnyResource{}, "states.amazonaws.com"),
 					passRole(t, sm, access.OnResource{ARN: arn(t, roleARN)}, ""),
@@ -206,6 +215,7 @@ func TestPolicyLeavesOutActionsGrantedOnStar(t *testing.T) {
 		{
 			"an unconditional grant on * subsumes a conditioned one", 3,
 			func(t *testing.T) []access.Entry {
+				t.Helper()
 				return []access.Entry{
 					passRole(t, sm, access.AnyResource{}, ""),
 					passRole(t, sm, access.OnResource{ARN: arn(t, roleARN)}, "states.amazonaws.com"),
@@ -218,6 +228,7 @@ func TestPolicyLeavesOutActionsGrantedOnStar(t *testing.T) {
 		{
 			"another principal's grant on * subsumes nothing", 1,
 			func(t *testing.T) []access.Entry {
+				t.Helper()
 				return []access.Entry{
 					use(worker, access.Direct{}, act("sqs", "GetQueueUrl")),
 					use(app, access.Direct{}, act("sqs", "GetQueueUrl"), arn(t, queueARN)),
@@ -245,6 +256,7 @@ func TestPolicyLeavesOutActionsGrantedOnStar(t *testing.T) {
 // passRole is a CreateStateMachine by app that passes a role on scope res
 // to service ("" for none; iam-enforcement-surfaces.md 12.6).
 func passRole(t *testing.T, sm string, res access.Scope, service string) access.Entry {
+	t.Helper()
 	return access.Entry{
 		Principal: app, Mode: access.Direct{}, Service: "states",
 		Actions: []registry.IAMAction{act("states", "CreateStateMachine"), act("iam", "PassRole")},
