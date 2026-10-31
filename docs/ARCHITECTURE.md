@@ -75,8 +75,8 @@ internal/
   topology/                     detect Linux bridge, Docker Desktop, rootless, Podman, in-container; derive addresses
   api/<svc>api/                 GENERATED per service: types, schema, serde, validators, errors, ops, binder, routes, iam, redact
   service/<svc>/                hand-written, one package per service:
-    sqs/ sns/ s3/ dynamodb/ lambda/ logs/ secretsmanager/ kms/ iam/ sts/ events/ cloudwatch/ apigatewayv2/ sfn/
-    sns/envelope/ sns/filterpolicy/ s3/notify/ events/envelope/ apigatewayv2/route/
+    sqs/ sns/ s3/ dynamodb/ lambda/ logs/ secretsmanager/ kms/ iam/ sts/ events/ cloudwatch/ apigateway/ apigatewayv2/ sfn/
+    sns/envelope/ sns/filterpolicy/ s3/notify/ events/envelope/ apigateway/patch/ apigateway/resource/ apigatewayv2/route/
     lambda/runtimeapi/ lambda/pool/ lambda/launcher/ lambda/codestore/ lambda/esm/ lambda/furl/ lambda/hotreload/
     dynamodb/ddblocal/
     sfn/asl/ sfn/asl/jsonpath/ sfn/asl/intrinsic/   the pure Amazon States Language engine: parser, JSONPath, intrinsics, steps
