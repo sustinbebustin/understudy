@@ -17,7 +17,7 @@ func TestCreateKeyIsRecordedOnAnyResource(t *testing.T) {
 	run(t, func(h *harness) {
 		must(h, kmsapi.OpCreateKey, &kmsapi.CreateKeyInput{Tags: []kmsapi.Tag{{TagKey: "team", TagValue: "a"}}})
 		uses := h.Access.Usage(access.Filter{Principal: access.Root{Account: h.Scope.Account}, Service: "kms"})
-		var got []string
+		got := make([]string, 0, len(uses))
 		for i := range uses {
 			on := "*"
 			if r, ok := uses[i].Resource.(access.OnResource); ok {

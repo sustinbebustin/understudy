@@ -10,16 +10,19 @@ import (
 	"github.com/sustinbebustin/understudy/internal/kernel/kerneltest"
 )
 
+// touchesThing1 is a handler that touches guardThing1 once it runs, after
+// step 8, as a create handler touches what it created.
+func touchesThing1(ctx context.Context, c *kernel.Call, in *guardInput) (*guardOutput, *awserr.Error) {
+	c.Touch(guardThing1)
+	return guardDone(ctx, c, in)
+}
+
 // The access record pairs each action with the resources step 8 pairs it
 // with (ARCHITECTURE.md 17): a resource the handler creates and touches
 // after step 8 asked, such as a key CreateKey mints, is not one the call
 // was authorized on, so the record keeps the action on "*", where step 8
 // asked it, under every iam.enforce mode (none: no Authorizer).
 func TestTheAccessRecordPairsActionsWithStep8sResources(t *testing.T) {
-	creates := func(_ context.Context, c *kernel.Call, _ *guardInput) (*guardOutput, *awserr.Error) {
-		c.Touch(guardThing1)
-		return &guardOutput{}, nil
-	}
 	for _, tc := range []struct {
 		name string
 		a    kernel.Authorizer
@@ -27,7 +30,7 @@ func TestTheAccessRecordPairsActionsWithStep8sResources(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			g := newGuard(guardDenial())
 			runGuard(t, g, tc.a, func(k *kerneltest.K) {
-				bindGuard(k, g.run, creates)
+				bindGuard(k, g.run, touchesThing1)
 				if _, err := k.Invoke(k.Context(), g.run, &guardInput{}); err != nil {
 					k.Fatalf("call = %s", err.Message)
 				}
@@ -46,10 +49,6 @@ func TestTheAccessRecordPairsActionsWithStep8sResources(t *testing.T) {
 // return, about what the call touched by then; the record pairs it the
 // same way, with or without an Authorizer.
 func TestTheAccessRecordPairsADeferredActionWithWhatItWasAskedOn(t *testing.T) {
-	resolves := func(_ context.Context, c *kernel.Call, _ *guardInput) (*guardOutput, *awserr.Error) {
-		c.Touch(guardThing1)
-		return &guardOutput{}, nil
-	}
 	for _, tc := range []struct {
 		name string
 		a    kernel.Authorizer
@@ -57,7 +56,7 @@ func TestTheAccessRecordPairsADeferredActionWithWhatItWasAskedOn(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			g := newGuard(guardDenial())
 			runGuard(t, g, tc.a, func(k *kerneltest.K) {
-				bindGuard(k, g.run, resolves, kernel.AuthorizedAfterResolve())
+				bindGuard(k, g.run, touchesThing1, kernel.AuthorizedAfterResolve())
 				if _, err := k.Invoke(k.Context(), g.run, &guardInput{}); err != nil {
 					k.Fatalf("call = %s", err.Message)
 				}

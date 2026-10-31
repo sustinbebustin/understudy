@@ -19,6 +19,7 @@ func TestPolicyLeavesOutActionsGrantedOnStarImpl(t *testing.T) {
 		{
 			"an action on * leaves a bucket's objects statement", 2,
 			func(t *testing.T) []access.Entry {
+				t.Helper()
 				return []access.Entry{
 					use(app, access.Direct{}, act("s3", "GetObject")),
 					use(app, access.Direct{}, act("s3", "GetObject"), arn(t, "arn:aws:s3:::b1/k1")),
@@ -29,6 +30,7 @@ func TestPolicyLeavesOutActionsGrantedOnStarImpl(t *testing.T) {
 		{
 			"an action used in two modes on one resource leaves it once", 3,
 			func(t *testing.T) []access.Entry {
+				t.Helper()
 				return []access.Entry{
 					use(app, access.Direct{}, act("sqs", "SendMessage")),
 					use(app, access.Direct{}, act("sqs", "SendMessage"), arn(t, queueARN)),
