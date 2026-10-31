@@ -43,7 +43,13 @@ func (s *Service) bindKeys(b kmsapi.Binder) {
 				return nil
 			}
 			return []registry.IAMAction{{Prefix: "kms", Name: "TagResource"}}
-		}))
+		}),
+		// Both are asked about at step 8, before the key exists, so on
+		// "*" (the Service Authorization Reference lists no resource type
+		// for kms:CreateKey); the access record pairs them the same way,
+		// not with the key the handler touches once it is created.
+		kernel.WithResourcesFor([]registry.IAMAction{{Prefix: "kms", Name: "CreateKey"}, {Prefix: "kms", Name: "TagResource"}},
+			func(*kernel.Call, *kmsapi.CreateKeyInput) []aws.ARN { return nil }))
 	b.DescribeKey(s.describeKey, registry.Partial{Note: resolvedFirst})
 	b.ListKeys(s.listKeys, registry.Full{})
 	b.UpdateKeyDescription(s.updateKeyDescription, registry.Full{})
