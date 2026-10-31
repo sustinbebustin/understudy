@@ -1,5 +1,6 @@
-# EventBridge Scheduler: a rate schedule in the default group sending to an
-# SQS queue as an execution role Scheduler may assume, whose policy grants
+# EventBridge Scheduler: a tagged schedule group, and a rate schedule in
+# the default group sending to an SQS queue as an execution role Scheduler
+# may assume, whose policy grants
 # sqs:SendMessage on the queue (scheduler.md 9, 11.1). The empty plans
 # depend on GetSchedule reading back the members as sent with AWS's
 # defaults filled: ActionAfterCompletion NONE, RetryPolicy 86400/185, group
@@ -76,8 +77,20 @@ resource "aws_scheduler_schedule" "rate" {
   depends_on = [aws_iam_role_policy.scheduler_send]
 }
 
+# A tagged schedule group holding the cron schedule: created ACTIVE, its
+# tags (with the provider's default_tags) listed back, changed in place by
+# TagResource and UntagResource on update, and deleted with its schedule
+# (tf-acc schedule_group_test.go:L25-L72, L174-L232; scheduler.md 3.2-3.4,
+# 11.2).
+resource "aws_scheduler_schedule_group" "scheduler" {
+  name = "${var.name_prefix}-group"
+
+  tags = local.updated ? { stage = "updated" } : { stage = "created", team = "conformance" }
+}
+
 resource "aws_scheduler_schedule" "cron" {
   name                         = "${var.name_prefix}-cron"
+  group_name                   = aws_scheduler_schedule_group.scheduler.name
   schedule_expression          = "cron(0 8 ? * MON-FRI *)"
   schedule_expression_timezone = "Europe/Paris"
   start_date                   = local.updated ? "2099-06-01T00:00:00Z" : "2099-01-01T01:00:00Z"

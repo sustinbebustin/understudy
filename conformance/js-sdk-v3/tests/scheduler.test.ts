@@ -8,11 +8,16 @@ import { CreateRoleCommand, DeleteRoleCommand, IAMClient } from "@aws-sdk/client
 import {
   CreateScheduleCommand,
   type CreateScheduleCommandInput,
+  CreateScheduleGroupCommand,
   DeleteScheduleCommand,
+  DeleteScheduleGroupCommand,
   GetScheduleCommand,
+  GetScheduleGroupCommand,
+  ListTagsForResourceCommand,
   paginateListSchedules,
   SchedulerClient,
   type Target,
+  UntagResourceCommand,
   UpdateScheduleCommand,
 } from "@aws-sdk/client-scheduler";
 import {
@@ -354,6 +359,49 @@ describe("EventBridge Scheduler", () => {
     const received = await sqs.send(new ReceiveMessageCommand({ QueueUrl: queueUrl, MaxNumberOfMessages: 10 }));
     expect((received.Messages ?? []).map((m) => m.Body)).toEqual(["once"]);
     await expectFailure(scheduler.send(new GetScheduleCommand({ Name: name })), {
+      name: "ResourceNotFoundException",
+      status: 404,
+    });
+  });
+
+  // A schedule group created with a tag reads ACTIVE with its ARN (tf-acc
+  // schedule_group_test.go:L25-L72), lists its tag, and untagged lists
+  // "Tags": [] (G2: localstack@8b9a79f test_scheduler.snapshot.json:L19-L30);
+  // deleting it deletes its schedules, after which the group and the
+  // schedule answer 404 (aws-doc managing-schedule-group-delete;
+  // scheduler.md 3.2-3.4).
+  test("a tagged group with members is deleted with them", async () => {
+    const group = uniq("sch-g");
+    const created = await scheduler.send(
+      new CreateScheduleGroupCommand({ Name: group, Tags: [{ Key: "TagKey", Value: "TagValue" }] }),
+    );
+    cleanups.push(() => scheduler.send(new DeleteScheduleGroupCommand({ Name: group })));
+    const arn = created.ScheduleGroupArn ?? "";
+    expect(arn).toMatch(new RegExp(`^arn:aws:scheduler:[a-z0-9-]+:\\d{12}:schedule-group/${group}$`));
+    const got = await scheduler.send(new GetScheduleGroupCommand({ Name: group }));
+    expect([got.Arn, got.Name, got.State]).toEqual([arn, group, "ACTIVE"]);
+    expect((await scheduler.send(new ListTagsForResourceCommand({ ResourceArn: arn }))).Tags).toEqual([
+      { Key: "TagKey", Value: "TagValue" },
+    ]);
+    await scheduler.send(new UntagResourceCommand({ ResourceArn: arn, TagKeys: ["TagKey"] }));
+    expect((await scheduler.send(new ListTagsForResourceCommand({ ResourceArn: arn }))).Tags).toEqual([]);
+
+    const { target } = await queueTarget();
+    await scheduler.send(
+      new CreateScheduleCommand({
+        Name: "member",
+        GroupName: group,
+        ScheduleExpression: "rate(1 hour)",
+        FlexibleTimeWindow: { Mode: "OFF" },
+        Target: target,
+      }),
+    );
+    await scheduler.send(new DeleteScheduleGroupCommand({ Name: group }));
+    await expectFailure(scheduler.send(new GetScheduleGroupCommand({ Name: group })), {
+      name: "ResourceNotFoundException",
+      status: 404,
+    });
+    await expectFailure(scheduler.send(new GetScheduleCommand({ Name: "member", GroupName: group })), {
       name: "ResourceNotFoundException",
       status: 404,
     });

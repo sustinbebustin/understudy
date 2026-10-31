@@ -253,6 +253,37 @@ def test_at_with_delete_is_gone_after_firing(scheduler: Any, sqs: Any, make_queu
         scheduler.get_schedule(Name=name)
 
 
+def test_group_with_tags_and_members(scheduler: Any, sqs: Any, make_queue: Callable[..., str], role: str) -> None:
+    """A schedule group created with a tag reads ACTIVE with its ARN (tf-acc
+    schedule_group_test.go:L25-L72), lists its tag, and untagged lists "Tags": [] (G2:
+    localstack@8b9a79f test_scheduler.snapshot.json:L19-L30); deleting it deletes its
+    schedules, after which the group and the schedule answer 404 (aws-doc
+    managing-schedule-group-delete; scheduler.md 3.2-3.4)."""
+    group = uniq("sch-g")
+    arn = scheduler.create_schedule_group(Name=group, Tags=[{"Key": "TagKey", "Value": "TagValue"}])["ScheduleGroupArn"]
+    assert re.fullmatch(rf"arn:aws:scheduler:[a-z0-9-]+:\d{{12}}:schedule-group/{group}", arn)
+    got = scheduler.get_schedule_group(Name=group)
+    assert (got["Arn"], got["Name"], got["State"]) == (arn, group, "ACTIVE")
+    assert scheduler.list_tags_for_resource(ResourceArn=arn)["Tags"] == [{"Key": "TagKey", "Value": "TagValue"}]
+    scheduler.untag_resource(ResourceArn=arn, TagKeys=["TagKey"])
+    assert scheduler.list_tags_for_resource(ResourceArn=arn)["Tags"] == []
+
+    url = make_queue("sch-q")
+    scheduler.create_schedule(
+        Name="member",
+        GroupName=group,
+        ScheduleExpression="rate(1 hour)",
+        FlexibleTimeWindow={"Mode": "OFF"},
+        Target={"Arn": _queue_arn(sqs, url), "RoleArn": role},
+    )
+    scheduler.delete_schedule_group(Name=group)
+    with raises("ResourceNotFoundException") as info:
+        scheduler.get_schedule_group(Name=group)
+    assert status_of(info.value) == 404
+    with raises("ResourceNotFoundException"):
+        scheduler.get_schedule(Name="member", GroupName=group)
+
+
 def test_universal_target_is_not_implemented(scheduler: Any, role: str) -> None:
     """A universal (aws-sdk) target answers 501 NotImplemented and nothing is stored
     (CLAUDE.md invariant 3; spec "Scope")."""

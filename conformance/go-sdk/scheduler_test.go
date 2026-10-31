@@ -408,6 +408,58 @@ func TestSchedulerAtWithDeleteIsGoneAfterFiring(t *testing.T) {
 	errAs[*types.ResourceNotFoundException](t, err, "GetSchedule after the last invocation")
 }
 
+// A schedule group created with a tag reads ACTIVE with its ARN (tf-acc
+// schedule_group_test.go:L25-L72), lists its tag, and untagged lists
+// "Tags": [] (G2: localstack@8b9a79f test_scheduler.snapshot.json:L19-L30);
+// deleting it deletes its schedules, after which the group and the
+// schedule answer 404 (aws-doc managing-schedule-group-delete; scheduler.md
+// 3.2-3.4).
+func TestSchedulerGroupWithTagsAndMembers(t *testing.T) {
+	ctx := t.Context()
+	client := scheduler.NewFromConfig(awsCfg)
+	group := name(t, "sch-g")
+	created, err := client.CreateScheduleGroup(ctx, &scheduler.CreateScheduleGroupInput{
+		Name: aws.String(group), Tags: []types.Tag{{Key: aws.String("TagKey"), Value: aws.String("TagValue")}},
+	})
+	ok(t, err, "CreateScheduleGroup")
+	t.Cleanup(func() {
+		_, _ = client.DeleteScheduleGroup(context.Background(), &scheduler.DeleteScheduleGroupInput{Name: aws.String(group)})
+	})
+	arn := aws.ToString(created.ScheduleGroupArn)
+	if want := "arn:aws:scheduler:" + region() + ":" + account(t) + ":schedule-group/" + group; arn != want {
+		t.Errorf("ScheduleGroupArn = %s, want %s", arn, want)
+	}
+	got, err := client.GetScheduleGroup(ctx, &scheduler.GetScheduleGroupInput{Name: aws.String(group)})
+	ok(t, err, "GetScheduleGroup")
+	if aws.ToString(got.Arn) != arn || aws.ToString(got.Name) != group || got.State != types.ScheduleGroupStateActive {
+		t.Errorf("GetScheduleGroup = %+v, want its ARN, name and ACTIVE", got)
+	}
+	tags, err := client.ListTagsForResource(ctx, &scheduler.ListTagsForResourceInput{ResourceArn: aws.String(arn)})
+	ok(t, err, "ListTagsForResource")
+	if len(tags.Tags) != 1 || aws.ToString(tags.Tags[0].Key) != "TagKey" || aws.ToString(tags.Tags[0].Value) != "TagValue" {
+		t.Errorf("tags = %+v, want TagKey=TagValue", tags.Tags)
+	}
+	_, err = client.UntagResource(ctx, &scheduler.UntagResourceInput{ResourceArn: aws.String(arn), TagKeys: []string{"TagKey"}})
+	ok(t, err, "UntagResource")
+	tags, err = client.ListTagsForResource(ctx, &scheduler.ListTagsForResourceInput{ResourceArn: aws.String(arn)})
+	ok(t, err, "ListTagsForResource after untag")
+	if len(tags.Tags) != 0 {
+		t.Errorf("tags after untag = %+v, want none", tags.Tags)
+	}
+
+	_, target := schedulerTarget(t)
+	createScheduleT(t, &scheduler.CreateScheduleInput{
+		Name: aws.String("member"), GroupName: aws.String(group), ScheduleExpression: aws.String("rate(1 hour)"),
+		FlexibleTimeWindow: &types.FlexibleTimeWindow{Mode: types.FlexibleTimeWindowModeOff}, Target: target,
+	})
+	_, err = client.DeleteScheduleGroup(ctx, &scheduler.DeleteScheduleGroupInput{Name: aws.String(group)})
+	ok(t, err, "DeleteScheduleGroup")
+	_, err = client.GetScheduleGroup(ctx, &scheduler.GetScheduleGroupInput{Name: aws.String(group)})
+	errAs[*types.ResourceNotFoundException](t, err, "GetScheduleGroup after delete")
+	_, err = client.GetSchedule(ctx, &scheduler.GetScheduleInput{Name: aws.String("member"), GroupName: aws.String(group)})
+	errAs[*types.ResourceNotFoundException](t, err, "GetSchedule of a deleted group's member")
+}
+
 // A universal (aws-sdk) target answers 501 NotImplemented and nothing is
 // stored (CLAUDE.md invariant 3; spec "Scope").
 func TestSchedulerUniversalTargetIsNotImplemented(t *testing.T) {

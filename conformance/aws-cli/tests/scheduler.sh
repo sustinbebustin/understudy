@@ -231,6 +231,38 @@ test_at_with_delete_is_gone_after_firing() {
   aws_error ResourceNotFoundException 404 scheduler get-schedule --name "$name"
 }
 
+# A schedule group created with a tag reads ACTIVE with its ARN (tf-acc
+# schedule_group_test.go:L25-L72), lists its tag, and untagged lists
+# "Tags": [] (G2: localstack@8b9a79f test_scheduler.snapshot.json:L19-L30);
+# deleting it deletes its schedules, after which the group and the
+# schedule answer 404 (aws-doc managing-schedule-group-delete; scheduler.md
+# 3.2-3.4).
+test_group_with_tags_and_members() {
+  sch_setup
+  local group target
+  group=$(new_name sch-g)
+  aws_ok scheduler create-schedule-group --name "$group" --tags Key=TagKey,Value=TagValue
+  assert_jq_match '.ScheduleGroupArn' "^arn:aws:scheduler:${AWS_REGION}:[0-9]{12}:schedule-group/${group}\$"
+  local group_arn
+  group_arn=$(jqv '.ScheduleGroupArn')
+  aws_ok scheduler get-schedule-group --name "$group"
+  assert_jq '.State' ACTIVE
+  assert_jq '.Name' "$group"
+  assert_jq '.Arn' "$group_arn"
+  aws_ok scheduler list-tags-for-resource --resource-arn "$group_arn"
+  assert_jq_true '.Tags == [{"Key": "TagKey", "Value": "TagValue"}]'
+  aws_ok scheduler untag-resource --resource-arn "$group_arn" --tag-keys TagKey
+  aws_ok scheduler list-tags-for-resource --resource-arn "$group_arn"
+  assert_jq_true '.Tags == []'
+
+  target=$(jq -cn --arg q "$SCH_QUEUE_ARN" --arg r "$SCH_ROLE_ARN" '{Arn: $q, RoleArn: $r}')
+  aws_ok scheduler create-schedule --name member --group-name "$group" --schedule-expression 'rate(1 hour)' \
+    --flexible-time-window Mode=OFF --target "$target"
+  aws_ok scheduler delete-schedule-group --name "$group"
+  aws_error ResourceNotFoundException 404 scheduler get-schedule-group --name "$group"
+  aws_error ResourceNotFoundException 404 scheduler get-schedule --name member --group-name "$group"
+}
+
 # A universal (aws-sdk) target answers 501 NotImplemented and nothing is
 # stored (CLAUDE.md invariant 3; spec "Scope").
 test_universal_target_is_not_implemented() {
