@@ -29,6 +29,9 @@ const (
 	apigatewayAPIIDLen        = 10 // r3pmxmplak
 	apigatewayRouteIDLen      = 7  // 72jz1wk
 	apigatewayDeploymentIDLen = 6  // 53lz9l
+	// REST API resources (apigateway-rest.md 3.10).
+	apigatewayRootResourceIDLen = 10 // svzr2028x8
+	apigatewayResourceIDLen     = 6  // 6sxz2j
 	// apigatewayRequestIDBytes encode, padded, to 16 base64 characters
 	// ending in one "=".
 	apigatewayRequestIDBytes = 11
@@ -59,15 +62,17 @@ func (s *Source) APIGatewayDeploymentID() APIGatewayChildID {
 
 // APIGatewayRootResourceID mints the id of a REST API's root resource
 // from KindAPIGatewayChildID: 10 characters, as the documented root ids
-// (apigateway-rest.md 3.10; UNVERIFIED, APIGW1-02). It is not implemented
-// yet and returns "".
-func (*Source) APIGatewayRootResourceID() APIGatewayChildID { return "" }
+// (apigateway-rest.md 3.10; UNVERIFIED, APIGW1-02).
+func (s *Source) APIGatewayRootResourceID() APIGatewayChildID {
+	return APIGatewayChildID(s.apigatewayChars(KindAPIGatewayChildID, apigatewayRootResourceIDLen))
+}
 
 // APIGatewayResourceID mints the id of a REST API's child resource from
 // KindAPIGatewayChildID: 6 characters, as the documented child ids
-// (apigateway-rest.md 3.10; UNVERIFIED, APIGW1-02). It is not implemented
-// yet and returns "".
-func (*Source) APIGatewayResourceID() APIGatewayChildID { return "" }
+// (apigateway-rest.md 3.10; UNVERIFIED, APIGW1-02).
+func (s *Source) APIGatewayResourceID() APIGatewayChildID {
+	return APIGatewayChildID(s.apigatewayChars(KindAPIGatewayChildID, apigatewayResourceIDLen))
+}
 
 // APIGatewayRequestIDFor derives the apigw-requestid of an execute-api
 // call from the call's request id, drawing nothing from any stream, as a
