@@ -1,6 +1,6 @@
 # The clock
 
-Every time-based behavior in understudy runs on one emulator clock: SQS visibility timeouts, delays and retention, SNS and EventBridge delivery retries, Lambda batching windows and asynchronous retries, EventBridge schedules, CloudWatch alarm evaluation, DynamoDB TTL, Secrets Manager and KMS deletion windows, log retention, S3 presigned URL expiry (under `--sigv4 verify`, SigV4 URLs only, see [Signature verification](../configuration.md#signature-verification); without `verify` a presigned URL never expires), S3 Object Lock retention ([example](sdks.md#s3-sse-c-and-object-lock)), and the timestamps the APIs return. You can stop it, move it forward, or speed it up. A test keeps AWS's real settings (a 30-second visibility timeout, a 15-minute delay, a 7-day deletion window) and still finishes in milliseconds.
+Every time-based behavior in understudy runs on one emulator clock: SQS visibility timeouts, delays and retention, SNS and EventBridge delivery retries, Lambda batching windows and asynchronous retries, EventBridge rule schedules, EventBridge Scheduler schedules and their retries, CloudWatch alarm evaluation, DynamoDB TTL, Secrets Manager and KMS deletion windows, log retention, S3 presigned URL expiry (under `--sigv4 verify`, SigV4 URLs only, see [Signature verification](../configuration.md#signature-verification); without `verify` a presigned URL never expires), S3 Object Lock retention ([example](sdks.md#s3-sse-c-and-object-lock)), and the timestamps the APIs return. You can stop it, move it forward, or speed it up. A test keeps AWS's real settings (a 30-second visibility timeout, a 15-minute delay, a 7-day deletion window) and still finishes in milliseconds.
 
 ## Commands
 
@@ -48,6 +48,27 @@ aws events put-targets --rule every-5m --targets Id=hello,Arn=arn:aws:lambda:us-
 understudy clock advance 1h --settle
 understudy journal --kind invocation --since 1h
 ```
+
+## EventBridge Scheduler
+
+A Scheduler schedule fires on the same clock. `advance` delivers every fire it passes over, in order, each with its own `<aws.scheduler.scheduled-time>`, and a `cron()` is evaluated in the schedule's time zone. With the queue and role of [the Scheduler guide](eventbridge-scheduler.md#a-schedule-the-clock-and-the-messages-it-sent), on a clock frozen at 08:00:
+
+```sh
+aws scheduler create-schedule --name every-15m --schedule-expression 'rate(15 minutes)' --flexible-time-window Mode=OFF \
+  --target '{"Arn":"arn:aws:sqs:us-east-1:000000000000:reminders","RoleArn":"arn:aws:iam::000000000000:role/scheduler-role"}'
+understudy clock advance 1h --settle
+```
+
+```
+2026-11-02T09:00:00Z frozen
+fired 8 timer(s):
+  scheduler.fire arn:aws:scheduler:us-east-1:000000000000:schedule/default/every-15m
+  outbox.attempt 000000000000/us-east-1/23158754-81a6-47b9-b175-93f47b8471e9
+  ...
+settled: no tracked work is pending
+```
+
+A rate schedule without a start date fires once when it is created, so the queue then holds five messages. Fires that come due while understudy is stopped are skipped after a restart or snapshot load, with an `advisory` in the journal; an application that builds an `at()` from its own wall clock sees it fire on emulator time. [EventBridge Scheduler](eventbridge-scheduler.md) has the details.
 
 ## CloudWatch alarms
 

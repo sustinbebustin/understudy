@@ -13,6 +13,7 @@ Task-oriented pages. Each command shown was run against a build of this reposito
 | [API Gateway](apigateway.md) | HTTP APIs: routes, Lambda proxy integrations with payload 1.0 and 2.0, stages and deployments; REST APIs: resources, methods, Lambda proxy and MOCK integrations, deployments and stages; the execute-api host and path, Terraform |
 | [SSM Parameter Store](ssm.md) | String and SecureString parameters, by path, versions and labels, Terraform, what answers 501 |
 | [Step Functions](stepfunctions.md) | Standard workflows, executions on the emulator clock, Lambda tasks with Retry and Catch, history, what is refused |
+| [EventBridge Scheduler](eventbridge-scheduler.md) | Rate, cron and at() schedules on the emulator clock, time zones, context attributes, retries and dead letters, groups, what answers 501 |
 | [SES](ses-email.md) | Verifying identities by link or configuration, the sandbox and production access, reading recorded messages, Terraform's domain verification wait |
 | [SNS HTTP delivery](sns-http.md) | The allow-list, retries and dead letters, https endpoints, validating signatures with AWS's validators and openssl |
 | [The clock](clock.md) | Freeze, advance, scale; what runs on emulator time and what does not |
