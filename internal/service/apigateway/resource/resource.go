@@ -3,11 +3,14 @@
 // (apigateway-rest.md 4.2), and the backtracking, method-aware match of a
 // request against a deployed resource tree (4.3, 4.4).
 //
-// It is not implemented yet: ParsePart refuses every part, Normalize
-// returns the zero Target and Find matches nothing.
+// Matching is not implemented yet: ParsePart refuses every part and Find
+// matches nothing.
 package resource
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // Part is one path part of a resource, the text between two slashes of its
 // template.
@@ -56,9 +59,13 @@ type Target struct {
 }
 
 // Normalize splits an escaped request path, as sent after the host or the
-// path fallback's API id. It is not implemented yet and returns the zero
-// Target.
-func Normalize(string) Target { return Target{} }
+// path fallback's API id, per the recorded table (apigateway-rest.md 4.2):
+// nothing is decoded, interior and trailing slashes stay.
+func Normalize(escapedPath string) Target {
+	trimmed := strings.TrimLeft(escapedPath, "/")
+	stage, rest, _ := strings.Cut(trimmed, "/")
+	return Target{Stage: stage, Path: "/" + strings.TrimLeft(rest, "/"), ContextPath: "/" + trimmed}
+}
 
 // Methods is the method part of the apigateway.invoke.routing switch
 // (apigateway-rest.md 4.4, APIGW1-08).
