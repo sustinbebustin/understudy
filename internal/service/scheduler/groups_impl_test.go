@@ -12,9 +12,9 @@ import (
 	"github.com/sustinbebustin/understudy/internal/kernel"
 )
 
-// getGroup reads a group's dates.
-func getGroup(h *harness, name string) (created, modified time.Time) {
-	out := must(h, schedulerapi.OpGetScheduleGroup, &schedulerapi.GetScheduleGroupInput{Name: name})
+// defaultGroupDates reads the default group's dates.
+func defaultGroupDates(h *harness) (created, modified time.Time) {
+	out := must(h, schedulerapi.OpGetScheduleGroup, &schedulerapi.GetScheduleGroupInput{Name: "default"})
 	return *out.CreationDate, *out.LastModificationDate
 }
 
@@ -93,12 +93,12 @@ func TestDefaultGroupDates(t *testing.T) {
 	run(t, func(h *harness) {
 		born := h.now()
 		h.advance(time.Hour)
-		if c, m := getGroup(h, "default"); !c.Equal(born) || !m.Equal(born) {
+		if c, m := defaultGroupDates(h); !c.Equal(born) || !m.Equal(born) {
 			h.Errorf("default dates = %s, %s, want the state's creation %s", c, m, born)
 		}
 		h.svc.Reset(kernel.ResetScope{})
 		reset := h.now()
-		if c, _ := getGroup(h, "default"); !c.Equal(reset) {
+		if c, _ := defaultGroupDates(h); !c.Equal(reset) {
 			h.Errorf("default created after reset = %s, want %s", c, reset)
 		}
 		must(h, schedulerapi.OpTagResource, &schedulerapi.TagResourceInput{ResourceArn: h.groupArn("default"), Tags: []schedulerapi.Tag{{Key: "k", Value: "v"}}})
@@ -111,7 +111,7 @@ func TestDefaultGroupDates(t *testing.T) {
 		if err := h.svc.Import(sections); err != nil {
 			h.Fatal(err)
 		}
-		if c, m := getGroup(h, "default"); !c.Equal(reset) || !m.Equal(reset) {
+		if c, m := defaultGroupDates(h); !c.Equal(reset) || !m.Equal(reset) {
 			h.Errorf("materialized default dates after import = %s, %s, want %s", c, m, reset)
 		}
 		if got := listTags(h, "default"); !slices.Equal(got, []schedulerapi.Tag{{Key: "k", Value: "v"}}) {
@@ -132,12 +132,12 @@ func TestScopedResetKeepsOtherScopesDefaultDates(t *testing.T) {
 		}
 		h.advance(time.Hour)
 		h.svc.Reset(kernel.ResetScope{Accounts: []aws.AccountID{other}})
-		if c, m := getGroup(h, "default"); !c.Equal(born) || !m.Equal(born) {
+		if c, m := defaultGroupDates(h); !c.Equal(born) || !m.Equal(born) {
 			h.Errorf("default dates after another account's reset = %s, %s, want %s", c, m, born)
 		}
 		h.advance(time.Hour)
 		h.svc.Reset(kernel.ResetScope{Accounts: []aws.AccountID{aws.DefaultAccount()}})
-		if c, _ := getGroup(h, "default"); !c.Equal(h.now()) {
+		if c, _ := defaultGroupDates(h); !c.Equal(h.now()) {
 			h.Errorf("default created after its account's reset = %s, want %s", c, h.now())
 		}
 	})

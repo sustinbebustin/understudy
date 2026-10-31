@@ -94,25 +94,9 @@ func (s *Service) rearmScope(st *State, scope aws.Scope, now clock.Instant) ([]j
 			}
 			var next run = at
 			if at.Due.Before(now) {
-				next = offset(&sc.Plan, catchUp(sc.Plan, at, now), s.opts.FlexibleOffset, s.ids)
-				sc.Run = next
-				_, left := next.(scheduled)
-				gone := !left && sc.Plan.deletesWhenDone()
-				text := nextText(next)
-				if gone {
-					st.remove(r)
-					text += "; ActionAfterCompletion DELETE deleted it"
-				} else {
-					st.put(r, sc)
-				}
-				skipped = append(skipped, journal.Advisory{
-					Kind: journal.AdvisoryScheduleFiresSkipped, Resource: r.arn(),
-					Text: "skipped the invocations due from " + at.Due.String() + " until " + now.String() +
-						", which came due while understudy was stopped or before the loaded state's time; " + text,
-				})
-				if gone {
-					skipped = append(skipped, journal.StateChange{Resource: r.arn(), From: journal.ResourceState(sc.Echo.state()), To: scheduleDeleted})
-				}
+				var events []journal.Detail
+				next, events = s.catchUpOne(st, r, sc, at, now)
+				skipped = append(skipped, events...)
 			}
 			if n, ok := next.(scheduled); ok {
 				sched.Arm(s.fire.Key(r.arn().String()), n.Due)
@@ -120,6 +104,32 @@ func (s *Service) rearmScope(st *State, scope aws.Scope, now clock.Instant) ([]j
 		}
 	}
 	return skipped, len(skipped) > 0
+}
+
+// catchUpOne moves sc, whose invocation at came due before now, to its
+// catch-up run, deleting it when that leaves no invocation under
+// ActionAfterCompletion DELETE; it returns the run and what to journal.
+func (s *Service) catchUpOne(st *State, r scheduleRef, sc schedule, at scheduled, now clock.Instant) (run, []journal.Detail) {
+	next := offset(&sc.Plan, catchUp(sc.Plan, at, now), s.opts.FlexibleOffset, s.ids)
+	sc.Run = next
+	_, left := next.(scheduled)
+	gone := !left && sc.Plan.deletesWhenDone()
+	text := nextText(next)
+	if gone {
+		st.remove(r)
+		text += "; ActionAfterCompletion DELETE deleted it"
+	} else {
+		st.put(r, sc)
+	}
+	events := []journal.Detail{journal.Advisory{
+		Kind: journal.AdvisoryScheduleFiresSkipped, Resource: r.arn(),
+		Text: "skipped the invocations due from " + at.Due.String() + " until " + now.String() +
+			", which came due while understudy was stopped or before the loaded state's time; " + text,
+	}}
+	if gone {
+		events = append(events, journal.StateChange{Resource: r.arn(), From: journal.ResourceState(sc.Echo.state()), To: scheduleDeleted})
+	}
+	return next, events
 }
 
 // nextText says what a skipped schedule does next.
