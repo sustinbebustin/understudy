@@ -3,12 +3,12 @@
 // (apigateway-rest.md 4.2), and the backtracking, method-aware match of a
 // request against a deployed resource tree (4.3, 4.4).
 //
-// Matching is not implemented yet: ParsePart refuses every part and Find
-// matches nothing.
+// Matching is not implemented yet: Find matches nothing.
 package resource
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 )
 
@@ -39,10 +39,42 @@ func (e *PartError) Error() string {
 	return fmt.Sprintf("path part %q is not valid: %s", e.PathPart, e.Problem)
 }
 
-// ParsePart parses a CreateResource pathPart (apigateway-rest.md 3.2). It
-// is not implemented yet and refuses every part.
+// The path part alphabets (apigateway-rest.md 3.2). A literal takes the
+// known-issues page's "alphanumeric characters, underscores, hyphens,
+// periods, commas, colons"; a variable's name is restricted to the same
+// set less commas and colons, although the documentation allows "any
+// string" for a greedy name (inferred). That CreateResource enforces them
+// is inferred.
+var (
+	literalPart  = regexp.MustCompile(`^[A-Za-z0-9._,:-]+$`)
+	variableName = regexp.MustCompile(`^[A-Za-z0-9._-]+$`)
+)
+
+// ParsePart parses a CreateResource pathPart (apigateway-rest.md 3.2):
+// {name} is a Var, {name+} a Greedy, anything else a Literal of the
+// literal alphabet. Braces must wrap the whole part.
 func ParsePart(pathPart string) (Part, *PartError) {
-	return nil, &PartError{PathPart: pathPart, Problem: "path part parsing is not implemented yet"}
+	refuse := func(problem string) (Part, *PartError) {
+		return nil, &PartError{PathPart: pathPart, Problem: problem}
+	}
+	if inner, ok := strings.CutPrefix(pathPart, "{"); ok {
+		inner, ok = strings.CutSuffix(inner, "}")
+		if !ok {
+			return refuse("a path variable must be wrapped in braces from its first character to its last")
+		}
+		name, greedy := strings.CutSuffix(inner, "+")
+		if !variableName.MatchString(name) {
+			return refuse("a path variable's name must be one or more of A-Z, a-z, 0-9, '.', '_' and '-'")
+		}
+		if greedy {
+			return Greedy{Name: name}, nil
+		}
+		return Var{Name: name}, nil
+	}
+	if !literalPart.MatchString(pathPart) {
+		return refuse("a path part must be one or more of A-Z, a-z, 0-9, '.', '_', '-', ',' and ':', or a path variable {name} or {name+}")
+	}
+	return Literal{Value: pathPart}, nil
 }
 
 // Target is a data-plane request path split into the stage it names and
