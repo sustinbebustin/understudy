@@ -27,8 +27,8 @@ DynamoDB runs on DynamoDB Local, pulled on first use, and `run.sh` exits 1 unles
 | `run.sh` | build, serve, run, always clean up |
 | `run-suite.sh` | the runner: executes every `test_*` function in `tests/*.sh` in its own shell with a timeout, prints PASS, FAIL or SKIP and records each in `results.tsv` (a skip with its reason) |
 | `lib.sh` | assertions (`assert_eq`, `assert_jq`, `aws_error`, ...) and probes (`require_service`, which also honours `CONFORMANCE_DYNAMODB=0`, and `require_docker`) |
-| `lambda-helpers.sh` | function fixtures shared by `tests/lambda.sh`, `tests/events.sh` and `tests/apigatewayv2.sh` |
-| `tests/<service>.sh` | one file per service: `apigatewayv2`, `cloudwatch`, `dynamodb`, `dynamodbstreams`, `events`, `iam`, `kinesis`, `kms`, `lambda`, `logs`, `s3`, `secretsmanager`, `sfn`, `sns`, `sqs`, `ssm`, `sts`; `sns-http`, SNS delivery to an http receiver each test starts on a loopback port, which `run.sh` lists in `sns.httpDelivery.allow`; and `sfn-task`, Step Functions Lambda tasks without Retry or Catch, reusing `sfn`'s helpers |
+| `lambda-helpers.sh` | function fixtures shared by `tests/lambda.sh`, `tests/events.sh`, `tests/apigatewayv2.sh` and `tests/apigateway.sh` |
+| `tests/<service>.sh` | one file per service: `apigateway`, `apigatewayv2`, `cloudwatch`, `dynamodb`, `dynamodbstreams`, `events`, `iam`, `kinesis`, `kms`, `lambda`, `logs`, `s3`, `secretsmanager`, `sfn`, `sns`, `sqs`, `ssm`, `sts`; `sns-http`, SNS delivery to an http receiver each test starts on a loopback port, which `run.sh` lists in `sns.httpDelivery.allow`; and `sfn-task`, Step Functions Lambda tasks without Retry or Catch, reusing `sfn`'s helpers |
 
 A fixer owns one service by owning one file in `tests/`.
 

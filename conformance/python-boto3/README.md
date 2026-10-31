@@ -57,6 +57,7 @@ One file per service, so a fixer can own one service at a time.
 | `tests/test_lambda_layers.py` | layer versions, filters and policies, layers on functions and in `/opt`, event-invoke refusals, invocation records to SQS, SNS and EventBridge destinations |
 | `tests/test_sts.py` | `get_caller_identity`, `assume_role` |
 | `tests/test_apigatewayv2.py` | HTTP APIs: create defaults, tags by escaped ARN, routes, integrations, stages and deployments, the documented errors, and Lambda proxy invocations in both payload formats through the execute-api path fallback |
+| `tests/test_apigateway.py` | REST APIs: create defaults, the recorded refusals, tags by escaped ARN, a MOCK method with literal templates, the live-deployment rule, and a Lambda proxy invocation through the execute-api path fallback |
 | `tests/test_events.py` | `put_events` on the default bus; custom buses: lifecycle, default-bus tags, rules and events per bus, the schedule refusal, event bus targets and bus policies |
 
 `tests/conftest.py` holds the clients and cleanup fixtures and the `dynamodb` marker; `tests/support.py` holds the admin API client (clock, settle, reset) and shared helpers. Tests that need time to pass move the emulator clock through the admin API rather than sleeping.

@@ -28,7 +28,7 @@ Type-check with `bun run typecheck`.
 | Variable | Effect |
 |---|---|
 | `CONFORMANCE_DYNAMODB=0` | Skips `dynamodb.test.ts`, `dynamodbstreams.test.ts` and the stream mapping case of `lambda.test.ts`, each test with the reason `DynamoDB opted out (CONFORMANCE_DYNAMODB=0)`. Unset, the file runs on DynamoDB Local, pulled on first use, and `run.sh` exits 1 unless the health document reports DynamoDB as `enabled`. |
-| `CONFORMANCE_LAMBDA_EXECUTION=0` | Skips `lambda.test.ts`, the function tests of `lambda-layers.test.ts` and the invocation tests of `apigatewayv2.test.ts`, which run functions in AWS's Python base image and need Docker and a first-use image pull. |
+| `CONFORMANCE_LAMBDA_EXECUTION=0` | Skips `lambda.test.ts`, the function tests of `lambda-layers.test.ts` and the invocation tests of `apigatewayv2.test.ts` and `apigateway.test.ts`, which run functions in AWS's Python base image and need Docker and a first-use image pull. |
 
 The suite refuses any endpoint that is not loopback http.
 
@@ -57,5 +57,6 @@ One file per service, so each can be fixed on its own.
 | `tests/eventbridge.test.ts` | EventBridge |
 | `tests/cloudwatch.test.ts` | CloudWatch metrics and alarms |
 | `tests/apigatewayv2.test.ts` | API Gateway HTTP APIs: the control plane and Lambda proxy invocations through the execute-api path fallback |
+| `tests/apigateway.test.ts` | API Gateway REST APIs: the control plane and its recorded refusals, a MOCK method and Lambda proxy invocations through the execute-api path fallback |
 
 `support/` holds the connection settings (`env.ts`), shared helpers (`helpers.ts`), independent checksum reference implementations (`checksums.ts`), a zip writer for Lambda packages (`zip.ts`), the Kinesis client and stream fixture (`kinesis.ts`) and the types of `sns-validator` (`sns-validator.d.ts`).
