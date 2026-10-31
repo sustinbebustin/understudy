@@ -128,7 +128,7 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | lambda | 88 | 30 | 2 | 18 | 38 | 0 | 2 |
 | logs | 118 | 9 | 0 | 9 | 100 | 1 | 0 |
 | s3 | 112 | 22 | 39 | 25 | 26 | 0 | 3 |
-| scheduler | 12 | 0 | 0 | 3 | 9 | 0 | 0 |
+| scheduler | 12 | 0 | 0 | 5 | 7 | 0 | 0 |
 | secretsmanager | 23 | 1 | 0 | 14 | 8 | 0 | 0 |
 | ses | 71 | 10 | 0 | 8 | 53 | 0 | 1 |
 | sesv2 | 116 | 7 | 0 | 7 | 102 | 0 | 0 |
@@ -1110,18 +1110,18 @@ Raw operations:
 
 | Operation | Status | Evidence | Note |
 |---|---|---|---|
-| CreateSchedule | partial | inferred, 6 of 6 claims | rate() schedules in the default group with an SQS queue target in the schedule's Region are invoked on the emulator clock as the execution role; at() and cron() expressions, other target services, other schedule groups, StartDate and EndDate, a time zone other than UTC, State DISABLED, a FLEXIBLE window, DeadLetterConfig and the parameter blocks of other targets answer NotImplemented; KmsKeyArn is stored and echoed, the payload is not encrypted; the execution role's trust is not checked, so a missing or untrusting role still delivers; ClientToken is accepted and not used for idempotency; the 10,000,000-schedule quota is not counted; unrecorded, understudy's choice: rate units are accepted singular or plural with any value, a rate schedule without StartDate first fires at the write instant, an absent Input delivers {}, client-side target errors are not retried and one execution id covers an invocation's retries, a MaximumWindowInMinutes sent with OFF is ignored, and every refusal message except the expression text is understudy's own |
+| CreateSchedule | partial | inferred, 6 of 6 claims | rate(), at() and cron() schedules in the default group with an SQS queue target in the schedule's Region are invoked on the emulator clock as the execution role, at() and cron() in any IANA time zone, which a rate ignores, between StartDate and EndDate, and not while State is DISABLED; other target services, other schedule groups, a FLEXIBLE window, DeadLetterConfig, ActionAfterCompletion DELETE and the parameter blocks of other targets answer NotImplemented once the expression, time zone, window and dates are validated; KmsKeyArn is stored and echoed, the payload is not encrypted; the execution role's trust is not checked, so a missing or untrusting role still delivers; ClientToken is accepted and not used for idempotency; the 10,000,000-schedule quota is not counted; unrecorded, understudy's choice: rate units are accepted singular or plural with any value, a rate schedule without StartDate first fires at the write instant, a rate schedule whose StartDate has passed first fires at its first interval at or after the write instant, an absent Input delivers {}, an at() in the past fires at once, an at() fires at its seconds, a fired at() with NONE stays with its State unchanged, client-side target errors are not retried and one execution id covers an invocation's retries, a MaximumWindowInMinutes sent with OFF is ignored, checks run in the order expression, time zone, window, dates and the future-fire check, target, a present date in the future-fire text renders as RFC 3339 UTC, and every refusal message except the expression, future-fire and missing-group texts is understudy's own |
 | DeleteSchedule | partial | inferred, 1 of 1 claim | unrecorded, understudy's choice: ClientToken is accepted and not used for idempotency |
 | GetSchedule | partial | inferred, 1 of 1 claim | unrecorded, understudy's choice: ScheduleExpressionTimezone, Description, StartDate and EndDate are absent when they were not sent, MaximumWindowInMinutes is absent under OFF, State defaults to ENABLED, and CreationDate and LastModificationDate are whole seconds |
+| ListSchedules | partial | inferred, 1 of 1 claim | unrecorded, understudy's choice: schedules in group then name order, 100 per page without MaxResults |
+| UpdateSchedule | partial | inferred, 6 of 6 claims | as CreateSchedule; every member is replaced and omitted ones take their defaults; unrecorded, understudy's choice: an update that leaves the expression, time zone, dates, window and State unchanged keeps the next fire, any other restarts the plan at the write instant |
 | CreateScheduleGroup | unbound | unassessed |  |
 | DeleteScheduleGroup | unbound | unassessed |  |
 | GetScheduleGroup | unbound | unassessed |  |
 | ListScheduleGroups | unbound | unassessed |  |
-| ListSchedules | unbound | unassessed |  |
 | ListTagsForResource | unbound | unassessed |  |
 | TagResource | unbound | unassessed |  |
 | UntagResource | unbound | unassessed |  |
-| UpdateSchedule | unbound | unassessed |  |
 
 ### secretsmanager
 
