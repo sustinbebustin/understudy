@@ -45,35 +45,6 @@ func TestUpdateRestApiTable(t *testing.T) {
 	})
 }
 
-// The documented UpdateRestApi paths whose effect understudy does not hold
-// yet answer NotImplemented naming the path, and the request changes
-// nothing (CLAUDE.md invariant 3); their op refusals stay AWS's
-// (/minimumCompressionSize, L468).
-func TestUpdateRestApiPathsNotYetImplemented(t *testing.T) {
-	run(t, func(h *harness) {
-		id, _ := h.api("t")
-		for _, o := range []apigatewayapi.PatchOperation{
-			op(apigatewayapi.OpReplace, "/policy", "{}"),
-			op(apigatewayapi.OpReplace, "/apiKeySource", "AUTHORIZER"),
-			op(apigatewayapi.OpReplace, "/disableExecuteApiEndpoint", "true"),
-			op(apigatewayapi.OpReplace, "/minimumCompressionSize", "10"),
-			op(apigatewayapi.OpReplace, "/endpointConfiguration/types/EDGE", "REGIONAL"),
-			op(apigatewayapi.OpAdd, "/endpointConfiguration/vpcEndpointIds", "vpce-1"),
-			op(apigatewayapi.OpReplace, "/endpointConfiguration/ipAddressType", "dualstack"),
-			op(apigatewayapi.OpReplace, "/securityPolicy", "TLS_1_2"),
-			op(apigatewayapi.OpReplace, "/endpointAccessMode", "STRICT"),
-		} {
-			err := fail(h, apigatewayapi.OpUpdateRestApi, &apigatewayapi.UpdateRestApiInput{RestApiId: id, PatchOperations: []apigatewayapi.PatchOperation{
-				op(apigatewayapi.OpReplace, "/name", "changed"), o,
-			}})
-			wantNotImplemented(t, err, *o.Path)
-		}
-		if got := must(h, apigatewayapi.OpGetRestApi, &apigatewayapi.GetRestApiInput{RestApiId: id}); deref(got.Name) != "t" {
-			t.Errorf("name = %q after refused updates, want t", deref(got.Name))
-		}
-	})
-}
-
 // binaryMediaTypes added by UpdateRestApi reach the data plane only through
 // a new deployment, which then answers 501 naming them, journaled, without
 // running the function (spec 6b scope list; the binaryMediaTypes half of

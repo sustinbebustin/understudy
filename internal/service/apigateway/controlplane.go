@@ -22,32 +22,40 @@ import (
 // createRestAPI creates a REST API with its root resource
 // (apigateway-rest.md 3.1, 3.2; defaults recorded, 2.3).
 func (s *Service) createRestAPI(_ context.Context, c *kernel.Call, in *apigatewayapi.CreateRestApiInput) (*apigatewayapi.RestApi, *awserr.Error) {
-	if err := refuseUnimplemented("CreateRestApi",
-		member{"cloneFrom", in.CloneFrom != nil},
-		member{"binaryMediaTypes", in.BinaryMediaTypes != nil},
-		member{"minimumCompressionSize", in.MinimumCompressionSize != nil},
-		member{"apiKeySource", in.ApiKeySource != nil},
-		member{"endpointConfiguration", in.EndpointConfiguration != nil},
-		member{"policy", in.Policy != nil},
-		member{"disableExecuteApiEndpoint", in.DisableExecuteApiEndpoint},
-		member{"securityPolicy", in.SecurityPolicy != nil},
-		member{"endpointAccessMode", in.EndpointAccessMode != nil},
-	); err != nil {
+	if err := refuseUnimplemented("CreateRestApi", member{"cloneFrom", in.CloneFrom != nil}); err != nil {
 		return nil, err
 	}
 	if in.Description != nil && *in.Description == "" {
 		// Recorded (apigateway-rest.md 2.4).
 		return nil, errBadRequest("Description cannot be an empty string")
 	}
+	if in.MinimumCompressionSize != nil {
+		if err := checkCompressionSize(*in.MinimumCompressionSize); err != nil {
+			return nil, err
+		}
+	}
+	endpoint, err := endpointFrom(in.EndpointConfiguration)
+	if err != nil {
+		return nil, err
+	}
 	if err := checkTags(in.Tags); err != nil {
 		return nil, err
 	}
 	scope := c.Scope()
 	id := s.newAPIID(scope)
+	var policy *string
+	if in.Policy != nil && *in.Policy != "" {
+		policy = new(policyStored(scope, id, *in.Policy))
+	}
 	api, err := kernel.Write(c, s.cells, scope, func(st *State, now clock.Instant, _ *kernel.Tx) (RestAPI, *awserr.Error) {
 		root := string(s.ids.APIGatewayRootResourceID())
 		a := RestAPI{
 			ID: id, Seq: st.NextSeq, Name: in.Name, Description: clonePtr(in.Description), Version: clonePtr(in.Version), Created: now,
+			BinaryMediaTypes: slices.Clone(in.BinaryMediaTypes),
+			Endpoint:         endpoint, DisableExecuteAPIEndpoint: in.DisableExecuteApiEndpoint, Policy: policy,
+			APIKeySource:           deref(in.ApiKeySource, apigatewayapi.ApiKeySourceTypeHeader),
+			MinimumCompressionSize: clonePtr(in.MinimumCompressionSize),
+			SecurityPolicy:         clonePtr(in.SecurityPolicy), EndpointAccessMode: clonePtr(in.EndpointAccessMode),
 			RootResourceID: root, Resources: []Resource{{ID: root, Path: "/"}}, NextResourceSeq: 1,
 			Models: seededModels(), Tags: maps.Clone(in.Tags),
 		}
@@ -93,9 +101,9 @@ func (s *Service) getRestAPI(_ context.Context, c *kernel.Call, in *apigatewayap
 	return out, nil
 }
 
-// output is the API as CreateRestApi, GetRestApi and UpdateRestApi answer
-// it, with the recorded defaults of the members it does not hold yet and
-// no binaryMediaTypes when it has none (apigateway-rest.md 2.3).
+// output is the API as CreateRestApi, GetRestApi, GetRestApis and
+// UpdateRestApi answer it: no binaryMediaTypes when it has none, the
+// policy escaped (apigateway-rest.md 2.3).
 func (a *RestAPI) output(status apigatewayapi.ApiStatus) apigatewayapi.RestApi {
 	var binary []string
 	if len(a.BinaryMediaTypes) > 0 {
@@ -105,12 +113,18 @@ func (a *RestAPI) output(status apigatewayapi.ApiStatus) apigatewayapi.RestApi {
 		BinaryMediaTypes: binary,
 		Id:               new(a.ID), Name: new(a.Name), Description: clonePtr(a.Description), Version: clonePtr(a.Version),
 		CreatedDate:  new(a.Created.Wire()),
-		ApiKeySource: new(apigatewayapi.ApiKeySourceTypeHeader),
+		ApiKeySource: new(a.APIKeySource),
 		EndpointConfiguration: &apigatewayapi.EndpointConfiguration{
-			Types: []apigatewayapi.EndpointType{apigatewayapi.EndpointTypeEdge}, IpAddressType: new(apigatewayapi.IpAddressTypeIpv4),
+			Types: []apigatewayapi.EndpointType{a.Endpoint.Type}, IpAddressType: new(a.Endpoint.IPAddressType),
+			VpcEndpointIds: slices.Clone(a.Endpoint.VPCEndpointIDs),
 		},
-		RootResourceId: new(a.RootResourceID),
-		ApiStatus:      new(status),
+		Policy:                    policyOut(a.Policy),
+		DisableExecuteApiEndpoint: a.DisableExecuteAPIEndpoint,
+		MinimumCompressionSize:    clonePtr(a.MinimumCompressionSize),
+		SecurityPolicy:            clonePtr(a.SecurityPolicy),
+		EndpointAccessMode:        clonePtr(a.EndpointAccessMode),
+		RootResourceId:            new(a.RootResourceID),
+		ApiStatus:                 new(status),
 		// Absent when the API has none (recorded, apigateway-rest.md 2.3).
 		Tags: tagsOrNil(a.Tags),
 	}

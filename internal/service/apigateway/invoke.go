@@ -20,6 +20,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/httpevent"
 	"github.com/sustinbebustin/understudy/internal/ids"
+	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/policydoc"
 	"github.com/sustinbebustin/understudy/internal/ref"
@@ -64,7 +65,11 @@ func (s *Service) invoke(ctx context.Context, c *kernel.Call, r *http.Request, w
 	if !ok {
 		return writeAnswer(w, RoutingSwitch().Value.UnknownAPI)
 	}
-	switch sel := s.selectMethod(addr, r.Method).(type) {
+	sel, advise := s.selectMethod(addr, r.Method)
+	if advise != nil {
+		c.Record(ctx, advise.owner, journal.Advisory{Kind: journal.AdvisoryAccessUnevaluated, Resource: restAPIARN(advise.owner, advise.apiID), Text: advise.text()})
+	}
+	switch sel := sel.(type) {
 	case answered:
 		return writeAnswer(w, sel.answer)
 	case unemulated:
@@ -177,45 +182,99 @@ func (toFunction) isSelection() {}
 func (unemulated) isSelection() {}
 func (corrupt) isSelection()    {}
 
-// selectMethod finds the API addr names in any account, its stage, and the
-// resource and method of the stage's deployment that serve method
-// (apigateway-rest.md 4.1-4.4). A host naming another region than the API's
-// is the routing switch's UnknownAPI.
-func (s *Service) selectMethod(addr address, method string) selection {
-	owner, ok := s.index.lookup(addr.apiID)
-	if !ok || (!addr.region.IsZero() && addr.region != owner.Region) {
-		return answered{RoutingSwitch().Value.UnknownAPI}
-	}
-	return readState(s, owner, func(st *State) selection {
-		a, ok := st.APIs[addr.apiID]
-		if !ok {
-			return answered{RoutingSwitch().Value.UnknownAPI}
-		}
-		return a.selectMethod(owner, addr, method)
-	})
+// policyAdvisory is an invocation of an API with a resource policy under
+// iam.enforce=advise: served, with an access-unevaluated advisory naming
+// the API (spec 6b enforce matrix; contract 7.7 step 6).
+type policyAdvisory struct {
+	owner aws.Scope
+	apiID string
 }
 
-// selectMethod is Service.selectMethod on the API addr names, which owner
-// holds.
-func (a *RestAPI) selectMethod(owner aws.Scope, addr address, method string) selection {
-	routing := RoutingSwitch().Value
-	target := resource.Normalize(addr.path)
-	stage, _, ok := a.stage(target.Stage)
+func (p *policyAdvisory) text() string {
+	return "understudy does not evaluate REST API resource policies: REST API " + p.apiID +
+		" has a policy, which AWS would evaluate for execute-api:Invoke on this request; iam.enforce is advise, so understudy served the request"
+}
+
+// selectMethod finds the API addr names in any account, its stage, and the
+// resource and method of the stage's deployment that serve method
+// (apigateway-rest.md 4.1-4.4), in contract 7.7's order. A host naming
+// another region than the API's is the routing switch's UnknownAPI. A
+// non-nil advisory is to be recorded whatever the selection.
+func (s *Service) selectMethod(addr address, method string) (selection, *policyAdvisory) {
+	owner, ok := s.index.lookup(addr.apiID)
+	if !ok || (!addr.region.IsZero() && addr.region != owner.Region) {
+		return answered{RoutingSwitch().Value.UnknownAPI}, nil
+	}
+	type selected struct {
+		sel    selection
+		advise *policyAdvisory
+	}
+	got := readState(s, owner, func(st *State) selected {
+		a, ok := st.APIs[addr.apiID]
+		if !ok {
+			return selected{sel: answered{RoutingSwitch().Value.UnknownAPI}}
+		}
+		target := resource.Normalize(addr.path)
+		stage, d, refused := a.front(target.Stage)
+		if refused != nil {
+			return selected{sel: refused}
+		}
+		var advise *policyAdvisory
+		if a.Policy != nil {
+			switch s.enforce {
+			case EnforceEnforce:
+				return selected{sel: unemulated{fmt.Sprintf("understudy does not evaluate REST API resource policies: REST API %s has a policy and iam.enforce is enforce, "+
+					"so the request is refused rather than served unchecked; no integration ran and nothing was changed. "+
+					"Remove the policy with UpdateRestApi replace /policy, or run with iam.enforce advise or off.", a.ID)}}
+			case EnforceAdvise:
+				advise = &policyAdvisory{owner: owner, apiID: a.ID}
+			case EnforceOff:
+			}
+		}
+		return selected{sel: a.route(owner, addr, method, target.Path, stage, d), advise: advise}
+	})
+	return got.sel, got.advise
+}
+
+// front checks what applies before routing (contract 7.7 steps 3-5): the
+// live settings understudy cannot serve, the stage, and the stage's
+// deployment snapshot. A non-nil selection answers the request.
+func (a *RestAPI) front(stageName string) (Stage, Deployment, selection) {
+	if a.DisableExecuteAPIEndpoint {
+		// No REST source says what AWS answers or when it takes effect, so
+		// understudy refuses at once rather than serve (spec 6b scope list).
+		return Stage{}, Deployment{}, unemulated{fmt.Sprintf("understudy does not emulate a disabled default endpoint: REST API %s has disableExecuteApiEndpoint true, "+
+			"so no integration ran and nothing was changed. Set it to false with UpdateRestApi replace /disableExecuteApiEndpoint.", a.ID)}
+	}
+	if a.Endpoint.Type == apigatewayapi.EndpointTypePrivate {
+		// AWS serves a PRIVATE API only through VPC endpoints, never on a
+		// public host (spec 6b scope list).
+		return Stage{}, Deployment{}, unemulated{fmt.Sprintf("understudy does not serve PRIVATE APIs: REST API %s has endpoint type PRIVATE, which AWS serves only through VPC endpoints, "+
+			"so no integration ran and nothing was changed. Use a REGIONAL or EDGE endpoint configuration.", a.ID)}
+	}
+	stage, _, ok := a.stage(stageName)
 	if !ok {
-		return answered{routing.UnknownStage}
+		return Stage{}, Deployment{}, answered{RoutingSwitch().Value.UnknownStage}
 	}
 	d, ok := a.deployment(stage.Deployment)
 	if !ok {
-		return corrupt{fmt.Errorf("apigateway: stage %q of REST API %s serves deployment %s, which the API does not hold", stage.Name, a.ID, stage.Deployment)}
+		return Stage{}, Deployment{}, corrupt{fmt.Errorf("apigateway: stage %q of REST API %s serves deployment %s, which the API does not hold", stage.Name, a.ID, stage.Deployment)}
 	}
 	if len(d.BinaryMediaTypes) > 0 {
 		// They decide the event's isBase64Encoded and whether a response
 		// body is decoded (apigateway-rest.md 5.1, 5.2), which understudy
 		// does not apply (spec 6b scope list).
-		return unemulated{fmt.Sprintf("understudy does not apply binaryMediaTypes: deployment %s of REST API %s, which stage %s serves, has binaryMediaTypes %v, "+
+		return Stage{}, Deployment{}, unemulated{fmt.Sprintf("understudy does not apply binaryMediaTypes: deployment %s of REST API %s, which stage %s serves, has binaryMediaTypes %v, "+
 			"so no integration ran and nothing was changed. Remove the binaryMediaTypes with UpdateRestApi and deploy again.", d.ID, a.ID, stage.Name, d.BinaryMediaTypes)}
 	}
-	res, found, ok := match(d.Resources, method, target.Path, routing.Methods)
+	return stage, d, nil
+}
+
+// route finds the resource and method of the deployment d, which stage
+// serves, for method on path (contract 7.7 steps 7-10).
+func (a *RestAPI) route(owner aws.Scope, addr address, method, path string, stage Stage, d Deployment) selection {
+	routing := RoutingSwitch().Value
+	res, found, ok := match(d.Resources, method, path, routing.Methods)
 	if !ok {
 		return answered{MissingAuthenticationToken()}
 	}

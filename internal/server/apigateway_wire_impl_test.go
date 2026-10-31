@@ -41,13 +41,16 @@ func signedAPIGatewayGet(t *testing.T, endpoint, path string) (status int, body 
 
 // REST APIs are wired: a request signed for apigateway on a /restapis
 // path reaches apigateway's route table, and an operation the unit leaves
-// unbound answers 501 naming it rather than an unknown service (CLAUDE.md
-// invariant 3).
+// unbound (GetAccount, GET /account) answers 501 naming it rather than an
+// unknown service (CLAUDE.md invariant 3).
 func TestAPIGatewayIsWired(t *testing.T) {
 	_, endpoint := adminServer(t, server.Config{})
-	status, body := signedAPIGatewayGet(t, endpoint, "/restapis")
-	if want := "understudy does not implement apigateway.GetRestApis"; status != http.StatusNotImplemented || !bytes.Contains(body, []byte(want)) {
-		t.Errorf("GET /restapis = %d %s, want 501 containing %q", status, body, want)
+	if status, body := signedAPIGatewayGet(t, endpoint, "/restapis"); status != http.StatusOK || !bytes.Contains(body, []byte(`"item"`)) {
+		t.Errorf("GET /restapis = %d %s, want 200 with the item list", status, body)
+	}
+	status, body := signedAPIGatewayGet(t, endpoint, "/account")
+	if want := "understudy does not implement apigateway.GetAccount"; status != http.StatusNotImplemented || !bytes.Contains(body, []byte(want)) {
+		t.Errorf("GET /account = %d %s, want 501 containing %q", status, body, want)
 	}
 }
 

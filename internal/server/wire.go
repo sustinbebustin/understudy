@@ -201,6 +201,7 @@ func wire(cfg Config, log *slog.Logger) (w *wiring, err error) {
 	c := &construction{
 		switches: cfg.Switches, regions: regions, local: w.local, images: w.images(), tlsPort: w.own.TLSPort,
 		sesVerified: cfg.SESVerifiedIdentities, sesProduction: cfg.SESProductionAccess,
+		apigatewayEnforce: apigatewayEnforce(cfg.IAMEnforce),
 	}
 	built, err := c.build(deps)
 	if err != nil {
@@ -346,6 +347,19 @@ func bindPolicies(a *enforce.Authorizer, box *outbox.Outbox, k *kernel.Kernel, f
 		o.Policies = policies
 	}
 	return box.Bind(k, o)
+}
+
+// apigatewayEnforce maps iam.enforce onto the mode REST APIs apply to a
+// resource policy (the 6b enforce matrix).
+func apigatewayEnforce(m IAMEnforce) apigateway.EnforceMode {
+	switch m {
+	case IAMEnforceAdvise:
+		return apigateway.EnforceAdvise
+	case IAMEnforceEnforce:
+		return apigateway.EnforceEnforce
+	case IAMEnforceOff:
+	}
+	return apigateway.EnforceOff
 }
 
 // enforceMode maps iam.enforce onto the authorizer's mode.
@@ -915,7 +929,7 @@ func wiredServices() []wiredService {
 		// registered service's unknown operation (ADR 0019), so the order is
 		// pinned by TestAPIGatewayUnmatchedPathIsV2Unknown.
 		{api{apigatewayapi.Service(), apigatewayapi.ThrottleError(), apigatewayapi.UnknownOperationError}, func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
-			c.apigateway = apigateway.New(d, apigateway.Options{FunctionPolicies: c.lambda, Regions: c.regions})
+			c.apigateway = apigateway.New(d, apigateway.Options{FunctionPolicies: c.lambda, Regions: c.regions, Enforce: c.apigatewayEnforce})
 			return c.apigateway
 		}},
 		{api{logsapi.Service(), logsapi.ThrottleError(), logsapi.UnknownOperationError}, func(d kernel.ServiceDeps, _ *construction) serveradmin.Service {
@@ -995,6 +1009,9 @@ type construction struct {
 	sesVerified ses.VerifiedIdentities
 	// sesProduction is ses.productionAccess.
 	sesProduction bool
+	// apigatewayEnforce is iam.enforce as REST APIs read it for a resource
+	// policy they do not evaluate.
+	apigatewayEnforce apigateway.EnforceMode
 
 	s3         *s3.Service
 	dynamodb   *dynamodb.Service

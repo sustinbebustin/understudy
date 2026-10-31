@@ -32,8 +32,7 @@ type Options struct {
 	// read against, as the edge's; the zero value is AWS's.
 	Regions aws.Regions
 	// Enforce is iam.enforce, which decides what an invocation of an API
-	// with a resource policy does (the spec's enforce matrix). No API can
-	// hold a policy yet, so it is not read yet.
+	// with a resource policy does (the spec's enforce matrix).
 	Enforce EnforceMode
 }
 
@@ -57,6 +56,7 @@ type Service struct {
 	ids      *ids.Source
 	policies authz.PolicyProvider
 	regions  aws.Regions
+	enforce  EnforceMode
 	cells    *store.Partitioned[aws.Scope, State]
 	index    apiIndex
 }
@@ -71,14 +71,12 @@ const baseNote = "the X-Amzn-Errortype value and generated ids are inferred (UNV
 // Coverage notes of the tracer bullet's operations: what each leaves out
 // of the documented behavior until its own ticket.
 const (
-	createRestAPINote = "only name, description, version and tags are accepted, and every other member answers NotImplemented; " +
-		"apiKeySource, endpointConfiguration and disableExecuteApiEndpoint are reported at their recorded defaults"
-	getRestAPINote    = "apiKeySource, endpointConfiguration and disableExecuteApiEndpoint are reported at their recorded defaults"
-	updateRestAPINote = "replace /name, add, replace and remove /description, and add, replace and remove /binaryMediaTypes/{type} apply; " +
-		"every other documented path answers NotImplemented; an invocation of a stage whose deployment has binaryMediaTypes answers 501; " +
-		"operations apply in order and a refused one changes nothing (inferred); adding a listed type or removing an unlisted one changes nothing, " +
-		"and the texts for an empty name or a replace without a value are inferred; " +
-		"apiKeySource, endpointConfiguration and disableExecuteApiEndpoint are reported at their recorded defaults"
+	// restAPINote is CreateRestApi's and UpdateRestApi's note, the spec's
+	// verbatim (spec 6b coverage marks).
+	restAPINote = "cloneFrom answers NotImplemented; policy is stored and returned escaped, and under iam.enforce=enforce an invocation of an API with a policy answers 501; " +
+		"binaryMediaTypes, disableExecuteApiEndpoint and endpointConfiguration PRIVATE are stored and returned, and an invocation of an API that has them answers 501; " +
+		"vpcEndpointIds, securityPolicy, endpointAccessMode and minimumCompressionSize are stored without effect; " +
+		"an EDGE API is served as a REGIONAL one (no CloudFront headers in the event); a second API with the same name is allowed (inferred, APIGW1-14)"
 	getResourcesNote = "items in creation order, root first (inferred, APIGW1-04)"
 	methodNote       = "AWS_IAM, CUSTOM and COGNITO_USER_POOLS methods answer 501 at invoke; apiKeyRequired methods answer 403 because API keys cannot be created; " +
 		"requestValidatorId and requestModels name only the seeded Empty and Error models until validators and models are bound"
@@ -109,7 +107,8 @@ const (
 	tagsNote          = "the texts for a malformed or unknown resourceArn and the tag key and value lengths are inferred"
 	invokeRestAPINote = "AWS_PROXY (payload 1.0); " +
 		"mapping templates, request validation, authorizers, API keys, caching and throttling are not applied; AWS_IAM methods answer 501; apiKeyRequired methods answer 403; " +
-		"binaryMediaTypes in the stage's deployment answer 501; " +
+		"binaryMediaTypes in the stage's deployment, a disabled default endpoint and PRIVATE APIs answer 501; " +
+		"a resource policy is not evaluated: under iam.enforce=advise each invocation records an advisory, under enforce it answers 501; " +
 		"integrations other than AWS_PROXY, integration credentials, stage-variable uris, responseTransferMode STREAM and contentHandling answer 501; " +
 		"inferred, UNVERIFIED: unknown stage, ANY against explicit methods, HEAD (APIGW1-07, -08), timeout (APIGW1-10), empty-body event (APIGW1-16); " +
 		"header names reach the event in canonical form (Test-Header), not as the client wrote them"
@@ -128,15 +127,20 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 		ids:      d.IDs,
 		policies: o.FunctionPolicies,
 		regions:  o.Regions,
+		enforce:  o.Enforce,
 		cells:    store.NewPartitioned(d.Kernel.Gate(), stateCodec(), newState),
 		index:    apiIndex{scopes: map[string]aws.Scope{}},
 	}
 	b := apigatewayapi.NewBinder(d.Binder)
-	b.CreateRestApi(s.createRestAPI, partial(createRestAPINote),
+	b.CreateRestApi(s.createRestAPI, partial(restAPINote),
 		kernel.WithResources(resourceAt(func(*apigatewayapi.CreateRestApiInput) string { return "/restapis" })))
-	b.GetRestApi(s.getRestAPI, partial(getRestAPINote),
+	b.GetRestApis(s.getRestAPIs, registry.Partial{Note: baseNote},
+		kernel.WithResources(resourceAt(func(*apigatewayapi.GetRestApisInput) string { return "/restapis" })))
+	b.DeleteRestApi(s.deleteRestAPI, registry.Partial{Note: baseNote},
+		kernel.WithResources(resourceAt(func(in *apigatewayapi.DeleteRestApiInput) string { return "/restapis/" + in.RestApiId })))
+	b.GetRestApi(s.getRestAPI, registry.Partial{Note: baseNote},
 		kernel.WithResources(resourceAt(func(in *apigatewayapi.GetRestApiInput) string { return "/restapis/" + in.RestApiId })))
-	b.UpdateRestApi(s.updateRestAPI, partial(updateRestAPINote),
+	b.UpdateRestApi(s.updateRestAPI, partial(restAPINote),
 		kernel.WithResources(resourceAt(func(in *apigatewayapi.UpdateRestApiInput) string { return "/restapis/" + in.RestApiId })))
 	b.CreateResource(s.createResource, registry.Partial{Note: baseNote},
 		kernel.WithResources(resourceAt(func(in *apigatewayapi.CreateResourceInput) string {

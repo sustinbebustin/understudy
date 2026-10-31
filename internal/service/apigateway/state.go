@@ -49,6 +49,24 @@ type RestAPI struct {
 	// BinaryMediaTypes are in the order UpdateRestApi left them
 	// (apigateway-rest.md finding 5); a deployment snapshots them.
 	BinaryMediaTypes []string `json:"binaryMediaTypes,omitzero"`
+	// Endpoint, DisableExecuteAPIEndpoint and Policy are read live at
+	// invoke (contract 7.1): a PRIVATE endpoint and a disabled default
+	// endpoint answer 501, and a policy, which understudy does not
+	// evaluate, follows the enforce matrix's resource-policy row (spec 6b).
+	Endpoint                  Endpoint `json:"endpoint"`
+	DisableExecuteAPIEndpoint bool     `json:"disableExecuteApiEndpoint,omitzero"`
+	// Policy is the resource policy as AWS stores it: execute-api:/
+	// resources rewritten to the API's ARN (policyStored).
+	Policy *string `json:"policy,omitzero"`
+	// APIKeySource, MinimumCompressionSize, SecurityPolicy and
+	// EndpointAccessMode are stored without effect (spec 6b coverage
+	// note): API keys cannot be created, so an apiKeyRequired method
+	// answers 403 whatever the source; understudy never compresses; it
+	// serves no TLS of its own per API.
+	APIKeySource           apigatewayapi.ApiKeySourceType    `json:"apiKeySource"`
+	MinimumCompressionSize *int32                            `json:"minimumCompressionSize,omitzero"`
+	SecurityPolicy         *apigatewayapi.SecurityPolicy     `json:"securityPolicy,omitzero"`
+	EndpointAccessMode     *apigatewayapi.EndpointAccessMode `json:"endpointAccessMode,omitzero"`
 	// RootResourceID is the id of the root resource, created with the API.
 	RootResourceID string     `json:"rootResourceId"`
 	Resources      []Resource `json:"resources"`
@@ -66,6 +84,16 @@ type RestAPI struct {
 	Stages []Stage `json:"stages"`
 	// Tags are the API's tags (apigateway-rest.md 3.9).
 	Tags map[string]string `json:"tags,omitzero"`
+}
+
+// Endpoint is a REST API's endpoint configuration (apigateway-rest.md 2.3):
+// one type, an IP address type, and VPC endpoint ids, which are stored
+// without effect (meaningful only for PRIVATE, which answers 501). An EDGE
+// API is served as a REGIONAL one.
+type Endpoint struct {
+	Type           apigatewayapi.EndpointType  `json:"type"`
+	IPAddressType  apigatewayapi.IpAddressType `json:"ipAddressType"`
+	VPCEndpointIDs []string                    `json:"vpcEndpointIds,omitzero"`
 }
 
 // Resource is one resource of a REST API: the root ("/", no parent and no

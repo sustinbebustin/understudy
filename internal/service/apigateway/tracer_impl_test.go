@@ -13,8 +13,6 @@ import (
 // invariant 3; the unit's conflict row 4).
 func TestTracerRefusesUnacceptedMembers(t *testing.T) {
 	run(t, func(h *harness) {
-		wantNotImplemented(t, fail(h, apigatewayapi.OpCreateRestApi, &apigatewayapi.CreateRestApiInput{Name: "t", Policy: new("{}")}), "policy")
-		wantNotImplemented(t, fail(h, apigatewayapi.OpCreateRestApi, &apigatewayapi.CreateRestApiInput{Name: "t", DisableExecuteApiEndpoint: true}), "disableExecuteApiEndpoint")
 		id, root := h.api("t")
 		h.proxy(id, root, "GET", "arn:aws:lambda:us-east-1:000000000000:function:fn")
 		wantNotImplemented(t, fail(h, apigatewayapi.OpCreateDeployment, &apigatewayapi.CreateDeploymentInput{
