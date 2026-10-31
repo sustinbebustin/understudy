@@ -106,8 +106,9 @@ type Options struct {
 	LegacyQuery []ref.ServiceID
 	// ExecuteAPI lists the execute-api fronts in registration order, HTTP
 	// APIs then REST APIs: a request goes to the raw operation of the one
-	// whose owner holds the API id (ADR 0019). It is not read yet; the
-	// raw apigatewayv2.InvokeApi serves both forms when registered.
+	// whose owner holds the API id, and an id none holds to the first
+	// registered one's (ADR 0019). nil keeps the raw apigatewayv2.InvokeApi
+	// serving both forms when registered.
 	ExecuteAPI []ExecuteAPIService
 	// Log receives edge diagnostics; nil discards them.
 	Log *slog.Logger

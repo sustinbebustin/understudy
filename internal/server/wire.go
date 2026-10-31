@@ -260,7 +260,7 @@ func wire(cfg Config, log *slog.Logger) (w *wiring, err error) {
 	if w.admin, err = serveradmin.New(opts); err != nil {
 		return w, err
 	}
-	if err := w.edges(cfg, k, reg, idStore, regions, cat, c.s3.BucketExists, log); err != nil {
+	if err := w.edges(cfg, k, reg, idStore, regions, cat, c.s3.BucketExists, c.executeAPIFronts(), log); err != nil {
 		return w, err
 	}
 	if err := w.load(cfg, snapshots, log); err != nil {
@@ -606,7 +606,7 @@ func unwatchable(bindings []HotReload, err error) error {
 // refused on every other one, and one ClockTimeline, so a URL presigned
 // after a clock change made on the main listener is placed after it on
 // the container listener too.
-func (w *wiring) edges(cfg Config, k *kernel.Kernel, reg *registry.Registry, idStore *identity.Store, regions aws.Regions, cat catalogue, bucketExists func(string) bool, log *slog.Logger) error {
+func (w *wiring) edges(cfg Config, k *kernel.Kernel, reg *registry.Registry, idStore *identity.Store, regions aws.Regions, cat catalogue, bucketExists func(string) bool, fronts []edge.ExecuteAPIService, log *slog.Logger) error {
 	domains := cfg.S3BaseDomains
 	if domains == nil {
 		domains = config.DefaultBaseDomains()
@@ -636,6 +636,7 @@ func (w *wiring) edges(cfg Config, k *kernel.Kernel, reg *registry.Registry, idS
 		Unclaimed:             ref.AWSJSON10,
 		UnknownOperationError: cat.unknownOperationError,
 		LegacyQuery:           []ref.ServiceID{ssmapi.Service().ID},
+		ExecuteAPI:            fronts,
 		Log:                   log,
 	}
 	vocabulary, refuse := s3.AuthDialect()
@@ -906,14 +907,16 @@ func wiredServices() []wiredService {
 		// After Lambda's row: a Lambda proxy integration reads the function
 		// policies of the Lambda service built above (apigateway-http.md 5.5).
 		{api{apigatewayv2api.Service(), apigatewayv2api.ThrottleError(), apigatewayv2api.UnknownOperationError}, func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
-			return apigatewayv2.New(d, apigatewayv2.Options{FunctionPolicies: c.lambda, Regions: c.regions})
+			c.apigatewayv2 = apigatewayv2.New(d, apigatewayv2.Options{FunctionPolicies: c.lambda, Regions: c.regions})
+			return c.apigatewayv2
 		}},
 		// REST APIs after HTTP APIs: the two share the signing name
 		// apigateway, and a request neither route table matches is the first
 		// registered service's unknown operation (ADR 0019), so the order is
 		// pinned by TestAPIGatewayUnmatchedPathIsV2Unknown.
 		{api{apigatewayapi.Service(), apigatewayapi.ThrottleError(), apigatewayapi.UnknownOperationError}, func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
-			return apigateway.New(d, apigateway.Options{FunctionPolicies: c.lambda, Regions: c.regions})
+			c.apigateway = apigateway.New(d, apigateway.Options{FunctionPolicies: c.lambda, Regions: c.regions})
+			return c.apigateway
 		}},
 		{api{logsapi.Service(), logsapi.ThrottleError(), logsapi.UnknownOperationError}, func(d kernel.ServiceDeps, _ *construction) serveradmin.Service {
 			return logs.New(d, logs.Options{})
@@ -1002,6 +1005,24 @@ type construction struct {
 	iam *iam.Service
 	// ses is the store SES v2's view shares.
 	ses *ses.Service
+	// apigatewayv2 and apigateway own the execute-api API ids the edge
+	// resolves (ADR 0019).
+	apigatewayv2 *apigatewayv2.Service
+	apigateway   *apigateway.Service
+}
+
+// executeAPIFronts are the execute-api fronts the edge resolves an API id
+// against, in registration order, HTTP APIs then REST APIs (ADR 0019); a
+// service the table did not build is left out.
+func (c *construction) executeAPIFronts() []edge.ExecuteAPIService {
+	var fronts []edge.ExecuteAPIService
+	if c.apigatewayv2 != nil {
+		fronts = append(fronts, edge.ExecuteAPIService{Op: ref.OperationID{Service: apigatewayv2api.Service().ID, Name: "InvokeApi"}, Owner: c.apigatewayv2})
+	}
+	if c.apigateway != nil {
+		fronts = append(fronts, edge.ExecuteAPIService{Op: ref.OperationID{Service: apigatewayapi.Service().ID, Name: "InvokeRestApi"}, Owner: c.apigateway})
+	}
+	return fronts
 }
 
 // build constructs every row of the wiring table in order. A table whose

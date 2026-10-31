@@ -308,18 +308,43 @@ func (c *claimer) executeAPIPath() (route, bool) {
 	if !strings.HasPrefix(c.path, executeAPIPathPrefix) || c.h.opts.Listener != ref.ListenerMain {
 		return nil, false
 	}
-	if op, ok := c.invokeAPI(); ok {
+	id, _, _ := strings.Cut(strings.TrimPrefix(c.path, executeAPIPathPrefix), "/")
+	if op, ok := c.invokeAPI(strings.ToLower(id)); ok {
 		return toLink{op: op, policy: cspSandbox}, true
 	}
 	c.decline(1, "%s is the API Gateway execute-api path fallback, and understudy does not implement API Gateway invoke", c.path)
 	return toExecuteAPI{reasons: c.reasons, policy: cspSandbox}, true
 }
 
-// invokeAPI returns the raw apigatewayv2.InvokeApi operation, which serves
-// both execute-api forms, when the registry holds it.
-func (c *claimer) invokeAPI() (*registry.Operation, bool) {
-	op, ok := c.h.opts.Registry.Operation(ref.OperationID{Service: "apigatewayv2", Name: "InvokeApi"})
-	return op, ok && op.Kind == registry.Raw
+// invokeAPI returns the raw operation that serves the execute-api API id:
+// that of the front in Options.ExecuteAPI whose owner holds the id, else
+// the first registered front's, whose handler answers its unknown-API
+// answer (ADR 0019). Without Options.ExecuteAPI it is the raw
+// apigatewayv2.InvokeApi operation, when the registry holds it. An id two
+// owners hold goes to the first of them; refusing it as the understudy bug
+// it is comes with the full owner resolution (spec 6b ticket 9).
+func (c *claimer) invokeAPI(id string) (*registry.Operation, bool) {
+	raw := func(oid ref.OperationID) (*registry.Operation, bool) {
+		op, ok := c.h.opts.Registry.Operation(oid)
+		return op, ok && op.Kind == registry.Raw
+	}
+	if c.h.opts.ExecuteAPI == nil {
+		return raw(ref.OperationID{Service: "apigatewayv2", Name: "InvokeApi"})
+	}
+	var first *registry.Operation
+	for _, front := range c.h.opts.ExecuteAPI {
+		op, ok := raw(front.Op)
+		if !ok {
+			continue
+		}
+		if front.Owner != nil && front.Owner.OwnsExecuteAPI(id) {
+			return op, true
+		}
+		if first == nil {
+			first = op
+		}
+	}
+	return first, first != nil
 }
 
 // lambdaCodePrefix is where GetFunction's Code.Location links live.
@@ -404,7 +429,8 @@ func (c *claimer) executeAPI() (route, bool) {
 	if !c.isExecuteAPIHost() {
 		return nil, false
 	}
-	if op, ok := c.invokeAPI(); ok {
+	id, _, _ := strings.Cut(c.host, ".")
+	if op, ok := c.invokeAPI(id); ok {
 		return toLink{op: op}, true
 	}
 	c.decline(2, "host %q is an API Gateway execute-api host, and understudy does not implement API Gateway invoke", c.host)
