@@ -142,7 +142,8 @@ func checkConnectionType(op string, t apigatewayapi.ConnectionType) *awserr.Erro
 // (apigateway-rest.md 3.4; replacing, which drops the old integration's
 // responses, is inferred). It answers the recorded defaults (2.3):
 // connectionType INTERNET for HTTP and HTTP_PROXY only, and no httpMethod
-// for MOCK even when one was sent.
+// or uri for MOCK even when one was sent (a MOCK put with uri
+// http://example.com, test_apigateway_integrations.snapshot.json:L268-L380).
 func (s *Service) putIntegration(_ context.Context, c *kernel.Call, in *apigatewayapi.PutIntegrationInput) (*apigatewayapi.Integration, *awserr.Error) {
 	if in.ConnectionType != nil {
 		if err := checkConnectionType("PutIntegration", *in.ConnectionType); err != nil {
@@ -169,7 +170,7 @@ func (s *Service) putIntegration(_ context.Context, c *kernel.Call, in *apigatew
 	}
 	switch x.Type {
 	case apigatewayapi.IntegrationTypeMock:
-		x.HTTPMethod = nil
+		x.HTTPMethod, x.URI = nil, nil
 	case apigatewayapi.IntegrationTypeHttp, apigatewayapi.IntegrationTypeHttpProxy:
 		if x.ConnectionType == nil {
 			x.ConnectionType = new(apigatewayapi.ConnectionTypeInternet)
