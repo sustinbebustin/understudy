@@ -52,9 +52,16 @@ func (Cron) isExpression() {}
 // rate(value unit) with units per units, or cron(...) with the rules'
 // grammar (scheduler.md 5.1-5.3). A refusal's Message is "Invalid Schedule
 // Expression <expr>." with expr verbatim (scheduler.md 2.4). Not
-// implemented yet: it refuses every expression.
-func ParseScheduler(expr string, _ RateUnits) (Expression, *Error) {
-	return nil, &Error{detail: "ParseScheduler is not implemented yet", text: schedulerMessage(expr)}
+// implemented yet: at() and cron() are refused.
+func ParseScheduler(expr string, units RateUnits) (Expression, *Error) {
+	if inner, ok := enclosed(expr, "rate("); ok {
+		r, err := parseRateUnits(inner, units)
+		if err != nil {
+			return nil, &Error{detail: err.detail, text: schedulerMessage(expr)}
+		}
+		return r, nil
+	}
+	return nil, &Error{detail: "at() and cron() are not implemented yet", text: schedulerMessage(expr)}
 }
 
 // schedulerMessage is Scheduler's text for a malformed expression,

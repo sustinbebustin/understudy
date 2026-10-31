@@ -74,7 +74,11 @@ func enclosed(expr, open string) (string, bool) {
 
 // parseRate reads "value unit": value is a positive decimal integer, unit is
 // singular exactly when value is 1, and units are case-sensitive.
-func parseRate(inner string) (Rate, *Error) {
+func parseRate(inner string) (Rate, *Error) { return parseRateUnits(inner, SingularIffOne) }
+
+// parseRateUnits reads "value unit" as parseRate does, the unit agreeing
+// with the value as units says.
+func parseRateUnits(inner string, units RateUnits) (Rate, *Error) {
 	num, unit, ok := strings.Cut(inner, " ")
 	if !ok || num == "" || strings.Trim(num, "0123456789") != "" {
 		return Rate{}, invalid("rate needs a positive integer and a unit separated by one space")
@@ -86,16 +90,20 @@ func parseRate(inner string) (Rate, *Error) {
 	if n < 1 {
 		return Rate{}, invalid("rate value must be at least 1")
 	}
-	singular := n == 1
+	word, plural := strings.CutSuffix(unit, "s")
 	var per time.Duration
-	switch {
-	case singular && unit == "minute", !singular && unit == "minutes":
+	switch word {
+	case "minute":
 		per = time.Minute
-	case singular && unit == "hour", !singular && unit == "hours":
+	case "hour":
 		per = time.Hour
-	case singular && unit == "day", !singular && unit == "days":
+	case "day":
 		per = 24 * time.Hour
-	default:
+	}
+	switch {
+	case per == 0:
+		return Rate{}, invalid("rate unit must be minute, hour or day")
+	case units == SingularIffOne && plural == (n == 1):
 		return Rate{}, invalid("rate unit must be minute, hour or day, plural unless the value is 1")
 	}
 	if n > math.MaxInt64/int64(per) {
