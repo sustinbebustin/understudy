@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/api/schedulerapi"
-	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/aws"
+	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 )
 
