@@ -323,7 +323,7 @@ aws apigateway put-integration-response --rest-api-id xa6x46z82h --resource-id 3
 # "statusCode": "200", "selectionPattern": ""
 ```
 
-Only an `AWS_PROXY` integration to a Lambda function runs. `MOCK`, `HTTP`, `HTTP_PROXY` and `AWS` integrations are stored, and so are `--credentials`, a `${stageVariables.name}` in `--uri`, `--response-transfer-mode STREAM` and `--content-handling`, but a request that reaches one answers `501` naming it and runs nothing. `--connection-type VPC_LINK`, `--connection-id`, `--tls-config` and `--integration-target` answer `NotImplemented`. An empty-string template is returned as `""`; AWS returns `null` for a response template.
+An `AWS_PROXY` integration to a Lambda function and a `MOCK` integration run. `HTTP`, `HTTP_PROXY` and `AWS` integrations are stored, and so are `--credentials`, a `${stageVariables.name}` in `--uri`, `--response-transfer-mode STREAM` and `--content-handling`, but a request that reaches one answers `501` naming it and runs nothing. `--connection-type VPC_LINK`, `--connection-id`, `--tls-config` and `--integration-target` answer `NotImplemented`. An empty-string template is returned as `""`; AWS returns `null` for a response template.
 
 Methods and method responses can be put, read, updated and deleted. `put-method` replaces a method that exists, its responses and integration included. Every API holds the models `Empty` and `Error`, and request and response models can name only those; no authorizer or request validator can exist, so `--authorizer-id`, `--request-validator-id`, and `CUSTOM` or `COGNITO_USER_POOLS` are refused with AWS's texts:
 
@@ -362,4 +362,23 @@ aws apigateway get-resources --rest-api-id 70wh1xgmho
 
 A request is matched against the resources of the stage's deployment as AWS does: at the first segment where two matching resources differ, a literal part wins over `{name}`, and `{name}` over `{name+}`. A resource that matches but has no method for the request is passed over for a less specific one that has it, so with `/part1` (GET) and `/{param+}` (GET), `GET /part1/random-value` reaches `/{param+}`. The event's `pathParameters` hold the bound values as sent, still percent-encoded; a greedy value keeps interior empty segments and drops a trailing slash. Nothing matched answers `403 Missing Authentication Token`. Which of a resource's explicit method and its `ANY` serves, and whether `GET` serves `HEAD`, are not recorded: understudy serves the explicit method first and `HEAD` only from `HEAD` or `ANY`.
 
-MOCK integrations at invoke and Terraform are not implemented yet.
+A `MOCK` integration answers from its configuration alone, as the common CORS `OPTIONS` method does. The request template the `Content-Type` selects (`application/json` when the request has none) gives the status, read leniently, so `{statusCode: 200}` works as `{"statusCode": 200}` does; under `passthroughBehavior` the request body takes the template's place, or the request answers `415`, per AWS's passthrough table. The status selects the integration response whose `selectionPattern` matches it, the one without a pattern otherwise; its static `responseParameters` set headers and its response template is the body, empty when it has none:
+
+```sh
+aws apigateway put-integration --rest-api-id 16f09xqkz6 --resource-id 9w2c4oxp1s --http-method OPTIONS --type MOCK \
+  --request-templates '{"application/json":"{\"statusCode\": 200}"}'
+aws apigateway put-integration-response --rest-api-id 16f09xqkz6 --resource-id 9w2c4oxp1s --http-method OPTIONS --status-code 200 \
+  --response-parameters "{\"method.response.header.Access-Control-Allow-Origin\":\"'*'\"}" \
+  --response-templates '{"application/json":"{\"ok\": true}"}'
+aws apigateway create-deployment --rest-api-id 16f09xqkz6 --stage-name prod
+curl -i -X OPTIONS http://127.0.0.1:4566/_understudy/execute-api/16f09xqkz6/prod/
+# HTTP/1.1 200 OK
+# Access-Control-Allow-Origin: *
+# Content-Type: application/json
+#
+# {"ok": true}
+```
+
+understudy renders no Velocity: a template is run only when it holds none of `$`, `#` and `\`, so it is the same text before and after rendering. A request that reaches any other template answers `501` naming it, and so do a `selectionPattern` Go's regular expressions cannot compile (a lookaround or a backreference), `contentHandling` on the selected integration response, and a `responseParameters` value that is not a static `'value'`. Which response template answers a request with several, how patterns are anchored and ordered, and how media types compare are not recorded; understudy takes the template for the first `Accept` type, else `application/json`, else the only one, matches whole status codes in ascending order, and compares media types by type and subtype.
+
+Terraform is not implemented yet.
