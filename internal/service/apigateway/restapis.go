@@ -355,11 +355,14 @@ func (s *Service) deleteRestAPI(_ context.Context, c *kernel.Call, in *apigatewa
 			return struct{}{}, errAPINotFound(scope, in.RestApiId)
 		}
 		delete(st.APIs, in.RestApiId)
+		// Released inside the write, as createRestAPI sets it, so an
+		// Import or Reset cannot run between the commit and the release;
+		// the index lock is a leaf.
+		s.index.release(in.RestApiId)
 		return struct{}{}, nil
 	})
 	if err != nil {
 		return nil, err
 	}
-	s.index.release(in.RestApiId)
 	return &apigatewayapi.DeleteRestApiOutput{}, nil
 }
