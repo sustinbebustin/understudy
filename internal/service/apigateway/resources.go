@@ -262,11 +262,16 @@ func (a *RestAPI) descends(id, ancestor string) bool {
 
 // placeable checks r against its parent and siblings (recorded,
 // apigateway-rest.md 2.4): a greedy resource has no children, a name is
-// unique among siblings, and at most one sibling is a path variable.
+// unique among siblings, and at most one sibling is a path variable. A
+// rename to a greedy part is refused while r has children, with the same
+// text (inferred): the matcher binds a greedy part last.
 func (a *RestAPI) placeable(r Resource) *awserr.Error {
 	parent, _, _ := a.resource(r.ParentID)
 	if isGreedy(parent.PathPart) {
 		return errBadRequest("Cannot create a child of a resource with a greedy path variable: %s", parent.PathPart)
+	}
+	if isGreedy(r.PathPart) && slices.ContainsFunc(a.Resources, func(c Resource) bool { return c.ParentID == r.ID }) {
+		return errBadRequest("Cannot create a child of a resource with a greedy path variable: %s", r.PathPart)
 	}
 	variable := isVariable(r.PathPart)
 	for _, sib := range a.Resources {

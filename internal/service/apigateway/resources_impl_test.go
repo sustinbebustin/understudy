@@ -95,6 +95,25 @@ func TestUpdateResourceKeepsTheTreeRules(t *testing.T) {
 	})
 }
 
+// Renaming a resource that has children to a greedy part would leave a
+// greedy resource with children, which CreateResource refuses
+// (apigateway-rest.md 2.4); UpdateResource answers the same text
+// (inferred) and changes nothing.
+func TestUpdateResourceRefusesGreedyWithChildren(t *testing.T) {
+	run(t, func(h *harness) {
+		id, root := h.api("t")
+		a := h.resource(id, root, "a")
+		h.resource(id, a, "b")
+		before := h.paths(id)
+		wantText(t, fail(h, apigatewayapi.OpUpdateResource, &apigatewayapi.UpdateResourceInput{RestApiId: id, ResourceId: a, PatchOperations: []apigatewayapi.PatchOperation{
+			op(apigatewayapi.OpReplace, "/pathPart", "{p+}"),
+		}}), badRequest, "Cannot create a child of a resource with a greedy path variable: {p+}")
+		if got := h.paths(id); !maps.Equal(got, before) {
+			t.Errorf("a refused rename changed the tree: %v, want %v", got, before)
+		}
+	})
+}
+
 // The root resource cannot be deleted (inferred: the API's root has no
 // parent to hold it, apigateway-rest.md 3.2); it stays, and GetResource
 // with embed=methods embeds the full methods as GetResources does

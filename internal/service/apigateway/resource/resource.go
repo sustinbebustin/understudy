@@ -185,7 +185,9 @@ func (m Methods) serving(methods []string, verb string) (string, bool) {
 }
 
 // templateParts parses a resource's full template into its path parts; the
-// root "/" has none.
+// root "/" has none. A greedy part before another part is refused, as
+// CreateResource refuses a child of a greedy resource (apigateway-rest.md
+// 3.2), so such a template never matches.
 func templateParts(template string) ([]Part, bool) {
 	if template == "/" {
 		return nil, true
@@ -199,6 +201,11 @@ func templateParts(template string) ([]Part, bool) {
 		p, err := ParsePart(text)
 		if err != nil {
 			return nil, false
+		}
+		if len(parts) > 0 {
+			if _, greedy := parts[len(parts)-1].(Greedy); greedy {
+				return nil, false
+			}
 		}
 		parts = append(parts, p)
 	}
