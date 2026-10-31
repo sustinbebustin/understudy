@@ -37,6 +37,35 @@ func (r scheduleRef) arn() aws.ARN {
 	}
 }
 
+// groupARN is arn:<partition>:scheduler:<region>:<account>:schedule-group/<name>
+// (scheduler.md 2.3, 3.2).
+func groupARN(scope aws.Scope, name string) aws.ARN {
+	return aws.ARN{
+		Partition: scope.Partition.String(),
+		Service:   "scheduler",
+		Region:    scope.Region.String(),
+		Account:   scope.Account.String(),
+		Resource:  "schedule-group/" + name,
+	}
+}
+
+// parseGroupARN reads the group name of a tag operation's ResourceArn,
+// which the model's pattern has already held to a schedule-group ARN
+// (scheduler.md 2.3), and whether the ARN is of the call's scope: a group
+// of another account or Region is one this scope does not hold.
+func parseGroupARN(scope aws.Scope, s string) (name string, inScope bool) {
+	a, err := aws.ParseARN(s)
+	if err != nil {
+		return s, false
+	}
+	name, ok := strings.CutPrefix(a.Resource, "schedule-group/")
+	if !ok {
+		return a.Resource, false
+	}
+	at, err := aws.ScopeOf(a)
+	return name, err == nil && at == scope
+}
+
 // parseScheduleARN reads a schedule ARN, the key of its fire timer; false
 // for anything else.
 func parseScheduleARN(s string) (scheduleRef, bool) {

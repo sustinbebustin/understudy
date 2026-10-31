@@ -25,15 +25,22 @@ func (s *Service) Export() ([]store.Section, error) {
 	return s.cells.Export(store.ScopeKeys(), stateVersion)
 }
 
-// Import loads sections written by Export of this schema version.
+// Import loads sections written by Export of this schema version; a
+// default group no write materialized is dated at the load.
 func (s *Service) Import(ss []store.Section) error {
-	return s.cells.Import(store.ScopeKeys(), stateVersion, ss)
+	if err := s.cells.Import(store.ScopeKeys(), stateVersion, ss); err != nil {
+		return err
+	}
+	s.restart()
+	return nil
 }
 
 // Reset drops the scopes rs covers. Their armed fires find no schedule
-// when they come due and do nothing.
+// when they come due and do nothing. A default group no write
+// materialized is dated at the reset.
 func (s *Service) Reset(rs kernel.ResetScope) {
 	s.cells.Reset(func(k aws.Scope) bool { return !rs.Covers(k) })
+	s.restart()
 }
 
 // Rearm arms the fire timer of every schedule with a next invocation;
@@ -113,8 +120,9 @@ func nextText(next run) string {
 	return ""
 }
 
-// Resources lists the schedules scope holds, by group and name, with their
-// expression.
+// Resources lists the groups scope holds (default once a write
+// materialized it) by name, then its schedules by group and name with
+// their expression.
 func (s *Service) Resources(scope aws.Scope) []kernel.Resource {
 	cell, ok := s.cells.Lookup(scope)
 	if !ok {
@@ -122,6 +130,9 @@ func (s *Service) Resources(scope aws.Scope) []kernel.Resource {
 	}
 	return store.Read(cell, func(st *State) []kernel.Resource {
 		var out []kernel.Resource
+		for _, name := range slices.Sorted(maps.Keys(st.Groups)) {
+			out = append(out, kernel.Resource{ARN: groupARN(scope, name), Summary: "schedule group"})
+		}
 		for _, group := range slices.Sorted(maps.Keys(st.Schedules)) {
 			for _, name := range slices.Sorted(maps.Keys(st.Schedules[group])) {
 				out = append(out, kernel.Resource{

@@ -64,7 +64,6 @@ func TestCreateScheduleConflict(t *testing.T) {
 // (CLAUDE.md invariant 3; spec "Tracer bullet").
 func TestUnbuiltMembersAnswerNotImplemented(t *testing.T) {
 	cases := map[string]func(h *harness, in *schedulerapi.CreateScheduleInput){
-		"group": func(_ *harness, in *schedulerapi.CreateScheduleInput) { in.GroupName = new("g") },
 		"other region": func(_ *harness, in *schedulerapi.CreateScheduleInput) {
 			in.Target.Arn = "arn:aws:sqs:eu-west-1:000000000000:q"
 		},

@@ -10,17 +10,26 @@ import (
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
-// State is the Scheduler state of one account and region: its schedules
-// by group, then name (scheduler.md 14.2). Records are values, replaced on
-// change.
+// State is the Scheduler state of one account and region: its schedule
+// groups by name, and its schedules by group, then name (scheduler.md
+// 14.2). Records are values, replaced on change.
 type State struct {
+	// Groups are the scope's created groups, and the default group once a
+	// tag write materializes it (14.2.2).
+	Groups    map[string]scheduleGroup       `json:"groups,omitempty"`
 	Schedules map[string]map[string]schedule `json:"schedules"`
 }
 
-func newState(aws.Scope) State { return State{Schedules: map[string]map[string]schedule{}} }
+func newState(aws.Scope) State {
+	return State{Groups: map[string]scheduleGroup{}, Schedules: map[string]map[string]schedule{}}
+}
 
-// IsZero reports a scope without schedules, which snapshots skip.
+// IsZero reports a scope without groups or schedules, which snapshots
+// skip.
 func (s *State) IsZero() bool {
+	if len(s.Groups) > 0 {
+		return false
+	}
 	for _, g := range s.Schedules {
 		if len(g) > 0 {
 			return false
@@ -83,6 +92,12 @@ func (e *StoredScheduleError) Error() string {
 // The codec is handed no scope, and a target in the schedule's Region was
 // checked by the write, so each target is parsed in its own ARN's scope.
 func (s *State) load() error {
+	if s.Groups == nil {
+		s.Groups = map[string]scheduleGroup{}
+	}
+	if s.Schedules == nil {
+		s.Schedules = map[string]map[string]schedule{}
+	}
 	for group, g := range s.Schedules {
 		for name := range g {
 			sc := g[name]

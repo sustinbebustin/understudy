@@ -14,19 +14,21 @@ import (
 )
 
 // createSchedule stores a schedule in its group and arms its first fire
-// (scheduler.md 4.1, 14.3). ClientToken is accepted and not used for
+// (scheduler.md 4.1, 14.3). The group is looked up after the members are
+// validated (14.9.3); a missing one answers "Schedule group <name> does
+// not exist." (14.7.4). ClientToken is accepted and not used for
 // idempotency (SCH-02).
 func (s *Service) createSchedule(_ context.Context, c *kernel.Call, in *schedulerapi.CreateScheduleInput) (*schedulerapi.CreateScheduleOutput, *awserr.Error) {
 	r := scheduleRef{scope: c.Scope(), group: groupName(in.GroupName), name: in.Name}
-	if r.group != defaultGroup {
-		return nil, errNotYet("GroupName " + r.group + " (schedule groups other than default)")
-	}
 	m := createMembers(in)
 	p, err := accept(r.scope, &m, s.opts.RateUnits, atWrite(c.Admitted().Wire()))
 	if err != nil {
 		return nil, err
 	}
 	_, err = kernel.Write(c, s.cells, r.scope, func(st *State, now clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
+		if !st.hasGroup(r.group) {
+			return struct{}{}, errGroupMissing(r.group)
+		}
 		if _, exists := st.get(r); exists {
 			return struct{}{}, errScheduleExists(r.group, r.name)
 		}
@@ -48,15 +50,15 @@ func (s *Service) createSchedule(_ context.Context, c *kernel.Call, in *schedule
 // is accepted and not used for idempotency (SCH-02).
 func (s *Service) updateSchedule(_ context.Context, c *kernel.Call, in *schedulerapi.UpdateScheduleInput) (*schedulerapi.UpdateScheduleOutput, *awserr.Error) {
 	r := scheduleRef{scope: c.Scope(), group: groupName(in.GroupName), name: in.Name}
-	if r.group != defaultGroup {
-		return nil, errNotYet("GroupName " + r.group + " (schedule groups other than default)")
-	}
 	m := updateMembers(in)
 	p, err := accept(r.scope, &m, s.opts.RateUnits, atWrite(c.Admitted().Wire()))
 	if err != nil {
 		return nil, err
 	}
 	_, err = kernel.Write(c, s.cells, r.scope, func(st *State, now clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
+		if !st.hasGroup(r.group) {
+			return struct{}{}, errGroupMissing(r.group)
+		}
 		old, ok := st.get(r)
 		if !ok {
 			return struct{}{}, errScheduleMissing(r.group, r.name)
@@ -87,35 +89,41 @@ const listingSchedules paging.Listing = "scheduler.ListSchedules"
 // listSchedules lists the scope's schedules, filtered by group, name
 // prefix and State, a page at a time (scheduler.md 4.5). Every group's
 // schedules without a group filter; a group the scope does not hold is
-// ResourceNotFoundException (inferred, 4.5). Schedules come in group, then
-// name order. UNVERIFIED (SCH-01): order and token format are unrecorded.
+// ResourceNotFoundException "Schedule group <name> does not exist."
+// (inferred, 14.7.4). Schedules come in group, then name order.
+// UNVERIFIED (SCH-01): order and token format are unrecorded.
 func (s *Service) listSchedules(_ context.Context, c *kernel.Call, in *schedulerapi.ListSchedulesInput) (*schedulerapi.ListSchedulesOutput, *awserr.Error) {
 	scope := c.Scope()
-	if in.GroupName != nil && *in.GroupName != defaultGroup {
-		return nil, errGroupMissing(*in.GroupName)
+	type found struct {
+		items []schedulerapi.ScheduleSummary
+		group bool
 	}
-	var items []schedulerapi.ScheduleSummary
+	got := found{group: in.GroupName == nil || *in.GroupName == defaultGroup}
 	if cell, ok := s.cells.Lookup(scope); ok {
-		items = store.Read(cell, func(st *State) []schedulerapi.ScheduleSummary {
-			var out []schedulerapi.ScheduleSummary
+		got = store.Read(cell, func(st *State) found {
+			out := found{group: in.GroupName == nil || st.hasGroup(*in.GroupName)}
 			for group, g := range st.Schedules {
 				for name := range g {
 					sc := g[name]
 					if listed(in, group, name, &sc) {
-						out = append(out, summary(scheduleRef{scope: scope, group: group, name: name}, &sc))
+						out.items = append(out.items, summary(scheduleRef{scope: scope, group: group, name: name}, &sc))
 					}
 				}
 			}
 			return out
 		})
 	}
+	if !got.group {
+		return nil, errGroupMissing(*in.GroupName)
+	}
+	items := got.items
 	n := listSchedulesPage
 	if in.MaxResults != nil {
 		n = int(*in.MaxResults)
 	}
 	p, perr := paging.SortedKeyset(listingSchedules, items, summaryKey, n, in.NextToken)
 	if perr != nil {
-		return nil, errBadNextToken()
+		return nil, errBadNextToken("ListSchedules")
 	}
 	out := &schedulerapi.ListSchedulesOutput{Schedules: make([]schedulerapi.ScheduleSummary, 0, len(p.Items)), NextToken: p.Next}
 	out.Schedules = append(out.Schedules, p.Items...)

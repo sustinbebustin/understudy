@@ -1,8 +1,11 @@
 package scheduler
 
 import (
+	"sync/atomic"
+
 	"github.com/sustinbebustin/understudy/internal/api/schedulerapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
+	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/registry"
@@ -26,6 +29,21 @@ type Service struct {
 	cells *store.Partitioned[aws.Scope, State]
 	// fire is TimerFire as registered with the kernel.
 	fire kernel.HandledKind
+	// born is the emulator-clock instant the state was created, loaded or
+	// reset: the dates of a default group no write has materialized
+	// (spec "Contract"; scheduler.md 14.2.2).
+	born atomic.Pointer[clock.Instant]
+}
+
+// origin is the instant the state was created, loaded or reset.
+// UNVERIFIED (SCH-06), scheduler.md 3.1: AWS's CreationDate of the
+// default group is unrecorded.
+func (s *Service) origin() clock.Instant { return *s.born.Load() }
+
+// restart sets origin to the clock's instant.
+func (s *Service) restart() {
+	now := s.k.Clock().Now()
+	s.born.Store(&now)
 }
 
 // The service is the snapshot and reset view of its state.
@@ -33,11 +51,11 @@ var _ kernel.Stateful = (*Service)(nil)
 
 // createNote is CreateSchedule's coverage note while tickets 2 to 7 are
 // what is built (spec "Coverage marks" is the note once every ticket is).
-const createNote = "rate(), at() and cron() schedules in the default group with a templated Lambda, SQS, SNS or EventBridge event bus target in the schedule's Region " +
+const createNote = "rate(), at() and cron() schedules in any schedule group with a templated Lambda, SQS, SNS or EventBridge event bus target in the schedule's Region " +
 	"are invoked on the emulator clock as the execution role, " +
 	"at() and cron() in any IANA time zone, which a rate ignores, between StartDate and EndDate, and not while State is DISABLED; " +
 	"universal (aws-sdk) targets and ECS, Kinesis, Firehose, CodeBuild, CodePipeline, Inspector, SageMaker and Step Functions targets answer NotImplemented; " +
-	"Lambda, SQS and SNS targets in another Region and other schedule groups " +
+	"Lambda, SQS and SNS targets in another Region " +
 	"answer NotImplemented once the expression, time zone, window, dates and target are validated; " +
 	"KmsKeyArn is stored and echoed, the payload is not encrypted; " +
 	"the execution role's trust is not checked, so a missing or untrusting role still delivers; " +
@@ -56,7 +74,7 @@ const createNote = "rate(), at() and cron() schedules in the default group with 
 	"an event bus target in another Region or without EventBridgeParameters is refused with ValidationException, " +
 	"parameter blocks that do not match the target are stored, echoed and ignored, a MaximumWindowInMinutes sent with OFF is ignored, " +
 	"Input on a Lambda or EventBridge target is not checked for JSON at create, Input is limited to 262,144 bytes, " +
-	"checks run in the order expression, time zone, window, dates and the future-fire check, target, " +
+	"checks run in the order expression, time zone, window, dates and the future-fire check, target, group, " +
 	"a present date in the future-fire text renders as RFC 3339 UTC, and every refusal message except the expression, future-fire and missing-group texts is understudy's own"
 
 // New binds the Scheduler operations built so far (scheduler.md 2.2) and
@@ -64,6 +82,7 @@ const createNote = "rate(), at() and cron() schedules in the default group with 
 // their tickets build them.
 func New(d kernel.ServiceDeps, o Options) *Service {
 	s := &Service{opts: o, k: d.Kernel, ids: d.IDs, cells: store.NewPartitioned(d.Kernel.Gate(), codec(), newState)}
+	s.restart()
 	s.fire = d.Kernel.Timers().Handle(TimerFire, s.onFire)
 	b := schedulerapi.NewBinder(d.Binder)
 	b.CreateSchedule(s.createSchedule, registry.Partial{Note: createNote})
@@ -73,5 +92,28 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 	b.GetSchedule(s.getSchedule, registry.Partial{Note: "unrecorded, understudy's choice: ScheduleExpressionTimezone, Description, StartDate and EndDate are absent when they were not sent, " +
 		"MaximumWindowInMinutes is absent under OFF, State defaults to ENABLED, and CreationDate and LastModificationDate are whole seconds"})
 	b.DeleteSchedule(s.deleteSchedule, registry.Partial{Note: "unrecorded, understudy's choice: ClientToken is accepted and not used for idempotency"})
+	b.CreateScheduleGroup(s.createScheduleGroup, registry.Partial{Note: "unrecorded, understudy's choice: ClientToken is accepted and not used for idempotency, " +
+		"creating default or an existing name answers ConflictException, and the 500-group quota answers ServiceQuotaExceededException with understudy's message"},
+		// A tagged create also needs scheduler:TagResource (scheduler.md 2.2, 14.8).
+		kernel.WithActions(func(_ *kernel.Call, in *schedulerapi.CreateScheduleGroupInput) []registry.IAMAction {
+			if len(in.Tags) == 0 {
+				return nil
+			}
+			return []registry.IAMAction{{Prefix: "scheduler", Name: "TagResource"}}
+		}))
+	b.GetScheduleGroup(s.getScheduleGroup, registry.Partial{Note: "the default group always reads ACTIVE; unrecorded, understudy's choice: " +
+		"its CreationDate and LastModificationDate are the instant the emulator's Scheduler state was created, loaded or reset"})
+	b.ListScheduleGroups(s.listScheduleGroups, registry.Partial{Note: "unrecorded, understudy's choice: the default group is listed first, then groups in name order, 100 per page without MaxResults"})
+	b.DeleteScheduleGroup(s.deleteScheduleGroup, registry.Partial{Note: "the group and its schedules are deleted before the call returns, so DELETING is never reported (ARCHITECTURE.md 9, provisioning settle); " +
+		"unrecorded, understudy's choice: ClientToken is accepted and not used for idempotency, and the default group answers ValidationException"},
+		// scheduler:DeleteSchedule is a per-member action on each schedule's
+		// ARN, not the group's (SCH-10 step 03): the handler authorizes it
+		// once per member. Until the IAM ticket builds that in-handler
+		// kernel.Authorize, the members' action is not recorded.
+		kernel.WithoutSecondaryActions())
+	b.TagResource(s.tagResource, registry.Partial{Note: "schedule groups only, as AWS; unrecorded, understudy's choice: the default group takes tags"})
+	b.UntagResource(s.untagResource, registry.Partial{Note: "schedule groups only, as AWS; unrecorded, understudy's choice: " +
+		"a key the group does not carry is ignored with 200, and the default group can be untagged"})
+	b.ListTagsForResource(s.listTagsForResource, registry.Partial{Note: "schedule groups only, as AWS; unrecorded, understudy's choice: tags are listed in insertion order and an updated key keeps its place"})
 	return s
 }

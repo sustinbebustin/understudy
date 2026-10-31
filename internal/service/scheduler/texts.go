@@ -81,10 +81,41 @@ func errGroupMissing(name string) *awserr.Error {
 	return schedulerapi.ErrResourceNotFoundException("Schedule group " + name + " does not exist.")
 }
 
-// errBadNextToken answers a NextToken no ListSchedules page issued.
-// UNVERIFIED (SCH-01), scheduler.md 4.5: the code and text are inferred.
-func errBadNextToken() *awserr.Error {
-	return schedulerapi.ErrValidationException("Invalid NextToken: it was not issued by a ListSchedules page of this listing; start the listing again without NextToken.")
+// errGroupExists answers CreateScheduleGroup of a name the scope holds.
+// UNVERIFIED (SCH-06), scheduler.md 3.2: the code is plausible, the text
+// inferred.
+func errGroupExists(name string) *awserr.Error {
+	return schedulerapi.ErrConflictException("Schedule group " + name + " already exists.")
+}
+
+// errCreateDefaultGroup answers CreateScheduleGroup of default, which
+// every account has. UNVERIFIED (SCH-06), scheduler.md 3.1, 14.7.1: the
+// code and text are inferred.
+func errCreateDefaultGroup() *awserr.Error {
+	return schedulerapi.ErrConflictException("Schedule group default already exists: every account has it, and it cannot be created or deleted.")
+}
+
+// errDeleteDefaultGroup answers DeleteScheduleGroup of default ("You
+// can't delete, or edit, the default group", aws-doc console text).
+// UNVERIFIED (SCH-06), scheduler.md 3.1, 14.7.1: the API's code and text
+// are inferred.
+func errDeleteDefaultGroup() *awserr.Error {
+	return schedulerapi.ErrValidationException("The default schedule group cannot be deleted; delete its schedules with DeleteSchedule instead.")
+}
+
+// errGroupQuota answers a CreateScheduleGroup past maxGroups
+// (ServiceQuotaExceededException 402, model; aws-doc scheduler-quotas).
+// UNVERIFIED (SCH-06), scheduler.md 10, 14.7.5: the text is inferred.
+func errGroupQuota() *awserr.Error {
+	return schedulerapi.ErrServiceQuotaExceededException(fmt.Sprintf("The account holds %d schedule groups in this Region, the default group included, "+
+		"which is the quota; delete a schedule group with DeleteScheduleGroup before creating another.", maxGroups))
+}
+
+// errBadNextToken answers a NextToken no page of the listing op issued.
+// UNVERIFIED (SCH-01, SCH-06), scheduler.md 3.2, 4.5: the code and text
+// are inferred.
+func errBadNextToken(op string) *awserr.Error {
+	return schedulerapi.ErrValidationException("Invalid NextToken: it was not issued by a " + op + " page of this listing; start the listing again without NextToken.")
 }
 
 // errNotRole answers a Target.RoleArn that names no IAM role.
@@ -155,6 +186,6 @@ const issuesURL = "https://github.com/sustinbebustin/understudy/issues"
 // sent, that nothing was stored, and what is served instead.
 func errNotYet(what string) *awserr.Error {
 	return schedulerapi.ErrNotImplemented(what + " is not implemented in understudy yet; nothing was stored. " +
-		"Served today: rate(), at() and cron() schedules in the default group with a Lambda, SQS, SNS or event bus target in the schedule's Region. " +
+		"Served today: rate(), at() and cron() schedules in any schedule group with a Lambda, SQS, SNS or event bus target in the schedule's Region. " +
 		"Ask for it at " + issuesURL + ".")
 }

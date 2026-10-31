@@ -731,8 +731,8 @@ func (w *workload) sesv2(t *testing.T) {
 
 // scheduler creates a rate schedule with an SQS target over restJson1,
 // reads it back with the defaults AWS fills (scheduler.md 4.2), deletes it
-// and reads it gone. Its queue is its own, so the SNS step's queue holds
-// no invocation.
+// and reads it gone, then lists the schedule groups. Its queue is its own,
+// so the SNS step's queue holds no invocation.
 func (w *workload) scheduler(t *testing.T) {
 	t.Helper()
 	const queue = "smoke-schedule"
@@ -763,6 +763,15 @@ func (w *workload) scheduler(t *testing.T) {
 	}
 	must(t, "DeleteSchedule", rest(http.MethodDelete, ""), http.StatusOK)
 	must(t, "GetSchedule after delete", rest(http.MethodGet, ""), http.StatusNotFound)
+	var groups struct{ ScheduleGroups []struct{ Name, State string } }
+	listed := send(t, w.emu, request{method: http.MethodGet, path: "/schedule-groups", service: "scheduler"})
+	decode(t, "ListScheduleGroups", must(t, "ListScheduleGroups", listed, http.StatusOK).body, &groups)
+	for _, g := range groups.ScheduleGroups {
+		if g.Name == "default" && g.State == "ACTIVE" {
+			return
+		}
+	}
+	t.Fatalf("ListScheduleGroups = %+v, want the default group ACTIVE (scheduler.md 3.1)", groups.ScheduleGroups)
 }
 
 // policy asks the CLI for the smoke principal's least-privilege policy,
