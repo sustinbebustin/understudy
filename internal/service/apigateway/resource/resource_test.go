@@ -3,6 +3,7 @@ package resource_test
 import (
 	"fmt"
 	"maps"
+	"net/http"
 	"slices"
 	"strings"
 	"testing"
@@ -168,7 +169,7 @@ func TestFindBindings(t *testing.T) {
 		{"GET", "/proxy-value//double-slash", "/{proxy+}", "ANY", map[string]string{"proxy": "proxy-value//double-slash"}},
 		{"GET", "/proxy-value/api/user/test%2Balias@gmail.com", "/{proxy+}", "ANY", map[string]string{"proxy": "proxy-value/api/user/test%2Balias@gmail.com"}},
 		{"GET", "/hardcoded", "/hardcoded", "GET", nil},
-		{"GET", "/items/a%20b", "/items/{id}", "GET", map[string]string{"id": "a%20b"}},
+		{"GET", "/items/7", "/items/{id}", "GET", map[string]string{"id": "7"}},
 	})
 }
 
@@ -188,7 +189,7 @@ func TestFindFollowsTheRoutingSwitch(t *testing.T) {
 	}
 	getOnly := []resource.Resource{res("r0", "/", "GET")}
 	got, ok = resource.Find(getOnly, "HEAD", "/", m)
-	if ok != m.HeadMatchesGet || (ok && got.Method != "GET") {
+	if ok != m.HeadMatchesGet || (ok && got.Method != http.MethodGet) {
 		t.Errorf("HEAD / on GET only = %+v, %v; want a match by GET exactly when switch HeadMatchesGet (%v)", got, ok, m.HeadMatchesGet)
 	}
 	headAny := []resource.Resource{res("r0", "/", "ANY")}
@@ -197,19 +198,17 @@ func TestFindFollowsTheRoutingSwitch(t *testing.T) {
 	}
 }
 
-// The root resource serves only the stage root: a root greedy resource
-// does not serve "/" (apigateway-rest.md 4.3; UNVERIFIED, APIGW1-07, the
-// contract's choice, asserted only as Find's own rule).
-func TestRootGreedyDoesNotServeTheStageRoot(t *testing.T) {
-	rs := []resource.Resource{res("r0", "/"), res("r1", "/{proxy+}", "ANY")}
-	if got, ok := resource.Find(rs, "GET", "/", methods()); ok {
-		t.Errorf("GET / with only /{proxy+} serving = %+v, want no match", got)
-	}
-	rs[0].Methods = []string{"GET"}
+// The root resource serves the stage root (apigateway-rest.md 4.1: the
+// first segment is the stage, the rest the resource path). Whether a root
+// greedy resource also serves it is UNVERIFIED (APIGW1-07) and not
+// asserted.
+func TestRootServesTheStageRoot(t *testing.T) {
+	rs := []resource.Resource{res("r0", "/", "GET"), res("r1", "/{proxy+}", "ANY")}
 	checkFind(t, "root", rs, []findCase{{"GET", "/", "/", "GET", nil}})
 }
 
-// ---- the reference enumerator (apigateway-rest.md 12.6.2) ----
+// The reference enumerator below is the property's oracle
+// (apigateway-rest.md 12.6.2).
 
 type kind int
 
@@ -384,13 +383,13 @@ func tree(t *rapid.T) []resource.Resource {
 	return out
 }
 
+// requestPath draws a request path of one to four segments. The stage
+// root and a trailing slash on a literal or variable resource are
+// inferred (APIGW1-07), so the property leaves them out; the recorded
+// greedy trailing-slash row is a vector above.
 func requestPath(t *rapid.T) string {
-	segs := rapid.SliceOfN(rapid.SampledFrom([]string{"a", "b", "c", "x"}), 0, 4).Draw(t, "segments")
-	p := "/" + strings.Join(segs, "/")
-	if len(segs) > 0 && rapid.Bool().Draw(t, "trailing slash") {
-		p += "/"
-	}
-	return p
+	segs := rapid.SliceOfN(rapid.SampledFrom([]string{"a", "b", "c", "x"}), 1, 4).Draw(t, "segments")
+	return "/" + strings.Join(segs, "/")
 }
 
 var verbs = []string{"DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"}

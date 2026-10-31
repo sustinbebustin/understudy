@@ -239,10 +239,11 @@ func (h *harness) proxy(apiID, res, verb, fnARN string) {
 	must(h, apigatewayapi.OpPutIntegration, proxyInput(apiID, res, verb, fnARN))
 }
 
-// deploy deploys the API to stage and returns the deployment id.
-func (h *harness) deploy(apiID, stage string) string {
+// deploy deploys the API to stage s, creating or repointing it, and
+// returns the deployment id.
+func (h *harness) deploy(apiID string) string {
 	h.Helper()
-	out := must(h, apigatewayapi.OpCreateDeployment, &apigatewayapi.CreateDeploymentInput{RestApiId: apiID, StageName: new(stage)})
+	out := must(h, apigatewayapi.OpCreateDeployment, &apigatewayapi.CreateDeploymentInput{RestApiId: apiID, StageName: new("s")})
 	if out.Id == nil || *out.Id == "" {
 		h.Fatal("CreateDeployment answered no id")
 	}
@@ -283,12 +284,12 @@ func (h *harness) createFunction(name string) string {
 }
 
 // allow adds the statement the console and the docs add so API Gateway may
-// invoke fn: lambda:InvokeFunction for apigateway.amazonaws.com with the
-// source ARN given (apigateway-rest.md 5.4).
-func (h *harness) allow(fn, sid, sourceARN string) {
+// invoke function fn: lambda:InvokeFunction for apigateway.amazonaws.com
+// with the source ARN given (apigateway-rest.md 5.4).
+func (h *harness) allow(sid, sourceARN string) {
 	h.Helper()
 	must(h, lambdaapi.OpAddPermission, &lambdaapi.AddPermissionInput{
-		FunctionName: fn, StatementId: sid, Action: "lambda:InvokeFunction", Principal: "apigateway.amazonaws.com", SourceArn: new(sourceARN),
+		FunctionName: "fn", StatementId: sid, Action: "lambda:InvokeFunction", Principal: "apigateway.amazonaws.com", SourceArn: new(sourceARN),
 	})
 }
 
@@ -316,8 +317,8 @@ func (h *harness) proxyAPI(paths ...string) (apiID, deployment string) {
 		}
 		h.proxy(apiID, ids[p], "ANY", fnARN)
 	}
-	h.allow("fn", "apigateway", h.executionARN(apiID)+"/*/*")
-	return apiID, h.deploy(apiID, "s")
+	h.allow("apigateway", h.executionARN(apiID)+"/*/*")
+	return apiID, h.deploy(apiID)
 }
 
 // invocation is one Invoke API Gateway made, as the fake function saw it.
@@ -508,8 +509,9 @@ func want501(tb testing.TB, rec *httptest.ResponseRecorder, setting, what string
 func (h *harness) invokeCalls() []journal.APICall {
 	h.Helper()
 	var out []journal.APICall
-	for _, e := range h.Journal.Query(journal.Filter{Kind: journal.KindAPICall, Operation: invokeRestAPI, Limit: 1000}).Events {
-		if c, ok := e.Detail.(journal.APICall); ok {
+	events := h.Journal.Query(journal.Filter{Kind: journal.KindAPICall, Operation: invokeRestAPI, Limit: 1000}).Events
+	for i := range events {
+		if c, ok := events[i].Detail.(journal.APICall); ok {
 			out = append(out, c)
 		}
 	}

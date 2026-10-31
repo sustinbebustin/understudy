@@ -34,7 +34,7 @@ func (h *harness) proxyRoot(create *apigatewayapi.CreateRestApiInput, adjust fun
 		adjust(in)
 	}
 	must(h, apigatewayapi.OpPutIntegration, in)
-	h.allow("fn", "apigateway", h.executionARN(id)+"/*/*")
+	h.allow("apigateway", h.executionARN(id)+"/*/*")
 	return id
 }
 
@@ -45,7 +45,7 @@ func (h *harness) proxyRoot(create *apigatewayapi.CreateRestApiInput, adjust fun
 func settings() []setting {
 	plain := func() *apigatewayapi.CreateRestApiInput { return &apigatewayapi.CreateRestApiInput{Name: "t"} }
 	deployed := func(h *harness, id string) string {
-		h.deploy(id, "s")
+		h.deploy(id)
 		return id
 	}
 	return []setting{
@@ -114,7 +114,7 @@ func TestCredentialsAnswer501BeforeThePermissionCheck(t *testing.T) {
 		in := proxyInput(id, root, http.MethodGet, fnARN)
 		in.Credentials = new("arn:aws:iam::" + account + ":role/apigw")
 		must(h, apigatewayapi.OpPutIntegration, in)
-		h.deploy(id, "s")
+		h.deploy(id)
 		want501(t, h.get(id, "/s/"), "credentials", "credentials without a function policy")
 		h.notInvoked("credentials")
 	})
@@ -126,15 +126,15 @@ func TestCredentialsAnswer501BeforeThePermissionCheck(t *testing.T) {
 func TestSnapshotAndLiveSettings(t *testing.T) {
 	run(t, func(h *harness) {
 		id := h.proxyRoot(&apigatewayapi.CreateRestApiInput{Name: "t"}, nil)
-		h.deploy(id, "s")
+		h.deploy(id)
 		must(h, apigatewayapi.OpUpdateRestApi, &apigatewayapi.UpdateRestApiInput{RestApiId: id, PatchOperations: []apigatewayapi.PatchOperation{op(apigatewayapi.OpAdd, "/binaryMediaTypes/image~1png")}})
 		if rec := h.get(id, "/s/"); rec.Code != http.StatusOK {
 			t.Errorf("binaryMediaTypes added after the deployment: GET = %d %s, want the deployed snapshot served", rec.Code, rec.Body)
 		}
-		h.deploy(id, "s")
+		h.deploy(id)
 		want501(t, h.get(id, "/s/"), "binaryMediaTypes", "binaryMediaTypes in the new deployment")
 		other := h.proxyRootNamed("u")
-		h.deploy(other, "s")
+		h.deploy(other)
 		must(h, apigatewayapi.OpUpdateRestApi, &apigatewayapi.UpdateRestApiInput{RestApiId: other, PatchOperations: []apigatewayapi.PatchOperation{op(apigatewayapi.OpReplace, "/disableExecuteApiEndpoint", "true")}})
 		want501(t, h.get(other, "/s/"), "disableExecuteApiEndpoint", "disableExecuteApiEndpoint set live")
 	})
@@ -146,7 +146,7 @@ func (h *harness) proxyRootNamed(name string) string {
 	h.Helper()
 	out := must(h, apigatewayapi.OpCreateRestApi, &apigatewayapi.CreateRestApiInput{Name: name})
 	h.proxy(*out.Id, *out.RootResourceId, http.MethodGet, h.fnARN)
-	h.allow("fn", "apigateway-"+name, h.executionARN(*out.Id)+"/*/*")
+	h.allow("apigateway-"+name, h.executionARN(*out.Id)+"/*/*")
 	return *out.Id
 }
 
@@ -165,8 +165,8 @@ func TestMethodAuthorization(t *testing.T) {
 				must(h, apigatewayapi.OpPutIntegration, proxyInput(id, iam, "GET", fnARN))
 				must(h, apigatewayapi.OpPutMethod, &apigatewayapi.PutMethodInput{RestApiId: id, ResourceId: key, HttpMethod: "GET", AuthorizationType: "NONE", ApiKeyRequired: true})
 				must(h, apigatewayapi.OpPutIntegration, proxyInput(id, key, "GET", fnARN))
-				h.allow("fn", "apigateway", h.executionARN(id)+"/*/*")
-				h.deploy(id, "s")
+				h.allow("apigateway", h.executionARN(id)+"/*/*")
+				h.deploy(id)
 				want501(t, h.get(id, "/s/iam"), "AWS_IAM", "an AWS_IAM method")
 				h.wantJournaled501("an AWS_IAM method")
 				if rec := h.get(id, "/s/key"); rec.Code != http.StatusForbidden {
@@ -193,7 +193,7 @@ func TestUnemulatedIntegrationTypes(t *testing.T) {
 			in.RestApiId, in.ResourceId, in.HttpMethod = id, res, "GET"
 			must(h, apigatewayapi.OpPutIntegration, in)
 		}
-		h.deploy(id, "s")
+		h.deploy(id)
 		want501(t, h.get(id, "/s/http"), "HTTP", "an HTTP integration")
 		want501(t, h.get(id, "/s/proxy"), "HTTP_PROXY", "an HTTP_PROXY integration")
 		want501(t, h.get(id, "/s/aws"), "AWS", "an AWS integration")
@@ -210,7 +210,7 @@ func TestResourcePolicyByMode(t *testing.T) {
 		t.Run(mode, func(t *testing.T) {
 			runMode(t, m, func(h *harness) {
 				id := h.proxyRoot(&apigatewayapi.CreateRestApiInput{Name: "t", Policy: new(policy)}, nil)
-				h.deploy(id, "s")
+				h.deploy(id)
 				rec := h.get(id, "/s/")
 				if m == apigateway.EnforceEnforce {
 					want501(t, rec, "policy", "a resource policy under enforce")

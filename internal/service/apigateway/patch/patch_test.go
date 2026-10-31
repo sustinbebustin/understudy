@@ -154,11 +154,11 @@ func table() patch.Table[doc] {
 	}
 }
 
-func wantBadRequest(t testing.TB, err *awserr.Error, text string) {
-	t.Helper()
+func wantBadRequest(tb testing.TB, err *awserr.Error, text string) {
+	tb.Helper()
 	bad := apigatewayapi.IdentityBadRequestException()
 	if err == nil || err.ID.Shape != bad.Shape || err.ID.Status != http.StatusBadRequest || err.Message != text {
-		t.Fatalf("error = %+v, want BadRequestException 400 %q (contract 5: path and op refusals)", err, text)
+		tb.Fatalf("error = %+v, want BadRequestException 400 %q (contract 5: path and op refusals)", err, text)
 	}
 }
 

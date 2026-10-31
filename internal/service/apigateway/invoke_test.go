@@ -76,7 +76,7 @@ func TestTracerBullet(t *testing.T) {
 			}
 		}
 		for _, k := range []string{"requestId", "extendedRequestId", "requestTime", "protocol", "domainName"} {
-			if s, _ := rc[k].(string); s == "" {
+			if s, ok := rc[k].(string); !ok || s == "" {
 				t.Errorf("requestContext.%s = %#v, want a value", k, rc[k])
 			}
 		}
@@ -141,7 +141,7 @@ func TestGreedyProxyEvent(t *testing.T) {
 		}
 		headers := obj(h, ev, "headers")
 		for _, k := range []string{"Host", "X-Forwarded-For", "X-Forwarded-Port", "X-Forwarded-Proto"} {
-			if s, _ := headers[k].(string); s == "" {
+			if s, ok := headers[k].(string); !ok || s == "" {
 				t.Errorf("headers.%s = %#v, want the front's value", k, headers[k])
 			}
 		}
@@ -166,11 +166,19 @@ func TestGreedyProxyEvent(t *testing.T) {
 	})
 }
 
+// anyStrings reads a JSON array of strings; anything else reads as nil,
+// and a non-string element as "".
 func anyStrings(v any) []string {
-	xs, _ := v.([]any)
+	xs, ok := v.([]any)
+	if !ok {
+		return nil
+	}
 	out := make([]string, 0, len(xs))
 	for _, x := range xs {
-		s, _ := x.(string)
+		s, ok := x.(string)
+		if !ok {
+			s = ""
+		}
 		out = append(out, s)
 	}
 	return out
@@ -276,8 +284,8 @@ func TestIntegrationMethodGETIsAConfigurationError(t *testing.T) {
 		in := proxyInput(id, root, "GET", fnARN)
 		in.IntegrationHttpMethod = new("GET")
 		must(h, apigatewayapi.OpPutIntegration, in)
-		h.allow("fn", "apigateway", h.executionARN(id)+"/*/*")
-		h.deploy(id, "s")
+		h.allow("apigateway", h.executionARN(id)+"/*/*")
+		h.deploy(id)
 		wantAnswer(t, h.get(id, "/s/"), apigateway.ConfigurationError(), "integration method GET")
 		h.notInvoked("integration method GET")
 	})
@@ -300,10 +308,10 @@ func TestMissingPermission(t *testing.T) {
 				item := h.resource(id, items, "{id}")
 				h.proxy(id, item, "GET", fnARN)
 				h.proxy(id, items, "GET", fnARN)
-				h.deploy(id, "s")
+				h.deploy(id)
 				wantAnswer(t, h.get(id, "/s/items/1"), denial, "no permission")
 				h.notInvoked("no permission")
-				h.allow("fn", "item", apigateway.SourceARN(region, account, id, "s", "GET", "/items/{id}"))
+				h.allow("item", apigateway.SourceARN(region, account, id, "s", "GET", "/items/{id}"))
 				if rec := h.get(id, "/s/items/1"); rec.Code != http.StatusOK {
 					t.Errorf("GET /s/items/1 with a permission for its source ARN = %d %s, want 200", rec.Code, rec.Body)
 				}
@@ -385,7 +393,7 @@ func TestIntegrationTimeout(t *testing.T) {
 		must(h, apigatewayapi.OpUpdateIntegration, &apigatewayapi.UpdateIntegrationInput{RestApiId: id, ResourceId: h.rootOf(id), HttpMethod: "GET", PatchOperations: []apigatewayapi.PatchOperation{
 			op(apigatewayapi.OpReplace, "/timeoutInMillis", "50"),
 		}})
-		h.deploy(id, "s")
+		h.deploy(id)
 		h.fn.hang()
 		wantAnswer(t, h.get(id, "/s/"), apigateway.ProxyUnrecordedSwitch().Value.Timeout, "an invocation past its timeout")
 		h.fn.releaseAll()

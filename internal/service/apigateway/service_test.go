@@ -57,9 +57,9 @@ func TestCoverageMarks(t *testing.T) {
 	} {
 		want[name] = partial("")
 	}
-	// The InvokeRestApi note's header-case clause waits on the disputes.md
-	// ruling (contract 0 and 7.2); the test pins the spec's note as the
-	// prefix and allows only that clause after it.
+	// The InvokeRestApi note's header-case clause waits on the unit's
+	// header-case ruling; the test pins the spec's note and allows only
+	// that clause after it.
 	run(t, func(h *harness) {
 		for _, op := range apigatewayapi.Service().Operations {
 			status := h.Kernel.Bindings().Status(op)

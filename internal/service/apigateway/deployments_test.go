@@ -140,7 +140,7 @@ func TestStageRefusals(t *testing.T) {
 func TestUpdateStage(t *testing.T) {
 	run(t, func(h *harness) {
 		id, _ := h.mockAPI()
-		first := h.deploy(id, "s")
+		first := h.deploy(id)
 		second := *must(h, apigatewayapi.OpCreateDeployment, &apigatewayapi.CreateDeploymentInput{RestApiId: id}).Id
 		update := func(ops ...apigatewayapi.PatchOperation) *apigatewayapi.Stage {
 			return must(h, apigatewayapi.OpUpdateStage, &apigatewayapi.UpdateStageInput{RestApiId: id, StageName: "s", PatchOperations: ops})
@@ -186,7 +186,7 @@ func TestStageServesOnlyItsDeployment(t *testing.T) {
 		if rec := h.get(id, "/s/a"); rec.Code != http.StatusOK {
 			t.Errorf("GET /s/a after deleting the live method = %d %s, want the deployed method's 200", rec.Code, rec.Body)
 		}
-		h.deploy(id, "s")
+		h.deploy(id)
 		if rec := h.get(id, "/s/later"); rec.Code != http.StatusOK {
 			t.Errorf("GET /s/later after redeploying = %d %s, want the function's 200", rec.Code, rec.Body)
 		}

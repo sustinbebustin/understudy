@@ -49,7 +49,7 @@ func (h *harness) mockMethod(part string, m mock) string {
 		}
 		must(h, apigatewayapi.OpPutIntegrationResponse, ir)
 	}
-	h.deploy(id, "s")
+	h.deploy(id)
 	return id
 }
 
