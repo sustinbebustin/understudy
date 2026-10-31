@@ -2,7 +2,6 @@ package apigateway_test
 
 import (
 	"maps"
-	"net/http"
 	"slices"
 	"testing"
 
@@ -112,21 +111,6 @@ func TestRootResourceStays(t *testing.T) {
 		plain := must(h, apigatewayapi.OpGetResource, &apigatewayapi.GetResourceInput{RestApiId: id, ResourceId: root})
 		if m, ok := plain.ResourceMethods["GET"]; !ok || m.HttpMethod != nil {
 			t.Errorf("GetResource root = %+v, want GET mapped to {}", plain)
-		}
-	})
-}
-
-// Until resource matching lands (spec 6b ticket 8), a request the root
-// does not serve, on a deployment that holds other resources, answers 501
-// instead of a 403 AWS might not give; the root is still served.
-func TestInvokeBeyondTheRootAnswers501(t *testing.T) {
-	run(t, func(h *harness) {
-		id, _ := h.proxyAPI("/pets")
-		want501(t, h.get(id, "/s/pets"), "resources other than the root", "GET /s/pets")
-		h.wantJournaled501("GET /s/pets")
-		h.notInvoked("GET /s/pets")
-		if rec := h.get(id, "/s/"); rec.Code != http.StatusOK {
-			t.Errorf("GET /s/ = %d %s, want the function's 200", rec.Code, rec.Body)
 		}
 	})
 }

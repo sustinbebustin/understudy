@@ -156,7 +156,9 @@ type toFunction struct {
 	// resourcePath is the matched resource's template, such as /.
 	resourcePath string
 	// methodKey is the method resource that serves: the verb, or ANY.
-	methodKey      string
+	methodKey string
+	// pathParameters are the resource's bound values, as sent.
+	pathParameters map[string]string
 	rawPath        string
 	domain         string
 	stageVariables map[string]string
@@ -213,17 +215,11 @@ func (a *RestAPI) selectMethod(owner aws.Scope, addr address, method string) sel
 		return unemulated{fmt.Sprintf("understudy does not apply binaryMediaTypes: deployment %s of REST API %s, which stage %s serves, has binaryMediaTypes %v, "+
 			"so no integration ran and nothing was changed. Remove the binaryMediaTypes with UpdateRestApi and deploy again.", d.ID, a.ID, stage.Name, d.BinaryMediaTypes)}
 	}
-	res, key, ok := rootMatch(d.Resources, method, target.Path, routing.Methods)
-	if !ok && len(d.Resources) > 1 {
-		// Only the root is matched until resource.Find lands (spec 6b
-		// ticket 8); answering 403 could deny a request AWS serves.
-		return unemulated{fmt.Sprintf("understudy does not match requests against resources other than the root yet: %s %s on stage %s of REST API %s "+
-			"was not served by the root resource, so no integration ran and nothing was changed. Serve the request from a method on the root resource.",
-			method, target.Path, stage.Name, a.ID)}
-	}
+	res, found, ok := match(d.Resources, method, target.Path, routing.Methods)
 	if !ok {
 		return answered{MissingAuthenticationToken()}
 	}
+	key := found.Method
 	m := res.Methods[key]
 	if m.Authorization != "NONE" {
 		// AWS evaluates execute-api:Invoke for the caller here
@@ -251,7 +247,7 @@ func (a *RestAPI) selectMethod(owner aws.Scope, addr address, method string) sel
 	}
 	return toFunction{
 		owner: owner, apiID: a.ID, stage: stage.Name, deployment: d.ID, resourceID: res.ID, resourcePath: res.Path, methodKey: key,
-		rawPath: addr.path, domain: addr.domain(owner), stageVariables: maps.Clone(stage.Variables), integration: *m.Integration,
+		pathParameters: found.PathParameters, rawPath: addr.path, domain: addr.domain(owner), stageVariables: maps.Clone(stage.Variables), integration: *m.Integration,
 	}
 }
 
@@ -277,38 +273,27 @@ func (i *Integration) unserved() (what, fix string, ok bool) {
 	return "", "", false
 }
 
-// rootMatch is the tracer bullet's resource match: the root resource
-// serves the stage's root path, by the request's verb or else its ANY
-// method (the routing switch's Methods; apigateway-rest.md 4.4). No other
-// resource is matched yet: the caller answers 501 when the deployment
-// holds others (resource.Find replaces this with the full match).
-func rootMatch(rs []Resource, method, path string, m resource.Methods) (Resource, string, bool) {
-	// ANY serves the documented verbs only (apigateway-rest.md 4.4).
-	if path != "/" || method == "ANY" || !slices.Contains(httpMethods(), method) {
-		return Resource{}, "", false
+// match finds the deployed resource and method that serve method on the
+// resource path (resource.Find; apigateway-rest.md 4.3, 4.4). Only the
+// documented verbs reach a method: ANY serves those and is not itself a
+// request verb (4.4).
+func match(rs []Resource, method, path string, m resource.Methods) (Resource, resource.Match, bool) {
+	if method == "ANY" || !slices.Contains(httpMethods(), method) {
+		return Resource{}, resource.Match{}, false
 	}
-	for _, r := range rs {
-		if r.Path != "/" {
-			continue
-		}
-		var order []string
-		switch {
-		case m.ExplicitBeforeAny:
-			order = []string{method, "ANY"}
-		default:
-			order = []string{"ANY", method}
-		}
-		if method == http.MethodHead && m.HeadMatchesGet {
-			order = append(order, http.MethodGet)
-		}
-		for _, key := range order {
-			if _, ok := r.Methods[key]; ok {
-				return r, key, true
-			}
-		}
-		return Resource{}, "", false
+	deployed := make([]resource.Resource, len(rs))
+	for i, r := range rs {
+		deployed[i] = resource.Resource{ID: r.ID, Path: r.Path, Methods: slices.Collect(maps.Keys(r.Methods))}
 	}
-	return Resource{}, "", false
+	found, ok := resource.Find(deployed, method, path, m)
+	if !ok {
+		return Resource{}, resource.Match{}, false
+	}
+	i := slices.IndexFunc(rs, func(r Resource) bool { return r.ID == found.ResourceID })
+	if i < 0 {
+		return Resource{}, resource.Match{}, false
+	}
+	return rs[i], found, true
 }
 
 // invokeFunction runs a method's Lambda proxy integration: the resource
@@ -337,6 +322,7 @@ func (s *Service) invokeFunction(ctx context.Context, c *kernel.Call, r *http.Re
 		DomainName:     t.domain,
 		DomainPrefix:   t.apiID,
 		Stage:          t.stage,
+		PathParameters: t.pathParameters,
 		RequestID:      string(c.ID()),
 		StageVariables: t.stageVariables,
 		At:             c.Admitted().Wire(),

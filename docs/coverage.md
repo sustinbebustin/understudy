@@ -271,7 +271,7 @@ Raw operations:
 
 | Operation | Status | Evidence | Note |
 |---|---|---|---|
-| InvokeRestApi | partial | inferred, 4 of 4 claims | AWS_PROXY (payload 1.0) on the root resource only; a request the root does not serve answers 501 while the deployment holds other resources; mapping templates, request validation, authorizers, API keys, caching and throttling are not applied; AWS_IAM methods answer 501; apiKeyRequired methods answer 403; binaryMediaTypes in the stage's deployment answer 501; integrations other than AWS_PROXY, integration credentials, stage-variable uris, responseTransferMode STREAM and contentHandling answer 501; inferred, UNVERIFIED: unknown stage, ANY against explicit methods, HEAD (APIGW1-07, -08), timeout (APIGW1-10), empty-body event (APIGW1-16); header names reach the event in canonical form (Test-Header), not as the client wrote them |
+| InvokeRestApi | partial | inferred, 4 of 4 claims | AWS_PROXY (payload 1.0); mapping templates, request validation, authorizers, API keys, caching and throttling are not applied; AWS_IAM methods answer 501; apiKeyRequired methods answer 403; binaryMediaTypes in the stage's deployment answer 501; integrations other than AWS_PROXY, integration credentials, stage-variable uris, responseTransferMode STREAM and contentHandling answer 501; inferred, UNVERIFIED: unknown stage, ANY against explicit methods, HEAD (APIGW1-07, -08), timeout (APIGW1-10), empty-body event (APIGW1-16); header names reach the event in canonical form (Test-Header), not as the client wrote them |
 
 ### apigatewayv2
 

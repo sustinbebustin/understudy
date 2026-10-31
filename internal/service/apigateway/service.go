@@ -107,7 +107,7 @@ const (
 	updateStageNote   = stageNote + "; a new method setting starts from the */* one (inferred)"
 	getStagesNote     = "items in creation order (inferred)"
 	tagsNote          = "the texts for a malformed or unknown resourceArn and the tag key and value lengths are inferred"
-	invokeRestAPINote = "AWS_PROXY (payload 1.0) on the root resource only; a request the root does not serve answers 501 while the deployment holds other resources; " +
+	invokeRestAPINote = "AWS_PROXY (payload 1.0); " +
 		"mapping templates, request validation, authorizers, API keys, caching and throttling are not applied; AWS_IAM methods answer 501; apiKeyRequired methods answer 403; " +
 		"binaryMediaTypes in the stage's deployment answer 501; " +
 		"integrations other than AWS_PROXY, integration credentials, stage-variable uris, responseTransferMode STREAM and contentHandling answer 501; " +
