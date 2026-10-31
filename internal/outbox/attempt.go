@@ -442,16 +442,17 @@ func (a *attempt) wait(ctx context.Context, d time.Duration) bool {
 // target through its RoleArn, or the sender account against the receiving
 // bus's policy (eventbridge-buses.md 6.2, 6.3), not through a grant to
 // events.amazonaws.com, so this model would misreport every same-account
-// forward. Nor does a Lambda delivery, which AWS authorizes as the
-// function's execution role, not as a service principal a resource policy
-// names (lambda-destinations-layers.md 2.5, 11.3.2). That holds across
-// accounts too: a destination in another account needs its resource policy
-// to grant the role as well (iam-evaluation.md 2.4), and that is not
-// checked here either. Both wait for IAM enforcement (ROADMAP.md item 5),
-// which can decide the attempt's calls as the role; until then nothing
-// advises them (docs/guide/differences.md). A Scheduler delivery runs as a
-// session of the schedule's execution role too, which needs no grant in
-// the target's resource policy (scheduler.md 1 item 1, 14.4.4).
+// forward. Nor does a delivery sent as an execution role (req.Sender), which
+// AWS authorizes as that role, not as a service principal a resource policy
+// names (lambda-destinations-layers.md 2.5, 11.3.2); across accounts the
+// destination's resource policy must grant the role as well
+// (iam-evaluation.md 2.4). A Scheduler delivery (req.As) runs as a session
+// of the schedule's execution role too, which needs no grant in the
+// target's resource policy (scheduler.md 1 item 1, 14.4.4). Under
+// iam.enforce the attempt's calls are decided as the principal as() names.
+// An event bus target is then decided as events.amazonaws.com against the
+// receiving bus's policy, not as its RoleArn: a deviation the PutTargets
+// coverage note states (docs/guide/differences.md).
 func (a *attempt) advise(ctx context.Context) {
 	req := a.entry.Request
 	if a.e.policies == nil || req.Mechanism == delivery.EventsToEvents || req.Sender != nil || req.As != nil {
