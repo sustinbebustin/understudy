@@ -284,6 +284,44 @@ def test_group_with_tags_and_members(scheduler: Any, sqs: Any, make_queue: Calla
         scheduler.get_schedule(Name="member", GroupName=group)
 
 
+STATES_TRUST = json.dumps(
+    {
+        "Version": "2012-10-17",
+        "Statement": [{"Effect": "Allow", "Principal": {"Service": "states.amazonaws.com"}, "Action": "sts:AssumeRole"}],
+    }
+)
+
+
+def test_state_machine_target(
+    scheduler: Any, iam: Any, make_client: Callable[..., Any], role: str, clock: Admin, cleanup: Any
+) -> None:
+    """A Step Functions target starts one execution of the state machine with the Input as
+    its input, context attributes substituted (aws-doc managing-targets-templated,
+    managing-schedule-context-attributes; scheduler.md 6.3, 6.4)."""
+    sfn = make_client("stepfunctions")
+    states_role = uniq("sfn-role")
+    states_role_arn = iam.create_role(RoleName=states_role, AssumeRolePolicyDocument=STATES_TRUST)["Role"]["Arn"]
+    cleanup.add(iam.delete_role, RoleName=states_role)
+    definition = json.dumps({"StartAt": "P", "States": {"P": {"Type": "Pass", "End": True}}})
+    machine = sfn.create_state_machine(name=uniq("sch-flow"), definition=definition, roleArn=states_role_arn)["stateMachineArn"]
+    cleanup.add(sfn.delete_state_machine, stateMachineArn=machine)
+    at = _emulator_now(clock) + datetime.timedelta(minutes=10)
+    name = uniq("sch")
+    scheduler.create_schedule(
+        Name=name,
+        ScheduleExpression=f"at({at.strftime('%Y-%m-%dT%H:%M:%S')})",
+        FlexibleTimeWindow={"Mode": "OFF"},
+        Target={"Arn": machine, "RoleArn": role, "Input": '{"attempt":"<aws.scheduler.attempt-number>"}'},
+    )
+    cleanup.add(scheduler.delete_schedule, Name=name)
+
+    clock.advance(660)
+    executions = sfn.list_executions(stateMachineArn=machine)["executions"]
+    assert len(executions) == 1
+    described = sfn.describe_execution(executionArn=executions[0]["executionArn"])
+    assert json.loads(described["input"]) == {"attempt": "1"}
+
+
 def test_universal_target_is_not_implemented(scheduler: Any, role: str) -> None:
     """A universal (aws-sdk) target answers 501 NotImplemented and nothing is stored
     (CLAUDE.md invariant 3; spec "Scope")."""

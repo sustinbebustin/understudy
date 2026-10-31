@@ -190,6 +190,67 @@ resource "aws_scheduler_schedule" "bus" {
   depends_on = [aws_iam_role_policy.scheduler_publish, aws_iam_role_policy.scheduler_send]
 }
 
+# A Step Functions state machine target, the role allowed
+# states:StartExecution on it (scheduler.md 6.4, 9): the empty plans
+# depend on the target reading back as sent with no parameter block
+# (scheduler.md 4.2).
+data "aws_iam_policy_document" "scheduler_states_assume" {
+  statement {
+    effect  = "Allow"
+    actions = ["sts:AssumeRole"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["states.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "scheduler_states" {
+  name               = "${var.name_prefix}-states"
+  assume_role_policy = data.aws_iam_policy_document.scheduler_states_assume.json
+}
+
+resource "aws_sfn_state_machine" "scheduler_target" {
+  name     = "${var.name_prefix}-machine"
+  role_arn = aws_iam_role.scheduler_states.arn
+  definition = jsonencode({
+    StartAt = "Done"
+    States  = { Done = { Type = "Pass", End = true } }
+  })
+}
+
+data "aws_iam_policy_document" "scheduler_start" {
+  statement {
+    effect    = "Allow"
+    actions   = ["states:StartExecution"]
+    resources = [aws_sfn_state_machine.scheduler_target.arn]
+  }
+}
+
+resource "aws_iam_role_policy" "scheduler_start" {
+  name   = "start"
+  role   = aws_iam_role.scheduler.id
+  policy = data.aws_iam_policy_document.scheduler_start.json
+}
+
+resource "aws_scheduler_schedule" "machine" {
+  name                = "${var.name_prefix}-machine"
+  schedule_expression = "rate(1 day)"
+
+  flexible_time_window {
+    mode = "OFF"
+  }
+
+  target {
+    arn      = aws_sfn_state_machine.scheduler_target.arn
+    role_arn = aws_iam_role.scheduler.arn
+    input    = jsonencode({ attempt = local.updated ? "<aws.scheduler.attempt-number>" : "first" })
+  }
+
+  depends_on = [aws_iam_role_policy.scheduler_start]
+}
+
 output "scheduler_schedule_arn" {
   value = aws_scheduler_schedule.rate.arn
 }

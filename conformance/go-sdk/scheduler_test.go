@@ -16,6 +16,7 @@ import (
 	ebtypes "github.com/aws/aws-sdk-go-v2/service/eventbridge/types"
 	"github.com/aws/aws-sdk-go-v2/service/scheduler"
 	"github.com/aws/aws-sdk-go-v2/service/scheduler/types"
+	"github.com/aws/aws-sdk-go-v2/service/sfn"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	sqstypes "github.com/aws/aws-sdk-go-v2/service/sqs/types"
 )
@@ -476,6 +477,34 @@ func TestSchedulerUniversalTargetIsNotImplemented(t *testing.T) {
 	wantStatus(t, err, "CreateSchedule universal target", http.StatusNotImplemented)
 	_, err = client.GetSchedule(t.Context(), &scheduler.GetScheduleInput{Name: aws.String(scheduleName)})
 	errAs[*types.ResourceNotFoundException](t, err, "GetSchedule after the refused create")
+}
+
+// A Step Functions target starts one execution of the state machine with
+// the Input as its input, context attributes substituted (aws-doc
+// managing-targets-templated, managing-schedule-context-attributes;
+// scheduler.md 6.3, 6.4).
+func TestSchedulerStateMachineTarget(t *testing.T) {
+	states := sfn.NewFromConfig(awsCfg)
+	machine := createMachine(t, states, name(t, "sch-flow"), `{"StartAt":"P","States":{"P":{"Type":"Pass","End":true}}}`, statesRole(t))
+	role := *createRole(t, name(t, "sch-role"), schedulerTrustPolicy).Arn
+	createScheduleT(t, &scheduler.CreateScheduleInput{
+		Name: aws.String(name(t, "sch")), ScheduleExpression: aws.String(atOf(emulatorNow(t).Add(10 * time.Minute))),
+		FlexibleTimeWindow: &types.FlexibleTimeWindow{Mode: types.FlexibleTimeWindowModeOff},
+		Target: &types.Target{
+			Arn: aws.String(machine), RoleArn: aws.String(role),
+			Input: aws.String(`{"attempt":"<aws.scheduler.attempt-number>"}`),
+		},
+	})
+
+	advance(t, 660)
+	listed, err := states.ListExecutions(t.Context(), &sfn.ListExecutionsInput{StateMachineArn: aws.String(machine)})
+	ok(t, err, "ListExecutions")
+	if len(listed.Executions) != 1 {
+		t.Fatalf("%d executions, want the at() invocation's", len(listed.Executions))
+	}
+	if got := aws.ToString(describeExecution(t, states, aws.ToString(listed.Executions[0].ExecutionArn)).Input); !sameJSON(t, got, `{"attempt":"1"}`) {
+		t.Errorf("execution input = %s, want {\"attempt\":\"1\"}", got)
+	}
 }
 
 // atOf is at(yyyy-mm-ddThh:mm:ss) naming t in UTC (scheduler.md 5.1).

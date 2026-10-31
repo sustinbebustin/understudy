@@ -263,6 +263,33 @@ test_group_with_tags_and_members() {
   aws_error ResourceNotFoundException 404 scheduler get-schedule --name member --group-name "$group"
 }
 
+# A Step Functions target starts one execution of the state machine with
+# the Input as its input, context attributes substituted (aws-doc
+# managing-targets-templated, managing-schedule-context-attributes;
+# scheduler.md 6.3, 6.4).
+test_state_machine_target() {
+  sch_setup
+  local states_trust machine now at name target
+  states_trust='{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"states.amazonaws.com"},"Action":"sts:AssumeRole"}]}'
+  aws_ok iam create-role --role-name "$(new_name sfn-role)" --assume-role-policy-document "$states_trust"
+  aws_ok stepfunctions create-state-machine --name "$(new_name sch-flow)" --role-arn "$(jqv '.Role.Arn')" \
+    --definition '{"StartAt":"P","States":{"P":{"Type":"Pass","End":true}}}'
+  machine=$(jqv '.stateMachineArn')
+  now=$(curl -fsS "${UE_ADMIN_URL:?UE_ADMIN_URL unset}/clock" | jq -r '.now')
+  at=$(date -u -d "@$(($(date -u -d "$now" +%s) + 600))" +%Y-%m-%dT%H:%M:%S)
+  name=$(new_name sch)
+  target=$(jq -cn --arg m "$machine" --arg r "$SCH_ROLE_ARN" '{Arn: $m, RoleArn: $r, Input: "{\"attempt\":\"<aws.scheduler.attempt-number>\"}"}')
+  aws_ok scheduler create-schedule --name "$name" --schedule-expression "at($at)" \
+    --flexible-time-window Mode=OFF --target "$target"
+
+  advance 660
+  aws_ok stepfunctions list-executions --state-machine-arn "$machine"
+  assert_jq_true '(.executions | length) == 1'
+  aws_ok stepfunctions describe-execution --execution-arn "$(jqv '.executions[0].executionArn')"
+  assert_jq_true '(.input | fromjson) == {"attempt": "1"}'
+  aws_ok scheduler delete-schedule --name "$name"
+}
+
 # A universal (aws-sdk) target answers 501 NotImplemented and nothing is
 # stored (CLAUDE.md invariant 3; spec "Scope").
 test_universal_target_is_not_implemented() {

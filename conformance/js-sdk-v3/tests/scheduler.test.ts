@@ -21,6 +21,13 @@ import {
   UpdateScheduleCommand,
 } from "@aws-sdk/client-scheduler";
 import {
+  CreateStateMachineCommand,
+  DeleteStateMachineCommand,
+  DescribeExecutionCommand,
+  ListExecutionsCommand,
+  SFNClient,
+} from "@aws-sdk/client-sfn";
+import {
   CreateQueueCommand,
   DeleteQueueCommand,
   GetQueueAttributesCommand,
@@ -36,6 +43,7 @@ const scheduler = new SchedulerClient(clientConfig());
 const sqs = new SQSClient(clientConfig());
 const iam = new IAMClient(clientConfig());
 const lambda = new LambdaClient(clientConfig());
+const sfn = new SFNClient(clientConfig());
 
 const schedulerTrust = JSON.stringify({
   Version: "2012-10-17",
@@ -406,6 +414,48 @@ describe("EventBridge Scheduler", () => {
       status: 404,
     });
   });
+
+  // A Step Functions target starts one execution of the state machine with
+  // the Input as its input, context attributes substituted (aws-doc
+  // managing-targets-templated, managing-schedule-context-attributes;
+  // scheduler.md 6.3, 6.4).
+  test("a Step Functions target starts an execution with the Input", async () => {
+    const { target } = await queueTarget();
+    const statesRoleName = uniq("sfn-role");
+    const statesRole = (
+      await iam.send(new CreateRoleCommand({ RoleName: statesRoleName, AssumeRolePolicyDocument: statesTrust }))
+    ).Role?.Arn;
+    cleanups.push(() => iam.send(new DeleteRoleCommand({ RoleName: statesRoleName })));
+    const machine =
+      (
+        await sfn.send(
+          new CreateStateMachineCommand({
+            name: uniq("sch-flow"),
+            definition: JSON.stringify({ StartAt: "P", States: { P: { Type: "Pass", End: true } } }),
+            roleArn: statesRole,
+          }),
+        )
+      ).stateMachineArn ?? "";
+    cleanups.push(() => sfn.send(new DeleteStateMachineCommand({ stateMachineArn: machine })));
+    const at = (await emulatorNow()).getTime() + 10 * 60 * 1000;
+    await createSchedule({
+      Name: uniq("sch"),
+      ScheduleExpression: `at(${new Date(at).toISOString().slice(0, 19)})`,
+      FlexibleTimeWindow: { Mode: "OFF" },
+      Target: { Arn: machine, RoleArn: target.RoleArn, Input: '{"attempt":"<aws.scheduler.attempt-number>"}' },
+    });
+    await advance(660);
+
+    const executions = (await sfn.send(new ListExecutionsCommand({ stateMachineArn: machine }))).executions ?? [];
+    expect(executions.length).toBe(1);
+    const described = await sfn.send(new DescribeExecutionCommand({ executionArn: executions[0]?.executionArn }));
+    expect(JSON.parse(described.input ?? "")).toEqual({ attempt: "1" });
+  });
+});
+
+const statesTrust = JSON.stringify({
+  Version: "2012-10-17",
+  Statement: [{ Effect: "Allow", Principal: { Service: "states.amazonaws.com" }, Action: "sts:AssumeRole" }],
 });
 
 const FORWARD_HANDLER = `
