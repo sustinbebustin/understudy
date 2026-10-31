@@ -92,6 +92,71 @@ resource "aws_scheduler_schedule" "cron" {
   depends_on = [aws_iam_role_policy.scheduler_send]
 }
 
+# An SNS topic target and a default-bus target with eventbridge_parameters
+# (scheduler.md 6.1, 6.4): the empty plans depend on the parameter block
+# reading back as sent and on no other block appearing (scheduler.md 4.2).
+resource "aws_sns_topic" "scheduler_target" {
+  name = "${var.name_prefix}-topic"
+}
+
+data "aws_iam_policy_document" "scheduler_publish" {
+  statement {
+    effect    = "Allow"
+    actions   = ["sns:Publish"]
+    resources = [aws_sns_topic.scheduler_target.arn]
+  }
+
+  statement {
+    effect    = "Allow"
+    actions   = ["events:PutEvents"]
+    resources = ["arn:aws:events:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:event-bus/default"]
+  }
+}
+
+resource "aws_iam_role_policy" "scheduler_publish" {
+  name   = "publish"
+  role   = aws_iam_role.scheduler.id
+  policy = data.aws_iam_policy_document.scheduler_publish.json
+}
+
+resource "aws_scheduler_schedule" "topic" {
+  name                = "${var.name_prefix}-topic"
+  schedule_expression = "rate(1 day)"
+
+  flexible_time_window {
+    mode = "OFF"
+  }
+
+  target {
+    arn      = aws_sns_topic.scheduler_target.arn
+    role_arn = aws_iam_role.scheduler.arn
+  }
+
+  depends_on = [aws_iam_role_policy.scheduler_publish]
+}
+
+resource "aws_scheduler_schedule" "bus" {
+  name                = "${var.name_prefix}-bus"
+  schedule_expression = "rate(1 day)"
+
+  flexible_time_window {
+    mode = "OFF"
+  }
+
+  target {
+    arn      = "arn:aws:events:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:event-bus/default"
+    role_arn = aws_iam_role.scheduler.arn
+    input    = jsonencode({ tick = "<aws.scheduler.attempt-number>" })
+
+    eventbridge_parameters {
+      source      = "conformance.scheduler"
+      detail_type = local.updated ? "tock" : "tick"
+    }
+  }
+
+  depends_on = [aws_iam_role_policy.scheduler_publish]
+}
+
 output "scheduler_schedule_arn" {
   value = aws_scheduler_schedule.rate.arn
 }
