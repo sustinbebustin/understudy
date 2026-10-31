@@ -54,20 +54,23 @@ func (s *Service) Reset(rs kernel.ResetScope) {
 // schedule-fires-skipped Advisory per schedule, rather than delivered in a
 // burst: the plan moves to its first invocation at or after now, in the
 // schedule's own phase, and a past-due at() is completed (scheduler.md
-// 14.3.8; as internal/service/events/stateful.go).
+// 14.3.8; as internal/service/events/stateful.go). A schedule the catch-up
+// leaves with no invocation under ActionAfterCompletion DELETE (an at(), or
+// a rate or cron past its EndDate) is deleted, as its last fire would have
+// deleted it, and journaled DELETED (scheduler.md 8, 14.6).
 func (s *Service) Rearm(now clock.Instant) {
 	for _, scope := range s.cells.Keys(store.ScopeKeys()) {
 		cell, ok := s.cells.Lookup(scope)
 		if !ok {
 			continue
 		}
-		skipped := store.Update(cell, func(st *State) ([]journal.Advisory, bool) {
+		skipped := store.Update(cell, func(st *State) ([]journal.Detail, bool) {
 			return s.rearmScope(st, scope, now)
 		})
-		for _, a := range skipped {
-			if _, err := s.k.Journal().Append(journal.Event{At: now, Scope: scope, Detail: a}); err != nil {
-				s.k.Log().LogAttrs(context.Background(), slog.LevelWarn, "journal refused a skipped-schedule advisory",
-					slog.String("schedule", a.Resource.String()), slog.String("error", err.Error()))
+		for _, d := range skipped {
+			if _, err := s.k.Journal().Append(journal.Event{At: now, Scope: scope, Detail: d}); err != nil {
+				s.k.Log().LogAttrs(context.Background(), slog.LevelWarn, "journal refused a skipped-schedule event; the schedule was rearmed or deleted regardless",
+					slog.String("account", scope.Account.String()), slog.String("region", scope.Region.String()), slog.String("error", err.Error()))
 			}
 		}
 	}
@@ -75,10 +78,12 @@ func (s *Service) Rearm(now clock.Instant) {
 
 // rearmScope arms the schedules of one scope, moving each invocation due
 // before now to its catch-up invocation; it returns an advisory per moved
-// schedule and whether it changed st.
-func (s *Service) rearmScope(st *State, scope aws.Scope, now clock.Instant) ([]journal.Advisory, bool) {
+// schedule, and a DELETED state change per schedule deleted because the
+// catch-up left it no invocation under ActionAfterCompletion DELETE
+// (scheduler.md 8, 14.6), and whether it changed st.
+func (s *Service) rearmScope(st *State, scope aws.Scope, now clock.Instant) ([]journal.Detail, bool) {
 	sched := s.k.Timers().Scheduler()
-	var skipped []journal.Advisory
+	var skipped []journal.Detail
 	for _, group := range slices.Sorted(maps.Keys(st.Schedules)) {
 		for _, name := range slices.Sorted(maps.Keys(st.Schedules[group])) {
 			r := scheduleRef{scope: scope, group: group, name: name}
@@ -91,12 +96,23 @@ func (s *Service) rearmScope(st *State, scope aws.Scope, now clock.Instant) ([]j
 			if at.Due.Before(now) {
 				next = offset(&sc.Plan, catchUp(sc.Plan, at, now), s.opts.FlexibleOffset, s.ids)
 				sc.Run = next
-				st.put(r, sc)
+				_, left := next.(scheduled)
+				gone := !left && sc.Plan.deletesWhenDone()
+				text := nextText(next)
+				if gone {
+					st.remove(r)
+					text += "; ActionAfterCompletion DELETE deleted it"
+				} else {
+					st.put(r, sc)
+				}
 				skipped = append(skipped, journal.Advisory{
 					Kind: journal.AdvisoryScheduleFiresSkipped, Resource: r.arn(),
 					Text: "skipped the invocations due from " + at.Due.String() + " until " + now.String() +
-						", which came due while understudy was stopped or before the loaded state's time; " + nextText(next),
+						", which came due while understudy was stopped or before the loaded state's time; " + text,
 				})
+				if gone {
+					skipped = append(skipped, journal.StateChange{Resource: r.arn(), From: journal.ResourceState(sc.Echo.state()), To: scheduleDeleted})
+				}
 			}
 			if n, ok := next.(scheduled); ok {
 				sched.Arm(s.fire.Key(r.arn().String()), n.Due)

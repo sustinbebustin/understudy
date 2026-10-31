@@ -114,6 +114,43 @@ func TestDeleteKeepsAYearBoundedCronWithoutEndDate(t *testing.T) {
 	})
 }
 
+// A past-due at() with DELETE that a snapshot load skips is deleted, as its
+// fire would have deleted it, and journaled DELETED, rather than kept
+// completed forever (scheduler.md 8, 14.3.8, 14.6). UNVERIFIED (SCH-07):
+// AWS has no skipped fires.
+func TestRearmDeletesASkippedDeleteAt(t *testing.T) {
+	run(t, func(h *harness) {
+		in := schedule("once", atExpr(h.now().Add(10*time.Minute)), h.queueTarget("once", new("x")))
+		in.ActionAfterCompletion = new(schedulerapi.ActionAfterCompletionDelete)
+		arn := h.create(in)
+		sections, err := h.svc.Export()
+		if err != nil {
+			h.Fatal(err)
+		}
+		h.svc.Reset(kernel.ResetScope{})
+		h.Kernel.Timers().Scheduler().Clear()
+		h.advance(time.Hour)
+		if err := h.svc.Import(sections); err != nil {
+			h.Fatal(err)
+		}
+		h.svc.Rearm(h.Clock.Now())
+		h.advance(time.Hour)
+		if n := len(h.sentTo("once")); n != 0 {
+			h.Errorf("the skipped at() sent %d, want 0", n)
+		}
+		wantError(h, errOf(call(h, schedulerapi.OpGetSchedule, &schedulerapi.GetScheduleInput{Name: "once"})), "ResourceNotFoundException", 404, "")
+		deleted := 0
+		for _, ev := range h.Journal.Query(journal.Filter{Kind: journal.KindStateChange}).Events {
+			if sc, ok := ev.Detail.(journal.StateChange); ok && sc.Resource.String() == arn && sc.To == "DELETED" {
+				deleted++
+			}
+		}
+		if deleted != 1 {
+			h.Errorf("DELETED state changes of %s = %d, want 1", arn, deleted)
+		}
+	})
+}
+
 // MaximumWindowInMinutes reads back under FLEXIBLE and is dropped under
 // OFF (scheduler.md 4.2). UNVERIFIED (SCH-04): dropping it under OFF.
 func TestFlexibleWindowEcho(t *testing.T) {
