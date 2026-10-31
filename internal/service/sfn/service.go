@@ -110,8 +110,17 @@ func (s *Service) bindMachines(b sfnapi.Binder) {
 // bindExecutions binds the execution operations.
 func (s *Service) bindExecutions(b sfnapi.Binder) {
 	// StartExecution's generated list also holds states:DescribeExecution,
-	// which a start never needs.
-	b.StartExecution(s.startExecution, registry.Partial{Note: noteStart}, kernel.WithoutSecondaryActions())
+	// which a start never needs. The action's resource is the state
+	// machine it names (aws-doc service-authorization
+	// list_awsstepfunctions), so a policy scoped to the machine allows it.
+	b.StartExecution(s.startExecution, registry.Partial{Note: noteStart}, kernel.WithoutSecondaryActions(),
+		kernel.WithResources(func(_ *kernel.Call, in *sfnapi.StartExecutionInput) []aws.ARN {
+			a, err := aws.ParseARN(in.StateMachineArn)
+			if err != nil {
+				return nil
+			}
+			return []aws.ARN{a}
+		}))
 	b.StopExecution(s.stopExecution, registry.Partial{Note: noteStop})
 	b.ListExecutions(s.listExecutions, registry.Partial{Note: noteListExecutions}, kernel.WithValidator(validateListExecutions))
 	b.DescribeExecution(s.describeExecution, registry.Partial{Note: noteDescribeExecution})

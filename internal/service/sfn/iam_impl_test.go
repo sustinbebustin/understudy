@@ -181,3 +181,30 @@ func TestSFN08IdempotentRepeatSkipsRoleChecks(t *testing.T) {
 		}
 	}, kerneltest.Authorizer(m))
 }
+
+// StartExecution asks for states:StartExecution on the state machine it
+// names, the stateMachine resource type the service authorization
+// reference gives the action (aws-doc service-authorization
+// list_awsstepfunctions), so a policy scoped to the machine's ARN allows
+// it.
+func TestStartExecutionAuthorizesTheStateMachine(t *testing.T) {
+	g := &gate{}
+	run(t, func(h *harness) {
+		machine := h.create("m", resultMachine)
+		h.start(machine, "", nil)
+		qs := g.questions("StartExecution")
+		if len(qs) == 0 {
+			h.Fatal("StartExecution asked nothing")
+		}
+		for _, q := range qs {
+			for _, p := range q.Pairs {
+				if p.Action.String() != "states:StartExecution" {
+					continue
+				}
+				if r, ok := p.Resource.(kernel.ResourceARN); !ok || r.ARN.String() != machine {
+					h.Errorf("states:StartExecution asked on %#v, want %s", p.Resource, machine)
+				}
+			}
+		}
+	}, kerneltest.Authorizer(g))
+}
