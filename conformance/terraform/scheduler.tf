@@ -10,9 +10,10 @@
 # and Input, echoed as sent with the dates to the second (tf-acc
 # schedule_test.go:L288-L302, L365-L419, L421-L478, L1174-L1233,
 # L1292-L1349, L1870-L1895). The
-# update step replaces both schedules through UpdateSchedule (scheduler.md
-# 4.3): the rate gains a description, the cron moves its StartDate and
-# retry policy.
+# update step replaces the schedules through UpdateSchedule (scheduler.md
+# 4.3): the rate gains a description; the cron moves its StartDate, widens
+# its window to 20 and drops its optional members, which read back at their
+# defaults; the group's tags change.
 
 data "aws_iam_policy_document" "scheduler_assume" {
   statement {
@@ -88,19 +89,47 @@ resource "aws_scheduler_schedule_group" "scheduler" {
   tags = local.updated ? { stage = "updated" } : { stage = "created", team = "conformance" }
 }
 
+# The key the cron schedule names: stored and echoed, never used to
+# encrypt (scheduler.md 9, 14.13); the role may decrypt with it.
+resource "aws_kms_key" "scheduler" {
+  description             = "scheduler payloads"
+  deletion_window_in_days = 7
+}
+
+data "aws_iam_policy_document" "scheduler_decrypt" {
+  statement {
+    effect    = "Allow"
+    actions   = ["kms:Decrypt"]
+    resources = [aws_kms_key.scheduler.arn]
+  }
+}
+
+resource "aws_iam_role_policy" "scheduler_decrypt" {
+  name   = "decrypt"
+  role   = aws_iam_role.scheduler.id
+  policy = data.aws_iam_policy_document.scheduler_decrypt.json
+}
+
+# The update scenario (tf-acc schedule_test.go L409, L467, L556, L932,
+# L1338; scheduler.md 4.3, 11.3): UpdateSchedule replaces every
+# member, so the members the update drops (description, end_date,
+# kms_key_arn, retry_policy, dead_letter_config) read back absent or at
+# their defaults (RetryPolicy 86400/185) and the second plan stays empty;
+# the window goes from 10 to 20 minutes and StartDate moves.
 resource "aws_scheduler_schedule" "cron" {
   name                         = "${var.name_prefix}-cron"
   group_name                   = aws_scheduler_schedule_group.scheduler.name
   schedule_expression          = "cron(0 8 ? * MON-FRI *)"
   schedule_expression_timezone = "Europe/Paris"
   start_date                   = local.updated ? "2099-06-01T00:00:00Z" : "2099-01-01T01:00:00Z"
-  end_date                     = "2100-01-01T01:02:03Z"
-  description                  = "weekday mornings"
+  end_date                     = local.updated ? null : "2100-01-01T01:02:03Z"
+  description                  = local.updated ? null : "weekday mornings"
   action_after_completion      = "DELETE"
+  kms_key_arn                  = local.updated ? null : aws_kms_key.scheduler.arn
 
   flexible_time_window {
     mode                      = "FLEXIBLE"
-    maximum_window_in_minutes = 10
+    maximum_window_in_minutes = local.updated ? 20 : 10
   }
 
   target {
@@ -108,17 +137,23 @@ resource "aws_scheduler_schedule" "cron" {
     role_arn = aws_iam_role.scheduler.arn
     input    = jsonencode({ at = "<aws.scheduler.scheduled-time>" })
 
-    retry_policy {
-      maximum_event_age_in_seconds = local.updated ? 120 : 60
-      maximum_retry_attempts       = 1
+    dynamic "retry_policy" {
+      for_each = local.updated ? [] : [1]
+      content {
+        maximum_event_age_in_seconds = 60
+        maximum_retry_attempts       = 1
+      }
     }
 
-    dead_letter_config {
-      arn = aws_sqs_queue.scheduler_dlq.arn
+    dynamic "dead_letter_config" {
+      for_each = local.updated ? [] : [1]
+      content {
+        arn = aws_sqs_queue.scheduler_dlq.arn
+      }
     }
   }
 
-  depends_on = [aws_iam_role_policy.scheduler_send]
+  depends_on = [aws_iam_role_policy.scheduler_send, aws_iam_role_policy.scheduler_decrypt]
 }
 
 # An SNS topic target and a default-bus target with eventbridge_parameters
