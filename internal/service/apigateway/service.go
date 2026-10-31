@@ -80,14 +80,14 @@ const (
 		"and the texts for an empty name or a replace without a value are inferred; " +
 		"apiKeySource, endpointConfiguration and disableExecuteApiEndpoint are reported at their recorded defaults"
 	getResourcesNote = "items in creation order, root first (inferred, APIGW1-04)"
-	putMethodNote    = "only httpMethod and authorizationType are accepted, and every other member answers NotImplemented; " +
-		"AWS_IAM methods answer 501 at invoke"
+	methodNote       = "AWS_IAM, CUSTOM and COGNITO_USER_POOLS methods answer 501 at invoke; apiKeyRequired methods answer 403 because API keys cannot be created; " +
+		"requestValidatorId and requestModels name only the seeded Empty and Error models until validators and models are bound"
 	putIntegrationNote = "only type AWS_PROXY to a Lambda function with integrationHttpMethod, uri and timeoutInMillis is accepted, " +
 		"and every other type and member answers NotImplemented"
 	createDeploymentNote = "only stageName and description are accepted, and every other member answers NotImplemented; " +
 		"the texts for deploying an API with no methods or a method with no integration are inferred (APIGW1-05)"
 	invokeRestAPINote = "AWS_PROXY (payload 1.0) on the root resource only; a request the root does not serve answers 501 while the deployment holds other resources; " +
-		"mapping templates, request validation, authorizers, API keys, caching and throttling are not applied; AWS_IAM methods answer 501; " +
+		"mapping templates, request validation, authorizers, API keys, caching and throttling are not applied; AWS_IAM methods answer 501; apiKeyRequired methods answer 403; " +
 		"binaryMediaTypes in the stage's deployment answer 501; " +
 		"inferred, UNVERIFIED: unknown stage, ANY against explicit methods, HEAD (APIGW1-07, -08), timeout (APIGW1-10), empty-body event (APIGW1-16); " +
 		"header names reach the event in canonical form (Test-Header), not as the client wrote them"
@@ -134,13 +134,41 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 		kernel.WithResources(resourceAt(func(in *apigatewayapi.DeleteResourceInput) string {
 			return "/restapis/" + in.RestApiId + "/resources/" + in.ResourceId
 		})))
-	b.PutMethod(s.putMethod, partial(putMethodNote),
+	b.PutMethod(s.putMethod, partial(methodNote),
 		kernel.WithResources(resourceAt(func(in *apigatewayapi.PutMethodInput) string {
-			return "/restapis/" + in.RestApiId + "/resources/" + in.ResourceId + "/methods/" + in.HttpMethod
+			return methodPath(in.RestApiId, in.ResourceId, in.HttpMethod)
+		})))
+	b.GetMethod(s.getMethod, registry.Partial{Note: baseNote},
+		kernel.WithResources(resourceAt(func(in *apigatewayapi.GetMethodInput) string {
+			return methodPath(in.RestApiId, in.ResourceId, in.HttpMethod)
+		})))
+	b.UpdateMethod(s.updateMethod, partial(methodNote),
+		kernel.WithResources(resourceAt(func(in *apigatewayapi.UpdateMethodInput) string {
+			return methodPath(in.RestApiId, in.ResourceId, in.HttpMethod)
+		})))
+	b.DeleteMethod(s.deleteMethod, registry.Partial{Note: baseNote},
+		kernel.WithResources(resourceAt(func(in *apigatewayapi.DeleteMethodInput) string {
+			return methodPath(in.RestApiId, in.ResourceId, in.HttpMethod)
+		})))
+	b.PutMethodResponse(s.putMethodResponse, registry.Partial{Note: baseNote},
+		kernel.WithResources(resourceAt(func(in *apigatewayapi.PutMethodResponseInput) string {
+			return methodPath(in.RestApiId, in.ResourceId, in.HttpMethod) + "/responses/" + in.StatusCode
+		})))
+	b.GetMethodResponse(s.getMethodResponse, registry.Partial{Note: baseNote},
+		kernel.WithResources(resourceAt(func(in *apigatewayapi.GetMethodResponseInput) string {
+			return methodPath(in.RestApiId, in.ResourceId, in.HttpMethod) + "/responses/" + in.StatusCode
+		})))
+	b.UpdateMethodResponse(s.updateMethodResponse, registry.Partial{Note: baseNote},
+		kernel.WithResources(resourceAt(func(in *apigatewayapi.UpdateMethodResponseInput) string {
+			return methodPath(in.RestApiId, in.ResourceId, in.HttpMethod) + "/responses/" + in.StatusCode
+		})))
+	b.DeleteMethodResponse(s.deleteMethodResponse, registry.Partial{Note: baseNote},
+		kernel.WithResources(resourceAt(func(in *apigatewayapi.DeleteMethodResponseInput) string {
+			return methodPath(in.RestApiId, in.ResourceId, in.HttpMethod) + "/responses/" + in.StatusCode
 		})))
 	b.PutIntegration(s.putIntegration, partial(putIntegrationNote),
 		kernel.WithResources(resourceAt(func(in *apigatewayapi.PutIntegrationInput) string {
-			return "/restapis/" + in.RestApiId + "/resources/" + in.ResourceId + "/methods/" + in.HttpMethod + "/integration"
+			return methodPath(in.RestApiId, in.ResourceId, in.HttpMethod) + "/integration"
 		})))
 	b.CreateDeployment(s.createDeployment, partial(createDeploymentNote),
 		kernel.WithResources(resourceAt(func(in *apigatewayapi.CreateDeploymentInput) string {

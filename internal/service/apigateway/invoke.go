@@ -232,6 +232,11 @@ func (a *RestAPI) selectMethod(owner aws.Scope, addr address, method string) sel
 		return unemulated{fmt.Sprintf("understudy does not evaluate IAM authorization of requests: method %s %s of REST API %s has authorizationType %s, "+
 			"so no integration ran and nothing was changed. Set the method's authorizationType to NONE.", key, res.Path, a.ID, m.Authorization)}
 	}
+	if m.APIKeyRequired {
+		// No API key can be created, so no request carries a valid one
+		// (spec 6b enforce matrix).
+		return answered{APIKeyRequired()}
+	}
 	if m.Integration == nil {
 		return corrupt{fmt.Errorf("apigateway: method %s %s of deployment %s of REST API %s has no integration, which CreateDeployment refuses", key, res.Path, d.ID, a.ID)}
 	}

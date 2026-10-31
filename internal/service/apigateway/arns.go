@@ -14,6 +14,11 @@ func resourceARN(scope aws.Scope, path string) aws.ARN {
 // restAPIARN is the ARN of the REST API id in scope.
 func restAPIARN(scope aws.Scope, id string) aws.ARN { return resourceARN(scope, "/restapis/"+id) }
 
+// methodPath is the path of a method in the REST 3.10 table.
+func methodPath(apiID, resourceID, verb string) string {
+	return "/restapis/" + apiID + "/resources/" + resourceID + "/methods/" + verb
+}
+
 // resourceAt is the kernel.WithResources resolver of a call on the
 // resource at path, from the REST 3.10 table: /restapis for the
 // collection, /restapis/<id>/... for an item or a child collection.

@@ -16,9 +16,6 @@ func TestTracerRefusesUnacceptedMembers(t *testing.T) {
 		wantNotImplemented(t, fail(h, apigatewayapi.OpCreateRestApi, &apigatewayapi.CreateRestApiInput{Name: "t", Policy: new("{}")}), "policy")
 		wantNotImplemented(t, fail(h, apigatewayapi.OpCreateRestApi, &apigatewayapi.CreateRestApiInput{Name: "t", DisableExecuteApiEndpoint: true}), "disableExecuteApiEndpoint")
 		id, root := h.api("t")
-		wantNotImplemented(t, fail(h, apigatewayapi.OpPutMethod, &apigatewayapi.PutMethodInput{
-			RestApiId: id, ResourceId: root, HttpMethod: "GET", AuthorizationType: "NONE", ApiKeyRequired: true,
-		}), "apiKeyRequired")
 		h.method(id, root, "GET")
 		in := proxyInput(id, root, "GET", "arn:aws:lambda:us-east-1:000000000000:function:fn")
 		in.Credentials = new("arn:aws:iam::000000000000:role/r")

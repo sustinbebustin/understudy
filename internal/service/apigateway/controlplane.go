@@ -14,8 +14,8 @@ import (
 )
 
 // The control plane of the tracer bullet (spec 6b ticket 2): enough of
-// CreateRestApi, GetRestApi, PutMethod, PutIntegration and
-// CreateDeployment for a Lambda proxy on the root resource. A member these
+// CreateRestApi, GetRestApi, PutIntegration and CreateDeployment for a
+// Lambda proxy on the root resource. A member these
 // do not handle yet is refused with 501 naming it, never ignored.
 
 // createRestAPI creates a REST API with its root resource
@@ -46,6 +46,7 @@ func (s *Service) createRestAPI(_ context.Context, c *kernel.Call, in *apigatewa
 		a := RestAPI{
 			ID: id, Seq: st.NextSeq, Name: in.Name, Description: clonePtr(in.Description), Version: clonePtr(in.Version), Created: now,
 			RootResourceID: root, Resources: []Resource{{ID: root, Path: "/"}}, NextResourceSeq: 1,
+			Models: seededModels(),
 		}
 		st.NextSeq++
 		st.APIs[id] = a
@@ -108,71 +109,6 @@ func (a *RestAPI) output(status apigatewayapi.ApiStatus) apigatewayapi.RestApi {
 		RootResourceId: new(a.RootResourceID),
 		ApiStatus:      new(status),
 	}
-}
-
-// httpMethods are the methods PutMethod accepts (recorded,
-// apigateway-rest.md 2.4).
-func httpMethods() []string {
-	return []string{"DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT", "ANY"}
-}
-
-// putMethod creates or replaces a method of a resource (apigateway-rest.md
-// 3.3; replacing is inferred). The replaced method's integration goes with
-// it.
-func (s *Service) putMethod(_ context.Context, c *kernel.Call, in *apigatewayapi.PutMethodInput) (*apigatewayapi.Method, *awserr.Error) {
-	if err := refuseUnimplemented("PutMethod",
-		member{"authorizerId", in.AuthorizerId != nil},
-		member{"apiKeyRequired", in.ApiKeyRequired},
-		member{"operationName", in.OperationName != nil},
-		member{"requestParameters", in.RequestParameters != nil},
-		member{"requestModels", in.RequestModels != nil},
-		member{"requestValidatorId", in.RequestValidatorId != nil},
-		member{"authorizationScopes", in.AuthorizationScopes != nil},
-	); err != nil {
-		return nil, err
-	}
-	if !slices.Contains(httpMethods(), in.HttpMethod) {
-		return nil, errBadRequest("Invalid HttpMethod specified. Valid options are GET,PUT,POST,DELETE,PATCH,OPTIONS,HEAD,ANY")
-	}
-	switch in.AuthorizationType {
-	case "NONE", "AWS_IAM":
-	case "CUSTOM", "COGNITO_USER_POOLS":
-		// Recorded (apigateway-rest.md 2.4): no authorizer can exist, since
-		// authorizers are unbound.
-		return nil, errBadRequest("Invalid authorizer ID specified. Setting the authorization type to CUSTOM or COGNITO_USER_POOLS requires a valid authorizer.")
-	default:
-		return nil, refuseUnimplemented("PutMethod", member{"authorizationType " + in.AuthorizationType, true})
-	}
-	scope := c.Scope()
-	m := Method{HTTPMethod: in.HttpMethod, Authorization: in.AuthorizationType}
-	_, err := kernel.Write(c, s.cells, scope, func(st *State, _ clock.Instant, _ *kernel.Tx) (struct{}, *awserr.Error) {
-		a, ok := st.APIs[in.RestApiId]
-		if !ok {
-			return struct{}{}, errAPINotFound(scope, in.RestApiId)
-		}
-		r, i, ok := a.resource(in.ResourceId)
-		if !ok {
-			return struct{}{}, errResourceNotFound()
-		}
-		r = r.withMethods()
-		r.Methods[in.HttpMethod] = m
-		st.APIs[a.ID] = a.withResource(i, r)
-		return struct{}{}, nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	return new(m.output()), nil
-}
-
-// output is the method as PutMethod answers it and GetResources embeds it,
-// its integration included when it has one.
-func (m *Method) output() apigatewayapi.Method {
-	out := apigatewayapi.Method{HttpMethod: new(m.HTTPMethod), AuthorizationType: new(m.Authorization), ApiKeyRequired: new(false)}
-	if m.Integration != nil {
-		out.MethodIntegration = new(m.Integration.output())
-	}
-	return out
 }
 
 // lambdaInvokeURI is API Gateway's URI for invoking a Lambda function

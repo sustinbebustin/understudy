@@ -54,9 +54,12 @@ type RestAPI struct {
 	Resources      []Resource `json:"resources"`
 	// NextResourceSeq is the Seq the next resource created in the API
 	// gets; the root has 0.
-	NextResourceSeq uint64       `json:"nextResourceSeq"`
-	Deployments     []Deployment `json:"deployments"`
-	Stages          []Stage      `json:"stages"`
+	NextResourceSeq uint64 `json:"nextResourceSeq"`
+	// Models are the API's model names: the seeded Empty and Error
+	// (apigateway-rest.md 3.9) until models are bound.
+	Models      []string     `json:"models"`
+	Deployments []Deployment `json:"deployments"`
+	Stages      []Stage      `json:"stages"`
 }
 
 // Resource is one resource of a REST API: the root ("/", no parent and no
@@ -84,23 +87,59 @@ func (r *Resource) clone() Resource {
 	return c
 }
 
-// Method is a method of a resource (apigateway-rest.md 3.3). Only the
-// members PutMethod accepts so far are held.
+// Method is a method of a resource (apigateway-rest.md 3.3). Maps and
+// lists keep nil apart from empty, so an empty one sent is echoed.
 type Method struct {
 	HTTPMethod string `json:"httpMethod"`
 	// Authorization is NONE or AWS_IAM; a request an AWS_IAM method serves
 	// answers 501.
-	Authorization string       `json:"authorization"`
-	Integration   *Integration `json:"integration,omitzero"`
+	Authorization string `json:"authorization"`
+	// APIKeyRequired methods answer 403 at invoke: no API key can be
+	// created.
+	APIKeyRequired bool    `json:"apiKeyRequired,omitzero"`
+	OperationName  *string `json:"operationName,omitzero"`
+	// RequestParameters and RequestModels act only through a request
+	// validator, and none can exist; AuthorizationScopes act only on a
+	// COGNITO_USER_POOLS method, which PutMethod refuses (apigateway-rest.md
+	// 3.3).
+	RequestParameters   map[string]bool   `json:"requestParameters,omitzero"`
+	RequestModels       map[string]string `json:"requestModels,omitzero"`
+	AuthorizationScopes []string          `json:"authorizationScopes,omitzero"`
+	// Responses are the method responses by status code.
+	Responses   map[string]MethodResponse `json:"responses,omitzero"`
+	Integration *Integration              `json:"integration,omitzero"`
 }
 
-// clone is a copy of the method whose integration is its own.
+// clone is a copy of the method whose maps, lists and integration are its
+// own.
 func (m *Method) clone() Method {
 	c := *m
+	c.OperationName = clonePtr(m.OperationName)
+	c.RequestParameters = maps.Clone(m.RequestParameters)
+	c.RequestModels = maps.Clone(m.RequestModels)
+	c.AuthorizationScopes = slices.Clone(m.AuthorizationScopes)
+	if m.Responses != nil {
+		c.Responses = make(map[string]MethodResponse, len(m.Responses))
+		for code, r := range m.Responses {
+			c.Responses[code] = r.clone()
+		}
+	}
 	if m.Integration != nil {
 		c.Integration = new(m.Integration.clone())
 	}
 	return c
+}
+
+// MethodResponse is one method response (apigateway-rest.md 3.5).
+type MethodResponse struct {
+	StatusCode         string            `json:"statusCode"`
+	ResponseParameters map[string]bool   `json:"responseParameters,omitzero"`
+	ResponseModels     map[string]string `json:"responseModels,omitzero"`
+}
+
+// clone is a copy of the response with maps of its own.
+func (r *MethodResponse) clone() MethodResponse {
+	return MethodResponse{StatusCode: r.StatusCode, ResponseParameters: maps.Clone(r.ResponseParameters), ResponseModels: maps.Clone(r.ResponseModels)}
 }
 
 // Integration is a method's integration with the defaults AWS fills
