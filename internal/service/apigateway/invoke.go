@@ -206,6 +206,13 @@ func (a *RestAPI) selectMethod(owner aws.Scope, addr address, method string) sel
 	if !ok {
 		return corrupt{fmt.Errorf("apigateway: stage %q of REST API %s serves deployment %s, which the API does not hold", stage.Name, a.ID, stage.Deployment)}
 	}
+	if len(d.BinaryMediaTypes) > 0 {
+		// They decide the event's isBase64Encoded and whether a response
+		// body is decoded (apigateway-rest.md 5.1, 5.2), which understudy
+		// does not apply (spec 6b scope list).
+		return unemulated{fmt.Sprintf("understudy does not apply binaryMediaTypes: deployment %s of REST API %s, which stage %s serves, has binaryMediaTypes %v, "+
+			"so no integration ran and nothing was changed. Remove the binaryMediaTypes with UpdateRestApi and deploy again.", d.ID, a.ID, stage.Name, d.BinaryMediaTypes)}
+	}
 	res, key, ok := rootMatch(d.Resources, method, target.Path, routing.Methods)
 	if !ok {
 		return answered{MissingAuthenticationToken()}

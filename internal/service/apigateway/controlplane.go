@@ -89,12 +89,17 @@ func (s *Service) getRestAPI(_ context.Context, c *kernel.Call, in *apigatewayap
 	return out, nil
 }
 
-// output is the API as CreateRestApi and GetRestApi answer it, with the
-// recorded defaults of the members it does not hold yet
-// (apigateway-rest.md 2.3).
+// output is the API as CreateRestApi, GetRestApi and UpdateRestApi answer
+// it, with the recorded defaults of the members it does not hold yet and
+// no binaryMediaTypes when it has none (apigateway-rest.md 2.3).
 func (a *RestAPI) output(status apigatewayapi.ApiStatus) apigatewayapi.RestApi {
+	var binary []string
+	if len(a.BinaryMediaTypes) > 0 {
+		binary = slices.Clone(a.BinaryMediaTypes)
+	}
 	return apigatewayapi.RestApi{
-		Id: new(a.ID), Name: new(a.Name), Description: clonePtr(a.Description), Version: clonePtr(a.Version),
+		BinaryMediaTypes: binary,
+		Id:               new(a.ID), Name: new(a.Name), Description: clonePtr(a.Description), Version: clonePtr(a.Version),
 		CreatedDate:  new(a.Created.Wire()),
 		ApiKeySource: new(apigatewayapi.ApiKeySourceTypeHeader),
 		EndpointConfiguration: &apigatewayapi.EndpointConfiguration{
@@ -299,7 +304,10 @@ func (s *Service) createDeployment(_ context.Context, c *kernel.Call, in *apigat
 		for a.hasChild(id) {
 			id = string(s.ids.APIGatewayDeploymentID())
 		}
-		d := Deployment{ID: id, Description: clonePtr(in.Description), Created: now, Resources: cloneResources(a.Resources)}
+		d := Deployment{
+			ID: id, Description: clonePtr(in.Description), Created: now, Resources: cloneResources(a.Resources),
+			BinaryMediaTypes: slices.Clone(a.BinaryMediaTypes),
+		}
 		a.Deployments = append(slices.Clone(a.Deployments), d)
 		if in.StageName != nil {
 			a.Stages = slices.Clone(a.Stages)

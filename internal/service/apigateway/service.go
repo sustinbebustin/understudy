@@ -73,8 +73,13 @@ const baseNote = "the X-Amzn-Errortype value and generated ids are inferred (UNV
 const (
 	createRestAPINote = "only name, description and version are accepted, and every other member answers NotImplemented; " +
 		"apiKeySource, endpointConfiguration and disableExecuteApiEndpoint are reported at their recorded defaults"
-	getRestAPINote = "apiKeySource, endpointConfiguration and disableExecuteApiEndpoint are reported at their recorded defaults"
-	putMethodNote  = "only httpMethod and authorizationType are accepted, and every other member answers NotImplemented; " +
+	getRestAPINote    = "apiKeySource, endpointConfiguration and disableExecuteApiEndpoint are reported at their recorded defaults"
+	updateRestAPINote = "replace /name, add, replace and remove /description, and add, replace and remove /binaryMediaTypes/{type} apply; " +
+		"every other documented path answers NotImplemented; an invocation of a stage whose deployment has binaryMediaTypes answers 501; " +
+		"operations apply in order and a refused one changes nothing (inferred); adding a listed type or removing an unlisted one changes nothing, " +
+		"and the texts for an empty name or a replace without a value are inferred; " +
+		"apiKeySource, endpointConfiguration and disableExecuteApiEndpoint are reported at their recorded defaults"
+	putMethodNote = "only httpMethod and authorizationType are accepted, and every other member answers NotImplemented; " +
 		"AWS_IAM methods answer 501 at invoke"
 	putIntegrationNote = "only type AWS_PROXY to a Lambda function with integrationHttpMethod, uri and timeoutInMillis is accepted, " +
 		"and every other type and member answers NotImplemented"
@@ -82,6 +87,7 @@ const (
 		"the texts for deploying an API with no methods or a method with no integration are inferred (APIGW1-05)"
 	invokeRestAPINote = "AWS_PROXY (payload 1.0) on the root resource only, no other resource can be created yet; " +
 		"mapping templates, request validation, authorizers, API keys, caching and throttling are not applied; AWS_IAM methods answer 501; " +
+		"binaryMediaTypes in the stage's deployment answer 501; " +
 		"inferred, UNVERIFIED: unknown stage, ANY against explicit methods, HEAD (APIGW1-07, -08), timeout (APIGW1-10), empty-body event (APIGW1-16); " +
 		"header names reach the event in canonical form (Test-Header), not as the client wrote them"
 )
@@ -107,6 +113,8 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 		kernel.WithResources(resourceAt(func(*apigatewayapi.CreateRestApiInput) string { return "/restapis" })))
 	b.GetRestApi(s.getRestAPI, partial(getRestAPINote),
 		kernel.WithResources(resourceAt(func(in *apigatewayapi.GetRestApiInput) string { return "/restapis/" + in.RestApiId })))
+	b.UpdateRestApi(s.updateRestAPI, partial(updateRestAPINote),
+		kernel.WithResources(resourceAt(func(in *apigatewayapi.UpdateRestApiInput) string { return "/restapis/" + in.RestApiId })))
 	b.PutMethod(s.putMethod, partial(putMethodNote),
 		kernel.WithResources(resourceAt(func(in *apigatewayapi.PutMethodInput) string {
 			return "/restapis/" + in.RestApiId + "/resources/" + in.ResourceId + "/methods/" + in.HttpMethod

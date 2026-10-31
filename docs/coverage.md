@@ -117,7 +117,7 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 
 | Service | Operations | Full | Stored only | Partial | Unbound | Internal | Raw |
 |---|---|---|---|---|---|---|---|
-| apigateway | 124 | 0 | 0 | 5 | 119 | 0 | 1 |
+| apigateway | 124 | 0 | 0 | 6 | 118 | 0 | 1 |
 | apigatewayv2 | 103 | 0 | 2 | 29 | 72 | 0 | 1 |
 | cloudwatch | 55 | 4 | 0 | 11 | 40 | 0 | 0 |
 | dynamodb | 58 | 4 | 2 | 20 | 32 | 0 | 0 |
@@ -147,6 +147,7 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | GetRestApi | partial | inferred, 1 of 3 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); apiKeySource, endpointConfiguration and disableExecuteApiEndpoint are reported at their recorded defaults |
 | PutIntegration | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); only type AWS_PROXY to a Lambda function with integrationHttpMethod, uri and timeoutInMillis is accepted, and every other type and member answers NotImplemented |
 | PutMethod | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); only httpMethod and authorizationType are accepted, and every other member answers NotImplemented; AWS_IAM methods answer 501 at invoke |
+| UpdateRestApi | partial | inferred, 1 of 3 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); replace /name, add, replace and remove /description, and add, replace and remove /binaryMediaTypes/{type} apply; every other documented path answers NotImplemented; an invocation of a stage whose deployment has binaryMediaTypes answers 501; operations apply in order and a refused one changes nothing (inferred); adding a listed type or removing an unlisted one changes nothing, and the texts for an empty name or a replace without a value are inferred; apiKeySource, endpointConfiguration and disableExecuteApiEndpoint are reported at their recorded defaults |
 | CreateApiKey | unbound | unassessed |  |
 | CreateAuthorizer | unbound | unassessed |  |
 | CreateBasePathMapping | unbound | unassessed |  |
@@ -261,7 +262,6 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | UpdateModel | unbound | unassessed |  |
 | UpdateRequestValidator | unbound | unassessed |  |
 | UpdateResource | unbound | unassessed |  |
-| UpdateRestApi | unbound | unassessed |  |
 | UpdateStage | unbound | unassessed |  |
 | UpdateUsage | unbound | unassessed |  |
 | UpdateUsagePlan | unbound | unassessed |  |
@@ -271,7 +271,7 @@ Raw operations:
 
 | Operation | Status | Evidence | Note |
 |---|---|---|---|
-| InvokeRestApi | partial | inferred, 4 of 4 claims | AWS_PROXY (payload 1.0) on the root resource only, no other resource can be created yet; mapping templates, request validation, authorizers, API keys, caching and throttling are not applied; AWS_IAM methods answer 501; inferred, UNVERIFIED: unknown stage, ANY against explicit methods, HEAD (APIGW1-07, -08), timeout (APIGW1-10), empty-body event (APIGW1-16); header names reach the event in canonical form (Test-Header), not as the client wrote them |
+| InvokeRestApi | partial | inferred, 4 of 4 claims | AWS_PROXY (payload 1.0) on the root resource only, no other resource can be created yet; mapping templates, request validation, authorizers, API keys, caching and throttling are not applied; AWS_IAM methods answer 501; binaryMediaTypes in the stage's deployment answer 501; inferred, UNVERIFIED: unknown stage, ANY against explicit methods, HEAD (APIGW1-07, -08), timeout (APIGW1-10), empty-body event (APIGW1-16); header names reach the event in canonical form (Test-Header), not as the client wrote them |
 
 ### apigatewayv2
 
@@ -2014,7 +2014,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 
 Corrections to the vendored models in `codegen/overlays`, one row per evidence item. The count and order, strongest evidence first, follow the label the overlay states; the Label column shows the recording's verdict where a replayed step settles or contradicts the item.
 
-350 evidence items: 50 aws-recorded, 108 third-party-recorded, 57 aws-doc, 5 sdk-source, 130 inferred.
+353 evidence items: 50 aws-recorded, 111 third-party-recorded, 57 aws-doc, 5 sdk-source, 130 inferred.
 
 | Label | Overlay | Shape | Covers | Source |
 |---|---|---|---|---|
@@ -2068,6 +2068,9 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | aws-recorded | sqs.json | `com.amazonaws.sqs#SendMessageRequest$DelaySeconds` | dev.understudy#validationError | testdata/parity/sqs/R11/02-send-delay-901.json (validated 2026-10-14) |
 | aws-recorded | sts.json | `com.amazonaws.sts#AWSSecurityTokenServiceV20110615` | dev.understudy#queryErrorEnvelope, dev.understudy#denialError | testdata/parity/sts/R15/06-assume-denied.json (validated 2026-10-14) |
 | aws-recorded | sts.json | `com.amazonaws.sts#AccessDenied` |  | testdata/parity/sts/R15/06-assume-denied.json (validated 2026-10-14) |
+| third-party-recorded | apigateway.json | `com.amazonaws.apigateway#BackplaneControlService` | dev.understudy#validationInputRoot | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/apigateway/test_apigateway_api.snapshot.json#L4803: body members are named under the input structure (updateRestApiInput.patchOperations.1.member.op, L4809; putIntegrationInput.type, L3084-L3098) and a URI label bare (statusCode, L4062-L4086); docs/research/apigateway-rest.md 2.4, 3.8 |
+| third-party-recorded | apigateway.json | `com.amazonaws.apigateway#IntegrationType` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/apigateway/test_apigateway_api.snapshot.json#L3084 |
+| third-party-recorded | apigateway.json | `com.amazonaws.apigateway#Op` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/apigateway/test_apigateway_api.snapshot.json#L4809 |
 | third-party-recorded | cloudwatch.json | `com.amazonaws.cloudwatch#GraniteServiceVersion20100801` | dev.understudy#queryErrorEnvelope | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/cloudwatch/test_cloudwatch.snapshot.json#L186 (validated 2025-09-22) |
 | third-party-recorded | cloudwatch.json | `com.amazonaws.cloudwatch#GraniteServiceVersion20100801` | dev.understudy#validationError | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/cloudwatch/test_cloudwatch.snapshot.json#L156 (validated 2025-09-22) |
 | third-party-recorded | cloudwatch.json | `com.amazonaws.cloudwatch#ResourceNotFound` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/cloudwatch/test_cloudwatch.snapshot.json#L156 (validated 2025-09-22) |

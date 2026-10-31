@@ -46,6 +46,9 @@ type RestAPI struct {
 	Description *string       `json:"description,omitzero"`
 	Version     *string       `json:"version,omitzero"`
 	Created     clock.Instant `json:"created"`
+	// BinaryMediaTypes are in the order UpdateRestApi left them
+	// (apigateway-rest.md finding 5); a deployment snapshots them.
+	BinaryMediaTypes []string `json:"binaryMediaTypes,omitzero"`
 	// RootResourceID is the id of the root resource, created with the API.
 	RootResourceID string       `json:"rootResourceId"`
 	Resources      []Resource   `json:"resources"`
@@ -124,6 +127,10 @@ type Deployment struct {
 	Description *string       `json:"description,omitzero"`
 	Created     clock.Instant `json:"created"`
 	Resources   []Resource    `json:"resources"`
+	// BinaryMediaTypes are the API's at the deployment's creation; while
+	// any is set, an invocation of a stage serving it answers 501 (spec
+	// 6b scope list).
+	BinaryMediaTypes []string `json:"binaryMediaTypes,omitzero"`
 }
 
 // Stage is one stage of a REST API, serving one deployment.
