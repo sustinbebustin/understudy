@@ -42,7 +42,10 @@ func receivingBus(t *testing.T, pattern string) (busARN, queueURL string) {
 	})
 	ok(t, err, "PutPermission for the sender account")
 	queueURL = createQueue(t, name(t, "eb-receiver"), nil)
-	putBusRule(t, bus, name(t, "in"), pattern, types.Target{Id: aws.String("q"), Arn: aws.String(queueArn(t, queueURL))})
+	rule := putBusRule(t, bus, name(t, "in"), pattern, types.Target{Id: aws.String("q"), Arn: aws.String(queueArn(t, queueURL))})
+	// The queue must let the rule deliver (iam-enforcement-surfaces.md 8.2,
+	// 8.4), as for every rule target in these suites.
+	allowQueueDelivery(t, queueURL, "events.amazonaws.com", rule)
 	return aws.ToString(out.EventBusArn), queueURL
 }
 
