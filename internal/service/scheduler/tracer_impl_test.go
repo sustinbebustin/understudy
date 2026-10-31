@@ -60,19 +60,13 @@ func TestCreateScheduleConflict(t *testing.T) {
 	})
 }
 
-// What tickets 2 to 5 do not build answers 501 and stores nothing
+// What tickets 2 to 7 do not build answers 501 and stores nothing
 // (CLAUDE.md invariant 3; spec "Tracer bullet").
 func TestUnbuiltMembersAnswerNotImplemented(t *testing.T) {
 	cases := map[string]func(h *harness, in *schedulerapi.CreateScheduleInput){
 		"group": func(_ *harness, in *schedulerapi.CreateScheduleInput) { in.GroupName = new("g") },
-		"delete after completion": func(_ *harness, in *schedulerapi.CreateScheduleInput) {
-			in.ActionAfterCompletion = new(schedulerapi.ActionAfterCompletionDelete)
-		},
 		"other region": func(_ *harness, in *schedulerapi.CreateScheduleInput) {
 			in.Target.Arn = "arn:aws:sqs:eu-west-1:000000000000:q"
-		},
-		"flexible": func(_ *harness, in *schedulerapi.CreateScheduleInput) {
-			in.FlexibleTimeWindow = schedulerapi.FlexibleTimeWindow{Mode: schedulerapi.FlexibleTimeWindowModeFlexible, MaximumWindowInMinutes: new(int32(5))}
 		},
 		"dead-letter queue in a partition understudy does not serve": func(_ *harness, in *schedulerapi.CreateScheduleInput) {
 			in.Target.DeadLetterConfig = &schedulerapi.DeadLetterConfig{Arn: new("arn:aws-xx:sqs:us-east-1:000000000000:dlq")}

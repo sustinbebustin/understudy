@@ -30,7 +30,7 @@ func (s *Service) createSchedule(_ context.Context, c *kernel.Call, in *schedule
 		if _, exists := st.get(r); exists {
 			return struct{}{}, errScheduleExists(r.group, r.name)
 		}
-		sc := schedule{Echo: echoOf(&m), Plan: p, Run: firstRun(p, now, s.opts.AtPastDue), Created: now, Modified: now}
+		sc := schedule{Echo: echoOf(&m), Plan: p, Run: s.firstRun(&p, now), Created: now, Modified: now}
 		st.put(r, sc)
 		s.arm(tx, r, sc.Run)
 		return struct{}{}, nil
@@ -63,7 +63,7 @@ func (s *Service) updateSchedule(_ context.Context, c *kernel.Call, in *schedule
 		}
 		sc := schedule{Echo: echoOf(&m), Plan: p, Run: old.Run, Created: old.Created, Modified: now}
 		if !old.Echo.sameTiming(&sc.Echo) {
-			sc.Run = firstRun(p, now, s.opts.AtPastDue)
+			sc.Run = s.firstRun(&p, now)
 		}
 		st.put(r, sc)
 		if !s.arm(tx, r, sc.Run) {
@@ -203,6 +203,12 @@ func (s *Service) read(r scheduleRef) (schedule, bool) {
 	return got.sc, got.ok
 }
 
+// firstRun is the run of p written at now, its due instant moved inside a
+// FLEXIBLE window (offset).
+func (s *Service) firstRun(p *plan, now clock.Instant) run {
+	return offset(p, firstRun(*p, now, s.opts.AtPastDue), s.opts.FlexibleOffset, s.ids)
+}
+
 // arm arms the fire timer of a schedule whose run has a next invocation,
 // and reports whether it has one.
 func (s *Service) arm(tx *kernel.Tx, r scheduleRef, next run) bool {
@@ -240,7 +246,7 @@ func readShape(r scheduleRef, sc *schedule) *schedulerapi.GetScheduleOutput {
 		StartDate: secondOf(e.StartDate), EndDate: secondOf(e.EndDate),
 		Description: e.Description, State: &state, KmsKeyArn: e.KmsKeyArn,
 		CreationDate: &created, LastModificationDate: &modified,
-		Target: target, FlexibleTimeWindow: &schedulerapi.FlexibleTimeWindow{Mode: e.Window},
+		Target: target, FlexibleTimeWindow: &schedulerapi.FlexibleTimeWindow{Mode: e.Window, MaximumWindowInMinutes: e.MaxWindow},
 		ActionAfterCompletion: &action,
 	}
 }

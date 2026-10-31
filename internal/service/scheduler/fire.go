@@ -13,6 +13,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/delivery"
 	"github.com/sustinbebustin/understudy/internal/ids"
+	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/ref"
 )
@@ -21,11 +22,16 @@ import (
 // as (scheduler.md 9).
 const principal = "scheduler.amazonaws.com"
 
+// scheduleDeleted is the state the journal records a schedule moving to
+// when ActionAfterCompletion DELETE removes it after its last invocation.
+const scheduleDeleted journal.ResourceState = "DELETED"
+
 // onFire invokes the target of the schedule the timer names, due at due:
 // it resolves the execution role's id, then in one write hands the
 // invocation to the outbox as a session of that role, moves the plan to
-// its next invocation and arms it (scheduler.md 14.3, 14.4; contract
-// section 1). A timer whose schedule is gone or was re-planned since it
+// its next invocation and arms it, or, under ActionAfterCompletion DELETE
+// with no invocation left, deletes the schedule (scheduler.md 14.3, 14.4,
+// 14.6; contract section 1). A timer whose schedule is gone or was re-planned since it
 // was armed does nothing.
 func (s *Service) onFire(c *kernel.Call, key clock.TimerKey, due clock.Instant) {
 	ctx := context.Background()
@@ -52,9 +58,18 @@ func (s *Service) onFire(c *kernel.Call, key clock.TimerKey, due clock.Instant) 
 			return struct{}{}, err
 		}
 		tx.Deliver(req)
-		sc.Run = nextRun(sc.Plan, at)
-		s.arm(tx, r, sc.Run)
-		st.put(r, sc)
+		sc.Run = offset(&sc.Plan, nextRun(sc.Plan, at), s.opts.FlexibleOffset, s.ids)
+		if s.arm(tx, r, sc.Run) || sc.Plan.completion == completionNone {
+			st.put(r, sc)
+			return struct{}{}, nil
+		}
+		// ActionAfterCompletion DELETE: this was the last invocation, so the
+		// schedule goes in the write that hands it over, before any retry
+		// of it runs, journaled as a child of the fire (scheduler.md 8,
+		// 14.6). UNVERIFIED (SCH-07): the deletion's timing against the
+		// invocation's retries is unrecorded.
+		st.remove(r)
+		tx.Record(r.scope, journal.StateChange{Resource: r.arn(), From: journal.ResourceState(sc.Echo.state()), To: scheduleDeleted})
 		return struct{}{}, nil
 	})
 	if err != nil {

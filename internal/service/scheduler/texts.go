@@ -155,6 +155,6 @@ const issuesURL = "https://github.com/sustinbebustin/understudy/issues"
 // sent, that nothing was stored, and what is served instead.
 func errNotYet(what string) *awserr.Error {
 	return schedulerapi.ErrNotImplemented(what + " is not implemented in understudy yet; nothing was stored. " +
-		"Served today: rate(), at() and cron() schedules in the default group with a Lambda, SQS, SNS or event bus target in the schedule's Region " +
-		"with window OFF and ActionAfterCompletion NONE. Ask for it at " + issuesURL + ".")
+		"Served today: rate(), at() and cron() schedules in the default group with a Lambda, SQS, SNS or event bus target in the schedule's Region. " +
+		"Ask for it at " + issuesURL + ".")
 }

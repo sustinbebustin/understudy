@@ -81,7 +81,7 @@ func (s *Service) rearmScope(st *State, scope aws.Scope, now clock.Instant) ([]j
 			}
 			var next run = at
 			if at.Due.Before(now) {
-				next = catchUp(sc.Plan, at, now)
+				next = offset(&sc.Plan, catchUp(sc.Plan, at, now), s.opts.FlexibleOffset, s.ids)
 				sc.Run = next
 				st.put(r, sc)
 				skipped = append(skipped, journal.Advisory{

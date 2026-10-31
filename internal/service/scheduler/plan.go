@@ -1,6 +1,7 @@
 package scheduler
 
 import (
+	"encoding/binary"
 	"fmt"
 	"strings"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
+	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/schedexpr"
 )
 
@@ -58,7 +60,39 @@ type plan struct {
 	// deadLetter is the queue a failed invocation goes to, nil for none
 	// (scheduler.md 7.2).
 	deadLetter *aws.ARN
+	// window is FlexibleTimeWindow: how far after its scheduled instant
+	// an invocation may be made (scheduler.md 5.6).
+	window window
+	// completion is ActionAfterCompletion (scheduler.md 8).
+	completion completion
 }
+
+// window is a parsed FlexibleTimeWindow.
+//
+//sumtype:decl
+type window interface{ isWindow() }
+
+// windowOff invokes at the scheduled instant (scheduler.md 5.6).
+type windowOff struct{}
+
+// windowFlexible invokes inside [scheduled, scheduled+seconds) (scheduler.md
+// 5.6, 14.3.7).
+type windowFlexible struct{ seconds uint32 }
+
+func (windowOff) isWindow()      {}
+func (windowFlexible) isWindow() {}
+
+// completion is what happens to a schedule once it has invoked its target
+// for the last time (scheduler.md 8, 14.6).
+type completion uint8
+
+const (
+	// completionNone keeps the schedule.
+	completionNone completion = iota
+	// completionDelete deletes it in the write that hands its last
+	// invocation to the outbox.
+	completionDelete
+)
 
 // expression is a parsed ScheduleExpression.
 //
@@ -198,17 +232,23 @@ func accept(scope aws.Scope, m *members, units schedexpr.RateUnits, dates dateCh
 	if err != nil {
 		return plan{}, err
 	}
-	switch {
-	case m.window.Mode != schedulerapi.FlexibleTimeWindowModeOff:
-		return plan{}, errNotYet("FlexibleTimeWindow mode " + string(m.window.Mode))
-	case m.action != nil && *m.action == schedulerapi.ActionAfterCompletionDelete:
-		return plan{}, errNotYet("ActionAfterCompletion DELETE")
-	}
 	state := schedulerapi.ScheduleStateEnabled
 	if m.state != nil {
 		state = *m.state
 	}
-	return plan{expression: expr, loc: loc, start: m.start, end: m.end, state: state, target: tgt, deadLetter: dlq}, nil
+	var w window = windowOff{}
+	if mw := m.window.MaximumWindowInMinutes; m.window.Mode == schedulerapi.FlexibleTimeWindowModeFlexible && mw != nil && *mw > 0 {
+		// The model bounds MaximumWindowInMinutes to 1-1440 (scheduler.md 4.1).
+		w = windowFlexible{seconds: uint32(*mw) * 60}
+	}
+	done := completionNone
+	if m.action != nil && *m.action == schedulerapi.ActionAfterCompletionDelete {
+		done = completionDelete
+	}
+	return plan{
+		expression: expr, loc: loc, start: m.start, end: m.end, state: state, target: tgt, deadLetter: dlq,
+		window: w, completion: done,
+	}, nil
 }
 
 // parseExpression parses a ScheduleExpression, refusing it with
@@ -484,6 +524,29 @@ func firstRun(p plan, now clock.Instant, pastDue AtPastDue) run {
 	return p.bounded(firstFireFrom(p.expression, p.start, from, p.loc))
 }
 
+// offset is r with its due instant moved inside a FLEXIBLE window, under
+// scheduler.flexible-window.offset: seeded-uniform draws whole seconds in
+// [0, window) from the ids.KindFlexOffset stream, so a seeded run with the
+// same call sequence repeats them (ADR 0018); window-start keeps 0. It is
+// applied whenever a fire is armed from a new scheduled instant (create,
+// update, enable, the previous fire's write, Rearm after a skip) and the
+// result is stored as the plan's due instant, so snapshots and Rearm arm
+// the same instant. UNVERIFIED (SCH-09), scheduler.md 5.6, 14.3.7: AWS
+// documents only the window's bounds; the distribution is understudy's.
+func offset(p *plan, r run, mode FlexibleOffset, src *ids.Source) run {
+	at, ok := r.(scheduled)
+	w, flexible := p.window.(windowFlexible)
+	if !ok || !flexible || mode == OffsetWindowStart {
+		return r
+	}
+	if w.seconds == 0 {
+		return r
+	}
+	n := binary.BigEndian.Uint32(src.Draw(ids.KindFlexOffset, 4)) % w.seconds
+	at.Due = at.Due.Add(time.Duration(n) * time.Second)
+	return at
+}
+
 // bounded is the run of an invocation scheduled at t, ended when there is
 // none (ok false) or t is at or after EndDate (scheduler.md 5.5).
 func (p *plan) bounded(t time.Time, ok bool) run {
@@ -540,6 +603,7 @@ type echo struct {
 	Description *string                             `json:"description,omitempty"`
 	KmsKeyArn   *string                             `json:"kmsKeyArn,omitempty"`
 	Window      schedulerapi.FlexibleTimeWindowMode `json:"window"`
+	MaxWindow   *int32                              `json:"maxWindowMinutes,omitempty"`
 	Action      *schedulerapi.ActionAfterCompletion `json:"actionAfterCompletion,omitempty"`
 	Target      targetEcho                          `json:"target"`
 }
@@ -582,6 +646,9 @@ func echoOf(m *members) echo {
 	if r := m.target.RetryPolicy; r != nil {
 		e.Target.MaxAgeSeconds, e.Target.MaxRetries = r.MaximumEventAgeInSeconds, r.MaximumRetryAttempts
 	}
+	if m.window.Mode == schedulerapi.FlexibleTimeWindowModeFlexible {
+		e.MaxWindow = m.window.MaximumWindowInMinutes
+	}
 	return e
 }
 
@@ -590,7 +657,7 @@ func echoOf(m *members) echo {
 func (e *echo) members() members {
 	m := members{
 		expression: e.Expression, timezone: e.Timezone, start: e.StartDate, end: e.EndDate, state: e.State, description: e.Description,
-		kmsKeyArn: e.KmsKeyArn, window: schedulerapi.FlexibleTimeWindow{Mode: e.Window}, action: e.Action,
+		kmsKeyArn: e.KmsKeyArn, window: schedulerapi.FlexibleTimeWindow{Mode: e.Window, MaximumWindowInMinutes: e.MaxWindow}, action: e.Action,
 		target: schedulerapi.Target{Arn: e.Target.Arn, RoleArn: e.Target.RoleArn, Input: e.Target.Input, DeadLetterConfig: e.Target.DeadLetter},
 	}
 	if e.Target.MaxAgeSeconds != nil || e.Target.MaxRetries != nil {
@@ -609,7 +676,7 @@ func (e *echo) members() members {
 func (e *echo) sameTiming(o *echo) bool {
 	return e.Expression == o.Expression && equalPtr(e.Timezone, o.Timezone) &&
 		equalTime(e.StartDate, o.StartDate) && equalTime(e.EndDate, o.EndDate) &&
-		e.Window == o.Window && e.state() == o.state()
+		e.Window == o.Window && equalPtr(e.MaxWindow, o.MaxWindow) && e.state() == o.state()
 }
 
 // state is State with its default, ENABLED, filled (scheduler.md 4.6).
