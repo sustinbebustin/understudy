@@ -33,15 +33,16 @@ var _ kernel.Stateful = (*Service)(nil)
 
 // createNote is CreateSchedule's coverage note while the tracer bullet is
 // what is built (spec "Tracer bullet").
-const createNote = "rate() schedules in the default group with an SQS queue target in the schedule's Region are invoked on the emulator clock as the execution role; " +
-	"at() and cron() expressions, other target services, other schedule groups, StartDate and EndDate, a time zone other than UTC, State DISABLED, " +
-	"a FLEXIBLE window, DeadLetterConfig and the parameter blocks of other targets answer NotImplemented; " +
+const createNote = "rate() schedules in the default group with an SQS queue target in the schedule's Region are invoked on the emulator clock as the execution role, in any IANA time zone, which a rate ignores; " +
+	"at() and cron() expressions, other target services, other schedule groups, StartDate and EndDate, State DISABLED, " +
+	"a FLEXIBLE window, DeadLetterConfig and the parameter blocks of other targets answer NotImplemented once the expression, time zone, window and dates are validated; " +
 	"KmsKeyArn is stored and echoed, the payload is not encrypted; " +
 	"the execution role's trust is not checked, so a missing or untrusting role still delivers; " +
 	"ClientToken is accepted and not used for idempotency; the 10,000,000-schedule quota is not counted; " +
 	"unrecorded, understudy's choice: rate units are accepted singular or plural with any value, a rate schedule without StartDate first fires at the write instant, " +
 	"an absent Input delivers {}, client-side target errors are not retried and one execution id covers an invocation's retries, " +
-	"a MaximumWindowInMinutes sent with OFF is ignored, and every refusal message except the expression text is understudy's own"
+	"a MaximumWindowInMinutes sent with OFF is ignored, checks run in the order expression, time zone, window, dates and the future-fire check, target, " +
+	"a present date in the future-fire text renders as RFC 3339 UTC, and every refusal message except the expression and future-fire texts is understudy's own"
 
 // New binds the Scheduler operations built so far (scheduler.md 2.2) and
 // registers the fire timer; the rest stay unbound and answer 501 until

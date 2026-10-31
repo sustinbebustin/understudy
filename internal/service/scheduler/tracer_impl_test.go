@@ -68,8 +68,8 @@ func TestUnbuiltMembersAnswerNotImplemented(t *testing.T) {
 			in.ScheduleExpression = "at(2099-01-01T00:00:00)"
 		},
 		"cron": func(_ *harness, in *schedulerapi.CreateScheduleInput) { in.ScheduleExpression = "cron(0 8 * * ? *)" },
-		"zone": func(_ *harness, in *schedulerapi.CreateScheduleInput) {
-			in.ScheduleExpressionTimezone = new("Europe/Paris")
+		"cron in a zone": func(_ *harness, in *schedulerapi.CreateScheduleInput) {
+			in.ScheduleExpression, in.ScheduleExpressionTimezone = "cron(0 8 * * ? *)", new("Europe/Paris")
 		},
 		"start date": func(h *harness, in *schedulerapi.CreateScheduleInput) { in.StartDate = new(h.now().Add(time.Hour)) },
 		"disabled": func(_ *harness, in *schedulerapi.CreateScheduleInput) {

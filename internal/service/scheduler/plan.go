@@ -1,6 +1,7 @@
 package scheduler
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -48,7 +49,18 @@ type expression interface{ isExpression() }
 // rateExpr fires every interval from its first fire (scheduler.md 5.2).
 type rateExpr struct{ every time.Duration }
 
+// atExpr fires once at its civil time in the schedule's zone
+// (scheduler.md 5.1). Parsed and validated; its plan is not built yet.
+type atExpr struct{ at schedexpr.At }
+
+// cronExpr fires at every matching civil minute in the schedule's zone
+// (scheduler.md 5.3, 5.4). Parsed and validated; its plan is not built
+// yet.
+type cronExpr struct{ cron schedexpr.Cron }
+
 func (rateExpr) isExpression() {}
+func (atExpr) isExpression()   {}
+func (cronExpr) isExpression() {}
 
 // target is a parsed templated target.
 //
@@ -80,18 +92,47 @@ type scheduled struct {
 
 func (scheduled) isRun() {}
 
+// dateCheck is the dates step of accept: at a write, the EndDate order and
+// the future-fire check against the write instant; at a snapshot load,
+// nothing, since the write checked them and time has moved on.
+type dateCheck func(m *members, e expression, loc *time.Location) *awserr.Error
+
+// atWrite is the dates step of a write admitted at now.
+func atWrite(now time.Time) dateCheck {
+	return func(m *members, e expression, loc *time.Location) *awserr.Error { return checkDates(m, e, loc, now) }
+}
+
+// atLoad is the dates step of a snapshot load.
+func atLoad(*members, expression, *time.Location) *awserr.Error { return nil }
+
 // accept parses m into the schedule's plan, refusing what AWS refuses and,
-// with 501, what no ticket has built yet, in the validation order of
-// scheduler.md 14.9.3: expression, time zone, window, dates, target. units
-// is scheduler.rate.unit-agreement.
-func accept(scope aws.Scope, m *members, units schedexpr.RateUnits) (plan, *awserr.Error) {
+// with 501, what no ticket has built yet. The order is scheduler.md
+// 14.9.3's: expression, time zone, flexible window, dates and the
+// future-fire check (in either State), target ARN; only "expression
+// before role" is evidenced (G3; scheduler.md 4.7), the rest is
+// UNVERIFIED (SCH-04). The 501s for what is not built come last, so a
+// request AWS refuses is refused as AWS would. units is
+// scheduler.rate.unit-agreement.
+func accept(scope aws.Scope, m *members, units schedexpr.RateUnits, dates dateCheck) (plan, *awserr.Error) {
 	expr, err := parseExpression(m.expression, units)
 	if err != nil {
 		return plan{}, err
 	}
+	loc, err := parseZone(m.timezone)
+	if err != nil {
+		return plan{}, err
+	}
+	if m.window.Mode == schedulerapi.FlexibleTimeWindowModeFlexible && m.window.MaximumWindowInMinutes == nil {
+		return plan{}, errFlexibleWithoutWindow()
+	}
+	if err := dates(m, expr, loc); err != nil {
+		return plan{}, err
+	}
+	tgt, err := parseTarget(scope, &m.target)
+	if err != nil {
+		return plan{}, err
+	}
 	switch {
-	case m.timezone != nil && *m.timezone != "UTC":
-		return plan{}, errNotYet("ScheduleExpressionTimezone " + *m.timezone)
 	case m.window.Mode != schedulerapi.FlexibleTimeWindowModeOff:
 		return plan{}, errNotYet("FlexibleTimeWindow mode " + string(m.window.Mode))
 	case m.start != nil || m.end != nil:
@@ -99,29 +140,93 @@ func accept(scope aws.Scope, m *members, units schedexpr.RateUnits) (plan, *awse
 	case m.state != nil && *m.state != schedulerapi.ScheduleStateEnabled:
 		return plan{}, errNotYet("State " + string(*m.state))
 	}
-	tgt, err := parseTarget(scope, &m.target)
-	if err != nil {
-		return plan{}, err
+	switch expr.(type) {
+	case atExpr, cronExpr:
+		return plan{}, errNotYet("ScheduleExpression " + m.expression + " (at() and cron())")
+	case rateExpr:
 	}
 	return plan{expression: expr, target: tgt}, nil
 }
 
-// parseExpression parses a ScheduleExpression; at() and cron() answer 501
-// until they are built.
+// parseExpression parses a ScheduleExpression, refusing it with
+// Scheduler's recorded text (scheduler.md 2.4).
 func parseExpression(expr string, units schedexpr.RateUnits) (expression, *awserr.Error) {
-	if strings.HasPrefix(expr, "at(") || strings.HasPrefix(expr, "cron(") {
-		return nil, errNotYet("ScheduleExpression " + expr + " (at() and cron())")
-	}
 	parsed, perr := schedexpr.ParseScheduler(expr, units)
 	if perr != nil {
-		return nil, schedulerapi.ErrValidationException(perr.Message())
+		return nil, errInvalidExpression(perr)
 	}
 	switch p := parsed.(type) {
 	case schedexpr.Rate:
 		return rateExpr{every: p.Interval()}, nil
-	case schedexpr.At, schedexpr.Cron:
+	case schedexpr.At:
+		return atExpr{at: p}, nil
+	case schedexpr.Cron:
+		return cronExpr{cron: p}, nil
 	}
-	return nil, errNotYet("ScheduleExpression " + expr + " (at() and cron())")
+	return nil, awserr.Internalf(fmt.Errorf("schedexpr.ParseScheduler(%q) returned %T, not an At, Rate or Cron", expr, parsed))
+}
+
+// parseZone resolves ScheduleExpressionTimezone in the IANA database the
+// binary embeds (time/tzdata; scheduler.md 5.4, 14.3.2); UTC when it is
+// not sent. "Local" names the host's zone in Go, not an IANA zone, so it
+// is refused.
+func parseZone(name *string) (*time.Location, *awserr.Error) {
+	if name == nil {
+		return time.UTC, nil
+	}
+	if *name == "" || *name == "Local" {
+		return nil, errBadZone(*name)
+	}
+	loc, err := time.LoadLocation(*name)
+	if err != nil {
+		return nil, errBadZone(*name)
+	}
+	return loc, nil
+}
+
+// checkDates refuses an EndDate not after StartDate, then a cron or rate
+// schedule with no fire in [max(now, StartDate), EndDate) (scheduler.md
+// 14.3.6). An at() ignores both dates (scheduler.md 5.1).
+func checkDates(m *members, e expression, loc *time.Location, now time.Time) *awserr.Error {
+	if _, ok := e.(atExpr); ok {
+		return nil
+	}
+	if m.start != nil && m.end != nil && !m.end.After(*m.start) {
+		return errEndNotAfterStart(*m.start, *m.end)
+	}
+	from := now
+	if m.start != nil && m.start.After(now) {
+		from = *m.start
+	}
+	first, ok := firstFireFrom(e, m.start, from, loc)
+	if !ok || (m.end != nil && !first.Before(*m.end)) {
+		return errNoFutureFire(m.expression, m.start, m.end)
+	}
+	return nil
+}
+
+// firstFireFrom is e's first scheduled instant at or after from (an at()'s
+// one instant, whatever from is). A rate
+// counts from StartDate when it is sent, else from the write instant
+// (scheduler.md 5.2, 14.3.4), so from is its first fire then; a cron
+// matches civil minutes in loc.
+func firstFireFrom(e expression, start *time.Time, from time.Time, loc *time.Location) (time.Time, bool) {
+	switch e := e.(type) {
+	case rateExpr:
+		if start == nil || !start.Before(from) {
+			return from, true
+		}
+		late := from.Sub(*start) % e.every
+		if late == 0 {
+			return from, true
+		}
+		return from.Add(e.every - late), true
+	case cronExpr:
+		return schedexpr.NextIn(e.cron, from.Add(-time.Nanosecond), loc)
+	case atExpr:
+		return e.at.In(loc), true
+	}
+	return time.Time{}, false
 }
 
 // parseTarget parses the target: an SQS queue in scope's Region, with an

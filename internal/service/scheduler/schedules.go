@@ -20,7 +20,7 @@ func (s *Service) createSchedule(_ context.Context, c *kernel.Call, in *schedule
 		return nil, errNotYet("GroupName " + r.group + " (schedule groups other than default)")
 	}
 	m := createMembers(in)
-	p, err := accept(r.scope, &m, s.opts.RateUnits)
+	p, err := accept(r.scope, &m, s.opts.RateUnits, atWrite(c.Admitted().Wire()))
 	if err != nil {
 		return nil, err
 	}
