@@ -104,8 +104,9 @@ func TestDatesAndWindowRefusals(t *testing.T) {
 // date fault.
 func TestValidationOrder(t *testing.T) {
 	run(t, func(h *harness) {
-		// A Lambda target answers 501 at the target step until ticket 5.
-		laterTarget := schedulerapi.Target{Arn: h.functionArn("f"), RoleArn: h.roleArn()}
+		// An ECS target fails at the target step: it answers NotImplemented,
+		// so the date text shows the date check ran first.
+		laterTarget := schedulerapi.Target{Arn: fmt.Sprintf("arn:aws:ecs:%s:%s:cluster/c", h.Scope.Region, h.Scope.Account), RoleArn: h.roleArn()}
 		cases := []struct {
 			name string
 			edit func(in *schedulerapi.CreateScheduleInput)
