@@ -304,20 +304,24 @@ LAMBDA_TRUST='{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal"
 # make_role NAME [TRUST]: create an IAM role with trust policy TRUST
 # (default $LAMBDA_TRUST, one Lambda and others can use); print its ARN.
 #
-# With CONFORMANCE_ROLE_POLICY_DIR set and a file NAME.json in it, the
-# account root then puts that file as the role's inline policy iam-loop: the
-# IAM loop's second run (conformance/iam-loop) gives each role the policy
-# rendered from its first run, under iam.enforce=enforce.
+# With CONFORMANCE_ROLE_POLICY_DIR set and a file NAME.arns in it (one
+# managed policy ARN per line), the account root then attaches each of those
+# policies to the role: the IAM loop's second run (conformance/iam-loop)
+# gives each role the policy rendered from its first run, under
+# iam.enforce=enforce.
 make_role() {
-  local arn policy
+  local arn arns policy_arn
   aws_ok iam create-role --role-name "$1" --assume-role-policy-document "${2:-$LAMBDA_TRUST}" --output json
   arn=$(jqv '.Role.Arn')
-  policy="${CONFORMANCE_ROLE_POLICY_DIR:-}/$1.json"
-  if [ -n "${CONFORMANCE_ROLE_POLICY_DIR:-}" ] && [ -f "$policy" ]; then
+  if [ -n "${CONFORMANCE_ROLE_POLICY_DIR:-}" ] && [ -f "$CONFORMANCE_ROLE_POLICY_DIR/$1.arns" ]; then
+    mapfile -t arns <"$CONFORMANCE_ROLE_POLICY_DIR/$1.arns"
     # The dummy key test is the default account's root (ADR 0012).
     (
       export AWS_ACCESS_KEY_ID=test
-      aws_ok iam put-role-policy --role-name "$1" --policy-name iam-loop --policy-document "file://$policy"
+      for policy_arn in "${arns[@]}"; do
+        [ -n "$policy_arn" ] || continue
+        aws_ok iam attach-role-policy --role-name "$1" --policy-arn "$policy_arn"
+      done
     )
   fi
   printf '%s\n' "$arn"

@@ -141,29 +141,32 @@ func assumableTrustPolicy(acct string) string {
 		acct + `:root"},"Action":"sts:AssumeRole"}]}`
 }
 
-// rolePolicyDirEnv names the directory of per-role policies the IAM loop
-// gives the roles it re-creates (conformance/iam-loop).
+// rolePolicyDirEnv names the directory of per-role managed policy lists the
+// IAM loop gives the roles it re-creates (conformance/iam-loop).
 const rolePolicyDirEnv = "CONFORMANCE_ROLE_POLICY_DIR"
 
 // createRole creates an IAM role with the trust policy and deletes it when
 // the test ends. With CONFORMANCE_ROLE_POLICY_DIR set and a file
-// <roleName>.json in it, the account root then puts that file as the role's
-// inline policy iam-loop, the policy the IAM loop rendered for the role.
+// <roleName>.arns in it (one managed policy ARN per line), the account root
+// then attaches each of those policies to the role: the policy the IAM loop
+// rendered for the role, split to fit the managed policy size quota.
 func createRole(t *testing.T, roleName, trust string) *iamRole {
 	t.Helper()
 	client := iam.NewFromConfig(awsCfg)
 	out, err := client.CreateRole(t.Context(), &iam.CreateRoleInput{RoleName: aws.String(roleName), AssumeRolePolicyDocument: aws.String(trust)})
 	ok(t, err, "CreateRole "+roleName)
 	if dir := os.Getenv(rolePolicyDirEnv); dir != "" {
-		if doc, err := os.ReadFile(filepath.Join(dir, roleName+".json")); err == nil {
+		if list, err := os.ReadFile(filepath.Join(dir, roleName+".arns")); err == nil {
 			// The dummy key test is the default account's root (ADR 0012).
 			root := iam.NewFromConfig(awsCfg, func(o *iam.Options) {
 				o.Credentials = credentials.NewStaticCredentialsProvider("test", "test", "")
 			})
 			// The root calls nothing else, so the loop's check that the root
 			// made no call after setup holds; the role outlives the test.
-			_, err := root.PutRolePolicy(t.Context(), &iam.PutRolePolicyInput{RoleName: aws.String(roleName), PolicyName: aws.String("iam-loop"), PolicyDocument: aws.String(string(doc))})
-			ok(t, err, "PutRolePolicy iam-loop "+roleName)
+			for _, policyARN := range strings.Fields(string(list)) {
+				_, err := root.AttachRolePolicy(t.Context(), &iam.AttachRolePolicyInput{RoleName: aws.String(roleName), PolicyArn: aws.String(policyARN)})
+				ok(t, err, "AttachRolePolicy "+policyARN+" "+roleName)
+			}
 		}
 	}
 	t.Cleanup(func() {
