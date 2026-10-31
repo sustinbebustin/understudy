@@ -2,6 +2,7 @@ package apigateway
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/api/apigatewayapi"
 	"github.com/sustinbebustin/understudy/internal/evidence"
@@ -232,6 +233,11 @@ func (*Service) Switches() []fidelity.Entry {
 }
 
 // SourceARN is the aws:SourceArn the data plane presents for a request
-// that resource path and method serve (switch apigateway.lambda.permission).
-// It is not implemented yet and returns "".
-func SourceARN(_, _, _, _, _, _ string) string { return "" }
+// that resource path and method serve (switch apigateway.lambda.permission),
+// in the aws partition: method is the method resource that serves (ANY as
+// written), resourcePath the resource's template, whose leading slash is
+// dropped, so the root resource gives an empty last segment
+// (apigateway-rest.md 5.4, 3.10).
+func SourceARN(region, account, apiID, stage, method, resourcePath string) string {
+	return "arn:aws:execute-api:" + region + ":" + account + ":" + apiID + "/" + stage + "/" + method + "/" + strings.TrimPrefix(resourcePath, "/")
+}

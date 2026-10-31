@@ -1,0 +1,337 @@
+package apigateway
+
+import (
+	"context"
+	"regexp"
+	"slices"
+	"strings"
+
+	"github.com/sustinbebustin/understudy/internal/api/apigatewayapi"
+	"github.com/sustinbebustin/understudy/internal/aws"
+	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/clock"
+	"github.com/sustinbebustin/understudy/internal/kernel"
+)
+
+// The control plane of the tracer bullet (spec 6b ticket 2): enough of
+// CreateRestApi, GetRestApi, PutMethod, PutIntegration and
+// CreateDeployment for a Lambda proxy on the root resource. A member these
+// do not handle yet is refused with 501 naming it, never ignored.
+
+// createRestAPI creates a REST API with its root resource
+// (apigateway-rest.md 3.1, 3.2; defaults recorded, 2.3).
+func (s *Service) createRestAPI(_ context.Context, c *kernel.Call, in *apigatewayapi.CreateRestApiInput) (*apigatewayapi.RestApi, *awserr.Error) {
+	if err := refuseUnimplemented("CreateRestApi",
+		member{"cloneFrom", in.CloneFrom != nil},
+		member{"binaryMediaTypes", in.BinaryMediaTypes != nil},
+		member{"minimumCompressionSize", in.MinimumCompressionSize != nil},
+		member{"apiKeySource", in.ApiKeySource != nil},
+		member{"endpointConfiguration", in.EndpointConfiguration != nil},
+		member{"policy", in.Policy != nil},
+		member{"tags", in.Tags != nil},
+		member{"disableExecuteApiEndpoint", in.DisableExecuteApiEndpoint},
+		member{"securityPolicy", in.SecurityPolicy != nil},
+		member{"endpointAccessMode", in.EndpointAccessMode != nil},
+	); err != nil {
+		return nil, err
+	}
+	if in.Description != nil && *in.Description == "" {
+		// Recorded (apigateway-rest.md 2.4).
+		return nil, errBadRequest("Description cannot be an empty string")
+	}
+	scope := c.Scope()
+	id := s.newAPIID(scope)
+	api, err := kernel.Write(c, s.cells, scope, func(st *State, now clock.Instant, _ *kernel.Tx) (RestAPI, *awserr.Error) {
+		root := string(s.ids.APIGatewayRootResourceID())
+		a := RestAPI{
+			ID: id, Seq: st.NextSeq, Name: in.Name, Description: clonePtr(in.Description), Version: clonePtr(in.Version), Created: now,
+			RootResourceID: root, Resources: []Resource{{ID: root, Path: "/"}},
+		}
+		st.NextSeq++
+		st.APIs[id] = a
+		// Set again in case a Reset dropped the reservation before the
+		// write; the index lock is a leaf, never held while a cell lock is.
+		s.index.set(id, scope)
+		return a, nil
+	})
+	if err != nil {
+		s.index.release(id)
+		return nil, err
+	}
+	return new(api.output(APIStatusSwitch().Value.AfterCreate)), nil
+}
+
+// newAPIID draws a REST API id no account holds and reserves it for scope.
+func (s *Service) newAPIID(scope aws.Scope) string {
+	for {
+		id := string(s.ids.APIGatewayAPIID())
+		if s.index.reserve(id, scope) {
+			return id
+		}
+	}
+}
+
+// getRestAPI answers one REST API of the caller's account and region.
+func (s *Service) getRestAPI(_ context.Context, c *kernel.Call, in *apigatewayapi.GetRestApiInput) (*apigatewayapi.RestApi, *awserr.Error) {
+	scope := c.Scope()
+	out := readState(s, scope, func(st *State) *apigatewayapi.RestApi {
+		a, ok := st.APIs[in.RestApiId]
+		if !ok {
+			return nil
+		}
+		// The status a REST API reports once created (switch
+		// apigateway.restapi.api-status, APIGW1-03).
+		return new(a.output(APIStatusSwitch().Value.AfterCreate))
+	})
+	if out == nil {
+		return nil, errAPINotFound(scope, in.RestApiId)
+	}
+	return out, nil
+}
+
+// output is the API as CreateRestApi and GetRestApi answer it, with the
+// recorded defaults of the members it does not hold yet
+// (apigateway-rest.md 2.3).
+func (a *RestAPI) output(status apigatewayapi.ApiStatus) apigatewayapi.RestApi {
+	return apigatewayapi.RestApi{
+		Id: new(a.ID), Name: new(a.Name), Description: clonePtr(a.Description), Version: clonePtr(a.Version),
+		CreatedDate:  new(a.Created.Wire()),
+		ApiKeySource: new(apigatewayapi.ApiKeySourceTypeHeader),
+		EndpointConfiguration: &apigatewayapi.EndpointConfiguration{
+			Types: []apigatewayapi.EndpointType{apigatewayapi.EndpointTypeEdge}, IpAddressType: new(apigatewayapi.IpAddressTypeIpv4),
+		},
+		RootResourceId: new(a.RootResourceID),
+		ApiStatus:      new(status),
+	}
+}
+
+// httpMethods are the methods PutMethod accepts (recorded,
+// apigateway-rest.md 2.4).
+func httpMethods() []string {
+	return []string{"DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT", "ANY"}
+}
+
+// putMethod creates or replaces a method of a resource (apigateway-rest.md
+// 3.3; replacing is inferred). The replaced method's integration goes with
+// it.
+func (s *Service) putMethod(_ context.Context, c *kernel.Call, in *apigatewayapi.PutMethodInput) (*apigatewayapi.Method, *awserr.Error) {
+	if err := refuseUnimplemented("PutMethod",
+		member{"authorizerId", in.AuthorizerId != nil},
+		member{"apiKeyRequired", in.ApiKeyRequired},
+		member{"operationName", in.OperationName != nil},
+		member{"requestParameters", in.RequestParameters != nil},
+		member{"requestModels", in.RequestModels != nil},
+		member{"requestValidatorId", in.RequestValidatorId != nil},
+		member{"authorizationScopes", in.AuthorizationScopes != nil},
+	); err != nil {
+		return nil, err
+	}
+	if !slices.Contains(httpMethods(), in.HttpMethod) {
+		return nil, errBadRequest("Invalid HttpMethod specified. Valid options are GET,PUT,POST,DELETE,PATCH,OPTIONS,HEAD,ANY")
+	}
+	switch in.AuthorizationType {
+	case "NONE", "AWS_IAM":
+	case "CUSTOM", "COGNITO_USER_POOLS":
+		// Recorded (apigateway-rest.md 2.4): no authorizer can exist, since
+		// authorizers are unbound.
+		return nil, errBadRequest("Invalid authorizer ID specified. Setting the authorization type to CUSTOM or COGNITO_USER_POOLS requires a valid authorizer.")
+	default:
+		return nil, refuseUnimplemented("PutMethod", member{"authorizationType " + in.AuthorizationType, true})
+	}
+	scope := c.Scope()
+	m := Method{HTTPMethod: in.HttpMethod, Authorization: in.AuthorizationType}
+	_, err := kernel.Write(c, s.cells, scope, func(st *State, _ clock.Instant, _ *kernel.Tx) (struct{}, *awserr.Error) {
+		a, ok := st.APIs[in.RestApiId]
+		if !ok {
+			return struct{}{}, errAPINotFound(scope, in.RestApiId)
+		}
+		r, i, ok := a.resource(in.ResourceId)
+		if !ok {
+			return struct{}{}, errResourceNotFound()
+		}
+		r = r.withMethods()
+		r.Methods[in.HttpMethod] = m
+		st.APIs[a.ID] = a.withResource(i, r)
+		return struct{}{}, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &apigatewayapi.Method{HttpMethod: new(m.HTTPMethod), AuthorizationType: new(m.Authorization), ApiKeyRequired: new(false)}, nil
+}
+
+// lambdaInvokeURI is API Gateway's URI for invoking a Lambda function
+// (apigateway-rest.md 3.4): the function ARN is the submatch.
+var lambdaInvokeURI = regexp.MustCompile(`^arn:[a-z-]+:apigateway:[a-z0-9-]+:lambda:path/2015-03-31/functions/(.+)/invocations$`)
+
+// lambdaFunction is the function a Lambda proxy URI names, its qualifier
+// kept.
+func lambdaFunction(uri string) (aws.ARN, bool) {
+	m := lambdaInvokeURI.FindStringSubmatch(uri)
+	if m == nil {
+		return aws.ARN{}, false
+	}
+	fn, err := aws.ParseARN(m[1])
+	if err != nil || fn.Service != "lambda" || fn.Region == "" || fn.Account == "" {
+		return aws.ARN{}, false
+	}
+	name, qualifier, qualified := strings.Cut(strings.TrimPrefix(fn.Resource, "function:"), ":")
+	if !strings.HasPrefix(fn.Resource, "function:") || name == "" || qualified && (qualifier == "" || strings.Contains(qualifier, ":")) {
+		return aws.ARN{}, false
+	}
+	return fn, true
+}
+
+// The integration defaults AWS fills (recorded, apigateway-rest.md 2.3).
+const (
+	defaultTimeoutInMillis     = 29000
+	defaultPassthroughBehavior = "WHEN_NO_MATCH"
+	// minTimeoutInMillis and maxTimeoutInMillis bound a buffered
+	// integration's timeout (apigateway-rest.md 11).
+	minTimeoutInMillis = 50
+	maxTimeoutInMillis = 300000
+)
+
+// putIntegration sets a method's integration (apigateway-rest.md 3.4). So
+// far only AWS_PROXY to a Lambda function is accepted.
+func (s *Service) putIntegration(_ context.Context, c *kernel.Call, in *apigatewayapi.PutIntegrationInput) (*apigatewayapi.Integration, *awserr.Error) {
+	if err := refuseUnimplemented("PutIntegration",
+		member{"type " + string(in.Type), in.Type != apigatewayapi.IntegrationTypeAwsProxy},
+		member{"connectionType", in.ConnectionType != nil},
+		member{"connectionId", in.ConnectionId != nil},
+		member{"credentials", in.Credentials != nil},
+		member{"requestParameters", in.RequestParameters != nil},
+		member{"requestTemplates", in.RequestTemplates != nil},
+		member{"passthroughBehavior", in.PassthroughBehavior != nil},
+		member{"cacheNamespace", in.CacheNamespace != nil},
+		member{"cacheKeyParameters", in.CacheKeyParameters != nil},
+		member{"contentHandling", in.ContentHandling != nil},
+		member{"tlsConfig", in.TlsConfig != nil},
+		member{"responseTransferMode", in.ResponseTransferMode != nil},
+		member{"integrationTarget", in.IntegrationTarget != nil},
+	); err != nil {
+		return nil, err
+	}
+	if deref(in.IntegrationHttpMethod, "") == "" {
+		// Recorded (apigateway-rest.md 2.4).
+		return nil, errBadRequest("Enumeration value for HttpMethod must be non-empty")
+	}
+	uri := deref(in.Uri, "")
+	if strings.Contains(uri, "${stageVariables.") || strings.Contains(uri, ":firehose:") {
+		return nil, refuseUnimplemented("PutIntegration", member{"an AWS_PROXY uri that is not a Lambda function ARN", true})
+	}
+	if _, ok := lambdaFunction(uri); !ok {
+		// Recorded (apigateway-rest.md 2.4).
+		return nil, errBadRequest("Integrations of type 'AWS_PROXY' currently only supports Lambda function and Firehose stream invocations.")
+	}
+	timeout := deref(in.TimeoutInMillis, defaultTimeoutInMillis)
+	if timeout < minTimeoutInMillis || timeout > maxTimeoutInMillis {
+		// The bounds are documented (apigateway-rest.md 11); the text is
+		// inferred.
+		return nil, errBadRequest("Timeout should be between %d ms and %d ms", minTimeoutInMillis, maxTimeoutInMillis)
+	}
+	scope := c.Scope()
+	integration, err := kernel.Write(c, s.cells, scope, func(st *State, _ clock.Instant, _ *kernel.Tx) (Integration, *awserr.Error) {
+		a, ok := st.APIs[in.RestApiId]
+		if !ok {
+			return Integration{}, errAPINotFound(scope, in.RestApiId)
+		}
+		r, i, ok := a.resource(in.ResourceId)
+		if !ok {
+			return Integration{}, errResourceNotFound()
+		}
+		m, ok := r.Methods[in.HttpMethod]
+		if !ok {
+			return Integration{}, errMethodNotFound()
+		}
+		x := Integration{
+			Type: in.Type, HTTPMethod: *in.IntegrationHttpMethod, URI: uri, PassthroughBehavior: defaultPassthroughBehavior,
+			CacheNamespace: r.ID, CacheKeyParameters: []string{}, TimeoutInMillis: timeout,
+		}
+		m.Integration = &x
+		r = r.withMethods()
+		r.Methods[in.HttpMethod] = m
+		st.APIs[a.ID] = a.withResource(i, r)
+		return x, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &apigatewayapi.Integration{
+		Type: new(integration.Type), HttpMethod: new(integration.HTTPMethod), Uri: new(integration.URI),
+		PassthroughBehavior: new(integration.PassthroughBehavior), TimeoutInMillis: integration.TimeoutInMillis,
+		CacheNamespace: new(integration.CacheNamespace), CacheKeyParameters: slices.Clone(integration.CacheKeyParameters),
+	}, nil
+}
+
+// stageNamePattern is a stage name (documented, apigateway-rest.md 3.7).
+var stageNamePattern = regexp.MustCompile(`^[A-Za-z0-9_-]{1,128}$`)
+
+// createDeployment snapshots the API's resources, methods and integrations
+// and, with stageName, creates that stage on the snapshot or repoints it
+// (apigateway-rest.md 3.6, 12.5).
+func (s *Service) createDeployment(_ context.Context, c *kernel.Call, in *apigatewayapi.CreateDeploymentInput) (*apigatewayapi.Deployment, *awserr.Error) {
+	if err := refuseUnimplemented("CreateDeployment",
+		member{"stageDescription", in.StageDescription != nil},
+		member{"cacheClusterEnabled", in.CacheClusterEnabled != nil},
+		member{"cacheClusterSize", in.CacheClusterSize != nil},
+		member{"variables", in.Variables != nil},
+		member{"canarySettings", in.CanarySettings != nil},
+		member{"tracingEnabled", in.TracingEnabled != nil},
+	); err != nil {
+		return nil, err
+	}
+	if in.StageName != nil && !stageNamePattern.MatchString(*in.StageName) {
+		// The pattern is documented (apigateway-rest.md 3.7); the text is
+		// inferred.
+		return nil, errBadRequest("Stage name only allows a-zA-Z0-9_- and must be 1 to 128 characters long")
+	}
+	scope := c.Scope()
+	d, err := kernel.Write(c, s.cells, scope, func(st *State, now clock.Instant, _ *kernel.Tx) (Deployment, *awserr.Error) {
+		a, ok := st.APIs[in.RestApiId]
+		if !ok {
+			return Deployment{}, errAPINotFound(scope, in.RestApiId)
+		}
+		if err := a.deployable(); err != nil {
+			return Deployment{}, err
+		}
+		id := string(s.ids.APIGatewayDeploymentID())
+		for a.hasChild(id) {
+			id = string(s.ids.APIGatewayDeploymentID())
+		}
+		d := Deployment{ID: id, Description: clonePtr(in.Description), Created: now, Resources: cloneResources(a.Resources)}
+		a.Deployments = append(slices.Clone(a.Deployments), d)
+		if in.StageName != nil {
+			a.Stages = slices.Clone(a.Stages)
+			if _, i, ok := a.stage(*in.StageName); ok {
+				a.Stages[i].Deployment, a.Stages[i].Updated = id, now
+			} else {
+				a.Stages = append(a.Stages, Stage{Name: *in.StageName, Deployment: id, Created: now, Updated: now})
+			}
+		}
+		st.APIs[a.ID] = a
+		return d, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &apigatewayapi.Deployment{Id: new(d.ID), Description: clonePtr(d.Description), CreatedDate: new(d.Created.Wire())}, nil
+}
+
+// deployable refuses a deployment of an API with no methods, or with a
+// method that has no integration (texts inferred, APIGW1-05).
+func (a *RestAPI) deployable() *awserr.Error {
+	methods := 0
+	for _, r := range a.Resources {
+		for _, m := range r.Methods {
+			if m.Integration == nil {
+				return errBadRequest("No integration defined for method")
+			}
+			methods++
+		}
+	}
+	if methods == 0 {
+		return errBadRequest("The REST API doesn't contain any methods")
+	}
+	return nil
+}

@@ -117,7 +117,7 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 
 | Service | Operations | Full | Stored only | Partial | Unbound | Internal | Raw |
 |---|---|---|---|---|---|---|---|
-| apigateway | 124 | 0 | 0 | 0 | 124 | 0 | 1 |
+| apigateway | 124 | 0 | 0 | 5 | 119 | 0 | 1 |
 | apigatewayv2 | 103 | 0 | 2 | 29 | 72 | 0 | 1 |
 | cloudwatch | 55 | 4 | 0 | 11 | 40 | 0 | 0 |
 | dynamodb | 58 | 4 | 2 | 20 | 32 | 0 | 0 |
@@ -142,10 +142,14 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 
 | Operation | Status | Evidence | Note |
 |---|---|---|---|
+| CreateDeployment | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); only stageName and description are accepted, and every other member answers NotImplemented; the texts for deploying an API with no methods or a method with no integration are inferred (APIGW1-05) |
+| CreateRestApi | partial | inferred, 1 of 3 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); only name, description and version are accepted, and every other member answers NotImplemented; apiKeySource, endpointConfiguration and disableExecuteApiEndpoint are reported at their recorded defaults |
+| GetRestApi | partial | inferred, 1 of 3 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); apiKeySource, endpointConfiguration and disableExecuteApiEndpoint are reported at their recorded defaults |
+| PutIntegration | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); only type AWS_PROXY to a Lambda function with integrationHttpMethod, uri and timeoutInMillis is accepted, and every other type and member answers NotImplemented |
+| PutMethod | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); only httpMethod and authorizationType are accepted, and every other member answers NotImplemented; AWS_IAM methods answer 501 at invoke |
 | CreateApiKey | unbound | unassessed |  |
 | CreateAuthorizer | unbound | unassessed |  |
 | CreateBasePathMapping | unbound | unassessed |  |
-| CreateDeployment | unbound | unassessed |  |
 | CreateDocumentationPart | unbound | unassessed |  |
 | CreateDocumentationVersion | unbound | unassessed |  |
 | CreateDomainName | unbound | unassessed |  |
@@ -153,7 +157,6 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | CreateModel | unbound | unassessed |  |
 | CreateRequestValidator | unbound | unassessed |  |
 | CreateResource | unbound | unassessed |  |
-| CreateRestApi | unbound | unassessed |  |
 | CreateStage | unbound | unassessed |  |
 | CreateUsagePlan | unbound | unassessed |  |
 | CreateUsagePlanKey | unbound | unassessed |  |
@@ -215,7 +218,6 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | GetRequestValidators | unbound | unassessed |  |
 | GetResource | unbound | unassessed |  |
 | GetResources | unbound | unassessed |  |
-| GetRestApi | unbound | unassessed |  |
 | GetRestApis | unbound | unassessed |  |
 | GetSdk | unbound | unassessed |  |
 | GetSdkType | unbound | unassessed |  |
@@ -234,9 +236,7 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | ImportDocumentationParts | unbound | unassessed |  |
 | ImportRestApi | unbound | unassessed |  |
 | PutGatewayResponse | unbound | unassessed |  |
-| PutIntegration | unbound | unassessed |  |
 | PutIntegrationResponse | unbound | unassessed |  |
-| PutMethod | unbound | unassessed |  |
 | PutMethodResponse | unbound | unassessed |  |
 | PutRestApi | unbound | unassessed |  |
 | RejectDomainNameAccessAssociation | unbound | unassessed |  |
@@ -271,7 +271,7 @@ Raw operations:
 
 | Operation | Status | Evidence | Note |
 |---|---|---|---|
-| InvokeRestApi | unbound | unassessed |  |
+| InvokeRestApi | partial | inferred, 4 of 4 claims | AWS_PROXY (payload 1.0) on the root resource only, no other resource can be created yet; mapping templates, request validation, authorizers, API keys, caching and throttling are not applied; AWS_IAM methods answer 501; inferred, UNVERIFIED: unknown stage, ANY against explicit methods, HEAD (APIGW1-07, -08), timeout (APIGW1-10), empty-body event (APIGW1-16); header names reach the event in canonical form (Test-Header), not as the client wrote them |
 
 ### apigatewayv2
 

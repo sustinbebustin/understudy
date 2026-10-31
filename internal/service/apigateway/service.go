@@ -1,13 +1,20 @@
 package apigateway
 
 import (
-	"errors"
+	"fmt"
+	"maps"
+	"slices"
+	"strings"
+	"sync"
 
+	"github.com/sustinbebustin/understudy/internal/api/apigatewayapi"
 	"github.com/sustinbebustin/understudy/internal/authz"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/clock"
+	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/ref"
+	"github.com/sustinbebustin/understudy/internal/registry"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
@@ -25,7 +32,8 @@ type Options struct {
 	// read against, as the edge's; the zero value is AWS's.
 	Regions aws.Regions
 	// Enforce is iam.enforce, which decides what an invocation of an API
-	// with a resource policy does (the spec's enforce matrix).
+	// with a resource policy does (the spec's enforce matrix). No API can
+	// hold a policy yet, so it is not read yet.
 	Enforce EnforceMode
 }
 
@@ -43,16 +51,77 @@ const (
 
 // Service is Amazon API Gateway's REST APIs (apigateway): one state cell
 // per account and region holding its REST APIs, and the execute-api data
-// plane. It is not implemented yet: New binds nothing, so every operation
-// answers 501.
-type Service struct{}
+// plane.
+type Service struct {
+	k        *kernel.Kernel
+	ids      *ids.Source
+	policies authz.PolicyProvider
+	regions  aws.Regions
+	cells    *store.Partitioned[aws.Scope, State]
+	index    apiIndex
+}
 
 // The service is the snapshot and reset view of its state.
 var _ kernel.Stateful = (*Service)(nil)
 
+// baseNote heads every bound control-plane operation's coverage note
+// (apigateway-rest.md 2.4, 3.10).
+const baseNote = "the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02)"
+
+// Coverage notes of the tracer bullet's operations: what each leaves out
+// of the documented behavior until its own ticket.
+const (
+	createRestAPINote = "only name, description and version are accepted, and every other member answers NotImplemented; " +
+		"apiKeySource, endpointConfiguration and disableExecuteApiEndpoint are reported at their recorded defaults"
+	getRestAPINote = "apiKeySource, endpointConfiguration and disableExecuteApiEndpoint are reported at their recorded defaults"
+	putMethodNote  = "only httpMethod and authorizationType are accepted, and every other member answers NotImplemented; " +
+		"AWS_IAM methods answer 501 at invoke"
+	putIntegrationNote = "only type AWS_PROXY to a Lambda function with integrationHttpMethod, uri and timeoutInMillis is accepted, " +
+		"and every other type and member answers NotImplemented"
+	createDeploymentNote = "only stageName and description are accepted, and every other member answers NotImplemented; " +
+		"the texts for deploying an API with no methods or a method with no integration are inferred (APIGW1-05)"
+	invokeRestAPINote = "AWS_PROXY (payload 1.0) on the root resource only, no other resource can be created yet; " +
+		"mapping templates, request validation, authorizers, API keys, caching and throttling are not applied; AWS_IAM methods answer 501; " +
+		"inferred, UNVERIFIED: unknown stage, ANY against explicit methods, HEAD (APIGW1-07, -08), timeout (APIGW1-10), empty-body event (APIGW1-16); " +
+		"header names reach the event in canonical form (Test-Header), not as the client wrote them"
+)
+
+// partial is a Partial mark: the base note, then note.
+func partial(note string) registry.Partial {
+	return registry.Partial{Note: baseNote + "; " + note}
+}
+
 // New binds the operations understudy implements. Every other operation
-// stays unbound and answers 501. It binds nothing yet.
-func New(_ kernel.ServiceDeps, _ Options) *Service { return &Service{} }
+// stays unbound and answers 501.
+func New(d kernel.ServiceDeps, o Options) *Service {
+	s := &Service{
+		k:        d.Kernel,
+		ids:      d.IDs,
+		policies: o.FunctionPolicies,
+		regions:  o.Regions,
+		cells:    store.NewPartitioned(d.Kernel.Gate(), stateCodec(), newState),
+		index:    apiIndex{scopes: map[string]aws.Scope{}},
+	}
+	b := apigatewayapi.NewBinder(d.Binder)
+	b.CreateRestApi(s.createRestAPI, partial(createRestAPINote),
+		kernel.WithResources(resourceAt(func(*apigatewayapi.CreateRestApiInput) string { return "/restapis" })))
+	b.GetRestApi(s.getRestAPI, partial(getRestAPINote),
+		kernel.WithResources(resourceAt(func(in *apigatewayapi.GetRestApiInput) string { return "/restapis/" + in.RestApiId })))
+	b.PutMethod(s.putMethod, partial(putMethodNote),
+		kernel.WithResources(resourceAt(func(in *apigatewayapi.PutMethodInput) string {
+			return "/restapis/" + in.RestApiId + "/resources/" + in.ResourceId + "/methods/" + in.HttpMethod
+		})))
+	b.PutIntegration(s.putIntegration, partial(putIntegrationNote),
+		kernel.WithResources(resourceAt(func(in *apigatewayapi.PutIntegrationInput) string {
+			return "/restapis/" + in.RestApiId + "/resources/" + in.ResourceId + "/methods/" + in.HttpMethod + "/integration"
+		})))
+	b.CreateDeployment(s.createDeployment, partial(createDeploymentNote),
+		kernel.WithResources(resourceAt(func(in *apigatewayapi.CreateDeploymentInput) string {
+			return "/restapis/" + in.RestApiId + "/deployments"
+		})))
+	b.InvokeRestApi(s.invoke, registry.Partial{Note: invokeRestAPINote})
+	return s
+}
 
 // Name returns "apigateway", the service's registry id and ARN namespace.
 func (*Service) Name() ref.ServiceID { return "apigateway" }
@@ -60,35 +129,142 @@ func (*Service) Name() ref.ServiceID { return "apigateway" }
 // SchemaVersion returns the version of the service's state.
 func (*Service) SchemaVersion() int { return stateVersion }
 
-// Export serializes every non-empty scope to one section. The service
-// holds no state yet, so it exports none.
-func (*Service) Export() ([]store.Section, error) { return nil, nil }
-
-// errImportNotImplemented refuses sections until Import is implemented.
-var errImportNotImplemented = errors.New("apigateway: snapshot import is not implemented yet; no API Gateway REST API state was loaded")
-
-// Import loads sections written by Export of this schema version. It is
-// not implemented yet and refuses any section.
-func (*Service) Import(ss []store.Section) error {
-	if len(ss) == 0 {
-		return nil
-	}
-	return errImportNotImplemented
+// Export serializes every non-empty scope to one section.
+func (s *Service) Export() ([]store.Section, error) {
+	return s.cells.Export(store.ScopeKeys(), stateVersion)
 }
 
-// Reset drops the scopes rs covers. There is no state to drop yet.
-func (*Service) Reset(kernel.ResetScope) {}
+// Import loads sections written by Export of this schema version, then
+// rebuilds the API id index from the loaded cells.
+func (s *Service) Import(ss []store.Section) error {
+	if err := s.cells.Import(store.ScopeKeys(), stateVersion, ss); err != nil {
+		return err
+	}
+	return s.reindex()
+}
+
+// Reset drops the scopes rs covers, and their APIs' ids from the index. It
+// runs under the gate's exclusive side, so it reads no cell.
+func (s *Service) Reset(rs kernel.ResetScope) {
+	s.cells.Reset(func(k aws.Scope) bool { return !rs.Covers(k) })
+	s.index.drop(rs.Covers)
+}
 
 // Rearm rebuilds timers; the service has none.
 func (*Service) Rearm(clock.Instant) {}
 
-// Resources lists the REST APIs of scope. There are none yet.
-func (*Service) Resources(aws.Scope) []kernel.Resource { return nil }
+// Resources lists the REST APIs of scope, one per API under its resource
+// ARN.
+func (s *Service) Resources(scope aws.Scope) []kernel.Resource {
+	return readState(s, scope, func(st *State) []kernel.Resource {
+		out := make([]kernel.Resource, 0, len(st.APIs))
+		for _, id := range slices.Sorted(maps.Keys(st.APIs)) {
+			a := st.APIs[id]
+			out = append(out, kernel.Resource{ARN: restAPIARN(scope, id), Summary: fmt.Sprintf("%d resources, %d stages", len(a.Resources), len(a.Stages))})
+		}
+		return out
+	})
+}
 
-// Scopes lists the scopes that hold state. There are none yet.
-func (*Service) Scopes() []aws.Scope { return nil }
+// Scopes returns the accounts and regions that hold a state cell.
+func (s *Service) Scopes() []aws.Scope { return s.cells.Keys(store.ScopeKeys()) }
 
 // OwnsExecuteAPI reports whether any account holds a REST API with id, so
-// the edge sends its execute-api requests to InvokeRestApi. It is not
-// implemented yet and holds none.
-func (*Service) OwnsExecuteAPI(string) bool { return false }
+// the edge sends its execute-api requests to InvokeRestApi (ADR 0019).
+func (s *Service) OwnsExecuteAPI(id string) bool {
+	_, ok := s.index.lookup(id)
+	return ok
+}
+
+// readState runs fn on the state of scope without creating its cell; a
+// scope with no cell reads as empty.
+func readState[R any](s *Service, scope aws.Scope, fn func(st *State) R) R {
+	cell, ok := s.cells.Lookup(scope)
+	if !ok {
+		st := newState(scope)
+		return fn(&st)
+	}
+	return store.Read(cell, fn)
+}
+
+// reindex rebuilds the API id index from the cells' sections, without
+// taking the gate; the caller holds its exclusive side. A failure is a bug
+// in this package, and the index is then left as it was.
+func (s *Service) reindex() error {
+	sections, err := s.cells.Export(store.ScopeKeys(), stateVersion)
+	if err != nil {
+		return fmt.Errorf("rebuilding the apigateway REST API id index: %w", err)
+	}
+	scopes := map[string]aws.Scope{}
+	codec := stateCodec()
+	for _, sec := range sections {
+		scope, err := store.ScopeKeys().Decode(strings.TrimSuffix(sec.Path, ".json"))
+		if err != nil {
+			return fmt.Errorf("rebuilding the apigateway REST API id index: section %q names no scope: %w", sec.Path, err)
+		}
+		st := newState(scope)
+		if err := codec.Unmarshal(sec.Data, &st); err != nil {
+			return fmt.Errorf("rebuilding the apigateway REST API id index: decoding section %q: %w", sec.Path, err)
+		}
+		for id := range st.APIs {
+			scopes[id] = scope
+		}
+	}
+	s.index.replace(scopes)
+	return nil
+}
+
+// apiIndex maps every REST API id to the account and region that hold it:
+// the data plane finds an API by its id alone, in any account
+// (apigateway-rest.md 4.1).
+type apiIndex struct {
+	mu     sync.Mutex
+	scopes map[string]aws.Scope
+}
+
+// reserve claims id for scope, false when an API already holds it.
+func (x *apiIndex) reserve(id string, scope aws.Scope) bool {
+	x.mu.Lock()
+	defer x.mu.Unlock()
+	if _, taken := x.scopes[id]; taken {
+		return false
+	}
+	x.scopes[id] = scope
+	return true
+}
+
+// set records that scope holds id.
+func (x *apiIndex) set(id string, scope aws.Scope) {
+	x.mu.Lock()
+	defer x.mu.Unlock()
+	x.scopes[id] = scope
+}
+
+// release drops id.
+func (x *apiIndex) release(id string) {
+	x.mu.Lock()
+	defer x.mu.Unlock()
+	delete(x.scopes, id)
+}
+
+// lookup returns the scope that holds id.
+func (x *apiIndex) lookup(id string) (aws.Scope, bool) {
+	x.mu.Lock()
+	defer x.mu.Unlock()
+	scope, ok := x.scopes[id]
+	return scope, ok
+}
+
+// drop removes every id whose scope covered reports true.
+func (x *apiIndex) drop(covered func(aws.Scope) bool) {
+	x.mu.Lock()
+	defer x.mu.Unlock()
+	maps.DeleteFunc(x.scopes, func(_ string, scope aws.Scope) bool { return covered(scope) })
+}
+
+// replace makes scopes the whole index.
+func (x *apiIndex) replace(scopes map[string]aws.Scope) {
+	x.mu.Lock()
+	defer x.mu.Unlock()
+	x.scopes = scopes
+}

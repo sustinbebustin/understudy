@@ -84,6 +84,7 @@ func (w *workload) run(t *testing.T) {
 		{"sts", w.sts},
 		{"lambda", w.lambda},
 		{"api gateway http api", w.apigatewayv2},
+		{"api gateway rest api", w.apigateway},
 		{"logs", w.logs},
 		{"secrets manager", w.secrets},
 		{"ssm", w.ssm},
@@ -529,6 +530,55 @@ func (w *workload) apigatewayv2(t *testing.T) {
 	}
 	if invoked.status != http.StatusOK || !strings.Contains(invoked.body, `"routeKey":"GET /hello"`) || invoked.header.Get("Apigw-Requestid") == "" {
 		t.Fatalf("GET /hello = %d %v %s, want the function's echo of the GET /hello event with an apigw-requestid", invoked.status, invoked.header, invoked.body)
+	}
+}
+
+// apigateway builds a REST API over restJson1, signed for apigateway: GET
+// on the root resource by a Lambda proxy integration to the function and a
+// deployment to stage s; it lets API Gateway invoke the function, then
+// sends GET /s/ through the path fallback. With Docker the function runs
+// and answers its echo, which is no proxy response, so API Gateway answers
+// the recorded 502 (apigateway-rest.md 5.2), which it gives only after
+// invoking; without Docker the answer is 501 naming Docker.
+func (w *workload) apigateway(t *testing.T) {
+	t.Helper()
+	call := func(what, method, path, body string, v any) {
+		t.Helper()
+		got := must(t, what, send(t, w.emu, request{
+			method: method, path: path, service: "apigateway", header: map[string]string{"Content-Type": "application/json"}, body: []byte(body),
+		}), http.StatusCreated)
+		decode(t, what, got.body, v)
+	}
+	var api struct {
+		ID             string `json:"id"`
+		RootResourceID string `json:"rootResourceId"`
+	}
+	call("CreateRestApi", http.MethodPost, "/restapis", `{"name":"smoke"}`, &api)
+	if api.ID == "" || api.RootResourceID == "" {
+		t.Fatalf("CreateRestApi answered id %q, root resource %q; want both", api.ID, api.RootResourceID)
+	}
+	method := "/restapis/" + api.ID + "/resources/" + api.RootResourceID + "/methods/GET"
+	var ignored struct{}
+	call("PutMethod", http.MethodPut, method, `{"authorizationType":"NONE"}`, &ignored)
+	call("PutIntegration", http.MethodPut, method+"/integration", `{"type":"AWS_PROXY","httpMethod":"POST",`+
+		`"uri":"arn:aws:apigateway:`+region+`:lambda:path/2015-03-31/functions/arn:aws:lambda:`+region+`:`+account+`:function:`+function+`/invocations"}`, &ignored)
+	var deployment struct{ ID string }
+	call("CreateDeployment", http.MethodPost, "/restapis/"+api.ID+"/deployments", `{"stageName":"s"}`, &deployment)
+	permission := `{"StatementId":"apigateway-rest","Action":"lambda:InvokeFunction","Principal":"apigateway.amazonaws.com",` +
+		`"SourceArn":"arn:aws:execute-api:` + region + `:` + account + `:` + api.ID + `/*/*"}`
+	must(t, "AddPermission", send(t, w.emu, request{
+		path: "/2015-03-31/functions/" + function + "/policy", service: "lambda",
+		header: map[string]string{"Content-Type": "application/json"}, body: []byte(permission),
+	}), http.StatusCreated)
+	invoked := send(t, w.emu, request{method: http.MethodGet, path: "/_understudy/execute-api/" + api.ID + "/s/"})
+	if !w.invoke {
+		if invoked.status != http.StatusNotImplemented || !strings.Contains(invoked.body, "Docker") {
+			t.Fatalf("GET /s/ without Docker = %d %s, want 501 naming Docker", invoked.status, invoked.body)
+		}
+		return
+	}
+	if invoked.status != http.StatusBadGateway || invoked.body != `{"message": "Internal server error"}` || invoked.header.Get("X-Amz-Apigw-Id") == "" {
+		t.Fatalf("GET /s/ = %d %v %s, want the 502 a non-proxy output gets, with an x-amz-apigw-id", invoked.status, invoked.header, invoked.body)
 	}
 }
 

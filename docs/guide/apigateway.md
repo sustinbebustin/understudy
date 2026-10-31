@@ -255,3 +255,38 @@ Requests understudy cannot serve as AWS would are refused with `NotImplemented` 
 - the WebSocket integration members `--request-templates`, `--template-selection-expression` and `--content-handling-strategy`;
 - the WebSocket stage member `--client-certificate-id`;
 - every operation this page does not describe, among them authorizers, `import-api`, `reimport-api`, `export-api`, custom domain names and VPC links.
+
+## REST APIs (first slice)
+
+REST APIs (`apigateway`) serve one path so far: a Lambda proxy integration on the API's root resource, deployed to a stage. The function's response follows the REST proxy format: `statusCode` and `body`, and `Content-Type: application/json` unless it sets one.
+
+```sh
+aws apigateway create-rest-api --name hello
+# "id": "xa6x46z82h", "rootResourceId": "3psizn47rr", "apiStatus": "AVAILABLE", ...
+aws apigateway put-method --rest-api-id xa6x46z82h --resource-id 3psizn47rr --http-method GET --authorization-type NONE
+aws apigateway put-integration --rest-api-id xa6x46z82h --resource-id 3psizn47rr --http-method GET \
+  --type AWS_PROXY --integration-http-method POST \
+  --uri arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:000000000000:function:hello/invocations
+aws apigateway create-deployment --rest-api-id xa6x46z82h --stage-name dev
+aws lambda add-permission --function-name hello --statement-id apigateway --action lambda:InvokeFunction \
+  --principal apigateway.amazonaws.com --source-arn "arn:aws:execute-api:us-east-1:000000000000:xa6x46z82h/*/*"
+
+curl -i http://localhost:4566/_understudy/execute-api/xa6x46z82h/dev/
+# HTTP/1.1 200 OK
+# Content-Type: application/json
+# X-Amz-Apigw-Id: neHgXDQoN9b90pY=
+# X-Amzn-Requestid: baf326e2-f241-4619-8932-eb901b271110
+#
+# hello from the root
+```
+
+The host form `xa6x46z82h.execute-api.us-east-1.localhost:4566/dev/` serves the same API. Before `add-permission` the request answers `500 {"message": "Internal server error"}` and the function does not run; a path no deployed method serves answers `403 {"message":"Missing Authentication Token"}`.
+
+For now `put-method`, `put-integration`, `create-rest-api` and `create-deployment` accept only the members above (plus `--description` and `--version` on `create-rest-api`, `--description` on `create-deployment` and `--timeout-in-millis` on `put-integration`), and `put-integration` only `--type AWS_PROXY` to a Lambda function. Any other member or type answers `NotImplemented` naming it and changes nothing:
+
+```text
+An error occurred (NotImplemented) when calling the PutMethod operation: understudy does not implement apiKeyRequired
+on PutMethod yet; nothing was changed. Send the request without apiKeyRequired.
+```
+
+Resources other than the root, method responses, integration responses, MOCK integrations, stages on their own, updates and Terraform are not implemented yet.
