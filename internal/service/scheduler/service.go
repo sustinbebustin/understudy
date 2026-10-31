@@ -49,11 +49,13 @@ func (s *Service) restart() {
 // The service is the snapshot and reset view of its state.
 var _ kernel.Stateful = (*Service)(nil)
 
-// createNote is CreateSchedule's coverage note while tickets 2 to 9 are
-// what is built (spec "Coverage marks" is the note once every ticket is).
-const createNote = "rate(), at() and cron() schedules in any schedule group with a templated Lambda, SQS, SNS, EventBridge event bus or Step Functions target in the schedule's Region " +
-	"are invoked on the emulator clock as the execution role, " +
-	"at() and cron() in any IANA time zone, which a rate ignores, between StartDate and EndDate, and not while State is DISABLED; " +
+// createNote is CreateSchedule's coverage note: the spec's "Coverage
+// marks" note with ticket 10 and the SNS tail landed, clause for clause and
+// in its order, except where the binary does otherwise (the KMS clause:
+// 05b evaluates key policies; Step Functions Input is not JSON-checked
+// either) and for the clauses after the Input limit, which name further
+// unrecorded choices and deviations the binary makes (invariant 3).
+const createNote = "templated Lambda, SQS, SNS, EventBridge event bus and Step Functions targets in the schedule's Region are invoked on the emulator clock as the execution role; " +
 	"universal (aws-sdk) targets and ECS, Kinesis, Firehose, CodeBuild, CodePipeline, Inspector and SageMaker targets answer NotImplemented; " +
 	"a Step Functions execution's name is understudy's; " +
 	"Lambda, SQS, SNS and Step Functions targets in another Region " +
@@ -62,20 +64,18 @@ const createNote = "rate(), at() and cron() schedules in any schedule group with
 	"the execution role's trust is checked only under iam.enforce=enforce, at create, update and invocation, so under off and advise a missing or untrusting role still delivers; " +
 	"ClientToken is accepted and not used for idempotency; the 10,000,000-schedule quota is not counted; " +
 	"unrecorded, understudy's choice: a target ARN of a service with no templated target is refused at create with ValidationException, " +
-	"rate units are accepted singular or plural with any value, a rate schedule without StartDate first fires at the write instant, " +
-	"a rate schedule whose StartDate has passed first fires at its first interval at or after the write instant, " +
-	"an absent Input delivers {}, an at() in the past fires at once, an at() fires at its seconds, " +
-	"a FLEXIBLE window delays each invocation by a seeded whole-second offset inside it, " +
-	"DELETE removes the schedule in the write that hands its last invocation over (before any retry), " +
-	"a fired at() with NONE stays with its State unchanged, " +
+	"rate units are accepted singular or plural with any value, a rate schedule without StartDate first fires at the write instant, an absent Input delivers {}, " +
+	"an at() in the past fires at once, a FLEXIBLE window delays each invocation by a seeded whole-second offset inside it, " +
 	"client-side target errors go to the dead-letter queue without retries and one execution id covers an invocation's retries, " +
 	"a dead letter's TARGET_ARN is the universal aws-sdk form and its body the payload after substitution, " +
-	"a qualified Lambda target's version or alias is passed as Invoke's Qualifier, " +
-	"a Step Functions version or alias ARN is passed to StartExecution as given, " +
 	"an EventBridge target's event has no resources and its time is the delivery instant, an SNS target's message has no Subject, " +
-	"an event bus target in another Region or without EventBridgeParameters is refused with ValidationException, " +
+	"DELETE removes the schedule in the write that hands its last invocation over (before any retry), a fired at() with NONE stays with its State unchanged, " +
 	"parameter blocks that do not match the target are stored, echoed and ignored, a MaximumWindowInMinutes sent with OFF is ignored, " +
 	"Input on a Lambda, Step Functions or EventBridge target is not checked for JSON at create, Input is limited to 262,144 bytes, " +
+	"a rate schedule whose StartDate has passed first fires at its first interval at or after the write instant, an at() fires at its seconds, a rate ignores its time zone, " +
+	"a qualified Lambda target's version or alias is passed as Invoke's Qualifier, " +
+	"a Step Functions version or alias ARN is passed to StartExecution as given, " +
+	"an event bus target in another Region or without EventBridgeParameters is refused with ValidationException, " +
 	"checks run in the order expression, time zone, window, dates and the future-fire check, target, group, role trust, iam:PassRole, KMS, " +
 	"iam:PassRole carries iam:PassedToService scheduler.amazonaws.com, " +
 	"under iam.enforce=enforce an execution role that cannot be assumed or may not decrypt at invocation fails the invocation before its target call as a client-side target error does, " +
