@@ -93,6 +93,7 @@ func (w *workload) run(t *testing.T) {
 		{"step functions", w.stepFunctions},
 		{"ses", w.ses},
 		{"sesv2", w.sesv2},
+		{"scheduler", w.scheduler},
 		{"iam policy", w.policy},
 		{"coverage", w.coverage},
 	}
@@ -726,6 +727,42 @@ func (w *workload) sesv2(t *testing.T) {
 	if identity.VerificationStatus != "PENDING" || len(identity.DkimAttributes.Tokens) != 3 {
 		t.Fatalf("GetEmailIdentity = %s, want PENDING with three DKIM tokens", got.body)
 	}
+}
+
+// scheduler creates a rate schedule with an SQS target over restJson1,
+// reads it back with the defaults AWS fills (scheduler.md 4.2), deletes it
+// and reads it gone. Its queue is its own, so the SNS step's queue holds
+// no invocation.
+func (w *workload) scheduler(t *testing.T) {
+	t.Helper()
+	const queue = "smoke-schedule"
+	must(t, "CreateQueue", awsJSON(t, w.emu, "1.0", "sqs", "AmazonSQS.CreateQueue", `{"QueueName":"`+queue+`"}`), http.StatusOK)
+	rest := func(method, body string) response {
+		return send(t, w.emu, request{
+			method: method, path: "/schedules/smoke", service: "scheduler",
+			header: map[string]string{"Content-Type": "application/json"}, body: []byte(body),
+		})
+	}
+	var created struct{ ScheduleArn string }
+	body := `{"ScheduleExpression":"rate(1 hour)","FlexibleTimeWindow":{"Mode":"OFF"},` +
+		`"Target":{"Arn":"arn:aws:sqs:` + region + `:` + account + `:` + queue + `","RoleArn":"` + w.roleARN + `","Input":"hello <aws.scheduler.attempt-number>"}}`
+	decode(t, "CreateSchedule", must(t, "CreateSchedule", rest(http.MethodPost, body), http.StatusOK).body, &created)
+	if created.ScheduleArn != "arn:aws:scheduler:"+region+":"+account+":schedule/default/smoke" {
+		t.Fatalf("CreateSchedule ScheduleArn = %q", created.ScheduleArn)
+	}
+	var got struct {
+		GroupName, ActionAfterCompletion string
+		Target                           struct {
+			RetryPolicy struct{ MaximumEventAgeInSeconds, MaximumRetryAttempts int }
+		}
+	}
+	decode(t, "GetSchedule", must(t, "GetSchedule", rest(http.MethodGet, ""), http.StatusOK).body, &got)
+	if got.GroupName != "default" || got.ActionAfterCompletion != "NONE" ||
+		got.Target.RetryPolicy.MaximumEventAgeInSeconds != 86400 || got.Target.RetryPolicy.MaximumRetryAttempts != 185 {
+		t.Fatalf("GetSchedule = %+v, want group default, NONE and retry 86400/185", got)
+	}
+	must(t, "DeleteSchedule", rest(http.MethodDelete, ""), http.StatusOK)
+	must(t, "GetSchedule after delete", rest(http.MethodGet, ""), http.StatusNotFound)
 }
 
 // policy asks the CLI for the smoke principal's least-privilege policy,
