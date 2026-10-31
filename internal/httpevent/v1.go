@@ -40,6 +40,11 @@ type REST struct {
 	// ExtendedRequestID is requestContext.extendedRequestId, which a REST
 	// API reports beside the requestId UUID.
 	ExtendedRequestID string
+	// BodylessEmpty gives a request without a body the event body ""
+	// rather than null, and BodylessBase64 its isBase64Encoded: the
+	// caller's apigateway.proxy.unrecorded choices (APIGW1-16). The zero
+	// value is null and false.
+	BodylessEmpty, BodylessBase64 bool
 }
 
 func (REST) isV1Front() {}

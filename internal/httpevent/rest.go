@@ -55,10 +55,11 @@ type requestContextREST struct {
 // canonicalized them, where AWS keeps the client's spelling (a deviation
 // the unit's disputes record). headers keeps the last value of a repeated
 // header (inferred, APIGW1-16), queryStringParameters the last of a
-// repeated parameter (recorded). A request without a body gives body null
-// (switch apigateway.proxy.unrecorded BodylessNull, APIGW1-16); any body is
-// sent as text, invalid UTF-8 replaced by U+FFFD (inferred, APIGW1-16), and
-// isBase64Encoded is false, since a stage with binaryMediaTypes is refused
+// repeated parameter (recorded). A request without a body gives body null,
+// or "" with f.BodylessEmpty, and isBase64Encoded f.BodylessBase64 (switch
+// apigateway.proxy.unrecorded, APIGW1-16); any other body is sent as text,
+// invalid UTF-8 replaced by U+FFFD (inferred, APIGW1-16), with
+// isBase64Encoded false, since a stage with binaryMediaTypes is refused
 // before an event is built.
 func eventREST(r Request, c Context, f REST) ([]byte, error) {
 	identity := identityV1{SourceIP: r.SourceIP, UserAgent: r.Header.Get("User-Agent")}
@@ -97,8 +98,14 @@ func eventREST(r Request, c Context, f REST) ([]byte, error) {
 	}
 	path, contextPath := restPaths(r.RawPath)
 	var body *string
-	if len(r.Body) > 0 {
+	encoded := false
+	switch {
+	case len(r.Body) > 0:
 		body = new(strings.ToValidUTF8(string(r.Body), "�"))
+	case f.BodylessEmpty:
+		body, encoded = new(""), f.BodylessBase64
+	default:
+		encoded = f.BodylessBase64
 	}
 	return encode(eventRESTV1{
 		Resource:                        f.ResourcePath,
@@ -128,7 +135,8 @@ func eventREST(r Request, c Context, f REST) ([]byte, error) {
 			ResourcePath:      f.ResourcePath,
 			Stage:             c.Stage,
 		},
-		Body: body,
+		Body:            body,
+		IsBase64Encoded: encoded,
 	})
 }
 

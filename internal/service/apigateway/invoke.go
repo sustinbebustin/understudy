@@ -393,7 +393,10 @@ func (s *Service) invokeFunction(ctx context.Context, c *kernel.Call, r *http.Re
 		At:             c.Admitted().Wire(),
 		TraceID:        c.Trace(),
 		Authorizer:     httpevent.NoAuthorizer{},
-	}, httpevent.REST{ResourceID: t.resourceID, ResourcePath: t.resourcePath, DeploymentID: t.deployment, ExtendedRequestID: extended})
+	}, httpevent.REST{
+		ResourceID: t.resourceID, ResourcePath: t.resourcePath, DeploymentID: t.deployment, ExtendedRequestID: extended,
+		BodylessEmpty: !ProxyUnrecordedSwitch().Value.BodylessNull, BodylessBase64: ProxyUnrecordedSwitch().Value.BodylessBase64,
+	})
 	if eerr != nil {
 		return awserr.Internalf(fmt.Errorf("apigateway: encoding the request event for REST API %s: %w", t.apiID, eerr))
 	}
