@@ -137,11 +137,11 @@ aws scheduler create-schedule --name t --schedule-expression 'rate(1 hour)' --fl
 # An error occurred (ValidationException) ... Invalid request provided: s3 is not a supported service for a target
 ```
 
-`KmsKeyArn` is stored and echoed, and the payload is never encrypted. No `AWS/Scheduler` metrics are published.
+`KmsKeyArn` is stored and echoed, and the payload is never encrypted. Under `--iam-enforce enforce`, the caller's `kms:DescribeKey`, `kms:GenerateDataKey` and `kms:Decrypt` at create and update, and the execution role's `kms:Decrypt` before each invocation, are evaluated against identity policies and the key's policy. A key understudy's KMS does not hold allows nothing, so create the key in understudy first; otherwise the write is denied, or the invocation goes to the dead-letter queue. No `AWS/Scheduler` metrics are published.
 
 ## Restarts, snapshots and your application's clock
 
-Schedules are part of a [snapshot](snapshots.md). After a snapshot load or a restart with `--persist`, a fire that came due while understudy was not running is skipped, not delivered late, and the journal records one `advisory` per schedule that skipped; a past-due `at()` found then is skipped too. Only `clock advance` and `clock set` deliver fires the clock passes over.
+Schedules are part of a [snapshot](snapshots.md). After a snapshot load or a restart with `--persist`, a fire that came due while understudy was not running is skipped, not delivered late, and the journal records one `advisory` per schedule that skipped; a past-due `at()` found then is skipped too. A schedule with `--action-after-completion DELETE` that the skip leaves with no invocation (a past-due `at()`, or a rate or cron past its end date) is deleted, and the journal records its `DELETED` state change. Only `clock advance` and `clock set` deliver fires the clock passes over.
 
 Every schedule runs on the emulator clock, not on your application's. An application that computes an `at()` from its own wall clock, such as "remind me in ten minutes", sees the reminder fire ten emulator minutes after the instant it wrote, which is ten minutes after its own clock only while the emulator clock runs with wall time. Under a frozen, set or scaled clock the two differ: advance the clock past the instant the application asked for, or read emulator time from `GET /_understudy/v1/clock` ([clock.md](clock.md)) and build the expression from it. A rate schedule's `--start-date` and a cron's dates are compared with emulator time the same way, so a start date in the application's past may still be in the emulator's future.
 
