@@ -112,7 +112,7 @@ func (k *Kernel) Dispatch(ctx context.Context, c *Call, d Decoded) Result {
 	used := secondariesBefore(bnd)
 	res, inj := k.pipeline(ctx, c, d, bnd, &used)
 	if _, unauthenticated := d.(Unauthenticated); inj == nil && !unauthenticated {
-		k.recordAccess(ctx, c, res, used)
+		k.recordAccess(ctx, c, bnd, res, used)
 	}
 	k.end(ctx, c, res, inj)
 	return res
@@ -386,13 +386,16 @@ func (k *Kernel) journalFault(ctx context.Context, c *Call, inj fault.Injection)
 // recordAccess records the pairs the call needed (step 11): the actions
 // recordedActions selects from the operation's list and what its binding
 // declared, each paired as step 8 pairs it (pairsOf, with the binding's
-// WithResourcesFor scoping), then each pair the handler asked about
-// through Authorize. It records nothing for an anonymous caller, a service
-// acting on its own behalf (AsPlatform), which no policy grants, or a call
-// with no pair, such as an internal operation that declares no action.
-// Dispatch skips it for an injected fault and for an Unauthenticated
-// request.
-func (k *Kernel) recordAccess(ctx context.Context, c *Call, res Result, used secondaries) {
+// WithResourcesFor scoping, over the resources touched when step 8 or the
+// deferred authorization formed its pairs: pairingResources), then each
+// pair the handler asked about through Authorize. An AuthorizedInHandler
+// binding's primary action, which step 8 never asks, is recorded only
+// through the handler's Authorize, never on "*". It records nothing for an
+// anonymous caller, a service acting on its own behalf (AsPlatform), which
+// no policy grants, or a call with no pair, such as an internal operation
+// that declares no action. Dispatch skips it for an injected fault and for
+// an Unauthenticated request. bnd is nil for an unbound operation.
+func (k *Kernel) recordAccess(ctx context.Context, c *Call, bnd *binding, res Result, used secondaries) {
 	if _, platform := c.mode.(AsPlatform); k.access == nil || c.op == nil || platform {
 		return
 	}
@@ -401,8 +404,11 @@ func (k *Kernel) recordAccess(ctx context.Context, c *Call, res Result, used sec
 		return
 	}
 	actions := k.recordedActions(ctx, c, used)
-	touched := c.pairingResources()
-	pairs := pairsOf(actions, c.op.Service.IAMPrefix, touched, c.scoped)
+	paired := actions
+	if bnd != nil && bnd.authorization == inHandler && len(c.op.IAM) > 0 {
+		paired = slices.DeleteFunc(slices.Clone(actions), func(a registry.IAMAction) bool { return a == c.op.IAM[0] })
+	}
+	pairs := pairsOf(paired, c.op.Service.IAMPrefix, c.pairingResources(), c.scoped)
 	recorded := accessPairs(pairs, c.keys)
 	// recorded is pairs mapped one to one; a pair the handler asked about
 	// keeps the iam:PassedToService it was asked with even when step 8's
@@ -433,7 +439,7 @@ func (k *Kernel) recordAccess(ctx context.Context, c *Call, res Result, used sec
 		Mode:      accessMode(c.mode),
 		Service:   c.op.Service.IAMPrefix,
 		Actions:   actions,
-		Resources: touched,
+		Resources: c.Touched(),
 		Pairs:     recorded,
 		Outcome:   outcome,
 		At:        c.admitted.Wire(),

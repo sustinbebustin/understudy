@@ -45,6 +45,33 @@ func TestTheAccessRecordPairsActionsWithStep8sResources(t *testing.T) {
 	}
 }
 
+// Step 8 never asks an AuthorizedInHandler binding's primary action; the
+// handler asks it on the resource it resolved (Authorize). The record
+// keeps the action only where the handler asked, never on "*", which
+// would grant it on every resource (GetRole: iam-evaluation.md 2.1).
+func TestTheAccessRecordKeepsAnInHandlerPrimaryOnlyWhereTheHandlerAsked(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		a    kernel.Authorizer
+	}{{"no authorizer", nil}, {"authorizer", &fakeAuthorizer{}}} {
+		t.Run(tc.name, func(t *testing.T) {
+			g := newGuard(guardDenial())
+			runGuard(t, g, tc.a, func(k *kerneltest.K) {
+				bindGuard(k, g.run, authorizeRunOn(guardThing1), kernel.AuthorizedInHandler())
+				if _, err := k.Invoke(k.Context(), g.run, &guardInput{}); err != nil {
+					k.Fatalf("call = %s", err.Message)
+				}
+				if _, ok := useOf(k, guardRun, access.OnResource{ARN: guardThing1}); !ok {
+					k.Errorf("the access record lacks %s on %s, where the handler asked it; it holds %+v", guardRun, guardThing1, k.Access.Usage(access.Filter{}))
+				}
+				if _, ok := useOf(k, guardRun, access.AnyResource{}); ok {
+					k.Errorf("the access record holds %s on *, which nothing asked; it holds %+v", guardRun, k.Access.Usage(access.Filter{}))
+				}
+			})
+		})
+	}
+}
+
 // An AuthorizedAfterResolve binding is asked at its first Write, Invoke or
 // return, about what the call touched by then; the record pairs it the
 // same way, with or without an Authorizer.

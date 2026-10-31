@@ -185,8 +185,11 @@ func (c *Call) Header(name string) (string, bool) {
 }
 
 // Touch records resources the call reads or changes. The journal lists
-// them on the call's event and the access recorder pairs them with the
-// operation's IAM actions; fault rules match on them.
+// them on the call's event and fault rules match on them. The access
+// recorder pairs the operation's IAM actions only with the resources
+// touched by the time step 8 (or the deferred authorization) formed its
+// pairs, or with every touched resource for a call that is never asked
+// (ARCHITECTURE.md 17); a Touch after that reaches the journal only.
 func (c *Call) Touch(arns ...aws.ARN) {
 	c.mu.Lock()
 	defer c.mu.Unlock()

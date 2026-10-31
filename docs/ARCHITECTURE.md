@@ -214,7 +214,7 @@ func (c *Call) Admitted() clock.Instant       // admission instant: journal time
 func (c *Call) Endpoint() Endpoint            // scheme and host as the client addressed us; canonical for internal calls
 func (c *Call) Trace() string                 // X-Amzn-Trace-Id, or inherited from the parent call
 func (c *Call) Header(name string) (string, bool) // read-only view of a closed set of unmodeled request headers
-func (c *Call) Touch(arns ...aws.ARN)        // the only mutator; feeds the journal and the access recorder
+func (c *Call) Touch(arns ...aws.ARN)        // the only mutator; feeds the journal and fault matching, and the access recorder up to step 8's pairing
 
 // Handler implements one AWS operation. Dispatch maps (nil, nil) and (out, err) to Internal,
 // naming the operation; unit outputs are the empty struct, so nil is never legitimate.

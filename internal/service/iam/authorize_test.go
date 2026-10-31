@@ -181,6 +181,27 @@ func TestGetRoleAsksAboutTheRoleItRead(t *testing.T) {
 	})
 }
 
+// An allowed GetRole is recorded on the role it read and nowhere else: the
+// Service Authorization Reference authorizes iam:GetRole on the role
+// resource type, and a record on "*" would render a policy granting it on
+// every role (ARCHITECTURE.md 17).
+func TestGetRoleIsRecordedOnTheRoleOnly(t *testing.T) {
+	runGated(t, &roleGate{}, func(h *harness) {
+		role := parseARN(h, h.role("reader").Arn)
+		must(h, iamapi.OpGetRole, &iamapi.GetRoleInput{RoleName: "reader"})
+		var got []access.Scope
+		uses := h.Access.Usage(access.Filter{Service: "iam"})
+		for i := range uses {
+			if uses[i].Action.Name == "GetRole" {
+				got = append(got, uses[i].Resource)
+			}
+		}
+		if want := []access.Scope{access.OnResource{ARN: role}}; !reflect.DeepEqual(got, want) {
+			h.Errorf("iam:GetRole recorded on %+v, want only %+v", got, want)
+		}
+	})
+}
+
 // A role that does not exist answers NoSuchEntity before any in-handler
 // authorization: there is no role ARN to ask about (iam-enforcement-surfaces.md
 // 12.1, existence checks stay in handlers; the order against authorization
