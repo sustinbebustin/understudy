@@ -71,8 +71,17 @@ type Call struct {
 	mu      sync.Mutex
 	touched []aws.ARN
 	// authorized are the pairs the handler asked about through Authorize,
-	// in order, without repeats.
-	authorized []Pair
+	// in order, without repeats, each with the keys it was first asked
+	// with.
+	authorized []askedPair
+}
+
+// askedPair is a pair a handler asked about through Authorize and the
+// condition keys it supplied; the access record keeps iam:PassedToService
+// from them.
+type askedPair struct {
+	pair Pair
+	keys ConditionKeys
 }
 
 // Endpoint is the scheme and host a client addressed the emulator with, as
@@ -215,19 +224,19 @@ func (c *Call) Touched() []aws.ARN {
 // call's event, in its trace.
 func (c *Call) effectCause() ref.Cause { return ref.Cause{Parent: c.event, Trace: c.cause.Trace} }
 
-// asked keeps p, a pair the handler asked about through Authorize, for the
-// access record.
-func (c *Call) asked(p Pair) {
+// asked keeps p, a pair the handler asked about through Authorize with
+// keys, for the access record.
+func (c *Call) asked(p Pair, keys ConditionKeys) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if !slices.Contains(c.authorized, p) {
-		c.authorized = append(c.authorized, p)
+	if !slices.ContainsFunc(c.authorized, func(a askedPair) bool { return a.pair == p }) {
+		c.authorized = append(c.authorized, askedPair{pair: p, keys: keys})
 	}
 }
 
 // authorizedPairs returns the pairs the handler asked about through
-// Authorize, in order.
-func (c *Call) authorizedPairs() []Pair {
+// Authorize, in order, with their keys.
+func (c *Call) authorizedPairs() []askedPair {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return slices.Clone(c.authorized)

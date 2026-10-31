@@ -404,10 +404,17 @@ func (k *Kernel) recordAccess(ctx context.Context, c *Call, res Result, used sec
 	touched := c.Touched()
 	pairs := pairsOf(actions, c.op.Service.IAMPrefix, touched, c.scoped)
 	recorded := accessPairs(pairs, c.keys)
-	for _, p := range c.authorizedPairs() {
-		if !slices.Contains(pairs, p) {
-			pairs = append(pairs, p)
-			recorded = append(recorded, accessPairs([]Pair{p}, nil)...)
+	// recorded is pairs mapped one to one; a pair the handler asked about
+	// keeps the iam:PassedToService it was asked with even when step 8's
+	// pairing already holds it without one.
+	for _, a := range c.authorizedPairs() {
+		asked := accessPairs([]Pair{a.pair}, a.keys)[0]
+		switch i := slices.Index(pairs, a.pair); {
+		case i < 0:
+			pairs = append(pairs, a.pair)
+			recorded = append(recorded, asked)
+		case recorded[i].PassedToService == "":
+			recorded[i] = asked
 		}
 	}
 	if len(pairs) == 0 {

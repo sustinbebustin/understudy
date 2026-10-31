@@ -327,7 +327,8 @@ func pairsOf(actions []registry.IAMAction, opService string, touched []aws.ARN, 
 // whether or not an Authorizer runs, so a policy rendered from the record
 // grants what the handler asked about (iam-enforcement-surfaces.md 12.6).
 // Action may be any service's (iam:PassRole from Lambda); keys are
-// condition keys only the handler knows. Like step 8 it asks nothing when
+// condition keys only the handler knows, and the access record keeps an
+// iam:PassRole's iam:PassedToService from them. Like step 8 it asks nothing when
 // authorization is off or the call is a platform call.
 // Asking while holding a cell lock, about the zero ARN, or for a call that
 // names no modeled operation is a caller bug: Internal, and the Authorizer
@@ -343,7 +344,7 @@ func Authorize(ctx context.Context, c *Call, action registry.IAMAction, resource
 	}
 	pair := Pair{Action: action, Resource: ResourceARN{ARN: resource}}
 	c.Touch(resource)
-	c.asked(pair)
+	c.asked(pair, keys)
 	if _, platform := c.mode.(AsPlatform); c.k.authorizer == nil || platform {
 		return nil
 	}
@@ -397,6 +398,56 @@ func AuthorizeAs(ctx context.Context, c *Call, as PrincipalMode, q AuthzQuery) *
 		elapsed:   c.elapsed,
 	}
 	return verdictError(asked, c.k.authorizer.Authorize(ctx, asked, q))
+}
+
+// AuthorizeBefore asks the Authorizer, before an internal call of op that
+// t describes, about what the principal t.As resolves to needs beyond
+// op's own action: for a delivery whose sender checks it before calling
+// the target, such as a Scheduler invocation asking whether
+// scheduler.amazonaws.com may still assume the execution role and whether
+// the role session may decrypt with the schedule's key (scheduler.md 9,
+// 14.11). It is for parents that name no modeled operation, such as a
+// timer callback, where AuthorizeAs has no denial identity to answer
+// with: the question is asked as the internal call of op would be, in
+// t.Scope, so a denial is op's service's denial identity, which the
+// caller may reword, and an Authorizer's journal entries continue
+// t.Resume, else the parent. Nothing is touched or access-recorded; op is
+// not called. Like AuthorizeAs it asks nothing when authorization is
+// off, about a platform principal (AsPlatform) or about no pair. A nil
+// parent, op or t.As, a t.Scope with no account, or a parent holding a
+// cell lock is a caller bug: Internal, and the Authorizer is not asked.
+func AuthorizeBefore(ctx context.Context, k *Kernel, parent *Call, op *registry.Operation, t Target, q AuthzQuery) *awserr.Error {
+	var action registry.IAMAction
+	if len(q.Pairs) > 0 {
+		action = q.Pairs[0].Action
+	}
+	var id ref.OperationID
+	if op != nil {
+		id = op.ID
+	}
+	switch {
+	case parent == nil:
+		return awserr.Internalf(&AuthorizeError{Op: id, Action: action, Reason: "no parent call; ask on behalf of a call or a timer"})
+	case parent.holding.Load():
+		return awserr.Internalf(&HoldingError{Attempted: "kernel.AuthorizeBefore of " + action.String(), Holder: parent.label})
+	case op == nil:
+		return awserr.Internalf(&AuthorizeError{Action: action, Reason: "no operation; name the internal call the question comes before"})
+	case t.As == nil:
+		return awserr.Internalf(&AuthorizeError{Op: id, Action: action, Reason: "Target.As is nil; say whose permission is asked about"})
+	case t.Scope.Account.IsZero():
+		return awserr.Internalf(&AuthorizeError{Op: id, Action: action, Reason: "Target.Scope has no account; take it from the target resource"})
+	}
+	if _, platform := t.As.(AsPlatform); k.authorizer == nil || platform || len(q.Pairs) == 0 {
+		return nil
+	}
+	c := k.internalCall(parent, id, t)
+	if c.op == nil {
+		return awserr.Internalf(&AuthorizeError{Op: id, Action: action, Reason: "the operation is not in the kernel's registry, so it has no denial identity"})
+	}
+	// The call is never dispatched, so it has no event of its own: what
+	// the Authorizer journals is a child of the event it continues.
+	c.event = c.cause.Parent
+	return verdictError(c, k.authorizer.Authorize(ctx, c, q))
 }
 
 // AuthorizedOps lists, as ref.OperationID strings in registry order, the
