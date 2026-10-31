@@ -282,12 +282,35 @@ curl -i http://localhost:4566/_understudy/execute-api/xa6x46z82h/dev/
 
 The host form `xa6x46z82h.execute-api.us-east-1.localhost:4566/dev/` serves the same API. Before `add-permission` the request answers `500 {"message": "Internal server error"}` and the function does not run; on an API with only its root resource, a path no deployed method serves answers `403 {"message":"Missing Authentication Token"}`.
 
-For now `create-rest-api` and `create-deployment` accept only the members above (plus `--description` and `--version` on `create-rest-api` and `--description` on `create-deployment`). Any other member answers `NotImplemented` naming it and changes nothing:
+For now `create-rest-api` accepts only the members above plus `--description`, `--version` and `--tags`. Any other member answers `NotImplemented` naming it and changes nothing.
 
-```text
-An error occurred (NotImplemented) when calling the CreateDeployment operation: understudy does not implement variables
-on CreateDeployment yet; nothing was changed. Send the request without variables.
+### Deployments and stages
+
+A deployment is a snapshot of the API's resources, methods and integrations; a stage serves one deployment, and later edits reach callers only after a new deployment. `create-deployment --stage-name` creates the stage or repoints it, and its `--stage-description`, `--variables` and cache and tracing members set that stage:
+
+```sh
+aws apigateway create-deployment --rest-api-id 8dlhp7e8cn --stage-name dev --stage-description first --variables color=blue
+# "id": "zdm4mq", ...
+aws apigateway get-stage --rest-api-id 8dlhp7e8cn --stage-name dev
+# "deploymentId": "zdm4mq", "stageName": "dev", "description": "first", "cacheClusterEnabled": false,
+# "cacheClusterStatus": "NOT_AVAILABLE", "methodSettings": {}, "variables": {"color": "blue"}, "tracingEnabled": false, ...
+aws apigateway create-stage --rest-api-id 8dlhp7e8cn --stage-name prod --deployment-id zdm4mq --tags owner=ops
+aws apigateway update-stage --rest-api-id 8dlhp7e8cn --stage-name prod \
+  --patch-operations op=replace,path=/variables/color,value=green 'op=replace,path=/*/*/metrics/enabled,value=true'
+# "methodSettings": {"*/*": {"metricsEnabled": true, "throttlingBurstLimit": 5000, "throttlingRateLimit": 10000.0,
+#   "cacheTtlInSeconds": 300, ...}}, "variables": {"color": "green"}, ...
+aws apigateway update-stage --rest-api-id 8dlhp7e8cn --stage-name prod --patch-operations op=replace,path=/tags/owner,value=x
+# An error occurred (BadRequestException) when calling the UpdateStage operation: Invalid method setting path: /tags/owner.
+# Must be one of: [/deploymentId, /description, ...]
+aws apigateway delete-deployment --rest-api-id 8dlhp7e8cn --deployment-id zdm4mq
+# An error occurred (BadRequestException) when calling the DeleteDeployment operation: Active stages pointing to this
+# deployment must be moved or deleted
+aws apigateway get-stages --rest-api-id 8dlhp7e8cn --deployment-id zdm4mq
+aws apigateway get-tags --resource-arn arn:aws:apigateway:us-east-1::/restapis/8dlhp7e8cn/stages/prod
+# "tags": {"owner": "ops"}
 ```
+
+Stage variables reach the Lambda proxy event. Cache settings, method settings, access log settings, `clientCertificateId` and `tracingEnabled` are stored and returned without effect: no cache runs (`cacheClusterStatus` stays `NOT_AVAILABLE`), and nothing is throttled or logged. `--canary-settings` on `create-deployment` and `create-stage`, and `--documentation-version` on `create-stage`, answer `NotImplemented`. Tags on the API and on its stages are read and written with `tag-resource`, `untag-resource` and `get-tags`.
 
 Integrations and integration responses can be put, read, updated and deleted, of every type. `put-integration` answers AWS's defaults (`timeoutInMillis` 29000, `passthroughBehavior` `WHEN_NO_MATCH`, `cacheNamespace` the resource id, `connectionType` `INTERNET` for `HTTP` and `HTTP_PROXY` only) and drops `--integration-http-method` on a `MOCK` integration, as AWS does. URIs are checked with AWS's texts:
 
@@ -337,4 +360,4 @@ aws apigateway get-resources --rest-api-id 70wh1xgmho
 
 `get-resources --embed methods` returns each method in full; without it `resourceMethods` maps each method to `{}`. A path part is letters, digits and `._-,:`, or `{name}` and `{name+}`; anything else is refused. Requests are matched only against the root resource so far: once a deployment holds other resources, a request the root does not serve answers `501` saying so, rather than a `403` AWS might not give.
 
-MOCK integrations at invoke, stages on their own, most updates and Terraform are not implemented yet.
+MOCK integrations at invoke, matching requests against resources other than the root, and Terraform are not implemented yet.
