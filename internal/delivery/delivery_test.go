@@ -118,6 +118,7 @@ func TestMechanismVia(t *testing.T) {
 		delivery.SchedulerToSQS:    ref.SchedulerTarget,
 		delivery.SchedulerToEvents: ref.SchedulerTarget,
 		delivery.SchedulerToSNS:    ref.SchedulerTarget,
+		delivery.SchedulerToStates: ref.SchedulerTarget,
 	}
 	for _, m := range delivery.Mechanisms() {
 		if got := m.Via(); got != want[m] {
@@ -154,6 +155,9 @@ func TestMechanismTarget(t *testing.T) {
 		delivery.SchedulerToSQS:    "sqs",
 		delivery.SchedulerToEvents: "eventbridge",
 		delivery.SchedulerToSNS:    "sns",
+		// The sfn service's registry ID, the aws-sdk service a dead
+		// letter's TARGET_ARN names (scheduler.md 6.2, 7.2).
+		delivery.SchedulerToStates: "sfn",
 	}
 	for _, m := range delivery.Mechanisms() {
 		if _, listed := want[m]; !listed {

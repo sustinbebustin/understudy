@@ -113,6 +113,10 @@ func deadLetterMessage(e *Entry, dlq aws.ARN, f failure, end ending) sqsMessage 
 		// the form of its dead letter is not researched.
 	case delivery.HTTPEndpoint:
 		m.body, m.attributes = string(t.Body), t.DeadLetterAttributes
+	case delivery.StateMachine:
+		// Only SchedulerToStates delivers to one, and its dead letter is
+		// schedulerDeadLetter's.
+		m.body = t.Input
 	}
 	if e.Request.Mechanism.Via() == ref.EventsTarget {
 		m.attributes = slices.Concat(m.attributes, eventBridgeAttributes(e, f, end))
@@ -259,6 +263,10 @@ func schedulerTargetAction(m delivery.Mechanism) string {
 		return "publish"
 	case delivery.SchedulerToEvents:
 		return "putEvents"
+	case delivery.SchedulerToStates:
+		// The aws-doc's universal example: aws-sdk:sfn:startExecution
+		// (scheduler.md 6.2).
+		return "startExecution"
 	case delivery.SNSToSQS, delivery.SNSToLambda, delivery.SNSToHTTP, delivery.S3ToSQS, delivery.S3ToSNS, delivery.S3ToLambda,
 		delivery.EventsToLambda, delivery.EventsToSQS, delivery.EventsToSNS, delivery.EventsToEvents,
 		delivery.LambdaToSQS, delivery.LambdaToSNS, delivery.LambdaToLambda, delivery.LambdaToEvents, delivery.LambdaToS3,

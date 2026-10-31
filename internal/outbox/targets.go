@@ -13,6 +13,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/eventbridgeapi"
 	"github.com/sustinbebustin/understudy/internal/api/lambdaapi"
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
+	"github.com/sustinbebustin/understudy/internal/api/sfnapi"
 	"github.com/sustinbebustin/understudy/internal/api/snsapi"
 	"github.com/sustinbebustin/understudy/internal/api/sqsapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
@@ -39,6 +40,8 @@ func (a *attempt) send(ctx context.Context, t delivery.Target) (journal.Delivery
 		return a.end(ctx, a.publishSNS(ctx, t))
 	case delivery.EventBus:
 		return a.end(ctx, putEvents(ctx, a.e.k, a.c, a.as(a.scope), t))
+	case delivery.StateMachine:
+		return a.end(ctx, startExecution(ctx, a.e.k, a.c, a.as(a.scope), t))
 	case delivery.S3Object:
 		if a.entry.Request.Mechanism == delivery.LambdaToS3 {
 			// Lambda's execution role needs s3:ListBucket beside s3:PutObject
@@ -138,6 +141,16 @@ func deref(p *string) string {
 		return ""
 	}
 	return *p
+}
+
+// startExecution is the target call of an attempt of t: one
+// states:StartExecution through the kernel k, as the call c makes it, run
+// as kt, of t's state machine with its input and execution name
+// (scheduler.md 6.4).
+func startExecution(ctx context.Context, k *kernel.Kernel, c *kernel.Call, kt kernel.Target, t delivery.StateMachine) *awserr.Error {
+	in := &sfnapi.StartExecutionInput{StateMachineArn: t.ARN.String(), Name: &t.Name, Input: &t.Input}
+	_, err := kernel.Invoke(ctx, k, c, sfnapi.OpStartExecution, kt, in)
+	return err
 }
 
 // putObject is the target call of an attempt of t: one s3:PutObject
@@ -286,6 +299,8 @@ func operationOf(t delivery.Target) *registry.Operation {
 		return snsapi.OpPublish.Descriptor()
 	case delivery.EventBus:
 		return eventbridgeapi.OpPutEvents.Descriptor()
+	case delivery.StateMachine:
+		return sfnapi.OpStartExecution.Descriptor()
 	case delivery.S3Object:
 		return s3api.OpPutObject.Descriptor()
 	case delivery.HTTPEndpoint:

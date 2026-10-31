@@ -576,7 +576,7 @@ func TestAddExplainsHowToFixTheRule(t *testing.T) {
 		{
 			"delivery to a service no mechanism targets",
 			fault.Rule{Match: fault.Match{Services: []ref.ServiceID{"dynamodb"}}, Phase: fault.Delivery, Action: fault.DropDelivery{}, Trigger: fault.Always{}},
-			"no delivery lands in dynamodb, so the rule could never match; in the delivery phase match.services names the target, one of sqs, lambda, sns, eventbridge or s3",
+			"no delivery lands in dynamodb, so the rule could never match; in the delivery phase match.services names the target, one of sqs, lambda, sns, eventbridge, s3 or sfn",
 		},
 		{"error without a shape", fault.Rule{Match: fault.Match{Operations: []ref.OperationID{sendMessage}}, Phase: fault.Request, Action: fault.Error{}, Trigger: fault.Always{}}, "action.shape: is missing"},
 		{"missing phase", fault.Rule{Action: fault.Latency{Wall: time.Second}, Trigger: fault.Always{}}, `phase: is missing; set "phase" to request or delivery`},

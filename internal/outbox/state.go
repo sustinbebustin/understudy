@@ -220,6 +220,12 @@ func eventEntryOf(r eventEntryRecord) delivery.EventEntry {
 	return e
 }
 
+type stateMachineRecord struct {
+	Machine string `json:"machine"`
+	Input   string `json:"input"`
+	Name    string `json:"name"`
+}
+
 type s3ObjectRecord struct {
 	Bucket string `json:"bucket"`
 	Key    string `json:"key"`
@@ -248,6 +254,7 @@ func (snsTopicRecord) isTargetRecord()       {}
 func (eventBusRecord) isTargetRecord()       {}
 func (s3ObjectRecord) isTargetRecord()       {}
 func (httpEndpointRecord) isTargetRecord()   {}
+func (stateMachineRecord) isTargetRecord()   {}
 
 type attributeRecord struct {
 	Name  string               `json:"name"`
@@ -511,6 +518,8 @@ func targetRecordOf(t delivery.Target) targetRecord {
 			entries[i] = eventEntryRecordOf(e)
 		}
 		return eventBusRecord{Bus: t.ARN.String(), Entries: entries}
+	case delivery.StateMachine:
+		return stateMachineRecord{Machine: t.ARN.String(), Input: t.Input, Name: t.Name}
 	case delivery.S3Object:
 		return s3ObjectRecord{Bucket: t.Bucket, Key: t.Key, Body: t.Body}
 	case delivery.HTTPEndpoint:
@@ -564,6 +573,12 @@ func targetOf(r targetRecord) (delivery.Target, *RequestError) {
 			entries[i] = eventEntryOf(e)
 		}
 		return delivery.EventBus{ARN: bus, Entries: entries}, nil
+	case stateMachineRecord:
+		machine, err := parseARN("Target.ARN", r.Machine)
+		if err != nil {
+			return nil, err
+		}
+		return delivery.StateMachine{ARN: machine, Input: r.Input, Name: r.Name}, nil
 	case s3ObjectRecord:
 		return delivery.S3Object{Bucket: r.Bucket, Key: r.Key, Body: r.Body}, nil
 	case httpEndpointRecord:
@@ -759,6 +774,7 @@ func unions() (jsonx.Codec, error) {
 		jsonx.Variant[targetRecord, eventBusRecord]("event-bus"),
 		jsonx.Variant[targetRecord, s3ObjectRecord]("s3-object"),
 		jsonx.Variant[targetRecord, httpEndpointRecord]("http-endpoint"),
+		jsonx.Variant[targetRecord, stateMachineRecord]("state-machine"),
 	)
 	if err != nil {
 		return jsonx.Codec{}, err

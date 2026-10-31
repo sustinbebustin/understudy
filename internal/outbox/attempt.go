@@ -149,7 +149,7 @@ func (a *attempt) blocks() bool {
 		return t.Invocation == delivery.InvocationRequestResponse
 	case delivery.HTTPEndpoint:
 		return true
-	case delivery.SQSQueue, delivery.SNSTopic, delivery.EventBus, delivery.S3Object:
+	case delivery.SQSQueue, delivery.SNSTopic, delivery.EventBus, delivery.S3Object, delivery.StateMachine:
 	}
 	return false
 }
@@ -203,7 +203,7 @@ func (a *attempt) fifoRefusal() (string, bool) {
 		if isFIFO(t.ARN) {
 			return t.ARN.String() + " is a FIFO topic, which Lambda does not deliver to (lambda-destinations-layers.md 2.2, 5.1)", true
 		}
-	case delivery.LambdaFunction, delivery.EventBus, delivery.S3Object, delivery.HTTPEndpoint:
+	case delivery.LambdaFunction, delivery.EventBus, delivery.S3Object, delivery.HTTPEndpoint, delivery.StateMachine:
 	}
 	return "", false
 }
@@ -277,6 +277,9 @@ func rendered(req delivery.Request, attempt int) delivery.Target {
 			entries[i].Detail = payload
 		}
 		t.Entries = entries
+		return t
+	case delivery.StateMachine:
+		t.Input = payload
 		return t
 	case delivery.S3Object, delivery.HTTPEndpoint:
 	}
@@ -624,7 +627,7 @@ func servicePrincipal(m delivery.Mechanism) string {
 		return "lambda.alarms.cloudwatch.amazonaws.com"
 	case delivery.LambdaToSQS, delivery.LambdaToSNS, delivery.LambdaToLambda, delivery.LambdaToEvents, delivery.LambdaToS3,
 		delivery.ESMToSQS, delivery.ESMToSNS:
-	case delivery.SchedulerToLambda, delivery.SchedulerToSQS, delivery.SchedulerToEvents, delivery.SchedulerToSNS:
+	case delivery.SchedulerToLambda, delivery.SchedulerToSQS, delivery.SchedulerToEvents, delivery.SchedulerToSNS, delivery.SchedulerToStates:
 		// Scheduler delivers as the schedule's execution role
 		// (delivery.Request.As, scheduler.md 14.4.4).
 	}

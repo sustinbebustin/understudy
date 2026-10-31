@@ -60,6 +60,7 @@ export const mechanisms = [
   "scheduler-to-sqs",
   "scheduler-to-events",
   "scheduler-to-sns",
+  "scheduler-to-states",
 ] as const;
 
 export const idKinds = [

@@ -214,7 +214,7 @@ func body(t *testing.T, d kernel.Delivery) string {
 		return string(target.Event)
 	case delivery.SNSTopic:
 		return target.Message
-	case delivery.EventBus, delivery.S3Object, delivery.HTTPEndpoint:
+	case delivery.EventBus, delivery.S3Object, delivery.HTTPEndpoint, delivery.StateMachine:
 	}
 	t.Fatalf("delivery target %T", d.Request.Target)
 	return ""
@@ -242,7 +242,7 @@ func targetARNs(ds []kernel.Delivery) []string {
 			out[i] = target.ARN.String()
 		case delivery.EventBus:
 			out[i] = target.ARN.String()
-		case delivery.S3Object, delivery.HTTPEndpoint:
+		case delivery.S3Object, delivery.HTTPEndpoint, delivery.StateMachine:
 			// No rule target names one; the empty ARN fails the comparison.
 		}
 	}

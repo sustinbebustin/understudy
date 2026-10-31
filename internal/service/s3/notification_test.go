@@ -601,7 +601,7 @@ func recordOf(n *notifier, t delivery.Target) s3Record {
 			n.Fatalf("function invocation = %s, want Event", t.Invocation)
 		}
 		body = string(t.Event)
-	case delivery.EventBus, delivery.S3Object, delivery.HTTPEndpoint:
+	case delivery.EventBus, delivery.S3Object, delivery.HTTPEndpoint, delivery.StateMachine:
 		n.Fatalf("notification target %T; S3 notifies queues, topics and functions", t)
 	}
 	var doc struct{ Records []s3Record }

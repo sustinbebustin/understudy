@@ -293,7 +293,7 @@ func checkSender(req delivery.Request) *RequestError {
 	}
 	switch req.Target.(type) {
 	case delivery.SQSQueue, delivery.SNSTopic:
-	case delivery.LambdaFunction, delivery.EventBus, delivery.S3Object, delivery.HTTPEndpoint:
+	case delivery.LambdaFunction, delivery.EventBus, delivery.S3Object, delivery.HTTPEndpoint, delivery.StateMachine:
 		if s.Carries == delivery.DeadLetter {
 			return &RequestError{Field: "Sender.Carries", Reason: "is a dead letter, which goes to an SQS queue or SNS topic only (lambda-destinations-layers.md 5.1), not to this " + m.String() + " target"}
 		}
@@ -334,7 +334,7 @@ func checkDLQ(req delivery.Request) *RequestError {
 		if t.Kind == delivery.HTTPSubscriptionConfirmation || t.Kind == delivery.HTTPUnsubscribeConfirmation {
 			return &RequestError{Field: "DLQ", Reason: "control messages never go to a dead-letter queue (sns.http.control-dlq)"}
 		}
-	case delivery.SQSQueue, delivery.LambdaFunction, delivery.SNSTopic:
+	case delivery.SQSQueue, delivery.LambdaFunction, delivery.SNSTopic, delivery.StateMachine:
 	}
 	if req.DLQ.Service != "sqs" {
 		return &RequestError{Field: "DLQ", Reason: fmt.Sprintf("%s is not an SQS queue", req.DLQ)}
@@ -378,6 +378,11 @@ func checkTarget(req delivery.Request) (aws.ARN, string, *RequestError) {
 			return aws.ARN{}, "", err
 		}
 		return t.ARN, "Target.ARN", nil
+	case delivery.StateMachine:
+		if err := deliversTo(m, "StateMachine", "sfn"); err != nil {
+			return aws.ARN{}, "", err
+		}
+		return t.ARN, "Target.ARN", checkStateMachine(t)
 	case delivery.S3Object:
 		if err := deliversTo(m, "S3Object", "s3"); err != nil {
 			return aws.ARN{}, "", err
@@ -408,6 +413,24 @@ func checkEventBus(t delivery.EventBus) *RequestError {
 	}
 	if n := len(t.Entries); n != 1 {
 		return &RequestError{Field: "Target.Entries", Reason: fmt.Sprintf("has %d entries; an EventBus delivery carries exactly 1, so a retry puts no entry twice", n)}
+	}
+	return nil
+}
+
+// checkStateMachine checks that t names a state machine, or one of its
+// versions or aliases, and an execution name. StartExecution takes all
+// three ARN forms and a name of 1 to 80 characters
+// (https://docs.aws.amazon.com/step-functions/latest/apireference/API_StartExecution.html);
+// the producer chooses the name, so an empty one is the producer's
+// mistake.
+func checkStateMachine(t delivery.StateMachine) *RequestError {
+	rest, isMachine := strings.CutPrefix(t.ARN.Resource, "stateMachine:")
+	name, qualifier, qualified := strings.Cut(rest, ":")
+	if t.ARN.Service != "states" || !isMachine || name == "" || qualified && (qualifier == "" || strings.Contains(qualifier, ":")) {
+		return &RequestError{Field: "Target.ARN", Reason: t.ARN.String() + " is not a state machine, arn:<partition>:states:<region>:<account>:stateMachine:<name>[:<version or alias>]"}
+	}
+	if t.Name == "" {
+		return &RequestError{Field: "Target.Name", Reason: "is empty; StartExecution's execution name is 1 to 80 characters"}
 	}
 	return nil
 }
@@ -562,6 +585,8 @@ func targetARN(t delivery.Target) (aws.ARN, bool) {
 	case delivery.SNSTopic:
 		return t.ARN, true
 	case delivery.EventBus:
+		return t.ARN, true
+	case delivery.StateMachine:
 		return t.ARN, true
 	case delivery.S3Object, delivery.HTTPEndpoint:
 		return aws.ARN{}, false

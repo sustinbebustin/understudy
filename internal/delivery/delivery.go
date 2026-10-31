@@ -209,6 +209,18 @@ type Forwarded struct {
 	Time time.Time
 }
 
+// StateMachine is a StartExecution of a Step Functions state machine
+// (scheduler.md 6.4). Only SchedulerToStates delivers to one.
+type StateMachine struct {
+	// ARN is the state machine, or one of its versions or aliases:
+	// arn:<partition>:states:<region>:<account>:stateMachine:<name>[:<version or alias>].
+	ARN aws.ARN
+	// Input is the execution's input, JSON text.
+	Input string
+	// Name is the execution's name, chosen by the producer.
+	Name string
+}
+
 // S3Object is a PutObject. No mechanism delivers to one yet.
 type S3Object struct {
 	Bucket string
@@ -328,6 +340,7 @@ func (SNSTopic) isTarget()       {}
 func (EventBus) isTarget()       {}
 func (S3Object) isTarget()       {}
 func (HTTPEndpoint) isTarget()   {}
+func (StateMachine) isTarget()   {}
 
 // InvocationType is how a delivery invokes a function.
 type InvocationType uint8
@@ -649,6 +662,7 @@ const (
 	SchedulerToSQS
 	SchedulerToEvents
 	SchedulerToSNS
+	SchedulerToStates
 
 	// endMechanism follows the last value and is no mechanism: Mechanisms,
 	// valid and the MechanismError text count up to it, so a new value is
@@ -714,6 +728,8 @@ func (m Mechanism) String() string {
 		return "scheduler-to-events"
 	case SchedulerToSNS:
 		return "scheduler-to-sns"
+	case SchedulerToStates:
+		return "scheduler-to-states"
 	default:
 		return fmt.Sprintf("Mechanism(%d)", uint8(m))
 	}
@@ -737,7 +753,7 @@ func (m Mechanism) Via() ref.Via {
 		return ref.LambdaESM
 	case CloudWatchToSNS, CloudWatchToLambda:
 		return ref.CloudWatchAlarm
-	case SchedulerToLambda, SchedulerToSQS, SchedulerToEvents, SchedulerToSNS:
+	case SchedulerToLambda, SchedulerToSQS, SchedulerToEvents, SchedulerToSNS, SchedulerToStates:
 		return ref.SchedulerTarget
 	default:
 		return 0
@@ -758,6 +774,8 @@ func (m Mechanism) Target() ref.ServiceID {
 		return "eventbridge"
 	case LambdaToS3:
 		return "s3"
+	case SchedulerToStates:
+		return "sfn"
 	case SNSToHTTP:
 		// An HTTP endpoint lands in no service.
 		return ""

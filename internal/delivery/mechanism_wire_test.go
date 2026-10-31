@@ -40,6 +40,7 @@ var mechanismNames = []struct {
 	{delivery.SchedulerToSQS, "scheduler-to-sqs"},
 	{delivery.SchedulerToEvents, "scheduler-to-events"},
 	{delivery.SchedulerToSNS, "scheduler-to-sns"},
+	{delivery.SchedulerToStates, "scheduler-to-states"},
 }
 
 func TestMechanismWireNamesAreStable(t *testing.T) {

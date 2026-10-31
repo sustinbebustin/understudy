@@ -61,6 +61,7 @@ export const mechanismLabels: Readonly<Record<string, string>> = {
   "scheduler-to-sqs": "Scheduler to SQS",
   "scheduler-to-events": "Scheduler to EventBridge",
   "scheduler-to-sns": "Scheduler to SNS",
+  "scheduler-to-states": "Scheduler to Step Functions",
 };
 
 // ids.Kind: the generator streams (internal/ids/kind.go).

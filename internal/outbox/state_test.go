@@ -223,7 +223,7 @@ func genEntry() *rapid.Generator[Entry] {
 					tg.Entries[i].Forwarded = nil
 				}
 				req.Target = tg
-			case delivery.LambdaFunction, delivery.S3Object, delivery.HTTPEndpoint:
+			case delivery.LambdaFunction, delivery.S3Object, delivery.HTTPEndpoint, delivery.StateMachine:
 			}
 			role := genARN("iam").Draw(t, "role")
 			role.Region, role.Resource = "", "role/"+rapid.StringMatching(`([a-z]{1,8}/)?`).Draw(t, "path")+role.Resource

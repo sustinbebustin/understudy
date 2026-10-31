@@ -230,7 +230,7 @@ func carried(tb testing.TB, d kernel.Delivery) []byte {
 		return []byte(t.Entries[0].Detail)
 	case delivery.S3Object:
 		return t.Body
-	case delivery.HTTPEndpoint:
+	case delivery.HTTPEndpoint, delivery.StateMachine:
 	}
 	tb.Fatalf("delivery target %T carries no record", d.Request.Target)
 	return nil
