@@ -31,12 +31,9 @@ func goneQueues(k *kerneltest.K, gone ...string) *queues {
 	})
 }
 
-func stringAttr(m sent, name string) (string, bool) {
-	a, ok := m.in.MessageAttributes[name]
-	if !ok || a.StringValue == nil {
-		return "", false
-	}
-	return *a.StringValue, true
+// stringAttr is the String message attribute name of m, "" when absent.
+func stringAttr(m sent, name string) string {
+	return deref(m.in.MessageAttributes[name].StringValue)
 }
 
 // A dead letter whose payload exceeds SQS's 256 KiB is cut to it and says
@@ -59,7 +56,7 @@ func TestSchedulerDeadLetterTruncatesALargePayload(t *testing.T) {
 		if body := dl.in.MessageBody; body != strings.Repeat("x", 262_143) {
 			k.Errorf("dead-letter body is %d bytes ending %q, want the 262,143 bytes before the straddling character", len(body), body[max(0, len(body)-8):])
 		}
-		if v, _ := stringAttr(dl, "IS_PAYLOAD_TRUNCATED"); v != "true" {
+		if v := stringAttr(dl, "IS_PAYLOAD_TRUNCATED"); v != "true" {
 			k.Errorf("IS_PAYLOAD_TRUNCATED = %q, want true", v)
 		}
 	})
@@ -87,10 +84,10 @@ func TestSchedulerBusTargetDeadLetterIsThePayload(t *testing.T) {
 		if body := got[0].in.MessageBody; body != `{"attempt":"1"}` {
 			k.Errorf("dead-letter body = %q, want the payload {\"attempt\":\"1\"}", body)
 		}
-		if v, _ := stringAttr(got[0], "TARGET_ARN"); v != "arn:aws:scheduler:::aws-sdk:eventbridge:putEvents" {
+		if v := stringAttr(got[0], "TARGET_ARN"); v != "arn:aws:scheduler:::aws-sdk:eventbridge:putEvents" {
 			k.Errorf("TARGET_ARN = %q, want arn:aws:scheduler:::aws-sdk:eventbridge:putEvents", v)
 		}
-		if v, _ := stringAttr(got[0], "RETRY_ATTEMPTS"); v != "0" {
+		if v := stringAttr(got[0], "RETRY_ATTEMPTS"); v != "0" {
 			k.Errorf("RETRY_ATTEMPTS = %q, want 0", v)
 		}
 	}, kerneltest.Services(eventbridgeapi.Service()))
@@ -120,7 +117,7 @@ func TestSchedulerLambdaTargetDeadLetter(t *testing.T) {
 			"ERROR_MESSAGE": "Function not found: tick",
 			"TARGET_ARN":    "arn:aws:scheduler:::aws-sdk:lambda:invoke",
 		} {
-			if v, _ := stringAttr(got[0], name); v != want {
+			if v := stringAttr(got[0], name); v != want {
 				k.Errorf("%s = %q, want %q", name, v, want)
 			}
 		}
@@ -154,11 +151,11 @@ func TestSchedulerThrottleFaultExhaustsTheRetries(t *testing.T) {
 			k.Fatalf("sent %+v, want only the dead letter: the rule throttled both attempts", got)
 		}
 		for name, want := range map[string]string{"EXHAUSTED_RETRY_CONDITION": "MaximumRetryAttempts", "RETRY_ATTEMPTS": "1"} {
-			if v, _ := stringAttr(got[0], name); v != want {
+			if v := stringAttr(got[0], name); v != want {
 				k.Errorf("%s = %q, want %q", name, v, want)
 			}
 		}
-		if v, _ := stringAttr(got[0], "ERROR_CODE"); v == "" {
+		if v := stringAttr(got[0], "ERROR_CODE"); v == "" {
 			k.Error("ERROR_CODE is empty, want the throttling error's code")
 		}
 	})
@@ -189,7 +186,7 @@ func TestSchedulerEventAgeExhaustsTheRetries(t *testing.T) {
 				continue
 			}
 			dead++
-			if v, _ := stringAttr(m, "EXHAUSTED_RETRY_CONDITION"); v != "MaximumEventAgeInSeconds" {
+			if v := stringAttr(m, "EXHAUSTED_RETRY_CONDITION"); v != "MaximumEventAgeInSeconds" {
 				k.Errorf("EXHAUSTED_RETRY_CONDITION = %q, want MaximumEventAgeInSeconds", v)
 			}
 		}

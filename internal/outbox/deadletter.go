@@ -235,13 +235,24 @@ func schedulerError(f failure) (code, message string) {
 	return "AWS.Scheduler.InternalServerError", describeFailure(f)
 }
 
-// schedulerTargetActions is the API action each Scheduler mechanism calls,
-// as its dead letter's TARGET_ARN names it.
-var schedulerTargetActions = map[delivery.Mechanism]string{
-	delivery.SchedulerToLambda: "invoke",
-	delivery.SchedulerToSQS:    "sendMessage",
-	delivery.SchedulerToSNS:    "publish",
-	delivery.SchedulerToEvents: "putEvents",
+// schedulerTargetAction is the API action a Scheduler mechanism calls, as
+// its dead letter's TARGET_ARN names it; "" for any other mechanism.
+func schedulerTargetAction(m delivery.Mechanism) string {
+	switch m {
+	case delivery.SchedulerToLambda:
+		return "invoke"
+	case delivery.SchedulerToSQS:
+		return "sendMessage"
+	case delivery.SchedulerToSNS:
+		return "publish"
+	case delivery.SchedulerToEvents:
+		return "putEvents"
+	case delivery.SNSToSQS, delivery.SNSToLambda, delivery.SNSToHTTP, delivery.S3ToSQS, delivery.S3ToSNS, delivery.S3ToLambda,
+		delivery.EventsToLambda, delivery.EventsToSQS, delivery.EventsToSNS, delivery.EventsToEvents,
+		delivery.LambdaToSQS, delivery.LambdaToSNS, delivery.LambdaToLambda, delivery.LambdaToEvents, delivery.LambdaToS3,
+		delivery.ESMToSQS, delivery.ESMToSNS, delivery.CloudWatchToSNS, delivery.CloudWatchToLambda:
+	}
+	return ""
 }
 
 // schedulerTargetARN is a Scheduler dead letter's TARGET_ARN for a delivery
@@ -252,7 +263,7 @@ var schedulerTargetActions = map[delivery.Mechanism]string{
 // configured ARN is unrecorded, as are the service and action spellings
 // other than SQS's.
 func schedulerTargetARN(m delivery.Mechanism) string {
-	return "arn:aws:scheduler:::aws-sdk:" + string(m.Target()) + ":" + schedulerTargetActions[m]
+	return "arn:aws:scheduler:::aws-sdk:" + string(m.Target()) + ":" + schedulerTargetAction(m)
 }
 
 // truncateUTF8 is s cut to at most limit bytes at a character boundary,
