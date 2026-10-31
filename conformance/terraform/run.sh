@@ -54,7 +54,7 @@ phase_timeout="${CONFORMANCE_PHASE_TIMEOUT:-900}"
 
 # Each service runs in an account of its own: understudy derives the account
 # from a 12-digit access key, so services never see each other's resources.
-all_services=(sqs sns s3 dynamodb kms secretsmanager iam lambda logs events cloudwatch apigatewayv2 dynamodbstreams ssm sfn kinesis ses apigateway)
+all_services=(sqs sns s3 dynamodb kms secretsmanager iam lambda logs events cloudwatch apigatewayv2 dynamodbstreams ssm sfn kinesis ses apigateway scheduler)
 declare -A accounts=(
   [sqs]=100000000001
   [sns]=100000000002
@@ -74,6 +74,7 @@ declare -A accounts=(
   [kinesis]=100000000016
   [ses]=100000000017
   [apigateway]=100000000018
+  [scheduler]=100000000019
 )
 phases=(apply-create plan-create-no-changes apply-update plan-update-no-changes destroy nothing-left)
 
