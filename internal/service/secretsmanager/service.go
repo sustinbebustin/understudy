@@ -55,6 +55,14 @@ func New(d kernel.ServiceDeps, _ Options) *Service {
 				out = append(out, registry.IAMAction{Prefix: "secretsmanager", Name: "ReplicateSecretToRegions"})
 			}
 			return out
+		}),
+		// Authorized at step 8 on the secret the call creates (the
+		// Service Authorization Reference lists the Secret resource type
+		// for CreateSecret and TagResource): its suffix is drawn from the
+		// request id (newSuffix), so the ARN is known before the handler;
+		// a name that exists names that secret.
+		kernel.WithResources(func(c *kernel.Call, in *secretsmanagerapi.CreateSecretInput) []aws.ARN {
+			return []aws.ARN{s.createTarget(c, in.Name)}
 		}))
 	named := registry.Partial{Note: resolvedFirst}
 	b.DescribeSecret(s.describeSecret, named)
