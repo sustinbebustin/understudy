@@ -17,6 +17,9 @@
 #   SIGV4=verify conformance/patterns/run.sh             # serve with --sigv4 verify (default parse)
 #   CONFORMANCE_IAM_ENFORCE=enforce conformance/patterns/run.sh
 #                                                        # serve with --iam-enforce enforce (default off)
+#                                                        # and check each pattern's denials (no-denials)
+#   CONFORMANCE_ADVISORIES_OUT=advisories.json conformance/patterns/run.sh
+#                                                        # write the journal's advisories as JSON
 #
 # A pattern's documented preparation and check live in checks/<pattern>.sh,
 # which defines pattern_prepare DIR and pattern_check DIR, and
@@ -25,6 +28,14 @@
 # pattern_aws ARGS..., sealed and in the pattern's account, and
 # pattern_check prints why it failed before returning non-zero. serve reads
 # understudy.json, the settings a pattern's documented prerequisites need.
+#
+# Under CONFORMANCE_IAM_ENFORCE=enforce each pattern also gets the step
+# no-denials, listed after check and evaluated after nothing-left: every
+# access-denied advisory in the pattern's accounts from prepare to the start
+# of destroy fails it, unless one of the extended regexes the optional
+# pattern_expected_denials prints (one per line, each citing why AWS denies
+# it too) matches the advisory text. Denials from destroy on are listed in
+# its detail without failing it.
 #
 # Every Terraform and AWS CLI call goes through scripts/sealed, so no real AWS
 # setting or credential is ever used. The run ends with a summary on stderr:
@@ -47,7 +58,12 @@ sealed="$repo_root/scripts/sealed"
 port="${CONFORMANCE_PORT:-45667}"
 endpoint="http://127.0.0.1:$port"
 phase_timeout="${CONFORMANCE_PHASE_TIMEOUT:-900}"
+enforce=false
 steps=(prepare init apply check plan-no-changes destroy nothing-left)
+if [[ "${CONFORMANCE_IAM_ENFORCE:-off}" == enforce ]]; then
+  enforce=true
+  steps=(prepare init apply check no-denials plan-no-changes destroy nothing-left)
+fi
 
 die() {
   echo "run.sh: $*" >&2
@@ -102,6 +118,10 @@ stop_server() {
   if [[ -n "$server_pid" ]] && kill -0 "$server_pid" 2>/dev/null; then
     "$binary" journal --endpoint "$endpoint" --errors --output json --limit 100000 \
       >"$logs_dir/journal-errors.json" 2>&1
+    if [[ -n "${CONFORMANCE_ADVISORIES_OUT:-}" ]]; then
+      "$binary" journal --endpoint "$endpoint" --kind advisory --output json --limit 100000 \
+        >"$CONFORMANCE_ADVISORIES_OUT" 2>&1
+    fi
     kill -TERM "$server_pid" 2>/dev/null
     for _ in $(seq 1 60); do
       kill -0 "$server_pid" 2>/dev/null || break
@@ -244,17 +264,86 @@ nothing_left() {
   fi
 }
 
+# journal_mark prints the id the journal's next event gets: one past the
+# newest event's id.
+journal_mark() {
+  curl -fsS "$endpoint/_understudy/v1/journal/events?tail=1" | jq -er '(.events[-1].id // 0) + 1'
+}
+
+# pattern_accounts PATTERN prints the pattern's accounts, one per line: its
+# own, and each 12-digit access_key literal in its Terraform files, such as
+# a second provider's account.
+pattern_accounts() {
+  local p=$1
+  printf '%s\n' "${accounts[$p]}"
+  find "$suite_dir/$p" -name '*.tf' -exec sed -nE 's/.*access_key *= *"([0-9]{12})".*/\1/p' {} +
+}
+
+# no_denials PATTERN PREPARE_MARK DESTROY_MARK records the no-denials step:
+# the access-denied advisories in the pattern's accounts from PREPARE_MARK
+# on. One before DESTROY_MARK that no regex of pattern_expected_denials
+# matches fails it; those from DESTROY_MARK on, made while or after the
+# destroy removed what grants access, are listed without failing it.
+no_denials() {
+  local p=$1 prepare_mark=$2 destroy_mark=$3 log="$logs_dir/$1/no-denials.log"
+  local accounts_json id text expected=0 unexpected=() late=() detail=""
+  : >"$log"
+  if declare -F pattern_expected_denials >/dev/null; then
+    pattern_expected_denials | grep -v '^$' >"$log.expected" || true
+  else
+    : >"$log.expected"
+  fi
+  accounts_json=$(pattern_accounts "$p" | jq -R . | jq -sc .)
+  if ! curl -fsS "$endpoint/_understudy/v1/journal/events?kind=advisory&from_id=$prepare_mark&limit=100000" \
+    >"$log.json" 2>>"$log"; then
+    record "$p/no-denials" FAIL "journal query failed: $(tail -n 3 "$log")"
+    return
+  fi
+  while IFS=$'\t' read -r id text; do
+    if ((id >= destroy_mark)); then
+      late+=("$text")
+    elif grep -qE -f "$log.expected" <<<"$text"; then
+      expected=$((expected + 1))
+    else
+      unexpected+=("$text")
+    fi
+  done < <(jq -r --argjson accounts "$accounts_json" '
+    (.events // [])[]
+    | select(.detail.advisory == "access-denied" and (.scope.account as $a | any($accounts[]; . == $a)))
+    | "\(.id)\t\(.detail.text | gsub("[\t\n]"; " "))"' "$log.json")
+  if ((${#unexpected[@]} > 0)); then
+    detail+="unexpected before destroy: $(printf '%s | ' "${unexpected[@]}")"
+    detail="${detail% | }"$'\n'
+  fi
+  if ((${#unexpected[@]} > 0 || expected > 0)); then
+    detail+="expected: $expected"$'\n'
+  fi
+  if ((${#late[@]} > 0)); then
+    detail+="after destroy started: $(printf '%s | ' "${late[@]}")"
+    detail="${detail% | }"
+  fi
+  detail="${detail%$'\n'}"
+  if ((${#unexpected[@]} > 0)); then
+    record "$p/no-denials" FAIL "$detail"
+  else
+    record "$p/no-denials" PASS "$detail"
+  fi
+}
+
 # run_pattern PATTERN runs every step of one pattern in a copy of its
 # directory, so the repository stays clean.
 run_pattern() {
-  local p=$1 dir="$work_dir/$1" status=0
+  local p=$1 dir="$work_dir/$1" status=0 prepare_mark=0 destroy_mark=0
   current_pattern=$p
   mkdir -p -- "$logs_dir/$p"
   cp -R -- "$suite_dir/$p" "$dir"
-  unset -f pattern_prepare pattern_check pattern_cleanup
+  unset -f pattern_prepare pattern_check pattern_cleanup pattern_expected_denials
   if [[ -f "$suite_dir/checks/$p.sh" ]]; then
     # shellcheck source=/dev/null # one file per pattern
     source "$suite_dir/checks/$p.sh"
+  fi
+  if $enforce; then
+    prepare_mark=$(journal_mark) || die "cannot read the journal's newest event id from $endpoint"
   fi
 
   if declare -F pattern_prepare >/dev/null; then
@@ -303,6 +392,9 @@ run_pattern() {
     record "$p/plan-no-changes" SKIP "apply failed"
   fi
 
+  if $enforce; then
+    destroy_mark=$(journal_mark) || die "cannot read the journal's newest event id from $endpoint"
+  fi
   if tf_step "$p" destroy destroy -auto-approve; then
     record "$p/destroy" PASS ""
   else
@@ -314,6 +406,9 @@ run_pattern() {
     pattern_cleanup "$dir" >"$logs_dir/$p/cleanup.log" 2>&1 || true
   fi
   nothing_left "$p"
+  if $enforce; then
+    no_denials "$p" "$prepare_mark" "$destroy_mark"
+  fi
 }
 
 for p in "${patterns[@]}"; do

@@ -40,3 +40,15 @@ pattern_check() {
   echo "the three Sensor1 records (sensorId $((marker + 1)) to $((marker + 3))) never all reached $group after 60s; its events: $(head -c 2000 <<<"${events:-none}")"
   return 1
 }
+
+# pattern_expected_denials prints the denials AWS makes too, for the
+# no-denials step under CONFORMANCE_IAM_ENFORCE=enforce.
+pattern_expected_denials() {
+  # aws_lambda_event_source_mapping does not depend on
+  # aws_iam_role_policy_attachment (main.tf), so Terraform can create the
+  # mapping before the role holds its Kinesis policy. CreateEventSourceMapping
+  # then checks the execution role's access to the stream and AWS refuses it
+  # ("execution role does not have permissions"), which the provider retries
+  # until the attachment lands (iam-enforcement-surfaces.md 4.3, tf-compute.md 2.3).
+  printf '%s\n' 'for arn:aws:sts::[0-9]{12}:assumed-role/lambda-role/[^ ]+ calling kinesis:DescribeStreamSummary on arn:aws:kinesis:[^ ]+:stream/sample-stream$'
+}
