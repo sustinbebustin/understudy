@@ -48,10 +48,6 @@ func (REST) isV1Front() {}
 // event's shape depends on the front.
 var errNoFront = errors.New("httpevent: EventV1's V1Front is nil; pass HTTPAPI{} for an API Gateway HTTP API or REST{} for a REST API")
 
-// errRESTNotImplemented answers the REST front until its event and
-// response mapping are implemented.
-var errRESTNotImplemented = errors.New("httpevent: the REST API payload format 1.0 event and response mapping are not implemented yet; no event was built")
-
 // eventV1 is the payload format version 1.0 request event, with its keys
 // in the order of the HTTP API guide's example (apigateway-http.md 5.2).
 // Unlike 2.0, an absent map or body is null, not left out.
@@ -132,10 +128,10 @@ type identityV1 struct {
 // and requestContext.resourcePath are the path of c.RouteKey, or $default
 // for the $default route (inferred, APIGW2-08).
 func EventV1(r Request, c Context, f V1Front) ([]byte, error) {
-	switch f.(type) {
+	switch f := f.(type) {
 	case HTTPAPI:
 	case REST:
-		return nil, errRESTNotImplemented
+		return eventREST(r, c, f)
 	case nil:
 		return nil, errNoFront
 	}
@@ -220,14 +216,13 @@ func nilIfEmpty(m map[string]string) map[string]string {
 // multiValueHeaders value or a bare string is malformed, header values
 // that are booleans or numbers are stringified, isBase64Encoded does not
 // decode the body, and a response without a Content-Type gets
-// application/json. The REST mapping is not implemented yet and returns an
-// error.
+// application/json.
 func InferV1For(payload []byte, f V1Front) (Response, error) {
 	switch f.(type) {
 	case HTTPAPI:
 		return InferV1(payload)
 	case REST:
-		return Response{}, errRESTNotImplemented
+		return inferREST(payload)
 	case nil:
 		return Response{}, errNoFront
 	}
