@@ -60,17 +60,19 @@ The other targets get what AWS documents for each: a Lambda function is invoked 
 
 ## Time zones, at() and DELETE
 
-A `cron()` is evaluated in its `--schedule-expression-timezone`, and an `at()` is a civil time in it. Across a daylight saving change a cron fires once in the repeated hour when clocks go back, and not at all for a time the change skips. A `rate()` ignores its zone. `--action-after-completion DELETE` removes a schedule once it has handed over its last invocation:
+A `cron()` is evaluated in its `--schedule-expression-timezone`, and an `at()` is a civil time in it. Across a daylight saving change a cron fires once in the repeated hour when clocks go back, and not at all for a time the change skips. A `rate()` ignores its zone. `--action-after-completion DELETE` removes a schedule once it has handed over its last invocation. This section deletes `every-15m` and sends to a queue of its own, so the earlier messages, visible again once the clock passes their visibility timeout, do not mix in:
 
 ```sh
-T='{"Arn":"arn:aws:sqs:us-east-1:000000000000:reminders","RoleArn":"arn:aws:iam::000000000000:role/scheduler-role","Input":"<aws.scheduler.scheduled-time>"}'
+aws scheduler delete-schedule --name every-15m
+aws sqs create-queue --queue-name zoned
+T='{"Arn":"arn:aws:sqs:us-east-1:000000000000:zoned","RoleArn":"arn:aws:iam::000000000000:role/scheduler-role","Input":"<aws.scheduler.scheduled-time>"}'
 aws scheduler create-schedule --name paris-morning --schedule-expression 'cron(30 9 ? * MON-FRI *)' \
   --schedule-expression-timezone Europe/Paris --flexible-time-window Mode=OFF --target "$T"
 aws scheduler create-schedule --name once --schedule-expression 'at(2026-11-02T12:00:00)' \
   --schedule-expression-timezone America/New_York --action-after-completion DELETE \
   --flexible-time-window Mode=OFF --target "$T"
 understudy clock advance 48h --settle
-aws sqs receive-message --queue-url http://127.0.0.1:4566/000000000000/reminders --max-number-of-messages 10 \
+aws sqs receive-message --queue-url http://127.0.0.1:4566/000000000000/zoned --max-number-of-messages 10 \
   --query 'Messages[].Body' --output text
 # 2026-11-02T17:00:00Z  2026-11-03T08:30:00Z  2026-11-04T08:30:00Z
 aws scheduler list-schedules --query 'Schedules[].[Name,State]' --output text
