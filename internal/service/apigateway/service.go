@@ -71,7 +71,7 @@ const baseNote = "the X-Amzn-Errortype value and generated ids are inferred (UNV
 // Coverage notes of the tracer bullet's operations: what each leaves out
 // of the documented behavior until its own ticket.
 const (
-	createRestAPINote = "only name, description and version are accepted, and every other member answers NotImplemented; " +
+	createRestAPINote = "only name, description, version and tags are accepted, and every other member answers NotImplemented; " +
 		"apiKeySource, endpointConfiguration and disableExecuteApiEndpoint are reported at their recorded defaults"
 	getRestAPINote    = "apiKeySource, endpointConfiguration and disableExecuteApiEndpoint are reported at their recorded defaults"
 	updateRestAPINote = "replace /name, add, replace and remove /description, and add, replace and remove /binaryMediaTypes/{type} apply; " +
@@ -97,8 +97,16 @@ const (
 	getIntegrationNote      = emptyRequestTemplate + "; " + emptyResponseTemplate
 	integrationResponseNote = "selectionPattern, responseParameters, responseTemplates and contentHandling are stored and returned; " +
 		"MOCK integrations, which select integration responses, answer 501 at invoke; " + emptyResponseTemplate
-	createDeploymentNote = "only stageName and description are accepted, and every other member answers NotImplemented; " +
+	createDeploymentNote = "canarySettings answers NotImplemented; cacheClusterEnabled, cacheClusterSize and tracingEnabled are stored without effect; " +
 		"the texts for deploying an API with no methods or a method with no integration are inferred (APIGW1-05)"
+	getDeploymentsNote     = "items in creation order (inferred)"
+	deploymentNotFoundNote = "the missing-deployment text is inferred"
+	stageTexts             = "the duplicate-stage and missing-stage texts are inferred (APIGW1-06)"
+	stageNote              = "cache settings, methodSettings, accessLogSettings, clientCertificateId, tracingEnabled and webAclArn are stored and echoed without effect; " +
+		"canarySettings answers NotImplemented; " + stageTexts + "; documentationVersion answers NotImplemented while documentation versions are unbound"
+	updateStageNote   = stageNote + "; a new method setting starts from the */* one (inferred)"
+	getStagesNote     = "items in creation order (inferred)"
+	tagsNote          = "the texts for a malformed or unknown resourceArn and the tag key and value lengths are inferred"
 	invokeRestAPINote = "AWS_PROXY (payload 1.0) on the root resource only; a request the root does not serve answers 501 while the deployment holds other resources; " +
 		"mapping templates, request validation, authorizers, API keys, caching and throttling are not applied; AWS_IAM methods answer 501; apiKeyRequired methods answer 403; " +
 		"binaryMediaTypes in the stage's deployment answer 501; " +
@@ -216,6 +224,44 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 		kernel.WithResources(resourceAt(func(in *apigatewayapi.CreateDeploymentInput) string {
 			return "/restapis/" + in.RestApiId + "/deployments"
 		})))
+	b.GetDeployments(s.getDeployments, partial(getDeploymentsNote),
+		kernel.WithResources(resourceAt(func(in *apigatewayapi.GetDeploymentsInput) string {
+			return "/restapis/" + in.RestApiId + "/deployments"
+		})))
+	b.GetDeployment(s.getDeployment, partial(deploymentNotFoundNote),
+		kernel.WithResources(resourceAt(func(in *apigatewayapi.GetDeploymentInput) string {
+			return "/restapis/" + in.RestApiId + "/deployments/" + in.DeploymentId
+		})))
+	b.UpdateDeployment(s.updateDeployment, partial(deploymentNotFoundNote),
+		kernel.WithResources(resourceAt(func(in *apigatewayapi.UpdateDeploymentInput) string {
+			return "/restapis/" + in.RestApiId + "/deployments/" + in.DeploymentId
+		})))
+	b.DeleteDeployment(s.deleteDeployment, partial(deploymentNotFoundNote),
+		kernel.WithResources(resourceAt(func(in *apigatewayapi.DeleteDeploymentInput) string {
+			return "/restapis/" + in.RestApiId + "/deployments/" + in.DeploymentId
+		})))
+	b.CreateStage(s.createStage, partial(stageNote),
+		kernel.WithResources(resourceAt(func(in *apigatewayapi.CreateStageInput) string { return "/restapis/" + in.RestApiId + "/stages" })))
+	b.GetStages(s.getStages, partial(getStagesNote),
+		kernel.WithResources(resourceAt(func(in *apigatewayapi.GetStagesInput) string { return "/restapis/" + in.RestApiId + "/stages" })))
+	b.GetStage(s.getStage, partial(stageTexts),
+		kernel.WithResources(resourceAt(func(in *apigatewayapi.GetStageInput) string {
+			return "/restapis/" + in.RestApiId + "/stages/" + in.StageName
+		})))
+	b.UpdateStage(s.updateStage, partial(updateStageNote),
+		kernel.WithResources(resourceAt(func(in *apigatewayapi.UpdateStageInput) string {
+			return "/restapis/" + in.RestApiId + "/stages/" + in.StageName
+		})))
+	b.DeleteStage(s.deleteStage, partial(stageTexts),
+		kernel.WithResources(resourceAt(func(in *apigatewayapi.DeleteStageInput) string {
+			return "/restapis/" + in.RestApiId + "/stages/" + in.StageName
+		})))
+	b.TagResource(s.tagResource, partial(tagsNote),
+		kernel.WithResources(tagsResource(func(in *apigatewayapi.TagResourceInput) string { return in.ResourceArn })))
+	b.UntagResource(s.untagResource, partial(tagsNote),
+		kernel.WithResources(tagsResource(func(in *apigatewayapi.UntagResourceInput) string { return in.ResourceArn })))
+	b.GetTags(s.getTags, partial(tagsNote),
+		kernel.WithResources(tagsResource(func(in *apigatewayapi.GetTagsInput) string { return in.ResourceArn })))
 	b.InvokeRestApi(s.invoke, registry.Partial{Note: invokeRestAPINote})
 	return s
 }

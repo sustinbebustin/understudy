@@ -18,8 +18,8 @@ func TestTracerRefusesUnacceptedMembers(t *testing.T) {
 		id, root := h.api("t")
 		h.proxy(id, root, "GET", "arn:aws:lambda:us-east-1:000000000000:function:fn")
 		wantNotImplemented(t, fail(h, apigatewayapi.OpCreateDeployment, &apigatewayapi.CreateDeploymentInput{
-			RestApiId: id, StageName: new("s"), Variables: map[string]string{"a": "b"},
-		}), "variables")
+			RestApiId: id, StageName: new("s"), CanarySettings: &apigatewayapi.DeploymentCanarySettings{PercentTraffic: 1},
+		}), "canarySettings")
 	})
 }
 

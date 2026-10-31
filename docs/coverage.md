@@ -117,7 +117,7 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 
 | Service | Operations | Full | Stored only | Partial | Unbound | Internal | Raw |
 |---|---|---|---|---|---|---|---|
-| apigateway | 124 | 0 | 0 | 25 | 99 | 0 | 1 |
+| apigateway | 124 | 0 | 0 | 37 | 87 | 0 | 1 |
 | apigatewayv2 | 103 | 0 | 2 | 29 | 72 | 0 | 1 |
 | cloudwatch | 55 | 4 | 0 | 11 | 40 | 0 | 0 |
 | dynamodb | 58 | 4 | 2 | 20 | 32 | 0 | 0 |
@@ -142,14 +142,19 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 
 | Operation | Status | Evidence | Note |
 |---|---|---|---|
-| CreateDeployment | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); only stageName and description are accepted, and every other member answers NotImplemented; the texts for deploying an API with no methods or a method with no integration are inferred (APIGW1-05) |
+| CreateDeployment | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); canarySettings answers NotImplemented; cacheClusterEnabled, cacheClusterSize and tracingEnabled are stored without effect; the texts for deploying an API with no methods or a method with no integration are inferred (APIGW1-05) |
 | CreateResource | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02) |
-| CreateRestApi | partial | inferred, 1 of 3 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); only name, description and version are accepted, and every other member answers NotImplemented; apiKeySource, endpointConfiguration and disableExecuteApiEndpoint are reported at their recorded defaults |
+| CreateRestApi | partial | inferred, 1 of 3 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); only name, description, version and tags are accepted, and every other member answers NotImplemented; apiKeySource, endpointConfiguration and disableExecuteApiEndpoint are reported at their recorded defaults |
+| CreateStage | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); cache settings, methodSettings, accessLogSettings, clientCertificateId, tracingEnabled and webAclArn are stored and echoed without effect; canarySettings answers NotImplemented; the duplicate-stage and missing-stage texts are inferred (APIGW1-06); documentationVersion answers NotImplemented while documentation versions are unbound |
+| DeleteDeployment | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); the missing-deployment text is inferred |
 | DeleteIntegration | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02) |
 | DeleteIntegrationResponse | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02) |
 | DeleteMethod | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02) |
 | DeleteMethodResponse | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02) |
 | DeleteResource | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02) |
+| DeleteStage | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); the duplicate-stage and missing-stage texts are inferred (APIGW1-06) |
+| GetDeployment | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); the missing-deployment text is inferred |
+| GetDeployments | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); items in creation order (inferred) |
 | GetIntegration | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); an empty-string request template is returned as "" (AWS's answer is UNVERIFIED, APIGW1-13); an empty-string response template is returned as "", where AWS returns null (recorded, apigateway-rest.md finding 6) |
 | GetIntegrationResponse | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); an empty-string response template is returned as "", where AWS returns null (recorded, apigateway-rest.md finding 6) |
 | GetMethod | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); an empty-string request template is returned as "" (AWS's answer is UNVERIFIED, APIGW1-13); an empty-string response template is returned as "", where AWS returns null (recorded, apigateway-rest.md finding 6) |
@@ -157,16 +162,23 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | GetResource | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02) |
 | GetResources | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); items in creation order, root first (inferred, APIGW1-04); an empty-string request template is returned as "" (AWS's answer is UNVERIFIED, APIGW1-13); an empty-string response template is returned as "", where AWS returns null (recorded, apigateway-rest.md finding 6) |
 | GetRestApi | partial | inferred, 1 of 3 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); apiKeySource, endpointConfiguration and disableExecuteApiEndpoint are reported at their recorded defaults |
+| GetStage | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); the duplicate-stage and missing-stage texts are inferred (APIGW1-06) |
+| GetStages | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); items in creation order (inferred) |
+| GetTags | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); the texts for a malformed or unknown resourceArn and the tag key and value lengths are inferred |
 | PutIntegration | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); AWS_PROXY to Lambda runs; MOCK, HTTP, HTTP_PROXY and AWS are stored and answer 501 at invoke; credentials, a stage variable in the uri, responseTransferMode STREAM and contentHandling are stored and returned, and an invocation that reaches them answers 501; connectionType VPC_LINK, connectionId, tlsConfig, integrationTarget and an AWS_PROXY Firehose stream uri answer NotImplemented; requestParameters, cacheNamespace and cacheKeyParameters are stored without effect; a boolean requestParameters value answers SerializationException with understudy's decode text, not AWS's recorded one; the texts for a timeout out of range, an unknown passthroughBehavior and a patch value of the wrong type are inferred; an empty-string request template is returned as "" (AWS's answer is UNVERIFIED, APIGW1-13) |
 | PutIntegrationResponse | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); selectionPattern, responseParameters, responseTemplates and contentHandling are stored and returned; MOCK integrations, which select integration responses, answer 501 at invoke; an empty-string response template is returned as "", where AWS returns null (recorded, apigateway-rest.md finding 6) |
 | PutMethod | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); AWS_IAM, CUSTOM and COGNITO_USER_POOLS methods answer 501 at invoke; apiKeyRequired methods answer 403 because API keys cannot be created; requestValidatorId and requestModels name only the seeded Empty and Error models until validators and models are bound |
 | PutMethodResponse | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02) |
+| TagResource | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); the texts for a malformed or unknown resourceArn and the tag key and value lengths are inferred |
+| UntagResource | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); the texts for a malformed or unknown resourceArn and the tag key and value lengths are inferred |
+| UpdateDeployment | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); the missing-deployment text is inferred |
 | UpdateIntegration | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); AWS_PROXY to Lambda runs; MOCK, HTTP, HTTP_PROXY and AWS are stored and answer 501 at invoke; credentials, a stage variable in the uri, responseTransferMode STREAM and contentHandling are stored and returned, and an invocation that reaches them answers 501; connectionType VPC_LINK, connectionId, tlsConfig, integrationTarget and an AWS_PROXY Firehose stream uri answer NotImplemented; requestParameters, cacheNamespace and cacheKeyParameters are stored without effect; a boolean requestParameters value answers SerializationException with understudy's decode text, not AWS's recorded one; the texts for a timeout out of range, an unknown passthroughBehavior and a patch value of the wrong type are inferred; an empty-string request template is returned as "" (AWS's answer is UNVERIFIED, APIGW1-13) |
 | UpdateIntegrationResponse | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); selectionPattern, responseParameters, responseTemplates and contentHandling are stored and returned; MOCK integrations, which select integration responses, answer 501 at invoke; an empty-string response template is returned as "", where AWS returns null (recorded, apigateway-rest.md finding 6) |
 | UpdateMethod | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); AWS_IAM, CUSTOM and COGNITO_USER_POOLS methods answer 501 at invoke; apiKeyRequired methods answer 403 because API keys cannot be created; requestValidatorId and requestModels name only the seeded Empty and Error models until validators and models are bound |
 | UpdateMethodResponse | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02) |
 | UpdateResource | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02) |
 | UpdateRestApi | partial | inferred, 1 of 3 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); replace /name, add, replace and remove /description, and add, replace and remove /binaryMediaTypes/{type} apply; every other documented path answers NotImplemented; an invocation of a stage whose deployment has binaryMediaTypes answers 501; operations apply in order and a refused one changes nothing (inferred); adding a listed type or removing an unlisted one changes nothing, and the texts for an empty name or a replace without a value are inferred; apiKeySource, endpointConfiguration and disableExecuteApiEndpoint are reported at their recorded defaults |
+| UpdateStage | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); cache settings, methodSettings, accessLogSettings, clientCertificateId, tracingEnabled and webAclArn are stored and echoed without effect; canarySettings answers NotImplemented; the duplicate-stage and missing-stage texts are inferred (APIGW1-06); documentationVersion answers NotImplemented while documentation versions are unbound; a new method setting starts from the */* one (inferred) |
 | CreateApiKey | unbound | unassessed |  |
 | CreateAuthorizer | unbound | unassessed |  |
 | CreateBasePathMapping | unbound | unassessed |  |
@@ -176,7 +188,6 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | CreateDomainNameAccessAssociation | unbound | unassessed |  |
 | CreateModel | unbound | unassessed |  |
 | CreateRequestValidator | unbound | unassessed |  |
-| CreateStage | unbound | unassessed |  |
 | CreateUsagePlan | unbound | unassessed |  |
 | CreateUsagePlanKey | unbound | unassessed |  |
 | CreateVpcLink | unbound | unassessed |  |
@@ -184,7 +195,6 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | DeleteAuthorizer | unbound | unassessed |  |
 | DeleteBasePathMapping | unbound | unassessed |  |
 | DeleteClientCertificate | unbound | unassessed |  |
-| DeleteDeployment | unbound | unassessed |  |
 | DeleteDocumentationPart | unbound | unassessed |  |
 | DeleteDocumentationVersion | unbound | unassessed |  |
 | DeleteDomainName | unbound | unassessed |  |
@@ -193,7 +203,6 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | DeleteModel | unbound | unassessed |  |
 | DeleteRequestValidator | unbound | unassessed |  |
 | DeleteRestApi | unbound | unassessed |  |
-| DeleteStage | unbound | unassessed |  |
 | DeleteUsagePlan | unbound | unassessed |  |
 | DeleteUsagePlanKey | unbound | unassessed |  |
 | DeleteVpcLink | unbound | unassessed |  |
@@ -209,8 +218,6 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | GetBasePathMappings | unbound | unassessed |  |
 | GetClientCertificate | unbound | unassessed |  |
 | GetClientCertificates | unbound | unassessed |  |
-| GetDeployment | unbound | unassessed |  |
-| GetDeployments | unbound | unassessed |  |
 | GetDocumentationPart | unbound | unassessed |  |
 | GetDocumentationParts | unbound | unassessed |  |
 | GetDocumentationVersion | unbound | unassessed |  |
@@ -230,9 +237,6 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | GetSdk | unbound | unassessed |  |
 | GetSdkType | unbound | unassessed |  |
 | GetSdkTypes | unbound | unassessed |  |
-| GetStage | unbound | unassessed |  |
-| GetStages | unbound | unassessed |  |
-| GetTags | unbound | unassessed |  |
 | GetUsage | unbound | unassessed |  |
 | GetUsagePlan | unbound | unassessed |  |
 | GetUsagePlanKey | unbound | unassessed |  |
@@ -246,23 +250,19 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | PutGatewayResponse | unbound | unassessed |  |
 | PutRestApi | unbound | unassessed |  |
 | RejectDomainNameAccessAssociation | unbound | unassessed |  |
-| TagResource | unbound | unassessed |  |
 | TestInvokeAuthorizer | unbound | unassessed |  |
 | TestInvokeMethod | unbound | unassessed |  |
-| UntagResource | unbound | unassessed |  |
 | UpdateAccount | unbound | unassessed |  |
 | UpdateApiKey | unbound | unassessed |  |
 | UpdateAuthorizer | unbound | unassessed |  |
 | UpdateBasePathMapping | unbound | unassessed |  |
 | UpdateClientCertificate | unbound | unassessed |  |
-| UpdateDeployment | unbound | unassessed |  |
 | UpdateDocumentationPart | unbound | unassessed |  |
 | UpdateDocumentationVersion | unbound | unassessed |  |
 | UpdateDomainName | unbound | unassessed |  |
 | UpdateGatewayResponse | unbound | unassessed |  |
 | UpdateModel | unbound | unassessed |  |
 | UpdateRequestValidator | unbound | unassessed |  |
-| UpdateStage | unbound | unassessed |  |
 | UpdateUsage | unbound | unassessed |  |
 | UpdateUsagePlan | unbound | unassessed |  |
 | UpdateVpcLink | unbound | unassessed |  |

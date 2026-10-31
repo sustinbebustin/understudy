@@ -36,7 +36,7 @@ func (s *Service) updateRestAPI(_ context.Context, c *kernel.Call, in *apigatewa
 	out := api.output(APIStatusSwitch().Value.AfterUpdate)
 	// UpdateRestApi answers "tags": {} when the API has none (recorded,
 	// apigateway-rest.md 2.3).
-	out.Tags = map[string]string{}
+	out.Tags = tagsOut(api.Tags)
 	return &out, nil
 }
 

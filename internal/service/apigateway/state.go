@@ -57,9 +57,15 @@ type RestAPI struct {
 	NextResourceSeq uint64 `json:"nextResourceSeq"`
 	// Models are the API's model names: the seeded Empty and Error
 	// (apigateway-rest.md 3.9) until models are bound.
-	Models      []string     `json:"models"`
-	Deployments []Deployment `json:"deployments"`
-	Stages      []Stage      `json:"stages"`
+	Models []string `json:"models"`
+	// Deployments are in creation order; NextDeploymentSeq is the Seq the
+	// next one gets, so GetDeployments pages follow on deletions.
+	Deployments       []Deployment `json:"deployments"`
+	NextDeploymentSeq uint64       `json:"nextDeploymentSeq"`
+	// Stages are in creation order.
+	Stages []Stage `json:"stages"`
+	// Tags are the API's tags (apigateway-rest.md 3.9).
+	Tags map[string]string `json:"tags,omitzero"`
 }
 
 // Resource is one resource of a REST API: the root ("/", no parent and no
@@ -209,7 +215,10 @@ func (r *IntegrationResponse) clone() IntegrationResponse {
 // 12.5, finding 12). Its resources are deep copies no write changes
 // afterwards.
 type Deployment struct {
-	ID          string        `json:"id"`
+	ID string `json:"id"`
+	// Seq orders the API's deployments by creation; GetDeployments pages
+	// by it.
+	Seq         uint64        `json:"seq"`
 	Description *string       `json:"description,omitzero"`
 	Created     clock.Instant `json:"created"`
 	Resources   []Resource    `json:"resources"`
@@ -219,13 +228,62 @@ type Deployment struct {
 	BinaryMediaTypes []string `json:"binaryMediaTypes,omitzero"`
 }
 
-// Stage is one stage of a REST API, serving one deployment.
+// Stage is one stage of a REST API, serving one deployment
+// (apigateway-rest.md 3.7). The cache, tracing, client certificate, access
+// log and method settings are stored and echoed without effect; the
+// variables reach the data plane live.
 type Stage struct {
-	Name       string            `json:"name"`
-	Deployment string            `json:"deployment"`
-	Created    clock.Instant     `json:"created"`
-	Updated    clock.Instant     `json:"updated"`
-	Variables  map[string]string `json:"variables,omitzero"`
+	Name                string                          `json:"name"`
+	Deployment          string                          `json:"deployment"`
+	Description         *string                         `json:"description,omitzero"`
+	CacheClusterEnabled bool                            `json:"cacheClusterEnabled,omitzero"`
+	CacheClusterSize    *apigatewayapi.CacheClusterSize `json:"cacheClusterSize,omitzero"`
+	TracingEnabled      bool                            `json:"tracingEnabled,omitzero"`
+	ClientCertificateID *string                         `json:"clientCertificateId,omitzero"`
+	AccessLog           *AccessLog                      `json:"accessLog,omitzero"`
+	// MethodSettings are by "<resource path without its leading slash>/
+	// <HTTP method>", "*/*" for every method (recorded, apigateway-rest.md
+	// 3.7).
+	MethodSettings map[string]MethodSetting `json:"methodSettings,omitzero"`
+	Variables      map[string]string        `json:"variables,omitzero"`
+	Tags           map[string]string        `json:"tags,omitzero"`
+	Created        clock.Instant            `json:"created"`
+	Updated        clock.Instant            `json:"updated"`
+}
+
+// clone is a copy of the stage whose pointers and maps are its own.
+func (st *Stage) clone() Stage {
+	c := *st
+	c.Description, c.CacheClusterSize, c.ClientCertificateID = clonePtr(st.Description), clonePtr(st.CacheClusterSize), clonePtr(st.ClientCertificateID)
+	if st.AccessLog != nil {
+		c.AccessLog = &AccessLog{Format: clonePtr(st.AccessLog.Format), DestinationARN: clonePtr(st.AccessLog.DestinationARN)}
+	}
+	c.MethodSettings = maps.Clone(st.MethodSettings)
+	c.Variables = maps.Clone(st.Variables)
+	c.Tags = maps.Clone(st.Tags)
+	return c
+}
+
+// AccessLog is a stage's access log settings, stored without effect.
+type AccessLog struct {
+	Format         *string `json:"format,omitzero"`
+	DestinationARN *string `json:"destinationArn,omitzero"`
+}
+
+// MethodSetting is one entry of a stage's method settings, stored without
+// effect (apigateway-rest.md 3.7). LoggingLevel is absent until set
+// (recorded).
+type MethodSetting struct {
+	MetricsEnabled                         bool                                                 `json:"metricsEnabled"`
+	LoggingLevel                           *string                                              `json:"loggingLevel,omitzero"`
+	DataTraceEnabled                       bool                                                 `json:"dataTraceEnabled"`
+	ThrottlingBurstLimit                   int32                                                `json:"throttlingBurstLimit"`
+	ThrottlingRateLimit                    float64                                              `json:"throttlingRateLimit"`
+	CachingEnabled                         bool                                                 `json:"cachingEnabled"`
+	CacheTTLInSeconds                      int32                                                `json:"cacheTtlInSeconds"`
+	CacheDataEncrypted                     bool                                                 `json:"cacheDataEncrypted"`
+	RequireAuthorizationForCacheControl    bool                                                 `json:"requireAuthorizationForCacheControl"`
+	UnauthorizedCacheControlHeaderStrategy apigatewayapi.UnauthorizedCacheControlHeaderStrategy `json:"unauthorizedCacheControlHeaderStrategy"`
 }
 
 // resource finds the resource id names.

@@ -2,6 +2,7 @@ package apigateway
 
 import (
 	"context"
+	"maps"
 	"regexp"
 	"slices"
 	"strings"
@@ -28,7 +29,6 @@ func (s *Service) createRestAPI(_ context.Context, c *kernel.Call, in *apigatewa
 		member{"apiKeySource", in.ApiKeySource != nil},
 		member{"endpointConfiguration", in.EndpointConfiguration != nil},
 		member{"policy", in.Policy != nil},
-		member{"tags", in.Tags != nil},
 		member{"disableExecuteApiEndpoint", in.DisableExecuteApiEndpoint},
 		member{"securityPolicy", in.SecurityPolicy != nil},
 		member{"endpointAccessMode", in.EndpointAccessMode != nil},
@@ -39,6 +39,9 @@ func (s *Service) createRestAPI(_ context.Context, c *kernel.Call, in *apigatewa
 		// Recorded (apigateway-rest.md 2.4).
 		return nil, errBadRequest("Description cannot be an empty string")
 	}
+	if err := checkTags(in.Tags); err != nil {
+		return nil, err
+	}
 	scope := c.Scope()
 	id := s.newAPIID(scope)
 	api, err := kernel.Write(c, s.cells, scope, func(st *State, now clock.Instant, _ *kernel.Tx) (RestAPI, *awserr.Error) {
@@ -46,7 +49,7 @@ func (s *Service) createRestAPI(_ context.Context, c *kernel.Call, in *apigatewa
 		a := RestAPI{
 			ID: id, Seq: st.NextSeq, Name: in.Name, Description: clonePtr(in.Description), Version: clonePtr(in.Version), Created: now,
 			RootResourceID: root, Resources: []Resource{{ID: root, Path: "/"}}, NextResourceSeq: 1,
-			Models: seededModels(),
+			Models: seededModels(), Tags: maps.Clone(in.Tags),
 		}
 		st.NextSeq++
 		st.APIs[id] = a
@@ -108,6 +111,8 @@ func (a *RestAPI) output(status apigatewayapi.ApiStatus) apigatewayapi.RestApi {
 		},
 		RootResourceId: new(a.RootResourceID),
 		ApiStatus:      new(status),
+		// Absent when the API has none (recorded, apigateway-rest.md 2.3).
+		Tags: tagsOrNil(a.Tags),
 	}
 }
 
@@ -131,79 +136,4 @@ func lambdaFunction(uri string) (aws.ARN, bool) {
 		return aws.ARN{}, false
 	}
 	return fn, true
-}
-
-// stageNamePattern is a stage name (documented, apigateway-rest.md 3.7).
-var stageNamePattern = regexp.MustCompile(`^[A-Za-z0-9_-]{1,128}$`)
-
-// createDeployment snapshots the API's resources, methods and integrations
-// and, with stageName, creates that stage on the snapshot or repoints it
-// (apigateway-rest.md 3.6, 12.5).
-func (s *Service) createDeployment(_ context.Context, c *kernel.Call, in *apigatewayapi.CreateDeploymentInput) (*apigatewayapi.Deployment, *awserr.Error) {
-	if err := refuseUnimplemented("CreateDeployment",
-		member{"stageDescription", in.StageDescription != nil},
-		member{"cacheClusterEnabled", in.CacheClusterEnabled != nil},
-		member{"cacheClusterSize", in.CacheClusterSize != nil},
-		member{"variables", in.Variables != nil},
-		member{"canarySettings", in.CanarySettings != nil},
-		member{"tracingEnabled", in.TracingEnabled != nil},
-	); err != nil {
-		return nil, err
-	}
-	if in.StageName != nil && !stageNamePattern.MatchString(*in.StageName) {
-		// The pattern is documented (apigateway-rest.md 3.7); the text is
-		// inferred.
-		return nil, errBadRequest("Stage name only allows a-zA-Z0-9_- and must be 1 to 128 characters long")
-	}
-	scope := c.Scope()
-	d, err := kernel.Write(c, s.cells, scope, func(st *State, now clock.Instant, _ *kernel.Tx) (Deployment, *awserr.Error) {
-		a, ok := st.APIs[in.RestApiId]
-		if !ok {
-			return Deployment{}, errAPINotFound(scope, in.RestApiId)
-		}
-		if err := a.deployable(); err != nil {
-			return Deployment{}, err
-		}
-		id := string(s.ids.APIGatewayDeploymentID())
-		for a.hasChild(id) {
-			id = string(s.ids.APIGatewayDeploymentID())
-		}
-		d := Deployment{
-			ID: id, Description: clonePtr(in.Description), Created: now, Resources: cloneResources(a.Resources),
-			BinaryMediaTypes: slices.Clone(a.BinaryMediaTypes),
-		}
-		a.Deployments = append(slices.Clone(a.Deployments), d)
-		if in.StageName != nil {
-			a.Stages = slices.Clone(a.Stages)
-			if _, i, ok := a.stage(*in.StageName); ok {
-				a.Stages[i].Deployment, a.Stages[i].Updated = id, now
-			} else {
-				a.Stages = append(a.Stages, Stage{Name: *in.StageName, Deployment: id, Created: now, Updated: now})
-			}
-		}
-		st.APIs[a.ID] = a
-		return d, nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	return &apigatewayapi.Deployment{Id: new(d.ID), Description: clonePtr(d.Description), CreatedDate: new(d.Created.Wire())}, nil
-}
-
-// deployable refuses a deployment of an API with no methods, or with a
-// method that has no integration (texts inferred, APIGW1-05).
-func (a *RestAPI) deployable() *awserr.Error {
-	methods := 0
-	for _, r := range a.Resources {
-		for _, m := range r.Methods {
-			if m.Integration == nil {
-				return errBadRequest("No integration defined for method")
-			}
-			methods++
-		}
-	}
-	if methods == 0 {
-		return errBadRequest("The REST API doesn't contain any methods")
-	}
-	return nil
 }

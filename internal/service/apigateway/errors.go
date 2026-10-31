@@ -42,6 +42,19 @@ func errResponseNotFound() *awserr.Error {
 	return apigatewayapi.ErrNotFoundException("Invalid Response status code specified")
 }
 
+// errDeploymentNotFound answers a deployment id the API does not hold
+// (inferred, in the shape of the recorded identifier texts of
+// apigateway-rest.md 2.4).
+func errDeploymentNotFound() *awserr.Error {
+	return apigatewayapi.ErrNotFoundException("Invalid Deployment identifier specified")
+}
+
+// errStageNotFound answers a stage name the API does not have (inferred,
+// apigateway-rest.md 12.3, APIGW1-06).
+func errStageNotFound() *awserr.Error {
+	return apigatewayapi.ErrNotFoundException("Invalid stage identifier specified")
+}
+
 func errBadRequest(format string, args ...any) *awserr.Error {
 	return apigatewayapi.ErrBadRequestException(fmt.Sprintf(format, args...))
 }
