@@ -54,7 +54,7 @@ phase_timeout="${CONFORMANCE_PHASE_TIMEOUT:-900}"
 
 # Each service runs in an account of its own: understudy derives the account
 # from a 12-digit access key, so services never see each other's resources.
-all_services=(sqs sns s3 dynamodb kms secretsmanager iam lambda logs events cloudwatch apigatewayv2 dynamodbstreams ssm sfn kinesis ses)
+all_services=(sqs sns s3 dynamodb kms secretsmanager iam lambda logs events cloudwatch apigatewayv2 dynamodbstreams ssm sfn kinesis ses apigateway)
 declare -A accounts=(
   [sqs]=100000000001
   [sns]=100000000002
@@ -73,6 +73,7 @@ declare -A accounts=(
   [sfn]=100000000015
   [kinesis]=100000000016
   [ses]=100000000017
+  [apigateway]=100000000018
 )
 phases=(apply-create plan-create-no-changes apply-update plan-update-no-changes destroy nothing-left)
 
@@ -404,6 +405,48 @@ check_apigatewayv2() {
   if [[ "$step" == create ]]; then
     printf '%s' "$deployment" >"$run_dir/apigatewayv2-deployment"
   elif [[ "$deployment" == "$(cat "$run_dir/apigatewayv2-deployment")" ]]; then
+    echo "the update kept deployment $deployment; its triggers should have replaced it"
+    return 1
+  fi
+}
+
+# check_apigateway STEP calls the REST API's live stage through the path
+# fallback, /_understudy/execute-api/<id>/live/..., with the id from the
+# rest_api resource, never invoke_url (apigateway-rest.md 9.2): the Lambda
+# proxy on /items/{id} and on /{proxy+}, and the MOCK OPTIONS method with its
+# static header and literal template (6.3, 6.7). /status falls to
+# /{proxy+} until the update adds its MOCK method and replaces the
+# deployment the stage serves (4.3, 9.4).
+check_apigateway() {
+  local step=$1 id base deployment color=blue status_filter='.route == "/{proxy+}"' headers body status
+  id=$(tf apigateway output -raw apigateway_rest_api_id) || {
+    echo "terraform output apigateway_rest_api_id failed"
+    return 1
+  }
+  base="$endpoint/_understudy/execute-api/$id/live"
+  if [[ "$step" == update ]]; then
+    color=green status_filter='.status == "ok"'
+  fi
+  expect_json "$base/items/42" 200 ".route == \"/items/{id}\" and .pathParameters.id == \"42\" and .stage == \"live\" and .stageVariables.color == \"$color\"" &&
+    expect_json "$base/a/b" 200 '.route == "/{proxy+}" and .pathParameters.proxy == "a/b"' &&
+    expect_json "$base/status" 200 "$status_filter" || return 1
+  headers=$(mktemp "$run_dir/headers.XXXXXX")
+  body=$(mktemp "$run_dir/body.XXXXXX")
+  status=$(curl -sS -X OPTIONS -D "$headers" -o "$body" -w '%{http_code}' "$base/items/42") || status="curl exit $?"
+  if [[ "$status" != 200 ]] || ! jq -e '.preflight == true' "$body" >/dev/null 2>&1 ||
+    ! grep -qi '^access-control-allow-methods: GET,OPTIONS' "$headers"; then
+    echo "OPTIONS $base/items/42 answered $status $(head -c 400 "$body") with headers $(tr '\r\n' '  ' <"$headers"); expected 200, {\"preflight\":true} and Access-Control-Allow-Methods: GET,OPTIONS"
+    rm -f -- "$headers" "$body"
+    return 1
+  fi
+  rm -f -- "$headers" "$body"
+  deployment=$(tf apigateway output -raw apigateway_live_deployment_id) || {
+    echo "terraform output apigateway_live_deployment_id failed"
+    return 1
+  }
+  if [[ "$step" == create ]]; then
+    printf '%s' "$deployment" >"$run_dir/apigateway-deployment"
+  elif [[ "$deployment" == "$(cat "$run_dir/apigateway-deployment")" ]]; then
     echo "the update kept deployment $deployment; its triggers should have replaced it"
     return 1
   fi
