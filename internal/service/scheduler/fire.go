@@ -45,7 +45,8 @@ func (s *Service) onFire(c *kernel.Call, key clock.TimerKey, due clock.Instant) 
 		return
 	}
 	c.Touch(r.arn())
-	roleID := s.resolveRole(ctx, c, r, sc.Plan.role)
+	resolved := sc.Plan.role
+	roleID := s.resolveRole(ctx, c, r, resolved)
 	_, err := kernel.Write(c, s.cells, r.scope, func(st *State, _ clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
 		sc, ok := st.get(r)
 		at, isDue := sc.Run.(scheduled)
@@ -53,13 +54,20 @@ func (s *Service) onFire(c *kernel.Call, key clock.TimerKey, due clock.Instant) 
 			tx.Unchanged()
 			return struct{}{}, nil
 		}
-		req, err := s.invocation(r, &sc, at, roleID)
+		id := roleID
+		if sc.Plan.role != resolved {
+			// An UpdateSchedule changed only Target.RoleArn since the read,
+			// which keeps the due instant: the id resolved belongs to the
+			// old role, so this invocation carries none.
+			id = ""
+		}
+		req, err := s.invocation(r, &sc, at, id)
 		if err != nil {
 			return struct{}{}, err
 		}
 		tx.Deliver(req)
 		sc.Run = offset(&sc.Plan, nextRun(sc.Plan, at), s.opts.FlexibleOffset, s.ids)
-		if s.arm(tx, r, sc.Run) || sc.Plan.completion == completionNone {
+		if s.arm(tx, r, sc.Run) || !sc.Plan.deletesWhenDone() {
 			st.put(r, sc)
 			return struct{}{}, nil
 		}
@@ -73,8 +81,10 @@ func (s *Service) onFire(c *kernel.Call, key clock.TimerKey, due clock.Instant) 
 		return struct{}{}, nil
 	})
 	if err != nil {
-		s.k.Log().LogAttrs(ctx, slog.LevelError, "a Scheduler fire failed; its invocation was not delivered and the schedule's next fire was not armed",
-			slog.String("schedule", r.arn().String()), slog.String("error", err.Message))
+		// kernel.Write keeps a state change fn made when an effect it
+		// requested is refused, so the plan may have moved on.
+		s.k.Log().LogAttrs(ctx, slog.LevelError, "a Scheduler fire failed; this invocation was not delivered, and the schedule may have moved to its next fire",
+			slog.String("schedule", r.arn().String()), slog.String("error", string(err.ID.Shape)), slog.String("message", err.Message))
 	}
 }
 
@@ -89,7 +99,10 @@ func dueAt(next run, due clock.Instant) bool {
 // internal/service/sts/assumerole.go resolves a role). A role IAM does not
 // hold has none: the invocation is still made as a session of the named
 // role, with no role id in SenderId, under iam.enforce off and advise.
-// UNVERIFIED (SCH-08), scheduler.md 9.
+// UNVERIFIED (SCH-08), scheduler.md 9. Any other failure is understudy's
+// own (an IAM fault or bug, journaled as the internal call's outcome): it
+// is logged as an error and the invocation runs without the id, rather
+// than dropping it.
 func (s *Service) resolveRole(ctx context.Context, c *kernel.Call, r scheduleRef, role aws.ARN) string {
 	scope := r.scope
 	account, err := aws.ParseAccountID(role.Account)
@@ -104,8 +117,8 @@ func (s *Service) resolveRole(ctx context.Context, c *kernel.Call, r scheduleRef
 	case aerr == nil:
 		return out.Role.RoleId
 	case aerr.ID.Shape != iamapi.IdentityNoSuchEntityException().Shape:
-		s.k.Log().LogAttrs(ctx, slog.LevelWarn, "Scheduler could not read a schedule's execution role; the invocation runs as the role without its id",
-			slog.String("schedule", r.arn().String()), slog.String("role", role.String()), slog.String("error", aerr.Message))
+		s.k.Log().LogAttrs(ctx, slog.LevelError, "Scheduler could not read a schedule's execution role from IAM; the invocation runs as the role without its id in SenderId; see the journal's iam.ResolveRole outcome for the cause",
+			slog.String("schedule", r.arn().String()), slog.String("role", role.String()), slog.String("error", string(aerr.ID.Shape)), slog.String("message", aerr.Message))
 	}
 	return ""
 }

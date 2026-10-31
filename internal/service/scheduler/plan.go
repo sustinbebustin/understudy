@@ -101,6 +101,18 @@ const (
 	completionDelete
 )
 
+// deletesWhenDone reports whether the schedule is deleted once it has no
+// invocation left: under DELETE, an at() always, a rate or cron only with
+// an EndDate; without one it is never deleted, even by a cron that stops
+// matching (scheduler.md 8, 14.6.2).
+func (p plan) deletesWhenDone() bool {
+	if p.completion != completionDelete {
+		return false
+	}
+	_, once := p.expression.(atExpr)
+	return once || p.end != nil
+}
+
 // expression is a parsed ScheduleExpression.
 //
 //sumtype:decl

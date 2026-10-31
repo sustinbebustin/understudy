@@ -1,6 +1,7 @@
 package scheduler_test
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -90,6 +91,26 @@ func TestNoneKeepsACompletedSchedule(t *testing.T) {
 		if len(h.sentTo("once")) != 1 || got.State == nil || *got.State != schedulerapi.ScheduleStateEnabled {
 			h.Errorf("after its fire: %d sends, State %v; want 1 and ENABLED", len(h.sentTo("once")), got.State)
 		}
+	})
+}
+
+// DELETE without EndDate never deletes, even a cron bounded to one year
+// that stops matching after its last fire: "If you configure a schedule
+// with automatic deletion but do not specify a value for EndDate,
+// EventBridge Scheduler does not automatically delete the schedule"
+// (scheduler.md 8, 14.6).
+func TestDeleteKeepsAYearBoundedCronWithoutEndDate(t *testing.T) {
+	run(t, func(h *harness) {
+		at := h.now().Add(10 * time.Minute).UTC()
+		expr := fmt.Sprintf("cron(%d %d %d %d ? %d)", at.Minute(), at.Hour(), at.Day(), int(at.Month()), at.Year())
+		in := schedule("yearly", expr, h.queueTarget("yearly", new("x")))
+		in.ActionAfterCompletion = new(schedulerapi.ActionAfterCompletionDelete)
+		h.create(in)
+		h.advance(2 * time.Hour)
+		if n := len(h.sentTo("yearly")); n != 1 {
+			h.Fatalf("sends = %d, want the cron's one match", n)
+		}
+		h.get("", "yearly")
 	})
 }
 
