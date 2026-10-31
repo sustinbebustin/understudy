@@ -105,8 +105,19 @@ type unclaimed struct{ reasons []reason }
 // passed over before it, for the Unclaimed journal event.
 type toLocalStack struct{ reasons []reason }
 
+// executeAPIClaimedTwice is an execute-api request whose API id more than
+// one front's owner holds: an understudy bug, since API Gateway mints ids
+// in one namespace, answered 500 naming the services so neither runs.
+// reasons end with the claiming rule's, for the Unclaimed journal event;
+// policy is as for toExecuteAPI.
+type executeAPIClaimedTwice struct {
+	message string
+	reasons []reason
+	policy  csp
+}
+
 // toExecuteAPI is API Gateway's execute-api data plane, by host (rule 2)
-// or by the path fallback (rule 1), when no raw apigatewayv2.InvokeApi is
+// or by the path fallback (rule 1), when no raw execute-api operation is
 // registered: it is claimed so S3 never answers it, and answered 501.
 // reasons end with the claiming rule's, for the Unclaimed journal event. policy is
 // cspSandbox for the path fallback, which an integration controls on
@@ -128,6 +139,8 @@ func (misscoped) isRoute()    {}
 func (unclaimed) isRoute()    {}
 func (toLocalStack) isRoute() {}
 func (toExecuteAPI) isRoute() {}
+
+func (executeAPIClaimedTwice) isRoute() {}
 
 // reason is why one claim rule passed over a request: its number in
 // ARCHITECTURE.md 4.1, which the journal records, and the words a client
@@ -300,51 +313,76 @@ const executeAPIPathPrefix = adminPrefix + "execute-api/"
 // executeAPIPath is rule 1's execute-api part: on the main listener, the
 // path fallback is API Gateway's data plane, whatever follows the prefix
 // and whatever the credentials, sandboxed, since its pages share
-// understudy's origin (ADR 0020). It goes to the raw apigatewayv2.InvokeApi
-// operation, which resolves the API id from the path, when the registry
-// holds one; else it is answered 501. Any other request goes on to the
-// admin part of rule 1.
+// understudy's origin (ADR 0020). The API id resolves to its front
+// (executeAPIFront). Any other request goes on to the admin part of rule 1.
 func (c *claimer) executeAPIPath() (route, bool) {
 	if !strings.HasPrefix(c.path, executeAPIPathPrefix) || c.h.opts.Listener != ref.ListenerMain {
 		return nil, false
 	}
 	id, _, _ := strings.Cut(strings.TrimPrefix(c.path, executeAPIPathPrefix), "/")
-	if op, ok := c.invokeAPI(strings.ToLower(id)); ok {
-		return toLink{op: op, policy: cspSandbox}, true
-	}
-	c.decline(1, "%s is the API Gateway execute-api path fallback, and understudy does not implement API Gateway invoke", c.path)
-	return toExecuteAPI{reasons: c.reasons, policy: cspSandbox}, true
+	return c.executeAPIFront(1, strings.ToLower(id), c.path+" is the API Gateway execute-api path fallback", cspSandbox), true
 }
 
-// invokeAPI returns the raw operation that serves the execute-api API id:
-// that of the front in Options.ExecuteAPI whose owner holds the id, else
-// the first registered front's, whose handler answers its unknown-API
-// answer (ADR 0019). Without Options.ExecuteAPI it is the raw
-// apigatewayv2.InvokeApi operation, when the registry holds it. An id two
-// owners hold goes to the first of them; refusing it as the understudy bug
-// it is comes with the full owner resolution (spec 6b ticket 9).
-func (c *claimer) invokeAPI(id string) (*registry.Operation, bool) {
+// executeAPIFront routes an execute-api request for the API id, which
+// rule names as what (ADR 0019 amendment 2026-10-31). Among the fronts of
+// Options.ExecuteAPI whose operation is registered Raw, the one whose
+// owner holds the id serves it; when none does, the first registered
+// front's handler answers its unknown-API answer; when several do, the
+// id is an understudy bug, answered 500 naming them so that neither
+// runs. Without Options.ExecuteAPI the front is the raw
+// apigatewayv2.InvokeApi operation (6a's rule). With no front registered
+// the request is answered 501.
+func (c *claimer) executeAPIFront(rule int, id, what string, policy csp) route {
 	raw := func(oid ref.OperationID) (*registry.Operation, bool) {
 		op, ok := c.h.opts.Registry.Operation(oid)
 		return op, ok && op.Kind == registry.Raw
 	}
-	if c.h.opts.ExecuteAPI == nil {
-		return raw(ref.OperationID{Service: "apigatewayv2", Name: "InvokeApi"})
+	fronts := c.h.opts.ExecuteAPI
+	if fronts == nil {
+		fronts = []ExecuteAPIService{{Op: ref.OperationID{Service: "apigatewayv2", Name: "InvokeApi"}}}
 	}
 	var first *registry.Operation
-	for _, front := range c.h.opts.ExecuteAPI {
+	var owners []*registry.Operation
+	for _, front := range fronts {
 		op, ok := raw(front.Op)
 		if !ok {
 			continue
 		}
-		if front.Owner != nil && front.Owner.OwnsExecuteAPI(id) {
-			return op, true
-		}
 		if first == nil {
 			first = op
 		}
+		if front.Owner != nil && front.Owner.OwnsExecuteAPI(id) {
+			owners = append(owners, op)
+		}
 	}
-	return first, first != nil
+	switch {
+	case len(owners) == 1:
+		return toLink{op: owners[0], policy: policy}
+	case len(owners) > 1:
+		msg := claimedTwiceMessage(id, owners)
+		c.decline(rule, "%s, and %s", what, msg)
+		return executeAPIClaimedTwice{message: msg, reasons: c.reasons, policy: policy}
+	case first != nil:
+		return toLink{op: first, policy: policy}
+	}
+	c.decline(rule, "%s, and understudy does not implement API Gateway invoke", what)
+	return toExecuteAPI{reasons: c.reasons, policy: policy}
+}
+
+// claimedTwiceMessage is the answer to an API id that the owners of ops
+// all hold (ADR 0019 amendment): what happened, that nothing was
+// changed, and where to report it.
+func claimedTwiceMessage(id string, ops []*registry.Operation) string {
+	names := make([]string, len(ops))
+	for i, op := range ops {
+		names[i] = string(op.ID.Service)
+	}
+	services := "both " + names[0] + " and " + names[1]
+	if len(names) > 2 {
+		services = "each of " + strings.Join(names[:len(names)-1], ", ") + " and " + names[len(names)-1]
+	}
+	return "understudy found API id " + id + " in " + services +
+		", which is an understudy bug; nothing was changed. Report it at https://github.com/sustinbebustin/understudy/issues"
 }
 
 // lambdaCodePrefix is where GetFunction's Code.Location links live.
@@ -421,20 +459,15 @@ func (c *claimer) isExecuteAPIHost() bool {
 // Gateway's data plane whatever the credentials, never an S3
 // virtual-hosted bucket, as AWS serves those hosts apart from S3
 // (apigateway-http.md 4.1, ADR 0013). A bucket of that name stays
-// reachable path style. It goes to the raw apigatewayv2.InvokeApi
-// operation, which resolves the API id from the host, when the registry
-// holds one, unsandboxed, since the host is an origin of its own (ADR
-// 0020); else it is answered 501.
+// reachable path style. The API id, the host's first label, resolves to
+// its front (executeAPIFront), unsandboxed, since the host is an origin of
+// its own (ADR 0020).
 func (c *claimer) executeAPI() (route, bool) {
 	if !c.isExecuteAPIHost() {
 		return nil, false
 	}
 	id, _, _ := strings.Cut(c.host, ".")
-	if op, ok := c.invokeAPI(id); ok {
-		return toLink{op: op}, true
-	}
-	c.decline(2, "host %q is an API Gateway execute-api host, and understudy does not implement API Gateway invoke", c.host)
-	return toExecuteAPI{reasons: c.reasons}, true
+	return c.executeAPIFront(2, id, fmt.Sprintf("host %q is an API Gateway execute-api host", c.host), cspAsWritten), true
 }
 
 // accountHost matches <12 digits>.<base>, the S3 Control authority.

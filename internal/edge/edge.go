@@ -106,8 +106,9 @@ type Options struct {
 	LegacyQuery []ref.ServiceID
 	// ExecuteAPI lists the execute-api fronts in registration order, HTTP
 	// APIs then REST APIs: a request goes to the raw operation of the one
-	// whose owner holds the API id, and an id none holds to the first
-	// registered one's (ADR 0019). nil keeps the raw apigatewayv2.InvokeApi
+	// whose owner holds the API id, an id none holds to the first
+	// registered one's, and an id several hold is answered 500 as an
+	// understudy bug (ADR 0019). nil keeps the raw apigatewayv2.InvokeApi
 	// serving both forms when registered.
 	ExecuteAPI []ExecuteAPIService
 	// Log receives edge diagnostics; nil discards them.
@@ -322,6 +323,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.localStack(ctx, x, rt.reasons)
 	case toExecuteAPI:
 		h.executeAPI(ctx, x, rt.reasons)
+	case executeAPIClaimedTwice:
+		h.executeAPIClaimedTwice(ctx, x, rt)
 	case kinesisCBOR:
 		h.answerKinesisCBOR(ctx, x, rt.reasons)
 	case http2Preface:
@@ -336,7 +339,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // opened from any page by design.
 func (h *Handler) refusedPage(ctx context.Context, x *exchange, rt route) bool {
 	switch rt.(type) {
-	case toAdmin, toLink, toExecuteAPI:
+	case toAdmin, toLink, toExecuteAPI, executeAPIClaimedTwice:
 		return false
 	case toOperation, toUnknown, toRaw, toService, legacyQuery, notEmulated, misscoped, unclaimed, toLocalStack, kinesisCBOR, http2Preface:
 	}

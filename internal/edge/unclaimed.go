@@ -232,6 +232,29 @@ func (h *Handler) executeAPI(ctx context.Context, x *exchange, reasons []reason)
 	})
 }
 
+// executeAPIClaimedTwice answers an execute-api request whose API id more
+// than one front holds with 500 in API Gateway's {"message": ...} shape,
+// naming the services (ADR 0019 amendment), journals it as Unclaimed
+// with that reason, and logs it as the bug it is. Neither front runs.
+func (h *Handler) executeAPIClaimedTwice(ctx context.Context, x *exchange, rt executeAPIClaimedTwice) {
+	h.journalUnclaimed(ctx, x, rt.reasons)
+	h.log.LogAttrs(ctx, slog.LevelError, "an execute-api API id is held by more than one API Gateway service",
+		slog.String("reason", rt.message), slog.String("host", x.r.Host), slog.String("path", requestPath(x.r)),
+		slog.String("request_id", string(x.id)))
+	body, err := json.Marshal(struct {
+		Message string `json:"message"`
+	}{rt.message})
+	if err != nil {
+		h.write(ctx, x, plainError(http.StatusInternalServerError, rt.message))
+		return
+	}
+	h.write(ctx, x, Response{
+		Status: http.StatusInternalServerError,
+		Header: http.Header{"Content-Type": {"application/json"}},
+		Body:   bytes.NewReader(body),
+	})
+}
+
 // answerUnrouted renders e, the answer to a request no service claimed, in
 // the envelope its client parses: that of the protocol the request's shape
 // names (answerProtocol), else Options.Unclaimed's, else plain text.

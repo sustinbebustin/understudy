@@ -103,6 +103,8 @@ func routed(rt route) string {
 		return "unclaimed (LocalStack path)"
 	case toExecuteAPI:
 		return "execute-api (not implemented)"
+	case executeAPIClaimedTwice:
+		return "execute-api (API id held twice)"
 	case kinesisCBOR:
 		return "kinesis CBOR (not implemented)"
 	case http2Preface:
