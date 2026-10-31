@@ -136,7 +136,7 @@ max_role_policies=20
 max_policy_name=128
 
 # Tests that need the account root, skipped in both runs (README.md).
-aws_cli_skip='^test_get_caller_identity_static_key_is_root$'
+aws_cli_skip='^(test_get_caller_identity_static_key_is_root|test_alias_for_missing_key)$'
 go_sdk_skip='^TestSTSGetCallerIdentity$'
 
 mkdir -p -- "$build"

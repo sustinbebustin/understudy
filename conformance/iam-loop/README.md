@@ -87,13 +87,14 @@ SKIP root-suites
 
 One invocation of every group can outrun a 10-minute limit on 4 vCPU, so the loop is verified as several invocations, each selecting a subset of groups with `IAM_LOOP_GROUPS` and `IAM_LOOP_ROOT_SUITES=0`, plus one `IAM_LOOP_GROUPS='^$'` invocation for (e) and step 6. A green claim names every batch, its group regex, its result and the commit; the union of the batches covers every group.
 
-## Tests skipped as the root
+## Tests that need the root
 
-The suites sign as the root everywhere else, so a few tests assert it. They are skipped by name in both runs:
+The suites sign as the root everywhere else, so a few tests assert it, or assert an answer only the root gets. They are skipped by name in both runs:
 
 | Suite | Test | Why |
 |---|---|---|
 | aws-cli | `test_get_caller_identity_static_key_is_root` | asserts the caller is `arn:aws:iam::<account>:root` |
+| aws-cli | `test_alias_for_missing_key` | asserts `NotFoundException` for a key id that names no key; for a caller other than the root, a missing key has no key policy to allow `kms:CreateAlias`, and understudy denies first (`iam.enforce.missing-resource` `deny-first`, iam-enforcement-surfaces.md 5.3; AWS's order is UNVERIFIED, IAM-ENF-14) |
 | go-sdk | `TestSTSGetCallerIdentity` | asserts the caller is `arn:aws:iam::<account>:root` |
 
 A test added to this list says why here.
