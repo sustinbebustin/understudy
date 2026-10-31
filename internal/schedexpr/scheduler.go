@@ -1,6 +1,7 @@
 package schedexpr
 
 import (
+	"slices"
 	"strconv"
 	"time"
 )
@@ -38,30 +39,62 @@ type Expression interface{ isExpression() }
 
 // At is a one-time at(yyyy-mm-ddThh:mm:ss) expression: a civil time to the
 // second, read in the schedule's time zone (scheduler.md 5.1).
-type At struct{}
+type At struct {
+	year                      int
+	month                     time.Month
+	day, hour, minute, second int
+}
 
-// In returns the instant the civil time names in loc. Not implemented yet:
-// it returns the zero time.
-func (At) In(*time.Location) time.Time { return time.Time{} }
+// atLayout is the one form at() takes: no zone suffix, no fraction, every
+// field zero-padded (scheduler.md 5.1; G3 L271-L302).
+const atLayout = "2006-01-02T15:04:05"
+
+// In returns the instant the civil time names in loc. A civil time that
+// loc skips (a spring-forward gap) is normalized as time.Date does;
+// AWS's answer there is unrecorded (scheduler.md 5.1).
+func (a At) In(loc *time.Location) time.Time {
+	return time.Date(a.year, a.month, a.day, a.hour, a.minute, a.second, 0, loc)
+}
 
 func (At) isExpression()   {}
 func (Rate) isExpression() {}
 func (Cron) isExpression() {}
 
+// parseAt reads yyyy-mm-ddThh:mm:ss. The length check refuses the
+// fractional seconds time.Parse would accept after the seconds field.
+func parseAt(inner string) (At, *Error) {
+	if len(inner) != len(atLayout) {
+		return At{}, invalid("at() needs yyyy-mm-ddThh:mm:ss")
+	}
+	t, err := time.Parse(atLayout, inner)
+	if err != nil {
+		return At{}, invalid("at() needs a valid yyyy-mm-ddThh:mm:ss")
+	}
+	return At{year: t.Year(), month: t.Month(), day: t.Day(), hour: t.Hour(), minute: t.Minute(), second: t.Second()}, nil
+}
+
 // ParseScheduler parses an EventBridge Scheduler expression: at(...),
 // rate(value unit) with units per units, or cron(...) with the rules'
 // grammar (scheduler.md 5.1-5.3). A refusal's Message is "Invalid Schedule
-// Expression <expr>." with expr verbatim (scheduler.md 2.4). Not
-// implemented yet: at() and cron() are refused.
+// Expression <expr>." with expr verbatim (scheduler.md 2.4).
 func ParseScheduler(expr string, units RateUnits) (Expression, *Error) {
+	var (
+		ex  Expression
+		err *Error
+	)
 	if inner, ok := enclosed(expr, "rate("); ok {
-		r, err := parseRateUnits(inner, units)
-		if err != nil {
-			return nil, &Error{detail: err.detail, text: schedulerMessage(expr)}
-		}
-		return r, nil
+		ex, err = parseRateUnits(inner, units)
+	} else if inner, ok := enclosed(expr, "cron("); ok {
+		ex, err = parseCron(inner)
+	} else if inner, ok := enclosed(expr, "at("); ok {
+		ex, err = parseAt(inner)
+	} else {
+		err = invalid("expected at(...), rate(...) or cron(...)")
 	}
-	return nil, &Error{detail: "at() and cron() are not implemented yet", text: schedulerMessage(expr)}
+	if err != nil {
+		return nil, &Error{detail: err.detail, text: schedulerMessage(expr)}
+	}
+	return ex, nil
 }
 
 // schedulerMessage is Scheduler's text for a malformed expression,
@@ -73,6 +106,43 @@ func schedulerMessage(expr string) string { return "Invalid Schedule Expression 
 // first instant whose civil minute in loc matches c, so a civil minute
 // repeated by a fall-back transition fires once and one skipped by a spring
 // forward never fires (scheduler.md 5.4, 14.3.3). NextIn(c, t, time.UTC)
-// equals Next(c, t). ok is false when c never fires again. Not implemented
-// yet: it reports no fire.
-func NextIn(Cron, time.Time, *time.Location) (time.Time, bool) { return time.Time{}, false }
+// equals Next(c, t). ok is false when c never fires again.
+//
+// It walks c's matching civil minutes from the civil time of after; each
+// fires at the first instant that shows it, unless that instant is not
+// later than after (the minute was passed before a fall back repeated
+// it) or no instant shows it (a spring-forward gap).
+func NextIn(c Cron, after time.Time, loc *time.Location) (time.Time, bool) {
+	l := after.In(loc)
+	civil := time.Date(l.Year(), l.Month(), l.Day(), l.Hour(), l.Minute(), l.Second(), l.Nanosecond(), time.UTC)
+	for {
+		m, ok := c.next(civil)
+		if !ok {
+			return time.Time{}, false
+		}
+		if x, shown := firstShowing(m, loc); shown && x.After(after) {
+			return x, true
+		}
+		civil = m
+	}
+}
+
+// firstShowing is the earliest instant whose civil minute in loc is m (m's
+// fields read as UTC), and false when loc skips m. The candidates are m
+// less each offset loc uses within three hours of the instant time.Date
+// picks for m, which covers every transition in the zone database.
+func firstShowing(m time.Time, loc *time.Location) (time.Time, bool) {
+	near := time.Date(m.Year(), m.Month(), m.Day(), m.Hour(), m.Minute(), 0, 0, loc)
+	var shows []time.Time
+	for _, probe := range []time.Duration{-3 * time.Hour, 0, 3 * time.Hour} {
+		_, offset := near.Add(probe).Zone()
+		x := m.Add(-time.Duration(offset) * time.Second)
+		if l := x.In(loc); l.Year() == m.Year() && l.YearDay() == m.YearDay() && l.Hour() == m.Hour() && l.Minute() == m.Minute() {
+			shows = append(shows, x)
+		}
+	}
+	if len(shows) == 0 {
+		return time.Time{}, false
+	}
+	return slices.MinFunc(shows, time.Time.Compare).UTC(), true
+}

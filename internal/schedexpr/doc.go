@@ -9,6 +9,11 @@
 // anchor or previous fire, for a Cron it returns the first whole UTC minute
 // strictly after the given instant that satisfies every field.
 //
+// ParseScheduler and NextIn serve EventBridge Scheduler (scheduler.md 5,
+// 14.3): at() besides rate and cron, rate units per RateUnits, Scheduler's
+// own refusal text echoing the expression, and cron evaluated on civil
+// minutes in a time zone. Parse, Next and the rules' text are unchanged.
+//
 // Choices made here where the documentation is silent (Q4 in the research):
 //   - Day-of-month and day-of-week: exactly one must be ?, so both ? is
 //     rejected as well as both specified.
