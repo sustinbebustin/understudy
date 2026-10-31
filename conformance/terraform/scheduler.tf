@@ -3,9 +3,13 @@
 # sqs:SendMessage on the queue (scheduler.md 9, 11.1). The empty plans
 # depend on GetSchedule reading back the members as sent with AWS's
 # defaults filled: ActionAfterCompletion NONE, RetryPolicy 86400/185, group
-# default, no dates, description or KMS key (scheduler.md 4.2, 11.3). The
-# update step changes only the queue's tags: UpdateSchedule is not built
-# yet, so the schedule itself stays as created.
+# default, no dates, description or KMS key (scheduler.md 4.2, 11.3); and a
+# cron schedule in Europe/Paris with dates, a description, a retry policy
+# and Input, echoed as sent with the dates to the second (tf-acc
+# schedule_test.go:L365-L419, L1174-L1233, L1292-L1349, L1870-L1895). The
+# update step replaces both schedules through UpdateSchedule (scheduler.md
+# 4.3): the rate gains a description, the cron moves its StartDate and
+# retry policy.
 
 data "aws_iam_policy_document" "scheduler_assume" {
   statement {
@@ -47,6 +51,7 @@ resource "aws_iam_role_policy" "scheduler_send" {
 resource "aws_scheduler_schedule" "rate" {
   name                = "${var.name_prefix}-rate"
   schedule_expression = "rate(1 hour)"
+  description         = local.updated ? "hourly" : null
 
   flexible_time_window {
     mode = "OFF"
@@ -56,6 +61,32 @@ resource "aws_scheduler_schedule" "rate" {
     arn      = aws_sqs_queue.scheduler_target.arn
     role_arn = aws_iam_role.scheduler.arn
     input    = "hello <aws.scheduler.attempt-number>"
+  }
+
+  depends_on = [aws_iam_role_policy.scheduler_send]
+}
+
+resource "aws_scheduler_schedule" "cron" {
+  name                         = "${var.name_prefix}-cron"
+  schedule_expression          = "cron(0 8 ? * MON-FRI *)"
+  schedule_expression_timezone = "Europe/Paris"
+  start_date                   = local.updated ? "2099-06-01T00:00:00Z" : "2099-01-01T01:00:00Z"
+  end_date                     = "2100-01-01T01:02:03Z"
+  description                  = "weekday mornings"
+
+  flexible_time_window {
+    mode = "OFF"
+  }
+
+  target {
+    arn      = aws_sqs_queue.scheduler_target.arn
+    role_arn = aws_iam_role.scheduler.arn
+    input    = jsonencode({ at = "<aws.scheduler.scheduled-time>" })
+
+    retry_policy {
+      maximum_event_age_in_seconds = local.updated ? 120 : 60
+      maximum_retry_attempts       = 1
+    }
   }
 
   depends_on = [aws_iam_role_policy.scheduler_send]
