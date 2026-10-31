@@ -76,13 +76,18 @@ const (
 	// golden replay of test_create_rest_api_verify_defaults found.
 	restAPINote = "cloneFrom answers NotImplemented; policy is stored and returned escaped, and under iam.enforce=enforce an invocation of an API with a policy answers 501; " +
 		"binaryMediaTypes, disableExecuteApiEndpoint and endpointConfiguration PRIVATE are stored and returned, and an invocation of an API that has them answers 501; " +
-		"vpcEndpointIds, securityPolicy, endpointAccessMode and minimumCompressionSize are stored without effect; " +
+		"vpcEndpointIds, securityPolicy, endpointAccessMode, minimumCompressionSize and apiKeySource are stored without effect; " +
 		"an EDGE API is served as a REGIONAL one (no CloudFront headers in the event); a second API with the same name is allowed (inferred, APIGW1-14); " +
 		"an endpointConfiguration types value outside the enum answers a ValidationException naming the list member, where AWS names the whole list " +
-		"(recorded, test_apigateway_api.snapshot.json:L4693-L4703)"
-	getResourcesNote = "items in creation order, root first (inferred, APIGW1-04)"
-	methodNote       = "AWS_IAM, CUSTOM and COGNITO_USER_POOLS methods answer 501 at invoke; apiKeyRequired methods answer 403 because API keys cannot be created; " +
-		"requestValidatorId and requestModels name only the seeded Empty and Error models until validators and models are bound"
+		"(recorded, test_apigateway_api.snapshot.json:L4693-L4703); " +
+		"the UpdateRestApi texts for an invalid value, a second or removed endpoint type and PRIVATE on ipv4 are inferred; " +
+		"a stored policy keeps a one-element Resource list as a list, where AWS rewrites it to a string (recorded, test_apigateway_integrations.snapshot.json:L45-L77)"
+	creationOrderNote = "items in creation order (inferred)"
+	getResourcesNote  = "items in creation order, root first (inferred, APIGW1-04)"
+	methodNote        = "AWS_IAM, CUSTOM and COGNITO_USER_POOLS methods answer 501 at invoke; apiKeyRequired methods answer 403 because API keys cannot be created; " +
+		"requestValidatorId and requestModels name only the seeded Empty and Error models until validators and models are bound; " +
+		"an authorizationType outside NONE, AWS_IAM, CUSTOM and COGNITO_USER_POOLS and UpdateMethod replace /resourceId naming another resource answer NotImplemented"
+	methodResponseNote = "responseModels name only the seeded Empty and Error models (text inferred)"
 	// emptyResponseTemplate and emptyRequestTemplate board up apigateway-rest.md
 	// finding 6: the generated map types cannot carry a null value, so an
 	// empty-string template is returned as "" until the generator can
@@ -101,13 +106,11 @@ const (
 		"contentHandling is stored and an invocation that selects the response answers 501; " + emptyResponseTemplate
 	createDeploymentNote = "canarySettings answers NotImplemented; cacheClusterEnabled, cacheClusterSize and tracingEnabled are stored without effect; " +
 		"the texts for deploying an API with no methods or a method with no integration are inferred (APIGW1-05)"
-	getDeploymentsNote     = "items in creation order (inferred)"
 	deploymentNotFoundNote = "the missing-deployment text is inferred"
 	stageTexts             = "the duplicate-stage and missing-stage texts are inferred (APIGW1-06)"
 	stageNote              = "cache settings, methodSettings, accessLogSettings, clientCertificateId, tracingEnabled and webAclArn are stored and echoed without effect; " +
 		"canarySettings answers NotImplemented; " + stageTexts + "; documentationVersion answers NotImplemented while documentation versions are unbound"
 	updateStageNote   = stageNote + "; a new method setting starts from the */* one (inferred)"
-	getStagesNote     = "items in creation order (inferred)"
 	tagsNote          = "the texts for a malformed or unknown resourceArn and the tag key and value lengths are inferred"
 	invokeRestAPINote = "AWS_PROXY (payload 1.0) and MOCK with literal templates; " +
 		"mapping templates with VTL answer 501; request validation, authorizers, API keys, caching and throttling are not applied; AWS_IAM methods answer 501; apiKeyRequired methods answer 403; " +
@@ -140,7 +143,7 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 	b := apigatewayapi.NewBinder(d.Binder)
 	b.CreateRestApi(s.createRestAPI, partial(restAPINote),
 		kernel.WithResources(resourceAt(func(*apigatewayapi.CreateRestApiInput) string { return "/restapis" })))
-	b.GetRestApis(s.getRestAPIs, registry.Partial{Note: baseNote},
+	b.GetRestApis(s.getRestAPIs, partial(creationOrderNote),
 		kernel.WithResources(resourceAt(func(*apigatewayapi.GetRestApisInput) string { return "/restapis" })))
 	b.DeleteRestApi(s.deleteRestAPI, registry.Partial{Note: baseNote},
 		kernel.WithResources(resourceAt(func(in *apigatewayapi.DeleteRestApiInput) string { return "/restapis/" + in.RestApiId })))
@@ -182,7 +185,7 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 		kernel.WithResources(resourceAt(func(in *apigatewayapi.DeleteMethodInput) string {
 			return methodPath(in.RestApiId, in.ResourceId, in.HttpMethod)
 		})))
-	b.PutMethodResponse(s.putMethodResponse, registry.Partial{Note: baseNote},
+	b.PutMethodResponse(s.putMethodResponse, partial(methodResponseNote),
 		kernel.WithResources(resourceAt(func(in *apigatewayapi.PutMethodResponseInput) string {
 			return methodPath(in.RestApiId, in.ResourceId, in.HttpMethod) + "/responses/" + in.StatusCode
 		})))
@@ -190,7 +193,7 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 		kernel.WithResources(resourceAt(func(in *apigatewayapi.GetMethodResponseInput) string {
 			return methodPath(in.RestApiId, in.ResourceId, in.HttpMethod) + "/responses/" + in.StatusCode
 		})))
-	b.UpdateMethodResponse(s.updateMethodResponse, registry.Partial{Note: baseNote},
+	b.UpdateMethodResponse(s.updateMethodResponse, partial(methodResponseNote),
 		kernel.WithResources(resourceAt(func(in *apigatewayapi.UpdateMethodResponseInput) string {
 			return methodPath(in.RestApiId, in.ResourceId, in.HttpMethod) + "/responses/" + in.StatusCode
 		})))
@@ -234,7 +237,7 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 		kernel.WithResources(resourceAt(func(in *apigatewayapi.CreateDeploymentInput) string {
 			return "/restapis/" + in.RestApiId + "/deployments"
 		})))
-	b.GetDeployments(s.getDeployments, partial(getDeploymentsNote),
+	b.GetDeployments(s.getDeployments, partial(creationOrderNote),
 		kernel.WithResources(resourceAt(func(in *apigatewayapi.GetDeploymentsInput) string {
 			return "/restapis/" + in.RestApiId + "/deployments"
 		})))
@@ -252,7 +255,7 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 		})))
 	b.CreateStage(s.createStage, partial(stageNote),
 		kernel.WithResources(resourceAt(func(in *apigatewayapi.CreateStageInput) string { return "/restapis/" + in.RestApiId + "/stages" })))
-	b.GetStages(s.getStages, partial(getStagesNote),
+	b.GetStages(s.getStages, partial(creationOrderNote),
 		kernel.WithResources(resourceAt(func(in *apigatewayapi.GetStagesInput) string { return "/restapis/" + in.RestApiId + "/stages" })))
 	b.GetStage(s.getStage, partial(stageTexts),
 		kernel.WithResources(resourceAt(func(in *apigatewayapi.GetStageInput) string {
