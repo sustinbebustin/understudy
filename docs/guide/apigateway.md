@@ -358,6 +358,8 @@ aws apigateway get-resources --rest-api-id 70wh1xgmho
 # "/", "/animals", "/animals/{id}", in creation order
 ```
 
-`get-resources --embed methods` returns each method in full; without it `resourceMethods` maps each method to `{}`. A path part is letters, digits and `._-,:`, or `{name}` and `{name+}`; anything else is refused. Requests are matched only against the root resource so far: once a deployment holds other resources, a request the root does not serve answers `501` saying so, rather than a `403` AWS might not give.
+`get-resources --embed methods` returns each method in full; without it `resourceMethods` maps each method to `{}`. A path part is letters, digits and `._-,:`, or `{name}` and `{name+}`; anything else is refused.
 
-MOCK integrations at invoke, matching requests against resources other than the root, and Terraform are not implemented yet.
+A request is matched against the resources of the stage's deployment as AWS does: at the first segment where two matching resources differ, a literal part wins over `{name}`, and `{name}` over `{name+}`. A resource that matches but has no method for the request is passed over for a less specific one that has it, so with `/part1` (GET) and `/{param+}` (GET), `GET /part1/random-value` reaches `/{param+}`. The event's `pathParameters` hold the bound values as sent, still percent-encoded; a greedy value keeps interior empty segments and drops a trailing slash. Nothing matched answers `403 Missing Authentication Token`. Which of a resource's explicit method and its `ANY` serves, and whether `GET` serves `HEAD`, are not recorded: understudy serves the explicit method first and `HEAD` only from `HEAD` or `ANY`.
+
+MOCK integrations at invoke and Terraform are not implemented yet.
