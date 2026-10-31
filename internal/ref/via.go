@@ -27,7 +27,7 @@ const (
 	SFNLogDestination                // Step Functions checking that a state machine's log group exists
 	SFNTask                          // a Step Functions Task invoking its Lambda function as the execution role
 	CloudWatchAlarm                  // a CloudWatch alarm running an action or sending its EventBridge event
-	SchedulerTarget                  // EventBridge Scheduler invoking a schedule's target, or sending its dead letter, as the execution role
+	SchedulerTarget                  // EventBridge Scheduler invoking a schedule's target, or sending its dead letter, as the execution role, or reading that role from IAM before the invocation
 
 	// endVia follows the last value and is no Via: valid, ParseVia and the
 	// ViaError text count up to it, so a new value is one line above it
