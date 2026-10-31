@@ -223,14 +223,13 @@ Resource policies the recorded deliveries need:
   arn:aws:sqs:us-east-1:000000000000:orders-worker must allow sns.amazonaws.com to call sqs:SendMessage from arn:aws:sns:us-east-1:000000000000:orders (aws:SourceAccount 000000000000)
 ```
 
-The policy has one statement per resource, with exact ARNs, except that S3 objects are granted per bucket as `arn:aws:s3:::<bucket>/*`, and a resource whose id understudy mints is granted as the narrowest wildcard matching every id AWS could mint for it: KMS keys as `key/*`, Secrets Manager secrets as `secret:<name>-??????`, SNS subscriptions as `<topic arn>:*`, Lambda event source mappings as `event-source-mapping:*`, the log streams Lambda creates as `log-group:<group>:log-stream:*`, DynamoDB streams as `table/<name>/stream/*`, and API Gateway APIs as `/apis/??????????`, with their routes, integrations and deployments as `/apis/??????????/routes/*` and so on (also inside a `/tags/` resource). The ids differ in every run, on AWS too, so the policy carries over to the next run; `iam usage` still lists the exact ARNs. `Resource: "*"` appears only for an action of the called service whose call named no resource of that service, such as `sqs:ListQueues`. An action the policy grants on `*` is left out of every other statement, and a statement left with no action is dropped; the usage is unchanged. Two keys, an encryption with each, and a `CreateKey` that failed validation before a key existed:
+The policy has one statement per resource, with exact ARNs, except that S3 objects are granted per bucket as `arn:aws:s3:::<bucket>/*`, and a resource whose id understudy mints is granted as the narrowest wildcard matching every id AWS could mint for it: KMS keys as `key/*`, Secrets Manager secrets as `secret:<name>-??????`, SNS subscriptions as `<topic arn>:*`, Lambda event source mappings as `event-source-mapping:*`, the log streams Lambda creates as `log-group:<group>:log-stream:*`, DynamoDB streams as `table/<name>/stream/*`, and API Gateway APIs as `/apis/??????????`, with their routes, integrations and deployments as `/apis/??????????/routes/*` and so on (also inside a `/tags/` resource). The ids differ in every run, on AWS too, so the policy carries over to the next run; `iam usage` still lists the exact ARNs. `Resource: "*"` appears only for an action of the called service whose call named no resource of that service, such as `sqs:ListQueues`. Two keys and an encryption with each:
 
 ```sh
 aws kms create-key
 aws kms create-key
 aws kms encrypt --key-id <first key id> --plaintext aGk=
 aws kms encrypt --key-id <second key id> --plaintext aGk=
-aws kms create-key --key-spec RSA_2048 --key-usage GENERATE_VERIFY_MAC
 understudy iam policy --principal arn:aws:iam::000000000000:root
 ```
 
@@ -238,7 +237,27 @@ understudy iam policy --principal arn:aws:iam::000000000000:root
 {"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"kms:CreateKey","Resource":"*"},{"Effect":"Allow","Action":"kms:Encrypt","Resource":"arn:aws:kms:us-east-1:000000000000:key/*"}]}
 ```
 
-`iam usage` lists `kms:CreateKey` on `*`, where AWS authorizes it before the key exists, and `kms:Encrypt` on each key. `sts:GetCallerIdentity` needs no permission, so the policy leaves it out; `iam usage` still lists its calls. Calls that failed are included, because handled failures need permissions too; injected faults are not, nor are calls `--sigv4 verify` refused at authentication (a bad signature, an unknown key, a missing or expired session token), which on AWS never reach IAM. Writing and reading an SSE-KMS object records `kms:GenerateDataKey` and `kms:Decrypt` on the key for the caller, as AWS requires.
+`iam usage` lists `kms:CreateKey` on `*`, where AWS authorizes it before the key exists, and `kms:Encrypt` on each key.
+
+An action the policy grants on `*` is left out of every other statement, and a statement left with no action is dropped; the usage is unchanged. On a fresh server, a key, an encryption with it, and one through an alias that names no key, which fails before any key is known:
+
+```sh
+aws kms create-key
+aws kms encrypt --key-id <key id> --plaintext aGk=
+aws kms encrypt --key-id alias/missing --plaintext aGk=
+understudy iam usage --principal arn:aws:iam::000000000000:root
+understudy iam policy --principal arn:aws:iam::000000000000:root
+```
+
+```text
+PRINCIPAL                       MODE    ACTION         RESOURCE                                         CALLS  FAILURES  LAST
+arn:aws:iam::000000000000:root  direct  kms:CreateKey  *                                                1      0         ...
+arn:aws:iam::000000000000:root  direct  kms:Encrypt    *                                                1      1         ...
+arn:aws:iam::000000000000:root  direct  kms:Encrypt    arn:aws:kms:us-east-1:000000000000:key/<key id>  1      0         ...
+{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["kms:CreateKey","kms:Encrypt"],"Resource":"*"}]}
+```
+
+The failed call put `kms:Encrypt` on `*`, so the key's statement lost its only action and was dropped. `sts:GetCallerIdentity` needs no permission, so the policy leaves it out; `iam usage` still lists its calls. Calls that failed are included, because handled failures need permissions too; injected faults are not, nor are calls `--sigv4 verify` refused at authentication (a bad signature, an unknown key, a missing or expired session token), which on AWS never reach IAM. Writing and reading an SSE-KMS object records `kms:GenerateDataKey` and `kms:Decrypt` on the key for the caller, as AWS requires.
 
 The second part lists the resource-policy statements that SNS, S3, EventBridge and Lambda deliveries would need on AWS: a queue policy allowing the topic, a function permission allowing the rule. Each names the `aws:SourceAccount` the delivery sends, when it sends one; EventBridge sends none to a function, so a function permission conditioned on `aws:SourceAccount` would refuse the rule. Under `off` understudy attempts those deliveries anyway, and journals an `advisory` event for each one the target's stored policy would refuse; under `enforce` the target refuses them (see Enforce).
 

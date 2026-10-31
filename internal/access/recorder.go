@@ -444,17 +444,17 @@ func (r *Recorder) Usage(f Filter) []Use {
 // (ARCHITECTURE.md 17): one Allow statement per (service, resource) with the
 // exact resource ARN, the MintedPattern of a resource whose id understudy
 // minted (so N minted keys under the same actions give one statement),
-// arn:aws:s3:::<bucket>/* for the objects of a bucket,
-// or "*" for an action of its operation's service without a resource of
-// that service, listing every action used there in any mode, failed calls
-// included. An action the document grants on "*" without a condition is
-// left out of every other statement, and a statement left with no action is
-// dropped: the document allows the same pairs and is smaller, while the
-// record itself is unchanged. sts:GetCallerIdentity is left out: it needs no permission and
-// no policy can deny it (iam-enforcement-surfaces.md 5.1, 12.6). A Role's
-// policy covers every session of the role. ok is false when principal is
-// nil or has no recorded use but those: there is no policy to write, and
-// IAM rejects one without statements.
+// arn:aws:s3:::<bucket>/* for the objects of a bucket, or "*" for an action
+// of its operation's service without a resource of that service, listing
+// every action used there in any mode, failed calls included. An action
+// the document grants on "*" without a condition is left out of every
+// other statement, and a statement left with no action is dropped: the
+// document allows the same pairs and is smaller, while the record itself
+// is unchanged. sts:GetCallerIdentity is left out: it needs no permission
+// and no policy can deny it (iam-enforcement-surfaces.md 5.1, 12.6). A
+// Role's policy covers every session of the role. ok is false when
+// principal is nil or has no recorded use but those: there is no policy to
+// write, and IAM rejects one without statements.
 func (r *Recorder) Policy(principal Identity) (doc policydoc.Document, ok bool) {
 	if principal == nil {
 		return policydoc.Document{}, false
