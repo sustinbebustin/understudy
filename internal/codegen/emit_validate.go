@@ -245,8 +245,6 @@ type failCond struct {
 	fails, constraint string
 }
 
-// conds lists the constraints of member m on value x in AWS's order: enum,
-// pattern, length (maximum before minimum), range (minimum first).
 // enumLits are an enum's values as Go string literals, in the order an
 // enum violation lists them: dev.understudy#enumOrder's, else the model's.
 func enumLits(t *ShapeIR) []string {
@@ -267,6 +265,8 @@ func enumLits(t *ShapeIR) []string {
 	return vals
 }
 
+// conds lists the constraints of member m on value x in AWS's order: enum,
+// pattern, length (maximum before minimum), range (minimum first).
 func (v *validator) conds(m *MemberIR, x string) ([]failCond, error) {
 	t := m.Target
 	var out []failCond
