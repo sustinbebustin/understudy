@@ -231,6 +231,28 @@ def test_deleted_target_queue_dead_letters(
     assert attrs["SCHEDULED_TIME"]["StringValue"] == at.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def test_at_with_delete_is_gone_after_firing(scheduler: Any, sqs: Any, make_queue: Callable[..., str], role: str, clock: Admin) -> None:
+    """A one-time at() with ActionAfterCompletion DELETE reads DELETE back, invokes its target
+    once, and is gone after it has (aws-doc managing-schedule-delete; scheduler.md 8)."""
+    url = make_queue("sch-q")
+    at = _emulator_now(clock) + datetime.timedelta(minutes=10)
+    name = uniq("sch")
+    scheduler.create_schedule(
+        Name=name,
+        ScheduleExpression=f"at({at.strftime('%Y-%m-%dT%H:%M:%S')})",
+        ActionAfterCompletion="DELETE",
+        FlexibleTimeWindow={"Mode": "OFF"},
+        Target={"Arn": _queue_arn(sqs, url), "RoleArn": role, "Input": "once"},
+    )
+    assert scheduler.get_schedule(Name=name)["ActionAfterCompletion"] == "DELETE"
+
+    clock.advance(11 * 60)
+    messages = sqs.receive_message(QueueUrl=url, MaxNumberOfMessages=10).get("Messages", [])
+    assert [m["Body"] for m in messages] == ["once"]
+    with raises("ResourceNotFoundException"):
+        scheduler.get_schedule(Name=name)
+
+
 def test_universal_target_is_not_implemented(scheduler: Any, role: str) -> None:
     """A universal (aws-sdk) target answers 501 NotImplemented and nothing is stored
     (CLAUDE.md invariant 3; spec "Scope")."""

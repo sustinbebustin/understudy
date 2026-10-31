@@ -209,6 +209,28 @@ test_deleted_target_queue_dead_letters() {
   aws_ok scheduler delete-schedule --name "$name"
 }
 
+# A one-time at() with ActionAfterCompletion DELETE reads DELETE back,
+# invokes its target once, and is gone after it has (aws-doc
+# managing-schedule-delete; scheduler.md 8).
+test_at_with_delete_is_gone_after_firing() {
+  sch_setup
+  local now at name target
+  now=$(curl -fsS "${UE_ADMIN_URL:?UE_ADMIN_URL unset}/clock" | jq -r '.now')
+  at=$(date -u -d "@$(($(date -u -d "$now" +%s) + 600))" +%Y-%m-%dT%H:%M:%S)
+  name=$(new_name sch)
+  target=$(jq -cn --arg q "$SCH_QUEUE_ARN" --arg r "$SCH_ROLE_ARN" '{Arn: $q, RoleArn: $r, Input: "once"}')
+  aws_ok scheduler create-schedule --name "$name" --schedule-expression "at($at)" \
+    --action-after-completion DELETE --flexible-time-window Mode=OFF --target "$target"
+  aws_ok scheduler get-schedule --name "$name"
+  assert_jq '.ActionAfterCompletion' DELETE
+
+  advance 660
+  aws_ok sqs receive-message --queue-url "$SCH_QUEUE_URL" --max-number-of-messages 10
+  assert_jq_true '(.Messages | length) == 1'
+  assert_jq '.Messages[0].Body' once
+  aws_error ResourceNotFoundException 404 scheduler get-schedule --name "$name"
+}
+
 # A universal (aws-sdk) target answers 501 NotImplemented and nothing is
 # stored (CLAUDE.md invariant 3; spec "Scope").
 test_universal_target_is_not_implemented() {

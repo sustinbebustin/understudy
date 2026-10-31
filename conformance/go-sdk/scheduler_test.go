@@ -378,6 +378,36 @@ func TestSchedulerDeletedTargetQueueDeadLetters(t *testing.T) {
 	}
 }
 
+// A one-time at() with ActionAfterCompletion DELETE reads DELETE back,
+// invokes its target once, and is gone after it has (aws-doc
+// managing-schedule-delete; scheduler.md 8).
+func TestSchedulerAtWithDeleteIsGoneAfterFiring(t *testing.T) {
+	ctx := t.Context()
+	client := scheduler.NewFromConfig(awsCfg)
+	queueURL, target := schedulerTarget(t)
+	target.Input = aws.String("once")
+	scheduleName := name(t, "sch")
+	createScheduleT(t, &scheduler.CreateScheduleInput{
+		Name: aws.String(scheduleName), ScheduleExpression: aws.String(atOf(emulatorNow(t).Add(10 * time.Minute))),
+		ActionAfterCompletion: types.ActionAfterCompletionDelete,
+		FlexibleTimeWindow:    &types.FlexibleTimeWindow{Mode: types.FlexibleTimeWindowModeOff}, Target: target,
+	})
+	got, err := client.GetSchedule(ctx, &scheduler.GetScheduleInput{Name: aws.String(scheduleName)})
+	ok(t, err, "GetSchedule")
+	if got.ActionAfterCompletion != types.ActionAfterCompletionDelete {
+		t.Errorf("ActionAfterCompletion = %s, want DELETE", got.ActionAfterCompletion)
+	}
+
+	advance(t, 660)
+	received, err := sqs.NewFromConfig(awsCfg).ReceiveMessage(ctx, &sqs.ReceiveMessageInput{QueueUrl: aws.String(queueURL), MaxNumberOfMessages: 10})
+	ok(t, err, "ReceiveMessage")
+	if len(received.Messages) != 1 || aws.ToString(received.Messages[0].Body) != "once" {
+		t.Errorf("received %+v, want one message once", received.Messages)
+	}
+	_, err = client.GetSchedule(ctx, &scheduler.GetScheduleInput{Name: aws.String(scheduleName)})
+	errAs[*types.ResourceNotFoundException](t, err, "GetSchedule after the last invocation")
+}
+
 // A universal (aws-sdk) target answers 501 NotImplemented and nothing is
 // stored (CLAUDE.md invariant 3; spec "Scope").
 func TestSchedulerUniversalTargetIsNotImplemented(t *testing.T) {

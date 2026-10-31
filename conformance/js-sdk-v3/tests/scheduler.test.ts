@@ -332,6 +332,32 @@ describe("EventBridge Scheduler", () => {
     expect(attrs.SCHEDULE_ARN?.StringValue).toBe(arn);
     expect(attrs.SCHEDULED_TIME?.StringValue).toBe(`${atText}Z`);
   });
+
+  // A one-time at() with ActionAfterCompletion DELETE reads DELETE back,
+  // invokes its target once, and is gone after it has (aws-doc
+  // managing-schedule-delete; scheduler.md 8).
+  test("an at() with DELETE is gone after it fires", async () => {
+    const { queueUrl, target } = await queueTarget();
+    const at = new Date((await emulatorNow()).getTime() + 10 * 60_000);
+    const name = uniq("sch");
+    await createSchedule({
+      Name: name,
+      ScheduleExpression: `at(${at.toISOString().slice(0, 19)})`,
+      ActionAfterCompletion: "DELETE",
+      FlexibleTimeWindow: { Mode: "OFF" },
+      Target: { ...target, Input: "once" },
+    });
+    const got = await scheduler.send(new GetScheduleCommand({ Name: name }));
+    expect(got.ActionAfterCompletion).toBe("DELETE");
+
+    await advance(660);
+    const received = await sqs.send(new ReceiveMessageCommand({ QueueUrl: queueUrl, MaxNumberOfMessages: 10 }));
+    expect((received.Messages ?? []).map((m) => m.Body)).toEqual(["once"]);
+    await expectFailure(scheduler.send(new GetScheduleCommand({ Name: name })), {
+      name: "ResourceNotFoundException",
+      status: 404,
+    });
+  });
 });
 
 const FORWARD_HANDLER = `

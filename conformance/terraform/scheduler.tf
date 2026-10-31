@@ -4,9 +4,11 @@
 # depend on GetSchedule reading back the members as sent with AWS's
 # defaults filled: ActionAfterCompletion NONE, RetryPolicy 86400/185, group
 # default, no dates, description or KMS key (scheduler.md 4.2, 11.3); and a
-# cron schedule in Europe/Paris with dates, a description, a retry policy,
-# a dead-letter queue and Input, echoed as sent with the dates to the second (tf-acc
-# schedule_test.go:L365-L419, L1174-L1233, L1292-L1349, L1870-L1895). The
+# cron schedule in Europe/Paris with dates, a description, a FLEXIBLE 10
+# window, ActionAfterCompletion DELETE, a retry policy, a dead-letter queue
+# and Input, echoed as sent with the dates to the second (tf-acc
+# schedule_test.go:L288-L302, L365-L419, L421-L478, L1174-L1233,
+# L1292-L1349, L1870-L1895). The
 # update step replaces both schedules through UpdateSchedule (scheduler.md
 # 4.3): the rate gains a description, the cron moves its StartDate and
 # retry policy.
@@ -81,9 +83,11 @@ resource "aws_scheduler_schedule" "cron" {
   start_date                   = local.updated ? "2099-06-01T00:00:00Z" : "2099-01-01T01:00:00Z"
   end_date                     = "2100-01-01T01:02:03Z"
   description                  = "weekday mornings"
+  action_after_completion      = "DELETE"
 
   flexible_time_window {
-    mode = "OFF"
+    mode                      = "FLEXIBLE"
+    maximum_window_in_minutes = 10
   }
 
   target {
