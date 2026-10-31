@@ -50,16 +50,22 @@ type RestAPI struct {
 	// (apigateway-rest.md finding 5); a deployment snapshots them.
 	BinaryMediaTypes []string `json:"binaryMediaTypes,omitzero"`
 	// RootResourceID is the id of the root resource, created with the API.
-	RootResourceID string       `json:"rootResourceId"`
-	Resources      []Resource   `json:"resources"`
-	Deployments    []Deployment `json:"deployments"`
-	Stages         []Stage      `json:"stages"`
+	RootResourceID string     `json:"rootResourceId"`
+	Resources      []Resource `json:"resources"`
+	// NextResourceSeq is the Seq the next resource created in the API
+	// gets; the root has 0.
+	NextResourceSeq uint64       `json:"nextResourceSeq"`
+	Deployments     []Deployment `json:"deployments"`
+	Stages          []Stage      `json:"stages"`
 }
 
 // Resource is one resource of a REST API: the root ("/", no parent and no
 // path part) or a child. Methods are by HTTP method, ANY included.
 type Resource struct {
-	ID       string            `json:"id"`
+	ID string `json:"id"`
+	// Seq orders the API's resources by creation; GetResources pages by
+	// it.
+	Seq      uint64            `json:"seq"`
 	ParentID string            `json:"parentId,omitempty"`
 	PathPart string            `json:"pathPart,omitempty"`
 	Path     string            `json:"path"`

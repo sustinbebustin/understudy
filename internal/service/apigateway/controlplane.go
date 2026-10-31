@@ -45,7 +45,7 @@ func (s *Service) createRestAPI(_ context.Context, c *kernel.Call, in *apigatewa
 		root := string(s.ids.APIGatewayRootResourceID())
 		a := RestAPI{
 			ID: id, Seq: st.NextSeq, Name: in.Name, Description: clonePtr(in.Description), Version: clonePtr(in.Version), Created: now,
-			RootResourceID: root, Resources: []Resource{{ID: root, Path: "/"}},
+			RootResourceID: root, Resources: []Resource{{ID: root, Path: "/"}}, NextResourceSeq: 1,
 		}
 		st.NextSeq++
 		st.APIs[id] = a
@@ -162,7 +162,17 @@ func (s *Service) putMethod(_ context.Context, c *kernel.Call, in *apigatewayapi
 	if err != nil {
 		return nil, err
 	}
-	return &apigatewayapi.Method{HttpMethod: new(m.HTTPMethod), AuthorizationType: new(m.Authorization), ApiKeyRequired: new(false)}, nil
+	return new(m.output()), nil
+}
+
+// output is the method as PutMethod answers it and GetResources embeds it,
+// its integration included when it has one.
+func (m *Method) output() apigatewayapi.Method {
+	out := apigatewayapi.Method{HttpMethod: new(m.HTTPMethod), AuthorizationType: new(m.Authorization), ApiKeyRequired: new(false)}
+	if m.Integration != nil {
+		out.MethodIntegration = new(m.Integration.output())
+	}
+	return out
 }
 
 // lambdaInvokeURI is API Gateway's URI for invoking a Lambda function
@@ -262,11 +272,16 @@ func (s *Service) putIntegration(_ context.Context, c *kernel.Call, in *apigatew
 	if err != nil {
 		return nil, err
 	}
-	return &apigatewayapi.Integration{
-		Type: new(integration.Type), HttpMethod: new(integration.HTTPMethod), Uri: new(integration.URI),
-		PassthroughBehavior: new(integration.PassthroughBehavior), TimeoutInMillis: integration.TimeoutInMillis,
-		CacheNamespace: new(integration.CacheNamespace), CacheKeyParameters: slices.Clone(integration.CacheKeyParameters),
-	}, nil
+	return new(integration.output()), nil
+}
+
+// output is the integration as PutIntegration answers it.
+func (i *Integration) output() apigatewayapi.Integration {
+	return apigatewayapi.Integration{
+		Type: new(i.Type), HttpMethod: new(i.HTTPMethod), Uri: new(i.URI),
+		PassthroughBehavior: new(i.PassthroughBehavior), TimeoutInMillis: i.TimeoutInMillis,
+		CacheNamespace: new(i.CacheNamespace), CacheKeyParameters: slices.Clone(i.CacheKeyParameters),
+	}
 }
 
 // stageNamePattern is a stage name (documented, apigateway-rest.md 3.7).

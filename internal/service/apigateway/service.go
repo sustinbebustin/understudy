@@ -79,13 +79,14 @@ const (
 		"operations apply in order and a refused one changes nothing (inferred); adding a listed type or removing an unlisted one changes nothing, " +
 		"and the texts for an empty name or a replace without a value are inferred; " +
 		"apiKeySource, endpointConfiguration and disableExecuteApiEndpoint are reported at their recorded defaults"
-	putMethodNote = "only httpMethod and authorizationType are accepted, and every other member answers NotImplemented; " +
+	getResourcesNote = "items in creation order, root first (inferred, APIGW1-04)"
+	putMethodNote    = "only httpMethod and authorizationType are accepted, and every other member answers NotImplemented; " +
 		"AWS_IAM methods answer 501 at invoke"
 	putIntegrationNote = "only type AWS_PROXY to a Lambda function with integrationHttpMethod, uri and timeoutInMillis is accepted, " +
 		"and every other type and member answers NotImplemented"
 	createDeploymentNote = "only stageName and description are accepted, and every other member answers NotImplemented; " +
 		"the texts for deploying an API with no methods or a method with no integration are inferred (APIGW1-05)"
-	invokeRestAPINote = "AWS_PROXY (payload 1.0) on the root resource only, no other resource can be created yet; " +
+	invokeRestAPINote = "AWS_PROXY (payload 1.0) on the root resource only; a request the root does not serve answers 501 while the deployment holds other resources; " +
 		"mapping templates, request validation, authorizers, API keys, caching and throttling are not applied; AWS_IAM methods answer 501; " +
 		"binaryMediaTypes in the stage's deployment answer 501; " +
 		"inferred, UNVERIFIED: unknown stage, ANY against explicit methods, HEAD (APIGW1-07, -08), timeout (APIGW1-10), empty-body event (APIGW1-16); " +
@@ -115,6 +116,24 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 		kernel.WithResources(resourceAt(func(in *apigatewayapi.GetRestApiInput) string { return "/restapis/" + in.RestApiId })))
 	b.UpdateRestApi(s.updateRestAPI, partial(updateRestAPINote),
 		kernel.WithResources(resourceAt(func(in *apigatewayapi.UpdateRestApiInput) string { return "/restapis/" + in.RestApiId })))
+	b.CreateResource(s.createResource, registry.Partial{Note: baseNote},
+		kernel.WithResources(resourceAt(func(in *apigatewayapi.CreateResourceInput) string {
+			return "/restapis/" + in.RestApiId + "/resources/" + in.ParentId
+		})))
+	b.GetResource(s.getResource, registry.Partial{Note: baseNote},
+		kernel.WithResources(resourceAt(func(in *apigatewayapi.GetResourceInput) string {
+			return "/restapis/" + in.RestApiId + "/resources/" + in.ResourceId
+		})))
+	b.GetResources(s.getResources, partial(getResourcesNote),
+		kernel.WithResources(resourceAt(func(in *apigatewayapi.GetResourcesInput) string { return "/restapis/" + in.RestApiId + "/resources" })))
+	b.UpdateResource(s.updateResource, registry.Partial{Note: baseNote},
+		kernel.WithResources(resourceAt(func(in *apigatewayapi.UpdateResourceInput) string {
+			return "/restapis/" + in.RestApiId + "/resources/" + in.ResourceId
+		})))
+	b.DeleteResource(s.deleteResource, registry.Partial{Note: baseNote},
+		kernel.WithResources(resourceAt(func(in *apigatewayapi.DeleteResourceInput) string {
+			return "/restapis/" + in.RestApiId + "/resources/" + in.ResourceId
+		})))
 	b.PutMethod(s.putMethod, partial(putMethodNote),
 		kernel.WithResources(resourceAt(func(in *apigatewayapi.PutMethodInput) string {
 			return "/restapis/" + in.RestApiId + "/resources/" + in.ResourceId + "/methods/" + in.HttpMethod

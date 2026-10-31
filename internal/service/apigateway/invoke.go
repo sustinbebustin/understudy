@@ -214,6 +214,13 @@ func (a *RestAPI) selectMethod(owner aws.Scope, addr address, method string) sel
 			"so no integration ran and nothing was changed. Remove the binaryMediaTypes with UpdateRestApi and deploy again.", d.ID, a.ID, stage.Name, d.BinaryMediaTypes)}
 	}
 	res, key, ok := rootMatch(d.Resources, method, target.Path, routing.Methods)
+	if !ok && len(d.Resources) > 1 {
+		// Only the root is matched until resource.Find lands (spec 6b
+		// ticket 8); answering 403 could deny a request AWS serves.
+		return unemulated{fmt.Sprintf("understudy does not match requests against resources other than the root yet: %s %s on stage %s of REST API %s "+
+			"was not served by the root resource, so no integration ran and nothing was changed. Serve the request from a method on the root resource.",
+			method, target.Path, stage.Name, a.ID)}
+	}
 	if !ok {
 		return answered{MissingAuthenticationToken()}
 	}
@@ -241,9 +248,9 @@ func (a *RestAPI) selectMethod(owner aws.Scope, addr address, method string) sel
 
 // rootMatch is the tracer bullet's resource match: the root resource
 // serves the stage's root path, by the request's verb or else its ANY
-// method (the routing switch's Methods; apigateway-rest.md 4.4). Only the
-// root resource can exist until CreateResource is bound, so no other path
-// is served (resource.Find replaces this with the full match).
+// method (the routing switch's Methods; apigateway-rest.md 4.4). No other
+// resource is matched yet: the caller answers 501 when the deployment
+// holds others (resource.Find replaces this with the full match).
 func rootMatch(rs []Resource, method, path string, m resource.Methods) (Resource, string, bool) {
 	// ANY serves the documented verbs only (apigateway-rest.md 4.4).
 	if path != "/" || method == "ANY" || !slices.Contains(httpMethods(), method) {
