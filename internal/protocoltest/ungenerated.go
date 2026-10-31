@@ -24,7 +24,7 @@ func UngeneratedCases() []Ungenerated {
 		{Key: Key{Protocol: ref.RESTJSON1, Kind: Request, ID: "AcceptHeaderStarStarRequestTest"}, Reason: misc},
 		{
 			Key:    Key{Protocol: ref.RESTJSON1, Kind: Request, ID: "ApiGatewayAccept"},
-			Reason: "A customization of API Gateway (com.amazonaws.apigateway), which understudy does not generate: the Accept header API Gateway requires on every request.",
+			Reason: "A customization of API Gateway (com.amazonaws.apigateway): the Accept: application/json header clients send on every request. Served, it asserts only that GET /restapis with that header parses to an empty GetRestApis input; the corpus's one-operation API Gateway slice is not generated as a synthetic service, since the real service is (internal/api/apigatewayapi) and aws-sdk-go-v2's apigateway client, which adds that header, calls its GetRestApis in conformance/go-sdk/apigateway_test.go.",
 		},
 		{
 			Key:    Key{Protocol: ref.RESTJSON1, Kind: Request, ID: "GlacierVersionHeader"},

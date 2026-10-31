@@ -71,12 +71,15 @@ const baseNote = "the X-Amzn-Errortype value and generated ids are inferred (UNV
 // Coverage notes of the tracer bullet's operations: what each leaves out
 // of the documented behavior until its own ticket.
 const (
-	// restAPINote is CreateRestApi's and UpdateRestApi's note, the spec's
-	// verbatim (spec 6b coverage marks).
+	// restAPINote is CreateRestApi's and UpdateRestApi's note: the spec's
+	// (spec 6b coverage marks), plus the enum-list violation text the
+	// golden replay of test_create_rest_api_verify_defaults found.
 	restAPINote = "cloneFrom answers NotImplemented; policy is stored and returned escaped, and under iam.enforce=enforce an invocation of an API with a policy answers 501; " +
 		"binaryMediaTypes, disableExecuteApiEndpoint and endpointConfiguration PRIVATE are stored and returned, and an invocation of an API that has them answers 501; " +
 		"vpcEndpointIds, securityPolicy, endpointAccessMode and minimumCompressionSize are stored without effect; " +
-		"an EDGE API is served as a REGIONAL one (no CloudFront headers in the event); a second API with the same name is allowed (inferred, APIGW1-14)"
+		"an EDGE API is served as a REGIONAL one (no CloudFront headers in the event); a second API with the same name is allowed (inferred, APIGW1-14); " +
+		"an endpointConfiguration types value outside the enum answers a ValidationException naming the list member, where AWS names the whole list " +
+		"(recorded, test_apigateway_api.snapshot.json:L4693-L4703)"
 	getResourcesNote = "items in creation order, root first (inferred, APIGW1-04)"
 	methodNote       = "AWS_IAM, CUSTOM and COGNITO_USER_POOLS methods answer 501 at invoke; apiKeyRequired methods answer 403 because API keys cannot be created; " +
 		"requestValidatorId and requestModels name only the seeded Empty and Error models until validators and models are bound"

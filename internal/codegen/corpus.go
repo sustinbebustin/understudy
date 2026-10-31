@@ -31,8 +31,10 @@ const corpusOrigin = "smithy-protocol-tests@1.74.0"
 // layer is proven against (ARCHITECTURE.md 5.6): one per protocol the
 // emulated services speak, the awsJson1_0 query-compatible variant, the
 // validation and namespace variants, the S3 slice and the rpcv2Cbor
-// query-compatible pair (wire-cbor.md 6). ec2Query, rpcv2Json and the API
-// Gateway, Glacier and Machine Learning slices serve no emulated service.
+// query-compatible pair (wire-cbor.md 6). ec2Query, rpcv2Json and the
+// Glacier and Machine Learning slices serve no emulated service; the API
+// Gateway slice's one case is the Accept header customization, which the
+// generated API Gateway service meets (protocoltest.UngeneratedCases).
 func CorpusServices() []ServiceConfig {
 	svc := func(id smithy.ShapeID, pkg string) ServiceConfig {
 		return ServiceConfig{ID: ref.ServiceID(pkg), Service: id, Package: pkg, Destination: CorpusPackage{}}
