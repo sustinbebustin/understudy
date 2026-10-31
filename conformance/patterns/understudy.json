@@ -1,5 +1,9 @@
 {
   "ses": {
-    "verifiedIdentities": ["sender@s3-lambda-ses.example.org"]
+    "verifiedIdentities": [
+      "sender@s3-lambda-ses.example.org",
+      "noreply@eventbridge-scheduler-ses.example.org",
+      "recipient@example.com"
+    ]
   }
 }

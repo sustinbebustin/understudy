@@ -208,7 +208,9 @@ created_functions() {
 # the pattern's account, except what AWS keeps after a destroy: the log
 # group /aws/lambda/<name> Lambda creates for a function it runs, which
 # DeleteFunction leaves in place (lambda-api.md 6.4, tf-compute.md 5), for
-# each function the pattern created.
+# each function the pattern created; and each AWS managed KMS key
+# (KeyManager AWS), which a service creates behind its alias/aws/<service>
+# on first use and no caller can delete (iam-sts-kms.md 5.4).
 nothing_left() {
   local p=$1 log="$logs_dir/$1/nothing-left.log" state remaining functions='[]' problems=""
   state=$("$sealed" --endpoint "$endpoint" --access-key-id "${accounts[$p]}" terraform -chdir="$work_dir/$p" state list 2>>"$log") ||
@@ -221,10 +223,18 @@ nothing_left() {
   if [[ -s "$logs_dir/$p/functions.txt" ]]; then
     functions=$(jq -R . "$logs_dir/$p/functions.txt" | jq -s .)
   fi
-  remaining=$(jq -r --argjson functions "$functions" '
+  local key managed_keys=()
+  while IFS= read -r key; do
+    if [[ "$("$sealed" --endpoint "$endpoint" --access-key-id "${accounts[$p]}" aws kms describe-key --key-id "$key" 2>>"$log" |
+      jq -r '.KeyMetadata.KeyManager')" == AWS ]]; then
+      managed_keys+=("$key")
+    fi
+  done < <(jq -r '.resources[] | select(.service == "kms") | .arn' "$log.resources.json")
+  remaining=$(jq -r --argjson functions "$functions" --argjson managed "$(jq -n '$ARGS.positional' --args "${managed_keys[@]}")" '
     .resources[]
     | select((.service == "logs" and (.arn | test(":log-group:/aws/lambda/[^:]+$"))
         and ((.arn | sub(".*:log-group:/aws/lambda/"; "")) as $name | any($functions[]; . == $name))) | not)
+    | select((.service == "kms" and (.arn as $arn | any($managed[]; . == $arn))) | not)
     | "\(.service) \(.arn) (\(.summary))"' "$log.resources.json" | tr '\n' ';')
   [[ -n "$remaining" ]] && problems+="left in account ${accounts[$p]} after destroy: $remaining"
   if [[ -n "$problems" ]]; then
