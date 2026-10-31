@@ -157,10 +157,15 @@ type busTarget struct {
 	detailType string
 }
 
-func (lambdaTarget) isTarget() {}
-func (sqsTarget) isTarget()    {}
-func (snsTarget) isTarget()    {}
-func (busTarget) isTarget()    {}
+// stateMachineTarget is a Step Functions state machine, started with the
+// payload as the execution's input (scheduler.md 6.4).
+type stateMachineTarget struct{ machine aws.ARN }
+
+func (lambdaTarget) isTarget()       {}
+func (sqsTarget) isTarget()          {}
+func (snsTarget) isTarget()          {}
+func (busTarget) isTarget()          {}
+func (stateMachineTarget) isTarget() {}
 
 // run is where a schedule is in its plan: a next invocation, disabled,
 // completed (a fired at()) or ended (no invocation before EndDate, or a
@@ -351,8 +356,7 @@ const maxInputBytes = 262144
 
 // unimplementedTarget is the name the 501 gives a templated target
 // service understudy does not invoke, by ARN service; false for any other
-// (scheduler.md 6.1, 14.1; spec "Scope"). Step Functions is among them
-// until its target is built (spec ticket 10).
+// (scheduler.md 6.1, 14.1; spec "Scope").
 func unimplementedTarget(service string) (string, bool) {
 	switch service {
 	case "ecs":
@@ -369,15 +373,15 @@ func unimplementedTarget(service string) (string, bool) {
 		return "Amazon Inspector", true
 	case "sagemaker":
 		return "Amazon SageMaker AI", true
-	case "states":
-		return "AWS Step Functions", true
 	}
 	return "", false
 }
 
 // parseTarget parses the target and its execution role (scheduler.md
-// 14.4.1): a Lambda function (qualifier allowed), an SQS queue or an SNS
-// topic in scope's Region, or an event bus in scope's Region, each in any
+// 14.4.1): a Lambda function (qualifier allowed), an SQS queue, an SNS
+// topic or a Step Functions state machine (a version or alias ARN passed
+// to StartExecution as given) in scope's Region, or an event bus
+// in scope's Region, each in any
 // served account. A universal (aws-sdk) target or another templated
 // service answers 501 naming it; any other service ValidationException.
 // The target need not exist (4.1). A parameter block that does not match
@@ -447,7 +451,7 @@ func parseTargetARN(scope aws.Scope, t *schedulerapi.Target) (target, *awserr.Er
 		return nil, errTargetNotImplemented(name+" targets", t.Arn)
 	}
 	switch a.Service {
-	case "lambda", "sqs", "sns", "events":
+	case "lambda", "sqs", "sns", "states", "events":
 	default:
 		return nil, errUnsupportedService(a.Service)
 	}
@@ -458,11 +462,13 @@ func parseTargetARN(scope aws.Scope, t *schedulerapi.Target) (target, *awserr.Er
 		if a.Service == "events" {
 			return nil, errCrossRegionBus(t.Arn, scope.Region.String())
 		}
-		return nil, errNotYet("Target.Arn " + t.Arn + " (Lambda, SQS and SNS targets outside the schedule's Region)")
+		return nil, errNotYet("Target.Arn " + t.Arn + " (Lambda, SQS, SNS and Step Functions targets outside the schedule's Region)")
 	}
 	switch a.Service {
 	case "lambda":
 		return lambdaOf(a)
+	case "states":
+		return stateMachineOf(a)
 	case "sqs":
 		if strings.ContainsAny(a.Resource, ":/") {
 			return nil, errNotTargetResource(t.Arn, "an SQS queue ARN, arn:<partition>:sqs:<region>:<account>:<queue>")
@@ -509,6 +515,20 @@ func lambdaOf(a aws.ARN) (target, *awserr.Error) {
 	fn := a
 	fn.Resource = "function:" + name
 	return lambdaTarget{function: fn, qualifier: qualifier}, nil
+}
+
+// stateMachineOf reads a states ARN as a state machine target:
+// stateMachine:<name> with at most one version or alias qualifier, each
+// part non-empty. StartExecution takes all three forms
+// (https://docs.aws.amazon.com/step-functions/latest/apireference/API_StartExecution.html),
+// so the ARN is passed as given.
+func stateMachineOf(a aws.ARN) (target, *awserr.Error) {
+	rest, ok := strings.CutPrefix(a.Resource, "stateMachine:")
+	name, qualifier, qualified := strings.Cut(rest, ":")
+	if !ok || name == "" || qualified && (qualifier == "" || strings.Contains(qualifier, ":")) {
+		return nil, errNotTargetResource(a.String(), "a Step Functions state machine ARN, arn:<partition>:states:<region>:<account>:stateMachine:<name>[:<version or alias>]")
+	}
+	return stateMachineTarget{machine: a}, nil
 }
 
 // firstRun is the run of a plan written at now: by a create, by an

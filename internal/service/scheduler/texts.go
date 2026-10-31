@@ -184,7 +184,7 @@ func errInputTooLarge(n int) *awserr.Error {
 // what naming its kind (scheduler.md 14.1, 14.4.1; spec "Scope").
 func errTargetNotImplemented(what, arn string) *awserr.Error {
 	return schedulerapi.ErrNotImplemented(what + " are not implemented in understudy (Target.Arn " + arn + "); nothing was stored. " +
-		"Served targets: Lambda functions, SQS queues and SNS topics in the schedule's Region, and EventBridge event buses in the schedule's Region. " +
+		"Served targets: Lambda functions, SQS queues, SNS topics, Step Functions state machines and EventBridge event buses in the schedule's Region. " +
 		"Ask for it at " + issuesURL + ".")
 }
 
@@ -195,6 +195,6 @@ const issuesURL = "https://github.com/sustinbebustin/understudy/issues"
 // sent, that nothing was stored, and what is served instead.
 func errNotYet(what string) *awserr.Error {
 	return schedulerapi.ErrNotImplemented(what + " is not implemented in understudy yet; nothing was stored. " +
-		"Served today: rate(), at() and cron() schedules in any schedule group with a Lambda, SQS, SNS or event bus target in the schedule's Region. " +
+		"Served today: rate(), at() and cron() schedules in any schedule group with a Lambda, SQS, SNS, Step Functions or event bus target in the schedule's Region. " +
 		"Ask for it at " + issuesURL + ".")
 }

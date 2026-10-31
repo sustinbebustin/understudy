@@ -51,11 +51,12 @@ var _ kernel.Stateful = (*Service)(nil)
 
 // createNote is CreateSchedule's coverage note while tickets 2 to 9 are
 // what is built (spec "Coverage marks" is the note once every ticket is).
-const createNote = "rate(), at() and cron() schedules in any schedule group with a templated Lambda, SQS, SNS or EventBridge event bus target in the schedule's Region " +
+const createNote = "rate(), at() and cron() schedules in any schedule group with a templated Lambda, SQS, SNS, EventBridge event bus or Step Functions target in the schedule's Region " +
 	"are invoked on the emulator clock as the execution role, " +
 	"at() and cron() in any IANA time zone, which a rate ignores, between StartDate and EndDate, and not while State is DISABLED; " +
-	"universal (aws-sdk) targets and ECS, Kinesis, Firehose, CodeBuild, CodePipeline, Inspector, SageMaker and Step Functions targets answer NotImplemented; " +
-	"Lambda, SQS and SNS targets in another Region " +
+	"universal (aws-sdk) targets and ECS, Kinesis, Firehose, CodeBuild, CodePipeline, Inspector and SageMaker targets answer NotImplemented; " +
+	"a Step Functions execution's name is understudy's; " +
+	"Lambda, SQS, SNS and Step Functions targets in another Region " +
 	"answer NotImplemented once the expression, time zone, window, dates and target are validated; " +
 	"KmsKeyArn is stored and echoed, the payload is not encrypted, and under iam.enforce=enforce the caller's KMS permissions at create and update and the execution role's kms:Decrypt at invocation are evaluated against identity policies and the key's policy, which for a key understudy's KMS does not hold allows nothing; " +
 	"the execution role's trust is checked only under iam.enforce=enforce, at create, update and invocation, so under off and advise a missing or untrusting role still delivers; " +
@@ -70,10 +71,11 @@ const createNote = "rate(), at() and cron() schedules in any schedule group with
 	"client-side target errors go to the dead-letter queue without retries and one execution id covers an invocation's retries, " +
 	"a dead letter's TARGET_ARN is the universal aws-sdk form and its body the payload after substitution, " +
 	"a qualified Lambda target's version or alias is passed as Invoke's Qualifier, " +
+	"a Step Functions version or alias ARN is passed to StartExecution as given, " +
 	"an EventBridge target's event has no resources and its time is the delivery instant, an SNS target's message has no Subject, " +
 	"an event bus target in another Region or without EventBridgeParameters is refused with ValidationException, " +
 	"parameter blocks that do not match the target are stored, echoed and ignored, a MaximumWindowInMinutes sent with OFF is ignored, " +
-	"Input on a Lambda or EventBridge target is not checked for JSON at create, Input is limited to 262,144 bytes, " +
+	"Input on a Lambda, Step Functions or EventBridge target is not checked for JSON at create, Input is limited to 262,144 bytes, " +
 	"checks run in the order expression, time zone, window, dates and the future-fire check, target, group, role trust, iam:PassRole, KMS, " +
 	"iam:PassRole carries iam:PassedToService scheduler.amazonaws.com, " +
 	"under iam.enforce=enforce an execution role that cannot be assumed or may not decrypt at invocation fails the invocation before its target call as a client-side target error does, " +

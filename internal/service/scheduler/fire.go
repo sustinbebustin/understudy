@@ -149,6 +149,12 @@ func (s *Service) invocation(r scheduleRef, sc *schedule, at scheduled, roleID s
 		// resources and PutEvents stamps its time at delivery.
 		req.Mechanism = delivery.SchedulerToEvents
 		req.Target = delivery.EventBus{ARN: t.bus, Entries: []delivery.EventEntry{{Source: t.source, DetailType: t.detailType, Detail: tmpl}}}
+	case stateMachineTarget:
+		// The execution's name is the invocation's execution id, so a
+		// retry names the same execution. UNVERIFIED (SCH-07),
+		// scheduler.md 6.4: the name Scheduler gives is unrecorded.
+		req.Mechanism = delivery.SchedulerToStates
+		req.Target = delivery.StateMachine{ARN: t.machine, Input: tmpl, Name: req.Invocation.ExecutionID}
 	default:
 		return delivery.Request{}, awserr.Internalf(fmt.Errorf("scheduler: schedule %s has a %T target, which no invocation is built for", r.arn(), sc.Plan.target))
 	}
