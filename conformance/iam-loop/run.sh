@@ -261,12 +261,15 @@ done
 note "groups selected: ${#groups[@]} of ${#all_groups[@]} (IAM_LOOP_GROUPS='${IAM_LOOP_GROUPS-}', IAM_LOOP_JOBS=$jobs, seed $seed)"
 
 # start_server MODE: serve on a fresh data directory with --iam-enforce MODE.
+# SNS delivers http subscriptions to loopback ports only, where the SNS HTTP
+# tests start their receivers, as the suites' own run.sh serve.
 start_server() {
 	local mode=$1 log="$work/$1-understudy.log"
 	data="$work/$mode-data"
 	note "starting understudy with --iam-enforce $mode on $endpoint"
 	(cd -- "$work" && exec env "${conformance_serve_env[@]}" "$bin" serve \
-		--listen "$listen" --persist "$data" --sigv4 parse --iam-enforce "$mode" --config "$work/understudy.json") >"$log" 2>&1 &
+		--listen "$listen" --persist "$data" --sigv4 parse --iam-enforce "$mode" --config "$work/understudy.json" \
+		--sns-http-delivery-allow '127.0.0.1:*') >"$log" 2>&1 &
 	pid=$!
 	if ! "$bin" health --endpoint "$endpoint" --wait 60s >/dev/null 2>&1; then
 		note "understudy did not become healthy under --iam-enforce $mode; its log:"
