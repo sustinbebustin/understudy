@@ -207,8 +207,14 @@ func NeverAuthorized() BindOption { return authorizationOption(never) }
 // AuthorizedInHandler binding is not asked about its primary action; an
 // AuthorizedAfterResolve binding is asked later (authorizeDeferred). keys
 // are the binding's WithConditionKeys for the input.
+//
+// Whether or not an Authorizer runs, the resources the call touched when
+// its pairs are formed here (or, deferred, in authorizeDeferred) are the
+// ones the access record pairs its actions with (pairingResources), so the
+// record holds what step 8 asks under every iam.enforce mode, not a
+// resource the handler creates afterwards (ARCHITECTURE.md 17).
 func (k *Kernel) authorize(ctx context.Context, c *Call, bnd *binding, used secondaries, keys ConditionKeys) *awserr.Error {
-	if _, platform := c.mode.(AsPlatform); k.authorizer == nil || bnd.raw || platform {
+	if _, platform := c.mode.(AsPlatform); bnd.raw || platform {
 		return nil
 	}
 	actions := authorizedActions(c.op, used)
@@ -224,8 +230,8 @@ func (k *Kernel) authorize(ctx context.Context, c *Call, bnd *binding, used seco
 		c.deferred = &deferred{ctx: ctx, used: used, keys: keys, refused: bnd.refused}
 		return nil
 	}
-	pairs := pairsOf(actions, c.op.Service.IAMPrefix, c.Touched(), c.scoped)
-	if len(pairs) == 0 {
+	pairs := pairsOf(actions, c.op.Service.IAMPrefix, c.fixPairing(), c.scoped)
+	if k.authorizer == nil || len(pairs) == 0 {
 		return nil
 	}
 	return verdictError(c, k.authorizer.Authorize(ctx, c, AuthzQuery{Pairs: pairs, Keys: keys, Refused: bnd.refused}))

@@ -141,8 +141,8 @@ func (c *Call) authorizeDeferred() *awserr.Error {
 		return nil
 	}
 	d.once.Do(func() {
-		pairs := pairsOf(authorizedActions(c.op, d.used), c.op.Service.IAMPrefix, c.Touched(), c.scoped)
-		if len(pairs) == 0 {
+		pairs := pairsOf(authorizedActions(c.op, d.used), c.op.Service.IAMPrefix, c.fixPairing(), c.scoped)
+		if c.k.authorizer == nil || len(pairs) == 0 {
 			return
 		}
 		d.err = verdictError(c, c.k.authorizer.Authorize(d.ctx, c, AuthzQuery{Pairs: pairs, Keys: d.keys, Refused: d.refused}))

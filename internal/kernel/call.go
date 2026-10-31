@@ -70,6 +70,11 @@ type Call struct {
 
 	mu      sync.Mutex
 	touched []aws.ARN
+	// paired is what touched held when step 8, or a deferred
+	// authorization, formed the call's pairs (fixPairing); nil until then,
+	// and for a call that is never asked, whose record pairs with every
+	// touched resource.
+	paired []aws.ARN
 	// authorized are the pairs the handler asked about through Authorize,
 	// in order, without repeats, each with the keys it was first asked
 	// with.
@@ -217,6 +222,29 @@ func (k *Kernel) record(cause ref.Cause, at clock.Instant, scope aws.Scope, d jo
 func (c *Call) Touched() []aws.ARN {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	return slices.Clone(c.touched)
+}
+
+// fixPairing returns the resources the call has touched so far and fixes
+// them as the ones the access record pairs its actions with; a later call
+// returns the same set.
+func (c *Call) fixPairing() []aws.ARN {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.paired == nil {
+		c.paired = append([]aws.ARN{}, c.touched...)
+	}
+	return slices.Clone(c.paired)
+}
+
+// pairingResources returns the resources the access record pairs the
+// call's actions with: those fixPairing fixed, else every touched one.
+func (c *Call) pairingResources() []aws.ARN {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.paired != nil {
+		return slices.Clone(c.paired)
+	}
 	return slices.Clone(c.touched)
 }
 

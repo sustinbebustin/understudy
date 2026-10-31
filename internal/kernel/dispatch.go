@@ -401,7 +401,7 @@ func (k *Kernel) recordAccess(ctx context.Context, c *Call, res Result, used sec
 		return
 	}
 	actions := k.recordedActions(ctx, c, used)
-	touched := c.Touched()
+	touched := c.pairingResources()
 	pairs := pairsOf(actions, c.op.Service.IAMPrefix, touched, c.scoped)
 	recorded := accessPairs(pairs, c.keys)
 	// recorded is pairs mapped one to one; a pair the handler asked about
