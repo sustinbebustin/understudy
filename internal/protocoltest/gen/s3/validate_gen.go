@@ -141,6 +141,12 @@ type validationPolicy struct {
 	paths     []validationPath
 	operation []validationRule
 	service   []validationRule
+	// root, when set, heads the path of a Coral-styled violation whose
+	// first segment is not one of unrooted, the input's URI labels
+	// (dev.understudy#validationInputRoot): API Gateway names a body member
+	// updateRestApiInput.patchOperations.1.member.op but a label statusCode.
+	root     string
+	unrooted []string
 }
 
 // render returns the error AWS sends for vs, or nil when vs is empty.
@@ -166,25 +172,36 @@ func (p *validationPolicy) render(vs []awserr.Violation) *awserr.Error {
 	case styleFixed:
 		msg = first.reason
 	case styleCoral:
-		msg = coralUnder(id, vs, rules)
+		msg = p.coralUnder(id, vs, rules)
 	default:
 		// The generator emits only the styles above; an unknown one renders
 		// as AWS's common grammar rather than an empty message.
-		msg = coralUnder(id, vs, rules)
+		msg = p.coralUnder(id, vs, rules)
 	}
 	return &awserr.Error{ID: id, Message: msg, Origin: awserr.Validation{Violations: vs}}
 }
 
 // coralUnder renders, as one Coral message, every violation whose rule is
-// Coral-styled and names the code id.
-func coralUnder(id awserr.Identity, vs []awserr.Violation, rules []validationRule) string {
+// Coral-styled and names the code id, each path under the policy's root
+// when it has one.
+func (p *validationPolicy) coralUnder(id awserr.Identity, vs []awserr.Violation, rules []validationRule) string {
 	var same []awserr.Violation
 	for i, v := range vs {
 		if rules[i].style == styleCoral && rules[i].id().Shape == id.Shape {
-			same = append(same, v)
+			same = append(same, p.rooted(v))
 		}
 	}
 	return awserr.CoralMessage(same)
+}
+
+// rooted is v with its path under the policy's root, unless the policy has
+// none or v's path starts at a URI label.
+func (p *validationPolicy) rooted(v awserr.Violation) awserr.Violation {
+	if p.root == "" || len(v.Path) > 0 && slices.Contains(p.unrooted, v.Path[0]) {
+		return v
+	}
+	v.Path = append(awserr.Path{p.root}, v.Path...)
+	return v
 }
 
 // resolve returns the rule that answers v and the parameter name a hand

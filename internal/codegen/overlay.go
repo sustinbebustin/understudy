@@ -303,6 +303,9 @@ func shapeSite(s *Shape) site {
 		if s.Type == smithy.TypeString {
 			out |= siteStringShape
 		}
+		if s.Type == smithy.TypeEnum {
+			out |= siteEnumShape
+		}
 	}
 	return out
 }

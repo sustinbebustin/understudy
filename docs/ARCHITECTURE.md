@@ -672,6 +672,8 @@ The closed set of `dev.understudy#` traits; the generator fails on anything else
 | `messageByProtocol` | error shape | per-protocol message text (`{"awsquery": "... for this wsdl version."}`) |
 | `validationError` | service, operation or member | constraint-failure code and text style; on a member: `{code, style?, constraints?: [...], reason?: "template", enumPolicy?: closed/open/handler}` |
 | `validationPathStyle` | service | `indexed` or `rolledUp` (Lambda) |
+| `validationInputRoot` | service | annotation: a Coral validation message names a member not bound to the URI under `<operation>Input` and a URI label bare (API Gateway `updateRestApiInput.patchOperations.1.member.op`, but `statusCode`; `apigateway-rest.md 2.4`) |
+| `enumOrder` | enum shape | the enum's values in the order an enum violation lists them, when AWS's differs from the model's; a permutation of the values (API Gateway `Op`, `IntegrationType`; `apigateway-rest.md 3.8`) |
 | `successCode` | operation | HTTP status of a success where the model is wrong or silent (S3 `PutBucketPolicy` 204, Lambda `DeleteFunction` 204; `s3.md 14.1`, `lambda-api.md 2`) |
 | `queryKeyAlias` | member | the Query wire key when two members collide (`ReceiveMessage.AttributeNames` and `MessageSystemAttributeNames` both `AttributeName.N`; `sqs.md 2.3`) and how to resolve the ambiguity on decode: `{key, decode: receive | ignore}`, emitted as `smithy.Member.QueryKeyAlias`; the awsQuery decoder leaves an `ignore` member unset |
 | `emptyCollection` | service or member | `omit` or `emit` for empty required collections (SQS omits `Successful`, `Failed`, `Tags`; IAM emits `<Roles/>`; `sqs.md 2.1`, `wire-json-query.md 8.5`) |

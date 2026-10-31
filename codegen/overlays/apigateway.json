@@ -7,7 +7,13 @@
         "dev.understudy#throttleError": "com.amazonaws.apigateway#TooManyRequestsException",
         "dev.understudy#denialError": "com.amazon.coral.service#AccessDeniedException",
         "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException"},
+        "dev.understudy#validationInputRoot": {},
         "dev.understudy#evidence": [
+          {
+            "label": "third-party-recorded",
+            "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/apigateway/test_apigateway_api.snapshot.json#L4803: body members are named under the input structure (updateRestApiInput.patchOperations.1.member.op, L4809; putIntegrationInput.type, L3084-L3098) and a URI label bare (statusCode, L4062-L4086); docs/research/apigateway-rest.md 2.4, 3.8",
+            "covers": ["dev.understudy#validationInputRoot"]
+          },
           {
             "label": "inferred",
             "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: no source names the API Gateway REST denial and its model declares no AccessDeniedException, so the generic com.amazon.coral.service#AccessDeniedException, 403, answers; UNVERIFIED until recording IAM-ENF-33",
@@ -24,6 +30,26 @@
             "covers": ["dev.understudy#validationError"]
           }
         ]
+      }
+    },
+    "com.amazonaws.apigateway#Op": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#enumOrder": ["add", "remove", "move", "test", "replace", "copy"],
+        "dev.understudy#evidence": {
+          "label": "third-party-recorded",
+          "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/apigateway/test_apigateway_api.snapshot.json#L4809"
+        }
+      }
+    },
+    "com.amazonaws.apigateway#IntegrationType": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#enumOrder": ["HTTP", "MOCK", "AWS_PROXY", "HTTP_PROXY", "AWS"],
+        "dev.understudy#evidence": {
+          "label": "third-party-recorded",
+          "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/apigateway/test_apigateway_api.snapshot.json#L3084"
+        }
       }
     }
   }

@@ -54,6 +54,10 @@ type ServiceIR struct {
 	// collection's element constraints are reported per element or rolled
 	// up at the collection (Lambda).
 	PathStyle PathStyle
+	// InputRoot is dev.understudy#validationInputRoot: a Coral message
+	// names a member not bound to the URI under the input structure,
+	// <operation>Input.<member> (API Gateway), and a URI label bare.
+	InputRoot bool
 
 	Throttle         *ErrorIR
 	UnknownJSON      *ErrorIR
@@ -146,6 +150,9 @@ type ShapeIR struct {
 	SchemaVar string
 	Members   []*MemberIR
 	Enum      []EnumValueIR
+	// EnumOrder is dev.understudy#enumOrder: the values in the order an
+	// enum violation lists them, nil for the model's order.
+	EnumOrder []string
 
 	TimestampFormat smithy.TimestampFormat
 	MediaType       string

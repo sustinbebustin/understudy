@@ -45,6 +45,8 @@ const (
 	utUnknownOperation    = understudyNamespace + "unknownOperationError"
 	utQueryErrorEnvelope  = understudyNamespace + "queryErrorEnvelope"
 	utResponseCRC32       = understudyNamespace + "responseCrc32"
+	utEnumOrder           = understudyNamespace + "enumOrder"
+	utValidationInputRoot = understudyNamespace + "validationInputRoot"
 )
 
 // site is where a trait sits once overlays are merged.
@@ -57,15 +59,17 @@ const (
 	siteErrorShape
 	siteStringShape
 	siteAnyShape
+	siteEnumShape
 )
 
 func (s site) String() string {
 	names := map[site]string{
 		siteService: "a service shape", siteOperation: "an operation shape", siteMember: "a member",
 		siteErrorShape: "an error structure", siteStringShape: "a string shape", siteAnyShape: "any shape",
+		siteEnumShape: "an enum shape",
 	}
 	var out []string
-	for _, b := range []site{siteService, siteOperation, siteMember, siteErrorShape, siteStringShape, siteAnyShape} {
+	for _, b := range []site{siteService, siteOperation, siteMember, siteErrorShape, siteStringShape, siteAnyShape, siteEnumShape} {
 		if s&b != 0 {
 			out = append(out, names[b])
 		}
@@ -109,7 +113,23 @@ func understudyTraits() map[string]understudyTrait {
 		utUnknownOperation:    {Honor, siteService, func(r json.RawMessage) error { _, err := parseUnknownOperation(r); return err }},
 		utQueryErrorEnvelope:  {Honor, siteService, func(r json.RawMessage) error { _, err := parseQueryErrorEnvelope(r); return err }},
 		utResponseCRC32:       {Honor, siteService, parseAnnotation},
+		utEnumOrder:           {Honor, siteEnumShape, func(r json.RawMessage) error { _, err := parseEnumOrder(r); return err }},
+		utValidationInputRoot: {Honor, siteService, parseAnnotation},
 	}
+}
+
+// parseEnumOrder reads dev.understudy#enumOrder: the enum's values in the
+// order AWS lists them in an enum violation, when it is not the model's.
+// The shape's IR checks that it is a permutation of the values.
+func parseEnumOrder(raw json.RawMessage) ([]string, error) {
+	var v []string
+	if err := decodeTrait(raw, &v); err != nil {
+		return nil, errors.New("enumOrder takes the enum's values as a list of strings")
+	}
+	if len(v) == 0 {
+		return nil, errors.New("enumOrder is empty; the model's order needs no trait")
+	}
+	return v, nil
 }
 
 // parseQueryErrorEnvelope reads {namespace?, detail?}. A value with neither

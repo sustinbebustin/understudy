@@ -57,11 +57,36 @@ func (b *builder) shapeTraits(ir *ShapeIR, s *Shape) error {
 		ir.XMLNamespace = &ns
 	}
 	if s.Type == smithy.TypeEnum || s.Type == smithy.TypeIntEnum {
-		return b.enumValues(ir, s)
+		if err := b.enumValues(ir, s); err != nil {
+			return err
+		}
+		return enumOrder(ir, s)
 	}
 	if raw, ok := s.Traits[traitEnum]; ok && s.Type == smithy.TypeString {
 		return legacyEnum(ir, raw)
 	}
+	return nil
+}
+
+// enumOrder reads dev.understudy#enumOrder, which must list every value of
+// the enum once.
+func enumOrder(ir *ShapeIR, s *Shape) error {
+	raw, ok := s.Traits[utEnumOrder]
+	if !ok {
+		return nil
+	}
+	order, err := parseEnumOrder(raw)
+	if err != nil {
+		return failf(StageIR, string(s.ID), "%s: %w", utEnumOrder, err)
+	}
+	values := make([]string, len(ir.Enum))
+	for i, e := range ir.Enum {
+		values[i] = e.Value
+	}
+	if !slices.Equal(slices.Sorted(slices.Values(order)), slices.Sorted(slices.Values(values))) {
+		return failf(StageIR, string(s.ID), "%s %q is not a permutation of the enum's values %q", utEnumOrder, order, values)
+	}
+	ir.EnumOrder = order
 	return nil
 }
 

@@ -212,6 +212,7 @@ func (b *builder) serviceDefaults(svc *Shape) error {
 		}
 		b.ir.PathStyle = s
 	}
+	_, b.ir.InputRoot = svc.Traits[utValidationInputRoot]
 	return nil
 }
 

@@ -1568,7 +1568,7 @@ func (v *ImportRestApiInput) validate(path awserr.Path, out *[]awserr.Violation)
 func (v *PatchOperation) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.Op != nil {
 		if !(*v.Op).Known() {
-			*out = append(*out, awserr.Violation{Path: at(path, "op"), Value: awserr.RenderedText{Text: string(*v.Op)}, Constraint: awserr.Enum{Values: []string{"add", "remove", "replace", "move", "copy", "test"}}})
+			*out = append(*out, awserr.Violation{Path: at(path, "op"), Value: awserr.RenderedText{Text: string(*v.Op)}, Constraint: awserr.Enum{Values: []string{"add", "remove", "move", "test", "replace", "copy"}}})
 		}
 	}
 }
@@ -1621,7 +1621,7 @@ func (v *PutIntegrationInput) validate(path awserr.Path, out *[]awserr.Violation
 		*out = append(*out, awserr.Violation{Path: at(path, "type"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if !v.Type.Known() {
-			*out = append(*out, awserr.Violation{Path: at(path, "type"), Value: awserr.RenderedText{Text: string(v.Type)}, Constraint: awserr.Enum{Values: []string{"HTTP", "AWS", "MOCK", "HTTP_PROXY", "AWS_PROXY"}}})
+			*out = append(*out, awserr.Violation{Path: at(path, "type"), Value: awserr.RenderedText{Text: string(v.Type)}, Constraint: awserr.Enum{Values: []string{"HTTP", "MOCK", "AWS_PROXY", "HTTP_PROXY", "AWS"}}})
 		}
 	}
 	if v.ConnectionType != nil {
@@ -2405,6 +2405,12 @@ type validationPolicy struct {
 	paths     []validationPath
 	operation []validationRule
 	service   []validationRule
+	// root, when set, heads the path of a Coral-styled violation whose
+	// first segment is not one of unrooted, the input's URI labels
+	// (dev.understudy#validationInputRoot): API Gateway names a body member
+	// updateRestApiInput.patchOperations.1.member.op but a label statusCode.
+	root     string
+	unrooted []string
 }
 
 // render returns the error AWS sends for vs, or nil when vs is empty.
@@ -2430,25 +2436,36 @@ func (p *validationPolicy) render(vs []awserr.Violation) *awserr.Error {
 	case styleFixed:
 		msg = first.reason
 	case styleCoral:
-		msg = coralUnder(id, vs, rules)
+		msg = p.coralUnder(id, vs, rules)
 	default:
 		// The generator emits only the styles above; an unknown one renders
 		// as AWS's common grammar rather than an empty message.
-		msg = coralUnder(id, vs, rules)
+		msg = p.coralUnder(id, vs, rules)
 	}
 	return &awserr.Error{ID: id, Message: msg, Origin: awserr.Validation{Violations: vs}}
 }
 
 // coralUnder renders, as one Coral message, every violation whose rule is
-// Coral-styled and names the code id.
-func coralUnder(id awserr.Identity, vs []awserr.Violation, rules []validationRule) string {
+// Coral-styled and names the code id, each path under the policy's root
+// when it has one.
+func (p *validationPolicy) coralUnder(id awserr.Identity, vs []awserr.Violation, rules []validationRule) string {
 	var same []awserr.Violation
 	for i, v := range vs {
 		if rules[i].style == styleCoral && rules[i].id().Shape == id.Shape {
-			same = append(same, v)
+			same = append(same, p.rooted(v))
 		}
 	}
 	return awserr.CoralMessage(same)
+}
+
+// rooted is v with its path under the policy's root, unless the policy has
+// none or v's path starts at a URI label.
+func (p *validationPolicy) rooted(v awserr.Violation) awserr.Violation {
+	if p.root == "" || len(v.Path) > 0 && slices.Contains(p.unrooted, v.Path[0]) {
+		return v
+	}
+	v.Path = append(awserr.Path{p.root}, v.Path...)
+	return v
 }
 
 // resolve returns the rule that answers v and the parameter name a hand
@@ -2547,6 +2564,7 @@ var policyCreateApiKey = validationPolicy{
 		{segments: []string{"tags", "*"}, param: "tags"},
 		{segments: []string{"tags", "*", "member"}, param: "tags"},
 	},
+	root:    "createApiKeyInput",
 	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
@@ -2571,7 +2589,9 @@ var policyCreateAuthorizer = validationPolicy{
 		{segments: []string{"identityValidationExpression"}, param: "identityValidationExpression"},
 		{segments: []string{"authorizerResultTtlInSeconds"}, param: "authorizerResultTtlInSeconds"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "createAuthorizerInput",
+	unrooted: []string{"restApiId"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error CreateAuthorizer answers for vs, the
@@ -2589,7 +2609,9 @@ var policyCreateBasePathMapping = validationPolicy{
 		{segments: []string{"restApiId"}, param: "restApiId"},
 		{segments: []string{"stage"}, param: "stage"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "createBasePathMappingInput",
+	unrooted: []string{"domainName"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error CreateBasePathMapping answers for vs, the
@@ -2618,7 +2640,9 @@ var policyCreateDeployment = validationPolicy{
 		{segments: []string{"canarySettings", "useStageCache"}, param: "useStageCache"},
 		{segments: []string{"tracingEnabled"}, param: "tracingEnabled"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "createDeploymentInput",
+	unrooted: []string{"restApiId"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error CreateDeployment answers for vs, the
@@ -2639,7 +2663,9 @@ var policyCreateDocumentationPart = validationPolicy{
 		{segments: []string{"location", "name"}, param: "name"},
 		{segments: []string{"properties"}, param: "properties"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "createDocumentationPartInput",
+	unrooted: []string{"restApiId"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error CreateDocumentationPart answers for vs, the
@@ -2656,7 +2682,9 @@ var policyCreateDocumentationVersion = validationPolicy{
 		{segments: []string{"stageName"}, param: "stageName"},
 		{segments: []string{"description"}, param: "description"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "createDocumentationVersionInput",
+	unrooted: []string{"restApiId"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error CreateDocumentationVersion answers for vs, the
@@ -2694,6 +2722,7 @@ var policyCreateDomainName = validationPolicy{
 		{segments: []string{"policy"}, param: "policy"},
 		{segments: []string{"routingMode"}, param: "routingMode"},
 	},
+	root:    "createDomainNameInput",
 	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
@@ -2713,6 +2742,7 @@ var policyCreateDomainNameAccessAssociation = validationPolicy{
 		{segments: []string{"tags", "*"}, param: "tags"},
 		{segments: []string{"tags", "*", "member"}, param: "tags"},
 	},
+	root:    "createDomainNameAccessAssociationInput",
 	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
@@ -2731,7 +2761,9 @@ var policyCreateModel = validationPolicy{
 		{segments: []string{"schema"}, param: "schema"},
 		{segments: []string{"contentType"}, param: "contentType"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "createModelInput",
+	unrooted: []string{"restApiId"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error CreateModel answers for vs, the
@@ -2748,7 +2780,9 @@ var policyCreateRequestValidator = validationPolicy{
 		{segments: []string{"validateRequestBody"}, param: "validateRequestBody"},
 		{segments: []string{"validateRequestParameters"}, param: "validateRequestParameters"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "createRequestValidatorInput",
+	unrooted: []string{"restApiId"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error CreateRequestValidator answers for vs, the
@@ -2764,7 +2798,9 @@ var policyCreateResource = validationPolicy{
 		{segments: []string{"parentId"}, param: "parentId"},
 		{segments: []string{"pathPart"}, param: "pathPart"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "createResourceInput",
+	unrooted: []string{"restApiId", "parentId"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error CreateResource answers for vs, the
@@ -2798,6 +2834,7 @@ var policyCreateRestApi = validationPolicy{
 		{segments: []string{"securityPolicy"}, param: "securityPolicy"},
 		{segments: []string{"endpointAccessMode"}, param: "endpointAccessMode"},
 	},
+	root:    "createRestApiInput",
 	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
@@ -2832,7 +2869,9 @@ var policyCreateStage = validationPolicy{
 		{segments: []string{"tags", "*"}, param: "tags"},
 		{segments: []string{"tags", "*", "member"}, param: "tags"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "createStageInput",
+	unrooted: []string{"restApiId"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error CreateStage answers for vs, the
@@ -2866,6 +2905,7 @@ var policyCreateUsagePlan = validationPolicy{
 		{segments: []string{"tags", "*"}, param: "tags"},
 		{segments: []string{"tags", "*", "member"}, param: "tags"},
 	},
+	root:    "createUsagePlanInput",
 	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
@@ -2882,7 +2922,9 @@ var policyCreateUsagePlanKey = validationPolicy{
 		{segments: []string{"keyId"}, param: "keyId"},
 		{segments: []string{"keyType"}, param: "keyType"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "createUsagePlanKeyInput",
+	unrooted: []string{"usagePlanId"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error CreateUsagePlanKey answers for vs, the
@@ -2902,6 +2944,7 @@ var policyCreateVpcLink = validationPolicy{
 		{segments: []string{"tags", "*"}, param: "tags"},
 		{segments: []string{"tags", "*", "member"}, param: "tags"},
 	},
+	root:    "createVpcLinkInput",
 	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
@@ -2916,7 +2959,9 @@ var policyDeleteApiKey = validationPolicy{
 	paths: []validationPath{
 		{segments: []string{"apiKey"}, param: "apiKey"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "deleteApiKeyInput",
+	unrooted: []string{"apiKey"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error DeleteApiKey answers for vs, the
@@ -2931,7 +2976,9 @@ var policyDeleteAuthorizer = validationPolicy{
 		{segments: []string{"restApiId"}, param: "restApiId"},
 		{segments: []string{"authorizerId"}, param: "authorizerId"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "deleteAuthorizerInput",
+	unrooted: []string{"restApiId", "authorizerId"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error DeleteAuthorizer answers for vs, the
@@ -2947,7 +2994,9 @@ var policyDeleteBasePathMapping = validationPolicy{
 		{segments: []string{"domainNameId"}, param: "domainNameId"},
 		{segments: []string{"basePath"}, param: "basePath"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "deleteBasePathMappingInput",
+	unrooted: []string{"domainName", "basePath"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error DeleteBasePathMapping answers for vs, the
@@ -2961,7 +3010,9 @@ var policyDeleteClientCertificate = validationPolicy{
 	paths: []validationPath{
 		{segments: []string{"clientCertificateId"}, param: "clientCertificateId"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "deleteClientCertificateInput",
+	unrooted: []string{"clientCertificateId"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error DeleteClientCertificate answers for vs, the
@@ -2976,7 +3027,9 @@ var policyDeleteDeployment = validationPolicy{
 		{segments: []string{"restApiId"}, param: "restApiId"},
 		{segments: []string{"deploymentId"}, param: "deploymentId"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "deleteDeploymentInput",
+	unrooted: []string{"restApiId", "deploymentId"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error DeleteDeployment answers for vs, the
@@ -2991,7 +3044,9 @@ var policyDeleteDocumentationPart = validationPolicy{
 		{segments: []string{"restApiId"}, param: "restApiId"},
 		{segments: []string{"documentationPartId"}, param: "documentationPartId"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "deleteDocumentationPartInput",
+	unrooted: []string{"restApiId", "documentationPartId"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error DeleteDocumentationPart answers for vs, the
@@ -3006,7 +3061,9 @@ var policyDeleteDocumentationVersion = validationPolicy{
 		{segments: []string{"restApiId"}, param: "restApiId"},
 		{segments: []string{"documentationVersion"}, param: "documentationVersion"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "deleteDocumentationVersionInput",
+	unrooted: []string{"restApiId", "documentationVersion"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error DeleteDocumentationVersion answers for vs, the
@@ -3021,7 +3078,9 @@ var policyDeleteDomainName = validationPolicy{
 		{segments: []string{"domainName"}, param: "domainName"},
 		{segments: []string{"domainNameId"}, param: "domainNameId"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "deleteDomainNameInput",
+	unrooted: []string{"domainName"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error DeleteDomainName answers for vs, the
@@ -3035,7 +3094,9 @@ var policyDeleteDomainNameAccessAssociation = validationPolicy{
 	paths: []validationPath{
 		{segments: []string{"domainNameAccessAssociationArn"}, param: "domainNameAccessAssociationArn"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "deleteDomainNameAccessAssociationInput",
+	unrooted: []string{"domainNameAccessAssociationArn"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error DeleteDomainNameAccessAssociation answers for vs, the
@@ -3050,7 +3111,9 @@ var policyDeleteGatewayResponse = validationPolicy{
 		{segments: []string{"restApiId"}, param: "restApiId"},
 		{segments: []string{"responseType"}, param: "responseType"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "deleteGatewayResponseInput",
+	unrooted: []string{"restApiId", "responseType"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error DeleteGatewayResponse answers for vs, the
@@ -3066,7 +3129,9 @@ var policyDeleteIntegration = validationPolicy{
 		{segments: []string{"resourceId"}, param: "resourceId"},
 		{segments: []string{"httpMethod"}, param: "httpMethod"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "deleteIntegrationInput",
+	unrooted: []string{"restApiId", "resourceId", "httpMethod"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error DeleteIntegration answers for vs, the
@@ -3083,7 +3148,9 @@ var policyDeleteIntegrationResponse = validationPolicy{
 		{segments: []string{"httpMethod"}, param: "httpMethod"},
 		{segments: []string{"statusCode"}, param: "statusCode"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "deleteIntegrationResponseInput",
+	unrooted: []string{"restApiId", "resourceId", "httpMethod", "statusCode"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error DeleteIntegrationResponse answers for vs, the
@@ -3099,7 +3166,9 @@ var policyDeleteMethod = validationPolicy{
 		{segments: []string{"resourceId"}, param: "resourceId"},
 		{segments: []string{"httpMethod"}, param: "httpMethod"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "deleteMethodInput",
+	unrooted: []string{"restApiId", "resourceId", "httpMethod"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error DeleteMethod answers for vs, the
@@ -3116,7 +3185,9 @@ var policyDeleteMethodResponse = validationPolicy{
 		{segments: []string{"httpMethod"}, param: "httpMethod"},
 		{segments: []string{"statusCode"}, param: "statusCode"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "deleteMethodResponseInput",
+	unrooted: []string{"restApiId", "resourceId", "httpMethod", "statusCode"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error DeleteMethodResponse answers for vs, the
@@ -3131,7 +3202,9 @@ var policyDeleteModel = validationPolicy{
 		{segments: []string{"restApiId"}, param: "restApiId"},
 		{segments: []string{"modelName"}, param: "modelName"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "deleteModelInput",
+	unrooted: []string{"restApiId", "modelName"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error DeleteModel answers for vs, the
@@ -3146,7 +3219,9 @@ var policyDeleteRequestValidator = validationPolicy{
 		{segments: []string{"restApiId"}, param: "restApiId"},
 		{segments: []string{"requestValidatorId"}, param: "requestValidatorId"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "deleteRequestValidatorInput",
+	unrooted: []string{"restApiId", "requestValidatorId"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error DeleteRequestValidator answers for vs, the
@@ -3161,7 +3236,9 @@ var policyDeleteResource = validationPolicy{
 		{segments: []string{"restApiId"}, param: "restApiId"},
 		{segments: []string{"resourceId"}, param: "resourceId"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "deleteResourceInput",
+	unrooted: []string{"restApiId", "resourceId"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error DeleteResource answers for vs, the
@@ -3175,7 +3252,9 @@ var policyDeleteRestApi = validationPolicy{
 	paths: []validationPath{
 		{segments: []string{"restApiId"}, param: "restApiId"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "deleteRestApiInput",
+	unrooted: []string{"restApiId"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error DeleteRestApi answers for vs, the
@@ -3190,7 +3269,9 @@ var policyDeleteStage = validationPolicy{
 		{segments: []string{"restApiId"}, param: "restApiId"},
 		{segments: []string{"stageName"}, param: "stageName"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "deleteStageInput",
+	unrooted: []string{"restApiId", "stageName"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error DeleteStage answers for vs, the
@@ -3204,7 +3285,9 @@ var policyDeleteUsagePlan = validationPolicy{
 	paths: []validationPath{
 		{segments: []string{"usagePlanId"}, param: "usagePlanId"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "deleteUsagePlanInput",
+	unrooted: []string{"usagePlanId"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error DeleteUsagePlan answers for vs, the
@@ -3219,7 +3302,9 @@ var policyDeleteUsagePlanKey = validationPolicy{
 		{segments: []string{"usagePlanId"}, param: "usagePlanId"},
 		{segments: []string{"keyId"}, param: "keyId"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "deleteUsagePlanKeyInput",
+	unrooted: []string{"usagePlanId", "keyId"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error DeleteUsagePlanKey answers for vs, the
@@ -3233,7 +3318,9 @@ var policyDeleteVpcLink = validationPolicy{
 	paths: []validationPath{
 		{segments: []string{"vpcLinkId"}, param: "vpcLinkId"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "deleteVpcLinkInput",
+	unrooted: []string{"vpcLinkId"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error DeleteVpcLink answers for vs, the
@@ -3248,7 +3335,9 @@ var policyFlushStageAuthorizersCache = validationPolicy{
 		{segments: []string{"restApiId"}, param: "restApiId"},
 		{segments: []string{"stageName"}, param: "stageName"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "flushStageAuthorizersCacheInput",
+	unrooted: []string{"restApiId", "stageName"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error FlushStageAuthorizersCache answers for vs, the
@@ -3263,7 +3352,9 @@ var policyFlushStageCache = validationPolicy{
 		{segments: []string{"restApiId"}, param: "restApiId"},
 		{segments: []string{"stageName"}, param: "stageName"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "flushStageCacheInput",
+	unrooted: []string{"restApiId", "stageName"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error FlushStageCache answers for vs, the
@@ -3280,6 +3371,7 @@ var policyGenerateClientCertificate = validationPolicy{
 		{segments: []string{"tags", "*"}, param: "tags"},
 		{segments: []string{"tags", "*", "member"}, param: "tags"},
 	},
+	root:    "generateClientCertificateInput",
 	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
@@ -3292,6 +3384,7 @@ func (*GenerateClientCertificateInput) ValidationError(vs []awserr.Violation) *a
 
 var policyGetAccount = validationPolicy{
 	paths:   []validationPath{},
+	root:    "getAccountInput",
 	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
@@ -3307,7 +3400,9 @@ var policyGetApiKey = validationPolicy{
 		{segments: []string{"apiKey"}, param: "apiKey"},
 		{segments: []string{"includeValue"}, param: "includeValue"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "getApiKeyInput",
+	unrooted: []string{"apiKey"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error GetApiKey answers for vs, the
@@ -3325,6 +3420,7 @@ var policyGetApiKeys = validationPolicy{
 		{segments: []string{"customerId"}, param: "customerId"},
 		{segments: []string{"includeValues"}, param: "includeValues"},
 	},
+	root:    "getApiKeysInput",
 	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
@@ -3340,7 +3436,9 @@ var policyGetAuthorizer = validationPolicy{
 		{segments: []string{"restApiId"}, param: "restApiId"},
 		{segments: []string{"authorizerId"}, param: "authorizerId"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "getAuthorizerInput",
+	unrooted: []string{"restApiId", "authorizerId"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error GetAuthorizer answers for vs, the
@@ -3356,7 +3454,9 @@ var policyGetAuthorizers = validationPolicy{
 		{segments: []string{"position"}, param: "position"},
 		{segments: []string{"limit"}, param: "limit"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "getAuthorizersInput",
+	unrooted: []string{"restApiId"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error GetAuthorizers answers for vs, the
@@ -3372,7 +3472,9 @@ var policyGetBasePathMapping = validationPolicy{
 		{segments: []string{"domainNameId"}, param: "domainNameId"},
 		{segments: []string{"basePath"}, param: "basePath"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "getBasePathMappingInput",
+	unrooted: []string{"domainName", "basePath"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error GetBasePathMapping answers for vs, the
@@ -3389,7 +3491,9 @@ var policyGetBasePathMappings = validationPolicy{
 		{segments: []string{"position"}, param: "position"},
 		{segments: []string{"limit"}, param: "limit"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "getBasePathMappingsInput",
+	unrooted: []string{"domainName"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error GetBasePathMappings answers for vs, the
@@ -3403,7 +3507,9 @@ var policyGetClientCertificate = validationPolicy{
 	paths: []validationPath{
 		{segments: []string{"clientCertificateId"}, param: "clientCertificateId"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "getClientCertificateInput",
+	unrooted: []string{"clientCertificateId"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error GetClientCertificate answers for vs, the
@@ -3418,6 +3524,7 @@ var policyGetClientCertificates = validationPolicy{
 		{segments: []string{"position"}, param: "position"},
 		{segments: []string{"limit"}, param: "limit"},
 	},
+	root:    "getClientCertificatesInput",
 	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
@@ -3435,7 +3542,9 @@ var policyGetDeployment = validationPolicy{
 		{segments: []string{"embed"}, param: "embed"},
 		{segments: []string{"embed", "*", "member"}, param: "embed"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "getDeploymentInput",
+	unrooted: []string{"restApiId", "deploymentId"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error GetDeployment answers for vs, the
@@ -3451,7 +3560,9 @@ var policyGetDeployments = validationPolicy{
 		{segments: []string{"position"}, param: "position"},
 		{segments: []string{"limit"}, param: "limit"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "getDeploymentsInput",
+	unrooted: []string{"restApiId"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error GetDeployments answers for vs, the
@@ -3466,7 +3577,9 @@ var policyGetDocumentationPart = validationPolicy{
 		{segments: []string{"restApiId"}, param: "restApiId"},
 		{segments: []string{"documentationPartId"}, param: "documentationPartId"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "getDocumentationPartInput",
+	unrooted: []string{"restApiId", "documentationPartId"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error GetDocumentationPart answers for vs, the
@@ -3486,7 +3599,9 @@ var policyGetDocumentationParts = validationPolicy{
 		{segments: []string{"limit"}, param: "limit"},
 		{segments: []string{"locationStatus"}, param: "locationStatus"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "getDocumentationPartsInput",
+	unrooted: []string{"restApiId"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error GetDocumentationParts answers for vs, the
@@ -3501,7 +3616,9 @@ var policyGetDocumentationVersion = validationPolicy{
 		{segments: []string{"restApiId"}, param: "restApiId"},
 		{segments: []string{"documentationVersion"}, param: "documentationVersion"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "getDocumentationVersionInput",
+	unrooted: []string{"restApiId", "documentationVersion"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error GetDocumentationVersion answers for vs, the
@@ -3517,7 +3634,9 @@ var policyGetDocumentationVersions = validationPolicy{
 		{segments: []string{"position"}, param: "position"},
 		{segments: []string{"limit"}, param: "limit"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "getDocumentationVersionsInput",
+	unrooted: []string{"restApiId"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error GetDocumentationVersions answers for vs, the
@@ -3532,7 +3651,9 @@ var policyGetDomainName = validationPolicy{
 		{segments: []string{"domainName"}, param: "domainName"},
 		{segments: []string{"domainNameId"}, param: "domainNameId"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "getDomainNameInput",
+	unrooted: []string{"domainName"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error GetDomainName answers for vs, the
@@ -3548,6 +3669,7 @@ var policyGetDomainNameAccessAssociations = validationPolicy{
 		{segments: []string{"limit"}, param: "limit"},
 		{segments: []string{"resourceOwner"}, param: "resourceOwner"},
 	},
+	root:    "getDomainNameAccessAssociationsInput",
 	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
@@ -3564,6 +3686,7 @@ var policyGetDomainNames = validationPolicy{
 		{segments: []string{"limit"}, param: "limit"},
 		{segments: []string{"resourceOwner"}, param: "resourceOwner"},
 	},
+	root:    "getDomainNamesInput",
 	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
@@ -3584,7 +3707,9 @@ var policyGetExport = validationPolicy{
 		{segments: []string{"parameters", "*", "member"}, param: "parameters"},
 		{segments: []string{"accepts"}, param: "accepts"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "getExportInput",
+	unrooted: []string{"restApiId", "stageName", "exportType"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error GetExport answers for vs, the
@@ -3599,7 +3724,9 @@ var policyGetGatewayResponse = validationPolicy{
 		{segments: []string{"restApiId"}, param: "restApiId"},
 		{segments: []string{"responseType"}, param: "responseType"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "getGatewayResponseInput",
+	unrooted: []string{"restApiId", "responseType"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error GetGatewayResponse answers for vs, the
@@ -3615,7 +3742,9 @@ var policyGetGatewayResponses = validationPolicy{
 		{segments: []string{"position"}, param: "position"},
 		{segments: []string{"limit"}, param: "limit"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "getGatewayResponsesInput",
+	unrooted: []string{"restApiId"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error GetGatewayResponses answers for vs, the
@@ -3631,7 +3760,9 @@ var policyGetIntegration = validationPolicy{
 		{segments: []string{"resourceId"}, param: "resourceId"},
 		{segments: []string{"httpMethod"}, param: "httpMethod"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "getIntegrationInput",
+	unrooted: []string{"restApiId", "resourceId", "httpMethod"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error GetIntegration answers for vs, the
@@ -3648,7 +3779,9 @@ var policyGetIntegrationResponse = validationPolicy{
 		{segments: []string{"httpMethod"}, param: "httpMethod"},
 		{segments: []string{"statusCode"}, param: "statusCode"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "getIntegrationResponseInput",
+	unrooted: []string{"restApiId", "resourceId", "httpMethod", "statusCode"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error GetIntegrationResponse answers for vs, the
@@ -3664,7 +3797,9 @@ var policyGetMethod = validationPolicy{
 		{segments: []string{"resourceId"}, param: "resourceId"},
 		{segments: []string{"httpMethod"}, param: "httpMethod"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "getMethodInput",
+	unrooted: []string{"restApiId", "resourceId", "httpMethod"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error GetMethod answers for vs, the
@@ -3681,7 +3816,9 @@ var policyGetMethodResponse = validationPolicy{
 		{segments: []string{"httpMethod"}, param: "httpMethod"},
 		{segments: []string{"statusCode"}, param: "statusCode"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "getMethodResponseInput",
+	unrooted: []string{"restApiId", "resourceId", "httpMethod", "statusCode"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error GetMethodResponse answers for vs, the
@@ -3697,7 +3834,9 @@ var policyGetModel = validationPolicy{
 		{segments: []string{"modelName"}, param: "modelName"},
 		{segments: []string{"flatten"}, param: "flatten"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "getModelInput",
+	unrooted: []string{"restApiId", "modelName"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error GetModel answers for vs, the
@@ -3712,7 +3851,9 @@ var policyGetModelTemplate = validationPolicy{
 		{segments: []string{"restApiId"}, param: "restApiId"},
 		{segments: []string{"modelName"}, param: "modelName"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "getModelTemplateInput",
+	unrooted: []string{"restApiId", "modelName"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error GetModelTemplate answers for vs, the
@@ -3728,7 +3869,9 @@ var policyGetModels = validationPolicy{
 		{segments: []string{"position"}, param: "position"},
 		{segments: []string{"limit"}, param: "limit"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "getModelsInput",
+	unrooted: []string{"restApiId"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error GetModels answers for vs, the
@@ -3743,7 +3886,9 @@ var policyGetRequestValidator = validationPolicy{
 		{segments: []string{"restApiId"}, param: "restApiId"},
 		{segments: []string{"requestValidatorId"}, param: "requestValidatorId"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "getRequestValidatorInput",
+	unrooted: []string{"restApiId", "requestValidatorId"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error GetRequestValidator answers for vs, the
@@ -3759,7 +3904,9 @@ var policyGetRequestValidators = validationPolicy{
 		{segments: []string{"position"}, param: "position"},
 		{segments: []string{"limit"}, param: "limit"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "getRequestValidatorsInput",
+	unrooted: []string{"restApiId"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error GetRequestValidators answers for vs, the
@@ -3776,7 +3923,9 @@ var policyGetResource = validationPolicy{
 		{segments: []string{"embed"}, param: "embed"},
 		{segments: []string{"embed", "*", "member"}, param: "embed"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "getResourceInput",
+	unrooted: []string{"restApiId", "resourceId"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error GetResource answers for vs, the
@@ -3794,7 +3943,9 @@ var policyGetResources = validationPolicy{
 		{segments: []string{"embed"}, param: "embed"},
 		{segments: []string{"embed", "*", "member"}, param: "embed"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "getResourcesInput",
+	unrooted: []string{"restApiId"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error GetResources answers for vs, the
@@ -3808,7 +3959,9 @@ var policyGetRestApi = validationPolicy{
 	paths: []validationPath{
 		{segments: []string{"restApiId"}, param: "restApiId"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "getRestApiInput",
+	unrooted: []string{"restApiId"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error GetRestApi answers for vs, the
@@ -3823,6 +3976,7 @@ var policyGetRestApis = validationPolicy{
 		{segments: []string{"position"}, param: "position"},
 		{segments: []string{"limit"}, param: "limit"},
 	},
+	root:    "getRestApisInput",
 	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
@@ -3842,7 +3996,9 @@ var policyGetSdk = validationPolicy{
 		{segments: []string{"parameters", "*"}, param: "parameters"},
 		{segments: []string{"parameters", "*", "member"}, param: "parameters"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "getSdkInput",
+	unrooted: []string{"restApiId", "stageName", "sdkType"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error GetSdk answers for vs, the
@@ -3856,7 +4012,9 @@ var policyGetSdkType = validationPolicy{
 	paths: []validationPath{
 		{segments: []string{"id"}, param: "id"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "getSdkTypeInput",
+	unrooted: []string{"id"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error GetSdkType answers for vs, the
@@ -3871,6 +4029,7 @@ var policyGetSdkTypes = validationPolicy{
 		{segments: []string{"position"}, param: "position"},
 		{segments: []string{"limit"}, param: "limit"},
 	},
+	root:    "getSdkTypesInput",
 	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
@@ -3886,7 +4045,9 @@ var policyGetStage = validationPolicy{
 		{segments: []string{"restApiId"}, param: "restApiId"},
 		{segments: []string{"stageName"}, param: "stageName"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "getStageInput",
+	unrooted: []string{"restApiId", "stageName"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error GetStage answers for vs, the
@@ -3901,7 +4062,9 @@ var policyGetStages = validationPolicy{
 		{segments: []string{"restApiId"}, param: "restApiId"},
 		{segments: []string{"deploymentId"}, param: "deploymentId"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "getStagesInput",
+	unrooted: []string{"restApiId"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error GetStages answers for vs, the
@@ -3917,7 +4080,9 @@ var policyGetTags = validationPolicy{
 		{segments: []string{"position"}, param: "position"},
 		{segments: []string{"limit"}, param: "limit"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "getTagsInput",
+	unrooted: []string{"resourceArn"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error GetTags answers for vs, the
@@ -3936,7 +4101,9 @@ var policyGetUsage = validationPolicy{
 		{segments: []string{"position"}, param: "position"},
 		{segments: []string{"limit"}, param: "limit"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "getUsageInput",
+	unrooted: []string{"usagePlanId"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error GetUsage answers for vs, the
@@ -3950,7 +4117,9 @@ var policyGetUsagePlan = validationPolicy{
 	paths: []validationPath{
 		{segments: []string{"usagePlanId"}, param: "usagePlanId"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "getUsagePlanInput",
+	unrooted: []string{"usagePlanId"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error GetUsagePlan answers for vs, the
@@ -3965,7 +4134,9 @@ var policyGetUsagePlanKey = validationPolicy{
 		{segments: []string{"usagePlanId"}, param: "usagePlanId"},
 		{segments: []string{"keyId"}, param: "keyId"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "getUsagePlanKeyInput",
+	unrooted: []string{"usagePlanId", "keyId"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error GetUsagePlanKey answers for vs, the
@@ -3982,7 +4153,9 @@ var policyGetUsagePlanKeys = validationPolicy{
 		{segments: []string{"limit"}, param: "limit"},
 		{segments: []string{"nameQuery"}, param: "nameQuery"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "getUsagePlanKeysInput",
+	unrooted: []string{"usagePlanId"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error GetUsagePlanKeys answers for vs, the
@@ -3998,6 +4171,7 @@ var policyGetUsagePlans = validationPolicy{
 		{segments: []string{"keyId"}, param: "keyId"},
 		{segments: []string{"limit"}, param: "limit"},
 	},
+	root:    "getUsagePlansInput",
 	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
@@ -4012,7 +4186,9 @@ var policyGetVpcLink = validationPolicy{
 	paths: []validationPath{
 		{segments: []string{"vpcLinkId"}, param: "vpcLinkId"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "getVpcLinkInput",
+	unrooted: []string{"vpcLinkId"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error GetVpcLink answers for vs, the
@@ -4027,6 +4203,7 @@ var policyGetVpcLinks = validationPolicy{
 		{segments: []string{"position"}, param: "position"},
 		{segments: []string{"limit"}, param: "limit"},
 	},
+	root:    "getVpcLinksInput",
 	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
@@ -4043,6 +4220,7 @@ var policyImportApiKeys = validationPolicy{
 		{segments: []string{"format"}, param: "format"},
 		{segments: []string{"failOnWarnings"}, param: "failOnWarnings"},
 	},
+	root:    "importApiKeysInput",
 	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
@@ -4060,7 +4238,9 @@ var policyImportDocumentationParts = validationPolicy{
 		{segments: []string{"failOnWarnings"}, param: "failOnWarnings"},
 		{segments: []string{"body"}, param: "body"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "importDocumentationPartsInput",
+	unrooted: []string{"restApiId"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error ImportDocumentationParts answers for vs, the
@@ -4078,6 +4258,7 @@ var policyImportRestApi = validationPolicy{
 		{segments: []string{"parameters", "*", "member"}, param: "parameters"},
 		{segments: []string{"body"}, param: "body"},
 	},
+	root:    "importRestApiInput",
 	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
@@ -4100,7 +4281,9 @@ var policyPutGatewayResponse = validationPolicy{
 		{segments: []string{"responseTemplates", "*"}, param: "responseTemplates"},
 		{segments: []string{"responseTemplates", "*", "member"}, param: "responseTemplates"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "putGatewayResponseInput",
+	unrooted: []string{"restApiId", "responseType"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error PutGatewayResponse answers for vs, the
@@ -4138,7 +4321,9 @@ var policyPutIntegration = validationPolicy{
 		{segments: []string{"responseTransferMode"}, param: "responseTransferMode"},
 		{segments: []string{"integrationTarget"}, param: "integrationTarget"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "putIntegrationInput",
+	unrooted: []string{"restApiId", "resourceId", "httpMethod"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error PutIntegration answers for vs, the
@@ -4163,7 +4348,9 @@ var policyPutIntegrationResponse = validationPolicy{
 		{segments: []string{"responseTemplates", "*", "member"}, param: "responseTemplates"},
 		{segments: []string{"contentHandling"}, param: "contentHandling"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "putIntegrationResponseInput",
+	unrooted: []string{"restApiId", "resourceId", "httpMethod", "statusCode"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error PutIntegrationResponse answers for vs, the
@@ -4192,7 +4379,9 @@ var policyPutMethod = validationPolicy{
 		{segments: []string{"authorizationScopes"}, param: "authorizationScopes"},
 		{segments: []string{"authorizationScopes", "*", "member"}, param: "authorizationScopes"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "putMethodInput",
+	unrooted: []string{"restApiId", "resourceId", "httpMethod"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error PutMethod answers for vs, the
@@ -4215,7 +4404,9 @@ var policyPutMethodResponse = validationPolicy{
 		{segments: []string{"responseModels", "*"}, param: "responseModels"},
 		{segments: []string{"responseModels", "*", "member"}, param: "responseModels"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "putMethodResponseInput",
+	unrooted: []string{"restApiId", "resourceId", "httpMethod", "statusCode"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error PutMethodResponse answers for vs, the
@@ -4235,7 +4426,9 @@ var policyPutRestApi = validationPolicy{
 		{segments: []string{"parameters", "*", "member"}, param: "parameters"},
 		{segments: []string{"body"}, param: "body"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "putRestApiInput",
+	unrooted: []string{"restApiId"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error PutRestApi answers for vs, the
@@ -4250,6 +4443,7 @@ var policyRejectDomainNameAccessAssociation = validationPolicy{
 		{segments: []string{"domainNameAccessAssociationArn"}, param: "domainNameAccessAssociationArn"},
 		{segments: []string{"domainNameArn"}, param: "domainNameArn"},
 	},
+	root:    "rejectDomainNameAccessAssociationInput",
 	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
@@ -4267,7 +4461,9 @@ var policyTagResource = validationPolicy{
 		{segments: []string{"tags", "*"}, param: "tags"},
 		{segments: []string{"tags", "*", "member"}, param: "tags"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "tagResourceInput",
+	unrooted: []string{"resourceArn"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error TagResource answers for vs, the
@@ -4297,7 +4493,9 @@ var policyTestInvokeAuthorizer = validationPolicy{
 		{segments: []string{"additionalContext", "*"}, param: "additionalContext"},
 		{segments: []string{"additionalContext", "*", "member"}, param: "additionalContext"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "testInvokeAuthorizerInput",
+	unrooted: []string{"restApiId", "authorizerId"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error TestInvokeAuthorizer answers for vs, the
@@ -4326,7 +4524,9 @@ var policyTestInvokeMethod = validationPolicy{
 		{segments: []string{"stageVariables", "*"}, param: "stageVariables"},
 		{segments: []string{"stageVariables", "*", "member"}, param: "stageVariables"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "testInvokeMethodInput",
+	unrooted: []string{"restApiId", "resourceId", "httpMethod"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error TestInvokeMethod answers for vs, the
@@ -4342,7 +4542,9 @@ var policyUntagResource = validationPolicy{
 		{segments: []string{"tagKeys"}, param: "tagKeys"},
 		{segments: []string{"tagKeys", "*", "member"}, param: "tagKeys"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "untagResourceInput",
+	unrooted: []string{"resourceArn"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error UntagResource answers for vs, the
@@ -4361,6 +4563,7 @@ var policyUpdateAccount = validationPolicy{
 		{segments: []string{"patchOperations", "*", "member", "value"}, param: "value"},
 		{segments: []string{"patchOperations", "*", "member", "from"}, param: "from"},
 	},
+	root:    "updateAccountInput",
 	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
@@ -4381,7 +4584,9 @@ var policyUpdateApiKey = validationPolicy{
 		{segments: []string{"patchOperations", "*", "member", "value"}, param: "value"},
 		{segments: []string{"patchOperations", "*", "member", "from"}, param: "from"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "updateApiKeyInput",
+	unrooted: []string{"apiKey"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error UpdateApiKey answers for vs, the
@@ -4402,7 +4607,9 @@ var policyUpdateAuthorizer = validationPolicy{
 		{segments: []string{"patchOperations", "*", "member", "value"}, param: "value"},
 		{segments: []string{"patchOperations", "*", "member", "from"}, param: "from"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "updateAuthorizerInput",
+	unrooted: []string{"restApiId", "authorizerId"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error UpdateAuthorizer answers for vs, the
@@ -4424,7 +4631,9 @@ var policyUpdateBasePathMapping = validationPolicy{
 		{segments: []string{"patchOperations", "*", "member", "value"}, param: "value"},
 		{segments: []string{"patchOperations", "*", "member", "from"}, param: "from"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "updateBasePathMappingInput",
+	unrooted: []string{"domainName", "basePath"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error UpdateBasePathMapping answers for vs, the
@@ -4444,7 +4653,9 @@ var policyUpdateClientCertificate = validationPolicy{
 		{segments: []string{"patchOperations", "*", "member", "value"}, param: "value"},
 		{segments: []string{"patchOperations", "*", "member", "from"}, param: "from"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "updateClientCertificateInput",
+	unrooted: []string{"clientCertificateId"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error UpdateClientCertificate answers for vs, the
@@ -4465,7 +4676,9 @@ var policyUpdateDeployment = validationPolicy{
 		{segments: []string{"patchOperations", "*", "member", "value"}, param: "value"},
 		{segments: []string{"patchOperations", "*", "member", "from"}, param: "from"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "updateDeploymentInput",
+	unrooted: []string{"restApiId", "deploymentId"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error UpdateDeployment answers for vs, the
@@ -4486,7 +4699,9 @@ var policyUpdateDocumentationPart = validationPolicy{
 		{segments: []string{"patchOperations", "*", "member", "value"}, param: "value"},
 		{segments: []string{"patchOperations", "*", "member", "from"}, param: "from"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "updateDocumentationPartInput",
+	unrooted: []string{"restApiId", "documentationPartId"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error UpdateDocumentationPart answers for vs, the
@@ -4507,7 +4722,9 @@ var policyUpdateDocumentationVersion = validationPolicy{
 		{segments: []string{"patchOperations", "*", "member", "value"}, param: "value"},
 		{segments: []string{"patchOperations", "*", "member", "from"}, param: "from"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "updateDocumentationVersionInput",
+	unrooted: []string{"restApiId", "documentationVersion"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error UpdateDocumentationVersion answers for vs, the
@@ -4528,7 +4745,9 @@ var policyUpdateDomainName = validationPolicy{
 		{segments: []string{"patchOperations", "*", "member", "value"}, param: "value"},
 		{segments: []string{"patchOperations", "*", "member", "from"}, param: "from"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "updateDomainNameInput",
+	unrooted: []string{"domainName"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error UpdateDomainName answers for vs, the
@@ -4549,7 +4768,9 @@ var policyUpdateGatewayResponse = validationPolicy{
 		{segments: []string{"patchOperations", "*", "member", "value"}, param: "value"},
 		{segments: []string{"patchOperations", "*", "member", "from"}, param: "from"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "updateGatewayResponseInput",
+	unrooted: []string{"restApiId", "responseType"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error UpdateGatewayResponse answers for vs, the
@@ -4571,7 +4792,9 @@ var policyUpdateIntegration = validationPolicy{
 		{segments: []string{"patchOperations", "*", "member", "value"}, param: "value"},
 		{segments: []string{"patchOperations", "*", "member", "from"}, param: "from"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "updateIntegrationInput",
+	unrooted: []string{"restApiId", "resourceId", "httpMethod"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error UpdateIntegration answers for vs, the
@@ -4594,7 +4817,9 @@ var policyUpdateIntegrationResponse = validationPolicy{
 		{segments: []string{"patchOperations", "*", "member", "value"}, param: "value"},
 		{segments: []string{"patchOperations", "*", "member", "from"}, param: "from"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "updateIntegrationResponseInput",
+	unrooted: []string{"restApiId", "resourceId", "httpMethod", "statusCode"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error UpdateIntegrationResponse answers for vs, the
@@ -4616,7 +4841,9 @@ var policyUpdateMethod = validationPolicy{
 		{segments: []string{"patchOperations", "*", "member", "value"}, param: "value"},
 		{segments: []string{"patchOperations", "*", "member", "from"}, param: "from"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "updateMethodInput",
+	unrooted: []string{"restApiId", "resourceId", "httpMethod"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error UpdateMethod answers for vs, the
@@ -4639,7 +4866,9 @@ var policyUpdateMethodResponse = validationPolicy{
 		{segments: []string{"patchOperations", "*", "member", "value"}, param: "value"},
 		{segments: []string{"patchOperations", "*", "member", "from"}, param: "from"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "updateMethodResponseInput",
+	unrooted: []string{"restApiId", "resourceId", "httpMethod", "statusCode"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error UpdateMethodResponse answers for vs, the
@@ -4660,7 +4889,9 @@ var policyUpdateModel = validationPolicy{
 		{segments: []string{"patchOperations", "*", "member", "value"}, param: "value"},
 		{segments: []string{"patchOperations", "*", "member", "from"}, param: "from"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "updateModelInput",
+	unrooted: []string{"restApiId", "modelName"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error UpdateModel answers for vs, the
@@ -4681,7 +4912,9 @@ var policyUpdateRequestValidator = validationPolicy{
 		{segments: []string{"patchOperations", "*", "member", "value"}, param: "value"},
 		{segments: []string{"patchOperations", "*", "member", "from"}, param: "from"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "updateRequestValidatorInput",
+	unrooted: []string{"restApiId", "requestValidatorId"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error UpdateRequestValidator answers for vs, the
@@ -4702,7 +4935,9 @@ var policyUpdateResource = validationPolicy{
 		{segments: []string{"patchOperations", "*", "member", "value"}, param: "value"},
 		{segments: []string{"patchOperations", "*", "member", "from"}, param: "from"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "updateResourceInput",
+	unrooted: []string{"restApiId", "resourceId"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error UpdateResource answers for vs, the
@@ -4722,7 +4957,9 @@ var policyUpdateRestApi = validationPolicy{
 		{segments: []string{"patchOperations", "*", "member", "value"}, param: "value"},
 		{segments: []string{"patchOperations", "*", "member", "from"}, param: "from"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "updateRestApiInput",
+	unrooted: []string{"restApiId"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error UpdateRestApi answers for vs, the
@@ -4743,7 +4980,9 @@ var policyUpdateStage = validationPolicy{
 		{segments: []string{"patchOperations", "*", "member", "value"}, param: "value"},
 		{segments: []string{"patchOperations", "*", "member", "from"}, param: "from"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "updateStageInput",
+	unrooted: []string{"restApiId", "stageName"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error UpdateStage answers for vs, the
@@ -4764,7 +5003,9 @@ var policyUpdateUsage = validationPolicy{
 		{segments: []string{"patchOperations", "*", "member", "value"}, param: "value"},
 		{segments: []string{"patchOperations", "*", "member", "from"}, param: "from"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "updateUsageInput",
+	unrooted: []string{"usagePlanId", "keyId"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error UpdateUsage answers for vs, the
@@ -4784,7 +5025,9 @@ var policyUpdateUsagePlan = validationPolicy{
 		{segments: []string{"patchOperations", "*", "member", "value"}, param: "value"},
 		{segments: []string{"patchOperations", "*", "member", "from"}, param: "from"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "updateUsagePlanInput",
+	unrooted: []string{"usagePlanId"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error UpdateUsagePlan answers for vs, the
@@ -4804,7 +5047,9 @@ var policyUpdateVpcLink = validationPolicy{
 		{segments: []string{"patchOperations", "*", "member", "value"}, param: "value"},
 		{segments: []string{"patchOperations", "*", "member", "from"}, param: "from"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	root:     "updateVpcLinkInput",
+	unrooted: []string{"vpcLinkId"},
+	service:  []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }
 
 // ValidationError returns the error UpdateVpcLink answers for vs, the

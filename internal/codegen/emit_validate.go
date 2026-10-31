@@ -247,17 +247,31 @@ type failCond struct {
 
 // conds lists the constraints of member m on value x in AWS's order: enum,
 // pattern, length (maximum before minimum), range (minimum first).
+// enumLits are an enum's values as Go string literals, in the order an
+// enum violation lists them: dev.understudy#enumOrder's, else the model's.
+func enumLits(t *ShapeIR) []string {
+	if t.EnumOrder != nil {
+		vals := make([]string, len(t.EnumOrder))
+		for i, e := range t.EnumOrder {
+			vals[i] = goString(e)
+		}
+		return vals
+	}
+	vals := make([]string, len(t.Enum))
+	for i, e := range t.Enum {
+		vals[i] = goString(e.Value)
+		if t.Type == smithy.TypeIntEnum {
+			vals[i] = goString(strconv.FormatInt(e.Number, 10))
+		}
+	}
+	return vals
+}
+
 func (v *validator) conds(m *MemberIR, x string) ([]failCond, error) {
 	t := m.Target
 	var out []failCond
 	if (t.Type == smithy.TypeEnum || t.Type == smithy.TypeIntEnum) && m.EnumPolicy == EnumClosed {
-		vals := make([]string, len(t.Enum))
-		for i, e := range t.Enum {
-			vals[i] = goString(e.Value)
-			if t.Type == smithy.TypeIntEnum {
-				vals[i] = goString(strconv.FormatInt(e.Number, 10))
-			}
-		}
+		vals := enumLits(t)
 		recv := x
 		if strings.HasPrefix(x, "*") {
 			recv = "(" + x + ")"

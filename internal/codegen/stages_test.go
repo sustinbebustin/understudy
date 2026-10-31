@@ -153,13 +153,13 @@ func TestStageFailures(t *testing.T) {
 				"dev.understudy#flavor": "vanilla", ` + evidence + `}}`),
 			stage: codegen.StageOverlay,
 			want: "understudy-gen overlay: extra.json: com.example.golden#Golden: dev.understudy#flavor is not a dev.understudy trait; " +
-				"the closed set is [dev.understudy#alwaysEmit dev.understudy#denialError dev.understudy#emptyCollection dev.understudy#errorNamespace " +
+				"the closed set is [dev.understudy#alwaysEmit dev.understudy#denialError dev.understudy#emptyCollection dev.understudy#enumOrder dev.understudy#errorNamespace " +
 				"dev.understudy#evidence dev.understudy#internalOperation dev.understudy#jsonType dev.understudy#malformedRequestError " +
 				"dev.understudy#maxRequestBytes dev.understudy#messageByProtocol dev.understudy#notConfigured dev.understudy#patternEcho " +
 				"dev.understudy#patternValidator dev.understudy#queryErrorEnvelope dev.understudy#queryKeyAlias " +
 				"dev.understudy#responseCrc32 dev.understudy#statusOverride dev.understudy#successCode " +
 				"dev.understudy#throttleError dev.understudy#unknownOperationError dev.understudy#validationError " +
-				"dev.understudy#validationPathStyle]",
+				"dev.understudy#validationInputRoot dev.understudy#validationPathStyle]",
 		},
 		{
 			name: "dev.understudy trait on the wrong site",
@@ -757,6 +757,8 @@ func TestClassifyOverlayTraits(t *testing.T) {
 		"dev.understudy#unknownOperationError": codegen.Honor,
 		"dev.understudy#queryErrorEnvelope":    codegen.Honor,
 		"dev.understudy#responseCrc32":         codegen.Honor,
+		"dev.understudy#enumOrder":             codegen.Honor,
+		"dev.understudy#validationInputRoot":   codegen.Honor,
 	}
 	for id, class := range want {
 		if c, ok := codegen.Classify(id); c != class || !ok {
