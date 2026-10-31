@@ -86,15 +86,16 @@ const (
 	// write one.
 	emptyResponseTemplate = `an empty-string response template is returned as "", where AWS returns null (recorded, apigateway-rest.md finding 6)`
 	emptyRequestTemplate  = `an empty-string request template is returned as "" (AWS's answer is UNVERIFIED, APIGW1-13)`
-	integrationNote       = "AWS_PROXY to Lambda runs; MOCK, HTTP, HTTP_PROXY and AWS are stored and answer 501 at invoke; " +
+	integrationNote       = "AWS_PROXY to Lambda and MOCK run; HTTP, HTTP_PROXY and AWS are stored and answer 501 at invoke; " +
 		"credentials, a stage variable in the uri, responseTransferMode STREAM and contentHandling are stored and returned, and an invocation that reaches them answers 501; " +
 		"connectionType VPC_LINK, connectionId, tlsConfig, integrationTarget and an AWS_PROXY Firehose stream uri answer NotImplemented; " +
 		"requestParameters, cacheNamespace and cacheKeyParameters are stored without effect; " +
 		"a boolean requestParameters value answers SerializationException with understudy's decode text, not AWS's recorded one; " +
 		"the texts for a timeout out of range, an unknown passthroughBehavior and a patch value of the wrong type are inferred; " + emptyRequestTemplate
 	getIntegrationNote      = emptyRequestTemplate + "; " + emptyResponseTemplate
-	integrationResponseNote = "selectionPattern, responseParameters, responseTemplates and contentHandling are stored and returned; " +
-		"MOCK integrations, which select integration responses, answer 501 at invoke; " + emptyResponseTemplate
+	integrationResponseNote = "selectionPattern runs as Go RE2; a Java-only construct (lookaround, backreference, possessive quantifier) answers 501 at invoke naming the pattern; " +
+		"only static responseParameters and literal templates run, anything else answers 501; " +
+		"contentHandling is stored and an invocation that selects the response answers 501; " + emptyResponseTemplate
 	createDeploymentNote = "canarySettings answers NotImplemented; cacheClusterEnabled, cacheClusterSize and tracingEnabled are stored without effect; " +
 		"the texts for deploying an API with no methods or a method with no integration are inferred (APIGW1-05)"
 	getDeploymentsNote     = "items in creation order (inferred)"
@@ -105,12 +106,14 @@ const (
 	updateStageNote   = stageNote + "; a new method setting starts from the */* one (inferred)"
 	getStagesNote     = "items in creation order (inferred)"
 	tagsNote          = "the texts for a malformed or unknown resourceArn and the tag key and value lengths are inferred"
-	invokeRestAPINote = "AWS_PROXY (payload 1.0); " +
-		"mapping templates, request validation, authorizers, API keys, caching and throttling are not applied; AWS_IAM methods answer 501; apiKeyRequired methods answer 403; " +
+	invokeRestAPINote = "AWS_PROXY (payload 1.0) and MOCK with literal templates; " +
+		"mapping templates with VTL answer 501; request validation, authorizers, API keys, caching and throttling are not applied; AWS_IAM methods answer 501; apiKeyRequired methods answer 403; " +
 		"binaryMediaTypes in the stage's deployment, a disabled default endpoint and PRIVATE APIs answer 501; " +
 		"a resource policy is not evaluated: under iam.enforce=advise each invocation records an advisory, under enforce it answers 501; " +
-		"integrations other than AWS_PROXY, integration credentials, stage-variable uris, responseTransferMode STREAM and contentHandling answer 501; " +
-		"inferred, UNVERIFIED: unknown stage, ANY against explicit methods, HEAD (APIGW1-07, -08), timeout (APIGW1-10), empty-body event (APIGW1-16); " +
+		"HTTP, HTTP_PROXY and AWS integrations, integration credentials, stage-variable uris, responseTransferMode STREAM and contentHandling answer 501; " +
+		"inferred, UNVERIFIED: unknown stage, ANY against explicit methods, HEAD (APIGW1-07, -08), the 415 text (APIGW1-09), timeout (APIGW1-10), empty-body event (APIGW1-16); " +
+		"inferred: a MOCK template with no statusCode or one outside 100..599 selects the default integration response, " +
+		"and several response templates none of which matches Accept or application/json answer 500; " +
 		"header names reach the event in canonical form (Test-Header), not as the client wrote them"
 )
 

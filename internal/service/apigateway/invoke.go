@@ -79,6 +79,9 @@ func (s *Service) invoke(ctx context.Context, c *kernel.Call, r *http.Request, w
 	case toFunction:
 		c.Touch(restAPIARN(sel.owner, sel.apiID))
 		return s.invokeFunction(ctx, c, r, w, sel, body, extended)
+	case toMock:
+		c.Touch(restAPIARN(sel.owner, sel.apiID))
+		return runMock(w, r, sel, body)
 	}
 	return awserr.Internalf(errors.New("apigateway: selectMethod returned no selection"))
 }
@@ -299,6 +302,9 @@ func (a *RestAPI) route(owner aws.Scope, addr address, method, path string, stag
 		return unemulated{fmt.Sprintf("understudy does not %s: method %s %s of REST API %s, deployment %s, reaches it, so no integration ran and nothing was changed. %s",
 			what, key, res.Path, a.ID, d.ID, fix)}
 	}
+	if m.Integration.Type == apigatewayapi.IntegrationTypeMock {
+		return toMock{owner: owner, apiID: a.ID, resourcePath: res.Path, methodKey: key, integration: m.Integration.clone()}
+	}
 	if deref(m.Integration.HTTPMethod, "") != http.MethodPost {
 		// A Lambda proxy invoked with another method than POST is a
 		// configuration error (recorded, apigateway-rest.md finding 10).
@@ -320,8 +326,8 @@ func (i *Integration) unserved() (what, fix string, ok bool) {
 	case i.Credentials != nil:
 		return "assume integration credentials (role " + *i.Credentials + ")",
 			"Remove the integration's credentials and allow apigateway.amazonaws.com with lambda add-permission instead.", true
-	case i.Type != apigatewayapi.IntegrationTypeAwsProxy:
-		return "run " + string(i.Type) + " integrations yet", "Use an AWS_PROXY integration to a Lambda function.", true
+	case i.Type != apigatewayapi.IntegrationTypeAwsProxy && i.Type != apigatewayapi.IntegrationTypeMock:
+		return "run " + string(i.Type) + " integrations yet", "Use an AWS_PROXY integration to a Lambda function or a MOCK integration.", true
 	case i.usesStageVariable():
 		return "resolve stageVariables in an integration uri (" + deref(i.URI, "") + ")", "Name the function in the uri directly.", true
 	case deref(i.ResponseTransferMode, "") == apigatewayapi.ResponseTransferModeStream:

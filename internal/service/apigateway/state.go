@@ -227,6 +227,10 @@ type IntegrationResponse struct {
 	ResponseParameters map[string]string                      `json:"responseParameters,omitzero"`
 	ResponseTemplates  map[string]string                      `json:"responseTemplates,omitzero"`
 	ContentHandling    *apigatewayapi.ContentHandlingStrategy `json:"contentHandling,omitzero"`
+	// Seq orders the integration's responses by creation (a replacing put
+	// counts as a new creation, inferred), for switch
+	// apigateway.mock.selection's AscendingStatus false.
+	Seq uint64 `json:"seq,omitzero"`
 }
 
 // clone is a copy of the response with maps of its own.

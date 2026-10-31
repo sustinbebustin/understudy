@@ -416,6 +416,7 @@ func (s *Service) putIntegrationResponse(_ context.Context, c *kernel.Call, in *
 		ResponseTemplates: maps.Clone(in.ResponseTemplates), ContentHandling: clonePtr(in.ContentHandling),
 	}
 	return writeIntegration(s, c, methodRef{in.RestApiId, in.ResourceId, in.HttpMethod}, func(i Integration) (*Integration, *apigatewayapi.IntegrationResponse, *awserr.Error) {
+		resp.Seq = nextResponseSeq(i.Responses)
 		i.Responses = with(i.Responses, resp.StatusCode, resp.clone())
 		return &i, new(resp.output()), nil
 	})
