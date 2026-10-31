@@ -296,12 +296,24 @@ func (a *attempt) end(ctx context.Context, err *awserr.Error) (journal.DeliveryO
 		// status the target's denial identity carries: SNS does not retry
 		// it and EventBridge sends it straight to the dead-letter queue
 		// (iam-enforcement-surfaces.md 8.2, 8.4, aws-doc).
-		return a.deadLetter(ctx, targetError{err: err}, refused)
+		return a.permanent(ctx, targetError{err: err})
 	case retryable(err.ID):
 		return a.retry(ctx, targetError{err: err}, a.due)
 	default:
-		return a.deadLetter(ctx, targetError{err: err}, refused)
+		return a.permanent(ctx, targetError{err: err})
 	}
+}
+
+// permanent ends an attempt the target failed with a client-side error:
+// it is dead-lettered at once, except that a Scheduler delivery under
+// scheduler.retry.permanent-errors retried is retried as a server-side
+// error is, until its policy runs out (scheduler.md 7.1, 14.5.2). Which
+// target errors Scheduler counts as permanent is UNVERIFIED (SCH-08).
+func (a *attempt) permanent(ctx context.Context, f failure) (journal.DeliveryOutcome, bool) {
+	if inv := a.entry.Request.Invocation; inv != nil && inv.OnPermanent == delivery.PermanentRetried {
+		return a.retry(ctx, f, a.due)
+	}
+	return a.deadLetter(ctx, f, refused)
 }
 
 // endHTTP is the outcome of an HTTPEndpoint attempt that ended as r; false

@@ -322,8 +322,10 @@ func checkDLQ(req delivery.Request) *RequestError {
 	}
 	switch t := req.Target.(type) {
 	case delivery.EventBus:
-		if req.Mechanism != delivery.EventsToEvents {
-			return &RequestError{Field: "DLQ", Reason: "is set, but an EventBus delivery under " + req.Mechanism.String() + " has no dead-letter format yet; only " + delivery.EventsToEvents.String() + " has one"}
+		// A Scheduler bus target's dead letter is its payload
+		// (scheduler.md 14.5.3).
+		if req.Mechanism != delivery.EventsToEvents && req.Mechanism != delivery.SchedulerToEvents {
+			return &RequestError{Field: "DLQ", Reason: "is set, but an EventBus delivery under " + req.Mechanism.String() + " has no dead-letter format yet; only " + delivery.EventsToEvents.String() + " and " + delivery.SchedulerToEvents.String() + " have one"}
 		}
 	case delivery.S3Object:
 		return &RequestError{Field: "DLQ", Reason: "is set, but an S3Object delivery has no dead-letter format yet"}
