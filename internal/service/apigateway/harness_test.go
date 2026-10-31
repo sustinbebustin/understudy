@@ -483,9 +483,10 @@ func wantAnswer(tb testing.TB, rec *httptest.ResponseRecorder, want apigateway.G
 
 // want501 checks a data-plane request understudy cannot serve as AWS
 // would: 501 in API Gateway's {"message": ...} shape naming the setting
-// and saying nothing was changed (the unit's conflict row 3: never an
-// AWS-shaped 500; contract 7.7).
-func want501(tb testing.TB, rec *httptest.ResponseRecorder, setting, what string) {
+// (any one of its spellings, compared case-insensitively) and saying
+// nothing was changed (the unit's conflict row 3: never an AWS-shaped 500;
+// contract 7.7).
+func want501(tb testing.TB, rec *httptest.ResponseRecorder, setting, what string, spellings ...string) {
 	tb.Helper()
 	var body map[string]string
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
@@ -494,9 +495,13 @@ func want501(tb testing.TB, rec *httptest.ResponseRecorder, setting, what string
 	if rec.Code != http.StatusNotImplemented || !strings.Contains(body["message"], "nothing was changed") {
 		tb.Errorf("%s: response %d %s, want 501 saying nothing was changed", what, rec.Code, rec.Body)
 	}
-	if !strings.Contains(strings.ToLower(body["message"]), strings.ToLower(setting)) {
-		tb.Errorf("%s: message %q does not name %s", what, body["message"], setting)
+	msg := strings.ToLower(body["message"])
+	for _, s := range append([]string{setting}, spellings...) {
+		if strings.Contains(msg, strings.ToLower(s)) {
+			return
+		}
 	}
+	tb.Errorf("%s: message %q does not name %s", what, body["message"], setting)
 }
 
 // invokeCalls returns the journaled InvokeRestApi calls.
