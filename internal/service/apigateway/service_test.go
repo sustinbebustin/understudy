@@ -24,9 +24,9 @@ func partial(note string) registry.BindCoverage {
 	return registry.Partial{Note: baseNote + "; " + note}
 }
 
-// The REST API operations are bound with the spec's marks and notes as
-// amended by the test-owner rulings of 2026-10-31 (disputes.md 6b: each
-// inferred text, order or deviation the code emits is named); every other
+// The REST API operations are bound with the spec's marks and notes,
+// amended so that each inferred text, list order or deviation the code
+// emits is named (test-owner ruling, 2026-10-31); every other
 // v1 operation stays unbound and answers 501 (CLAUDE.md invariant 3). No
 // operation is Full.
 func TestCoverageMarks(t *testing.T) {
@@ -35,8 +35,8 @@ func TestCoverageMarks(t *testing.T) {
 		creationOrder      = "items in creation order (inferred)"
 		methodNote         = "AWS_IAM, CUSTOM and COGNITO_USER_POOLS methods answer 501 at invoke; apiKeyRequired methods answer 403 because API keys cannot be created; requestValidatorId and requestModels name only the seeded Empty and Error models until validators and models are bound; an authorizationType outside NONE, AWS_IAM, CUSTOM and COGNITO_USER_POOLS and UpdateMethod replace /resourceId naming another resource answer NotImplemented"
 		methodResponseNote = "responseModels name only the seeded Empty and Error models (text inferred)"
-		// The generated template maps cannot carry null (disputes.md 6b
-		// ticket 6 ruling), so "" is returned and declared.
+		// The generated template maps cannot carry null, so "" is
+		// returned and declared (apigateway-rest.md finding 6).
 		emptyRequest    = `an empty-string request template is returned as "" (AWS's answer is UNVERIFIED, APIGW1-13)`
 		emptyResponse   = `an empty-string response template is returned as "", where AWS returns null (recorded, apigateway-rest.md finding 6)`
 		emptyTemplates  = emptyRequest + "; " + emptyResponse
