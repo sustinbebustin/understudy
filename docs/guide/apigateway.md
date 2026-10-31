@@ -1,6 +1,6 @@
-# API Gateway HTTP APIs
+# API Gateway
 
-understudy serves API Gateway HTTP APIs (`apigatewayv2`): an API, its routes, integrations and stages, and the data plane that invokes the Lambda function a route targets. Invoking needs Docker, as Lambda does ([lambda.md](lambda.md)). What each operation supports is in [coverage.md](../coverage.md); this page grows with it.
+understudy serves API Gateway HTTP APIs (`apigatewayv2`): an API, its routes, integrations and stages, and the data plane that invokes the Lambda function a route targets. It also serves a first set of REST APIs (`apigateway`), described in [REST APIs](#rest-apis) at the end of this page. Invoking a function needs Docker, as Lambda does ([lambda.md](lambda.md)). What each operation supports is in [coverage.md](../coverage.md); this page grows with it.
 
 ## A Lambda-backed API
 
@@ -248,7 +248,7 @@ A deployment with `triggers` and `create_before_destroy` is replaced on an updat
 
 ## What answers NotImplemented for now
 
-Requests understudy cannot serve as AWS would are refused with `NotImplemented` (501), naming what is missing, and change nothing:
+HTTP API requests understudy cannot serve as AWS would are refused with `NotImplemented` (501), naming what is missing, and change nothing; REST APIs have their own list ([What answers 501 in a REST API](#what-answers-501-in-a-rest-api)):
 
 - WebSocket APIs (`--protocol-type WEBSOCKET`) and quick create (`create-api` or `update-api` with `--target`, `--route-key` or `--credentials-arn`);
 - authorizers: `--authorization-type JWT` or `CUSTOM`, `--authorizer-id` and `--authorization-scopes` on a route;
@@ -256,124 +256,155 @@ Requests understudy cannot serve as AWS would are refused with `NotImplemented` 
 - the WebSocket stage member `--client-certificate-id`;
 - every operation this page does not describe, among them authorizers, `import-api`, `reimport-api`, `export-api`, custom domain names and VPC links.
 
-## REST APIs (first slice)
+## REST APIs
 
-REST APIs (`apigateway`) serve one path so far: a Lambda proxy integration on the API's root resource, deployed to a stage. The function's response follows the REST proxy format: `statusCode` and `body`, and `Content-Type: application/json` unless it sets one.
+REST APIs (`apigateway`) serve resources, methods, `AWS_PROXY` integrations to Lambda functions and `MOCK` integrations, deployed to stages: the set Terraform's `aws_api_gateway_*` resources and most SAM templates use. A Lambda proxy API with a `/pets/{id}` resource and a greedy `/{proxy+}`:
 
 ```sh
-aws apigateway create-rest-api --name hello
-# "id": "xa6x46z82h", "rootResourceId": "3psizn47rr", "apiStatus": "AVAILABLE", ...
-aws apigateway put-method --rest-api-id xa6x46z82h --resource-id 3psizn47rr --http-method GET --authorization-type NONE
-aws apigateway put-integration --rest-api-id xa6x46z82h --resource-id 3psizn47rr --http-method GET \
-  --type AWS_PROXY --integration-http-method POST \
-  --uri arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:000000000000:function:hello/invocations
-aws apigateway create-deployment --rest-api-id xa6x46z82h --stage-name dev
-aws lambda add-permission --function-name hello --statement-id apigateway --action lambda:InvokeFunction \
-  --principal apigateway.amazonaws.com --source-arn "arn:aws:execute-api:us-east-1:000000000000:xa6x46z82h/*/*"
+cat > rest.py <<'EOF'
+def handler(event, context):
+    return {"statusCode": 200, "body": "hello from " + event["httpMethod"] + " " + event["resource"]}
+EOF
+python3 -m zipfile -c function.zip rest.py
+aws lambda create-function --function-name pets --runtime python3.13 --handler rest.handler \
+  --role arn:aws:iam::000000000000:role/worker --zip-file fileb://function.zip
 
-curl -i http://localhost:4566/_understudy/execute-api/xa6x46z82h/dev/
-# HTTP/1.1 200 OK
-# Content-Type: application/json
-# X-Amz-Apigw-Id: neHgXDQoN9b90pY=
-# X-Amzn-Requestid: baf326e2-f241-4619-8932-eb901b271110
-#
-# hello from the root
+aws apigateway create-rest-api --name pets
+# "id": "leb10wzbif", "rootResourceId": "c7egw89dyp", "apiStatus": "AVAILABLE", ...
+aws apigateway create-resource --rest-api-id leb10wzbif --parent-id c7egw89dyp --path-part pets
+# "id": "cwlqnw", "path": "/pets", ...
+aws apigateway create-resource --rest-api-id leb10wzbif --parent-id cwlqnw --path-part '{id}'
+# "id": "s2nk6p", "path": "/pets/{id}", ...
+aws apigateway create-resource --rest-api-id leb10wzbif --parent-id c7egw89dyp --path-part '{proxy+}'
+# "id": "lr4qek", "path": "/{proxy+}", ...
+aws apigateway put-method --rest-api-id leb10wzbif --resource-id s2nk6p --http-method GET --authorization-type NONE
+aws apigateway put-integration --rest-api-id leb10wzbif --resource-id s2nk6p --http-method GET \
+  --type AWS_PROXY --integration-http-method POST \
+  --uri arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:000000000000:function:pets/invocations
+aws apigateway put-method --rest-api-id leb10wzbif --resource-id lr4qek --http-method ANY --authorization-type NONE
+aws apigateway put-integration --rest-api-id leb10wzbif --resource-id lr4qek --http-method ANY \
+  --type AWS_PROXY --integration-http-method POST \
+  --uri arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:000000000000:function:pets/invocations
+aws apigateway create-deployment --rest-api-id leb10wzbif --stage-name dev
+# "id": "joadtf", ...
+aws lambda add-permission --function-name pets --statement-id apigateway --action lambda:InvokeFunction \
+  --principal apigateway.amazonaws.com --source-arn "arn:aws:execute-api:us-east-1:000000000000:leb10wzbif/*/*"
 ```
 
-The host form `xa6x46z82h.execute-api.us-east-1.localhost:4566/dev/` serves the same API. Before `add-permission` the request answers `500 {"message": "Internal server error"}` and the function does not run; on an API with only its root resource, a path no deployed method serves answers `403 {"message":"Missing Authentication Token"}`.
+The function gets the REST proxy event (payload format 1.0) and answers in the REST proxy format: `statusCode` and `body`, with `Content-Type: application/json` unless it sets one. As on AWS, API Gateway may invoke the function only if its resource policy says so: before `add-permission` a request answers `500 {"message": "Internal server error"}` and the function does not run, whatever `iam.enforce` says.
+
+### Calling a REST API
+
+A REST API has no `ApiEndpoint`. AWS's invoke URL is `https://<api-id>.execute-api.<region>.amazonaws.com/<stage>/`, and understudy never answers an `amazonaws.com` name, so the local invoke URL is `http://<api-id>.execute-api.<region>.localhost:4566/<stage>/`, or, where `*.localhost` does not resolve (inside a container, for one), `http://localhost:4566/_understudy/execute-api/<api-id>/<stage>/`. The stage is always the first path segment:
+
+```sh
+curl -i http://localhost:4566/_understudy/execute-api/leb10wzbif/dev/pets/rex
+# HTTP/1.1 200 OK
+# Content-Security-Policy: sandbox
+# Content-Type: application/json
+# X-Amz-Apigw-Id: S7r-0pL8gO4C2OI=
+# X-Amzn-Requestid: c598a493-1987-400f-8184-4ddcb3f42d9e
+#
+# hello from GET /pets/{id}
+curl -i -X POST http://leb10wzbif.execute-api.us-east-1.localhost:4566/dev/orders/1/items
+# HTTP/1.1 200 OK
+# Content-Type: application/json
+# ...
+# hello from POST /{proxy+}
+curl -i http://localhost:4566/_understudy/execute-api/leb10wzbif/dev/
+# HTTP/1.1 403 Forbidden
+# X-Amzn-Errortype: MissingAuthenticationTokenException
+#
+# {"message":"Missing Authentication Token"}
+curl -i http://localhost:4566/_understudy/execute-api/leb10wzbif/prod/pets/rex
+# HTTP/1.1 403 Forbidden
+# X-Amzn-Errortype: ForbiddenException
+#
+# {"message":"Forbidden"}
+```
+
+A path no deployed method serves answers `403 Missing Authentication Token`, as on AWS; a stage that does not exist answers `403 Forbidden`. An id neither an HTTP API nor a REST API holds gets the HTTP API answer, `403 {"message":"Forbidden"}`. The path form carries `Content-Security-Policy: sandbox`, as for HTTP APIs.
+
+### API settings
 
 `create-rest-api` and `update-rest-api` accept every member but `--clone-from`, which answers `NotImplemented`. Some settings change what a request does in ways understudy does not emulate, so a request to an API that has one answers 501 naming it and runs nothing: `--disable-execute-api-endpoint` and an endpoint type `PRIVATE` (read live, so clearing them serves again at once), and `--binary-media-types` (read from the stage's deployment, so deploy again after removing them). A resource policy (`--policy`) is stored and returned as AWS returns it, its quotes escaped and `execute-api:/` resources rewritten to the API's ARN, but never evaluated: under `iam.enforce=off` requests are served, under `advise` each one also records an `access-unevaluated` advisory, and under `enforce` each one answers 501 until the policy is removed with `update-rest-api --patch-operations op=replace,path=/policy,value=''`. VPC endpoint ids, `--security-policy`, `--endpoint-access-mode`, `--api-key-source` and `--minimum-compression-size` are stored without effect, and an `EDGE` API is served as a `REGIONAL` one. `get-rest-apis` and `delete-rest-api` work as on AWS.
 
-### Deployments and stages
-
-A deployment is a snapshot of the API's resources, methods and integrations; a stage serves one deployment, and later edits reach callers only after a new deployment. `create-deployment --stage-name` creates the stage or repoints it, and its `--stage-description`, `--variables` and cache and tracing members set that stage:
-
-```sh
-aws apigateway create-deployment --rest-api-id 8dlhp7e8cn --stage-name dev --stage-description first --variables color=blue
-# "id": "zdm4mq", ...
-aws apigateway get-stage --rest-api-id 8dlhp7e8cn --stage-name dev
-# "deploymentId": "zdm4mq", "stageName": "dev", "description": "first", "cacheClusterEnabled": false,
-# "cacheClusterStatus": "NOT_AVAILABLE", "methodSettings": {}, "variables": {"color": "blue"}, "tracingEnabled": false, ...
-aws apigateway create-stage --rest-api-id 8dlhp7e8cn --stage-name prod --deployment-id zdm4mq --tags owner=ops
-aws apigateway update-stage --rest-api-id 8dlhp7e8cn --stage-name prod \
-  --patch-operations op=replace,path=/variables/color,value=green 'op=replace,path=/*/*/metrics/enabled,value=true'
-# "methodSettings": {"*/*": {"metricsEnabled": true, "throttlingBurstLimit": 5000, "throttlingRateLimit": 10000.0,
-#   "cacheTtlInSeconds": 300, ...}}, "variables": {"color": "green"}, ...
-aws apigateway update-stage --rest-api-id 8dlhp7e8cn --stage-name prod --patch-operations op=replace,path=/tags/owner,value=x
-# An error occurred (BadRequestException) when calling the UpdateStage operation: Invalid method setting path: /tags/owner.
-# Must be one of: [/deploymentId, /description, ...]
-aws apigateway delete-deployment --rest-api-id 8dlhp7e8cn --deployment-id zdm4mq
-# An error occurred (BadRequestException) when calling the DeleteDeployment operation: Active stages pointing to this
-# deployment must be moved or deleted
-aws apigateway get-stages --rest-api-id 8dlhp7e8cn --deployment-id zdm4mq
-aws apigateway get-tags --resource-arn arn:aws:apigateway:us-east-1::/restapis/8dlhp7e8cn/stages/prod
-# "tags": {"owner": "ops"}
-```
-
-Stage variables reach the Lambda proxy event. Cache settings, method settings, access log settings, `clientCertificateId` and `tracingEnabled` are stored and returned without effect: no cache runs (`cacheClusterStatus` stays `NOT_AVAILABLE`), and nothing is throttled or logged. `--canary-settings` on `create-deployment` and `create-stage`, and `--documentation-version` on `create-stage`, answer `NotImplemented`. Tags on the API and on its stages are read and written with `tag-resource`, `untag-resource` and `get-tags`.
-
-Integrations and integration responses can be put, read, updated and deleted, of every type. `put-integration` answers AWS's defaults (`timeoutInMillis` 29000, `passthroughBehavior` `WHEN_NO_MATCH`, `cacheNamespace` the resource id, `connectionType` `INTERNET` for `HTTP` and `HTTP_PROXY` only) and drops `--integration-http-method` on a `MOCK` integration, as AWS does. URIs are checked with AWS's texts:
-
-```sh
-aws apigateway put-integration --rest-api-id xa6x46z82h --resource-id 3psizn47rr --http-method GET \
-  --type AWS --integration-http-method POST --uri arn:aws:lambda:us-east-1:000000000000:function:hello
-# An error occurred (BadRequestException) when calling the PutIntegration operation: AWS ARN for integration must contain path or action
-aws apigateway put-integration-response --rest-api-id xa6x46z82h --resource-id 3psizn47rr --http-method GET \
-  --status-code 200 --selection-pattern ''
-# "statusCode": "200", "selectionPattern": ""
-```
-
-An `AWS_PROXY` integration to a Lambda function and a `MOCK` integration run. `HTTP`, `HTTP_PROXY` and `AWS` integrations are stored, and so are `--credentials`, a `${stageVariables.name}` in `--uri`, `--response-transfer-mode STREAM` and `--content-handling`, but a request that reaches one answers `501` naming it and runs nothing. `--connection-type VPC_LINK`, `--connection-id`, `--tls-config` and `--integration-target` answer `NotImplemented`. An empty-string template is returned as `""`; AWS returns `null` for a response template.
-
-Methods and method responses can be put, read, updated and deleted. `put-method` replaces a method that exists, its responses and integration included. Every API holds the models `Empty` and `Error`, and request and response models can name only those; no authorizer or request validator can exist, so `--authorizer-id`, `--request-validator-id`, and `CUSTOM` or `COGNITO_USER_POOLS` are refused with AWS's texts:
-
-```sh
-aws apigateway put-method --rest-api-id 6w1py3ej10 --resource-id tyqlw56rqq --http-method POST --authorization-type NONE \
-  --operation-name createPet --request-parameters method.request.querystring.page=true --request-models application/json=Empty
-aws apigateway put-method --rest-api-id 6w1py3ej10 --resource-id tyqlw56rqq --http-method GET --authorization-type NONE \
-  --request-models application/json=Pet
-# An error occurred (BadRequestException) when calling the PutMethod operation: Invalid model identifier specified: Pet
-aws apigateway put-method-response --rest-api-id 6w1py3ej10 --resource-id tyqlw56rqq --http-method POST --status-code 200 \
-  --response-models application/json=Empty
-aws apigateway update-method-response --rest-api-id 6w1py3ej10 --resource-id tyqlw56rqq --http-method POST --status-code 200 \
-  --patch-operations op=add,path=/responseParameters/method.response.header.X-Id,value=false
-# 201, as on AWS
-aws apigateway get-method --rest-api-id 6w1py3ej10 --resource-id tyqlw56rqq --http-method POST
-# "methodResponses": {"200": {"statusCode": "200", "responseParameters": {...}, "responseModels": {...}}}
-```
-
-A method with `apiKeyRequired` answers `403 {"message":"Forbidden"}`, since no API key can be created. Request parameters and models are stored and returned; without a request validator they do not act, as on AWS.
+### Resources and request matching
 
 Resources can be created, read, renamed, moved and deleted. A move or a rename carries the subtree's paths along, and deleting a resource deletes its subtree. The sibling and greedy rules answer AWS's texts:
 
 ```sh
-aws apigateway create-resource --rest-api-id 70wh1xgmho --parent-id et98izvga3 --path-part pets
-aws apigateway create-resource --rest-api-id 70wh1xgmho --parent-id fz2095 --path-part '{id}'
-# "id": "14wxhg", "parentId": "fz2095", "pathPart": "{id}", "path": "/pets/{id}"
-aws apigateway create-resource --rest-api-id 70wh1xgmho --parent-id fz2095 --path-part '{name}'
+aws apigateway create-resource --rest-api-id leb10wzbif --parent-id cwlqnw --path-part '{name}'
 # An error occurred (BadRequestException) when calling the CreateResource operation: A sibling ({id}) of this
 # resource already has a variable path part -- only one is allowed
-aws apigateway update-resource --rest-api-id 70wh1xgmho --resource-id fz2095 --patch-operations op=replace,path=/pathPart,value=animals
-aws apigateway get-resources --rest-api-id 70wh1xgmho
-# "/", "/animals", "/animals/{id}", in creation order
+aws apigateway update-resource --rest-api-id leb10wzbif --resource-id cwlqnw --patch-operations op=replace,path=/pathPart,value=animals
+# "path": "/animals", ...
+aws apigateway get-resources --rest-api-id leb10wzbif
+# "/", "/animals", "/animals/{id}", "/{proxy+}", in creation order
 ```
 
 `get-resources --embed methods` returns each method in full; without it `resourceMethods` maps each method to `{}`. A path part is letters, digits and `._-,:`, or `{name}` and `{name+}`; anything else is refused.
 
 A request is matched against the resources of the stage's deployment as AWS does: at the first segment where two matching resources differ, a literal part wins over `{name}`, and `{name}` over `{name+}`. A resource that matches but has no method for the request is passed over for a less specific one that has it, so with `/part1` (GET) and `/{param+}` (GET), `GET /part1/random-value` reaches `/{param+}`. The event's `pathParameters` hold the bound values as sent, still percent-encoded; a greedy value keeps interior empty segments and drops a trailing slash. Nothing matched answers `403 Missing Authentication Token`. Which of a resource's explicit method and its `ANY` serves, and whether `GET` serves `HEAD`, are not recorded: understudy serves the explicit method first and `HEAD` only from `HEAD` or `ANY`.
 
+### Methods
+
+Methods and method responses can be put, read, updated and deleted. `put-method` replaces a method that exists, its responses and integration included. Every API holds the models `Empty` and `Error`, and request and response models can name only those; no authorizer or request validator can exist, so `--authorizer-id`, `--request-validator-id`, and `CUSTOM` or `COGNITO_USER_POOLS` are refused with AWS's texts:
+
+```sh
+aws apigateway put-method --rest-api-id leb10wzbif --resource-id cwlqnw --http-method POST --authorization-type NONE \
+  --operation-name createPet --request-parameters method.request.querystring.page=true --request-models application/json=Empty
+aws apigateway put-method --rest-api-id leb10wzbif --resource-id cwlqnw --http-method GET --authorization-type NONE \
+  --request-models application/json=Pet
+# An error occurred (BadRequestException) when calling the PutMethod operation: Invalid model identifier specified: Pet
+aws apigateway put-method-response --rest-api-id leb10wzbif --resource-id cwlqnw --http-method POST --status-code 200 \
+  --response-models application/json=Empty
+aws apigateway update-method-response --rest-api-id leb10wzbif --resource-id cwlqnw --http-method POST --status-code 200 \
+  --patch-operations op=add,path=/responseParameters/method.response.header.X-Id,value=false
+# 201, as on AWS
+aws apigateway get-method --rest-api-id leb10wzbif --resource-id cwlqnw --http-method POST
+# "methodResponses": {"200": {"statusCode": "200", "responseParameters": {"method.response.header.X-Id": false},
+#   "responseModels": {"application/json": "Empty"}}}, ...
+```
+
+A method with `apiKeyRequired` answers `403 {"message":"Forbidden"}`, since no API key can be created. Request parameters and models are stored and returned; without a request validator they do not act, as on AWS.
+
+### Integrations
+
+Integrations and integration responses can be put, read, updated and deleted, of every type. `put-integration` answers AWS's defaults (`timeoutInMillis` 29000, `passthroughBehavior` `WHEN_NO_MATCH`, `cacheNamespace` the resource id, `connectionType` `INTERNET` for `HTTP` and `HTTP_PROXY` only) and drops `--integration-http-method` on a `MOCK` integration, as AWS does. URIs are checked with AWS's texts:
+
+```sh
+aws apigateway put-integration --rest-api-id leb10wzbif --resource-id cwlqnw --http-method POST \
+  --type AWS --integration-http-method POST --uri arn:aws:lambda:us-east-1:000000000000:function:pets
+# An error occurred (BadRequestException) when calling the PutIntegration operation: AWS ARN for integration must contain path or action
+aws apigateway put-integration --rest-api-id leb10wzbif --resource-id cwlqnw --http-method POST \
+  --type MOCK --integration-http-method POST --request-templates '{"application/json":"{\"statusCode\": 200}"}'
+# "type": "MOCK", "timeoutInMillis": 29000, "passthroughBehavior": "WHEN_NO_MATCH", "cacheNamespace": "cwlqnw", ... (no httpMethod)
+aws apigateway put-integration-response --rest-api-id leb10wzbif --resource-id cwlqnw --http-method POST \
+  --status-code 200 --selection-pattern ''
+# "statusCode": "200", "selectionPattern": ""
+```
+
+An `AWS_PROXY` integration to a Lambda function and a `MOCK` integration run. `HTTP`, `HTTP_PROXY` and `AWS` integrations are stored, and so are `--credentials`, a `${stageVariables.name}` in `--uri`, `--response-transfer-mode STREAM` and `--content-handling`, but a request that reaches one answers `501` naming it and runs nothing ([What answers 501](#what-answers-501-in-a-rest-api)). `--connection-type VPC_LINK`, `--connection-id`, `--tls-config` and `--integration-target` answer `NotImplemented`. An empty-string template is returned as `""`; AWS returns `null` for a response template.
+
+### MOCK integrations
+
 A `MOCK` integration answers from its configuration alone, as the common CORS `OPTIONS` method does. The request template the `Content-Type` selects (`application/json` when the request has none) gives the status, read leniently, so `{statusCode: 200}` works as `{"statusCode": 200}` does; under `passthroughBehavior` the request body takes the template's place, or the request answers `415`, per AWS's passthrough table. The status selects the integration response whose `selectionPattern` matches it, the one without a pattern otherwise; its static `responseParameters` set headers and its response template is the body, empty when it has none:
 
 ```sh
-aws apigateway put-integration --rest-api-id 16f09xqkz6 --resource-id 9w2c4oxp1s --http-method OPTIONS --type MOCK \
+aws apigateway put-method --rest-api-id leb10wzbif --resource-id cwlqnw --http-method OPTIONS --authorization-type NONE
+aws apigateway put-integration --rest-api-id leb10wzbif --resource-id cwlqnw --http-method OPTIONS --type MOCK \
   --request-templates '{"application/json":"{\"statusCode\": 200}"}'
-aws apigateway put-integration-response --rest-api-id 16f09xqkz6 --resource-id 9w2c4oxp1s --http-method OPTIONS --status-code 200 \
+aws apigateway put-method-response --rest-api-id leb10wzbif --resource-id cwlqnw --http-method OPTIONS --status-code 200 \
+  --response-parameters method.response.header.Access-Control-Allow-Origin=false
+aws apigateway put-integration-response --rest-api-id leb10wzbif --resource-id cwlqnw --http-method OPTIONS --status-code 200 \
   --response-parameters "{\"method.response.header.Access-Control-Allow-Origin\":\"'*'\"}" \
   --response-templates '{"application/json":"{\"ok\": true}"}'
-aws apigateway create-deployment --rest-api-id 16f09xqkz6 --stage-name prod
-curl -i -X OPTIONS http://127.0.0.1:4566/_understudy/execute-api/16f09xqkz6/prod/
+aws apigateway create-deployment --rest-api-id leb10wzbif --stage-name dev
+curl -i -X OPTIONS http://localhost:4566/_understudy/execute-api/leb10wzbif/dev/animals
 # HTTP/1.1 200 OK
 # Access-Control-Allow-Origin: *
+# Content-Security-Policy: sandbox
 # Content-Type: application/json
 #
 # {"ok": true}
@@ -381,4 +412,74 @@ curl -i -X OPTIONS http://127.0.0.1:4566/_understudy/execute-api/16f09xqkz6/prod
 
 understudy renders no Velocity: a template is run only when it holds none of `$`, `#` and `\`, so it is the same text before and after rendering. A request that reaches any other template answers `501` naming it, and so do a `selectionPattern` Go's regular expressions cannot compile (a lookaround or a backreference), `contentHandling` on the selected integration response, and a `responseParameters` value that is not a static `'value'`. Which response template answers a request with several, how patterns are anchored and ordered, and how media types compare are not recorded; understudy takes the template for the first `Accept` type, else `application/json`, else the only one, matches whole status codes in ascending order, and compares media types by type and subtype.
 
-Terraform is not implemented yet.
+### Deployments and stages
+
+A deployment is a snapshot of the API's resources, methods and integrations; a stage serves one deployment, and later edits reach callers only after a new deployment. `create-deployment --stage-name` creates the stage or repoints it, and its `--stage-description`, `--variables` and cache and tracing members set that stage:
+
+```sh
+aws apigateway create-deployment --rest-api-id leb10wzbif --stage-name test --stage-description first --variables color=blue
+# "id": "7w3i9d", ...
+aws apigateway get-stage --rest-api-id leb10wzbif --stage-name test
+# "deploymentId": "7w3i9d", "stageName": "test", "description": "first", "cacheClusterEnabled": false,
+# "cacheClusterStatus": "NOT_AVAILABLE", "methodSettings": {}, "variables": {"color": "blue"}, "tracingEnabled": false, ...
+aws apigateway create-stage --rest-api-id leb10wzbif --stage-name prod --deployment-id 7w3i9d --tags owner=ops
+aws apigateway update-stage --rest-api-id leb10wzbif --stage-name prod \
+  --patch-operations op=replace,path=/variables/color,value=green 'op=replace,path=/*/*/metrics/enabled,value=true'
+# "methodSettings": {"*/*": {"metricsEnabled": true, "throttlingBurstLimit": 5000, "throttlingRateLimit": 10000.0,
+#   "cacheTtlInSeconds": 300, ...}}, "variables": {"color": "green"}, ...
+aws apigateway update-stage --rest-api-id leb10wzbif --stage-name prod --patch-operations op=replace,path=/tags/owner,value=x
+# An error occurred (BadRequestException) when calling the UpdateStage operation: Invalid method setting path: /tags/owner.
+# Must be one of: [/deploymentId, /description, ...]
+aws apigateway delete-deployment --rest-api-id leb10wzbif --deployment-id 7w3i9d
+# An error occurred (BadRequestException) when calling the DeleteDeployment operation: Active stages pointing to this
+# deployment must be moved or deleted
+aws apigateway get-stages --rest-api-id leb10wzbif --deployment-id 7w3i9d
+# "test", "prod"
+aws apigateway get-tags --resource-arn arn:aws:apigateway:us-east-1::/restapis/leb10wzbif/stages/prod
+# "tags": {"owner": "ops"}
+```
+
+Stage variables reach the Lambda proxy event. Cache settings, method settings, access log settings, `clientCertificateId` and `tracingEnabled` are stored and returned without effect: no cache runs (`cacheClusterStatus` stays `NOT_AVAILABLE`), and nothing is throttled or logged. `--canary-settings` on `create-deployment` and `create-stage`, and `--documentation-version` on `create-stage`, answer `NotImplemented`. Tags on the API and on its stages are read and written with `tag-resource`, `untag-resource` and `get-tags`.
+
+### Terraform for REST APIs
+
+`aws_api_gateway_rest_api`, `_resource`, `_method`, `_method_response`, `_integration`, `_integration_response`, `_deployment` and `_stage` apply, plan again with no changes, update and destroy with provider 6.68.0 and the provider block in [terraform.md](terraform.md); `conformance/terraform/apigateway.tf` is a complete configuration, with `AWS_PROXY` methods on `/items/{id}` and `/{proxy+}`, a `MOCK` `OPTIONS` method and a deployment replaced on update. As for HTTP APIs:
+
+- `execution_arn` has no account under that provider block, so a permission built from it never matches; build `aws_lambda_permission`'s `source_arn` from `data.aws_caller_identity`, as in [Terraform](#terraform) above.
+- `invoke_url` on `aws_api_gateway_stage` is built by the provider, `https://<api-id>.execute-api.<region>.amazonaws.com/<stage>`, and cannot be pointed at understudy. Build the local URL from the API's `id` and the stage name instead, `http://localhost:4566/_understudy/execute-api/<id>/<stage>/...` ([Calling a REST API](#calling-a-rest-api)).
+- A deployment with `triggers` and `create_before_destroy` is replaced on an update: Terraform creates the new deployment, points the stage at it, then deletes the old one, which understudy refuses while a stage serves it. Hash the attributes that change what the API serves (resource paths, method authorization, integration types, URIs and templates) rather than whole resource objects, and hash an unset `request_templates` as `{}`.
+- `body` (an OpenAPI definition) on `aws_api_gateway_rest_api` is not supported: it imports the definition with `PutRestApi`, which answers `NotImplemented`. Declare resources and methods instead.
+
+### What answers 501 in a REST API
+
+understudy refuses with `501`, naming what is missing, rather than answer where it would not act as AWS does; nothing is changed and no integration runs. These requests to a deployed API answer `501` with a `{"message": ...}` body:
+
+- a method whose `authorizationType` is `AWS_IAM` (and `CUSTOM` or `COGNITO_USER_POOLS`, which `put-method` already refuses, since no authorizer can exist);
+- an `HTTP`, `HTTP_PROXY` or `AWS` integration, and an `AWS_PROXY` integration with `--credentials`, a stage variable in its `--uri`, `--response-transfer-mode STREAM` or `--content-handling`;
+- a mapping template with any of `$`, `#` and `\` (Velocity), a `selectionPattern` Go cannot compile, `contentHandling` on the selected integration response, and a `responseParameters` value that is not a static `'value'`;
+- an API with `disableExecuteApiEndpoint`, an endpoint type `PRIVATE`, or `binaryMediaTypes` in the stage's deployment, and, under `iam.enforce=enforce`, an API with a resource policy.
+
+With an `HTTP_PROXY` method on `/legacy` and a `MOCK` method whose request template reads `$input.params("code")` on `/vtl`:
+
+```sh
+curl http://localhost:4566/_understudy/execute-api/7lyjk5gpgg/dev/legacy
+# {"message":"understudy does not run HTTP_PROXY integrations yet: method GET /legacy of REST API 7lyjk5gpgg,
+#  deployment 1ya5az, reaches it, so no integration ran and nothing was changed. Use an AWS_PROXY integration to a
+#  Lambda function or a MOCK integration."}
+curl http://localhost:4566/_understudy/execute-api/7lyjk5gpgg/dev/vtl
+# {"message":"understudy does not render mapping templates with VTL: the request template for application/json of the
+#  MOCK integration of method GET /vtl of REST API 7lyjk5gpgg contains '$', '#' or '\\', so no integration ran and
+#  nothing was changed. Use a literal request template, such as {\"statusCode\": 200}."}
+```
+
+These calls answer `NotImplemented`:
+
+- `create-rest-api --clone-from`, `put-rest-api` and `import-rest-api` (OpenAPI);
+- authorizers, request validators, the model operations (methods may still name the seeded `Empty` and `Error`), API keys, usage plans, gateway responses, documentation, client certificates, VPC links, custom domain names, exports and SDKs, `test-invoke-method`, `get-account` and `update-account`, and every other operation this page does not describe;
+- the members named above: canary settings, `--documentation-version` on a stage, and `VPC_LINK`, `--tls-config` and `--integration-target` on an integration.
+
+```sh
+aws apigateway create-authorizer --rest-api-id leb10wzbif --name a --type TOKEN
+# An error occurred (NotImplemented) when calling the CreateAuthorizer operation: understudy does not implement
+# apigateway.CreateAuthorizer. Run 'understudy coverage --service apigateway' for what is supported; ...
+```

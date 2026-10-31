@@ -177,13 +177,25 @@ Custom buses take rules, targets, tags and `PutEvents` as the default bus does, 
 
 ## API Gateway HTTP APIs
 
-No HTTP API behavior has been recorded against AWS yet, so these come from AWS's documentation, with understudy's choice where it is silent. [API Gateway HTTP APIs](apigateway.md) shows each one.
+No HTTP API behavior has been recorded against AWS yet, so these come from AWS's documentation, with understudy's choice where it is silent. [API Gateway](apigateway.md) shows each one.
 
 - Error texts and generated ids are understudy's own. Validation errors are `BadRequestException` 400, as the API reference documents, but AWS's texts are not recorded, so a test should not compare them.
 - `ApiEndpoint` names understudy (`http://<api-id>.execute-api.<region>.localhost:<port>`). Terraform's `invoke_url` still names `amazonaws.com`, and its `execution_arn` has no account under the provider block in [terraform.md](terraform.md).
 - Where AWS's answer is unrecorded, understudy chose one, each a fidelity switch (`understudy coverage --service apigatewayv2 --switches`): a function error or malformed output answers 500 and an integration timeout 503; a missing Lambda permission answers 500 and the function does not run; literal path segments match case-sensitively, `/a` and `/a/` are different paths, and `HEAD` reaches only `HEAD` and `ANY` routes; an unknown API id, another region's host and a disabled default endpoint answer 403; deleting a deployment a stage serves is refused, a deployment of an API with no routes succeeds, and an `--auto-deploy` stage takes no explicit deployment; a 2.0 event of a bodyless request has `isBase64Encoded` false, and a 1.0 event's single-value maps keep a repeated header's last value and a repeated query parameter's first.
 - The order of two routes that both match, where AWS documents none, is understudy's ([Routes](apigateway.md#routes)).
 - A 1.0 event's header names are all lowercase, as AWS's documentation states. A published serverless pattern (`apigw-http-api-lambda-terraform`) reads `X-Forwarded-For` in mixed case from a 1.0 event and fails here with a 500; read headers case-insensitively.
+
+## API Gateway REST APIs
+
+understudy has not recorded REST APIs against AWS itself. Their behavior comes from AWS's documentation and from LocalStack's recordings of AWS, which tests replay; where both are silent, understudy chose, and the coverage notes name each choice with the recording case that will settle it. [REST APIs](apigateway.md#rest-apis) shows the commands.
+
+- Validation texts are AWS's where recorded (the sibling and greedy resource rules, the model and integration URI checks, the stage patch paths, deleting a deployment a stage serves) and understudy's elsewhere; generated ids and the `X-Amzn-ErrorType` value are understudy's. Compare codes, not messages, where the coverage note calls a text inferred.
+- There is no `amazonaws.com` invoke URL. Call an API at `http://<api-id>.execute-api.<region>.localhost:<port>/<stage>/` or `/_understudy/execute-api/<api-id>/<stage>/`; Terraform's `invoke_url` names `amazonaws.com`, and its `execution_arn` has no account under the provider block in [terraform.md](terraform.md).
+- Where AWS's answer is unrecorded, understudy chose one, each a fidelity switch (`understudy coverage --service apigateway --switches`): an API is `AVAILABLE` at once after a create or an update; an unknown stage answers `403 {"message":"Forbidden"}`, a resource's explicit method serves before its `ANY`, and `HEAD` reaches only `HEAD` and `ANY` methods; a missing Lambda permission answers `500 {"message": "Internal server error"}` and the function does not run; a `MOCK` request whose media type no template and no passthrough serves answers `415`, and response templates and selection patterns are chosen as [MOCK integrations](apigateway.md#mock-integrations) says; an integration timeout answers `504`, and a bodyless request's event has `body: null`.
+- No mapping template is rendered: a template is used only when it holds none of `$`, `#` and `\`, and any other answers `501`. Request validation, authorizers, API keys, caching and throttling are not applied; where AWS would act on them, understudy answers `501` or, for `apiKeyRequired`, `403` ([What answers 501 in a REST API](apigateway.md#what-answers-501-in-a-rest-api)).
+- A resource policy is stored but never evaluated: requests are served under `iam.enforce=off`, recorded as an advisory under `advise`, and answered `501` under `enforce`.
+- An `EDGE` API is served as a `REGIONAL` one, so the event has no CloudFront headers. Header names reach the proxy event in canonical form (`Test-Header`), not as the client wrote them.
+- An empty-string template is returned as `""`, where AWS returns `null` for a response template.
 
 ## Step Functions
 
