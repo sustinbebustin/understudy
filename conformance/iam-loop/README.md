@@ -38,11 +38,25 @@ Exit 0 when every selected group and global check passes, 1 when any fails, 2 fo
 4. Serve again, fresh, with `--iam-enforce enforce`. Per group, the root creates the user and a key; unless the group is over a quota, it creates each chunk as a customer managed policy (`iam create-policy`), attaches the user's (`iam attach-user-policy`) and lists each role's ARNs in `<work>/roles/<role name>.arns`. The group runs again with the same seed and `CONFORMANCE_ROLE_POLICY_DIR=<work>/roles`: right after a suite's role helper (aws-cli `make_role`, go-sdk `createRole`) creates a role with a file there, the root attaches each listed policy to it (`iam attach-role-policy`).
 5. Check:
    - (a) `GET /iam/usage` for the root lists only `iam:CreateUser`, `iam:CreateAccessKey`, `iam:CreatePolicy`, `iam:AttachUserPolicy` and `iam:AttachRolePolicy`: no test ran as the root. Global line `root-calls`.
-   - (b) per group, the enforce run passes and no `access-denied` advisory names the group's user, one of its roles (`:role/<name>`) or a session of one (`:assumed-role/<name>/`). The principal is read from the advisory text `... for <principal> calling <action> on <resource>`. A denial of no selected group fails the global line `unattributed-denials`.
+   - (b) per group, the enforce run passes and the `access-denied` advisories of the group's principals equal its expected denials (below). An advisory belongs to the group when it names the group's user, one of its roles (`:role/<name>`) or a session of one (`:assumed-role/<name>/`); principal, action and resource are read from the advisory text `... for <principal> calling <action> on <resource>`. A denial of no selected group fails the global line `unattributed-denials`.
    - (c) per group, `POST /iam/evaluate` for the user with `identityPolicies: []` denies every pair its advise run recorded (a bucket's objects as `arn:aws:s3:::<bucket>/*`).
-   - (d) per group, for each statement of the user's policy, the policy without it denies at least one recorded pair whose action the statement lists; the denial's message is printed.
+   - (d) per group, for each statement of the user's policy, the policy without it denies at least one recorded pair whose action the statement lists; the denial's message is printed. Otherwise the statement still passes when it lists at least one recorded pair (the pair's action is in its `Action` and its resource matches a `Resource` pattern, `*` and `?` as IAM matches them, `${*}`, `${?}`, `${$}` literal) and every pair it lists is allowed even with `identityPolicies: []`: with no identity policy only a resource-based policy can allow (iam-evaluation.md 2.2, 2.3). It prints `(d) statement <i> kept: its pairs are allowed by the resource policy of <resource>[, <resource>...] (iam-evaluation.md 2.3)`. The statement is kept, since the resource policy can change on its own; those pairs fail (c), which is reported as before.
    - (e) a user with no policy is refused by each service. STS's message is compared with the recorded form (`testdata/parity/sts/R15/06-assume-denied.json`, iam-enforcement-surfaces.md 4.3) and S3's with the documented one (4.2); the other services' codes are printed beside the switch that sets them (12.8), since no recording fixes them. Global line `probes`.
 6. Unless `IAM_LOOP_ROOT_SUITES=0`, run `conformance/terraform/run.sh` and `examples/check.sh` as the root with `CONFORMANCE_IAM_ENFORCE=enforce` and `CONFORMANCE_ADVISORIES_OUT`: no `access-denied` advisory may name a resource-based policy or a role trust policy as its decider, or a service principal as its caller. Global line `root-suites`.
+
+## Expected denials
+
+Some tests assert an AccessDenied that AWS answers too; `expected-denials.tsv` lists them. It is tab-separated: `#` lines and blank lines are ignored, the first other line is the header `group<TAB>test<TAB>action<TAB>resource<TAB>source` (tabs between the names), and each row has five non-empty fields:
+
+| Column | Content |
+|---|---|
+| `group` | the group (above) |
+| `test` | the test asserting the denial; informational, since the journal does not know tests |
+| `action` | the IAM action, compared exactly |
+| `resource` | an extended regex matched against the whole resource text (`^(...)$`) |
+| `source` | the citation, `<note>.md <section>` |
+
+A malformed file exits 2. For a selected group, (b) fails on each of its advisories that matches no row of the group (`unexpected denial`) and on each row of the group that matches none of its advisories (`expected denial did not happen`); rows of unselected groups are ignored.
 
 ## Managed policies and quotas
 

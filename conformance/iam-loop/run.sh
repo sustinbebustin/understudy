@@ -8,12 +8,15 @@
 #   (a) the account root called nothing but the loop's own iam:CreateUser,
 #       iam:CreateAccessKey, iam:CreatePolicy, iam:AttachUserPolicy and the
 #       role helpers' iam:AttachRolePolicy;
-#   (b) each group's enforce run passes and none of its principals was
-#       denied; every denial belongs to a selected group;
+#   (b) each group's enforce run passes and its principals were denied
+#       exactly the group's rows of expected-denials.tsv; every denial
+#       belongs to a selected group;
 #   (c) with no identity policy, every pair a group's calls needed is denied
 #       (POST /iam/evaluate);
 #   (d) every statement of a group's policy is needed: without it, at least
-#       one recorded pair whose action it lists is denied;
+#       one recorded pair whose action it lists is denied, or each pair it
+#       lists is allowed by a resource-based policy alone (printed as a
+#       note; iam-evaluation.md 2.3);
 #   (e) a user with no policy is refused by each service with its denial
 #       identity; STS's and S3's messages are compared exactly
 #       (iam-enforcement-surfaces.md 4.2, 4.3: aws-doc and aws-recorded), the
@@ -73,6 +76,44 @@ fi
 jobs="${IAM_LOOP_JOBS:-1}"
 if ! [[ $jobs =~ ^[1-9][0-9]*$ ]]; then
 	echo "run.sh: IAM_LOOP_JOBS='$jobs' is not a positive integer. No group ran." >&2
+	exit 2
+fi
+
+# The denials the suites assert (expected-denials.tsv): after comments and
+# blank lines, the header, then rows of five non-empty tab-separated fields
+# (group, test, action, resource regex, source), kept whole in
+# expected_rows.
+expected_file="$here/expected-denials.tsv"
+expected_rows=()
+header_seen=0
+lineno=0
+while IFS= read -r line || [ -n "$line" ]; do
+	lineno=$((lineno + 1))
+	[[ -z $line || $line == \#* ]] && continue
+	if [ "$header_seen" -eq 0 ]; then
+		if [ "$line" != $'group\ttest\taction\tresource\tsource' ]; then
+			echo "run.sh: $expected_file:$lineno: want the header 'group<TAB>test<TAB>action<TAB>resource<TAB>source', got '$line'. No group ran." >&2
+			exit 2
+		fi
+		header_seen=1
+		continue
+	fi
+	tabs="${line//[!$'\t']/}"
+	if [ "${#tabs}" -ne 4 ] || [[ $line == $'\t'* || $line == *$'\t' || $line == *$'\t\t'* ]]; then
+		echo "run.sh: $expected_file:$lineno: want 5 non-empty tab-separated fields (group, test, action, resource, source), got '$line'. No group ran." >&2
+		exit 2
+	fi
+	IFS=$'\t' read -r _ _ _ re _ <<<"$line"
+	status=0
+	[[ "" =~ ^($re)$ ]] || status=$?
+	if [ "$status" -eq 2 ]; then
+		echo "run.sh: $expected_file:$lineno: the resource '$re' is not an extended regular expression. No group ran." >&2
+		exit 2
+	fi
+	expected_rows+=("$line")
+done <"$expected_file"
+if [ "$header_seen" -eq 0 ]; then
+	echo "run.sh: $expected_file has no header line 'group<TAB>test<TAB>action<TAB>resource<TAB>source'. No group ran." >&2
 	exit 2
 fi
 
@@ -287,6 +328,18 @@ evaluate() { curl -fsS -X POST -H 'Content-Type: application/json' --data-binary
 # space (internal/service/iam/documents.go policySize).
 size_filter='tojson | gsub("\\s"; "") | length'
 
+# iam_regex: a jq def turning an IAM Resource pattern into an anchored
+# regex: * any run of characters, ? one character, ${*} ${?} ${$} the
+# literal character (policydoc.Literal's escapes).
+iam_pattern_filter='
+	def iam_regex:
+		[scan("\\$\\{[*?$]\\}|[*?]|[^*?$]+|\\$")
+			| if . == "*" then ".*"
+			elif . == "?" then "."
+			elif . == "${*}" or . == "${?}" or . == "${$}" then "\\" + .[2:3]
+			else gsub("(?<c>[.\\\\+()\\[\\]{}|^$*?])"; "\\\(.c)") end]
+		| "^" + join("") + "$";'
+
 # split_doc DOC OUT_PREFIX: split the policy document DOC, statements in
 # order, greedily into chunk documents of at most $max_policy_chars
 # characters, written to OUT_PREFIX-1.json, OUT_PREFIX-2.json, ...; print the
@@ -494,9 +547,11 @@ extra="$(admin_get "iam/usage?principal=$(urlencode "$root_arn")" | jq -r '.usag
 	grep -vxE 'iam:(CreateUser|CreateAccessKey|CreatePolicy|AttachUserPolicy|AttachRolePolicy)' || true)"
 [ -z "$extra" ] || global_fail root-calls "the account root called $(echo "$extra" | tr '\n' ' ')so a test ran as root"
 
-# (b) no principal of a group was denied; every denial belongs to a selected
-# group. The advisory text ends "for <principal> calling <action> on
-# <resource>" (internal/enforce/advisory.go deniedText).
+# (b) a group's principals were denied exactly its expected denials; every
+# denial belongs to a selected group. The advisory text ends "for
+# <principal> calling <action> on <resource>" (internal/enforce/advisory.go
+# deniedText); a group's denials go to $work/<group>/denials as
+# action<TAB>resource<TAB>text.
 declare -A owner=()
 for g in "${groups[@]}"; do
 	owner["user/$(user_of "$g")"]="$g"
@@ -507,9 +562,9 @@ done
 denial_re='for ([^ ]+) calling ([^ ]+) on (.+)$'
 while IFS= read -r text; do
 	[ -n "$text" ] || continue
-	key=""
+	key="" action="" resource=""
 	if [[ $text =~ $denial_re ]]; then
-		principal="${BASH_REMATCH[1]}"
+		principal="${BASH_REMATCH[1]}" action="${BASH_REMATCH[2]}" resource="${BASH_REMATCH[3]}"
 		case "$principal" in
 		*:user/*) key="user/${principal##*/}" ;;
 		*:role/*) key="role/${principal##*/}" ;;
@@ -520,11 +575,41 @@ while IFS= read -r text; do
 		esac
 	fi
 	if [ -n "$key" ] && [ -n "${owner[$key]-}" ]; then
-		group_fail "${owner[$key]}" b "unexpected denial: $text"
+		printf '%s\t%s\t%s\n' "$action" "$resource" "$text" >>"$work/${owner[$key]}/denials"
 	else
 		global_fail unattributed-denials "$text"
 	fi
 done < <(admin_get "journal/events?kind=advisory&limit=100000" | jq -r '.events[].detail | select(.advisory == "access-denied") | .text')
+
+# check_denials GROUP: fail GROUP's (b) on each of its denials that matches
+# no expected row of GROUP, and on each expected row of GROUP that matches
+# none of its denials (expected-denials.tsv; action exact, resource regex
+# over the whole text).
+check_denials() {
+	local g=$1 action resource text i r_group r_test r_action r_re r_source matched
+	local -A hit=()
+	if [ -e "$work/$g/denials" ]; then
+		while IFS=$'\t' read -r action resource text; do
+			matched=0
+			for i in "${!expected_rows[@]}"; do
+				IFS=$'\t' read -r r_group r_test r_action r_re r_source <<<"${expected_rows[$i]}"
+				if [ "$r_group" = "$g" ] && [ "$r_action" = "$action" ] && [[ $resource =~ ^($r_re)$ ]]; then
+					matched=1
+					hit[$i]=1
+				fi
+			done
+			[ "$matched" -eq 1 ] || group_fail "$g" b "unexpected denial: $text"
+		done <"$work/$g/denials"
+	fi
+	for i in "${!expected_rows[@]}"; do
+		IFS=$'\t' read -r r_group r_test r_action r_re r_source <<<"${expected_rows[$i]}"
+		[ "$r_group" = "$g" ] && [ -z "${hit[$i]-}" ] || continue
+		group_fail "$g" b "expected denial did not happen: $r_test, $r_action on a resource matching ^($r_re)\$ ($r_source; expected-denials.tsv)"
+	done
+}
+for g in "${groups[@]}"; do
+	check_denials "$g"
+done
 
 # (c), (d) per group, over the pairs its advise run recorded for its user.
 for g in "${groups[@]}"; do
@@ -535,14 +620,23 @@ for g in "${groups[@]}"; do
 	# (c) with no identity policy every recorded pair is denied. A bucket's
 	# objects are recorded as arn:aws:s3:::<bucket>/*, the pattern the policy
 	# grants.
+	# The response is kept in no-identity.json for (d)'s D4 note.
+	none="$dir/no-identity.json"
 	if [ "$(jq 'length' "$pairs")" -eq 0 ]; then
 		group_fail "$g" c "the user's calls recorded no pair"
+		printf '%s\n' '{"results": []}' >"$none"
 	else
 		jq -nc --arg p "$user_arn" --slurpfile r "$pairs" '{principal: $p, identityPolicies: [], requests: $r[0]}' >"$body"
-		allowed="$(evaluate "$body" | jq -c '[.results[] | select(.decision == "allowed") | {action, resource}]')"
+		evaluate "$body" >"$none"
+		allowed="$(jq -c '[.results[] | select(.decision == "allowed") | {action, resource}]' "$none")"
 		[ "$allowed" = "[]" ] || group_fail "$g" c "with no identity policy these pairs are still allowed: $allowed"
 	fi
-	# (d) each statement is needed.
+	# (d) each statement is needed: without it a recorded pair whose action it
+	# lists is denied; or (D4) it lists at least one recorded pair (its action
+	# and a Resource pattern match) and every one of them is allowed even
+	# with no identity policy, so a resource-based policy decided each
+	# (iam-evaluation.md 2.2, 2.3). The statement stays: the resource policy
+	# can change on its own.
 	statements=0
 	[ ! -e "$dir/user-policy.json" ] || statements="$(jq '.Statement | length' "$dir/user-policy.json")"
 	for ((i = 0; i < statements; i++)); do
@@ -554,8 +648,22 @@ for g in "${groups[@]}"; do
 			jq -r --argjson acts "$actions" '[.results[] | select(.decision != "allowed") | select(.action as $a | $acts | index($a))][0].message // empty')"
 		if [ -n "$message" ]; then
 			note "$g (d) without statement $i: $message"
+			continue
+		fi
+		decided="$(jq -r --argjson i "$i" --slurpfile r "$pairs" --slurpfile none "$none" "$iam_pattern_filter"'
+			def list: if type == "string" then [.] else . end;
+			.Statement[$i] as $s
+			| [$s.Resource | list | .[] | iam_regex] as $res
+			| [$r[0][] | select(.action as $a | $s.Action | list | any(. == $a))
+				| select(.resource as $x | any($res[]; . as $re | $x | test($re)))] as $listed
+			| select(($listed | length) > 0)
+			| select(all($listed[]; . as $p | any($none[0].results[];
+				.action == $p.action and .resource == $p.resource and .decision == "allowed")))
+			| [$listed[].resource] | unique | join(", ")' "$dir/user-policy.json")"
+		if [ -n "$decided" ]; then
+			note "$g (d) statement $i kept: its pairs are allowed by the resource policy of $decided (iam-evaluation.md 2.3)"
 		else
-			group_fail "$g" d "statement $i ($actions) is not needed: without it no recorded pair it names is denied"
+			group_fail "$g" d "statement $i ($actions) is not needed: without it no recorded pair it names is denied, and not every pair it lists is allowed by a resource-based policy alone"
 		fi
 	done
 done

@@ -1,0 +1,10 @@
+# Denials the suites assert, so AWS refuses them too: check (b) of
+# conformance/iam-loop/run.sh fails on an access-denied advisory of a selected
+# group that matches no row of its group, and on a row of a selected group
+# that matches no advisory. Tab-separated: the group (README.md "Groups"),
+# the test asserting the denial (informational), the IAM action (compared
+# exactly), an extended regex matched against the whole resource text, and
+# the source.
+group	test	action	resource	source
+aws-cli-sts	test_assume_role_unknown_role_is_access_denied	sts:AssumeRole	arn:aws:iam::000000000000:role/.+	iam-sts-kms.md 4.2
+go-sdk-sts	TestSTSAssumeRole/role_that_does_not_exist	sts:AssumeRole	arn:aws:iam::000000000000:role/.+	iam-sts-kms.md 4.2
