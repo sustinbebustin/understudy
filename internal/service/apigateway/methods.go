@@ -37,11 +37,18 @@ const (
 // checkAuthorizationType refuses an authorizationType understudy cannot
 // hold. CUSTOM and COGNITO_USER_POOLS need an authorizer, and none can
 // exist since authorizers are unbound (recorded text, apigateway-rest.md
-// 2.4). What AWS answers for another value is not recorded (3.3), so it
-// answers NotImplemented naming it.
+// 2.4). AWS accepts NONE in lower case and serves the method unauthorized
+// (an AWS-validated PutMethod with authorizationType "none",
+// test_apigateway_integrations.py test_integration_mock_with_path_param);
+// the value is stored as sent, since what GetMethod then answers is not
+// recorded. What AWS answers for another value is not recorded (3.3), so
+// it answers NotImplemented naming it.
 func checkAuthorizationType(op, t string) *awserr.Error {
+	if isNoAuthorization(t) {
+		return nil
+	}
 	switch t {
-	case "NONE", "AWS_IAM":
+	case "AWS_IAM":
 		return nil
 	case "CUSTOM", "COGNITO_USER_POOLS":
 		return errBadRequest("%s", textNoAuthorizer)
@@ -49,6 +56,10 @@ func checkAuthorizationType(op, t string) *awserr.Error {
 		return refuseUnimplemented(op, member{"authorizationType " + t, true})
 	}
 }
+
+// isNoAuthorization reports whether authorizationType t is NONE, in any
+// case (checkAuthorizationType).
+func isNoAuthorization(t string) bool { return strings.EqualFold(t, "NONE") }
 
 // checkRequestParameters refuses a parameter name used in two of the
 // querystring, header and path locations (recorded, apigateway-rest.md
@@ -86,28 +97,36 @@ func (a *RestAPI) checkModels(models map[string]string) *awserr.Error {
 	return nil
 }
 
-// putMethod creates or replaces a method of a resource (apigateway-rest.md
-// 3.3; replacing is inferred). The replaced method's responses and
-// integration go with it.
-func (s *Service) putMethod(_ context.Context, c *kernel.Call, in *apigatewayapi.PutMethodInput) (*apigatewayapi.Method, *awserr.Error) {
+// checkPutMethod applies PutMethod's refusals of the request itself.
+func checkPutMethod(in *apigatewayapi.PutMethodInput) *awserr.Error {
 	if !slices.Contains(httpMethods(), in.HttpMethod) {
-		return nil, errBadRequest("Invalid HttpMethod specified. Valid options are GET,PUT,POST,DELETE,PATCH,OPTIONS,HEAD,ANY")
+		return errBadRequest("Invalid HttpMethod specified. Valid options are GET,PUT,POST,DELETE,PATCH,OPTIONS,HEAD,ANY")
 	}
 	if err := checkAuthorizationType("PutMethod", in.AuthorizationType); err != nil {
-		return nil, err
+		return err
 	}
 	if deref(in.AuthorizerId, "") != "" {
 		// No authorizer can exist; the text is the recorded one for a
 		// CUSTOM method without one (inferred for this case).
-		return nil, errBadRequest("%s", textNoAuthorizer)
+		return errBadRequest("%s", textNoAuthorizer)
 	}
 	if err := checkRequestParameters(in.RequestParameters); err != nil {
-		return nil, err
+		return err
 	}
 	if deref(in.RequestValidatorId, "") != "" {
 		// No request validator can exist (recorded, apigateway-rest.md 2.4).
-		return nil, errBadRequest("%s", textNoRequestValidator)
+		return errBadRequest("%s", textNoRequestValidator)
 	}
+	return nil
+}
+
+// putMethod creates or replaces a method of a resource (apigateway-rest.md
+// 3.3; replacing is inferred). The replaced method's responses and
+// integration go with it. An unknown API or resource answers the recorded
+// "Invalid Resource identifier specified" before any refusal of the
+// request: a PutMethod with httpMethod WRONG on an unknown API or resource
+// answers it (apigateway-rest.md 2.4, test_apigateway_api.snapshot.json:L1339-L1362).
+func (s *Service) putMethod(_ context.Context, c *kernel.Call, in *apigatewayapi.PutMethodInput) (*apigatewayapi.Method, *awserr.Error) {
 	m := Method{
 		HTTPMethod: in.HttpMethod, Authorization: in.AuthorizationType, APIKeyRequired: in.ApiKeyRequired,
 		OperationName: clonePtr(in.OperationName), RequestParameters: maps.Clone(in.RequestParameters),
@@ -117,11 +136,14 @@ func (s *Service) putMethod(_ context.Context, c *kernel.Call, in *apigatewayapi
 	_, err := kernel.Write(c, s.cells, scope, func(st *State, _ clock.Instant, _ *kernel.Tx) (struct{}, *awserr.Error) {
 		a, ok := st.APIs[in.RestApiId]
 		if !ok {
-			return struct{}{}, errAPINotFound(scope, in.RestApiId)
+			return struct{}{}, errResourceNotFound()
 		}
 		r, i, ok := a.resource(in.ResourceId)
 		if !ok {
 			return struct{}{}, errResourceNotFound()
+		}
+		if err := checkPutMethod(in); err != nil {
+			return struct{}{}, err
 		}
 		if err := a.checkModels(m.RequestModels); err != nil {
 			return struct{}{}, err

@@ -283,7 +283,7 @@ func (a *RestAPI) route(owner aws.Scope, addr address, method, path string, stag
 	}
 	key := found.Method
 	m := res.Methods[key]
-	if m.Authorization != "NONE" {
+	if !isNoAuthorization(m.Authorization) {
 		// AWS evaluates execute-api:Invoke for the caller here
 		// (apigateway-rest.md 12.2); serving the request unchecked would fake
 		// that.
