@@ -36,8 +36,7 @@ func TestScheduleExpressionTimezone(t *testing.T) {
 // The future-fire check refuses a rate or cron with no fire in
 // [max(now, StartDate), EndDate) with the captured text (scheduler.md
 // 2.4, 14.3.6); present dates render as RFC 3339 UTC, UNVERIFIED (SCH-03).
-// A schedule that passes the check reaches the 501 of what is not built
-// yet, not a refusal.
+// A schedule that passes the check is accepted.
 func TestFutureFireCheck(t *testing.T) {
 	run(t, func(h *harness) {
 		now := h.now().Truncate(time.Second)
@@ -76,7 +75,7 @@ func TestFutureFireCheck(t *testing.T) {
 		passing[1].StartDate, passing[1].EndDate = new(time.Date(2099, 1, 1, 6, 0, 0, 0, time.UTC)), new(time.Date(2099, 1, 1, 7, 0, 1, 0, time.UTC))
 		passing[2].EndDate = new(now.Add(-time.Hour)) // at() ignores the dates (scheduler.md 5.1)
 		for _, in := range passing {
-			wantError(h, errOf(call(h, schedulerapi.OpCreateSchedule, in)), "NotImplemented", 501, "")
+			h.create(in)
 		}
 	})
 }

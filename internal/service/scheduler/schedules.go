@@ -2,12 +2,14 @@ package scheduler
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/api/schedulerapi"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/paging"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
@@ -28,7 +30,7 @@ func (s *Service) createSchedule(_ context.Context, c *kernel.Call, in *schedule
 		if _, exists := st.get(r); exists {
 			return struct{}{}, errScheduleExists(r.group, r.name)
 		}
-		sc := schedule{Echo: echoOf(&m), Plan: p, Run: firstRun(now), Created: now, Modified: now}
+		sc := schedule{Echo: echoOf(&m), Plan: p, Run: firstRun(p, now, s.opts.AtPastDue), Created: now, Modified: now}
 		st.put(r, sc)
 		s.arm(tx, r, sc.Run)
 		return struct{}{}, nil
@@ -37,6 +39,121 @@ func (s *Service) createSchedule(_ context.Context, c *kernel.Call, in *schedule
 		return nil, err
 	}
 	return &schedulerapi.CreateScheduleOutput{ScheduleArn: r.arn().String()}, nil
+}
+
+// updateSchedule replaces every member of a schedule; members left out
+// take their defaults (scheduler.md 4.3). An update that leaves the timing
+// as it was keeps the next invocation; any other, enabling included,
+// re-plans from the write instant (14.3.10, echo.sameTiming). ClientToken
+// is accepted and not used for idempotency (SCH-02).
+func (s *Service) updateSchedule(_ context.Context, c *kernel.Call, in *schedulerapi.UpdateScheduleInput) (*schedulerapi.UpdateScheduleOutput, *awserr.Error) {
+	r := scheduleRef{scope: c.Scope(), group: groupName(in.GroupName), name: in.Name}
+	if r.group != defaultGroup {
+		return nil, errNotYet("GroupName " + r.group + " (schedule groups other than default)")
+	}
+	m := updateMembers(in)
+	p, err := accept(r.scope, &m, s.opts.RateUnits, atWrite(c.Admitted().Wire()))
+	if err != nil {
+		return nil, err
+	}
+	_, err = kernel.Write(c, s.cells, r.scope, func(st *State, now clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
+		old, ok := st.get(r)
+		if !ok {
+			return struct{}{}, errScheduleMissing(r.group, r.name)
+		}
+		sc := schedule{Echo: echoOf(&m), Plan: p, Run: old.Run, Created: old.Created, Modified: now}
+		if !old.Echo.sameTiming(&sc.Echo) {
+			sc.Run = firstRun(p, now, s.opts.AtPastDue)
+		}
+		st.put(r, sc)
+		if !s.arm(tx, r, sc.Run) {
+			tx.Disarm(s.fire, r.arn().String())
+		}
+		return struct{}{}, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &schedulerapi.UpdateScheduleOutput{ScheduleArn: r.arn().String()}, nil
+}
+
+// listSchedulesPage is ListSchedules' page without MaxResults.
+// UNVERIFIED (SCH-01), scheduler.md 4.5: AWS's default page is unrecorded.
+const listSchedulesPage = 100
+
+// listingSchedules names ListSchedules' markers.
+const listingSchedules paging.Listing = "scheduler.ListSchedules"
+
+// listSchedules lists the scope's schedules, filtered by group, name
+// prefix and State, a page at a time (scheduler.md 4.5). Every group's
+// schedules without a group filter; a group the scope does not hold is
+// ResourceNotFoundException (inferred, 4.5). Schedules come in group, then
+// name order. UNVERIFIED (SCH-01): order and token format are unrecorded.
+func (s *Service) listSchedules(_ context.Context, c *kernel.Call, in *schedulerapi.ListSchedulesInput) (*schedulerapi.ListSchedulesOutput, *awserr.Error) {
+	scope := c.Scope()
+	if in.GroupName != nil && *in.GroupName != defaultGroup {
+		return nil, errGroupMissing(*in.GroupName)
+	}
+	var items []schedulerapi.ScheduleSummary
+	if cell, ok := s.cells.Lookup(scope); ok {
+		items = store.Read(cell, func(st *State) []schedulerapi.ScheduleSummary {
+			var out []schedulerapi.ScheduleSummary
+			for group, g := range st.Schedules {
+				for name := range g {
+					sc := g[name]
+					if listed(in, group, name, &sc) {
+						out = append(out, summary(scheduleRef{scope: scope, group: group, name: name}, &sc))
+					}
+				}
+			}
+			return out
+		})
+	}
+	n := listSchedulesPage
+	if in.MaxResults != nil {
+		n = int(*in.MaxResults)
+	}
+	p, perr := paging.SortedKeyset(listingSchedules, items, summaryKey, n, in.NextToken)
+	if perr != nil {
+		return nil, errBadNextToken()
+	}
+	out := &schedulerapi.ListSchedulesOutput{Schedules: make([]schedulerapi.ScheduleSummary, 0, len(p.Items)), NextToken: p.Next}
+	out.Schedules = append(out.Schedules, p.Items...)
+	return out, nil
+}
+
+// listed reports whether ListSchedules' filters keep the schedule.
+func listed(in *schedulerapi.ListSchedulesInput, group, name string, sc *schedule) bool {
+	return (in.GroupName == nil || *in.GroupName == group) &&
+		(in.NamePrefix == nil || strings.HasPrefix(name, *in.NamePrefix)) &&
+		(in.State == nil || *in.State == sc.Echo.state())
+}
+
+// summaryKey orders summaries by group, then name: the separator, a
+// space, sorts before every character a group or name may hold
+// ([0-9a-zA-Z-_.]+, model).
+func summaryKey(s schedulerapi.ScheduleSummary) string {
+	var group, name string
+	if s.GroupName != nil {
+		group = *s.GroupName
+	}
+	if s.Name != nil {
+		name = *s.Name
+	}
+	return group + " " + name
+}
+
+// summary is a schedule's ListSchedules entry: its ARN, names, State,
+// dates and target ARN only (scheduler.md 4.5).
+func summary(r scheduleRef, sc *schedule) schedulerapi.ScheduleSummary {
+	arn := r.arn().String()
+	state := sc.Echo.state()
+	created, modified := wholeSeconds(sc.Created), wholeSeconds(sc.Modified)
+	return schedulerapi.ScheduleSummary{
+		Arn: &arn, Name: &r.name, GroupName: &r.group, State: &state,
+		CreationDate: &created, LastModificationDate: &modified,
+		Target: &schedulerapi.TargetSummary{Arn: sc.Echo.Target.Arn},
+	}
 }
 
 // getSchedule reads a schedule back as accepted, with the defaults AWS
@@ -86,11 +203,14 @@ func (s *Service) read(r scheduleRef) (schedule, bool) {
 	return got.sc, got.ok
 }
 
-// arm arms the fire timer of a schedule whose run has a next invocation.
-func (s *Service) arm(tx *kernel.Tx, r scheduleRef, next run) {
-	if n, ok := next.(scheduled); ok {
+// arm arms the fire timer of a schedule whose run has a next invocation,
+// and reports whether it has one.
+func (s *Service) arm(tx *kernel.Tx, r scheduleRef, next run) bool {
+	n, ok := next.(scheduled)
+	if ok {
 		tx.Arm(s.fire, r.arn().String(), n.Due)
 	}
+	return ok
 }
 
 // readShape is GetSchedule's answer: the members as accepted, with
@@ -105,10 +225,7 @@ func readShape(r scheduleRef, sc *schedule) *schedulerapi.GetScheduleOutput {
 	if e.Action != nil {
 		action = *e.Action
 	}
-	state := schedulerapi.ScheduleStateEnabled
-	if e.State != nil {
-		state = *e.State
-	}
+	state := e.state()
 	age, retries := e.Target.retryPolicy()
 	target := &schedulerapi.Target{
 		Arn: e.Target.Arn, RoleArn: e.Target.RoleArn, Input: e.Target.Input,
@@ -122,6 +239,7 @@ func readShape(r scheduleRef, sc *schedule) *schedulerapi.GetScheduleOutput {
 	return &schedulerapi.GetScheduleOutput{
 		Arn: &arn, GroupName: &r.group, Name: &r.name,
 		ScheduleExpression: &e.Expression, ScheduleExpressionTimezone: e.Timezone,
+		StartDate: secondOf(e.StartDate), EndDate: secondOf(e.EndDate),
 		Description: e.Description, State: &state, KmsKeyArn: e.KmsKeyArn,
 		CreationDate: &created, LastModificationDate: &modified,
 		Target: target, FlexibleTimeWindow: &schedulerapi.FlexibleTimeWindow{Mode: e.Window},
@@ -131,3 +249,14 @@ func readShape(r scheduleRef, sc *schedule) *schedulerapi.GetScheduleOutput {
 
 // wholeSeconds is at on the wire, cut to the second.
 func wholeSeconds(at clock.Instant) time.Time { return at.Wire().Truncate(time.Second) }
+
+// secondOf is a sent StartDate or EndDate as read back, to the second
+// (tf-acc schedule_test.go:L365-L419; scheduler.md 5.5); nil when it was
+// not sent.
+func secondOf(d *time.Time) *time.Time {
+	if d == nil {
+		return nil
+	}
+	t := d.UTC().Truncate(time.Second)
+	return &t
+}

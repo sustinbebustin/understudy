@@ -109,7 +109,9 @@ func (s *State) load() error {
 // codec is the snapshot codec of State; a loaded section is checked by
 // rebuilding its plans (State.load).
 func codec() store.Codec {
-	runs, err := jsonx.NewUnion("scheduler.run", jsonx.Variant[run, scheduled]("scheduled"))
+	runs, err := jsonx.NewUnion("scheduler.run",
+		jsonx.Variant[run, scheduled]("scheduled"), jsonx.Variant[run, disabled]("disabled"),
+		jsonx.Variant[run, completed]("completed"), jsonx.Variant[run, ended]("ended"))
 	if err != nil {
 		return store.Codec{
 			Marshal:   func(any) ([]byte, error) { return nil, err },

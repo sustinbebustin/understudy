@@ -34,11 +34,27 @@ func createMembers(in *schedulerapi.CreateScheduleInput) members {
 	}
 }
 
+func updateMembers(in *schedulerapi.UpdateScheduleInput) members {
+	return members{
+		expression: in.ScheduleExpression, start: in.StartDate, end: in.EndDate, description: in.Description,
+		timezone: in.ScheduleExpressionTimezone, state: in.State, kmsKeyArn: in.KmsKeyArn,
+		target: in.Target, window: in.FlexibleTimeWindow, action: in.ActionAfterCompletion,
+	}
+}
+
 // plan is what a schedule does, parsed once from its members at the
 // boundary: when it fires and what it invokes (spec "Contract").
 type plan struct {
 	expression expression
-	target     target
+	// loc is the zone an at() or cron() is read in, UTC when none was
+	// sent; a rate ignores it (scheduler.md 5.4, 14.3.4).
+	loc *time.Location
+	// start and end bound a rate or cron (scheduler.md 5.5); an at()
+	// ignores them (5.1).
+	start, end *time.Time
+	// state is State with its default, ENABLED, filled (scheduler.md 4.6).
+	state  schedulerapi.ScheduleState
+	target target
 }
 
 // expression is a parsed ScheduleExpression.
@@ -50,12 +66,11 @@ type expression interface{ isExpression() }
 type rateExpr struct{ every time.Duration }
 
 // atExpr fires once at its civil time in the schedule's zone
-// (scheduler.md 5.1). Parsed and validated; its plan is not built yet.
+// (scheduler.md 5.1).
 type atExpr struct{ at schedexpr.At }
 
 // cronExpr fires at every matching civil minute in the schedule's zone
-// (scheduler.md 5.3, 5.4). Parsed and validated; its plan is not built
-// yet.
+// (scheduler.md 5.3, 5.4).
 type cronExpr struct{ cron schedexpr.Cron }
 
 func (rateExpr) isExpression() {}
@@ -76,21 +91,38 @@ type sqsTarget struct {
 
 func (sqsTarget) isTarget() {}
 
-// run is where a schedule is in its plan; scheduled is the only one built
-// yet: the next invocation's scheduled instant and the instant it is due,
-// which the fire timer is armed at (scheduler.md 14.3.7).
+// run is where a schedule is in its plan: a next invocation, disabled,
+// completed (a fired at()) or ended (no invocation before EndDate, or a
+// cron that never fires again) (scheduler.md 14.2.4).
 //
 //sumtype:decl
 type run interface{ isRun() }
 
 // scheduled is a schedule with a next invocation: At is its scheduled
-// instant, Due the instant it is made, At plus the flexible-window offset.
+// instant, Due the instant it is made: At plus the flexible-window offset,
+// or the write instant for a past-due at() under scheduler.at.past-due
+// fire-at-once.
 type scheduled struct {
 	At  clock.Instant `json:"at"`
 	Due clock.Instant `json:"due"`
 }
 
+// disabled is a schedule whose State is DISABLED: it does not invoke
+// (scheduler.md 4.6).
+type disabled struct{}
+
+// completed is an at() schedule that has invoked its target, or whose time
+// had passed under scheduler.at.past-due never (scheduler.md 5.1, 14.2.4).
+type completed struct{}
+
+// ended is a rate or cron schedule with no invocation left before its
+// EndDate, or a cron that never matches again (scheduler.md 5.5).
+type ended struct{}
+
 func (scheduled) isRun() {}
+func (disabled) isRun()  {}
+func (completed) isRun() {}
+func (ended) isRun()     {}
 
 // dateCheck is the dates step of accept: at a write, the EndDate order and
 // the future-fire check against the write instant; at a snapshot load,
@@ -135,17 +167,14 @@ func accept(scope aws.Scope, m *members, units schedexpr.RateUnits, dates dateCh
 	switch {
 	case m.window.Mode != schedulerapi.FlexibleTimeWindowModeOff:
 		return plan{}, errNotYet("FlexibleTimeWindow mode " + string(m.window.Mode))
-	case m.start != nil || m.end != nil:
-		return plan{}, errNotYet("StartDate and EndDate")
-	case m.state != nil && *m.state != schedulerapi.ScheduleStateEnabled:
-		return plan{}, errNotYet("State " + string(*m.state))
+	case m.action != nil && *m.action == schedulerapi.ActionAfterCompletionDelete:
+		return plan{}, errNotYet("ActionAfterCompletion DELETE")
 	}
-	switch expr.(type) {
-	case atExpr, cronExpr:
-		return plan{}, errNotYet("ScheduleExpression " + m.expression + " (at() and cron())")
-	case rateExpr:
+	state := schedulerapi.ScheduleStateEnabled
+	if m.state != nil {
+		state = *m.state
 	}
-	return plan{expression: expr, target: tgt}, nil
+	return plan{expression: expr, loc: loc, start: m.start, end: m.end, state: state, target: tgt}, nil
 }
 
 // parseExpression parses a ScheduleExpression, refusing it with
@@ -257,21 +286,87 @@ func parseTarget(scope aws.Scope, t *schedulerapi.Target) (target, *awserr.Error
 	return tgt, nil
 }
 
-// firstRun is a new plan's first invocation: a rate schedule without
-// StartDate, the only kind built yet, first fires at the write instant now.
-// UNVERIFIED (SCH-09), scheduler.md 5.2, 14.3.4: whether AWS fires at the
-// write instant or one interval later is unrecorded.
-func firstRun(now clock.Instant) run { return scheduled{At: now, Due: now} }
+// firstRun is the run of a plan written at now: by a create, by an
+// update that changes its timing, or by enabling it (scheduler.md 14.3.10).
+//
+//   - DISABLED: no invocation (4.6).
+//   - at(): its civil time in the zone; one already past is due at now
+//     under scheduler.at.past-due fire-at-once and completed under never
+//     (5.1, 4.6). The invocation honours the expression's seconds.
+//     UNVERIFIED (SCH-09), scheduler.md 5.1.
+//   - rate(): StartDate when it is in the future, else the write instant
+//     when no StartDate was sent, else StartDate's first interval at or
+//     after now, in its phase. UNVERIFIED (SCH-09), scheduler.md 5.2, 5.5,
+//     14.3.4: the write-instant fire and the phase of a past StartDate are
+//     unrecorded.
+//   - cron(): the first matching civil minute in the zone at or after
+//     max(now, StartDate) (5.3, 5.4).
+//
+// A rate or cron with no invocation before EndDate is ended (5.5).
+func firstRun(p plan, now clock.Instant, pastDue AtPastDue) run {
+	if p.state == schedulerapi.ScheduleStateDisabled {
+		return disabled{}
+	}
+	if e, ok := p.expression.(atExpr); ok {
+		at := clock.FromWire(e.at.In(p.loc))
+		switch {
+		case !at.Before(now):
+			return scheduled{At: at, Due: at}
+		case pastDue == PastDueNever:
+			return completed{}
+		}
+		return scheduled{At: at, Due: now}
+	}
+	from := now.Wire()
+	if p.start != nil && p.start.After(from) {
+		from = *p.start
+	}
+	return p.bounded(firstFireFrom(p.expression, p.start, from, p.loc))
+}
+
+// bounded is the run of an invocation scheduled at t, ended when there is
+// none (ok false) or t is at or after EndDate (scheduler.md 5.5).
+func (p *plan) bounded(t time.Time, ok bool) run {
+	if !ok || (p.end != nil && !t.Before(*p.end)) {
+		return ended{}
+	}
+	at := clock.FromWire(t)
+	return scheduled{At: at, Due: at}
+}
 
 // nextRun is the run after the invocation scheduled at prev, counted from
-// its scheduled instant, not its due one (scheduler.md 14.3.7).
+// its scheduled instant, not its due one (scheduler.md 14.3.7): an at()
+// is completed, a rate steps one interval, a cron takes its next match.
 func nextRun(p plan, prev scheduled) run {
-	e, ok := p.expression.(rateExpr)
-	if !ok {
-		return prev
+	switch e := p.expression.(type) {
+	case atExpr:
+		return completed{}
+	case rateExpr:
+		return p.bounded(prev.At.Wire().Add(e.every), true)
+	case cronExpr:
+		return p.bounded(schedexpr.NextIn(e.cron, prev.At.Wire(), p.loc))
 	}
-	at := prev.At.Add(e.every)
-	return scheduled{At: at, Due: at}
+	return ended{}
+}
+
+// catchUp is the run of a plan whose invocation at, scheduled before now,
+// came due before now and is skipped (scheduler.md 14.3.8): a rate's first interval
+// at or after now in its phase, a cron's first match at or after now, and
+// an at() completed, since only an explicit advance delivers a missed fire.
+func catchUp(p plan, at scheduled, now clock.Instant) run {
+	switch e := p.expression.(type) {
+	case atExpr:
+		return completed{}
+	case rateExpr:
+		next := now
+		if late := now.Sub(at.At) % e.every; late != 0 {
+			next = now.Add(e.every - late)
+		}
+		return p.bounded(next.Wire(), true)
+	case cronExpr:
+		return p.bounded(schedexpr.NextIn(e.cron, now.Wire().Add(-time.Nanosecond), p.loc))
+	}
+	return ended{}
 }
 
 // echo is a schedule's members as accepted, which GetSchedule reads back
@@ -279,6 +374,8 @@ func nextRun(p plan, prev scheduled) run {
 type echo struct {
 	Expression  string                              `json:"expression"`
 	Timezone    *string                             `json:"timezone,omitempty"`
+	StartDate   *time.Time                          `json:"startDate,omitempty"`
+	EndDate     *time.Time                          `json:"endDate,omitempty"`
 	State       *schedulerapi.ScheduleState         `json:"state,omitempty"`
 	Description *string                             `json:"description,omitempty"`
 	KmsKeyArn   *string                             `json:"kmsKeyArn,omitempty"`
@@ -302,7 +399,7 @@ type targetEcho struct {
 // 4.2.
 func echoOf(m *members) echo {
 	e := echo{
-		Expression: m.expression, Timezone: m.timezone, State: m.state, Description: m.description,
+		Expression: m.expression, Timezone: m.timezone, StartDate: m.start, EndDate: m.end, State: m.state, Description: m.description,
 		KmsKeyArn: m.kmsKeyArn, Window: m.window.Mode, Action: m.action,
 		Target: targetEcho{Arn: m.target.Arn, RoleArn: m.target.RoleArn, Input: m.target.Input},
 	}
@@ -319,7 +416,7 @@ func echoOf(m *members) echo {
 // its write was.
 func (e *echo) members() members {
 	m := members{
-		expression: e.Expression, timezone: e.Timezone, state: e.State, description: e.Description,
+		expression: e.Expression, timezone: e.Timezone, start: e.StartDate, end: e.EndDate, state: e.State, description: e.Description,
 		kmsKeyArn: e.KmsKeyArn, window: schedulerapi.FlexibleTimeWindow{Mode: e.Window}, action: e.Action,
 		target: schedulerapi.Target{Arn: e.Target.Arn, RoleArn: e.Target.RoleArn, Input: e.Target.Input},
 	}
@@ -330,6 +427,34 @@ func (e *echo) members() members {
 		m.target.SqsParameters = &schedulerapi.SqsParameters{MessageGroupId: e.Target.MessageGroupID}
 	}
 	return m
+}
+
+// sameTiming reports whether o leaves e's expression, time zone, dates,
+// window and State (ENABLED when not sent) as they were: an update that
+// does keeps the schedule's next invocation, any other restarts its plan
+// at the write instant. UNVERIFIED (SCH-09), scheduler.md 4.3, 14.3.10:
+// whether AWS restarts a rate's phase on update is unrecorded; this is
+// the events rule's choice (internal/service/events/rules.go).
+func (e *echo) sameTiming(o *echo) bool {
+	return e.Expression == o.Expression && equalPtr(e.Timezone, o.Timezone) &&
+		equalTime(e.StartDate, o.StartDate) && equalTime(e.EndDate, o.EndDate) &&
+		e.Window == o.Window && e.state() == o.state()
+}
+
+// state is State with its default, ENABLED, filled (scheduler.md 4.6).
+func (e *echo) state() schedulerapi.ScheduleState {
+	if e.State == nil {
+		return schedulerapi.ScheduleStateEnabled
+	}
+	return *e.State
+}
+
+func equalPtr[T comparable](a, b *T) bool {
+	return (a == nil) == (b == nil) && (a == nil || *a == *b)
+}
+
+func equalTime(a, b *time.Time) bool {
+	return (a == nil) == (b == nil) && (a == nil || a.Equal(*b))
 }
 
 // The retry policy AWS fills when RetryPolicy is not sent (tf-acc

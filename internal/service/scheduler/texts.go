@@ -73,6 +73,19 @@ func errScheduleExists(group, name string) *awserr.Error {
 	return schedulerapi.ErrConflictException("Schedule " + group + "/" + name + " already exists.")
 }
 
+// errGroupMissing answers a schedule group the scope does not hold:
+// "Schedule group <name> does not exist." (aws-doc
+// managing-schedule-group-delete; scheduler.md 2.4, 14.9.2).
+func errGroupMissing(name string) *awserr.Error {
+	return schedulerapi.ErrResourceNotFoundException("Schedule group " + name + " does not exist.")
+}
+
+// errBadNextToken answers a NextToken no ListSchedules page issued.
+// UNVERIFIED (SCH-01), scheduler.md 4.5: the code and text are inferred.
+func errBadNextToken() *awserr.Error {
+	return schedulerapi.ErrValidationException("Invalid NextToken: it was not issued by a ListSchedules page of this listing; start the listing again without NextToken.")
+}
+
 // errNotRole answers a Target.RoleArn that names no IAM role.
 // UNVERIFIED (SCH-04), scheduler.md 4.7: the text is inferred.
 func errNotRole(roleArn string) *awserr.Error {
@@ -86,6 +99,6 @@ const issuesURL = "https://github.com/sustinbebustin/understudy/issues"
 // sent, that nothing was stored, and what is served instead.
 func errNotYet(what string) *awserr.Error {
 	return schedulerapi.ErrNotImplemented(what + " is not implemented in understudy yet; nothing was stored. " +
-		"Served today: rate() schedules in the default group with an SQS queue target in the schedule's Region, " +
-		"window OFF, no dates, State ENABLED and any time zone (a rate ignores it). Ask for it at " + issuesURL + ".")
+		"Served today: rate(), at() and cron() schedules in the default group with an SQS queue target in the schedule's Region " +
+		"with window OFF and ActionAfterCompletion NONE. Ask for it at " + issuesURL + ".")
 }

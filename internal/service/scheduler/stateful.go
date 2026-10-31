@@ -45,8 +45,8 @@ func (s *Service) Reset(rs kernel.ResetScope) {
 // before a loaded snapshot's time. It is skipped, journaled as one
 // schedule-fires-skipped Advisory per schedule, rather than delivered in a
 // burst: the plan moves to its first invocation at or after now, in the
-// schedule's own phase (scheduler.md 14.3.8; as
-// internal/service/events/stateful.go).
+// schedule's own phase, and a past-due at() is completed (scheduler.md
+// 14.3.8; as internal/service/events/stateful.go).
 func (s *Service) Rearm(now clock.Instant) {
 	for _, scope := range s.cells.Keys(store.ScopeKeys()) {
 		cell, ok := s.cells.Lookup(scope)
@@ -79,7 +79,7 @@ func (s *Service) rearmScope(st *State, scope aws.Scope, now clock.Instant) ([]j
 			if !ok {
 				continue
 			}
-			next := at
+			var next run = at
 			if at.Due.Before(now) {
 				next = catchUp(sc.Plan, at, now)
 				sc.Run = next
@@ -87,27 +87,30 @@ func (s *Service) rearmScope(st *State, scope aws.Scope, now clock.Instant) ([]j
 				skipped = append(skipped, journal.Advisory{
 					Kind: journal.AdvisoryScheduleFiresSkipped, Resource: r.arn(),
 					Text: "skipped the invocations due from " + at.Due.String() + " until " + now.String() +
-						", which came due while understudy was stopped or before the loaded state's time; the next is due " + next.Due.String(),
+						", which came due while understudy was stopped or before the loaded state's time; " + nextText(next),
 				})
 			}
-			sched.Arm(s.fire.Key(r.arn().String()), next.Due)
+			if n, ok := next.(scheduled); ok {
+				sched.Arm(s.fire.Key(r.arn().String()), n.Due)
+			}
 		}
 	}
 	return skipped, len(skipped) > 0
 }
 
-// catchUp is p's first invocation at or after now, stepped from at so a
-// rate keeps its phase.
-func catchUp(p plan, at scheduled, now clock.Instant) scheduled {
-	e, ok := p.expression.(rateExpr)
-	if !ok {
-		return scheduled{At: now, Due: now}
+// nextText says what a skipped schedule does next.
+func nextText(next run) string {
+	switch n := next.(type) {
+	case scheduled:
+		return "the next is due " + n.Due.String()
+	case completed:
+		return "it was a one-time at() schedule and is completed"
+	case ended:
+		return "it has no invocation left before its EndDate"
+	case disabled:
+		return "it is disabled"
 	}
-	next := now
-	if late := now.Sub(at.At) % e.every; late != 0 {
-		next = now.Add(e.every - late)
-	}
-	return scheduled{At: next, Due: next}
+	return ""
 }
 
 // Resources lists the schedules scope holds, by group and name, with their

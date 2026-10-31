@@ -60,22 +60,14 @@ func TestCreateScheduleConflict(t *testing.T) {
 	})
 }
 
-// What the tracer bullet does not build answers 501 and stores nothing
+// What tickets 2 to 4 do not build answers 501 and stores nothing
 // (CLAUDE.md invariant 3; spec "Tracer bullet").
 func TestUnbuiltMembersAnswerNotImplemented(t *testing.T) {
 	cases := map[string]func(h *harness, in *schedulerapi.CreateScheduleInput){
-		"at": func(_ *harness, in *schedulerapi.CreateScheduleInput) {
-			in.ScheduleExpression = "at(2099-01-01T00:00:00)"
+		"group": func(_ *harness, in *schedulerapi.CreateScheduleInput) { in.GroupName = new("g") },
+		"delete after completion": func(_ *harness, in *schedulerapi.CreateScheduleInput) {
+			in.ActionAfterCompletion = new(schedulerapi.ActionAfterCompletionDelete)
 		},
-		"cron": func(_ *harness, in *schedulerapi.CreateScheduleInput) { in.ScheduleExpression = "cron(0 8 * * ? *)" },
-		"cron in a zone": func(_ *harness, in *schedulerapi.CreateScheduleInput) {
-			in.ScheduleExpression, in.ScheduleExpressionTimezone = "cron(0 8 * * ? *)", new("Europe/Paris")
-		},
-		"start date": func(h *harness, in *schedulerapi.CreateScheduleInput) { in.StartDate = new(h.now().Add(time.Hour)) },
-		"disabled": func(_ *harness, in *schedulerapi.CreateScheduleInput) {
-			in.State = new(schedulerapi.ScheduleStateDisabled)
-		},
-		"group":  func(_ *harness, in *schedulerapi.CreateScheduleInput) { in.GroupName = new("g") },
 		"lambda": func(h *harness, in *schedulerapi.CreateScheduleInput) { in.Target.Arn = h.functionArn("f") },
 		"other region": func(_ *harness, in *schedulerapi.CreateScheduleInput) {
 			in.Target.Arn = "arn:aws:sqs:eu-west-1:000000000000:q"
