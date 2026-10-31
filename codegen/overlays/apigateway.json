@@ -16,7 +16,7 @@
           },
           {
             "label": "inferred",
-            "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: no source names the API Gateway REST denial and its model declares no AccessDeniedException, so the generic com.amazon.coral.service#AccessDeniedException, 403, answers; UNVERIFIED until recording IAM-ENF-33",
+            "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: no source names the API Gateway REST denial and its model declares no AccessDeniedException, so the generic com.amazon.coral.service#AccessDeniedException, 403, answers; UNVERIFIED until recording APIGW1-22 (docs/research/apigateway-rest.md#1323-apigw1-22-control-plane-iam-denials-and-resources, whose step 01 repeats IAM-ENF-33) or IAM-ENF-33, either of which settles status, error type and text",
             "covers": ["dev.understudy#denialError"]
           },
           {
