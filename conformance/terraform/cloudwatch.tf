@@ -34,6 +34,21 @@ resource "aws_cloudwatch_metric_alarm" "queue_backlog" {
   )
 }
 
+# The topic lets the alarm publish (cloudwatch-alarms.md 5.3).
+resource "aws_sns_topic_policy" "cloudwatch_alerts" {
+  arn = aws_sns_topic.cloudwatch_alerts.arn
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Service = "cloudwatch.amazonaws.com" }
+      Action    = "SNS:Publish"
+      Resource  = aws_sns_topic.cloudwatch_alerts.arn
+      Condition = { ArnLike = { "aws:SourceArn" = aws_cloudwatch_metric_alarm.queue_backlog.arn } }
+    }]
+  })
+}
+
 output "alarm_arn" {
   value = aws_cloudwatch_metric_alarm.queue_backlog.arn
 }

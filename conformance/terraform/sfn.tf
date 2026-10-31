@@ -92,6 +92,8 @@ resource "aws_sfn_state_machine" "pass" {
     { Purpose = "tracer" },
     local.updated ? { Stage = "updated" } : {},
   )
+
+  depends_on = [aws_iam_role_policy.states_logs]
 }
 
 data "aws_iam_policy_document" "states_lambda_assume" {
@@ -141,6 +143,25 @@ resource "aws_iam_role_policy" "states_invoke" {
   })
 }
 
+# The execution role may deliver the machines' logs, which AWS checks when a
+# machine with a logging configuration is created or updated
+# (stepfunctions-api.md 5.1, 9.5).
+resource "aws_iam_role_policy" "states_logs" {
+  name = "deliver-logs"
+  role = aws_iam_role.states.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = [
+        "logs:CreateLogDelivery", "logs:GetLogDelivery", "logs:UpdateLogDelivery", "logs:DeleteLogDelivery",
+        "logs:ListLogDeliveries", "logs:PutResourcePolicy", "logs:DescribeResourcePolicies", "logs:DescribeLogGroups",
+      ]
+      Resource = "*"
+    }]
+  })
+}
+
 resource "aws_cloudwatch_log_group" "states_task" {
   name = "/aws/vendedlogs/states/${var.name_prefix}-task"
 }
@@ -177,7 +198,7 @@ resource "aws_sfn_state_machine" "task" {
     local.updated ? { Stage = "updated" } : {},
   )
 
-  depends_on = [aws_iam_role_policy.states_invoke]
+  depends_on = [aws_iam_role_policy.states_invoke, aws_iam_role_policy.states_logs]
 }
 
 output "state_machine_arn" {
