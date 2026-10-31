@@ -694,6 +694,9 @@ func TestSNSSubscriptionRedrive(t *testing.T) {
 	client := sns.NewFromConfig(awsCfg)
 	topicArn := createTopic(t, name(t, "redrive"), nil)
 	dlqURL := createQueue(t, name(t, "redrive-dlq"), nil)
+	// SNS sends to a subscription's dead-letter queue only when the queue's
+	// policy allows sns.amazonaws.com (sns.md 7.4; iam-enforcement-surfaces.md 7.1, 8.2).
+	allowQueueDelivery(t, dlqURL, "sns.amazonaws.com", topicArn)
 	targetURL, subArn := subscribeQueue(t, topicArn, name(t, "redrive-target"), nil, map[string]string{"RawMessageDelivery": "true"})
 	_, err := client.SetSubscriptionAttributes(ctx, &sns.SetSubscriptionAttributesInput{
 		SubscriptionArn: aws.String(subArn), AttributeName: aws.String("RedrivePolicy"),

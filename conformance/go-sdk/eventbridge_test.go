@@ -613,6 +613,9 @@ func TestEventBridgeCustomBus(t *testing.T) {
 		}
 		putRule(t, &eventbridge.PutRuleInput{Name: aws.String(rule), EventPattern: aws.String(`{"source":["` + source + `"]}`)})
 		putTargets(t, rule, types.Target{Id: aws.String("q"), Arn: aws.String(queueArn(t, onDefault))})
+		// Each queue's policy lets its rule deliver (iam-enforcement-surfaces.md 8.1, 8.4).
+		allowQueueDelivery(t, onBus, "events.amazonaws.com", ruleArn)
+		allowQueueDelivery(t, onDefault, "events.amazonaws.com", "arn:aws:events:"+region()+":"+acct+":rule/"+rule)
 		dr, err := client.DescribeRule(ctx, &eventbridge.DescribeRuleInput{Name: aws.String(rule), EventBusName: aws.String(bus)})
 		ok(t, err, "DescribeRule on the bus")
 		if aws.ToString(dr.Arn) != ruleArn || aws.ToString(dr.EventBusName) != bus || aws.ToString(dr.CreatedBy) != acct {
