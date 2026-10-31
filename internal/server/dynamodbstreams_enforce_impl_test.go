@@ -132,9 +132,11 @@ func TestIAMPolicyListsTheStreamsActions(t *testing.T) {
 	for r := range granted {
 		slices.Sort(granted[r])
 	}
+	// The stream label is minted, so the policy names the table's streams
+	// (ARCHITECTURE.md 17).
 	want := map[string][]string{
-		"*":          {"dynamodb:ListStreams"},
-		ordersStream: {"dynamodb:DescribeStream", "dynamodb:GetRecords", "dynamodb:GetShardIterator"},
+		"*": {"dynamodb:ListStreams"},
+		"arn:aws:dynamodb:us-east-1:000000000000:table/Orders/stream/*": {"dynamodb:DescribeStream", "dynamodb:GetRecords", "dynamodb:GetShardIterator"},
 	}
 	for r, actions := range want {
 		if !slices.Equal(granted[r], actions) {

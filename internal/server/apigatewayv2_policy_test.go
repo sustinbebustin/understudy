@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sustinbebustin/understudy/internal/access"
 	"github.com/sustinbebustin/understudy/internal/auth"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/policydoc"
@@ -125,7 +126,7 @@ func TestIAMPolicyPairsAPIGatewayCallsWithThe81Resources(t *testing.T) {
 		if strings.Contains(res, "<") {
 			t.Fatalf("%s: the 8.1 resource %s has a placeholder the call does not fill (%s)", op, row.path, res)
 		}
-		want[[2]string{"apigateway:" + row.method, normalizedGrant(t, policydoc.Literal(prefix+res), tagsRes)}] = true
+		want[[2]string{"apigateway:" + row.method, normalizedGrant(t, rendered(t, prefix+res), tagsRes)}] = true
 		got, out := apigatewayCall(t, method, endpoint+path, body)
 		if got != status {
 			t.Fatalf("%s %s %s = %d %v, want %d", op, method, path, got, out, status)
@@ -202,6 +203,21 @@ func TestIAMPolicyPairsAPIGatewayCallsWithThe81Resources(t *testing.T) {
 			t.Errorf("the policy grants %s on %s, which no call needs by the 8.1 table\npolicy: %s", pair[0], pair[1], policy.Document)
 		}
 	}
+}
+
+// rendered is the policy Resource of the resource arn: the minted API,
+// route, integration and deployment ids as their wildcards
+// (access.MintedPattern, ARCHITECTURE.md 17), else the exact ARN.
+func rendered(t *testing.T, arn string) string {
+	t.Helper()
+	a, err := aws.ParseARN(arn)
+	if err != nil {
+		t.Fatalf("resource %s: %v", arn, err)
+	}
+	if pattern, minted := access.MintedPattern(access.Direct{}, a); minted {
+		return pattern
+	}
+	return policydoc.Literal(arn)
 }
 
 // normalizedGrant is a policy Resource in a form two spellings of one
