@@ -31,7 +31,7 @@ Server-runnable cases of the Smithy protocol compliance corpus, run against the 
 | awsjson1_1 | request | `MachinelearningPredictEndpoint` | A customization of Amazon Machine Learning (com.amazonaws.machinelearning), which understudy does not generate: a client sends Predict to the host the request names. |
 | restjson1 | request | `AcceptHeaderStarRequestTest` | Its operation, aws.protocoltests.misc#AcceptHeaderStarService, belongs to no service of the corpus, so no synthetic service carries it. |
 | restjson1 | request | `AcceptHeaderStarStarRequestTest` | Its operation, aws.protocoltests.misc#AcceptHeaderStarService, belongs to no service of the corpus, so no synthetic service carries it. |
-| restjson1 | request | `ApiGatewayAccept` | A customization of API Gateway (com.amazonaws.apigateway): the Accept: application/json header clients send on every request. Served, it asserts only that GET /restapis with that header parses to an empty GetRestApis input; the corpus's one-operation API Gateway slice is not generated as a synthetic service, since the real service is (internal/api/apigatewayapi) and aws-sdk-go-v2's apigateway client, which adds that header, calls its GetRestApis in conformance/go-sdk/apigateway_test.go. |
+| restjson1 | request | `ApiGatewayAccept` | A customization of API Gateway (com.amazonaws.apigateway), which understudy does not generate: the Accept header API Gateway requires on every request. |
 | restjson1 | request | `GlacierVersionHeader` | A customization of Glacier (com.amazonaws.glacier), which understudy does not generate: the X-Amz-Glacier-Version header Glacier requires on every request. |
 
 ### Skipped cases
@@ -117,7 +117,6 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 
 | Service | Operations | Full | Stored only | Partial | Unbound | Internal | Raw |
 |---|---|---|---|---|---|---|---|
-| apigateway | 124 | 0 | 0 | 39 | 85 | 0 | 1 |
 | apigatewayv2 | 103 | 0 | 2 | 29 | 72 | 0 | 1 |
 | cloudwatch | 55 | 4 | 0 | 11 | 40 | 0 | 0 |
 | dynamodb | 58 | 4 | 2 | 20 | 32 | 0 | 0 |
@@ -129,6 +128,7 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | lambda | 88 | 30 | 2 | 18 | 38 | 0 | 2 |
 | logs | 118 | 9 | 0 | 9 | 100 | 1 | 0 |
 | s3 | 112 | 22 | 39 | 25 | 26 | 0 | 3 |
+| scheduler | 12 | 0 | 0 | 3 | 9 | 0 | 0 |
 | secretsmanager | 23 | 1 | 0 | 14 | 8 | 0 | 0 |
 | ses | 71 | 10 | 0 | 8 | 53 | 0 | 1 |
 | sesv2 | 116 | 7 | 0 | 7 | 102 | 0 | 0 |
@@ -137,141 +137,6 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | sqs | 23 | 16 | 0 | 7 | 0 | 2 | 0 |
 | ssm | 152 | 0 | 0 | 13 | 139 | 0 | 0 |
 | sts | 11 | 1 | 0 | 2 | 8 | 0 | 0 |
-
-### apigateway
-
-| Operation | Status | Evidence | Note |
-|---|---|---|---|
-| CreateDeployment | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); canarySettings answers NotImplemented; cacheClusterEnabled, cacheClusterSize and tracingEnabled are stored without effect; the texts for deploying an API with no methods or a method with no integration are inferred (APIGW1-05) |
-| CreateResource | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02) |
-| CreateRestApi | partial | inferred, 1 of 3 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); cloneFrom answers NotImplemented; policy is stored and returned escaped, and under iam.enforce=enforce an invocation of an API with a policy answers 501; binaryMediaTypes, disableExecuteApiEndpoint and endpointConfiguration PRIVATE are stored and returned, and an invocation of an API that has them answers 501; vpcEndpointIds, securityPolicy, endpointAccessMode, minimumCompressionSize and apiKeySource are stored without effect; an EDGE API is served as a REGIONAL one (no CloudFront headers in the event); a second API with the same name is allowed (inferred, APIGW1-14); an endpointConfiguration types value outside the enum answers a ValidationException naming the list member, where AWS names the whole list (recorded, test_apigateway_api.snapshot.json:L4693-L4703); the UpdateRestApi texts for an invalid value, a second or removed endpoint type and PRIVATE on ipv4 are inferred; a stored policy keeps a one-element Resource list as a list, where AWS rewrites it to a string (recorded, test_apigateway_integrations.snapshot.json:L45-L77) |
-| CreateStage | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); cache settings, methodSettings, accessLogSettings, clientCertificateId, tracingEnabled and webAclArn are stored and echoed without effect; canarySettings answers NotImplemented; the duplicate-stage and missing-stage texts are inferred (APIGW1-06); documentationVersion answers NotImplemented while documentation versions are unbound |
-| DeleteDeployment | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); the missing-deployment text is inferred |
-| DeleteIntegration | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02) |
-| DeleteIntegrationResponse | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02) |
-| DeleteMethod | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02) |
-| DeleteMethodResponse | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02) |
-| DeleteResource | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02) |
-| DeleteRestApi | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02) |
-| DeleteStage | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); the duplicate-stage and missing-stage texts are inferred (APIGW1-06) |
-| GetDeployment | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); the missing-deployment text is inferred |
-| GetDeployments | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); items in creation order (inferred) |
-| GetIntegration | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); an empty-string request template is returned as "" (AWS's answer is UNVERIFIED, APIGW1-13); an empty-string response template is returned as "", where AWS returns null (recorded, apigateway-rest.md finding 6) |
-| GetIntegrationResponse | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); an empty-string response template is returned as "", where AWS returns null (recorded, apigateway-rest.md finding 6) |
-| GetMethod | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); an empty-string request template is returned as "" (AWS's answer is UNVERIFIED, APIGW1-13); an empty-string response template is returned as "", where AWS returns null (recorded, apigateway-rest.md finding 6) |
-| GetMethodResponse | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02) |
-| GetResource | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02) |
-| GetResources | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); items in creation order, root first (inferred, APIGW1-04); an empty-string request template is returned as "" (AWS's answer is UNVERIFIED, APIGW1-13); an empty-string response template is returned as "", where AWS returns null (recorded, apigateway-rest.md finding 6) |
-| GetRestApi | partial | inferred, 1 of 3 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02) |
-| GetRestApis | partial | inferred, 1 of 3 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); items in creation order (inferred) |
-| GetStage | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); the duplicate-stage and missing-stage texts are inferred (APIGW1-06) |
-| GetStages | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); items in creation order (inferred) |
-| GetTags | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); the texts for a malformed or unknown resourceArn and the tag key and value lengths are inferred |
-| PutIntegration | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); AWS_PROXY to Lambda and MOCK run; HTTP, HTTP_PROXY and AWS are stored and answer 501 at invoke; credentials, a stage variable in the uri, responseTransferMode STREAM and contentHandling are stored and returned, and an invocation that reaches them answers 501; connectionType VPC_LINK, connectionId, tlsConfig, integrationTarget and an AWS_PROXY Firehose stream uri answer NotImplemented; requestParameters, cacheNamespace and cacheKeyParameters are stored without effect; a boolean requestParameters value answers SerializationException with understudy's decode text, not AWS's recorded one; the texts for a timeout out of range, an unknown passthroughBehavior and a patch value of the wrong type are inferred; an empty-string request template is returned as "" (AWS's answer is UNVERIFIED, APIGW1-13) |
-| PutIntegrationResponse | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); selectionPattern runs as Go RE2; a Java-only construct (lookaround, backreference, possessive quantifier) answers 501 at invoke naming the pattern; only static responseParameters and literal templates run, anything else answers 501; contentHandling is stored and an invocation that selects the response answers 501; an empty-string response template is returned as "", where AWS returns null (recorded, apigateway-rest.md finding 6) |
-| PutMethod | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); AWS_IAM, CUSTOM and COGNITO_USER_POOLS methods answer 501 at invoke; apiKeyRequired methods answer 403 because API keys cannot be created; requestValidatorId and requestModels name only the seeded Empty and Error models until validators and models are bound; an authorizationType outside NONE, AWS_IAM, CUSTOM and COGNITO_USER_POOLS and UpdateMethod replace /resourceId naming another resource answer NotImplemented |
-| PutMethodResponse | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); responseModels name only the seeded Empty and Error models (text inferred) |
-| TagResource | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); the texts for a malformed or unknown resourceArn and the tag key and value lengths are inferred |
-| UntagResource | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); the texts for a malformed or unknown resourceArn and the tag key and value lengths are inferred |
-| UpdateDeployment | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); the missing-deployment text is inferred |
-| UpdateIntegration | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); AWS_PROXY to Lambda and MOCK run; HTTP, HTTP_PROXY and AWS are stored and answer 501 at invoke; credentials, a stage variable in the uri, responseTransferMode STREAM and contentHandling are stored and returned, and an invocation that reaches them answers 501; connectionType VPC_LINK, connectionId, tlsConfig, integrationTarget and an AWS_PROXY Firehose stream uri answer NotImplemented; requestParameters, cacheNamespace and cacheKeyParameters are stored without effect; a boolean requestParameters value answers SerializationException with understudy's decode text, not AWS's recorded one; the texts for a timeout out of range, an unknown passthroughBehavior and a patch value of the wrong type are inferred; an empty-string request template is returned as "" (AWS's answer is UNVERIFIED, APIGW1-13) |
-| UpdateIntegrationResponse | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); selectionPattern runs as Go RE2; a Java-only construct (lookaround, backreference, possessive quantifier) answers 501 at invoke naming the pattern; only static responseParameters and literal templates run, anything else answers 501; contentHandling is stored and an invocation that selects the response answers 501; an empty-string response template is returned as "", where AWS returns null (recorded, apigateway-rest.md finding 6) |
-| UpdateMethod | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); AWS_IAM, CUSTOM and COGNITO_USER_POOLS methods answer 501 at invoke; apiKeyRequired methods answer 403 because API keys cannot be created; requestValidatorId and requestModels name only the seeded Empty and Error models until validators and models are bound; an authorizationType outside NONE, AWS_IAM, CUSTOM and COGNITO_USER_POOLS and UpdateMethod replace /resourceId naming another resource answer NotImplemented |
-| UpdateMethodResponse | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); responseModels name only the seeded Empty and Error models (text inferred) |
-| UpdateResource | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02) |
-| UpdateRestApi | partial | inferred, 1 of 3 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); cloneFrom answers NotImplemented; policy is stored and returned escaped, and under iam.enforce=enforce an invocation of an API with a policy answers 501; binaryMediaTypes, disableExecuteApiEndpoint and endpointConfiguration PRIVATE are stored and returned, and an invocation of an API that has them answers 501; vpcEndpointIds, securityPolicy, endpointAccessMode, minimumCompressionSize and apiKeySource are stored without effect; an EDGE API is served as a REGIONAL one (no CloudFront headers in the event); a second API with the same name is allowed (inferred, APIGW1-14); an endpointConfiguration types value outside the enum answers a ValidationException naming the list member, where AWS names the whole list (recorded, test_apigateway_api.snapshot.json:L4693-L4703); the UpdateRestApi texts for an invalid value, a second or removed endpoint type and PRIVATE on ipv4 are inferred; a stored policy keeps a one-element Resource list as a list, where AWS rewrites it to a string (recorded, test_apigateway_integrations.snapshot.json:L45-L77) |
-| UpdateStage | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); cache settings, methodSettings, accessLogSettings, clientCertificateId, tracingEnabled and webAclArn are stored and echoed without effect; canarySettings answers NotImplemented; the duplicate-stage and missing-stage texts are inferred (APIGW1-06); documentationVersion answers NotImplemented while documentation versions are unbound; a new method setting starts from the */* one (inferred) |
-| CreateApiKey | unbound | unassessed |  |
-| CreateAuthorizer | unbound | unassessed |  |
-| CreateBasePathMapping | unbound | unassessed |  |
-| CreateDocumentationPart | unbound | unassessed |  |
-| CreateDocumentationVersion | unbound | unassessed |  |
-| CreateDomainName | unbound | unassessed |  |
-| CreateDomainNameAccessAssociation | unbound | unassessed |  |
-| CreateModel | unbound | unassessed |  |
-| CreateRequestValidator | unbound | unassessed |  |
-| CreateUsagePlan | unbound | unassessed |  |
-| CreateUsagePlanKey | unbound | unassessed |  |
-| CreateVpcLink | unbound | unassessed |  |
-| DeleteApiKey | unbound | unassessed |  |
-| DeleteAuthorizer | unbound | unassessed |  |
-| DeleteBasePathMapping | unbound | unassessed |  |
-| DeleteClientCertificate | unbound | unassessed |  |
-| DeleteDocumentationPart | unbound | unassessed |  |
-| DeleteDocumentationVersion | unbound | unassessed |  |
-| DeleteDomainName | unbound | unassessed |  |
-| DeleteDomainNameAccessAssociation | unbound | unassessed |  |
-| DeleteGatewayResponse | unbound | unassessed |  |
-| DeleteModel | unbound | unassessed |  |
-| DeleteRequestValidator | unbound | unassessed |  |
-| DeleteUsagePlan | unbound | unassessed |  |
-| DeleteUsagePlanKey | unbound | unassessed |  |
-| DeleteVpcLink | unbound | unassessed |  |
-| FlushStageAuthorizersCache | unbound | unassessed |  |
-| FlushStageCache | unbound | unassessed |  |
-| GenerateClientCertificate | unbound | unassessed |  |
-| GetAccount | unbound | unassessed |  |
-| GetApiKey | unbound | unassessed |  |
-| GetApiKeys | unbound | unassessed |  |
-| GetAuthorizer | unbound | unassessed |  |
-| GetAuthorizers | unbound | unassessed |  |
-| GetBasePathMapping | unbound | unassessed |  |
-| GetBasePathMappings | unbound | unassessed |  |
-| GetClientCertificate | unbound | unassessed |  |
-| GetClientCertificates | unbound | unassessed |  |
-| GetDocumentationPart | unbound | unassessed |  |
-| GetDocumentationParts | unbound | unassessed |  |
-| GetDocumentationVersion | unbound | unassessed |  |
-| GetDocumentationVersions | unbound | unassessed |  |
-| GetDomainName | unbound | unassessed |  |
-| GetDomainNameAccessAssociations | unbound | unassessed |  |
-| GetDomainNames | unbound | unassessed |  |
-| GetExport | unbound | unassessed |  |
-| GetGatewayResponse | unbound | unassessed |  |
-| GetGatewayResponses | unbound | unassessed |  |
-| GetModel | unbound | unassessed |  |
-| GetModelTemplate | unbound | unassessed |  |
-| GetModels | unbound | unassessed |  |
-| GetRequestValidator | unbound | unassessed |  |
-| GetRequestValidators | unbound | unassessed |  |
-| GetSdk | unbound | unassessed |  |
-| GetSdkType | unbound | unassessed |  |
-| GetSdkTypes | unbound | unassessed |  |
-| GetUsage | unbound | unassessed |  |
-| GetUsagePlan | unbound | unassessed |  |
-| GetUsagePlanKey | unbound | unassessed |  |
-| GetUsagePlanKeys | unbound | unassessed |  |
-| GetUsagePlans | unbound | unassessed |  |
-| GetVpcLink | unbound | unassessed |  |
-| GetVpcLinks | unbound | unassessed |  |
-| ImportApiKeys | unbound | unassessed |  |
-| ImportDocumentationParts | unbound | unassessed |  |
-| ImportRestApi | unbound | unassessed |  |
-| PutGatewayResponse | unbound | unassessed |  |
-| PutRestApi | unbound | unassessed |  |
-| RejectDomainNameAccessAssociation | unbound | unassessed |  |
-| TestInvokeAuthorizer | unbound | unassessed |  |
-| TestInvokeMethod | unbound | unassessed |  |
-| UpdateAccount | unbound | unassessed |  |
-| UpdateApiKey | unbound | unassessed |  |
-| UpdateAuthorizer | unbound | unassessed |  |
-| UpdateBasePathMapping | unbound | unassessed |  |
-| UpdateClientCertificate | unbound | unassessed |  |
-| UpdateDocumentationPart | unbound | unassessed |  |
-| UpdateDocumentationVersion | unbound | unassessed |  |
-| UpdateDomainName | unbound | unassessed |  |
-| UpdateGatewayResponse | unbound | unassessed |  |
-| UpdateModel | unbound | unassessed |  |
-| UpdateRequestValidator | unbound | unassessed |  |
-| UpdateUsage | unbound | unassessed |  |
-| UpdateUsagePlan | unbound | unassessed |  |
-| UpdateVpcLink | unbound | unassessed |  |
-
-Raw operations:
-
-| Operation | Status | Evidence | Note |
-|---|---|---|---|
-| InvokeRestApi | partial | inferred, 4 of 4 claims | AWS_PROXY (payload 1.0) and MOCK with literal templates; mapping templates with VTL answer 501; request validation, authorizers, API keys, caching and throttling are not applied; AWS_IAM methods answer 501; apiKeyRequired methods answer 403; binaryMediaTypes in the stage's deployment, a disabled default endpoint and PRIVATE APIs answer 501; a resource policy is not evaluated: under iam.enforce=advise each invocation records an advisory, under enforce it answers 501; HTTP, HTTP_PROXY and AWS integrations, integration credentials, stage-variable uris, responseTransferMode STREAM and contentHandling answer 501; inferred, UNVERIFIED: unknown stage, ANY against explicit methods, HEAD (APIGW1-07, -08), the 415 text (APIGW1-09), timeout (APIGW1-10), empty-body event (APIGW1-16); inferred: a MOCK template with no statusCode or one outside 100..599 selects the default integration response, and several response templates none of which matches Accept or application/json answer 500; header names reach the event in canonical form (Test-Header), not as the client wrote them |
 
 ### apigatewayv2
 
@@ -1241,6 +1106,23 @@ Raw operations:
 | TagResource | full | inferred, 1 of 2 claims |  |
 | UntagResource | full | inferred, 1 of 1 claim |  |
 
+### scheduler
+
+| Operation | Status | Evidence | Note |
+|---|---|---|---|
+| CreateSchedule | partial | inferred, 6 of 6 claims | rate() schedules in the default group with an SQS queue target in the schedule's Region are invoked on the emulator clock as the execution role; at() and cron() expressions, other target services, other schedule groups, StartDate and EndDate, a time zone other than UTC, State DISABLED, a FLEXIBLE window, DeadLetterConfig and the parameter blocks of other targets answer NotImplemented; KmsKeyArn is stored and echoed, the payload is not encrypted; the execution role's trust is not checked, so a missing or untrusting role still delivers; ClientToken is accepted and not used for idempotency; the 10,000,000-schedule quota is not counted; unrecorded, understudy's choice: rate units are accepted singular or plural with any value, a rate schedule without StartDate first fires at the write instant, an absent Input delivers {}, client-side target errors are not retried and one execution id covers an invocation's retries, a MaximumWindowInMinutes sent with OFF is ignored, and every refusal message except the expression text is understudy's own |
+| DeleteSchedule | partial | inferred, 1 of 1 claim | unrecorded, understudy's choice: ClientToken is accepted and not used for idempotency |
+| GetSchedule | partial | inferred, 1 of 1 claim | unrecorded, understudy's choice: ScheduleExpressionTimezone, Description, StartDate and EndDate are absent when they were not sent, MaximumWindowInMinutes is absent under OFF, State defaults to ENABLED, and CreationDate and LastModificationDate are whole seconds |
+| CreateScheduleGroup | unbound | unassessed |  |
+| DeleteScheduleGroup | unbound | unassessed |  |
+| GetScheduleGroup | unbound | unassessed |  |
+| ListScheduleGroups | unbound | unassessed |  |
+| ListSchedules | unbound | unassessed |  |
+| ListTagsForResource | unbound | unassessed |  |
+| TagResource | unbound | unassessed |  |
+| UntagResource | unbound | unassessed |  |
+| UpdateSchedule | unbound | unassessed |  |
+
 ### secretsmanager
 
 | Operation | Status | Evidence | Note |
@@ -1783,7 +1665,7 @@ Internal operations:
 
 Behaviors chosen without AWS-recorded evidence, with the research they rest on and the parity scenario step that settles them, or why none does. The count and order follow the label the code states; the Label column shows the recording's verdict where a replayed step settles or contradicts the switch.
 
-222 switches: 1 aws-recorded, 5 third-party-recorded, 24 aws-doc, 192 inferred.
+223 switches: 1 aws-recorded, 5 third-party-recorded, 24 aws-doc, 193 inferred.
 
 | Switch | Value | Label | Reference | Settled by |
 |---|---|---|---|---|
@@ -1817,11 +1699,6 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `sqs.move-task.message-identity` | `new-message` | aws-doc | docs/research/sqs.md#93-startmessagemovetask-listmessagemovetasks-cancelmessagemovetask | none: sqs/R02/std-06-recv-src.json and fifo-06-recv-src.json are recorded; no scenario replays sqs/R02 yet |
 | `sqs.policy.limits` | `bytes-and-statements` | aws-doc | docs/research/sqs.md#4-queue-attributes | none: unrecorded: no recording exceeds a Policy limit |
 | `sqs.receipt.stale-handle` | `succeed-without-delete` | contradicted (sqs/R01/03-recv-after-6s.json) | docs/research/sqs.md#72-receipt-handles-deletemessage-changemessagevisibility | sqs/R01#03-recv-after-6s |
-| `apigateway.invoke.routing` | `{{403 {"message":"Forbidden"} ForbiddenException} {403 {"message":"Forbidden"} ForbiddenException} {true false}}` | inferred | docs/research/apigateway-rest.md#47-gateway-responses-and-error-bodies | none: unrecorded: APIGW1-07 and APIGW1-08 (apigateway-rest.md 13) records it |
-| `apigateway.lambda.permission` | `{<api-id>/<stage>/<METHOD>/<resource path template without its leading slash>; ANY as written for an ANY method; an empty last segment for the root resource {500 {"message": "Internal server error"} }}` | inferred | docs/research/apigateway-rest.md#54-how-api-gateway-invokes-the-function | none: unrecorded: APIGW1-15 (apigateway-rest.md 13) records it |
-| `apigateway.mock.selection` | `{{415 {"message":"Unsupported Media Type"} } true true true true}` | inferred | docs/research/apigateway-rest.md#62-passthrough-behavior-and-415 | none: unrecorded: APIGW1-09, APIGW1-11 and APIGW1-12 (apigateway-rest.md 13) records it |
-| `apigateway.proxy.unrecorded` | `{{504 {"message": "Endpoint request timed out"} } true false}` | inferred | docs/research/apigateway-rest.md#53-failures | none: unrecorded: APIGW1-10 and APIGW1-16 (apigateway-rest.md 13) records it |
-| `apigateway.restapi.api-status` | `{AVAILABLE AVAILABLE}` | inferred | docs/research/apigateway-rest.md#31-restapi | none: unrecorded: APIGW1-03 (apigateway-rest.md 13) records it |
 | `apigatewayv2.front.answers` | `{true {403 Forbidden} {403 Forbidden} {404 Not Found} {404 Not Found} {404 Not Found} application/json {refused allowed refused}}` | inferred | docs/research/apigateway-http.md#45-responses-api-gateway-generates-itself | none: unrecorded: APIGW2-06 and APIGW2-04 (apigateway-http.md 14) records it |
 | `apigatewayv2.lambda.failure-answers` | `{{500 Internal Server Error} {503 Service Unavailable} {413 Request Entity Too Large} 10485760 6291456}` | inferred | docs/research/apigateway-http.md#56-failures-function-errors-malformed-output-timeouts | none: unrecorded: APIGW2-10 (apigateway-http.md 14) records it |
 | `apigatewayv2.lambda.permission` | `{<api-id>/<stage>/<METHOD>/<route path without its leading slash>, the route key's template and ANY as written; <api-id>/<stage>/$default for the $default route {500 Internal Server Error}}` | inferred | docs/research/apigateway-http.md#55-invocation-credentials-and-the-resource-policy | none: unrecorded: APIGW2-11 (apigateway-http.md 14) records it |
@@ -1943,6 +1820,12 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `s3.sse-c.key-encoding` | `write-side-texts` | inferred | docs/research/s3-ssec-object-lock.md#32-write-side-validation-third-party-recorded | none: unrecorded: S3SOL-04 is queued in docs/research/s3-ssec-object-lock.md 12 |
 | `s3.sse-c.metadata-without-key` | `InvalidRequest` | inferred | docs/research/s3-ssec-object-lock.md#33-reads-getobject-headobject-getobjectattributes | none: unrecorded: S3SOL-05 is queued in docs/research/s3-ssec-object-lock.md 12 |
 | `s3.sse-c.missing-key-md5` | `InvalidArgument` | inferred | docs/research/s3-ssec-object-lock.md#32-write-side-validation-third-party-recorded | none: unrecorded: S3SOL-03 is queued in docs/research/s3-ssec-object-lock.md 12 |
+| `scheduler.at.past-due` | `fire-at-once` | inferred | docs/research/scheduler.md#51-at | none: unrecorded: SCH-09 not yet recorded (scheduler.md 15.10) |
+| `scheduler.denial.status` | `403` | inferred | docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit | none: unrecorded: SCH-10 step 01 not yet recorded (scheduler.md 15.11) |
+| `scheduler.flexible-window.offset` | `seeded-uniform` | inferred | docs/research/scheduler.md#56-precision-and-flexible-time-windows | none: unrecorded: SCH-09 not yet recorded (scheduler.md 15.10), and it bounds the offsets only |
+| `scheduler.input.default` | `empty-json-object` | inferred | docs/research/scheduler.md#63-input-the-default-payload-and-context-attributes | none: unrecorded: SCH-07 not yet recorded (scheduler.md 15.8) |
+| `scheduler.rate.unit-agreement` | `any` | inferred | docs/research/scheduler.md#52-rate | none: unrecorded: SCH-03 not yet recorded (scheduler.md 15.4) |
+| `scheduler.retry.permanent-errors` | `not-retried` | inferred | docs/research/scheduler.md#71-retrypolicy | none: unrecorded: SCH-08 not yet recorded (scheduler.md 15.9) |
 | `secretsmanager.enforce.missing-resource.by-name` | `resolve-first` | inferred | docs/research/iam-enforcement-surfaces.md#5.3 | none: unrecorded: IAM-ENF-14 waits in the recording queue (iam-enforcement-surfaces.md 13) |
 | `secretsmanager.list-secrets.all-filter-match` | `any-word,word-prefix` | inferred | https://docs.aws.amazon.com/secretsmanager/latest/userguide/manage_search-secret.html | none: unrecorded: no recording calls ListSecrets |
 | `secretsmanager.list-secrets.filter-combination` | `and-across-filters,or-across-values` | inferred | docs/research/secrets-logs-events-alarms.md#24-operations-request-and-response-facts | none: unrecorded: no recording calls ListSecrets |
@@ -2014,7 +1897,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 
 Corrections to the vendored models in `codegen/overlays`, one row per evidence item. The count and order, strongest evidence first, follow the label the overlay states; the Label column shows the recording's verdict where a replayed step settles or contradicts the item.
 
-353 evidence items: 50 aws-recorded, 111 third-party-recorded, 57 aws-doc, 5 sdk-source, 130 inferred.
+350 evidence items: 50 aws-recorded, 108 third-party-recorded, 57 aws-doc, 5 sdk-source, 130 inferred.
 
 | Label | Overlay | Shape | Covers | Source |
 |---|---|---|---|---|
@@ -2068,9 +1951,6 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | aws-recorded | sqs.json | `com.amazonaws.sqs#SendMessageRequest$DelaySeconds` | dev.understudy#validationError | testdata/parity/sqs/R11/02-send-delay-901.json (validated 2026-10-14) |
 | aws-recorded | sts.json | `com.amazonaws.sts#AWSSecurityTokenServiceV20110615` | dev.understudy#queryErrorEnvelope, dev.understudy#denialError | testdata/parity/sts/R15/06-assume-denied.json (validated 2026-10-14) |
 | aws-recorded | sts.json | `com.amazonaws.sts#AccessDenied` |  | testdata/parity/sts/R15/06-assume-denied.json (validated 2026-10-14) |
-| third-party-recorded | apigateway.json | `com.amazonaws.apigateway#BackplaneControlService` | dev.understudy#validationInputRoot | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/apigateway/test_apigateway_api.snapshot.json#L4803: body members are named under the input structure (updateRestApiInput.patchOperations.1.member.op, L4809; putIntegrationInput.type, L3084-L3098) and a URI label bare (statusCode, L4062-L4086); docs/research/apigateway-rest.md 2.4, 3.8 |
-| third-party-recorded | apigateway.json | `com.amazonaws.apigateway#IntegrationType` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/apigateway/test_apigateway_api.snapshot.json#L3084 |
-| third-party-recorded | apigateway.json | `com.amazonaws.apigateway#Op` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/apigateway/test_apigateway_api.snapshot.json#L4809 |
 | third-party-recorded | cloudwatch.json | `com.amazonaws.cloudwatch#GraniteServiceVersion20100801` | dev.understudy#queryErrorEnvelope | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/cloudwatch/test_cloudwatch.snapshot.json#L186 (validated 2025-09-22) |
 | third-party-recorded | cloudwatch.json | `com.amazonaws.cloudwatch#GraniteServiceVersion20100801` | dev.understudy#validationError | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/cloudwatch/test_cloudwatch.snapshot.json#L156 (validated 2025-09-22) |
 | third-party-recorded | cloudwatch.json | `com.amazonaws.cloudwatch#ResourceNotFound` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/cloudwatch/test_cloudwatch.snapshot.json#L156 (validated 2025-09-22) |
@@ -2241,7 +2121,7 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | sdk-source | s3.json | `com.amazonaws.s3#GetObjectRequest$ChecksumMode` |  | https://github.com/awslabs/aws-c-s3/blob/07262f7ec17186712d56bccdb7c6eed744e31fb7/source/s3_util.c#L51-L52: the CRT S3 client behind the AWS CLI's s3 commands sends x-amz-checksum-mode: enabled on GetObject (source/s3_auto_ranged_get.c L496-L531, source/s3_default_meta_request.c L387-L390), and its tests against real S3 assert the response checksum was validated (tests/s3_data_plane_tests.c L6388-L6471); LocalStack compares the value upper-cased (https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/localstack-core/localstack/services/s3/provider.py#L1042); a value that is no case variant of ENABLED is refused with the enum's InvalidArgument, AWS's answer to it UNVERIFIED (s3.md 5.8, recording S3-01) |
 | sdk-source | s3.json | `com.amazonaws.s3#HeadObjectRequest$ChecksumMode` |  | https://github.com/awslabs/aws-c-s3/blob/07262f7ec17186712d56bccdb7c6eed744e31fb7/source/s3_util.c#L51-L52: the CRT S3 client behind the AWS CLI's s3 commands sends x-amz-checksum-mode: enabled on the HeadObject that opens a download (source/s3_auto_ranged_get.c L496-L531), and its tests against real S3 assert that HEAD came first and the response checksum was validated (tests/s3_data_plane_tests.c L6388-L6471); LocalStack compares the value upper-cased (https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/localstack-core/localstack/services/s3/provider.py#L1168); a value that is no case variant of ENABLED is refused with the enum's InvalidArgument, AWS's answer to it UNVERIFIED (s3.md 5.8, recording S3-01) |
 | contradicted (sqs/R01/05-cmv-deleted.json) | sqs.json | `com.amazonaws.sqs#AmazonSQS` | dev.understudy#errorNamespace | https://github.com/boto/botocore/blob/develop/tests/functional/test_sqs.py |
-| inferred | apigateway.json | `com.amazonaws.apigateway#BackplaneControlService` | dev.understudy#denialError | docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: no source names the API Gateway REST denial and its model declares no AccessDeniedException, so the generic com.amazon.coral.service#AccessDeniedException, 403, answers; UNVERIFIED until recording APIGW1-22 (docs/research/apigateway-rest.md#1323-apigw1-22-control-plane-iam-denials-and-resources, whose step 01 repeats IAM-ENF-33) or IAM-ENF-33, either of which settles status, error type and text |
+| inferred | apigateway.json | `com.amazonaws.apigateway#BackplaneControlService` | dev.understudy#denialError | docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: no source names the API Gateway REST denial and its model declares no AccessDeniedException, so the generic com.amazon.coral.service#AccessDeniedException, 403, answers; UNVERIFIED until recording IAM-ENF-33 |
 | inferred | apigateway.json | `com.amazonaws.apigateway#BackplaneControlService` | dev.understudy#validationError | docs/research/apigateway-rest.md#24-errors: code ValidationException and status 400 are recorded (https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/apigateway/test_apigateway_api.snapshot.json#L4067, AWS-validated 2025-06-18), but the recording carries only botocore's Error.Message, so the lower-case body key `message` written from the Coral shape is UNVERIFIED until recording APIGW1-01 (APIGW1/01-validation) settles it |
 | inferred | apigatewayv2.json | `com.amazonaws.apigatewayv2#ApiGatewayV2` | dev.understudy#denialError | docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: no source names the API Gateway v2 denial; the model's own AccessDeniedException is taken; UNVERIFIED until recording IAM-ENF-34 or APIGW2-15 (docs/research/apigateway-http.md#1416-apigw2-15-control-plane-iam-denials-and-resources, step 01 repeats IAM-ENF-34), either of which settles status, error type and text |
 | inferred | apigatewayv2.json | `com.amazonaws.apigatewayv2#ApiGatewayV2` | dev.understudy#throttleError | docs/research/apigateway-http.md#23-errors: the model's only 429 shape is TooManyRequestsException while the API Reference names the 429 model LimitExceededException; which name AWS sends is UNVERIFIED until recording APIGW2-02 |

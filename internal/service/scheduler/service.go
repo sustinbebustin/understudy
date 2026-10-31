@@ -1,15 +1,10 @@
 package scheduler
 
 import (
-	"context"
-	"errors"
-
 	"github.com/sustinbebustin/understudy/internal/api/schedulerapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
-	"github.com/sustinbebustin/understudy/internal/awserr"
-	"github.com/sustinbebustin/understudy/internal/clock"
+	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/kernel"
-	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/registry"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
@@ -25,67 +20,39 @@ const stateVersion = 1
 // Service is Amazon EventBridge Scheduler: one state cell per account and
 // region.
 type Service struct {
-	opts Options
+	opts  Options
+	k     *kernel.Kernel
+	ids   *ids.Source
+	cells *store.Partitioned[aws.Scope, State]
+	// fire is TimerFire as registered with the kernel.
+	fire kernel.HandledKind
 }
 
 // The service is the snapshot and reset view of its state.
 var _ kernel.Stateful = (*Service)(nil)
 
-// New binds the 12 Scheduler operations (scheduler.md 2.2). Not implemented
-// yet: every bound operation answers 501 NotImplemented.
+// createNote is CreateSchedule's coverage note while the tracer bullet is
+// what is built (spec "Tracer bullet").
+const createNote = "rate() schedules in the default group with an SQS queue target in the schedule's Region are invoked on the emulator clock as the execution role; " +
+	"at() and cron() expressions, other target services, other schedule groups, StartDate and EndDate, a time zone other than UTC, State DISABLED, " +
+	"a FLEXIBLE window, DeadLetterConfig and the parameter blocks of other targets answer NotImplemented; " +
+	"KmsKeyArn is stored and echoed, the payload is not encrypted; " +
+	"the execution role's trust is not checked, so a missing or untrusting role still delivers; " +
+	"ClientToken is accepted and not used for idempotency; the 10,000,000-schedule quota is not counted; " +
+	"unrecorded, understudy's choice: rate units are accepted singular or plural with any value, a rate schedule without StartDate first fires at the write instant, " +
+	"an absent Input delivers {}, client-side target errors are not retried and one execution id covers an invocation's retries, " +
+	"a MaximumWindowInMinutes sent with OFF is ignored, and every refusal message except the expression text is understudy's own"
+
+// New binds the Scheduler operations built so far (scheduler.md 2.2) and
+// registers the fire timer; the rest stay unbound and answer 501 until
+// their tickets build them.
 func New(d kernel.ServiceDeps, o Options) *Service {
-	s := &Service{opts: o}
+	s := &Service{opts: o, k: d.Kernel, ids: d.IDs, cells: store.NewPartitioned(d.Kernel.Gate(), codec(), newState)}
+	s.fire = d.Kernel.Timers().Handle(TimerFire, s.onFire)
 	b := schedulerapi.NewBinder(d.Binder)
-	cov := registry.Partial{Note: "not implemented yet"}
-	b.CreateSchedule(unbuilt[schedulerapi.CreateScheduleInput, schedulerapi.CreateScheduleOutput], cov)
-	b.GetSchedule(unbuilt[schedulerapi.GetScheduleInput, schedulerapi.GetScheduleOutput], cov)
-	b.UpdateSchedule(unbuilt[schedulerapi.UpdateScheduleInput, schedulerapi.UpdateScheduleOutput], cov)
-	b.DeleteSchedule(unbuilt[schedulerapi.DeleteScheduleInput, schedulerapi.DeleteScheduleOutput], cov)
-	b.ListSchedules(unbuilt[schedulerapi.ListSchedulesInput, schedulerapi.ListSchedulesOutput], cov)
-	b.CreateScheduleGroup(unbuilt[schedulerapi.CreateScheduleGroupInput, schedulerapi.CreateScheduleGroupOutput], cov)
-	b.GetScheduleGroup(unbuilt[schedulerapi.GetScheduleGroupInput, schedulerapi.GetScheduleGroupOutput], cov)
-	b.ListScheduleGroups(unbuilt[schedulerapi.ListScheduleGroupsInput, schedulerapi.ListScheduleGroupsOutput], cov)
-	b.DeleteScheduleGroup(unbuilt[schedulerapi.DeleteScheduleGroupInput, schedulerapi.DeleteScheduleGroupOutput], cov)
-	b.TagResource(unbuilt[schedulerapi.TagResourceInput, schedulerapi.TagResourceOutput], cov)
-	b.UntagResource(unbuilt[schedulerapi.UntagResourceInput, schedulerapi.UntagResourceOutput], cov)
-	b.ListTagsForResource(unbuilt[schedulerapi.ListTagsForResourceInput, schedulerapi.ListTagsForResourceOutput], cov)
+	b.CreateSchedule(s.createSchedule, registry.Partial{Note: createNote})
+	b.GetSchedule(s.getSchedule, registry.Partial{Note: "unrecorded, understudy's choice: ScheduleExpressionTimezone, Description, StartDate and EndDate are absent when they were not sent, " +
+		"MaximumWindowInMinutes is absent under OFF, State defaults to ENABLED, and CreationDate and LastModificationDate are whole seconds"})
+	b.DeleteSchedule(s.deleteSchedule, registry.Partial{Note: "unrecorded, understudy's choice: ClientToken is accepted and not used for idempotency"})
 	return s
 }
-
-// unbuilt answers an operation the service binds but no ticket has built
-// yet.
-func unbuilt[In, Out any](context.Context, *kernel.Call, *In) (*Out, *awserr.Error) { //nolint:unparam // a kernel.Handler; built handlers return their output
-	return nil, schedulerapi.ErrNotImplemented("not implemented yet")
-}
-
-// Name returns "scheduler".
-func (*Service) Name() ref.ServiceID { return "scheduler" }
-
-// SchemaVersion returns the version of the service's snapshot section.
-func (*Service) SchemaVersion() int { return stateVersion }
-
-// Export returns no section: the service holds no state yet.
-func (*Service) Export() ([]store.Section, error) { return nil, nil }
-
-// errStateUnbuilt is Import's answer to a section until the state exists.
-var errStateUnbuilt = errors.New("scheduler: loading a snapshot section is not implemented yet; the section was not applied")
-
-// Import accepts no section yet.
-func (*Service) Import(ss []store.Section) error {
-	if len(ss) > 0 {
-		return errStateUnbuilt
-	}
-	return nil
-}
-
-// Reset has nothing to drop yet.
-func (*Service) Reset(kernel.ResetScope) {}
-
-// Rearm has no timers to arm yet.
-func (*Service) Rearm(clock.Instant) {}
-
-// Resources lists nothing yet.
-func (*Service) Resources(aws.Scope) []kernel.Resource { return nil }
-
-// Scopes returns no scope yet.
-func (*Service) Scopes() []aws.Scope { return nil }

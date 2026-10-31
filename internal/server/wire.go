@@ -28,6 +28,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/lambdaapi"
 	"github.com/sustinbebustin/understudy/internal/api/logsapi"
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
+	"github.com/sustinbebustin/understudy/internal/api/schedulerapi"
 	"github.com/sustinbebustin/understudy/internal/api/secretsmanagerapi"
 	"github.com/sustinbebustin/understudy/internal/api/sesapi"
 	"github.com/sustinbebustin/understudy/internal/api/sesv2api"
@@ -74,6 +75,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/service/lambda/pool"
 	"github.com/sustinbebustin/understudy/internal/service/logs"
 	"github.com/sustinbebustin/understudy/internal/service/s3"
+	"github.com/sustinbebustin/understudy/internal/service/scheduler"
 	"github.com/sustinbebustin/understudy/internal/service/secretsmanager"
 	"github.com/sustinbebustin/understudy/internal/service/ses"
 	"github.com/sustinbebustin/understudy/internal/service/sfn"
@@ -972,6 +974,11 @@ func wiredServices() []wiredService {
 		}},
 		{api{sesv2api.Service(), sesv2api.ThrottleError(), sesv2api.UnknownOperationError}, func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
 			return ses.NewV2(d, c.ses)
+		}},
+		// Scheduler reaches IAM (ResolveRole) and its targets only through
+		// kernel.Invoke and the outbox, so its row needs no service above.
+		{api{schedulerapi.Service(), schedulerapi.ThrottleError(), schedulerapi.UnknownOperationError}, func(d kernel.ServiceDeps, _ *construction) serveradmin.Service {
+			return scheduler.New(d, scheduler.Options{})
 		}},
 	}
 }

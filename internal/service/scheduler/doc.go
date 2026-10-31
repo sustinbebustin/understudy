@@ -5,6 +5,7 @@
 // schedule's execution role, with the retry policy and dead-letter queue of
 // scheduler.md 7.
 //
-// The service is not wired into the server yet: its operations answer 501
-// NotImplemented "not implemented yet" until each ticket builds them.
+// Built so far: CreateSchedule (rate() with an SQS queue target in the
+// default group), GetSchedule and DeleteSchedule; every other operation
+// stays unbound and answers 501 until its ticket builds it.
 package scheduler
