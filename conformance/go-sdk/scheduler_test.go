@@ -316,6 +316,68 @@ func TestSchedulerSQSSenderIdIsTheRoleSession(t *testing.T) {
 	}
 }
 
+// A schedule whose target queue was deleted, with MaximumRetryAttempts 0,
+// sends its Input to the dead-letter queue with the String attributes the
+// dead-letter page lists, ERROR_CODE AWS.SimpleQueueService.NonExistentQueue
+// (aws-doc configuring-schedule-dlq; scheduler.md 7.2). RETRY_ATTEMPTS and
+// EXHAUSTED_RETRY_CONDITION depend on scheduler.retry.permanent-errors and
+// are asserted in Go unit tests; DeadLetterConfig reads back as sent (4.2).
+func TestSchedulerDeletedTargetQueueDeadLetters(t *testing.T) {
+	ctx := t.Context()
+	sqsClient := sqs.NewFromConfig(awsCfg)
+	dlqURL, target := schedulerTarget(t)
+	dlqArn := aws.ToString(target.Arn)
+	goneURL := createQueue(t, name(t, "sch-gone"), nil)
+	target.Arn = aws.String(queueArn(t, goneURL))
+	_, err := sqsClient.DeleteQueue(ctx, &sqs.DeleteQueueInput{QueueUrl: aws.String(goneURL)})
+	ok(t, err, "DeleteQueue")
+	target.Input = aws.String("Hello, world!")
+	target.RetryPolicy = &types.RetryPolicy{MaximumRetryAttempts: aws.Int32(0)}
+	target.DeadLetterConfig = &types.DeadLetterConfig{Arn: aws.String(dlqArn)}
+	at := emulatorNow(t).Add(10 * time.Minute)
+	scheduleName := name(t, "sch")
+	created := createScheduleT(t, &scheduler.CreateScheduleInput{
+		Name: aws.String(scheduleName), ScheduleExpression: aws.String(atOf(at)),
+		FlexibleTimeWindow: &types.FlexibleTimeWindow{Mode: types.FlexibleTimeWindowModeOff}, Target: target,
+	})
+	got, err := scheduler.NewFromConfig(awsCfg).GetSchedule(ctx, &scheduler.GetScheduleInput{Name: aws.String(scheduleName)})
+	ok(t, err, "GetSchedule")
+	if got.Target == nil || got.Target.DeadLetterConfig == nil || aws.ToString(got.Target.DeadLetterConfig.Arn) != dlqArn {
+		t.Errorf("GetSchedule Target = %+v, want DeadLetterConfig %s", got.Target, dlqArn)
+	}
+
+	advance(t, 660)
+	received, err := sqsClient.ReceiveMessage(ctx, &sqs.ReceiveMessageInput{
+		QueueUrl: aws.String(dlqURL), MaxNumberOfMessages: 10, MessageAttributeNames: []string{"All"},
+	})
+	ok(t, err, "ReceiveMessage")
+	if len(received.Messages) != 1 {
+		t.Fatalf("the dead-letter queue received %d messages, want 1", len(received.Messages))
+	}
+	m := received.Messages[0]
+	if aws.ToString(m.Body) != "Hello, world!" {
+		t.Errorf("body = %q, want Hello, world!", aws.ToString(m.Body))
+	}
+	for _, n := range []string{"ERROR_CODE", "ERROR_MESSAGE", "EXECUTION_ID", "IS_PAYLOAD_TRUNCATED", "RETRY_ATTEMPTS", "SCHEDULED_TIME", "SCHEDULE_ARN", "TARGET_ARN"} {
+		if a, present := m.MessageAttributes[n]; !present || aws.ToString(a.DataType) != "String" {
+			t.Errorf("attribute %s = %+v (present %v), want a String", n, a, present)
+		}
+	}
+	str := func(n string) string { return aws.ToString(m.MessageAttributes[n].StringValue) }
+	if v := str("ERROR_CODE"); v != "AWS.SimpleQueueService.NonExistentQueue" {
+		t.Errorf("ERROR_CODE = %q, want AWS.SimpleQueueService.NonExistentQueue", v)
+	}
+	if v := str("TARGET_ARN"); !regexp.MustCompile(`^arn:aws:scheduler:::aws-sdk:[a-z0-9-]+:[a-zA-Z]+$`).MatchString(v) {
+		t.Errorf("TARGET_ARN = %q, want arn:aws:scheduler:::aws-sdk:<service>:<apiAction>", v)
+	}
+	if v := str("SCHEDULE_ARN"); v != aws.ToString(created.ScheduleArn) {
+		t.Errorf("SCHEDULE_ARN = %q, want %s", v, aws.ToString(created.ScheduleArn))
+	}
+	if v, want := str("SCHEDULED_TIME"), at.Format("2006-01-02T15:04:05Z"); v != want {
+		t.Errorf("SCHEDULED_TIME = %q, want %s", v, want)
+	}
+}
+
 // A universal (aws-sdk) target answers 501 NotImplemented and nothing is
 // stored (CLAUDE.md invariant 3; spec "Scope").
 func TestSchedulerUniversalTargetIsNotImplemented(t *testing.T) {

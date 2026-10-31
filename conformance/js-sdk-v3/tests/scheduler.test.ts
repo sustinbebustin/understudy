@@ -274,6 +274,64 @@ describe("EventBridge Scheduler", () => {
       status: 404,
     });
   });
+
+  // A schedule whose target queue was deleted, with MaximumRetryAttempts 0,
+  // sends its Input to the dead-letter queue with the String attributes the
+  // dead-letter page lists, ERROR_CODE AWS.SimpleQueueService.NonExistentQueue
+  // (aws-doc configuring-schedule-dlq; scheduler.md 7.2). RETRY_ATTEMPTS and
+  // EXHAUSTED_RETRY_CONDITION depend on scheduler.retry.permanent-errors and
+  // are asserted in Go tests; DeadLetterConfig reads back as sent (4.2).
+  test("a deleted target queue dead-letters with the documented attributes", async () => {
+    const { queueUrl: dlqUrl, target } = await queueTarget();
+    const dlqArn = target.Arn ?? "";
+    const goneUrl = (await sqs.send(new CreateQueueCommand({ QueueName: uniq("sch-gone") }))).QueueUrl ?? "";
+    const goneArn =
+      (await sqs.send(new GetQueueAttributesCommand({ QueueUrl: goneUrl, AttributeNames: ["QueueArn"] }))).Attributes
+        ?.QueueArn ?? "";
+    await sqs.send(new DeleteQueueCommand({ QueueUrl: goneUrl }));
+    const at = new Date((await emulatorNow()).getTime() + 10 * 60_000);
+    const atText = at.toISOString().replace(".000Z", "");
+    const name = uniq("sch");
+    const arn = await createSchedule({
+      Name: name,
+      ScheduleExpression: `at(${atText})`,
+      FlexibleTimeWindow: { Mode: "OFF" },
+      Target: {
+        ...target,
+        Arn: goneArn,
+        Input: "Hello, world!",
+        RetryPolicy: { MaximumRetryAttempts: 0 },
+        DeadLetterConfig: { Arn: dlqArn },
+      },
+    });
+    const got = await scheduler.send(new GetScheduleCommand({ Name: name }));
+    expect(got.Target?.DeadLetterConfig).toEqual({ Arn: dlqArn });
+
+    await advance(660);
+    const received = await sqs.send(
+      new ReceiveMessageCommand({ QueueUrl: dlqUrl, MaxNumberOfMessages: 10, MessageAttributeNames: ["All"] }),
+    );
+    const messages = received.Messages ?? [];
+    expect(messages.length).toBe(1);
+    const attrs = messages[0]?.MessageAttributes ?? {};
+    expect(messages[0]?.Body).toBe("Hello, world!");
+    for (const n of [
+      "ERROR_CODE",
+      "ERROR_MESSAGE",
+      "EXECUTION_ID",
+      "IS_PAYLOAD_TRUNCATED",
+      "RETRY_ATTEMPTS",
+      "SCHEDULED_TIME",
+      "SCHEDULE_ARN",
+      "TARGET_ARN",
+    ]) {
+      expect(attrs[n]?.DataType).toBe("String");
+    }
+    expect(attrs.ERROR_CODE?.StringValue).toBe("AWS.SimpleQueueService.NonExistentQueue");
+    expect(attrs.TARGET_ARN?.StringValue ?? "").toMatch(/^arn:aws:scheduler:::aws-sdk:[a-z0-9-]+:[a-zA-Z]+$/);
+    expect(attrs.SCHEDULE_ARN?.StringValue).toBe(arn);
+    expect(attrs.SCHEDULED_TIME?.StringValue).toBe(`${atText}Z`);
+  });
 });
 
 const FORWARD_HANDLER = `

@@ -4,8 +4,8 @@
 # depend on GetSchedule reading back the members as sent with AWS's
 # defaults filled: ActionAfterCompletion NONE, RetryPolicy 86400/185, group
 # default, no dates, description or KMS key (scheduler.md 4.2, 11.3); and a
-# cron schedule in Europe/Paris with dates, a description, a retry policy
-# and Input, echoed as sent with the dates to the second (tf-acc
+# cron schedule in Europe/Paris with dates, a description, a retry policy,
+# a dead-letter queue and Input, echoed as sent with the dates to the second (tf-acc
 # schedule_test.go:L365-L419, L1174-L1233, L1292-L1349, L1870-L1895). The
 # update step replaces both schedules through UpdateSchedule (scheduler.md
 # 4.3): the rate gains a description, the cron moves its StartDate and
@@ -29,6 +29,14 @@ resource "aws_sqs_queue" "scheduler_target" {
   tags = local.updated ? { stage = "updated" } : {}
 }
 
+# The dead-letter queue of the cron and bus schedules: a standard queue
+# the role may send to (aws-doc configuring-schedule-dlq; scheduler.md
+# 7.2). A bus target names one too, as the census pattern
+# eventbridge-schedule-to-eventbridge-terraform does (scheduler.md 14.5.3).
+resource "aws_sqs_queue" "scheduler_dlq" {
+  name = "${var.name_prefix}-dlq"
+}
+
 resource "aws_iam_role" "scheduler" {
   name               = "${var.name_prefix}-role"
   assume_role_policy = data.aws_iam_policy_document.scheduler_assume.json
@@ -38,7 +46,7 @@ data "aws_iam_policy_document" "scheduler_send" {
   statement {
     effect    = "Allow"
     actions   = ["sqs:SendMessage"]
-    resources = [aws_sqs_queue.scheduler_target.arn]
+    resources = [aws_sqs_queue.scheduler_target.arn, aws_sqs_queue.scheduler_dlq.arn]
   }
 }
 
@@ -86,6 +94,10 @@ resource "aws_scheduler_schedule" "cron" {
     retry_policy {
       maximum_event_age_in_seconds = local.updated ? 120 : 60
       maximum_retry_attempts       = 1
+    }
+
+    dead_letter_config {
+      arn = aws_sqs_queue.scheduler_dlq.arn
     }
   }
 
@@ -152,9 +164,13 @@ resource "aws_scheduler_schedule" "bus" {
       source      = "conformance.scheduler"
       detail_type = local.updated ? "tock" : "tick"
     }
+
+    dead_letter_config {
+      arn = aws_sqs_queue.scheduler_dlq.arn
+    }
   }
 
-  depends_on = [aws_iam_role_policy.scheduler_publish]
+  depends_on = [aws_iam_role_policy.scheduler_publish, aws_iam_role_policy.scheduler_send]
 }
 
 output "scheduler_schedule_arn" {

@@ -182,6 +182,55 @@ def test_recorded_expression_refusal_and_past_at(scheduler: Any, sqs: Any, make_
     assert created["ScheduleArn"].endswith(":schedule/default/" + name)
 
 
+DEAD_LETTER_ATTRIBUTES = ("ERROR_CODE", "ERROR_MESSAGE", "EXECUTION_ID", "IS_PAYLOAD_TRUNCATED", "RETRY_ATTEMPTS", "SCHEDULED_TIME", "SCHEDULE_ARN", "TARGET_ARN")
+
+
+def test_deleted_target_queue_dead_letters(
+    scheduler: Any, sqs: Any, make_queue: Callable[..., str], role: str, clock: Admin, cleanup: Any
+) -> None:
+    """A schedule whose target queue was deleted, with MaximumRetryAttempts 0, sends its Input
+    to the dead-letter queue with the String attributes the dead-letter page lists, ERROR_CODE
+    AWS.SimpleQueueService.NonExistentQueue (aws-doc configuring-schedule-dlq; scheduler.md
+    7.2). RETRY_ATTEMPTS and EXHAUSTED_RETRY_CONDITION depend on
+    scheduler.retry.permanent-errors and are asserted in Go tests; DeadLetterConfig reads back
+    as sent (4.2)."""
+    gone_url = sqs.create_queue(QueueName=uniq("sch-gone"))["QueueUrl"]
+    gone_arn = _queue_arn(sqs, gone_url)
+    sqs.delete_queue(QueueUrl=gone_url)
+    dlq_url = make_queue("sch-dlq")
+    dlq_arn = _queue_arn(sqs, dlq_url)
+    at = _emulator_now(clock) + datetime.timedelta(minutes=10)
+    name = uniq("sch")
+    created = scheduler.create_schedule(
+        Name=name,
+        ScheduleExpression=f"at({at.strftime('%Y-%m-%dT%H:%M:%S')})",
+        FlexibleTimeWindow={"Mode": "OFF"},
+        Target={
+            "Arn": gone_arn,
+            "RoleArn": role,
+            "Input": "Hello, world!",
+            "RetryPolicy": {"MaximumRetryAttempts": 0},
+            "DeadLetterConfig": {"Arn": dlq_arn},
+        },
+    )
+    cleanup.add(scheduler.delete_schedule, Name=name)
+    got = scheduler.get_schedule(Name=name)
+    assert got["Target"]["DeadLetterConfig"] == {"Arn": dlq_arn}
+    assert got["Target"]["RetryPolicy"]["MaximumRetryAttempts"] == 0
+
+    clock.advance(11 * 60)
+    messages = sqs.receive_message(QueueUrl=dlq_url, MaxNumberOfMessages=10, MessageAttributeNames=["All"]).get("Messages", [])
+    assert len(messages) == 1, messages
+    attrs = messages[0]["MessageAttributes"]
+    assert messages[0]["Body"] == "Hello, world!"
+    for attr in DEAD_LETTER_ATTRIBUTES:
+        assert attrs[attr]["DataType"] == "String", (attr, attrs.get(attr))
+    assert attrs["ERROR_CODE"]["StringValue"] == "AWS.SimpleQueueService.NonExistentQueue"
+    assert re.fullmatch(r"arn:aws:scheduler:::aws-sdk:[a-z0-9-]+:[a-zA-Z]+", attrs["TARGET_ARN"]["StringValue"])
+    assert attrs["SCHEDULE_ARN"]["StringValue"] == created["ScheduleArn"]
+    assert attrs["SCHEDULED_TIME"]["StringValue"] == at.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
 def test_universal_target_is_not_implemented(scheduler: Any, role: str) -> None:
     """A universal (aws-sdk) target answers 501 NotImplemented and nothing is stored
     (CLAUDE.md invariant 3; spec "Scope")."""

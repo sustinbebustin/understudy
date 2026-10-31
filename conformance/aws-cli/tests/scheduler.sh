@@ -170,6 +170,45 @@ test_recorded_expression_refusal_and_past_at() {
   aws_ok scheduler delete-schedule --name "$name"
 }
 
+# A schedule whose target queue was deleted, with MaximumRetryAttempts 0,
+# sends its Input to the dead-letter queue with the String attributes the
+# dead-letter page lists, ERROR_CODE AWS.SimpleQueueService.NonExistentQueue
+# (aws-doc configuring-schedule-dlq; scheduler.md 7.2). RETRY_ATTEMPTS and
+# EXHAUSTED_RETRY_CONDITION depend on scheduler.retry.permanent-errors and
+# are asserted in Go tests; DeadLetterConfig reads back as sent (4.2).
+test_deleted_target_queue_dead_letters() {
+  sch_setup
+  local gone_url gone_arn now at name target
+  aws_ok sqs create-queue --queue-name "$(new_name sch-gone)"
+  gone_url=$(jqv '.QueueUrl')
+  aws_ok sqs get-queue-attributes --queue-url "$gone_url" --attribute-names QueueArn
+  gone_arn=$(jqv '.Attributes.QueueArn')
+  aws_ok sqs delete-queue --queue-url "$gone_url"
+  now=$(curl -fsS "${UE_ADMIN_URL:?UE_ADMIN_URL unset}/clock" | jq -r '.now')
+  at=$(date -u -d "@$(($(date -u -d "$now" +%s) + 600))" +%Y-%m-%dT%H:%M:%S)
+  name=$(new_name sch)
+  target=$(jq -cn --arg q "$gone_arn" --arg r "$SCH_ROLE_ARN" --arg d "$SCH_QUEUE_ARN" \
+    '{Arn: $q, RoleArn: $r, Input: "Hello, world!", RetryPolicy: {MaximumRetryAttempts: 0}, DeadLetterConfig: {Arn: $d}}')
+  aws_ok scheduler create-schedule --name "$name" --schedule-expression "at($at)" \
+    --flexible-time-window Mode=OFF --target "$target"
+  aws_ok scheduler get-schedule --name "$name"
+  assert_jq '.Target.DeadLetterConfig.Arn' "$SCH_QUEUE_ARN"
+  assert_jq '.Target.RetryPolicy.MaximumRetryAttempts' 0
+
+  advance 660
+  aws_ok sqs receive-message --queue-url "$SCH_QUEUE_URL" --max-number-of-messages 10 --message-attribute-names All
+  assert_jq_true '(.Messages | length) == 1'
+  assert_jq '.Messages[0].Body' 'Hello, world!'
+  assert_jq '.Messages[0].MessageAttributes.ERROR_CODE.StringValue' AWS.SimpleQueueService.NonExistentQueue
+  assert_jq_true '.Messages[0].MessageAttributes as $a
+    | ["ERROR_CODE","ERROR_MESSAGE","EXECUTION_ID","IS_PAYLOAD_TRUNCATED","RETRY_ATTEMPTS","SCHEDULED_TIME","SCHEDULE_ARN","TARGET_ARN"]
+    | all(. as $n | $a[$n].DataType == "String")'
+  assert_jq_match '.Messages[0].MessageAttributes.TARGET_ARN.StringValue' '^arn:aws:scheduler:::aws-sdk:[a-z0-9-]+:[a-zA-Z]+$'
+  assert_jq_match '.Messages[0].MessageAttributes.SCHEDULE_ARN.StringValue' ":schedule/default/${name}\$"
+  assert_jq '.Messages[0].MessageAttributes.SCHEDULED_TIME.StringValue' "${at}Z"
+  aws_ok scheduler delete-schedule --name "$name"
+}
+
 # A universal (aws-sdk) target answers 501 NotImplemented and nothing is
 # stored (CLAUDE.md invariant 3; spec "Scope").
 test_universal_target_is_not_implemented() {
