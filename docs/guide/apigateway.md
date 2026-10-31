@@ -282,12 +282,31 @@ curl -i http://localhost:4566/_understudy/execute-api/xa6x46z82h/dev/
 
 The host form `xa6x46z82h.execute-api.us-east-1.localhost:4566/dev/` serves the same API. Before `add-permission` the request answers `500 {"message": "Internal server error"}` and the function does not run; on an API with only its root resource, a path no deployed method serves answers `403 {"message":"Missing Authentication Token"}`.
 
-For now `put-method`, `put-integration`, `create-rest-api` and `create-deployment` accept only the members above (plus `--description` and `--version` on `create-rest-api`, `--description` on `create-deployment` and `--timeout-in-millis` on `put-integration`), and `put-integration` only `--type AWS_PROXY` to a Lambda function. Any other member or type answers `NotImplemented` naming it and changes nothing:
+For now `put-integration`, `create-rest-api` and `create-deployment` accept only the members above (plus `--description` and `--version` on `create-rest-api`, `--description` on `create-deployment` and `--timeout-in-millis` on `put-integration`), and `put-integration` only `--type AWS_PROXY` to a Lambda function. Any other member or type answers `NotImplemented` naming it and changes nothing:
 
 ```text
-An error occurred (NotImplemented) when calling the PutMethod operation: understudy does not implement apiKeyRequired
-on PutMethod yet; nothing was changed. Send the request without apiKeyRequired.
+An error occurred (NotImplemented) when calling the PutIntegration operation: understudy does not implement type MOCK
+on PutIntegration yet; nothing was changed. Send the request without type MOCK.
 ```
+
+Methods and method responses can be put, read, updated and deleted. `put-method` replaces a method that exists, its responses and integration included. Every API holds the models `Empty` and `Error`, and request and response models can name only those; no authorizer or request validator can exist, so `--authorizer-id`, `--request-validator-id`, and `CUSTOM` or `COGNITO_USER_POOLS` are refused with AWS's texts:
+
+```sh
+aws apigateway put-method --rest-api-id 6w1py3ej10 --resource-id tyqlw56rqq --http-method POST --authorization-type NONE \
+  --operation-name createPet --request-parameters method.request.querystring.page=true --request-models application/json=Empty
+aws apigateway put-method --rest-api-id 6w1py3ej10 --resource-id tyqlw56rqq --http-method GET --authorization-type NONE \
+  --request-models application/json=Pet
+# An error occurred (BadRequestException) when calling the PutMethod operation: Invalid model identifier specified: Pet
+aws apigateway put-method-response --rest-api-id 6w1py3ej10 --resource-id tyqlw56rqq --http-method POST --status-code 200 \
+  --response-models application/json=Empty
+aws apigateway update-method-response --rest-api-id 6w1py3ej10 --resource-id tyqlw56rqq --http-method POST --status-code 200 \
+  --patch-operations op=add,path=/responseParameters/method.response.header.X-Id,value=false
+# 201, as on AWS
+aws apigateway get-method --rest-api-id 6w1py3ej10 --resource-id tyqlw56rqq --http-method POST
+# "methodResponses": {"200": {"statusCode": "200", "responseParameters": {...}, "responseModels": {...}}}
+```
+
+A method with `apiKeyRequired` answers `403 {"message":"Forbidden"}`, since no API key can be created. Request parameters and models are stored and returned; without a request validator they do not act, as on AWS.
 
 Resources can be created, read, renamed, moved and deleted. A move or a rename carries the subtree's paths along, and deleting a resource deletes its subtree. The sibling and greedy rules answer AWS's texts:
 
@@ -305,4 +324,4 @@ aws apigateway get-resources --rest-api-id 70wh1xgmho
 
 `get-resources --embed methods` returns each method in full; without it `resourceMethods` maps each method to `{}`. A path part is letters, digits and `._-,:`, or `{name}` and `{name+}`; anything else is refused. Requests are matched only against the root resource so far: once a deployment holds other resources, a request the root does not serve answers `501` saying so, rather than a `403` AWS might not give.
 
-Method responses, integration responses, MOCK integrations, stages on their own, most updates and Terraform are not implemented yet.
+Integration responses, MOCK integrations, stages on their own, most updates and Terraform are not implemented yet.
