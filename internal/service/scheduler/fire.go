@@ -45,7 +45,7 @@ func (s *Service) onFire(c *kernel.Call, key clock.TimerKey, due clock.Instant) 
 		return
 	}
 	c.Touch(r.arn())
-	roleID := s.resolveRole(ctx, c, r, sc.Echo.Target.RoleArn)
+	roleID := s.resolveRole(ctx, c, r, sc.Plan.role)
 	_, err := kernel.Write(c, s.cells, r.scope, func(st *State, _ clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
 		sc, ok := st.get(r)
 		at, isDue := sc.Run.(scheduled)
@@ -90,26 +90,22 @@ func dueAt(next run, due clock.Instant) bool {
 // hold has none: the invocation is still made as a session of the named
 // role, with no role id in SenderId, under iam.enforce off and advise.
 // UNVERIFIED (SCH-08), scheduler.md 9.
-func (s *Service) resolveRole(ctx context.Context, c *kernel.Call, r scheduleRef, role string) string {
-	a, err := aws.ParseARN(role)
-	if err != nil {
-		return ""
-	}
+func (s *Service) resolveRole(ctx context.Context, c *kernel.Call, r scheduleRef, role aws.ARN) string {
 	scope := r.scope
-	account, err := aws.ParseAccountID(a.Account)
+	account, err := aws.ParseAccountID(role.Account)
 	if err != nil {
 		return ""
 	}
 	scope.Account = account
 	out, aerr := kernel.Invoke(ctx, s.k, c, iamapi.OpResolveRole,
 		kernel.Target{Scope: scope, As: kernel.AsPlatform{Name: principal}, Via: ref.SchedulerTarget},
-		&iamapi.ResolveRoleInput{RoleArn: role})
+		&iamapi.ResolveRoleInput{RoleArn: role.String()})
 	switch {
 	case aerr == nil:
 		return out.Role.RoleId
 	case aerr.ID.Shape != iamapi.IdentityNoSuchEntityException().Shape:
 		s.k.Log().LogAttrs(ctx, slog.LevelWarn, "Scheduler could not read a schedule's execution role; the invocation runs as the role without its id",
-			slog.String("schedule", r.arn().String()), slog.String("role", role), slog.String("error", aerr.Message))
+			slog.String("schedule", r.arn().String()), slog.String("role", role.String()), slog.String("error", aerr.Message))
 	}
 	return ""
 }
@@ -121,17 +117,13 @@ func (s *Service) resolveRole(ctx context.Context, c *kernel.Call, r scheduleRef
 // execution id across retries and a 32-hex session per invocation are
 // inferred.
 func (s *Service) invocation(r scheduleRef, sc *schedule, at scheduled, roleID string) (delivery.Request, *awserr.Error) {
-	role, err := aws.ParseARN(sc.Echo.Target.RoleArn)
-	if err != nil {
-		return delivery.Request{}, awserr.Internalf(err)
-	}
 	age, retries := sc.Echo.Target.retryPolicy()
 	tmpl := sc.Echo.Target.template()
 	req := delivery.Request{
 		Source: r.arn(),
 		Policy: delivery.EventBridgeTarget{MaxAge: time.Duration(age) * time.Second, MaxAttempts: int(retries)},
 		DLQ:    sc.Plan.deadLetter,
-		As:     delivery.ExecutionRole{Role: role, RoleID: roleID, Session: hex.EncodeToString(s.ids.Draw(ids.KindRoleSession, 16))},
+		As:     delivery.ExecutionRole{Role: sc.Plan.role, RoleID: roleID, Session: hex.EncodeToString(s.ids.Draw(ids.KindRoleSession, 16))},
 		Invocation: &delivery.SchedulerInvocation{
 			ScheduleARN: r.arn(),
 			TargetARN:   sc.Echo.Target.Arn,
@@ -139,6 +131,7 @@ func (s *Service) invocation(r scheduleRef, sc *schedule, at scheduled, roleID s
 			ExecutionID: hex.EncodeToString(s.ids.Draw(ids.KindSchedulerExecution, 8)),
 			Template:    tmpl,
 			OnPermanent: s.opts.PermanentErrors,
+			Key:         sc.Plan.key,
 		},
 	}
 	switch t := sc.Plan.target.(type) {

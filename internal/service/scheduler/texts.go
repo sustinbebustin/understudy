@@ -118,6 +118,15 @@ func errBadNextToken(op string) *awserr.Error {
 	return schedulerapi.ErrValidationException("Invalid NextToken: it was not issued by a " + op + " page of this listing; start the listing again without NextToken.")
 }
 
+// errRoleUntrusted answers, under iam.enforce=enforce, an execution role
+// that is missing or does not let scheduler.amazonaws.com assume it: "The
+// execution role you provide must allow AWS EventBridge Scheduler to
+// assume the role." Captured; the provider retries on exactly this text
+// (tf schedule.go:L659-L665; scheduler.md 1 item 10, 2.4).
+func errRoleUntrusted() *awserr.Error {
+	return schedulerapi.ErrValidationException("The execution role you provide must allow AWS EventBridge Scheduler to assume the role.")
+}
+
 // errNotRole answers a Target.RoleArn that names no IAM role.
 // UNVERIFIED (SCH-04), scheduler.md 4.7: the text is inferred.
 func errNotRole(roleArn string) *awserr.Error {

@@ -186,9 +186,12 @@ func groupSummary(c *kernel.Call, v groupView) schedulerapi.ScheduleGroupSummary
 // reported (scheduler.md 3.3, 14.7.3; ARCHITECTURE.md 9). default answers
 // ValidationException (14.7.1). ClientToken is accepted and not used for
 // idempotency (SCH-02).
-func (s *Service) deleteScheduleGroup(_ context.Context, c *kernel.Call, in *schedulerapi.DeleteScheduleGroupInput) (*schedulerapi.DeleteScheduleGroupOutput, *awserr.Error) {
+func (s *Service) deleteScheduleGroup(ctx context.Context, c *kernel.Call, in *schedulerapi.DeleteScheduleGroupInput) (*schedulerapi.DeleteScheduleGroupOutput, *awserr.Error) {
 	if in.Name == defaultGroup {
 		return nil, errDeleteDefaultGroup()
+	}
+	if err := s.authorizeMembers(ctx, c, in.Name); err != nil {
+		return nil, err
 	}
 	_, err := kernel.Write(c, s.cells, c.Scope(), func(st *State, _ clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
 		if _, ok := st.Groups[in.Name]; !ok {

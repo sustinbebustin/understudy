@@ -38,8 +38,16 @@ type targetError struct{ err *awserr.Error }
 // Service Unavailable".
 type endpointError struct{ reason string }
 
+// senderRefusal is a delivery its sender refused before calling the
+// target: a Scheduler invocation whose execution role could not be
+// assumed or whose role session may not decrypt with the schedule's key
+// (invocation.go). code is the dead letter's ERROR_CODE and message the
+// Authorizer's denial.
+type senderRefusal struct{ code, message string }
+
 func (targetError) isFailure()   {}
 func (endpointError) isFailure() {}
+func (senderRefusal) isFailure() {}
 
 // describeFailure renders f for a journal reason.
 func describeFailure(f failure) string {
@@ -48,6 +56,8 @@ func describeFailure(f failure) string {
 		return describe(f.err)
 	case endpointError:
 		return f.reason
+	case senderRefusal:
+		return f.code + ": " + f.message
 	}
 	return "no failure was recorded"
 }
@@ -231,6 +241,8 @@ func schedulerError(f failure) (code, message string) {
 		return code, errorMessage(f.err)
 	case endpointError:
 		return "AWS.Scheduler.InternalServerError", f.reason
+	case senderRefusal:
+		return f.code, f.message
 	}
 	return "AWS.Scheduler.InternalServerError", describeFailure(f)
 }

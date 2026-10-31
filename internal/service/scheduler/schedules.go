@@ -16,12 +16,13 @@ import (
 // createSchedule stores a schedule in its group and arms its first fire
 // (scheduler.md 4.1, 14.3). The group is looked up after the members are
 // validated (14.9.3); a missing one answers "Schedule group <name> does
-// not exist." (14.7.4). ClientToken is accepted and not used for
+// not exist." (14.7.4). Then the role's trust, iam:PassRole and KMS are
+// authorized (authorizeWrite). ClientToken is accepted and not used for
 // idempotency (SCH-02).
-func (s *Service) createSchedule(_ context.Context, c *kernel.Call, in *schedulerapi.CreateScheduleInput) (*schedulerapi.CreateScheduleOutput, *awserr.Error) {
+func (s *Service) createSchedule(ctx context.Context, c *kernel.Call, in *schedulerapi.CreateScheduleInput) (*schedulerapi.CreateScheduleOutput, *awserr.Error) {
 	r := scheduleRef{scope: c.Scope(), group: groupName(in.GroupName), name: in.Name}
 	m := createMembers(in)
-	p, err := accept(r.scope, &m, s.opts.RateUnits, atWrite(c.Admitted().Wire()))
+	p, err := s.authorized(ctx, c, r, &m)
 	if err != nil {
 		return nil, err
 	}
@@ -48,10 +49,10 @@ func (s *Service) createSchedule(_ context.Context, c *kernel.Call, in *schedule
 // as it was keeps the next invocation; any other, enabling included,
 // re-plans from the write instant (14.3.10, echo.sameTiming). ClientToken
 // is accepted and not used for idempotency (SCH-02).
-func (s *Service) updateSchedule(_ context.Context, c *kernel.Call, in *schedulerapi.UpdateScheduleInput) (*schedulerapi.UpdateScheduleOutput, *awserr.Error) {
+func (s *Service) updateSchedule(ctx context.Context, c *kernel.Call, in *schedulerapi.UpdateScheduleInput) (*schedulerapi.UpdateScheduleOutput, *awserr.Error) {
 	r := scheduleRef{scope: c.Scope(), group: groupName(in.GroupName), name: in.Name}
 	m := updateMembers(in)
-	p, err := accept(r.scope, &m, s.opts.RateUnits, atWrite(c.Admitted().Wire()))
+	p, err := s.authorized(ctx, c, r, &m)
 	if err != nil {
 		return nil, err
 	}
@@ -77,6 +78,23 @@ func (s *Service) updateSchedule(_ context.Context, c *kernel.Call, in *schedule
 		return nil, err
 	}
 	return &schedulerapi.UpdateScheduleOutput{ScheduleArn: r.arn().String()}, nil
+}
+
+// authorized is the plan of a create or update of r with members m, once
+// the members are validated, the group is found and the caller and role
+// are authorized (scheduler.md 14.9.3); the write checks the group again.
+func (s *Service) authorized(ctx context.Context, c *kernel.Call, r scheduleRef, m *members) (plan, *awserr.Error) {
+	p, err := accept(r.scope, m, s.opts.RateUnits, atWrite(c.Admitted().Wire()))
+	if err != nil {
+		return plan{}, err
+	}
+	if !s.groupHeld(r.scope, r.group) {
+		return plan{}, errGroupMissing(r.group)
+	}
+	if err := authorizeWrite(ctx, c, r, &p); err != nil {
+		return plan{}, err
+	}
+	return p, nil
 }
 
 // listSchedulesPage is ListSchedules' page without MaxResults.

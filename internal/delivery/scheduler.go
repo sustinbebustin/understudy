@@ -52,6 +52,25 @@ type SchedulerInvocation struct {
 	// OnPermanent is scheduler.retry.permanent-errors as the schedule was
 	// written under.
 	OnPermanent PermanentErrors
+	// Key is the schedule's KmsKeyArn, nil when it has none: the role
+	// session needs kms:Decrypt on it before each target call (aws-doc
+	// encryption-rest; scheduler.md 9, 14.11). Nothing is encrypted.
+	Key *aws.ARN
+}
+
+// GroupARN is the ARN of the schedule group ScheduleARN is in,
+// arn:<partition>:scheduler:<region>:<account>:schedule-group/<group>: the
+// aws:SourceArn Scheduler assumes the execution role with
+// (scheduler.md 9); zero when ScheduleARN names no schedule.
+func (s SchedulerInvocation) GroupARN() aws.ARN {
+	rest, ok := strings.CutPrefix(s.ScheduleARN.Resource, "schedule/")
+	group, _, named := strings.Cut(rest, "/")
+	if !ok || !named || group == "" {
+		return aws.ARN{}
+	}
+	g := s.ScheduleARN
+	g.Resource = "schedule-group/" + group
+	return g
 }
 
 // Payload is Template with the four context attributes replaced by plain

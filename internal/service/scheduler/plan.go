@@ -57,6 +57,13 @@ type plan struct {
 	// state is State with its default, ENABLED, filled (scheduler.md 4.6).
 	state  schedulerapi.ScheduleState
 	target target
+	// role is Target.RoleArn, the execution role every invocation runs as
+	// (scheduler.md 9).
+	role aws.ARN
+	// key is KmsKeyArn, nil when none was sent: stored and echoed, never
+	// used to encrypt, and authorized at write and invocation (scheduler.md
+	// 4.1, 9, 14.11).
+	key *aws.ARN
 	// deadLetter is the queue a failed invocation goes to, nil for none
 	// (scheduler.md 7.2).
 	deadLetter *aws.ARN
@@ -224,7 +231,11 @@ func accept(scope aws.Scope, m *members, units schedexpr.RateUnits, dates dateCh
 	if err := dates(m, expr, loc); err != nil {
 		return plan{}, err
 	}
-	tgt, err := parseTarget(scope, &m.target)
+	tgt, role, err := parseTarget(scope, &m.target)
+	if err != nil {
+		return plan{}, err
+	}
+	key, err := parseKey(m.kmsKeyArn)
 	if err != nil {
 		return plan{}, err
 	}
@@ -246,7 +257,7 @@ func accept(scope aws.Scope, m *members, units schedexpr.RateUnits, dates dateCh
 		done = completionDelete
 	}
 	return plan{
-		expression: expr, loc: loc, start: m.start, end: m.end, state: state, target: tgt, deadLetter: dlq,
+		expression: expr, loc: loc, start: m.start, end: m.end, state: state, target: tgt, role: role, key: key, deadLetter: dlq,
 		window: w, completion: done,
 	}, nil
 }
@@ -372,19 +383,33 @@ func unimplementedTarget(service string) (string, bool) {
 // The target need not exist (4.1). A parameter block that does not match
 // the target is stored, echoed and ignored, and Input is not checked for
 // JSON. UNVERIFIED (SCH-04), scheduler.md 6.1, 6.3: both are inferred.
-func parseTarget(scope aws.Scope, t *schedulerapi.Target) (target, *awserr.Error) {
+func parseTarget(scope aws.Scope, t *schedulerapi.Target) (target, aws.ARN, *awserr.Error) {
 	role, err := aws.ParseARN(t.RoleArn)
 	if name, ok := strings.CutPrefix(role.Resource, "role/"); err != nil || role.Service != "iam" || !ok || name == "" {
-		return nil, errNotRole(t.RoleArn)
+		return nil, aws.ARN{}, errNotRole(t.RoleArn)
 	}
 	tgt, aerr := parseTargetARN(scope, t)
 	if aerr != nil {
-		return nil, aerr
+		return nil, aws.ARN{}, aerr
 	}
 	if t.Input != nil && len(*t.Input) > maxInputBytes {
-		return nil, errInputTooLarge(len(*t.Input))
+		return nil, aws.ARN{}, errInputTooLarge(len(*t.Input))
 	}
-	return tgt, nil
+	return tgt, role, nil
+}
+
+// parseKey reads KmsKeyArn, nil when none was sent. The generated
+// validator has already admitted only a KMS key or alias ARN (scheduler.md
+// 4.1).
+func parseKey(raw *string) (*aws.ARN, *awserr.Error) {
+	if raw == nil {
+		return nil, nil
+	}
+	key, err := aws.ParseARN(*raw)
+	if err != nil {
+		return nil, awserr.Internalf(err)
+	}
+	return &key, nil
 }
 
 // parseDeadLetter reads Target.DeadLetterConfig into the queue failed

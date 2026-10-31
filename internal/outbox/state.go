@@ -144,6 +144,7 @@ type invocationRecord struct {
 	ExecutionID string                   `json:"executionId"`
 	Template    string                   `json:"template"`
 	OnPermanent delivery.PermanentErrors `json:"onPermanent"`
+	Key         string                   `json:"key,omitempty"`
 }
 
 // senderRecord is the persisted form of a delivery.LambdaSender.
@@ -371,6 +372,9 @@ func recordOf(e *Entry) entryRecord {
 			Schedule: inv.ScheduleARN.String(), TargetARN: inv.TargetARN, Scheduled: inv.Scheduled,
 			ExecutionID: inv.ExecutionID, Template: inv.Template, OnPermanent: inv.OnPermanent,
 		}
+		if inv.Key != nil {
+			r.Request.Invocation.Key = inv.Key.String()
+		}
 	}
 	return r
 }
@@ -454,16 +458,33 @@ func requestOf(r *requestRecord) (delivery.Request, *RequestError) {
 		req.As = delivery.ExecutionRole{Role: role, RoleID: as.RoleID, Session: as.Session}
 	}
 	if inv := r.Invocation; inv != nil {
-		schedule, err := parseARN("Invocation.ScheduleARN", inv.Schedule)
+		got, err := invocationOf(inv)
 		if err != nil {
 			return delivery.Request{}, err
 		}
-		req.Invocation = &delivery.SchedulerInvocation{
-			ScheduleARN: schedule, TargetARN: inv.TargetARN, Scheduled: inv.Scheduled,
-			ExecutionID: inv.ExecutionID, Template: inv.Template, OnPermanent: inv.OnPermanent,
-		}
+		req.Invocation = got
 	}
 	return req, nil
+}
+
+// invocationOf returns the delivery.SchedulerInvocation r persists.
+func invocationOf(r *invocationRecord) (*delivery.SchedulerInvocation, *RequestError) {
+	schedule, err := parseARN("Invocation.ScheduleARN", r.Schedule)
+	if err != nil {
+		return nil, err
+	}
+	inv := &delivery.SchedulerInvocation{
+		ScheduleARN: schedule, TargetARN: r.TargetARN, Scheduled: r.Scheduled,
+		ExecutionID: r.ExecutionID, Template: r.Template, OnPermanent: r.OnPermanent,
+	}
+	if r.Key != "" {
+		key, err := parseARN("Invocation.Key", r.Key)
+		if err != nil {
+			return nil, err
+		}
+		inv.Key = &key
+	}
+	return inv, nil
 }
 
 func parseARN(field, s string) (aws.ARN, *RequestError) {

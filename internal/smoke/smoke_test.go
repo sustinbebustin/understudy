@@ -763,7 +763,9 @@ func (w *workload) scheduler(t *testing.T) {
 	}
 	must(t, "DeleteSchedule", rest(http.MethodDelete, ""), http.StatusOK)
 	must(t, "GetSchedule after delete", rest(http.MethodGet, ""), http.StatusNotFound)
-	var groups struct{ ScheduleGroups []struct{ Name, State string } }
+	var groups struct {
+		ScheduleGroups []struct{ Name, State string }
+	}
 	listed := send(t, w.emu, request{method: http.MethodGet, path: "/schedule-groups", service: "scheduler"})
 	decode(t, "ListScheduleGroups", must(t, "ListScheduleGroups", listed, http.StatusOK).body, &groups)
 	for _, g := range groups.ScheduleGroups {

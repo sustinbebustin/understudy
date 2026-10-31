@@ -10,7 +10,7 @@
         "dev.understudy#evidence": [
           {
             "label": "inferred",
-            "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: no source names the Scheduler denial and its model declares no AccessDeniedException, so the generic com.amazon.coral.service#AccessDeniedException, 403, answers; UNVERIFIED until recording IAM-ENF-37",
+            "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: no source names the Scheduler denial and its model declares no AccessDeniedException, so the generic com.amazon.coral.service#AccessDeniedException answers with key Message at 403, the status of Scheduler's CommonErrors page (scheduler.md 2.4), with the documented grammar (switch scheduler.denial.status; the other side is the 400 of EventBridge's row); UNVERIFIED until recording IAM-ENF-37 or SCH-10 step 01",
             "covers": ["dev.understudy#denialError"]
           },
           {

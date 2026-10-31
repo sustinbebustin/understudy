@@ -244,6 +244,9 @@ func (a *attempt) run(ctx context.Context) (journal.DeliveryOutcome, bool) {
 		return journal.Dropped{Reason: reason}, true
 	}
 	a.advise(ctx)
+	if outcome, ok, done := a.authorizeInvocation(ctx); done {
+		return outcome, ok
+	}
 	return a.send(ctx, rendered(a.entry.Request, a.entry.Attempt+1))
 }
 
