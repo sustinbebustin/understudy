@@ -280,7 +280,7 @@ curl -i http://localhost:4566/_understudy/execute-api/xa6x46z82h/dev/
 # hello from the root
 ```
 
-The host form `xa6x46z82h.execute-api.us-east-1.localhost:4566/dev/` serves the same API. Before `add-permission` the request answers `500 {"message": "Internal server error"}` and the function does not run; a path no deployed method serves answers `403 {"message":"Missing Authentication Token"}`.
+The host form `xa6x46z82h.execute-api.us-east-1.localhost:4566/dev/` serves the same API. Before `add-permission` the request answers `500 {"message": "Internal server error"}` and the function does not run; on an API with only its root resource, a path no deployed method serves answers `403 {"message":"Missing Authentication Token"}`.
 
 For now `put-method`, `put-integration`, `create-rest-api` and `create-deployment` accept only the members above (plus `--description` and `--version` on `create-rest-api`, `--description` on `create-deployment` and `--timeout-in-millis` on `put-integration`), and `put-integration` only `--type AWS_PROXY` to a Lambda function. Any other member or type answers `NotImplemented` naming it and changes nothing:
 
@@ -289,4 +289,20 @@ An error occurred (NotImplemented) when calling the PutMethod operation: underst
 on PutMethod yet; nothing was changed. Send the request without apiKeyRequired.
 ```
 
-Resources other than the root, method responses, integration responses, MOCK integrations, stages on their own, updates and Terraform are not implemented yet.
+Resources can be created, read, renamed, moved and deleted. A move or a rename carries the subtree's paths along, and deleting a resource deletes its subtree. The sibling and greedy rules answer AWS's texts:
+
+```sh
+aws apigateway create-resource --rest-api-id 70wh1xgmho --parent-id et98izvga3 --path-part pets
+aws apigateway create-resource --rest-api-id 70wh1xgmho --parent-id fz2095 --path-part '{id}'
+# "id": "14wxhg", "parentId": "fz2095", "pathPart": "{id}", "path": "/pets/{id}"
+aws apigateway create-resource --rest-api-id 70wh1xgmho --parent-id fz2095 --path-part '{name}'
+# An error occurred (BadRequestException) when calling the CreateResource operation: A sibling ({id}) of this
+# resource already has a variable path part -- only one is allowed
+aws apigateway update-resource --rest-api-id 70wh1xgmho --resource-id fz2095 --patch-operations op=replace,path=/pathPart,value=animals
+aws apigateway get-resources --rest-api-id 70wh1xgmho
+# "/", "/animals", "/animals/{id}", in creation order
+```
+
+`get-resources --embed methods` returns each method in full; without it `resourceMethods` maps each method to `{}`. A path part is letters, digits and `._-,:`, or `{name}` and `{name+}`; anything else is refused. Requests are matched only against the root resource so far: once a deployment holds other resources, a request the root does not serve answers `501` saying so, rather than a `403` AWS might not give.
+
+Method responses, integration responses, MOCK integrations, stages on their own, most updates and Terraform are not implemented yet.
