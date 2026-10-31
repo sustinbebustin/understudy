@@ -356,6 +356,15 @@ Every acceptance step is followed by a plan that must be empty, and most tests e
 - `group_name` reads back the group (tf-acc L480-L510).
 - The universal target `arn:<partition>:scheduler:::aws-sdk:sqs:sendMessage` with a JSON `input` is accepted and echoed (tf-acc L1174-L1233, config L2334-L2362).
 
+### 11.4 aws_scheduler_schedule at provider v6.32.1
+
+The census pattern `eventbridge-scheduler-ses-abandoned-cart-notification` constrains the provider to `~> 6.32.0`, which admits 6.32.0 and 6.32.1 only (registry, retrieved 2026-10-31), so its conformance copy pins 6.32.1. From tf `internal/service/scheduler/schedule.go` at v6.32.1 (hashicorp/terraform-provider-aws tag `v6.32.1`, retrieved 2026-10-31); the calls are those 11.1 reads at v6.68.0:
+
+- Create (L435-L509): `CreateSchedule{Name, ScheduleExpression, ActionAfterCompletion?, Description?, EndDate?, FlexibleTimeWindow, GroupName?, KmsKeyArn?, ScheduleExpressionTimezone, StartDate?, State, Target}`, optional members only when non-empty (L445-L485); retried for two minutes on the role text (L487-L489, L647-L653); id `<group>/<name>` from the returned `ScheduleArn` (L495-L506, L686-L718); then read (L508).
+- Read (L511-L560): `GetSchedule{GroupName, Name}` (L655-L662); `ResourceNotFoundException` removes it from state unless the resource is new; an output without `Arn` is an empty-result error (L664-L682). The flatten is inline (L532-L557) where v6.68.0 moves it to `resourceScheduleFlatten`; it sets the same attributes in the same order.
+- Delete (L620-L645): `DeleteSchedule{GroupName, Name}`; `ResourceNotFoundException` is success; no waiter.
+- Schema: the same members and defaults as v6.68.0: `schedule_expression_timezone` default `UTC` (L133-L138), `state` default `ENABLED` (L144-L149), `retry_policy` defaults 86400 and 185 with the block-count suppression (L351-L380). Between the two versions only the resource's import identity (`@IdentityAttribute`, `scheduleImportID`) and the move to `SchemaFunc` differ, which no API call sees.
+
 ## 12. The serverless-patterns census
 
 16 of the 129 Terraform patterns at `deb84af` declare Scheduler resources (all MIT-0 per their READMEs' `SPDX-License-Identifier`):
