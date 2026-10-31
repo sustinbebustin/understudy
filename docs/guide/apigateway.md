@@ -282,12 +282,25 @@ curl -i http://localhost:4566/_understudy/execute-api/xa6x46z82h/dev/
 
 The host form `xa6x46z82h.execute-api.us-east-1.localhost:4566/dev/` serves the same API. Before `add-permission` the request answers `500 {"message": "Internal server error"}` and the function does not run; on an API with only its root resource, a path no deployed method serves answers `403 {"message":"Missing Authentication Token"}`.
 
-For now `put-integration`, `create-rest-api` and `create-deployment` accept only the members above (plus `--description` and `--version` on `create-rest-api`, `--description` on `create-deployment` and `--timeout-in-millis` on `put-integration`), and `put-integration` only `--type AWS_PROXY` to a Lambda function. Any other member or type answers `NotImplemented` naming it and changes nothing:
+For now `create-rest-api` and `create-deployment` accept only the members above (plus `--description` and `--version` on `create-rest-api` and `--description` on `create-deployment`). Any other member answers `NotImplemented` naming it and changes nothing:
 
 ```text
-An error occurred (NotImplemented) when calling the PutIntegration operation: understudy does not implement type MOCK
-on PutIntegration yet; nothing was changed. Send the request without type MOCK.
+An error occurred (NotImplemented) when calling the CreateDeployment operation: understudy does not implement variables
+on CreateDeployment yet; nothing was changed. Send the request without variables.
 ```
+
+Integrations and integration responses can be put, read, updated and deleted, of every type. `put-integration` answers AWS's defaults (`timeoutInMillis` 29000, `passthroughBehavior` `WHEN_NO_MATCH`, `cacheNamespace` the resource id, `connectionType` `INTERNET` for `HTTP` and `HTTP_PROXY` only) and drops `--integration-http-method` on a `MOCK` integration, as AWS does. URIs are checked with AWS's texts:
+
+```sh
+aws apigateway put-integration --rest-api-id xa6x46z82h --resource-id 3psizn47rr --http-method GET \
+  --type AWS --integration-http-method POST --uri arn:aws:lambda:us-east-1:000000000000:function:hello
+# An error occurred (BadRequestException) when calling the PutIntegration operation: AWS ARN for integration must contain path or action
+aws apigateway put-integration-response --rest-api-id xa6x46z82h --resource-id 3psizn47rr --http-method GET \
+  --status-code 200 --selection-pattern ''
+# "statusCode": "200", "selectionPattern": ""
+```
+
+Only an `AWS_PROXY` integration to a Lambda function runs. `MOCK`, `HTTP`, `HTTP_PROXY` and `AWS` integrations are stored, and so are `--credentials`, a `${stageVariables.name}` in `--uri`, `--response-transfer-mode STREAM` and `--content-handling`, but a request that reaches one answers `501` naming it and runs nothing. `--connection-type VPC_LINK`, `--connection-id`, `--tls-config` and `--integration-target` answer `NotImplemented`. An empty-string template is returned as `""`; AWS returns `null` for a response template.
 
 Methods and method responses can be put, read, updated and deleted. `put-method` replaces a method that exists, its responses and integration included. Every API holds the models `Empty` and `Error`, and request and response models can name only those; no authorizer or request validator can exist, so `--authorizer-id`, `--request-validator-id`, and `CUSTOM` or `COGNITO_USER_POOLS` are refused with AWS's texts:
 
@@ -324,4 +337,4 @@ aws apigateway get-resources --rest-api-id 70wh1xgmho
 
 `get-resources --embed methods` returns each method in full; without it `resourceMethods` maps each method to `{}`. A path part is letters, digits and `._-,:`, or `{name}` and `{name+}`; anything else is refused. Requests are matched only against the root resource so far: once a deployment holds other resources, a request the root does not serve answers `501` saying so, rather than a `403` AWS might not give.
 
-Integration responses, MOCK integrations, stages on their own, most updates and Terraform are not implemented yet.
+MOCK integrations at invoke, stages on their own, most updates and Terraform are not implemented yet.
