@@ -82,13 +82,27 @@ const (
 	getResourcesNote = "items in creation order, root first (inferred, APIGW1-04)"
 	methodNote       = "AWS_IAM, CUSTOM and COGNITO_USER_POOLS methods answer 501 at invoke; apiKeyRequired methods answer 403 because API keys cannot be created; " +
 		"requestValidatorId and requestModels name only the seeded Empty and Error models until validators and models are bound"
-	putIntegrationNote = "only type AWS_PROXY to a Lambda function with integrationHttpMethod, uri and timeoutInMillis is accepted, " +
-		"and every other type and member answers NotImplemented"
+	// emptyResponseTemplate and emptyRequestTemplate board up apigateway-rest.md
+	// finding 6: the generated map types cannot carry a null value, so an
+	// empty-string template is returned as "" until the generator can
+	// write one.
+	emptyResponseTemplate = `an empty-string response template is returned as "", where AWS returns null (recorded, apigateway-rest.md finding 6)`
+	emptyRequestTemplate  = `an empty-string request template is returned as "" (AWS's answer is UNVERIFIED, APIGW1-13)`
+	integrationNote       = "AWS_PROXY to Lambda runs; MOCK, HTTP, HTTP_PROXY and AWS are stored and answer 501 at invoke; " +
+		"credentials, a stage variable in the uri, responseTransferMode STREAM and contentHandling are stored and returned, and an invocation that reaches them answers 501; " +
+		"connectionType VPC_LINK, connectionId, tlsConfig, integrationTarget and an AWS_PROXY Firehose stream uri answer NotImplemented; " +
+		"requestParameters, cacheNamespace and cacheKeyParameters are stored without effect; " +
+		"a boolean requestParameters value answers SerializationException with understudy's decode text, not AWS's recorded one; " +
+		"the texts for a timeout out of range, an unknown passthroughBehavior and a patch value of the wrong type are inferred; " + emptyRequestTemplate
+	getIntegrationNote      = emptyRequestTemplate + "; " + emptyResponseTemplate
+	integrationResponseNote = "selectionPattern, responseParameters, responseTemplates and contentHandling are stored and returned; " +
+		"MOCK integrations, which select integration responses, answer 501 at invoke; " + emptyResponseTemplate
 	createDeploymentNote = "only stageName and description are accepted, and every other member answers NotImplemented; " +
 		"the texts for deploying an API with no methods or a method with no integration are inferred (APIGW1-05)"
 	invokeRestAPINote = "AWS_PROXY (payload 1.0) on the root resource only; a request the root does not serve answers 501 while the deployment holds other resources; " +
 		"mapping templates, request validation, authorizers, API keys, caching and throttling are not applied; AWS_IAM methods answer 501; apiKeyRequired methods answer 403; " +
 		"binaryMediaTypes in the stage's deployment answer 501; " +
+		"integrations other than AWS_PROXY, integration credentials, stage-variable uris, responseTransferMode STREAM and contentHandling answer 501; " +
 		"inferred, UNVERIFIED: unknown stage, ANY against explicit methods, HEAD (APIGW1-07, -08), timeout (APIGW1-10), empty-body event (APIGW1-16); " +
 		"header names reach the event in canonical form (Test-Header), not as the client wrote them"
 )
@@ -124,7 +138,7 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 		kernel.WithResources(resourceAt(func(in *apigatewayapi.GetResourceInput) string {
 			return "/restapis/" + in.RestApiId + "/resources/" + in.ResourceId
 		})))
-	b.GetResources(s.getResources, partial(getResourcesNote),
+	b.GetResources(s.getResources, partial(getResourcesNote+"; "+getIntegrationNote),
 		kernel.WithResources(resourceAt(func(in *apigatewayapi.GetResourcesInput) string { return "/restapis/" + in.RestApiId + "/resources" })))
 	b.UpdateResource(s.updateResource, registry.Partial{Note: baseNote},
 		kernel.WithResources(resourceAt(func(in *apigatewayapi.UpdateResourceInput) string {
@@ -138,7 +152,7 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 		kernel.WithResources(resourceAt(func(in *apigatewayapi.PutMethodInput) string {
 			return methodPath(in.RestApiId, in.ResourceId, in.HttpMethod)
 		})))
-	b.GetMethod(s.getMethod, registry.Partial{Note: baseNote},
+	b.GetMethod(s.getMethod, partial(getIntegrationNote),
 		kernel.WithResources(resourceAt(func(in *apigatewayapi.GetMethodInput) string {
 			return methodPath(in.RestApiId, in.ResourceId, in.HttpMethod)
 		})))
@@ -166,9 +180,37 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 		kernel.WithResources(resourceAt(func(in *apigatewayapi.DeleteMethodResponseInput) string {
 			return methodPath(in.RestApiId, in.ResourceId, in.HttpMethod) + "/responses/" + in.StatusCode
 		})))
-	b.PutIntegration(s.putIntegration, partial(putIntegrationNote),
+	b.PutIntegration(s.putIntegration, partial(integrationNote),
 		kernel.WithResources(resourceAt(func(in *apigatewayapi.PutIntegrationInput) string {
 			return methodPath(in.RestApiId, in.ResourceId, in.HttpMethod) + "/integration"
+		})))
+	b.GetIntegration(s.getIntegration, partial(getIntegrationNote),
+		kernel.WithResources(resourceAt(func(in *apigatewayapi.GetIntegrationInput) string {
+			return methodPath(in.RestApiId, in.ResourceId, in.HttpMethod) + "/integration"
+		})))
+	b.UpdateIntegration(s.updateIntegration, partial(integrationNote),
+		kernel.WithResources(resourceAt(func(in *apigatewayapi.UpdateIntegrationInput) string {
+			return methodPath(in.RestApiId, in.ResourceId, in.HttpMethod) + "/integration"
+		})))
+	b.DeleteIntegration(s.deleteIntegration, registry.Partial{Note: baseNote},
+		kernel.WithResources(resourceAt(func(in *apigatewayapi.DeleteIntegrationInput) string {
+			return methodPath(in.RestApiId, in.ResourceId, in.HttpMethod) + "/integration"
+		})))
+	b.PutIntegrationResponse(s.putIntegrationResponse, partial(integrationResponseNote),
+		kernel.WithResources(resourceAt(func(in *apigatewayapi.PutIntegrationResponseInput) string {
+			return methodPath(in.RestApiId, in.ResourceId, in.HttpMethod) + "/integration/responses/" + in.StatusCode
+		})))
+	b.GetIntegrationResponse(s.getIntegrationResponse, partial(emptyResponseTemplate),
+		kernel.WithResources(resourceAt(func(in *apigatewayapi.GetIntegrationResponseInput) string {
+			return methodPath(in.RestApiId, in.ResourceId, in.HttpMethod) + "/integration/responses/" + in.StatusCode
+		})))
+	b.UpdateIntegrationResponse(s.updateIntegrationResponse, partial(integrationResponseNote),
+		kernel.WithResources(resourceAt(func(in *apigatewayapi.UpdateIntegrationResponseInput) string {
+			return methodPath(in.RestApiId, in.ResourceId, in.HttpMethod) + "/integration/responses/" + in.StatusCode
+		})))
+	b.DeleteIntegrationResponse(s.deleteIntegrationResponse, registry.Partial{Note: baseNote},
+		kernel.WithResources(resourceAt(func(in *apigatewayapi.DeleteIntegrationResponseInput) string {
+			return methodPath(in.RestApiId, in.ResourceId, in.HttpMethod) + "/integration/responses/" + in.StatusCode
 		})))
 	b.CreateDeployment(s.createDeployment, partial(createDeploymentNote),
 		kernel.WithResources(resourceAt(func(in *apigatewayapi.CreateDeploymentInput) string {

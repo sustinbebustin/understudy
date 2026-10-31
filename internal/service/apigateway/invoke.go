@@ -240,7 +240,11 @@ func (a *RestAPI) selectMethod(owner aws.Scope, addr address, method string) sel
 	if m.Integration == nil {
 		return corrupt{fmt.Errorf("apigateway: method %s %s of deployment %s of REST API %s has no integration, which CreateDeployment refuses", key, res.Path, d.ID, a.ID)}
 	}
-	if m.Integration.HTTPMethod != http.MethodPost {
+	if what, fix, ok := m.Integration.unserved(); ok {
+		return unemulated{fmt.Sprintf("understudy does not %s: method %s %s of REST API %s, deployment %s, reaches it, so no integration ran and nothing was changed. %s",
+			what, key, res.Path, a.ID, d.ID, fix)}
+	}
+	if deref(m.Integration.HTTPMethod, "") != http.MethodPost {
 		// A Lambda proxy invoked with another method than POST is a
 		// configuration error (recorded, apigateway-rest.md finding 10).
 		return answered{ConfigurationError()}
@@ -249,6 +253,28 @@ func (a *RestAPI) selectMethod(owner aws.Scope, addr address, method string) sel
 		owner: owner, apiID: a.ID, stage: stage.Name, deployment: d.ID, resourceID: res.ID, resourcePath: res.Path, methodKey: key,
 		rawPath: addr.path, domain: addr.domain(owner), stageVariables: maps.Clone(stage.Variables), integration: *m.Integration,
 	}
+}
+
+// unserved names what understudy cannot run of an integration, and how to
+// change it, or reports false for an AWS_PROXY integration it runs (spec
+// 6b scope list). credentials come first: AWS assumes the role instead of
+// checking the function policy (apigateway-rest.md 3.4, 5.4), so the
+// answer precedes any permission check.
+func (i *Integration) unserved() (what, fix string, ok bool) {
+	switch {
+	case i.Credentials != nil:
+		return "assume integration credentials (role " + *i.Credentials + ")",
+			"Remove the integration's credentials and allow apigateway.amazonaws.com with lambda add-permission instead.", true
+	case i.Type != apigatewayapi.IntegrationTypeAwsProxy:
+		return "run " + string(i.Type) + " integrations yet", "Use an AWS_PROXY integration to a Lambda function.", true
+	case i.usesStageVariable():
+		return "resolve stageVariables in an integration uri (" + deref(i.URI, "") + ")", "Name the function in the uri directly.", true
+	case deref(i.ResponseTransferMode, "") == apigatewayapi.ResponseTransferModeStream:
+		return "stream integration responses (responseTransferMode STREAM)", "Set responseTransferMode to BUFFERED.", true
+	case i.ContentHandling != nil:
+		return "apply an integration's contentHandling (" + string(*i.ContentHandling) + ")", "Remove contentHandling from the integration.", true
+	}
+	return "", "", false
 }
 
 // rootMatch is the tracer bullet's resource match: the root resource
@@ -289,9 +315,9 @@ func rootMatch(rs []Resource, method, path string, m resource.Methods) (Resource
 // policy check, the REST 1.0 event, the synchronous invocation and the
 // response read from its output (apigateway-rest.md 5).
 func (s *Service) invokeFunction(ctx context.Context, c *kernel.Call, r *http.Request, w http.ResponseWriter, t toFunction, body []byte, extended string) *awserr.Error {
-	fn, ok := lambdaFunction(t.integration.URI)
+	fn, ok := lambdaFunction(deref(t.integration.URI, ""))
 	if !ok {
-		return awserr.Internalf(fmt.Errorf("apigateway: an integration of REST API %s holds URI %q, which PutIntegration could not have accepted", t.apiID, t.integration.URI))
+		return awserr.Internalf(fmt.Errorf("apigateway: an integration of REST API %s holds URI %q, which PutIntegration could not have accepted", t.apiID, deref(t.integration.URI, "")))
 	}
 	fnScope, serr := aws.ScopeOf(fn)
 	if serr != nil {

@@ -143,23 +143,64 @@ func (r *MethodResponse) clone() MethodResponse {
 }
 
 // Integration is a method's integration with the defaults AWS fills
-// (apigateway-rest.md 2.3, 3.4). Only AWS_PROXY to a Lambda function is
-// accepted so far.
+// (apigateway-rest.md 2.3, 3.4). Members are stored as sent, so Terraform
+// reads back what it wrote (9.3 item 4).
 type Integration struct {
 	Type apigatewayapi.IntegrationType `json:"type"`
-	// HTTPMethod is integrationHttpMethod (the wire's httpMethod).
-	HTTPMethod          string   `json:"httpMethod"`
-	URI                 string   `json:"uri"`
-	PassthroughBehavior string   `json:"passthroughBehavior"`
-	CacheNamespace      string   `json:"cacheNamespace"`
-	CacheKeyParameters  []string `json:"cacheKeyParameters"`
-	TimeoutInMillis     int32    `json:"timeoutInMillis"`
+	// HTTPMethod is integrationHttpMethod (the wire's httpMethod); nil for
+	// MOCK, which drops it (recorded, apigateway-rest.md 2.3).
+	HTTPMethod     *string                       `json:"httpMethod,omitzero"`
+	URI            *string                       `json:"uri,omitzero"`
+	ConnectionType *apigatewayapi.ConnectionType `json:"connectionType,omitzero"`
+	// Credentials, a stage variable in URI, ResponseTransferMode STREAM
+	// and ContentHandling are stored and returned; an invocation that
+	// reaches them answers 501 (spec 6b scope list).
+	Credentials          *string                                `json:"credentials,omitzero"`
+	RequestParameters    map[string]string                      `json:"requestParameters,omitzero"`
+	RequestTemplates     map[string]string                      `json:"requestTemplates,omitzero"`
+	PassthroughBehavior  string                                 `json:"passthroughBehavior"`
+	ContentHandling      *apigatewayapi.ContentHandlingStrategy `json:"contentHandling,omitzero"`
+	CacheNamespace       string                                 `json:"cacheNamespace"`
+	CacheKeyParameters   []string                               `json:"cacheKeyParameters"`
+	TimeoutInMillis      int32                                  `json:"timeoutInMillis"`
+	ResponseTransferMode *apigatewayapi.ResponseTransferMode    `json:"responseTransferMode,omitzero"`
+	// Responses are the integration responses by status code.
+	Responses map[string]IntegrationResponse `json:"responses,omitzero"`
 }
 
-// clone is a copy of the integration with slices of its own.
+// clone is a copy of the integration with maps and slices of its own.
 func (i *Integration) clone() Integration {
 	c := *i
+	c.HTTPMethod, c.URI, c.ConnectionType = clonePtr(i.HTTPMethod), clonePtr(i.URI), clonePtr(i.ConnectionType)
+	c.Credentials, c.ContentHandling, c.ResponseTransferMode = clonePtr(i.Credentials), clonePtr(i.ContentHandling), clonePtr(i.ResponseTransferMode)
+	c.RequestParameters = maps.Clone(i.RequestParameters)
+	c.RequestTemplates = maps.Clone(i.RequestTemplates)
 	c.CacheKeyParameters = slices.Clone(i.CacheKeyParameters)
+	if i.Responses != nil {
+		c.Responses = make(map[string]IntegrationResponse, len(i.Responses))
+		for code, r := range i.Responses {
+			c.Responses[code] = r.clone()
+		}
+	}
+	return c
+}
+
+// IntegrationResponse is one integration response (apigateway-rest.md
+// 3.5): selectionPattern kept apart from absent, so "" is echoed.
+type IntegrationResponse struct {
+	StatusCode         string                                 `json:"statusCode"`
+	SelectionPattern   *string                                `json:"selectionPattern,omitzero"`
+	ResponseParameters map[string]string                      `json:"responseParameters,omitzero"`
+	ResponseTemplates  map[string]string                      `json:"responseTemplates,omitzero"`
+	ContentHandling    *apigatewayapi.ContentHandlingStrategy `json:"contentHandling,omitzero"`
+}
+
+// clone is a copy of the response with maps of its own.
+func (r *IntegrationResponse) clone() IntegrationResponse {
+	c := *r
+	c.SelectionPattern, c.ContentHandling = clonePtr(r.SelectionPattern), clonePtr(r.ContentHandling)
+	c.ResponseParameters = maps.Clone(r.ResponseParameters)
+	c.ResponseTemplates = maps.Clone(r.ResponseTemplates)
 	return c
 }
 

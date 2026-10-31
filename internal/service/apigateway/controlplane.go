@@ -14,9 +14,9 @@ import (
 )
 
 // The control plane of the tracer bullet (spec 6b ticket 2): enough of
-// CreateRestApi, GetRestApi, PutIntegration and CreateDeployment for a
-// Lambda proxy on the root resource. A member these
-// do not handle yet is refused with 501 naming it, never ignored.
+// CreateRestApi, GetRestApi and CreateDeployment for a Lambda proxy on the
+// root resource. A member these do not handle yet is refused with 501
+// naming it, never ignored.
 
 // createRestAPI creates a REST API with its root resource
 // (apigateway-rest.md 3.1, 3.2; defaults recorded, 2.3).
@@ -131,93 +131,6 @@ func lambdaFunction(uri string) (aws.ARN, bool) {
 		return aws.ARN{}, false
 	}
 	return fn, true
-}
-
-// The integration defaults AWS fills (recorded, apigateway-rest.md 2.3).
-const (
-	defaultTimeoutInMillis     = 29000
-	defaultPassthroughBehavior = "WHEN_NO_MATCH"
-	// minTimeoutInMillis and maxTimeoutInMillis bound a buffered
-	// integration's timeout (apigateway-rest.md 11).
-	minTimeoutInMillis = 50
-	maxTimeoutInMillis = 300000
-)
-
-// putIntegration sets a method's integration (apigateway-rest.md 3.4). So
-// far only AWS_PROXY to a Lambda function is accepted.
-func (s *Service) putIntegration(_ context.Context, c *kernel.Call, in *apigatewayapi.PutIntegrationInput) (*apigatewayapi.Integration, *awserr.Error) {
-	if err := refuseUnimplemented("PutIntegration",
-		member{"type " + string(in.Type), in.Type != apigatewayapi.IntegrationTypeAwsProxy},
-		member{"connectionType", in.ConnectionType != nil},
-		member{"connectionId", in.ConnectionId != nil},
-		member{"credentials", in.Credentials != nil},
-		member{"requestParameters", in.RequestParameters != nil},
-		member{"requestTemplates", in.RequestTemplates != nil},
-		member{"passthroughBehavior", in.PassthroughBehavior != nil},
-		member{"cacheNamespace", in.CacheNamespace != nil},
-		member{"cacheKeyParameters", in.CacheKeyParameters != nil},
-		member{"contentHandling", in.ContentHandling != nil},
-		member{"tlsConfig", in.TlsConfig != nil},
-		member{"responseTransferMode", in.ResponseTransferMode != nil},
-		member{"integrationTarget", in.IntegrationTarget != nil},
-	); err != nil {
-		return nil, err
-	}
-	if deref(in.IntegrationHttpMethod, "") == "" {
-		// Recorded (apigateway-rest.md 2.4).
-		return nil, errBadRequest("Enumeration value for HttpMethod must be non-empty")
-	}
-	uri := deref(in.Uri, "")
-	if strings.Contains(uri, "${stageVariables.") || strings.Contains(uri, ":firehose:") {
-		return nil, refuseUnimplemented("PutIntegration", member{"an AWS_PROXY uri that is not a Lambda function ARN", true})
-	}
-	if _, ok := lambdaFunction(uri); !ok {
-		// Recorded (apigateway-rest.md 2.4).
-		return nil, errBadRequest("Integrations of type 'AWS_PROXY' currently only supports Lambda function and Firehose stream invocations.")
-	}
-	timeout := deref(in.TimeoutInMillis, defaultTimeoutInMillis)
-	if timeout < minTimeoutInMillis || timeout > maxTimeoutInMillis {
-		// The bounds are documented (apigateway-rest.md 11); the text is
-		// inferred.
-		return nil, errBadRequest("Timeout should be between %d ms and %d ms", minTimeoutInMillis, maxTimeoutInMillis)
-	}
-	scope := c.Scope()
-	integration, err := kernel.Write(c, s.cells, scope, func(st *State, _ clock.Instant, _ *kernel.Tx) (Integration, *awserr.Error) {
-		a, ok := st.APIs[in.RestApiId]
-		if !ok {
-			return Integration{}, errAPINotFound(scope, in.RestApiId)
-		}
-		r, i, ok := a.resource(in.ResourceId)
-		if !ok {
-			return Integration{}, errResourceNotFound()
-		}
-		m, ok := r.Methods[in.HttpMethod]
-		if !ok {
-			return Integration{}, errMethodNotFound()
-		}
-		x := Integration{
-			Type: in.Type, HTTPMethod: *in.IntegrationHttpMethod, URI: uri, PassthroughBehavior: defaultPassthroughBehavior,
-			CacheNamespace: r.ID, CacheKeyParameters: []string{}, TimeoutInMillis: timeout,
-		}
-		m.Integration = &x
-		r = r.withMethods()
-		r.Methods[in.HttpMethod] = m
-		st.APIs[a.ID] = a.withResource(i, r)
-		return x, nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	return new(integration.output()), nil
-}
-
-// output is the integration as PutIntegration answers it.
-func (i *Integration) output() apigatewayapi.Integration {
-	return apigatewayapi.Integration{
-		Type: new(i.Type), HttpMethod: new(i.HTTPMethod), Uri: new(i.URI),
-		PassthroughBehavior: new(i.PassthroughBehavior), TimeoutInMillis: i.TimeoutInMillis,
-		CacheNamespace: new(i.CacheNamespace), CacheKeyParameters: slices.Clone(i.CacheKeyParameters),
-	}
 }
 
 // stageNamePattern is a stage name (documented, apigateway-rest.md 3.7).

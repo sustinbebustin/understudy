@@ -117,7 +117,7 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 
 | Service | Operations | Full | Stored only | Partial | Unbound | Internal | Raw |
 |---|---|---|---|---|---|---|---|
-| apigateway | 124 | 0 | 0 | 18 | 106 | 0 | 1 |
+| apigateway | 124 | 0 | 0 | 25 | 99 | 0 | 1 |
 | apigatewayv2 | 103 | 0 | 2 | 29 | 72 | 0 | 1 |
 | cloudwatch | 55 | 4 | 0 | 11 | 40 | 0 | 0 |
 | dynamodb | 58 | 4 | 2 | 20 | 32 | 0 | 0 |
@@ -145,17 +145,24 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | CreateDeployment | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); only stageName and description are accepted, and every other member answers NotImplemented; the texts for deploying an API with no methods or a method with no integration are inferred (APIGW1-05) |
 | CreateResource | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02) |
 | CreateRestApi | partial | inferred, 1 of 3 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); only name, description and version are accepted, and every other member answers NotImplemented; apiKeySource, endpointConfiguration and disableExecuteApiEndpoint are reported at their recorded defaults |
+| DeleteIntegration | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02) |
+| DeleteIntegrationResponse | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02) |
 | DeleteMethod | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02) |
 | DeleteMethodResponse | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02) |
 | DeleteResource | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02) |
-| GetMethod | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02) |
+| GetIntegration | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); an empty-string request template is returned as "" (AWS's answer is UNVERIFIED, APIGW1-13); an empty-string response template is returned as "", where AWS returns null (recorded, apigateway-rest.md finding 6) |
+| GetIntegrationResponse | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); an empty-string response template is returned as "", where AWS returns null (recorded, apigateway-rest.md finding 6) |
+| GetMethod | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); an empty-string request template is returned as "" (AWS's answer is UNVERIFIED, APIGW1-13); an empty-string response template is returned as "", where AWS returns null (recorded, apigateway-rest.md finding 6) |
 | GetMethodResponse | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02) |
 | GetResource | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02) |
-| GetResources | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); items in creation order, root first (inferred, APIGW1-04) |
+| GetResources | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); items in creation order, root first (inferred, APIGW1-04); an empty-string request template is returned as "" (AWS's answer is UNVERIFIED, APIGW1-13); an empty-string response template is returned as "", where AWS returns null (recorded, apigateway-rest.md finding 6) |
 | GetRestApi | partial | inferred, 1 of 3 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); apiKeySource, endpointConfiguration and disableExecuteApiEndpoint are reported at their recorded defaults |
-| PutIntegration | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); only type AWS_PROXY to a Lambda function with integrationHttpMethod, uri and timeoutInMillis is accepted, and every other type and member answers NotImplemented |
+| PutIntegration | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); AWS_PROXY to Lambda runs; MOCK, HTTP, HTTP_PROXY and AWS are stored and answer 501 at invoke; credentials, a stage variable in the uri, responseTransferMode STREAM and contentHandling are stored and returned, and an invocation that reaches them answers 501; connectionType VPC_LINK, connectionId, tlsConfig, integrationTarget and an AWS_PROXY Firehose stream uri answer NotImplemented; requestParameters, cacheNamespace and cacheKeyParameters are stored without effect; a boolean requestParameters value answers SerializationException with understudy's decode text, not AWS's recorded one; the texts for a timeout out of range, an unknown passthroughBehavior and a patch value of the wrong type are inferred; an empty-string request template is returned as "" (AWS's answer is UNVERIFIED, APIGW1-13) |
+| PutIntegrationResponse | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); selectionPattern, responseParameters, responseTemplates and contentHandling are stored and returned; MOCK integrations, which select integration responses, answer 501 at invoke; an empty-string response template is returned as "", where AWS returns null (recorded, apigateway-rest.md finding 6) |
 | PutMethod | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); AWS_IAM, CUSTOM and COGNITO_USER_POOLS methods answer 501 at invoke; apiKeyRequired methods answer 403 because API keys cannot be created; requestValidatorId and requestModels name only the seeded Empty and Error models until validators and models are bound |
 | PutMethodResponse | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02) |
+| UpdateIntegration | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); AWS_PROXY to Lambda runs; MOCK, HTTP, HTTP_PROXY and AWS are stored and answer 501 at invoke; credentials, a stage variable in the uri, responseTransferMode STREAM and contentHandling are stored and returned, and an invocation that reaches them answers 501; connectionType VPC_LINK, connectionId, tlsConfig, integrationTarget and an AWS_PROXY Firehose stream uri answer NotImplemented; requestParameters, cacheNamespace and cacheKeyParameters are stored without effect; a boolean requestParameters value answers SerializationException with understudy's decode text, not AWS's recorded one; the texts for a timeout out of range, an unknown passthroughBehavior and a patch value of the wrong type are inferred; an empty-string request template is returned as "" (AWS's answer is UNVERIFIED, APIGW1-13) |
+| UpdateIntegrationResponse | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); selectionPattern, responseParameters, responseTemplates and contentHandling are stored and returned; MOCK integrations, which select integration responses, answer 501 at invoke; an empty-string response template is returned as "", where AWS returns null (recorded, apigateway-rest.md finding 6) |
 | UpdateMethod | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02); AWS_IAM, CUSTOM and COGNITO_USER_POOLS methods answer 501 at invoke; apiKeyRequired methods answer 403 because API keys cannot be created; requestValidatorId and requestModels name only the seeded Empty and Error models until validators and models are bound |
 | UpdateMethodResponse | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02) |
 | UpdateResource | partial | third-party-recorded, 2 of 2 claims | the X-Amzn-Errortype value and generated ids are inferred (UNVERIFIED, APIGW1-01, APIGW1-02) |
@@ -183,8 +190,6 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | DeleteDomainName | unbound | unassessed |  |
 | DeleteDomainNameAccessAssociation | unbound | unassessed |  |
 | DeleteGatewayResponse | unbound | unassessed |  |
-| DeleteIntegration | unbound | unassessed |  |
-| DeleteIntegrationResponse | unbound | unassessed |  |
 | DeleteModel | unbound | unassessed |  |
 | DeleteRequestValidator | unbound | unassessed |  |
 | DeleteRestApi | unbound | unassessed |  |
@@ -216,8 +221,6 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | GetExport | unbound | unassessed |  |
 | GetGatewayResponse | unbound | unassessed |  |
 | GetGatewayResponses | unbound | unassessed |  |
-| GetIntegration | unbound | unassessed |  |
-| GetIntegrationResponse | unbound | unassessed |  |
 | GetModel | unbound | unassessed |  |
 | GetModelTemplate | unbound | unassessed |  |
 | GetModels | unbound | unassessed |  |
@@ -241,7 +244,6 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | ImportDocumentationParts | unbound | unassessed |  |
 | ImportRestApi | unbound | unassessed |  |
 | PutGatewayResponse | unbound | unassessed |  |
-| PutIntegrationResponse | unbound | unassessed |  |
 | PutRestApi | unbound | unassessed |  |
 | RejectDomainNameAccessAssociation | unbound | unassessed |  |
 | TagResource | unbound | unassessed |  |
@@ -258,8 +260,6 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | UpdateDocumentationVersion | unbound | unassessed |  |
 | UpdateDomainName | unbound | unassessed |  |
 | UpdateGatewayResponse | unbound | unassessed |  |
-| UpdateIntegration | unbound | unassessed |  |
-| UpdateIntegrationResponse | unbound | unassessed |  |
 | UpdateModel | unbound | unassessed |  |
 | UpdateRequestValidator | unbound | unassessed |  |
 | UpdateStage | unbound | unassessed |  |
@@ -271,7 +271,7 @@ Raw operations:
 
 | Operation | Status | Evidence | Note |
 |---|---|---|---|
-| InvokeRestApi | partial | inferred, 4 of 4 claims | AWS_PROXY (payload 1.0) on the root resource only; a request the root does not serve answers 501 while the deployment holds other resources; mapping templates, request validation, authorizers, API keys, caching and throttling are not applied; AWS_IAM methods answer 501; apiKeyRequired methods answer 403; binaryMediaTypes in the stage's deployment answer 501; inferred, UNVERIFIED: unknown stage, ANY against explicit methods, HEAD (APIGW1-07, -08), timeout (APIGW1-10), empty-body event (APIGW1-16); header names reach the event in canonical form (Test-Header), not as the client wrote them |
+| InvokeRestApi | partial | inferred, 4 of 4 claims | AWS_PROXY (payload 1.0) on the root resource only; a request the root does not serve answers 501 while the deployment holds other resources; mapping templates, request validation, authorizers, API keys, caching and throttling are not applied; AWS_IAM methods answer 501; apiKeyRequired methods answer 403; binaryMediaTypes in the stage's deployment answer 501; integrations other than AWS_PROXY, integration credentials, stage-variable uris, responseTransferMode STREAM and contentHandling answer 501; inferred, UNVERIFIED: unknown stage, ANY against explicit methods, HEAD (APIGW1-07, -08), timeout (APIGW1-10), empty-body event (APIGW1-16); header names reach the event in canonical form (Test-Header), not as the client wrote them |
 
 ### apigatewayv2
 

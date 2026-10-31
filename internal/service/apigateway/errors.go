@@ -30,6 +30,12 @@ func errMethodNotFound() *awserr.Error {
 	return apigatewayapi.ErrNotFoundException("Invalid Method identifier specified")
 }
 
+// errIntegrationNotFound answers a method that has no integration
+// (recorded, apigateway-rest.md 2.4).
+func errIntegrationNotFound() *awserr.Error {
+	return apigatewayapi.ErrNotFoundException("Invalid Integration identifier specified")
+}
+
 // errResponseNotFound answers a status code the method or integration has
 // no response for (recorded, apigateway-rest.md 2.4).
 func errResponseNotFound() *awserr.Error {
