@@ -1,6 +1,7 @@
 package scheduler
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/api/schedulerapi"
@@ -92,6 +93,61 @@ func errNotRole(roleArn string) *awserr.Error {
 	return schedulerapi.ErrValidationException("Target.RoleArn " + roleArn + " is not an IAM role ARN, arn:<partition>:iam::<account>:role/<name>.")
 }
 
+// errUnsupportedService answers a Target.Arn of a service with no
+// templated target: "Invalid request provided: <service> is not a
+// supported service for a target" (aws-doc troubleshooting; scheduler.md
+// 2.4, 6.1, 14.4.1). UNVERIFIED (SCH-04, 04-unsupported-service): the
+// code, the timing (at create) and the punctuation are inferred; the text
+// is as the doc quotes it, with no trailing period.
+func errUnsupportedService(service string) *awserr.Error {
+	return schedulerapi.ErrValidationException("Invalid request provided: " + service + " is not a supported service for a target")
+}
+
+// errNotTargetARN answers a Target.Arn that is not an ARN at all.
+// UNVERIFIED (SCH-04), scheduler.md 6.1: the text is inferred.
+func errNotTargetARN(arn string) *awserr.Error {
+	return schedulerapi.ErrValidationException("Target.Arn " + arn + " is not an ARN; name a templated target's resource ARN or a universal target, arn:aws:scheduler:::aws-sdk:<service>:<apiAction>.")
+}
+
+// errNotTargetResource answers a Target.Arn of a templated service that
+// names no resource of the kind the service's target takes, want.
+// UNVERIFIED (SCH-04), scheduler.md 6.1: the text is inferred.
+func errNotTargetResource(arn, want string) *awserr.Error {
+	return schedulerapi.ErrValidationException("Target.Arn " + arn + " is not " + want + ".")
+}
+
+// errCrossRegionBus answers an event bus target outside the schedule's
+// Region: "EventBridge Scheduler does not support cross-Region delivery
+// when using EventBridge PutEvents as a templated target" (aws-doc
+// managing-targets-templated; scheduler.md 6.1). UNVERIFIED (SCH-04): the
+// code, the timing and the text are inferred.
+func errCrossRegionBus(arn, region string) *awserr.Error {
+	return schedulerapi.ErrValidationException("Target.Arn " + arn + " is an event bus outside the schedule's Region " + region +
+		"; EventBridge Scheduler does not support cross-Region delivery to an event bus.")
+}
+
+// errBusWithoutParameters answers an event bus target without
+// EventBridgeParameters, which carry the event's Source and DetailType
+// (scheduler.md 6.4). UNVERIFIED (SCH-04): the code and text are inferred.
+func errBusWithoutParameters(arn string) *awserr.Error {
+	return schedulerapi.ErrValidationException("Target.EventBridgeParameters is required for the event bus target " + arn + ": it names the event's Source and DetailType.")
+}
+
+// errInputTooLarge answers an Input over maxInputBytes (aws-doc
+// API_Target: "The maximum size of the Input field is 256 KB";
+// scheduler.md 6.3). UNVERIFIED (SCH-04): the text is inferred.
+func errInputTooLarge(n int) *awserr.Error {
+	return schedulerapi.ErrValidationException(fmt.Sprintf("Target.Input is %d bytes; the maximum is %d bytes (256 KB).", n, maxInputBytes))
+}
+
+// errTargetNotImplemented answers a target understudy does not invoke,
+// what naming its kind (scheduler.md 14.1, 14.4.1; spec "Scope").
+func errTargetNotImplemented(what, arn string) *awserr.Error {
+	return schedulerapi.ErrNotImplemented(what + " are not implemented in understudy (Target.Arn " + arn + "); nothing was stored. " +
+		"Served targets: Lambda functions, SQS queues and SNS topics in the schedule's Region, and EventBridge event buses in the schedule's Region. " +
+		"Ask for it at " + issuesURL + ".")
+}
+
 // issuesURL is where users ask for what understudy does not implement.
 const issuesURL = "https://github.com/sustinbebustin/understudy/issues"
 
@@ -99,6 +155,6 @@ const issuesURL = "https://github.com/sustinbebustin/understudy/issues"
 // sent, that nothing was stored, and what is served instead.
 func errNotYet(what string) *awserr.Error {
 	return schedulerapi.ErrNotImplemented(what + " is not implemented in understudy yet; nothing was stored. " +
-		"Served today: rate(), at() and cron() schedules in the default group with an SQS queue target in the schedule's Region " +
+		"Served today: rate(), at() and cron() schedules in the default group with a Lambda, SQS, SNS or event bus target in the schedule's Region " +
 		"with window OFF and ActionAfterCompletion NONE. Ask for it at " + issuesURL + ".")
 }

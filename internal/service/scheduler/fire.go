@@ -125,11 +125,23 @@ func (s *Service) invocation(r scheduleRef, sc *schedule, at scheduled, roleID s
 			OnPermanent: s.opts.PermanentErrors,
 		},
 	}
-	t, ok := sc.Plan.target.(sqsTarget)
-	if !ok {
+	switch t := sc.Plan.target.(type) {
+	case lambdaTarget:
+		req.Mechanism = delivery.SchedulerToLambda
+		req.Target = delivery.LambdaFunction{ARN: t.function, Qualifier: t.qualifier, Invocation: delivery.InvocationEvent, Event: []byte(tmpl)}
+	case sqsTarget:
+		req.Mechanism = delivery.SchedulerToSQS
+		req.Target = delivery.SQSQueue{ARN: t.queue, Body: tmpl, GroupID: t.groupID}
+	case snsTarget:
+		req.Mechanism = delivery.SchedulerToSNS
+		req.Target = delivery.SNSTopic{ARN: t.topic, Message: tmpl}
+	case busTarget:
+		// UNVERIFIED (SCH-07), scheduler.md 14.4.5: the event has no
+		// resources and PutEvents stamps its time at delivery.
+		req.Mechanism = delivery.SchedulerToEvents
+		req.Target = delivery.EventBus{ARN: t.bus, Entries: []delivery.EventEntry{{Source: t.source, DetailType: t.detailType, Detail: tmpl}}}
+	default:
 		return delivery.Request{}, awserr.Internalf(fmt.Errorf("scheduler: schedule %s has a %T target, which no invocation is built for", r.arn(), sc.Plan.target))
 	}
-	req.Mechanism = delivery.SchedulerToSQS
-	req.Target = delivery.SQSQueue{ARN: t.queue, Body: tmpl, GroupID: t.groupID}
 	return req, nil
 }

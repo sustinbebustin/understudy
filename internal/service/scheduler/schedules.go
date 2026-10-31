@@ -231,9 +231,7 @@ func readShape(r scheduleRef, sc *schedule) *schedulerapi.GetScheduleOutput {
 		Arn: e.Target.Arn, RoleArn: e.Target.RoleArn, Input: e.Target.Input,
 		RetryPolicy: &schedulerapi.RetryPolicy{MaximumEventAgeInSeconds: &age, MaximumRetryAttempts: &retries},
 	}
-	if e.Target.MessageGroupID != nil {
-		target.SqsParameters = &schedulerapi.SqsParameters{MessageGroupId: e.Target.MessageGroupID}
-	}
+	e.Target.parameters(target)
 	arn := r.arn().String()
 	created, modified := wholeSeconds(sc.Created), wholeSeconds(sc.Modified)
 	return &schedulerapi.GetScheduleOutput{

@@ -77,10 +77,20 @@ func (rateExpr) isExpression() {}
 func (atExpr) isExpression()   {}
 func (cronExpr) isExpression() {}
 
-// target is a parsed templated target.
+// target is a parsed templated target understudy invokes (scheduler.md
+// 6.1, 14.4.1).
 //
 //sumtype:decl
 type target interface{ isTarget() }
+
+// lambdaTarget is a Lambda function, invoked asynchronously: its
+// unqualified ARN and the version or alias a qualified ARN names ("" for
+// none), passed through as Invoke's Qualifier (scheduler.md 6.4).
+// UNVERIFIED (SCH-07): the qualifier pass-through is inferred.
+type lambdaTarget struct {
+	function  aws.ARN
+	qualifier string
+}
 
 // sqsTarget is an SQS queue, with the FIFO message group SqsParameters
 // names ("" for a standard queue; scheduler.md 6.4).
@@ -89,7 +99,24 @@ type sqsTarget struct {
 	groupID string
 }
 
-func (sqsTarget) isTarget() {}
+// snsTarget is an SNS topic, published to with the payload as its message
+// and no Subject (scheduler.md 6.4). UNVERIFIED (SCH-07): no Subject is
+// inferred.
+type snsTarget struct{ topic aws.ARN }
+
+// busTarget is an EventBridge event bus in the schedule's Region, put to
+// with EventBridgeParameters' Source and DetailType and the payload as the
+// detail (scheduler.md 6.4, 14.4.3).
+type busTarget struct {
+	bus        aws.ARN
+	source     string
+	detailType string
+}
+
+func (lambdaTarget) isTarget() {}
+func (sqsTarget) isTarget()    {}
+func (snsTarget) isTarget()    {}
+func (busTarget) isTarget()    {}
 
 // run is where a schedule is in its plan: a next invocation, disabled,
 // completed (a fired at()) or ended (no invocation before EndDate, or a
@@ -258,32 +285,140 @@ func firstFireFrom(e expression, start *time.Time, from time.Time, loc *time.Loc
 	return time.Time{}, false
 }
 
-// parseTarget parses the target: an SQS queue in scope's Region, with an
-// execution role. Other target services, a dead-letter queue and the
-// parameter blocks of other targets answer 501 until they are built.
+// maxInputBytes is the largest Input a target takes: "The maximum size of
+// the Input field is 256 KB" (aws-doc API_Target; scheduler.md 6.3), read
+// as 262,144 bytes. UNVERIFIED (SCH-04): the exact bound and its unit are
+// unrecorded.
+const maxInputBytes = 262144
+
+// unimplementedTarget is the name the 501 gives a templated target
+// service understudy does not invoke, by ARN service; false for any other
+// (scheduler.md 6.1, 14.1; spec "Scope"). Step Functions is among them
+// until its target is built (spec ticket 10).
+func unimplementedTarget(service string) (string, bool) {
+	switch service {
+	case "ecs":
+		return "Amazon ECS", true
+	case "kinesis":
+		return "Amazon Kinesis Data Streams", true
+	case "firehose":
+		return "Amazon Data Firehose", true
+	case "codebuild":
+		return "AWS CodeBuild", true
+	case "codepipeline":
+		return "AWS CodePipeline", true
+	case "inspector":
+		return "Amazon Inspector", true
+	case "sagemaker":
+		return "Amazon SageMaker AI", true
+	case "states":
+		return "AWS Step Functions", true
+	}
+	return "", false
+}
+
+// parseTarget parses the target and its execution role (scheduler.md
+// 14.4.1): a Lambda function (qualifier allowed), an SQS queue or an SNS
+// topic in scope's Region, or an event bus in scope's Region, each in any
+// served account. A universal (aws-sdk) target or another templated
+// service answers 501 naming it; any other service ValidationException.
+// The target need not exist (4.1). A parameter block that does not match
+// the target is stored, echoed and ignored, and Input is not checked for
+// JSON. UNVERIFIED (SCH-04), scheduler.md 6.1, 6.3: both are inferred. A
+// dead-letter queue answers 501 until it is built.
 func parseTarget(scope aws.Scope, t *schedulerapi.Target) (target, *awserr.Error) {
 	role, err := aws.ParseARN(t.RoleArn)
 	if name, ok := strings.CutPrefix(role.Resource, "role/"); err != nil || role.Service != "iam" || !ok || name == "" {
 		return nil, errNotRole(t.RoleArn)
 	}
-	queue, err := aws.ParseARN(t.Arn)
-	if err != nil || queue.Service != "sqs" || queue.Region != scope.Region.String() || queue.Partition != scope.Partition.String() {
-		return nil, errNotYet("Target.Arn " + t.Arn + " (targets other than an SQS queue in the schedule's Region)")
-	}
-	if _, err := aws.ScopeOf(queue); err != nil {
-		return nil, errNotYet("Target.Arn " + t.Arn + " (targets other than an SQS queue in the schedule's Region)")
+	tgt, aerr := parseTargetARN(scope, t)
+	if aerr != nil {
+		return nil, aerr
 	}
 	switch {
+	case t.Input != nil && len(*t.Input) > maxInputBytes:
+		return nil, errInputTooLarge(len(*t.Input))
 	case t.DeadLetterConfig != nil:
 		return nil, errNotYet("Target.DeadLetterConfig")
-	case t.EcsParameters != nil || t.EventBridgeParameters != nil || t.KinesisParameters != nil || t.SageMakerPipelineParameters != nil:
-		return nil, errNotYet("a parameter block other than SqsParameters on an SQS target")
-	}
-	tgt := sqsTarget{queue: queue}
-	if t.SqsParameters != nil && t.SqsParameters.MessageGroupId != nil {
-		tgt.groupID = *t.SqsParameters.MessageGroupId
 	}
 	return tgt, nil
+}
+
+// parseTargetARN reads Target.Arn into the target it names.
+func parseTargetARN(scope aws.Scope, t *schedulerapi.Target) (target, *awserr.Error) {
+	if universal(t.Arn) {
+		return nil, errTargetNotImplemented("Universal (aws-sdk) targets", t.Arn)
+	}
+	a, err := aws.ParseARN(t.Arn)
+	if err != nil {
+		return nil, errNotTargetARN(t.Arn)
+	}
+	if name, ok := unimplementedTarget(a.Service); ok {
+		return nil, errTargetNotImplemented(name+" targets", t.Arn)
+	}
+	switch a.Service {
+	case "lambda", "sqs", "sns", "events":
+	default:
+		return nil, errUnsupportedService(a.Service)
+	}
+	if _, err := aws.ScopeOf(a); err != nil || a.Partition != scope.Partition.String() {
+		return nil, errNotYet("Target.Arn " + t.Arn + " (a target outside the schedule's partition or in a Region or account understudy does not serve)")
+	}
+	if a.Region != scope.Region.String() {
+		if a.Service == "events" {
+			return nil, errCrossRegionBus(t.Arn, scope.Region.String())
+		}
+		return nil, errNotYet("Target.Arn " + t.Arn + " (Lambda, SQS and SNS targets outside the schedule's Region)")
+	}
+	switch a.Service {
+	case "lambda":
+		return lambdaOf(a)
+	case "sqs":
+		if strings.ContainsAny(a.Resource, ":/") {
+			return nil, errNotTargetResource(t.Arn, "an SQS queue ARN, arn:<partition>:sqs:<region>:<account>:<queue>")
+		}
+		tgt := sqsTarget{queue: a}
+		if p := t.SqsParameters; p != nil && p.MessageGroupId != nil {
+			tgt.groupID = *p.MessageGroupId
+		}
+		return tgt, nil
+	case "sns":
+		if strings.ContainsAny(a.Resource, ":/") {
+			return nil, errNotTargetResource(t.Arn, "an SNS topic ARN, arn:<partition>:sns:<region>:<account>:<topic>")
+		}
+		return snsTarget{topic: a}, nil
+	}
+	if name, ok := strings.CutPrefix(a.Resource, "event-bus/"); !ok || name == "" || strings.Contains(name, "/") {
+		return nil, errNotTargetResource(t.Arn, "an EventBridge event bus ARN, arn:<partition>:events:<region>:<account>:event-bus/<name>")
+	}
+	p := t.EventBridgeParameters
+	if p == nil {
+		return nil, errBusWithoutParameters(t.Arn)
+	}
+	return busTarget{bus: a, source: p.Source, detailType: p.DetailType}, nil
+}
+
+// universal reports whether arn is a universal target,
+// arn:<partition>:scheduler:::aws-sdk:<service>:<apiAction> (aws-doc
+// managing-targets-universal; scheduler.md 6.2).
+func universal(arn string) bool {
+	parts := strings.SplitN(arn, ":", 6)
+	return len(parts) == 6 && parts[0] == "arn" && parts[2] == "scheduler" && parts[3] == "" && parts[4] == "" &&
+		strings.HasPrefix(parts[5], "aws-sdk:")
+}
+
+// lambdaOf reads a Lambda ARN as a function target: function:<name> with
+// at most one qualifier, each part non-empty (as
+// internal/service/events/fanout.go reads a rule's function target).
+func lambdaOf(a aws.ARN) (target, *awserr.Error) {
+	rest, ok := strings.CutPrefix(a.Resource, "function:")
+	name, qualifier, qualified := strings.Cut(rest, ":")
+	if !ok || name == "" || qualified && (qualifier == "" || strings.Contains(qualifier, ":")) {
+		return nil, errNotTargetResource(a.String(), "a Lambda function ARN, arn:<partition>:lambda:<region>:<account>:function:<name>[:<version or alias>]")
+	}
+	fn := a
+	fn.Resource = "function:" + name
+	return lambdaTarget{function: fn, qualifier: qualifier}, nil
 }
 
 // firstRun is the run of a plan written at now: by a create, by an
@@ -384,14 +519,25 @@ type echo struct {
 	Target      targetEcho                          `json:"target"`
 }
 
-// targetEcho is a target's members as accepted.
+// targetEcho is a target's members as accepted, every parameter block
+// included, whether or not it matches the target (scheduler.md 4.2, 6.1).
 type targetEcho struct {
-	Arn            string  `json:"arn"`
-	RoleArn        string  `json:"roleArn"`
-	Input          *string `json:"input,omitempty"`
-	MaxAgeSeconds  *int32  `json:"maxAgeSeconds,omitempty"`
-	MaxRetries     *int32  `json:"maxRetries,omitempty"`
-	MessageGroupID *string `json:"messageGroupId,omitempty"`
+	Arn           string                                    `json:"arn"`
+	RoleArn       string                                    `json:"roleArn"`
+	Input         *string                                   `json:"input,omitempty"`
+	MaxAgeSeconds *int32                                    `json:"maxAgeSeconds,omitempty"`
+	MaxRetries    *int32                                    `json:"maxRetries,omitempty"`
+	Ecs           *schedulerapi.EcsParameters               `json:"ecsParameters,omitempty"`
+	EventBridge   *schedulerapi.EventBridgeParameters       `json:"eventBridgeParameters,omitempty"`
+	Kinesis       *schedulerapi.KinesisParameters           `json:"kinesisParameters,omitempty"`
+	SageMaker     *schedulerapi.SageMakerPipelineParameters `json:"sageMakerPipelineParameters,omitempty"`
+	Sqs           *schedulerapi.SqsParameters               `json:"sqsParameters,omitempty"`
+}
+
+// parameters sets t's parameter blocks on out.
+func (t *targetEcho) parameters(out *schedulerapi.Target) {
+	out.EcsParameters, out.EventBridgeParameters, out.KinesisParameters = t.Ecs, t.EventBridge, t.Kinesis
+	out.SageMakerPipelineParameters, out.SqsParameters = t.SageMaker, t.Sqs
 }
 
 // echoOf is m as accepted. A MaximumWindowInMinutes sent with OFF is not
@@ -401,13 +547,14 @@ func echoOf(m *members) echo {
 	e := echo{
 		Expression: m.expression, Timezone: m.timezone, StartDate: m.start, EndDate: m.end, State: m.state, Description: m.description,
 		KmsKeyArn: m.kmsKeyArn, Window: m.window.Mode, Action: m.action,
-		Target: targetEcho{Arn: m.target.Arn, RoleArn: m.target.RoleArn, Input: m.target.Input},
+		Target: targetEcho{
+			Arn: m.target.Arn, RoleArn: m.target.RoleArn, Input: m.target.Input,
+			Ecs: m.target.EcsParameters, EventBridge: m.target.EventBridgeParameters, Kinesis: m.target.KinesisParameters,
+			SageMaker: m.target.SageMakerPipelineParameters, Sqs: m.target.SqsParameters,
+		},
 	}
 	if r := m.target.RetryPolicy; r != nil {
 		e.Target.MaxAgeSeconds, e.Target.MaxRetries = r.MaximumEventAgeInSeconds, r.MaximumRetryAttempts
-	}
-	if p := m.target.SqsParameters; p != nil {
-		e.Target.MessageGroupID = p.MessageGroupId
 	}
 	return e
 }
@@ -423,9 +570,7 @@ func (e *echo) members() members {
 	if e.Target.MaxAgeSeconds != nil || e.Target.MaxRetries != nil {
 		m.target.RetryPolicy = &schedulerapi.RetryPolicy{MaximumEventAgeInSeconds: e.Target.MaxAgeSeconds, MaximumRetryAttempts: e.Target.MaxRetries}
 	}
-	if e.Target.MessageGroupID != nil {
-		m.target.SqsParameters = &schedulerapi.SqsParameters{MessageGroupId: e.Target.MessageGroupID}
-	}
+	e.Target.parameters(&m.target)
 	return m
 }
 

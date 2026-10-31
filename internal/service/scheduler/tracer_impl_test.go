@@ -60,7 +60,7 @@ func TestCreateScheduleConflict(t *testing.T) {
 	})
 }
 
-// What tickets 2 to 4 do not build answers 501 and stores nothing
+// What tickets 2 to 5 do not build answers 501 and stores nothing
 // (CLAUDE.md invariant 3; spec "Tracer bullet").
 func TestUnbuiltMembersAnswerNotImplemented(t *testing.T) {
 	cases := map[string]func(h *harness, in *schedulerapi.CreateScheduleInput){
@@ -68,7 +68,6 @@ func TestUnbuiltMembersAnswerNotImplemented(t *testing.T) {
 		"delete after completion": func(_ *harness, in *schedulerapi.CreateScheduleInput) {
 			in.ActionAfterCompletion = new(schedulerapi.ActionAfterCompletionDelete)
 		},
-		"lambda": func(h *harness, in *schedulerapi.CreateScheduleInput) { in.Target.Arn = h.functionArn("f") },
 		"other region": func(_ *harness, in *schedulerapi.CreateScheduleInput) {
 			in.Target.Arn = "arn:aws:sqs:eu-west-1:000000000000:q"
 		},

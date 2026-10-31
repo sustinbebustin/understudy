@@ -31,20 +31,28 @@ type Service struct {
 // The service is the snapshot and reset view of its state.
 var _ kernel.Stateful = (*Service)(nil)
 
-// createNote is CreateSchedule's coverage note while tickets 2 to 4 are
+// createNote is CreateSchedule's coverage note while tickets 2 to 5 are
 // what is built (spec "Coverage marks" is the note once every ticket is).
-const createNote = "rate(), at() and cron() schedules in the default group with an SQS queue target in the schedule's Region are invoked on the emulator clock as the execution role, " +
+const createNote = "rate(), at() and cron() schedules in the default group with a templated Lambda, SQS, SNS or EventBridge event bus target in the schedule's Region " +
+	"are invoked on the emulator clock as the execution role, " +
 	"at() and cron() in any IANA time zone, which a rate ignores, between StartDate and EndDate, and not while State is DISABLED; " +
-	"other target services, other schedule groups, a FLEXIBLE window, DeadLetterConfig, ActionAfterCompletion DELETE and the parameter blocks of other targets " +
-	"answer NotImplemented once the expression, time zone, window and dates are validated; " +
+	"universal (aws-sdk) targets and ECS, Kinesis, Firehose, CodeBuild, CodePipeline, Inspector, SageMaker and Step Functions targets answer NotImplemented; " +
+	"Lambda, SQS and SNS targets in another Region, other schedule groups, a FLEXIBLE window, DeadLetterConfig and ActionAfterCompletion DELETE " +
+	"answer NotImplemented once the expression, time zone, window, dates and target are validated; " +
 	"KmsKeyArn is stored and echoed, the payload is not encrypted; " +
 	"the execution role's trust is not checked, so a missing or untrusting role still delivers; " +
 	"ClientToken is accepted and not used for idempotency; the 10,000,000-schedule quota is not counted; " +
-	"unrecorded, understudy's choice: rate units are accepted singular or plural with any value, a rate schedule without StartDate first fires at the write instant, " +
+	"unrecorded, understudy's choice: a target ARN of a service with no templated target is refused at create with ValidationException, " +
+	"rate units are accepted singular or plural with any value, a rate schedule without StartDate first fires at the write instant, " +
 	"a rate schedule whose StartDate has passed first fires at its first interval at or after the write instant, " +
 	"an absent Input delivers {}, an at() in the past fires at once, an at() fires at its seconds, a fired at() with NONE stays with its State unchanged, " +
 	"client-side target errors are not retried and one execution id covers an invocation's retries, " +
-	"a MaximumWindowInMinutes sent with OFF is ignored, checks run in the order expression, time zone, window, dates and the future-fire check, target, " +
+	"a qualified Lambda target's version or alias is passed as Invoke's Qualifier, " +
+	"an EventBridge target's event has no resources and its time is the delivery instant, an SNS target's message has no Subject, " +
+	"an event bus target in another Region or without EventBridgeParameters is refused with ValidationException, " +
+	"parameter blocks that do not match the target are stored, echoed and ignored, a MaximumWindowInMinutes sent with OFF is ignored, " +
+	"Input on a Lambda or EventBridge target is not checked for JSON at create, Input is limited to 262,144 bytes, " +
+	"checks run in the order expression, time zone, window, dates and the future-fire check, target, " +
 	"a present date in the future-fire text renders as RFC 3339 UTC, and every refusal message except the expression, future-fire and missing-group texts is understudy's own"
 
 // New binds the Scheduler operations built so far (scheduler.md 2.2) and
