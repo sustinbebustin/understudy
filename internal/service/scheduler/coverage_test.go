@@ -23,7 +23,13 @@ const targetsNote = "templated Lambda, SQS, SNS, EventBridge event bus and Step 
 	"universal (aws-sdk) targets and ECS, Kinesis, Firehose, CodeBuild, CodePipeline, Inspector and SageMaker targets answer NotImplemented; " +
 	"a Step Functions execution's name is understudy's"
 
-const createNote = targetsNote + "; KmsKeyArn is stored and echoed, the payload is not encrypted, and under iam.enforce=enforce the caller's KMS permissions are evaluated against identity policies only (key policies are advised); " +
+// createNote follows the binary where the test owner ruled it right
+// (disputes 3, 3a, 3b): key policies are evaluated under enforce
+// (iam-enforcement-surfaces.md 3, 6.3), and the further clauses name
+// unrecorded choices the binary makes (invariant 3).
+const createNote = targetsNote + "; Lambda, SQS, SNS and Step Functions targets in another Region " +
+	"answer NotImplemented once the expression, time zone, window, dates and target are validated; " +
+	"KmsKeyArn is stored and echoed, the payload is not encrypted, and under iam.enforce=enforce the caller's KMS permissions at create and update and the execution role's kms:Decrypt at invocation are evaluated against identity policies and the key's policy, which for a key understudy's KMS does not hold allows nothing; " +
 	"the execution role's trust is checked only under iam.enforce=enforce, at create, update and invocation, so under off and advise a missing or untrusting role still delivers; " +
 	"ClientToken is accepted and not used for idempotency; the 10,000,000-schedule quota is not counted; " +
 	"unrecorded, understudy's choice: a target ARN of a service with no templated target is refused at create with ValidationException, " +
@@ -34,8 +40,15 @@ const createNote = targetsNote + "; KmsKeyArn is stored and echoed, the payload 
 	"an EventBridge target's event has no resources and its time is the delivery instant, an SNS target's message has no Subject, " +
 	"DELETE removes the schedule in the write that hands its last invocation over (before any retry), a fired at() with NONE stays with its State unchanged, " +
 	"parameter blocks that do not match the target are stored, echoed and ignored, a MaximumWindowInMinutes sent with OFF is ignored, " +
-	"Input on a Lambda or EventBridge target is not checked for JSON at create, Input is limited to 262,144 bytes, " +
-	"and every refusal message except the expression, future-fire, role-trust and missing-group texts is understudy's own"
+	"Input on a Lambda, Step Functions or EventBridge target is not checked for JSON at create, Input is limited to 262,144 bytes, " +
+	"a rate schedule whose StartDate has passed first fires at its first interval at or after the write instant, an at() fires at its seconds, a rate ignores its time zone, " +
+	"a qualified Lambda target's version or alias is passed as Invoke's Qualifier, " +
+	"a Step Functions version or alias ARN is passed to StartExecution as given, " +
+	"an event bus target in another Region or without EventBridgeParameters is refused with ValidationException, " +
+	"checks run in the order expression, time zone, window, dates and the future-fire check, target, group, role trust, iam:PassRole, KMS, " +
+	"iam:PassRole carries iam:PassedToService scheduler.amazonaws.com, " +
+	"under iam.enforce=enforce an execution role that cannot be assumed or may not decrypt at invocation fails the invocation before its target call as a client-side target error does, " +
+	"a present date in the future-fire text renders as RFC 3339 UTC, and every refusal message except the expression, future-fire, role-trust and missing-group texts is understudy's own"
 
 // wantCoverage is the spec's "Coverage marks" table: all 12 operations
 // bound Partial with these exact notes (scheduler.md 14.1).

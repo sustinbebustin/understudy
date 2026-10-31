@@ -199,16 +199,26 @@ func (h *harness) record(c *kernel.Call, tc targetCall) {
 }
 
 func (h *harness) stubTargets() {
-	h.Stub(iamapi.OpResolveRole, func(_ context.Context, _ *kernel.Call, in *iamapi.ResolveRoleInput) (*iamapi.ResolveRoleOutput, *awserr.Error) {
+	h.Stub(iamapi.OpResolveRole, func(_ context.Context, c *kernel.Call, in *iamapi.ResolveRoleInput) (*iamapi.ResolveRoleOutput, *awserr.Error) {
 		h.mu.Lock()
 		missing := h.missingRole
 		h.mu.Unlock()
 		if missing || !strings.HasSuffix(in.RoleArn, ":role/"+roleName) {
 			return nil, iamapi.ErrNoSuchEntityException("The role with name " + in.RoleArn + " cannot be found.")
 		}
-		return &iamapi.ResolveRoleOutput{Role: iamapi.Role{Path: "/", RoleName: roleName, RoleId: roleID, Arn: in.RoleArn}}, nil
+		// The kernel's strict output check refuses a required timestamp left at the zero time.
+		return &iamapi.ResolveRoleOutput{Role: iamapi.Role{Path: "/", RoleName: roleName, RoleId: roleID, Arn: in.RoleArn, CreateDate: c.Admitted().Wire()}}, nil
 	})
-	h.Stub(sqsapi.OpSendMessage, func(_ context.Context, c *kernel.Call, in *sqsapi.SendMessageInput) (*sqsapi.SendMessageOutput, *awserr.Error) {
+	// SendMessage names its queue at step 8, as the real SQS binding does, so
+	// a gate can deny the role session on the target queue's ARN.
+	queueResource := kernel.WithResources(func(_ *kernel.Call, in *sqsapi.SendMessageInput) []aws.ARN {
+		a, err := aws.ParseARN(h.queueArn((&targetCall{sqs: *in}).queue()))
+		if err != nil {
+			return nil
+		}
+		return []aws.ARN{a}
+	})
+	kernel.Bind(h.Kernel.Binder(sqsapi.OpSendMessage.Descriptor().Service), sqsapi.OpSendMessage, func(_ context.Context, c *kernel.Call, in *sqsapi.SendMessageInput) (*sqsapi.SendMessageOutput, *awserr.Error) {
 		tc := targetCall{op: "SendMessage", sqs: *in}
 		h.record(c, tc)
 		h.mu.Lock()
@@ -220,7 +230,10 @@ func (h *harness) stubTargets() {
 			return nil, err
 		}
 		return &sqsapi.SendMessageOutput{MessageId: new("m")}, nil
-	})
+	}, registry.Full{}, queueResource)
+	if err := h.Kernel.BindErr(); err != nil {
+		h.Fatalf("bind sqs SendMessage: %v", err)
+	}
 	h.Stub(lambdaapi.OpInvoke, func(_ context.Context, c *kernel.Call, in *lambdaapi.InvokeInput) (*lambdaapi.InvokeOutput, *awserr.Error) {
 		h.record(c, targetCall{op: "Invoke", lambda: *in})
 		return &lambdaapi.InvokeOutput{StatusCode: 202}, nil
