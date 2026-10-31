@@ -228,7 +228,7 @@ func readShape(r scheduleRef, sc *schedule) *schedulerapi.GetScheduleOutput {
 	state := e.state()
 	age, retries := e.Target.retryPolicy()
 	target := &schedulerapi.Target{
-		Arn: e.Target.Arn, RoleArn: e.Target.RoleArn, Input: e.Target.Input,
+		Arn: e.Target.Arn, RoleArn: e.Target.RoleArn, Input: e.Target.Input, DeadLetterConfig: e.Target.DeadLetter,
 		RetryPolicy: &schedulerapi.RetryPolicy{MaximumEventAgeInSeconds: &age, MaximumRetryAttempts: &retries},
 	}
 	e.Target.parameters(target)

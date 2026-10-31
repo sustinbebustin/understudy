@@ -31,13 +31,13 @@ type Service struct {
 // The service is the snapshot and reset view of its state.
 var _ kernel.Stateful = (*Service)(nil)
 
-// createNote is CreateSchedule's coverage note while tickets 2 to 5 are
+// createNote is CreateSchedule's coverage note while tickets 2 to 6 are
 // what is built (spec "Coverage marks" is the note once every ticket is).
 const createNote = "rate(), at() and cron() schedules in the default group with a templated Lambda, SQS, SNS or EventBridge event bus target in the schedule's Region " +
 	"are invoked on the emulator clock as the execution role, " +
 	"at() and cron() in any IANA time zone, which a rate ignores, between StartDate and EndDate, and not while State is DISABLED; " +
 	"universal (aws-sdk) targets and ECS, Kinesis, Firehose, CodeBuild, CodePipeline, Inspector, SageMaker and Step Functions targets answer NotImplemented; " +
-	"Lambda, SQS and SNS targets in another Region, other schedule groups, a FLEXIBLE window, DeadLetterConfig and ActionAfterCompletion DELETE " +
+	"Lambda, SQS and SNS targets in another Region, other schedule groups, a FLEXIBLE window and ActionAfterCompletion DELETE " +
 	"answer NotImplemented once the expression, time zone, window, dates and target are validated; " +
 	"KmsKeyArn is stored and echoed, the payload is not encrypted; " +
 	"the execution role's trust is not checked, so a missing or untrusting role still delivers; " +
@@ -46,7 +46,8 @@ const createNote = "rate(), at() and cron() schedules in the default group with 
 	"rate units are accepted singular or plural with any value, a rate schedule without StartDate first fires at the write instant, " +
 	"a rate schedule whose StartDate has passed first fires at its first interval at or after the write instant, " +
 	"an absent Input delivers {}, an at() in the past fires at once, an at() fires at its seconds, a fired at() with NONE stays with its State unchanged, " +
-	"client-side target errors are not retried and one execution id covers an invocation's retries, " +
+	"client-side target errors go to the dead-letter queue without retries and one execution id covers an invocation's retries, " +
+	"a dead letter's TARGET_ARN is the universal aws-sdk form and its body the payload after substitution, " +
 	"a qualified Lambda target's version or alias is passed as Invoke's Qualifier, " +
 	"an EventBridge target's event has no resources and its time is the delivery instant, an SNS target's message has no Subject, " +
 	"an event bus target in another Region or without EventBridgeParameters is refused with ValidationException, " +

@@ -115,6 +115,7 @@ func (s *Service) invocation(r scheduleRef, sc *schedule, at scheduled, roleID s
 	req := delivery.Request{
 		Source: r.arn(),
 		Policy: delivery.EventBridgeTarget{MaxAge: time.Duration(age) * time.Second, MaxAttempts: int(retries)},
+		DLQ:    sc.Plan.deadLetter,
 		As:     delivery.ExecutionRole{Role: role, RoleID: roleID, Session: hex.EncodeToString(s.ids.Draw(ids.KindRoleSession, 16))},
 		Invocation: &delivery.SchedulerInvocation{
 			ScheduleARN: r.arn(),

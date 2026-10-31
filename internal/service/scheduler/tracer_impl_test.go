@@ -74,8 +74,8 @@ func TestUnbuiltMembersAnswerNotImplemented(t *testing.T) {
 		"flexible": func(_ *harness, in *schedulerapi.CreateScheduleInput) {
 			in.FlexibleTimeWindow = schedulerapi.FlexibleTimeWindow{Mode: schedulerapi.FlexibleTimeWindowModeFlexible, MaximumWindowInMinutes: new(int32(5))}
 		},
-		"dead-letter queue": func(h *harness, in *schedulerapi.CreateScheduleInput) {
-			in.Target.DeadLetterConfig = &schedulerapi.DeadLetterConfig{Arn: new(h.queueArn("dlq"))}
+		"dead-letter queue in a partition understudy does not serve": func(_ *harness, in *schedulerapi.CreateScheduleInput) {
+			in.Target.DeadLetterConfig = &schedulerapi.DeadLetterConfig{Arn: new("arn:aws-xx:sqs:us-east-1:000000000000:dlq")}
 		},
 	}
 	for name, edit := range cases {

@@ -55,6 +55,9 @@ type plan struct {
 	// state is State with its default, ENABLED, filled (scheduler.md 4.6).
 	state  schedulerapi.ScheduleState
 	target target
+	// deadLetter is the queue a failed invocation goes to, nil for none
+	// (scheduler.md 7.2).
+	deadLetter *aws.ARN
 }
 
 // expression is a parsed ScheduleExpression.
@@ -191,6 +194,10 @@ func accept(scope aws.Scope, m *members, units schedexpr.RateUnits, dates dateCh
 	if err != nil {
 		return plan{}, err
 	}
+	dlq, err := parseDeadLetter(m.target.DeadLetterConfig)
+	if err != nil {
+		return plan{}, err
+	}
 	switch {
 	case m.window.Mode != schedulerapi.FlexibleTimeWindowModeOff:
 		return plan{}, errNotYet("FlexibleTimeWindow mode " + string(m.window.Mode))
@@ -201,7 +208,7 @@ func accept(scope aws.Scope, m *members, units schedexpr.RateUnits, dates dateCh
 	if m.state != nil {
 		state = *m.state
 	}
-	return plan{expression: expr, loc: loc, start: m.start, end: m.end, state: state, target: tgt}, nil
+	return plan{expression: expr, loc: loc, start: m.start, end: m.end, state: state, target: tgt, deadLetter: dlq}, nil
 }
 
 // parseExpression parses a ScheduleExpression, refusing it with
@@ -324,8 +331,7 @@ func unimplementedTarget(service string) (string, bool) {
 // service answers 501 naming it; any other service ValidationException.
 // The target need not exist (4.1). A parameter block that does not match
 // the target is stored, echoed and ignored, and Input is not checked for
-// JSON. UNVERIFIED (SCH-04), scheduler.md 6.1, 6.3: both are inferred. A
-// dead-letter queue answers 501 until it is built.
+// JSON. UNVERIFIED (SCH-04), scheduler.md 6.1, 6.3: both are inferred.
 func parseTarget(scope aws.Scope, t *schedulerapi.Target) (target, *awserr.Error) {
 	role, err := aws.ParseARN(t.RoleArn)
 	if name, ok := strings.CutPrefix(role.Resource, "role/"); err != nil || role.Service != "iam" || !ok || name == "" {
@@ -335,13 +341,32 @@ func parseTarget(scope aws.Scope, t *schedulerapi.Target) (target, *awserr.Error
 	if aerr != nil {
 		return nil, aerr
 	}
-	switch {
-	case t.Input != nil && len(*t.Input) > maxInputBytes:
+	if t.Input != nil && len(*t.Input) > maxInputBytes {
 		return nil, errInputTooLarge(len(*t.Input))
-	case t.DeadLetterConfig != nil:
-		return nil, errNotYet("Target.DeadLetterConfig")
 	}
 	return tgt, nil
+}
+
+// parseDeadLetter reads Target.DeadLetterConfig into the queue failed
+// invocations go to, nil when none is named (scheduler.md 7.2, 14.5.3). The
+// generated validator has already refused an ARN that is not a standard
+// SQS queue's (the model pattern admits no .fifo). Any account may be
+// named (aws-doc configuring-schedule-dlq); a queue in a partition, Region
+// or account understudy does not serve answers 501, since nothing could
+// receive its dead letters. The queue need not exist: a missing one drops
+// the dead letter at delivery (14.5.4).
+func parseDeadLetter(c *schedulerapi.DeadLetterConfig) (*aws.ARN, *awserr.Error) {
+	if c == nil || c.Arn == nil {
+		return nil, nil
+	}
+	a, err := aws.ParseARN(*c.Arn)
+	if err != nil {
+		return nil, errNotYet("Target.DeadLetterConfig.Arn " + *c.Arn + " (a dead-letter queue ARN understudy cannot read)")
+	}
+	if _, err := aws.ScopeOf(a); err != nil {
+		return nil, errNotYet("Target.DeadLetterConfig.Arn " + *c.Arn + " (a dead-letter queue in a partition, Region or account understudy does not serve)")
+	}
+	return &a, nil
 }
 
 // parseTargetARN reads Target.Arn into the target it names.
@@ -527,6 +552,7 @@ type targetEcho struct {
 	Input         *string                                   `json:"input,omitempty"`
 	MaxAgeSeconds *int32                                    `json:"maxAgeSeconds,omitempty"`
 	MaxRetries    *int32                                    `json:"maxRetries,omitempty"`
+	DeadLetter    *schedulerapi.DeadLetterConfig            `json:"deadLetterConfig,omitempty"`
 	Ecs           *schedulerapi.EcsParameters               `json:"ecsParameters,omitempty"`
 	EventBridge   *schedulerapi.EventBridgeParameters       `json:"eventBridgeParameters,omitempty"`
 	Kinesis       *schedulerapi.KinesisParameters           `json:"kinesisParameters,omitempty"`
@@ -548,7 +574,7 @@ func echoOf(m *members) echo {
 		Expression: m.expression, Timezone: m.timezone, StartDate: m.start, EndDate: m.end, State: m.state, Description: m.description,
 		KmsKeyArn: m.kmsKeyArn, Window: m.window.Mode, Action: m.action,
 		Target: targetEcho{
-			Arn: m.target.Arn, RoleArn: m.target.RoleArn, Input: m.target.Input,
+			Arn: m.target.Arn, RoleArn: m.target.RoleArn, Input: m.target.Input, DeadLetter: m.target.DeadLetterConfig,
 			Ecs: m.target.EcsParameters, EventBridge: m.target.EventBridgeParameters, Kinesis: m.target.KinesisParameters,
 			SageMaker: m.target.SageMakerPipelineParameters, Sqs: m.target.SqsParameters,
 		},
@@ -565,7 +591,7 @@ func (e *echo) members() members {
 	m := members{
 		expression: e.Expression, timezone: e.Timezone, start: e.StartDate, end: e.EndDate, state: e.State, description: e.Description,
 		kmsKeyArn: e.KmsKeyArn, window: schedulerapi.FlexibleTimeWindow{Mode: e.Window}, action: e.Action,
-		target: schedulerapi.Target{Arn: e.Target.Arn, RoleArn: e.Target.RoleArn, Input: e.Target.Input},
+		target: schedulerapi.Target{Arn: e.Target.Arn, RoleArn: e.Target.RoleArn, Input: e.Target.Input, DeadLetterConfig: e.Target.DeadLetter},
 	}
 	if e.Target.MaxAgeSeconds != nil || e.Target.MaxRetries != nil {
 		m.target.RetryPolicy = &schedulerapi.RetryPolicy{MaximumEventAgeInSeconds: e.Target.MaxAgeSeconds, MaximumRetryAttempts: e.Target.MaxRetries}
