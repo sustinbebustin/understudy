@@ -180,3 +180,15 @@ def test_recorded_expression_refusal_and_past_at(scheduler: Any, sqs: Any, make_
     created = scheduler.create_schedule(Name=name, ScheduleExpression="at(2022-12-31T23:59:59)", FlexibleTimeWindow={"Mode": "OFF"}, Target=target)
     cleanup.add(scheduler.delete_schedule, Name=name)
     assert created["ScheduleArn"].endswith(":schedule/default/" + name)
+
+
+def test_universal_target_is_not_implemented(scheduler: Any, role: str) -> None:
+    """A universal (aws-sdk) target answers 501 NotImplemented and nothing is stored
+    (CLAUDE.md invariant 3; spec "Scope")."""
+    name = uniq("sch")
+    target = {"Arn": "arn:aws:scheduler:::aws-sdk:sqs:sendMessage", "RoleArn": role, "Input": "{}"}
+    with raises("NotImplemented") as info:
+        scheduler.create_schedule(Name=name, ScheduleExpression="rate(1 hour)", FlexibleTimeWindow={"Mode": "OFF"}, Target=target)
+    assert status_of(info.value) == 501
+    with raises("ResourceNotFoundException"):
+        scheduler.get_schedule(Name=name)

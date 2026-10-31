@@ -22,12 +22,15 @@ import {
   ReceiveMessageCommand,
   SQSClient,
 } from "@aws-sdk/client-sqs";
-import { clientConfig, endpoint } from "../support/env";
+import { CreateFunctionCommand, DeleteFunctionCommand, LambdaClient, waitUntilFunctionActiveV2 } from "@aws-sdk/client-lambda";
+import { clientConfig, endpoint, lambdaExecutionEnabled } from "../support/env";
 import { expectFailure, uniq } from "../support/helpers";
+import { zip } from "../support/zip";
 
 const scheduler = new SchedulerClient(clientConfig());
 const sqs = new SQSClient(clientConfig());
 const iam = new IAMClient(clientConfig());
+const lambda = new LambdaClient(clientConfig());
 
 const schedulerTrust = JSON.stringify({
   Version: "2012-10-17",
@@ -249,4 +252,87 @@ describe("EventBridge Scheduler", () => {
     });
     expect(arn).toEndWith(`:schedule/default/${name}`);
   });
+
+  // A universal (aws-sdk) target answers 501 NotImplemented and nothing is
+  // stored (CLAUDE.md invariant 3; spec "Scope").
+  test("a universal target answers NotImplemented", async () => {
+    const { target } = await queueTarget();
+    const name = uniq("sch");
+    await expectFailure(
+      scheduler.send(
+        new CreateScheduleCommand({
+          Name: name,
+          ScheduleExpression: "rate(1 hour)",
+          FlexibleTimeWindow: { Mode: "OFF" },
+          Target: { ...target, Arn: "arn:aws:scheduler:::aws-sdk:sqs:sendMessage", Input: "{}" },
+        }),
+      ),
+      { name: "NotImplemented", status: 501 },
+    );
+    await expectFailure(scheduler.send(new GetScheduleCommand({ Name: name })), {
+      name: "ResourceNotFoundException",
+      status: 404,
+    });
+  });
+});
+
+const FORWARD_HANDLER = `
+import json
+import os
+
+import boto3
+
+
+def handler(event, context):
+    boto3.client("sqs").send_message(QueueUrl=os.environ["FORWARD_QUEUE_URL"], MessageBody=json.dumps(event))
+`;
+
+const TRUST_LAMBDA = JSON.stringify({
+  Version: "2012-10-17",
+  Statement: [{ Effect: "Allow", Principal: { Service: "lambda.amazonaws.com" }, Action: "sts:AssumeRole" }],
+});
+
+describe.skipIf(!lambdaExecutionEnabled)("EventBridge Scheduler Lambda target", () => {
+  // A Lambda target is invoked asynchronously with the Input as its event,
+  // context attributes substituted ("EventBridge Scheduler invokes your
+  // Lambda Event Function asynchronously", aws-doc with-eventbridge-scheduler;
+  // aws-doc managing-schedule-context-attributes; scheduler.md 6.3, 6.4); the
+  // function forwards the event it received to a queue.
+  test("a Lambda target receives the Input with the attempt number", async () => {
+    const { queueUrl: forward, target } = await queueTarget();
+    const fnRole = uniq("sch-fn-role");
+    const fnRoleArn = (await iam.send(new CreateRoleCommand({ RoleName: fnRole, AssumeRolePolicyDocument: TRUST_LAMBDA })))
+      .Role?.Arn;
+    cleanups.push(() => iam.send(new DeleteRoleCommand({ RoleName: fnRole })));
+    const fn = uniq("sch-fn");
+    const created = await lambda.send(
+      new CreateFunctionCommand({
+        FunctionName: fn,
+        Runtime: "python3.13",
+        Role: fnRoleArn,
+        Handler: "lambda_function.handler",
+        Code: { ZipFile: zip({ "lambda_function.py": FORWARD_HANDLER }) },
+        Environment: { Variables: { FORWARD_QUEUE_URL: forward } },
+      }),
+    );
+    cleanups.push(() => lambda.send(new DeleteFunctionCommand({ FunctionName: fn })));
+    await waitUntilFunctionActiveV2({ client: lambda, maxWaitTime: 120, minDelay: 1, maxDelay: 2 }, { FunctionName: fn });
+
+    const at = (await emulatorNow()).getTime() + 10 * 60 * 1000;
+    await createSchedule({
+      Name: uniq("sch"),
+      ScheduleExpression: `at(${new Date(at).toISOString().slice(0, 19)})`,
+      FlexibleTimeWindow: { Mode: "OFF" },
+      Target: { Arn: created.FunctionArn, RoleArn: target.RoleArn, Input: '{"attempt":"<aws.scheduler.attempt-number>"}' },
+    });
+    await advance(660);
+
+    const deadline = Date.now() + 90_000;
+    let bodies: string[] = [];
+    while (bodies.length === 0 && Date.now() < deadline) {
+      const out = await sqs.send(new ReceiveMessageCommand({ QueueUrl: forward, MaxNumberOfMessages: 10, WaitTimeSeconds: 5 }));
+      bodies = (out.Messages ?? []).map((m) => m.Body ?? "");
+    }
+    expect(bodies.map((b) => JSON.parse(b))).toEqual([{ attempt: "1" }]);
+  }, 180_000);
 });

@@ -169,3 +169,15 @@ test_recorded_expression_refusal_and_past_at() {
   assert_jq_match '.ScheduleArn' ":schedule/default/${name}\$"
   aws_ok scheduler delete-schedule --name "$name"
 }
+
+# A universal (aws-sdk) target answers 501 NotImplemented and nothing is
+# stored (CLAUDE.md invariant 3; spec "Scope").
+test_universal_target_is_not_implemented() {
+  sch_setup
+  local name target
+  name=$(new_name sch)
+  target=$(jq -cn --arg r "$SCH_ROLE_ARN" '{Arn: "arn:aws:scheduler:::aws-sdk:sqs:sendMessage", RoleArn: $r, Input: "{}"}')
+  aws_error NotImplemented 501 scheduler create-schedule --name "$name" --schedule-expression 'rate(1 hour)' \
+    --flexible-time-window Mode=OFF --target "$target"
+  aws_error ResourceNotFoundException 404 scheduler get-schedule --name "$name"
+}

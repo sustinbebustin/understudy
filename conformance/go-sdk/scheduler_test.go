@@ -12,9 +12,12 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/eventbridge"
+	ebtypes "github.com/aws/aws-sdk-go-v2/service/eventbridge/types"
 	"github.com/aws/aws-sdk-go-v2/service/scheduler"
 	"github.com/aws/aws-sdk-go-v2/service/scheduler/types"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
+	sqstypes "github.com/aws/aws-sdk-go-v2/service/sqs/types"
 )
 
 // Research: docs/research/scheduler.md.
@@ -230,3 +233,106 @@ func TestSchedulerRecordedExpressionRefusalAndPastAt(t *testing.T) {
 		t.Errorf("ScheduleArn = %s", aws.ToString(created.ScheduleArn))
 	}
 }
+
+// A default-bus target puts an event whose source and detail-type are the
+// EventBridgeParameters (aws-doc managing-targets-templated; scheduler.md
+// 6.4), which a rule on the default bus sends on to an SQS queue.
+func TestSchedulerDefaultBusTarget(t *testing.T) {
+	source := "conformance." + name(t, "sch")
+	ruleName := name(t, "sch-rule")
+	putRule(t, &eventbridge.PutRuleInput{Name: aws.String(ruleName), EventPattern: aws.String(`{"source":["` + source + `"]}`)})
+	queueURL := createQueue(t, name(t, "sch-bus-q"), nil)
+	putTargets(t, ruleName, ebtypes.Target{Id: aws.String("q"), Arn: aws.String(queueArn(t, queueURL))})
+	role := *createRole(t, name(t, "sch-role"), schedulerTrustPolicy).Arn
+	createScheduleT(t, &scheduler.CreateScheduleInput{
+		Name: aws.String(name(t, "sch")), ScheduleExpression: aws.String(atOf(emulatorNow(t).Add(10 * time.Minute))),
+		FlexibleTimeWindow: &types.FlexibleTimeWindow{Mode: types.FlexibleTimeWindowModeOff},
+		Target: &types.Target{
+			Arn: aws.String("arn:aws:events:" + region() + ":" + account(t) + ":event-bus/default"), RoleArn: aws.String(role),
+			Input:                 aws.String(`{"attempt":"<aws.scheduler.attempt-number>"}`),
+			EventBridgeParameters: &types.EventBridgeParameters{Source: aws.String(source), DetailType: aws.String("tick")},
+		},
+	})
+
+	advance(t, 660)
+	received, err := sqs.NewFromConfig(awsCfg).ReceiveMessage(t.Context(), &sqs.ReceiveMessageInput{QueueUrl: aws.String(queueURL), MaxNumberOfMessages: 10})
+	ok(t, err, "ReceiveMessage")
+	if len(received.Messages) != 1 {
+		t.Fatalf("received %d events, want the at() invocation's", len(received.Messages))
+	}
+	var e ebEvent
+	ok(t, json.Unmarshal([]byte(aws.ToString(received.Messages[0].Body)), &e), "decoding the event")
+	if e.Source != source || e.DetailType != "tick" {
+		t.Errorf("event source, detail-type = %q, %q; want %q, tick", e.Source, e.DetailType, source)
+	}
+}
+
+// A Lambda target is invoked asynchronously with the Input as its event,
+// context attributes substituted ("EventBridge Scheduler invokes your
+// Lambda Event Function asynchronously", aws-doc with-eventbridge-scheduler;
+// aws-doc managing-schedule-context-attributes; scheduler.md 6.3, 6.4); the
+// function forwards the event it received to a queue.
+func TestSchedulerLambdaTarget(t *testing.T) {
+	forward := createQueue(t, name(t, "sch-fn-out"), nil)
+	fn := deployFunction(t, name(t, "sch-fn"), "handler.forward", map[string]string{"FORWARD_QUEUE_URL": forward})
+	role := *createRole(t, name(t, "sch-role"), schedulerTrustPolicy).Arn
+	createScheduleT(t, &scheduler.CreateScheduleInput{
+		Name: aws.String(name(t, "sch")), ScheduleExpression: aws.String(atOf(emulatorNow(t).Add(10 * time.Minute))),
+		FlexibleTimeWindow: &types.FlexibleTimeWindow{Mode: types.FlexibleTimeWindowModeOff},
+		Target:             &types.Target{Arn: fn.FunctionArn, RoleArn: aws.String(role), Input: aws.String(`{"attempt":"<aws.scheduler.attempt-number>"}`)},
+	})
+	advance(t, 660)
+	msgs := receive(t, forward, 1, 90*time.Second)
+	if len(msgs) != 1 {
+		t.Fatalf("the function forwarded %d events, want 1", len(msgs))
+	}
+	var event map[string]string
+	ok(t, json.Unmarshal([]byte(aws.ToString(msgs[0].Body)), &event), "decoding the forwarded event")
+	if event["attempt"] != "1" || len(event) != 1 {
+		t.Errorf("the function received %v, want {\"attempt\":\"1\"}", event)
+	}
+}
+
+// An SQS target's message carries SenderId <role id>:<session name>, the
+// execution role's AROA id and a 32-hex session (aws-doc
+// configuring-schedule-dlq, the SenderId example; scheduler.md 6.4, 9).
+func TestSchedulerSQSSenderIdIsTheRoleSession(t *testing.T) {
+	queueURL, target := schedulerTarget(t)
+	createScheduleT(t, &scheduler.CreateScheduleInput{
+		Name: aws.String(name(t, "sch")), ScheduleExpression: aws.String(atOf(emulatorNow(t).Add(10 * time.Minute))),
+		FlexibleTimeWindow: &types.FlexibleTimeWindow{Mode: types.FlexibleTimeWindowModeOff}, Target: target,
+	})
+	advance(t, 660)
+	received, err := sqs.NewFromConfig(awsCfg).ReceiveMessage(t.Context(), &sqs.ReceiveMessageInput{
+		QueueUrl: aws.String(queueURL), MaxNumberOfMessages: 10,
+		MessageSystemAttributeNames: []sqstypes.MessageSystemAttributeName{sqstypes.MessageSystemAttributeNameSenderId},
+	})
+	ok(t, err, "ReceiveMessage")
+	if len(received.Messages) != 1 {
+		t.Fatalf("received %d messages, want the at() invocation's", len(received.Messages))
+	}
+	if id := received.Messages[0].Attributes["SenderId"]; !regexp.MustCompile(`^AROA[0-9A-Z]+:[0-9a-f]{32}$`).MatchString(id) {
+		t.Errorf("SenderId = %q, want <AROA role id>:<32 hex>", id)
+	}
+}
+
+// A universal (aws-sdk) target answers 501 NotImplemented and nothing is
+// stored (CLAUDE.md invariant 3; spec "Scope").
+func TestSchedulerUniversalTargetIsNotImplemented(t *testing.T) {
+	_, target := schedulerTarget(t)
+	target.Arn = aws.String("arn:aws:scheduler:::aws-sdk:sqs:sendMessage")
+	target.Input = aws.String(`{}`)
+	client := scheduler.NewFromConfig(awsCfg)
+	scheduleName := name(t, "sch")
+	_, err := client.CreateSchedule(t.Context(), &scheduler.CreateScheduleInput{
+		Name: aws.String(scheduleName), ScheduleExpression: aws.String("rate(1 hour)"),
+		FlexibleTimeWindow: &types.FlexibleTimeWindow{Mode: types.FlexibleTimeWindowModeOff}, Target: target,
+	})
+	apiErr(t, err, "CreateSchedule universal target", "NotImplemented")
+	wantStatus(t, err, "CreateSchedule universal target", http.StatusNotImplemented)
+	_, err = client.GetSchedule(t.Context(), &scheduler.GetScheduleInput{Name: aws.String(scheduleName)})
+	errAs[*types.ResourceNotFoundException](t, err, "GetSchedule after the refused create")
+}
+
+// atOf is at(yyyy-mm-ddThh:mm:ss) naming t in UTC (scheduler.md 5.1).
+func atOf(t time.Time) string { return "at(" + t.UTC().Format("2006-01-02T15:04:05") + ")" }
