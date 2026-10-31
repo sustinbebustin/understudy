@@ -37,10 +37,11 @@ func (s *Service) Import(ss []store.Section) error {
 
 // Reset drops the scopes rs covers. Their armed fires find no schedule
 // when they come due and do nothing. A default group no write
-// materialized is dated at the reset.
+// materialized in a scope rs covers is dated at the reset; the other
+// scopes keep their dates.
 func (s *Service) Reset(rs kernel.ResetScope) {
 	s.cells.Reset(func(k aws.Scope) bool { return !rs.Covers(k) })
-	s.restart()
+	s.restartScopes(rs)
 }
 
 // Rearm arms the fire timer of every schedule with a next invocation;

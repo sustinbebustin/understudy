@@ -74,7 +74,7 @@ type groupView struct {
 // readGroups returns the scope's groups, the default group included
 // whether or not a write materialized it, filtered by keep.
 func (s *Service) readGroups(c *kernel.Call, keep func(name string) bool) []groupView {
-	origin := s.origin()
+	origin := s.origin(c.Scope())
 	st := func(st *State) []groupView {
 		var out []groupView
 		if _, stored := st.Groups[defaultGroup]; !stored && keep(defaultGroup) {
@@ -244,7 +244,7 @@ func (s *Service) retag(c *kernel.Call, resource string, change func([]groupTag)
 	if !inScope {
 		return errGroupMissing(name)
 	}
-	origin := s.origin()
+	origin := s.origin(c.Scope())
 	_, err := kernel.Write(c, s.cells, c.Scope(), func(st *State, _ clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
 		g, ok := st.group(name, origin)
 		if !ok {

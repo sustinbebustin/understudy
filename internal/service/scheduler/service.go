@@ -1,6 +1,7 @@
 package scheduler
 
 import (
+	"slices"
 	"sync/atomic"
 
 	"github.com/sustinbebustin/understudy/internal/api/schedulerapi"
@@ -29,21 +30,57 @@ type Service struct {
 	cells *store.Partitioned[aws.Scope, State]
 	// fire is TimerFire as registered with the kernel.
 	fire kernel.HandledKind
-	// born is the emulator-clock instant the state was created, loaded or
-	// reset: the dates of a default group no write has materialized
+	// born holds the emulator-clock instants the state was created, loaded
+	// or reset at: the dates of a default group no write has materialized
 	// (spec "Contract"; scheduler.md 14.2.2).
-	born atomic.Pointer[clock.Instant]
+	born atomic.Pointer[origins]
 }
 
-// origin is the instant the state was created, loaded or reset.
+// origins is when each scope's state began: base, the instant the whole
+// state was created, loaded or reset, unless a later reset covered the
+// scope. Never changed in place: a reset stores a new one.
+type origins struct {
+	base   clock.Instant
+	resets []scopedReset
+}
+
+// scopedReset is a reset of some scopes and its instant.
+type scopedReset struct {
+	scope kernel.ResetScope
+	at    clock.Instant
+}
+
+// origin is the instant scope's state was created, loaded or last reset.
 // UNVERIFIED (SCH-06), scheduler.md 3.1: AWS's CreationDate of the
 // default group is unrecorded.
-func (s *Service) origin() clock.Instant { return *s.born.Load() }
+func (s *Service) origin(scope aws.Scope) clock.Instant {
+	o := s.born.Load()
+	for _, r := range slices.Backward(o.resets) {
+		if r.scope.Covers(scope) {
+			return r.at
+		}
+	}
+	return o.base
+}
 
-// restart sets origin to the clock's instant.
+// restart sets every scope's origin to the clock's instant.
 func (s *Service) restart() {
-	now := s.k.Clock().Now()
-	s.born.Store(&now)
+	s.born.Store(&origins{base: s.k.Clock().Now()})
+}
+
+// restartScopes sets the origin of the scopes rs covers to the clock's
+// instant, leaving the others' as they were; a reset of every scope is a
+// restart. Reset is the only caller, and resets do not run concurrently.
+func (s *Service) restartScopes(rs kernel.ResetScope) {
+	if len(rs.Accounts) == 0 && len(rs.Regions) == 0 {
+		s.restart()
+		return
+	}
+	o := s.born.Load()
+	resets := slices.DeleteFunc(slices.Clone(o.resets), func(r scopedReset) bool {
+		return slices.Equal(r.scope.Accounts, rs.Accounts) && slices.Equal(r.scope.Regions, rs.Regions)
+	})
+	s.born.Store(&origins{base: o.base, resets: append(resets, scopedReset{scope: rs, at: s.k.Clock().Now()})})
 }
 
 // The service is the snapshot and reset view of its state.

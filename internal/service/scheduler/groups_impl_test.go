@@ -8,6 +8,7 @@ import (
 
 	"github.com/sustinbebustin/understudy/internal/api/schedulerapi"
 	"github.com/sustinbebustin/understudy/internal/journal"
+	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 )
 
@@ -115,6 +116,29 @@ func TestDefaultGroupDates(t *testing.T) {
 		}
 		if got := listTags(h, "default"); !slices.Equal(got, []schedulerapi.Tag{{Key: "k", Value: "v"}}) {
 			h.Errorf("default tags after import = %+v", got)
+		}
+	})
+}
+
+// A reset of other scopes leaves this scope's default group dates as they
+// were; a reset covering it re-dates them. UNVERIFIED (SCH-06),
+// scheduler.md 3.1, 14.2.2.
+func TestScopedResetKeepsOtherScopesDefaultDates(t *testing.T) {
+	run(t, func(h *harness) {
+		born := h.now()
+		other, err := aws.ParseAccountID("111111111111")
+		if err != nil {
+			h.Fatal(err)
+		}
+		h.advance(time.Hour)
+		h.svc.Reset(kernel.ResetScope{Accounts: []aws.AccountID{other}})
+		if c, m := getGroup(h, "default"); !c.Equal(born) || !m.Equal(born) {
+			h.Errorf("default dates after another account's reset = %s, %s, want %s", c, m, born)
+		}
+		h.advance(time.Hour)
+		h.svc.Reset(kernel.ResetScope{Accounts: []aws.AccountID{aws.DefaultAccount()}})
+		if c, _ := getGroup(h, "default"); !c.Equal(h.now()) {
+			h.Errorf("default created after its account's reset = %s, want %s", c, h.now())
 		}
 	})
 }
