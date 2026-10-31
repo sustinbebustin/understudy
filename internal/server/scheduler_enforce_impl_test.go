@@ -128,9 +128,11 @@ func TestSchedulerDenialIdentityOverTheWire(t *testing.T) {
 	_, endpoint, u := enforced(t, server.IAMEnforceEnforce)
 	w := schCall(t, u, endpoint, http.MethodGet, "/schedules/s", "")
 	const message = "User: " + userU + " is not authorized to perform: scheduler:GetSchedule because no identity-based policy allows the scheduler:GetSchedule action"
-	var body struct{ Message string }
+	// A map, since a struct field would match the key case-insensitively:
+	// the key is the generated identity's lower-case message (IS 12.3).
+	var body map[string]string
 	if err := json.Unmarshal([]byte(w.body), &body); err != nil || w.status != http.StatusForbidden || w.status != scheduler.DenialStatus().Value ||
-		jsonType(w) != "AccessDeniedException" || body.Message != message {
+		jsonType(w) != "AccessDeniedException" || body["message"] != message {
 		t.Errorf("denied GetSchedule = %d %s; want 403 AccessDeniedException %q", w.status, w.body, message)
 	}
 }
