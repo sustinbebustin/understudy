@@ -45,3 +45,13 @@ pattern_check() {
     return 1
   fi
 }
+
+# pattern_expected_denials prints the denials AWS makes too, for the
+# no-denials step under CONFORMANCE_IAM_ENFORCE=enforce.
+pattern_expected_denials() {
+  # The function's execution role (lambda-function.tf) has no policy, so
+  # the role may not write the function's logs; Lambda writes them as the
+  # role, which needs logs:CreateLogGroup, logs:CreateLogStream and
+  # logs:PutLogEvents (lambda-api.md 9.7), and AWS refuses it too.
+  printf '%s\n' 'for arn:aws:sts::[0-9]{12}:assumed-role/understudy-lambda-function-role/[^ ]+ calling logs:(CreateLogGroup|CreateLogStream|PutLogEvents) on arn:aws:logs:[^ ]+:log-group:/aws/lambda/understudy-step-function-lambda(:.*)?$'
+}
