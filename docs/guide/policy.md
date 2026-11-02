@@ -323,6 +323,7 @@ The output is built from what your tests exercised. Check it before it goes into
 - **`s3:ListBucket` for a missing key.** A `GetObject`, `HeadObject` or `GetObjectAttributes` of a key that does not exist records `s3:ListBucket` on the bucket: AWS answers `404 NoSuchKey` to a caller with it and `403 AccessDenied` to one without, so a test that reads a missing key needs it.
 - **S3 objects per bucket.** Object operations touch the object's ARN (`journal` shows it), and are recorded, listed by `iam usage` and granted on `arn:aws:s3:::<bucket>/*`. Narrow that to a key prefix if your code only uses one.
 - **Lambda log delivery** records `logs:CreateLogGroup`, `logs:CreateLogStream` and `logs:PutLogEvents` for the function's execution role.
+- **`*` for the first use of an AWS managed key.** The first call that uses an `alias/aws/<service>` alias creates that key, such as an SSE-KMS `PutObject` without a key id (`alias/aws/s3`) or a `CreateSecret` without `KmsKeyId` (`alias/aws/secretsmanager`). understudy authorizes the call before the key exists, so `kms:GenerateDataKey`, `kms:Encrypt`, `kms:GenerateDataKeyWithoutPlaintext`, `kms:DescribeKey` or `kms:ReEncryptTo` is recorded on `*`, and the policy grants it on `*`. Later uses are recorded on the key. Replace `*` with the key's ARN, which `aws kms describe-key --key-id alias/aws/<service>` prints.
 
 Actions AWS needs that the record does not yet carry; add them yourself:
 

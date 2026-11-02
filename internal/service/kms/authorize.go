@@ -14,6 +14,16 @@ import (
 // UNVERIFIED (iam-enforcement-surfaces.md 5.3, IAM-ENF-14).
 const resolvedFirst = "under iam.enforce, an alias or key that does not exist answers NotFoundException before authorization (kms.enforce.missing-resource.by-name)"
 
+// mintedOnAnyResource is the coverage note of the operations whose first
+// use of an alias/aws/<service> alias creates the AWS managed key it names
+// (keyFor): the call is authorized and access-recorded before the key
+// exists, so it names no key and is asked about "*", and the policy
+// rendered from the record grants the action on "*", an over-grant. Asking
+// about the key instead needs the key created before authorization, and
+// whether AWS creates it for a caller it then denies is unrecorded: AWS
+// documents only that the key is created on first use (iam-sts-kms.md 5.4).
+const mintedOnAnyResource = "the first use of an alias/aws/<service> alias, which creates that AWS managed key, is authorized and recorded on * because the key does not exist yet, so the policy grants the action on * (an over-grant); later uses are recorded on the key; whether AWS creates the key before it authorizes the call is unknown (iam-sts-kms.md 5.4)"
+
 // declareAuthorization states what each KMS operation is authorized on
 // (iam-evaluation.md 2.1, 4): an operation that takes a key id or key ARN
 // only is asked about that key at step 8; one that also takes an alias is

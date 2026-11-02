@@ -44,7 +44,7 @@ func (s *Service) bindKeys(b kmsapi.Binder) {
 			}
 			return []registry.IAMAction{{Prefix: "kms", Name: "TagResource"}}
 		}))
-	b.DescribeKey(s.describeKey, registry.Partial{Note: resolvedFirst})
+	b.DescribeKey(s.describeKey, registry.Partial{Note: resolvedFirst + "; " + mintedOnAnyResource})
 	b.ListKeys(s.listKeys, registry.Full{})
 	b.UpdateKeyDescription(s.updateKeyDescription, registry.Full{})
 	b.EnableKey(s.enableKey, registry.Full{})
