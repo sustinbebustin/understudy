@@ -281,7 +281,7 @@ These match understudy's principal modes (`AsService`, `AsExecutionRole`, `AsCal
 - Metrics: `NumberOfNotificationsFailed`: "For Amazon SQS, email, SMS, or mobile push endpoints, the metric increments by 1 when Amazon SNS stops attempting message deliveries"; `NumberOfNotificationsRedrivenToDlq`, `NumberOfNotificationsFailedToRedriveToDlq`; dimension `TopicName` ([SNS metrics](https://docs.aws.amazon.com/sns/latest/dg/sns-monitoring-using-cloudwatch.html), aws-doc).
 - The DLQ must be in the subscription's account and Region and must itself allow `sns.amazonaws.com` (same DLQ page; [sns.md](sns.md) 7.4).
 - That a refused SQS delivery lands in the DLQ with no retry is documented only through the "policy changed" sentence; the end-to-end behavior is UNVERIFIED (IAM-ENF-18). Whether `Subscribe` itself checks the queue policy is UNVERIFIED (IAM-ENF-19); the plausible answer is that it does not.
-- A delivery to a deleted queue fails as `AWS.SimpleQueueService.NonExistentQueue`, 400, and lands in the subscription DLQ ([sns.md](sns.md) 7.1, AWS blog and AWS-recorded). A deleted queue has no policy left, so had SNS been authorized first the failure would be a denial: for a delivery, existence comes before authorization (inferred). understudy asks SQS `SendMessage` from a delivery existence first and every other caller deny-first (5.3), under switch `sqs.enforce.missing-resource.delivery` = `resolve-first` (12.8) until IAM-ENF-18. Lambda `Invoke` from a delivery (a missing function is a client error, [sns.md](sns.md) 7.1) and SNS `Publish` from S3, EventBridge or CloudWatch still ask first: UNVERIFIED in understudy's order, plausible: the same.
+- A delivery to a deleted queue fails as `AWS.SimpleQueueService.NonExistentQueue`, 400, and lands in the subscription DLQ ([sns.md](sns.md) 7.1, AWS blog and AWS-recorded). A deleted queue has no policy left, so had SNS been authorized first the failure would be a denial: for a delivery, existence comes before authorization (inferred). understudy asks SQS `SendMessage` from a delivery existence first and every other caller deny-first (5.3), under switch `sqs.enforce.missing-resource.delivery` = `resolve-first` (12.8) until IAM-ENF-18. Lambda `Invoke` from a delivery (a missing function is a client error, [sns.md](sns.md) 7.1) and SNS `Publish` from S3, EventBridge or CloudWatch are asked existence first the same way (amended 2026-11-02), under switches `lambda.enforce.missing-resource.delivery` and `sns.enforce.missing-resource.delivery` = `resolve-first` (12.8): EventBridge keeps a target that no longer exists apart from a missing permission (8.4), which a deleted function or topic, with no policy left, could not show if EventBridge were authorized first (inferred, until IAM-ENF-22).
 
 ### 8.3 S3 notifications: refused at configuration, and later
 
@@ -545,6 +545,7 @@ Leave unbound (501): EventBridge `PutPermission`/`RemovePermission`, Logs `PutRe
 | `iam.enforce.missing-resource` | `deny-first` (S3 object reads: `list-bucket-decides`, aws-doc) | inferred | 5.1, 5.3 | IAM-ENF-14 |
 | `iam.enforce.missing-resource.by-name`, `kms.enforce.missing-resource.by-name`, `secretsmanager.enforce.missing-resource.by-name` | `resolve-first` (amended 2026-10-27: the operations that find their resource by name) | inferred | 5.3 | IAM-ENF-14 |
 | `sqs.enforce.missing-resource.delivery` | `resolve-first` for a delivery to SQS `SendMessage`; every other caller `deny-first` | inferred (from the AWS-recorded NonExistentQueue failure, [sns.md](sns.md) 7.1) | 8.2 | IAM-ENF-18 |
+| `lambda.enforce.missing-resource.delivery`, `sns.enforce.missing-resource.delivery` | `resolve-first` for a delivery to Lambda `Invoke` and to SNS `Publish`; every other caller `deny-first` (amended 2026-11-02) | inferred (from the aws-doc split of a target that no longer exists from a missing permission, 8.4, and the AWS-recorded client error for a missing function, [sns.md](sns.md) 7.1) | 8.4 | IAM-ENF-22 |
 | `iam.context.secure-transport` | `true` | inferred | 9.1 | none needed: AWS's own value is always true for its HTTPS endpoints; the choice is understudy's |
 | `iam.denial.grammar` | the 4.1 table, one reason, `on resource:` on explicit denials only | aws-doc (phrases, one reason); inferred (`on resource:` placement) | 4.1 | IAM-ENF-15 |
 | `sqs.denial.json-identity` | header `AccessDenied;Sender`, `__type` `com.amazon.coral.service#AccessDeniedException`, 403 | inferred | 3.2 | IAM-ENF-01 |
@@ -1058,7 +1059,7 @@ Cost under USD 0.01, 8 minutes. Teardown: `aws s3api put-bucket-notification-con
 
 ### 13.24 IAM-ENF-22. EventBridge delivery refused by the target
 
-Settles `events.delivery.denied-code` (8.4) and `events.delivery.source-account-sqs` and `-lambda` (8.1): DLQ attributes, no retry, metrics; then policies conditioned only on `aws:SourceAccount`.
+Settles `events.delivery.denied-code` (8.4) and `events.delivery.source-account-sqs` and `-lambda` (8.1): DLQ attributes, no retry, metrics; then policies conditioned only on `aws:SourceAccount`. Its last steps (amended 2026-11-02) settle `lambda.enforce.missing-resource.delivery` and `sns.enforce.missing-resource.delivery` (8.2, 8.4): the dead letters of a delivery to a deleted function and to a deleted topic carry `ERROR_CODE` `NO_RESOURCE`, not a denial.
 
 ```sh
 aws sqs create-queue --queue-name "$P-enf-eq"; EQ2="$Q/$P-enf-eq"; EQ2A="arn:aws:sqs:$R:$A:$P-enf-eq"
@@ -1084,9 +1085,23 @@ sleep 60
 rec IAM-ENF/22-target-sa aws sqs receive-message --queue-url "$EQ2" --wait-time-seconds 20
 rec IAM-ENF/22-lambda-sa aws logs filter-log-events --log-group-name "/aws/lambda/$P-enf-fn" --filter-pattern '"sourceaccount"'
 rec IAM-ENF/22-dlq-sa aws sqs receive-message --queue-url "$DLQ" --attribute-names All --message-attribute-names All --max-number-of-messages 10 --wait-time-seconds 20
+# Deliveries to a deleted function and a deleted topic: NO_RESOURCE, not a denial.
+aws sqs purge-queue --queue-url "$DLQ"; sleep 60
+aws lambda create-function --function-name "$P-enf-gone" --runtime python3.13 --handler fn.handler \
+  --role "arn:aws:iam::$A:role/$P-enf-exec" --zip-file "fileb://$REC/IAM-ENF/fn.zip"
+GFA="arn:aws:lambda:$R:$A:function:$P-enf-gone"
+GTA=$(aws sns create-topic --name "$P-enf-gone" --query TopicArn --output text)
+aws events put-targets --rule "$P-enf-r" --targets "$(jq -nc --arg f "$GFA" --arg t "$GTA" --arg d "$DLQA" \
+  '[{Id:"gf",Arn:$f,DeadLetterConfig:{Arn:$d}},{Id:"gt",Arn:$t,DeadLetterConfig:{Arn:$d}}]')"
+aws lambda delete-function --function-name "$P-enf-gone"
+aws sns delete-topic --topic-arn "$GTA"
+sleep 60
+rec IAM-ENF/22-put-events-gone aws events put-events --entries "[{\"Source\":\"$P.enf\",\"DetailType\":\"t\",\"Detail\":\"{\\\"case\\\":\\\"gone\\\"}\"}]"
+sleep 90
+rec IAM-ENF/22-dlq-gone aws sqs receive-message --queue-url "$DLQ" --attribute-names All --message-attribute-names All --max-number-of-messages 10 --wait-time-seconds 20
 ```
 
-Cost under USD 0.01, 15 minutes. Teardown: `aws events remove-targets --rule "$P-enf-r" --ids q f; aws lambda remove-permission --function-name "$P-enf-fn" --statement-id enf-events-sa; aws sqs delete-queue --queue-url "$EQ2"; aws sqs purge-queue --queue-url "$DLQ"`.
+Cost under USD 0.01, 20 minutes. Teardown: `aws events remove-targets --rule "$P-enf-r" --ids q f gf gt; aws lambda remove-permission --function-name "$P-enf-fn" --statement-id enf-events-sa; aws sqs delete-queue --queue-url "$EQ2"; aws sqs purge-queue --queue-url "$DLQ"`.
 
 ### 13.25 IAM-ENF-23. Does PutTargets add an SNS topic policy
 
