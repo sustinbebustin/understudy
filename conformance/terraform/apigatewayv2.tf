@@ -72,7 +72,35 @@ resource "aws_lambda_function" "apigatewayv2" {
   source_code_hash = data.archive_file.apigatewayv2_handler.output_base64sha256
   timeout          = 10
 
-  depends_on = [aws_cloudwatch_log_group.apigatewayv2_handler]
+  depends_on = [
+    aws_cloudwatch_log_group.apigatewayv2_handler,
+    aws_iam_role_policy.apigatewayv2_lambda_logs,
+  ]
+}
+
+# The function writes its logs as its execution role: AWSLambdaBasicExecutionRole's
+# actions, scoped to its log group. CreateLogGroup authorizes on the group ARN
+# (arn reads back without the :*), CreateLogStream and PutLogEvents on the
+# stream ARN, which :* matches (secrets-logs-events-alarms.md 3.10;
+# https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/iam-identity-based-access-control-cwl.html).
+resource "aws_iam_role_policy" "apigatewayv2_lambda_logs" {
+  name = "write-logs"
+  role = aws_iam_role.apigatewayv2_lambda.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup"]
+        Resource = aws_cloudwatch_log_group.apigatewayv2_handler.arn
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "${aws_cloudwatch_log_group.apigatewayv2_handler.arn}:*"
+      },
+    ]
+  })
 }
 
 resource "aws_apigatewayv2_api" "this" {
