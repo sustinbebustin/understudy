@@ -33,6 +33,7 @@ Any failure not listed here is a finding.
 
    ```sh
    bash
+   export PATH="$(brew --prefix node@24)/bin:$HOME/.bun/bin:$PATH"   # node@24 is keg-only; the Bun installer edits only your login shell's rc file
    cd ~/src/understudy        # your clone
    export OUT=~/understudy-macos-run && mkdir -p "$OUT"
    ```
@@ -123,7 +124,7 @@ for v in with-group without-group; do
   docker port "tc01-$v" >"$OUT/TC-01/ports-$v.txt"
 done
 docker rm -f tc01-with-group tc01-without-group
-stat -f 'host socket: uid=%u gid=%g mode=%Lp' /var/run/docker.sock >"$OUT/TC-01/host-stat.txt"
+stat -L -f 'host socket: uid=%u gid=%g mode=%Lp' /var/run/docker.sock >"$OUT/TC-01/host-stat.txt"
 ```
 
 Record `docker.status` and `docker.reason` from both health files, and whether curl reached `127.0.0.1` at all. The host's own `stat` is kept too: the Testcontainers modules read the group from the socket on the host (testcontainers.md 8.5), and the README's `--group-add "$(stat -c %g ...)"` recipe uses GNU `stat`, which macOS does not have.
