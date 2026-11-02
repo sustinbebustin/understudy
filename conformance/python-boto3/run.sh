@@ -22,8 +22,8 @@
 # Environments (pyproject.toml dependency groups):
 #   modern        the current boto3: every test file.
 #   legacy-query  botocore 1.34.89, the last release that speaks the Query
-#                 protocol to SQS: test_sqs.py only. Test paths given as
-#                 arguments reach it only when they are in test_sqs.py.
+#                 protocol to SQS: test_sqs.py only. Positional test paths
+#                 reach it only when they are in test_sqs.py.
 #
 # Each environment's pytest output is kept in the work directory as
 # test-<group>.log; the run ends with a summary on stderr: the totals over
@@ -163,16 +163,34 @@ for group in $groups; do
 	case "$group" in
 	modern) targets=(tests) ;;
 	legacy-query)
-		# The Query protocol is SQS's alone (sqs.md 2.2), so this
-		# environment runs test_sqs.py only: botocore 1.34.89 predates
-		# members other files send, such as Lambda's InvokedViaFunctionUrl.
-		# A test path for another file is dropped here; when the arguments
-		# name paths and none is in test_sqs.py, the environment is skipped.
+		# This environment exists to exercise SQS's legacy Query protocol:
+		# botocore 1.34.89 is the last release that speaks it to SQS
+		# (sqs.md 2.2), and it predates members other files send, such as
+		# Lambda's InvokedViaFunctionUrl, so it runs test_sqs.py only. A
+		# positional test path for another file is dropped here; when
+		# positional paths are given and none is in test_sqs.py, the
+		# environment is skipped. The value of an option given as the next
+		# argument (--deselect tests/test_x.py::t) stays with its option.
 		targets=(tests/test_sqs.py)
 		args=()
 		named=0 kept=0
-		for arg in "$@"; do
-			case "$arg" in
+		valued=" -k -m -p -c -o -r -W --deselect --ignore --ignore-glob --rootdir --confcutdir --basetemp --junitxml --junit-xml --maxfail --tb --timeout --durations --log-level --log-file "
+		given=("$@")
+		i=0
+		while [ "$i" -lt "${#given[@]}" ]; do
+			arg="${given[$i]}"
+			i=$((i + 1))
+			case "$valued" in
+			*" $arg "*)
+				args+=("$arg")
+				if [ "$i" -lt "${#given[@]}" ]; then
+					args+=("${given[$i]}")
+					i=$((i + 1))
+				fi
+				continue
+				;;
+			esac
+			case "${arg#./}" in
 			-*) args+=("$arg") ;;
 			tests | tests/) named=1 kept=1 ;;
 			*test_sqs.py | *test_sqs.py::*)
