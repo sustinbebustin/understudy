@@ -7,6 +7,9 @@ set shell := ["bash", "-euo", "pipefail", "-c"]
 # network for module downloads, since -exec wraps only the test binaries.
 test_exec := "env HTTP_PROXY=http://127.0.0.1:9 HTTPS_PROXY=http://127.0.0.1:9 NO_PROXY=localhost,.localhost,127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
 
+# The GoReleaser that release-check runs; release.yml pins the same version.
+goreleaser_version := "v2.18.3"
+
 # List the recipes.
 default:
     @just --list
@@ -152,16 +155,14 @@ testcontainers: image
 image:
     docker build -t understudy:dev .
 
-# Validate the GoReleaser configuration and build a snapshot when goreleaser is installed.
+# Validate the GoReleaser configuration and run a snapshot release into dist/:
+# binaries, archives, checksums, one image per platform in the local daemon
+# and the Homebrew cask, with nothing published. GoReleaser comes from the Go
+# module proxy at the version release.yml pins; it is a build tool, not a
+# module dependency. Needs Docker with buildx.
 release-check:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    if command -v goreleaser >/dev/null; then
-        goreleaser check
-        goreleaser build --snapshot --clean
-    else
-        echo "goreleaser is not installed; skipping the release configuration check" >&2
-    fi
+    go run github.com/goreleaser/goreleaser/v2@{{goreleaser_version}} check
+    go run github.com/goreleaser/goreleaser/v2@{{goreleaser_version}} release --snapshot --clean --skip=publish
 
 # Run the AWS CLI against a local endpoint, sealed off from real AWS.
 [positional-arguments]

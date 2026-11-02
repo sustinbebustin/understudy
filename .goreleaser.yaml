@@ -1,5 +1,7 @@
-# Release configuration. Nothing here publishes: the GitHub release is
-# disabled and the images are built but never pushed.
+# Release configuration. Publishing is off until the maintainer turns it on
+# (docs/release-runbook.md): the GitHub release is disabled, the images are
+# pushed only when dockers_v2 is enabled outside snapshot, and the Homebrew
+# cask is committed to the tap only when HOMEBREW_TAP_TOKEN is set.
 version: 2
 
 project_name: understudy
@@ -33,9 +35,16 @@ checksum:
 # describe: the Dockerfile's release target copies it from the build context
 # instead of compiling again.
 #
-# dockers_v2 has no skip_push: outside snapshot mode it builds and pushes in
-# one step. It is therefore disabled unless the run is a snapshot, which
-# builds one image per platform into the local daemon and pushes nothing.
+# dockers_v2 has no skip_push. Outside snapshot it runs one
+# `docker buildx build --platform linux/amd64,linux/arm64 --push` per image
+# and tag, so the registry gets one multi-arch manifest list. In snapshot it
+# builds one image per platform into the local daemon and pushes nothing,
+# because buildx cannot --load a manifest list. It is disabled outside
+# snapshot until the maintainer enables publishing.
+#
+# sbom is off: the attestation (`--attest=type=sbom`) runs BuildKit's
+# scanner image, an input the release does not otherwise pull, and the
+# archive SBOMs (`sboms`) need syft. Either is the maintainer's decision.
 dockers_v2:
   - id: understudy
     ids: [understudy]
@@ -55,7 +64,28 @@ dockers_v2:
       VERSION: "{{ .Version }}"
     flags:
       - --target=release
+    sbom: "false"
     disable: "{{ not .IsSnapshot }}"
+
+# A cask, not a formula: `brews` is deprecated in GoReleaser v2.18. The cask
+# is always written to dist/homebrew/Casks; it is committed to the tap only
+# when HOMEBREW_TAP_TOKEN is set (a token that can write to the tap; the
+# release workflow's GITHUB_TOKEN cannot), and never for a prerelease tag.
+# The URL is spelled out because the GitHub release is disabled, so
+# GoReleaser has no release to derive it from.
+homebrew_casks:
+  - name: understudy
+    ids: [understudy]
+    binaries: [understudy]
+    description: Local AWS emulator for testing event-driven systems
+    homepage: https://github.com/sustinbebustin/understudy
+    url:
+      template: "https://github.com/sustinbebustin/understudy/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
+    repository:
+      owner: sustinbebustin
+      name: homebrew-tap
+      token: '{{ envOrDefault "HOMEBREW_TAP_TOKEN" "" }}'
+    skip_upload: '{{ if isEnvSet "HOMEBREW_TAP_TOKEN" }}auto{{ else }}true{{ end }}'
 
 changelog:
   disable: true
