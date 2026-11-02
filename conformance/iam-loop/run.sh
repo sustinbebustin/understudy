@@ -14,9 +14,7 @@
 #   (c) with no identity policy, every pair a group's calls needed is denied
 #       (POST /iam/evaluate);
 #   (d) every statement of a group's policy is needed: without it, at least
-#       one recorded pair whose action it lists is denied, or each pair it
-#       lists is allowed by a resource-based policy alone (printed as a
-#       note; iam-evaluation.md 2.3);
+#       one recorded pair whose action it lists is denied;
 #   (e) a user with no policy is refused by each service with its denial
 #       identity; STS's and S3's messages are compared exactly
 #       (iam-enforcement-surfaces.md 4.2, 4.3: aws-doc and aws-recorded), the
@@ -331,18 +329,6 @@ evaluate() { curl -fsS -X POST -H 'Content-Type: application/json' --data-binary
 # space (internal/service/iam/documents.go policySize).
 size_filter='tojson | gsub("\\s"; "") | length'
 
-# iam_regex: a jq def turning an IAM Resource pattern into an anchored
-# regex: * any run of characters, ? one character, ${*} ${?} ${$} the
-# literal character (policydoc.Literal's escapes).
-iam_pattern_filter='
-	def iam_regex:
-		[scan("\\$\\{[*?$]\\}|[*?]|[^*?$]+|\\$")
-			| if . == "*" then ".*"
-			elif . == "?" then "."
-			elif . == "${*}" or . == "${?}" or . == "${$}" then "\\" + .[2:3]
-			else gsub("(?<c>[.\\\\+()\\[\\]{}|^$*?])"; "\\\(.c)") end]
-		| "^" + join("") + "$";'
-
 # split_doc DOC OUT_PREFIX: split the policy document DOC, statements in
 # order, greedily into chunk documents of at most $max_policy_chars
 # characters, written to OUT_PREFIX-1.json, OUT_PREFIX-2.json, ...; print the
@@ -623,23 +609,16 @@ for g in "${groups[@]}"; do
 	# (c) with no identity policy every recorded pair is denied. A bucket's
 	# objects are recorded as arn:aws:s3:::<bucket>/*, the pattern the policy
 	# grants.
-	# The response is kept in no-identity.json for (d)'s D4 note.
-	none="$dir/no-identity.json"
 	if [ "$(jq 'length' "$pairs")" -eq 0 ]; then
 		group_fail "$g" c "the user's calls recorded no pair"
-		printf '%s\n' '{"results": []}' >"$none"
 	else
 		jq -nc --arg p "$user_arn" --slurpfile r "$pairs" '{principal: $p, identityPolicies: [], requests: $r[0]}' >"$body"
-		evaluate "$body" >"$none"
-		allowed="$(jq -c '[.results[] | select(.decision == "allowed") | {action, resource}]' "$none")"
+		allowed="$(evaluate "$body" | jq -c '[.results[] | select(.decision == "allowed") | {action, resource}]')"
 		[ "$allowed" = "[]" ] || group_fail "$g" c "with no identity policy these pairs are still allowed: $allowed"
 	fi
 	# (d) each statement is needed: without it a recorded pair whose action it
-	# lists is denied; or (D4) it lists at least one recorded pair (its action
-	# and a Resource pattern match) and every one of them is allowed even
-	# with no identity policy, so a resource-based policy decided each
-	# (iam-evaluation.md 2.2, 2.3). The statement stays: the resource policy
-	# can change on its own.
+	# lists is denied. A statement whose pairs a resource-based policy alone
+	# allows is not exempt: those pairs already fail (c).
 	statements=0
 	[ ! -e "$dir/user-policy.json" ] || statements="$(jq '.Statement | length' "$dir/user-policy.json")"
 	for ((i = 0; i < statements; i++)); do
@@ -651,22 +630,8 @@ for g in "${groups[@]}"; do
 			jq -r --argjson acts "$actions" '[.results[] | select(.decision != "allowed") | select(.action as $a | $acts | index($a))][0].message // empty')"
 		if [ -n "$message" ]; then
 			note "$g (d) without statement $i: $message"
-			continue
-		fi
-		decided="$(jq -r --argjson i "$i" --slurpfile r "$pairs" --slurpfile none "$none" "$iam_pattern_filter"'
-			def list: if type == "string" then [.] else . end;
-			.Statement[$i] as $s
-			| [$s.Resource | list | .[] | iam_regex] as $res
-			| [$r[0][] | select(.action as $a | $s.Action | list | any(. == $a))
-				| select(.resource as $x | any($res[]; . as $re | $x | test($re)))] as $listed
-			| select(($listed | length) > 0)
-			| select(all($listed[]; . as $p | any($none[0].results[];
-				.action == $p.action and .resource == $p.resource and .decision == "allowed")))
-			| [$listed[].resource] | unique | join(", ")' "$dir/user-policy.json")"
-		if [ -n "$decided" ]; then
-			note "$g (d) statement $i kept: its pairs are allowed by the resource policy of $decided (iam-evaluation.md 2.3)"
 		else
-			group_fail "$g" d "statement $i ($actions) is not needed: without it no recorded pair it names is denied, and not every pair it lists is allowed by a resource-based policy alone"
+			group_fail "$g" d "statement $i ($actions) is not needed: without it no recorded pair it names is denied"
 		fi
 	done
 done
