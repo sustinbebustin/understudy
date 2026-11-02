@@ -146,6 +146,16 @@ type deferred struct {
 	err  *awserr.Error
 }
 
+// AuthorizeResolved asks c's deferred authorization now, as its first
+// Write or Invoke would, and returns the error the call ends with; nil
+// when c may go on or owes no deferred question (it was asked at step 8,
+// or authorization is off). It is for an AuthorizedAfterResolve or
+// AuthorizedAfterResolveForDeliveries handler that has resolved its
+// resource and whose next work is neither, such as Lambda Invoke running
+// a function, which must not run for a call that is denied. The call is
+// still asked once only.
+func AuthorizeResolved(c *Call) *awserr.Error { return c.authorizeDeferred() }
+
 // authorizeDeferred asks the call's deferred authorization, the first time
 // only, and returns the error the call ends with; nil when the call owes
 // none or may go on.

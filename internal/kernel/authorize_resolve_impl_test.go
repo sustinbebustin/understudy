@@ -225,3 +225,44 @@ func TestAuthorizedAfterResolveForDeliveriesDefersDeliveriesOnly(t *testing.T) {
 		wantDenial(k, err, "probe denied")
 	})
 }
+
+// AuthorizeResolved asks a deferred authorization at once, so a handler
+// whose next work is neither a Write nor an Invoke, such as running a
+// function, does no work for a call it is denied; the call is asked once,
+// and a call that owes no deferred question is asked nothing more.
+func TestAuthorizeResolvedAsksTheDeferredQuestionNow(t *testing.T) {
+	g := newGuard(guardDenial())
+	a := &fakeAuthorizer{decide: denyAction(guardProbe, "probe denied")}
+	runGuard(t, g, a, func(k *kerneltest.K) {
+		worked := 0
+		bindGuard(k, g.probe, func(_ context.Context, c *kernel.Call, _ *guardInput) (*guardOutput, *awserr.Error) {
+			c.Touch(guardThing1)
+			if err := kernel.AuthorizeResolved(c); err != nil {
+				return nil, err
+			}
+			worked++
+			return &guardOutput{}, nil
+		}, kernel.AuthorizedAfterResolve())
+		_, err := k.Invoke(k.Context(), g.probe, &guardInput{})
+		wantDenial(k, err, "probe denied")
+		if worked != 0 {
+			k.Errorf("the handler worked %d times after its denial, want none", worked)
+		}
+		if got := len(a.about(g.probeDesc)); got != 1 {
+			k.Errorf("the Authorizer was asked about the probe %d times, want once", got)
+		}
+
+		bindGuard(k, g.run, func(_ context.Context, c *kernel.Call, _ *guardInput) (*guardOutput, *awserr.Error) {
+			if err := kernel.AuthorizeResolved(c); err != nil {
+				return nil, err
+			}
+			return &guardOutput{}, nil
+		})
+		if _, err := k.Invoke(k.Context(), g.run, &guardInput{}); err != nil {
+			k.Errorf("a step-8 call's AuthorizeResolved = %s, want nil", err.Message)
+		}
+		if got := len(a.about(g.runDesc)); got != 1 {
+			k.Errorf("the Authorizer was asked about the step-8 call %d times, want once, at step 8", got)
+		}
+	})
+}
