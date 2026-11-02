@@ -93,8 +93,9 @@ func TestBusTargetForwardsTheMatchedEvent(t *testing.T) {
 // role: the role's policy must allow events:PutEvents on the bus
 // (eb-event-bus-perms.html, eventbridge-buses.md 6.2;
 // iam-enforcement-surfaces.md 8.4). One without a RoleArn is delivered as
-// events.amazonaws.com, and one whose RoleArn names no IAM role is not
-// delivered.
+// events.amazonaws.com, and so is one whose RoleArn names no IAM role, a
+// deviation the PutTargets coverage note states: PutTargets checks only the
+// RoleArn's length, and the delivery is not dropped for it.
 func TestBusTargetIsDeliveredAsItsRole(t *testing.T) {
 	run(t, func(h *harness) {
 		h.createBus("source")
@@ -107,6 +108,7 @@ func TestBusTargetIsDeliveredAsItsRole(t *testing.T) {
 		}{
 			{"with a RoleArn", new(invokerRole), delivery.ExecutionRole{Role: h.mustARN(invokerRole)}},
 			{"without a RoleArn", nil, nil},
+			{"with a RoleArn naming no IAM role", new("arn:aws:sqs:us-east-1:000000000000:not-a-role"), nil},
 		} {
 			h.targetOn("source", "fwd", eventbridgeapi.Target{Id: "bus", Arn: dest, RoleArn: c.role})
 			h.putEvents(toBus("source"))
@@ -117,11 +119,6 @@ func TestBusTargetIsDeliveredAsItsRole(t *testing.T) {
 			if as := got[0].Request.As; as != c.want {
 				t.Errorf("%s: delivered as %#v, want %#v", c.name, as, c.want)
 			}
-		}
-		h.targetOn("source", "fwd", eventbridgeapi.Target{Id: "bus", Arn: dest, RoleArn: new("arn:aws:sqs:us-east-1:000000000000:not-a-role")})
-		h.putEvents(toBus("source"))
-		if got := h.sink.take(); len(got) != 0 {
-			t.Errorf("a RoleArn naming no IAM role: %d deliveries %+v, want none", len(got), got)
 		}
 	})
 }

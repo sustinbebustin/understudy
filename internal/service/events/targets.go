@@ -26,7 +26,7 @@ func (s *Service) bindTargets(b eventbridgeapi.Binder) {
 			"RoleArn, RetryPolicy and DeadLetterConfig are stored, and the retry policy and dead-letter queue apply to deliveries; " +
 			"an event bus target with a RoleArn is delivered as a session of that role, which under iam.enforce=enforce must trust events.amazonaws.com and be allowed events:PutEvents on the bus, " +
 			"and one events.amazonaws.com cannot assume is not retried and goes to the dead-letter queue with ERROR_CODE FAILED_TO_ASSUME_ROLE; the session name and the trust request's aws:SourceArn and aws:SourceAccount are inferred; " +
-			"a RoleArn that names no IAM role delivers nothing; the RoleArn of a function, queue or topic target is not assumed, so under iam.enforce=enforce those deliveries and a bus target without a RoleArn are decided for events.amazonaws.com against the target's policy; " +
+			"the RoleArn of a function, queue or topic target is not assumed, so under iam.enforce=enforce those deliveries, a bus target without a RoleArn and a bus target whose RoleArn names no IAM role (which AWS fails with FAILED_TO_ASSUME_ROLE) are decided for events.amazonaws.com against the target's policy; " +
 			"a delivery the target refuses is not retried and goes to the dead-letter queue with ERROR_CODE NO_PERMISSIONS (events.delivery.denied-code), else is dropped; no topic policy is added (events.put-targets.sns-policy); " +
 			"a target with HttpParameters, KinesisParameters, EcsParameters, BatchParameters, RunCommandParameters, RedshiftDataParameters, SageMakerPipelineParameters or AppSyncParameters, " +
 			"or an event bus target of the rule's account with Input, InputPath or InputTransformer, fails its entry with NotImplemented; " +

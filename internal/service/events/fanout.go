@@ -313,12 +313,7 @@ func (f *fanOut) send(r ruleRef, t *Target, dt deliveryTarget, ev envelope.Event
 	switch dt := dt.(type) {
 	case busTarget:
 		receiver, why = f.forward(dt, t, ev)
-		if receiver != nil {
-			as, why = targetRole(t)
-			if why != "" {
-				receiver = nil
-			}
-		}
+		as = targetRole(t)
 	case payloadTarget:
 		receiver, why = shape(r, t, dt, ev, ingested)
 	default:
@@ -346,21 +341,23 @@ func (f *fanOut) send(r ruleRef, t *Target, dt deliveryTarget, ev envelope.Event
 // its RoleArn, whose trust must allow events.amazonaws.com and whose policy
 // events:PutEvents on the bus (iam-enforcement-surfaces.md 8.4;
 // eb-event-bus-perms.html, eventbridge-buses.md 6.2), or nil, the service
-// principal, when it has none. A RoleArn that names no IAM role comes with
-// why the bus receives nothing: PutTargets checks only its length, and
-// understudy delivers as no principal it cannot name. The session name is
-// the kernel's (UNVERIFIED: the name EventBridge uses is unrecorded), and
-// no role id is needed, since only an SQS SenderId shows it.
-func targetRole(t *Target) (as delivery.Principal, why string) {
+// principal, when it has none. A RoleArn that names no IAM role (PutTargets
+// checks only its length) is delivered as the service principal too, so
+// the event still reaches the bus or its dead-letter queue: a deviation
+// the PutTargets coverage note states, since AWS would fail the delivery
+// with FAILED_TO_ASSUME_ROLE (eb-rule-dlq.html). The session name is the
+// kernel's (UNVERIFIED: the name EventBridge uses is unrecorded), and no
+// role id is needed, since only an SQS SenderId shows it.
+func targetRole(t *Target) delivery.Principal {
 	if t.RoleARN == nil {
-		return nil, ""
+		return nil
 	}
 	role, err := aws.ParseARN(*t.RoleARN)
 	name, isRole := strings.CutPrefix(role.Resource, "role/")
 	if _, acctErr := aws.ParseAccountID(role.Account); err != nil || acctErr != nil || role.Service != "iam" || !isRole || name == "" {
-		return nil, "RoleArn " + *t.RoleARN + " is not an IAM role, arn:<partition>:iam::<account>:role/<path><name>, so understudy cannot deliver as it"
+		return nil
 	}
-	return delivery.ExecutionRole{Role: role}, ""
+	return delivery.ExecutionRole{Role: role}
 }
 
 // shape is the delivery of ev to target t of rule r, parsed as dt: the
