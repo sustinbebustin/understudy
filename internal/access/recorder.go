@@ -448,9 +448,11 @@ func (r *Recorder) Usage(f Filter) []Use {
 // of its operation's service without a resource of that service, listing
 // every action used there in any mode, failed calls included. An action
 // the document grants on "*" without a condition is left out of every
-// other statement, and a statement left with no action is dropped: the
-// document allows the same pairs and is smaller, while the record itself
-// is unchanged. sts:GetCallerIdentity is left out: it needs no permission
+// other statement, an action it grants without a condition on a minted
+// pattern is left out of a statement on an exact ARN the pattern matches,
+// and a statement left with no action is dropped: the document allows the
+// same pairs and is smaller, while the record itself is unchanged.
+// sts:GetCallerIdentity is left out: it needs no permission
 // and no policy can deny it (iam-enforcement-surfaces.md 5.1, 12.6). A
 // Role's policy covers every session of the role. ok is false when
 // principal is nil or has no recorded use but those: there is no policy to
@@ -459,29 +461,23 @@ func (r *Recorder) Policy(principal Identity) (doc policydoc.Document, ok bool) 
 	if principal == nil {
 		return policydoc.Document{}, false
 	}
-	type group struct{ service, resource, passedTo string }
-	actions := map[group][]string{}
-	uses := r.Usage(Filter{Principal: principal})
-	for i := range uses {
-		u := &uses[i]
-		if needsNoPermission(u.Action) {
-			continue
-		}
-		g := group{service: u.Action.Prefix, resource: renderedScope(u.Mode, u.Resource), passedTo: u.PassedToService}
-		actions[g] = append(actions[g], u.Action.String())
-	}
+	gs := groupUses(r.Usage(Filter{Principal: principal}))
 	onStar := map[string]bool{}
-	for g, as := range actions {
+	for g, as := range gs.actions {
 		if g.resource == "*" && g.passedTo == "" {
 			for _, a := range as {
 				onStar[a] = true
 			}
 		}
 	}
-	grants := make([]policydoc.Grant, 0, len(actions))
-	for g, as := range actions {
+	onPattern := patternCover(gs.patterns)
+	grants := make([]policydoc.Grant, 0, len(gs.actions))
+	for g, as := range gs.actions {
 		if g.resource != "*" || g.passedTo != "" {
 			as = slices.DeleteFunc(as, func(a string) bool { return onStar[a] })
+		}
+		if on, ok := gs.exact[g]; ok {
+			as = slices.DeleteFunc(as, func(a string) bool { return onPattern(a, on) })
 		}
 		if len(as) == 0 {
 			continue
@@ -489,6 +485,55 @@ func (r *Recorder) Policy(principal Identity) (doc policydoc.Document, ok bool) 
 		grants = append(grants, policydoc.Grant{Actions: as, Resources: []string{g.resource}, Condition: passedToCondition(g.passedTo)})
 	}
 	return policydoc.Render(grants)
+}
+
+// policyGroup is what Policy groups a use's action by: one statement each.
+type policyGroup struct{ service, resource, passedTo string }
+
+// policyGroups are the actions of each policyGroup, the ARN of each group
+// on one exact resource, and a grant per action used without a condition
+// on a minted pattern.
+type policyGroups struct {
+	actions  map[policyGroup][]string
+	exact    map[policyGroup]aws.ARN
+	patterns []policydoc.Grant
+}
+
+// groupUses groups uses for Policy, leaving out the actions that need no
+// permission.
+func groupUses(uses []Use) policyGroups {
+	gs := policyGroups{actions: map[policyGroup][]string{}, exact: map[policyGroup]aws.ARN{}}
+	for i := range uses {
+		u := &uses[i]
+		if needsNoPermission(u.Action) {
+			continue
+		}
+		g := policyGroup{service: u.Action.Prefix, resource: renderedScope(u.Mode, u.Resource), passedTo: u.PassedToService}
+		gs.actions[g] = append(gs.actions[g], u.Action.String())
+		on, isOn := u.Resource.(OnResource)
+		if !isOn {
+			continue
+		}
+		if _, minted := MintedPattern(u.Mode, on.ARN); !minted {
+			gs.exact[g] = on.ARN
+		} else if g.passedTo == "" {
+			gs.patterns = append(gs.patterns, policydoc.Grant{Actions: []string{u.Action.String()}, Resources: []string{g.resource}})
+		}
+	}
+	return gs
+}
+
+// patternCover reports whether patterns, grants on minted patterns without
+// a condition, allow an action on an exact resource.
+func patternCover(patterns []policydoc.Grant) func(action string, on aws.ARN) bool {
+	doc, ok := policydoc.Render(patterns)
+	return func(action string, on aws.ARN) bool {
+		if !ok {
+			return false
+		}
+		_, allowed := policydoc.Allows(doc, policydoc.Query{Action: action, Resource: on.String()}).(policydoc.Allowed)
+		return allowed
+	}
 }
 
 // renderedScope is the Resource text Policy renders and groups a use by:

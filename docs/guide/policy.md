@@ -259,6 +259,28 @@ arn:aws:iam::000000000000:root  direct  kms:Encrypt    arn:aws:kms:us-east-1:000
 
 The failed call put `kms:Encrypt` on `*`, so the key's statement lost its only action and was dropped. `sts:GetCallerIdentity` needs no permission, so the policy leaves it out; `iam usage` still lists its calls. Calls that failed are included, because handled failures need permissions too; injected faults are not, nor are calls `--sigv4 verify` refused at authentication (a bad signature, an unknown key, a missing or expired session token), which on AWS never reach IAM. Writing and reading an SSE-KMS object records `kms:GenerateDataKey` and `kms:Decrypt` on the key for the caller, as AWS requires.
 
+Likewise, an action the policy grants on a minted id's wildcard is left out of a statement on an exact ARN the wildcard matches. A REST API, a read of it, and a read and a delete of an id that names no API:
+
+```sh
+aws apigateway create-rest-api --name demo
+aws apigateway get-rest-api --rest-api-id <api id>
+aws apigateway get-rest-api --rest-api-id MISSING123
+aws apigateway delete-rest-api --rest-api-id MISSING123
+understudy iam usage --principal arn:aws:iam::000000000000:root
+understudy iam policy --principal arn:aws:iam::000000000000:root
+```
+
+```text
+PRINCIPAL                       MODE    ACTION                          RESOURCE                                            CALLS  FAILURES  LAST
+arn:aws:iam::000000000000:root  direct  apigateway:DELETE               arn:aws:apigateway:us-east-1::/restapis/MISSING123  1      1         ...
+arn:aws:iam::000000000000:root  direct  apigateway:GET                  arn:aws:apigateway:us-east-1::/restapis/MISSING123  1      1         ...
+arn:aws:iam::000000000000:root  direct  apigateway:GET                  arn:aws:apigateway:us-east-1::/restapis/<api id>    1      0         ...
+...
+{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"apigateway:DELETE","Resource":"arn:aws:apigateway:us-east-1::/restapis/MISSING123"},{"Effect":"Allow","Action":"apigateway:GET","Resource":"arn:aws:apigateway:us-east-1::/restapis/??????????"},...]}
+```
+
+`MISSING123` is not an id understudy mints, so its ARN stays exact, but `??????????` matches it, so its statement keeps only `apigateway:DELETE`.
+
 The second part lists the resource-policy statements that SNS, S3, EventBridge and Lambda deliveries would need on AWS: a queue policy allowing the topic, a function permission allowing the rule. Each names the `aws:SourceAccount` the delivery sends, when it sends one; EventBridge sends none to a function, so a function permission conditioned on `aws:SourceAccount` would refuse the rule. Under `off` understudy attempts those deliveries anyway, and journals an `advisory` event for each one the target's stored policy would refuse; under `enforce` the target refuses them (see Enforce).
 
 Only deliveries are listed. Two kinds of call are the service acting on its own behalf: S3 checking that each destination exists when you configure a bucket's notifications, and DynamoDB deleting expired TTL items. On AWS, S3 validates a destination by sending it a test message, which needs the same grant as a delivery, so it adds nothing to the policy; understudy's existence check is not that message. Neither `iam usage` nor the resource policies list these calls. So a bucket that notifies a queue needs only `sqs:SendMessage` from the bucket. With `queue-policy.json` holding the queue's policy as its `Policy` attribute and `notification.json` sending `s3:ObjectCreated:*` to the queue:

@@ -105,12 +105,24 @@ func TestPolicyRendersMintedSegmentsAsWildcards(t *testing.T) {
 				return []access.Entry{
 					use(worker, access.AsExecutionRole{}, act("logs", "PutLogEvents"), arn(t, envA)),
 					use(worker, access.AsExecutionRole{}, act("logs", "PutLogEvents"), arn(t, envB)),
+					use(worker, access.Direct{}, act("logs", "CreateLogStream"), arn(t, named)),
+				}
+			},
+			`{"Version":"2012-10-17","Statement":[` +
+				`{"Effect":"Allow","Action":"logs:CreateLogStream","Resource":"` + named + `"},` +
+				`{"Effect":"Allow","Action":"logs:PutLogEvents","Resource":"` + groupARN + `:log-stream:*"}]}`,
+		},
+		{
+			"the pattern's action leaves the statement of a named stream it matches", worker,
+			func(t *testing.T) []access.Entry {
+				t.Helper()
+				return []access.Entry{
+					use(worker, access.AsExecutionRole{}, act("logs", "PutLogEvents"), arn(t, envA)),
 					use(worker, access.Direct{}, act("logs", "PutLogEvents"), arn(t, named)),
 				}
 			},
 			`{"Version":"2012-10-17","Statement":[` +
-				`{"Effect":"Allow","Action":"logs:PutLogEvents","Resource":"` + groupARN + `:log-stream:*"},` +
-				`{"Effect":"Allow","Action":"logs:PutLogEvents","Resource":"` + named + `"}]}`,
+				`{"Effect":"Allow","Action":"logs:PutLogEvents","Resource":"` + groupARN + `:log-stream:*"}]}`,
 		},
 	}
 	for _, tc := range tests {
@@ -246,6 +258,92 @@ func TestPolicyLeavesOutActionsGrantedOnStar(t *testing.T) {
 				t.Errorf("Policy =\n%s\nwant\n%s", got, tc.want)
 			}
 			// Recording is unchanged: every use is still listed.
+			if got := len(r.Usage(access.Filter{Principal: app})); got != tc.uses {
+				t.Errorf("Usage lists %d uses of app, want %d: the record keeps the uses the policy leaves out", got, tc.uses)
+			}
+		})
+	}
+}
+
+// An action the document grants without a condition on a minted pattern
+// is left out of a statement on an exact ARN the pattern matches, and a
+// statement left with no action is dropped: the document allows the same
+// pairs. The record keeps every use (ARCHITECTURE.md 17). A REST API id
+// that is not of understudy's alphabet, such as the upper-cased missing id
+// the conformance suites name, stays exact, yet ?????????? matches it.
+func TestPolicyLeavesOutActionsGrantedOnAMatchingPattern(t *testing.T) {
+	const (
+		minted  = "arn:aws:apigateway:us-east-1::/restapis/abcdefghij"
+		missing = "arn:aws:apigateway:us-east-1::/restapis/VLCG61D9AB"
+		pattern = "arn:aws:apigateway:us-east-1::/restapis/??????????"
+		secret  = "arn:aws:secretsmanager:us-east-1:111111111111:secret:db-a1b2c3" //nolint:gosec // G101: an ARN, not a credential
+		plain   = "arn:aws:secretsmanager:us-east-1:111111111111:secret:plain"     //nolint:gosec // G101: an ARN, not a credential
+	)
+	tests := []struct {
+		name    string
+		uses    int
+		entries func(t *testing.T) []access.Entry
+		want    string
+	}{
+		{
+			"a pattern's action leaves a matching exact statement, which keeps its other actions", 3,
+			func(t *testing.T) []access.Entry {
+				t.Helper()
+				return []access.Entry{
+					use(app, access.Direct{}, act("apigateway", "GET"), arn(t, minted)),
+					use(app, access.Direct{}, act("apigateway", "GET"), arn(t, missing)),
+					use(app, access.Direct{}, act("apigateway", "DELETE"), arn(t, missing)),
+				}
+			},
+			`{"Version":"2012-10-17","Statement":[` +
+				`{"Effect":"Allow","Action":"apigateway:DELETE","Resource":"` + missing + `"},` +
+				`{"Effect":"Allow","Action":"apigateway:GET","Resource":"` + pattern + `"}]}`,
+		},
+		{
+			"a matching exact statement left with no action is dropped", 2,
+			func(t *testing.T) []access.Entry {
+				t.Helper()
+				return []access.Entry{
+					use(app, access.Direct{}, act("apigateway", "GET"), arn(t, minted)),
+					use(app, access.Direct{}, act("apigateway", "GET"), arn(t, missing)),
+				}
+			},
+			`{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"apigateway:GET","Resource":"` + pattern + `"}]}`,
+		},
+		{
+			"a pattern subsumes nothing it does not match", 2,
+			func(t *testing.T) []access.Entry {
+				t.Helper()
+				return []access.Entry{
+					use(app, access.Direct{}, act("secretsmanager", "GetSecretValue"), arn(t, secret)),
+					use(app, access.Direct{}, act("secretsmanager", "GetSecretValue"), arn(t, plain)),
+				}
+			},
+			`{"Version":"2012-10-17","Statement":[` +
+				`{"Effect":"Allow","Action":"secretsmanager:GetSecretValue","Resource":"arn:aws:secretsmanager:us-east-1:111111111111:secret:db-??????"},` +
+				`{"Effect":"Allow","Action":"secretsmanager:GetSecretValue","Resource":"` + plain + `"}]}`,
+		},
+		{
+			"another action on the pattern subsumes nothing", 2,
+			func(t *testing.T) []access.Entry {
+				t.Helper()
+				return []access.Entry{
+					use(app, access.Direct{}, act("apigateway", "DELETE"), arn(t, minted)),
+					use(app, access.Direct{}, act("apigateway", "GET"), arn(t, missing)),
+				}
+			},
+			`{"Version":"2012-10-17","Statement":[` +
+				`{"Effect":"Allow","Action":"apigateway:DELETE","Resource":"` + pattern + `"},` +
+				`{"Effect":"Allow","Action":"apigateway:GET","Resource":"` + missing + `"}]}`,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var r access.Recorder
+			record(t, &r, tc.entries(t)...)
+			if got := userPolicy(t, &r); got != tc.want {
+				t.Errorf("Policy =\n%s\nwant\n%s", got, tc.want)
+			}
 			if got := len(r.Usage(access.Filter{Principal: app})); got != tc.uses {
 				t.Errorf("Usage lists %d uses of app, want %d: the record keeps the uses the policy leaves out", got, tc.uses)
 			}

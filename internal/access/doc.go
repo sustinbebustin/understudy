@@ -57,8 +57,10 @@
 //     the narrowest wildcard matching every AWS-form id of its type, so the
 //     document carries over to a run that mints other ids; Usage keeps the
 //     exact ARN. It also leaves an action out of every statement but an
-//     unconditional one on "*" that grants it, dropping a statement left
-//     with no action; recording is unchanged, failed calls included.
+//     unconditional one on "*" that grants it, and out of a statement on
+//     an exact ARN that an unconditional MintedPattern statement granting
+//     it matches, dropping a statement left with no action; recording is
+//     unchanged, failed calls included.
 //   - An S3 object (arn:aws:s3:::<bucket>/<key>) is recorded as its
 //     bucket's objects (BucketObjects), which Usage reports and Policy
 //     grants as arn:aws:s3:::<bucket>/*: a run that writes a key per

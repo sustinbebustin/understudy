@@ -173,7 +173,9 @@ func renderAll(pairs map[[2]string]bool) (policydoc.Document, bool) {
 // 17): each used pair on its exact resource, arn:aws:s3:::<bucket>/* for
 // objects, a minted resource as its pattern, "*" for an action of its
 // call's service without a touched resource of that service; an action
-// granted on "*" is in no other statement. Checked as:
+// granted on "*" is in no other statement, and one granted on a minted
+// pattern is in no statement on an exact resource the pattern matches.
+// Checked as:
 //
 //	P1 it allows every recorded (action, resource) pair;
 //	P2 on a resource of a kind never minted, or on "*", it allows nothing
@@ -182,7 +184,9 @@ func renderAll(pairs map[[2]string]bool) (policydoc.Document, bool) {
 //	   recorded minted use (the grants equal the model's);
 //	P4 an action granted on "*" without a condition is in no other
 //	   statement;
-//	P5 each bucket's objects appear once.
+//	P5 each bucket's objects appear once;
+//	P6 an action granted on a minted pattern without a condition is in no
+//	   statement on an exact resource the pattern matches.
 func TestPolicyGrantsExactlyTheUsedPairsProperty(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		entries := rapid.SliceOfN(rapid.Custom(propEntry), 1, 6).Draw(t, "entries")
@@ -211,11 +215,29 @@ func TestPolicyGrantsExactlyTheUsedPairsProperty(t *testing.T) {
 				star[p[0]] = true
 			}
 		}
-		want := map[[2]string]bool{}
-		for p := range rendered {
-			if p[1] == "*" || !star[p[0]] {
-				want[p] = true
+		// patterned reports whether a recorded use grants action on a
+		// minted pattern that matches the exact resource res.
+		patterned := func(action, res string) bool {
+			for _, p := range used {
+				if p.action != action || p.rendered == p.exact {
+					continue
+				}
+				if one, ok := renderAll(map[[2]string]bool{{p.action, p.rendered}: true}); ok && allows(one, action, res) {
+					return true
+				}
 			}
+			return false
+		}
+		want := map[[2]string]bool{}
+		for _, p := range used {
+			switch {
+			case p.rendered == "*":
+			case star[p.action]:
+				continue
+			case p.rendered == p.exact && patterned(p.action, p.resource):
+				continue
+			}
+			want[[2]string{p.action, p.rendered}] = true
 		}
 
 		doc, ok := r.Policy(worker)
@@ -258,7 +280,7 @@ func TestPolicyGrantsExactlyTheUsedPairsProperty(t *testing.T) {
 		got := grants(t, doc)
 		for pair := range got {
 			if !want[pair] {
-				t.Errorf("P3: Policy grants %s on %s, want only exact renderings and minted patterns of the record less actions granted on *", pair[0], pair[1])
+				t.Errorf("P3: Policy grants %s on %s, want only exact renderings and minted patterns of the record less actions granted on * or on a matching pattern", pair[0], pair[1])
 			}
 		}
 		for pair := range want {
@@ -278,6 +300,34 @@ func TestPolicyGrantsExactlyTheUsedPairsProperty(t *testing.T) {
 				for _, a := range as {
 					if j != i && slices.Contains(oas, a) {
 						t.Errorf("P4: %s is granted on * by statement %d and again by statement %d", a, i, j)
+					}
+				}
+			}
+		}
+
+		// P6.
+		raw := map[string]string{}
+		patterns := map[string]bool{}
+		for _, p := range used {
+			if p.rendered == p.exact {
+				raw[p.exact] = p.resource
+			} else {
+				patterns[p.rendered] = true
+			}
+		}
+		for i, st := range doc.Statements {
+			as, rs := renderedLists(t, st)
+			if len(rs) != 1 || patterns[rs[0]] || rs[0] == "*" {
+				continue
+			}
+			for j, other := range doc.Statements {
+				oas, ors := renderedLists(t, other)
+				if j == i || len(other.Condition) != 0 || len(ors) != 1 || !patterns[ors[0]] {
+					continue
+				}
+				for _, a := range as {
+					if slices.Contains(oas, a) && allows(policydoc.Document{Version: doc.Version, Statements: []policydoc.Statement{other}}, a, raw[rs[0]]) {
+						t.Errorf("P6: %s is granted on %s by statement %d, whose pattern %s (statement %d) already grants it", a, rs[0], i, ors[0], j)
 					}
 				}
 			}
