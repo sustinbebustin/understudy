@@ -952,7 +952,7 @@ Expected under the default: both role calls answer `AuthorizationError`. Cost un
 
 ### 13.20 IAM-ENF-18. SNS delivery refused by the target policy
 
-Settles `sns.delivery.source-account` (8.1) and the client-side-error path (8.2): a refused SQS delivery lands in the subscription DLQ with no retry and counts in `NumberOfNotificationsFailed`; then whether a policy conditioned only on `aws:SourceAccount` admits SNS, for SQS and for Lambda. Its sns.md 7.1 counterpart, a delivery to a deleted queue that answers NonExistentQueue and not a denial, settles `sqs.enforce.missing-resource.delivery` (8.2).
+Settles `sns.delivery.source-account` (8.1) and the client-side-error path (8.2): a refused SQS delivery lands in the subscription DLQ with no retry and counts in `NumberOfNotificationsFailed`; then whether a policy conditioned only on `aws:SourceAccount` admits SNS, for SQS and for Lambda. Its last steps settle `sqs.enforce.missing-resource.delivery` (8.2): a delivery to a subscribed queue that was deleted lands in the subscription DLQ, and the topic's SQS failure log ([sns.md](sns.md) 7.5; its group name UNVERIFIED, so every group under the topic's prefix is read) names `AWS.SimpleQueueService.NonExistentQueue` and not a denial ([sns.md](sns.md) 7.1).
 
 ```sh
 aws sqs create-queue --queue-name "$P-enf-sq"; SQ="$Q/$P-enf-sq"; SQA="arn:aws:sqs:$R:$A:$P-enf-sq"
@@ -979,9 +979,29 @@ rec IAM-ENF/18-publish-sa aws sns publish --topic-arn "$ET_ARN" --message source
 rec IAM-ENF/18-target-sa aws sqs receive-message --queue-url "$SQ" --wait-time-seconds 20
 sleep 30
 rec IAM-ENF/18-lambda-sa aws logs filter-log-events --log-group-name "/aws/lambda/$P-enf-fn" --filter-pattern '"sourceaccount-1"'
+# A delivery to a deleted queue: NonExistentQueue, not a denial, in the SQS failure log.
+aws iam create-role --role-name "$P-enf-snslogs" --assume-role-policy-document \
+  '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"sns.amazonaws.com"},"Action":"sts:AssumeRole"}]}'
+aws iam put-role-policy --role-name "$P-enf-snslogs" --policy-name logs --policy-document \
+  '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["logs:CreateLogGroup","logs:CreateLogStream","logs:PutLogEvents","logs:PutMetricFilter","logs:PutRetentionPolicy"],"Resource":"*"}]}'
+sleep 10
+aws sns set-topic-attributes --topic-arn "$ET_ARN" --attribute-name SQSFailureFeedbackRoleArn --attribute-value "arn:aws:iam::$A:role/$P-enf-snslogs"
+aws sqs purge-queue --queue-url "$DLQ"; sleep 60
+aws sqs create-queue --queue-name "$P-enf-gone"; GQA="arn:aws:sqs:$R:$A:$P-enf-gone"
+GSUB=$(aws sns subscribe --topic-arn "$ET_ARN" --protocol sqs --notification-endpoint "$GQA" --return-subscription-arn \
+  --attributes "$(jq -nc --arg d "$DLQA" '{RawMessageDelivery:"true",RedrivePolicy:({deadLetterTargetArn:$d}|tostring)}')" \
+  --query SubscriptionArn --output text)
+aws sqs delete-queue --queue-url "$Q/$P-enf-gone"; sleep 60
+rec IAM-ENF/18-publish-gone aws sns publish --topic-arn "$ET_ARN" --message deleted-1
+rec IAM-ENF/18-dlq-gone aws sqs receive-message --queue-url "$DLQ" --attribute-names All --message-attribute-names All --wait-time-seconds 20
+sleep 120
+rec IAM-ENF/18-log-groups-gone aws logs describe-log-groups --log-group-name-prefix "sns/$R/$A/$P-enf-t"
+for g in $(aws logs describe-log-groups --log-group-name-prefix "sns/$R/$A/$P-enf-t" --query 'logGroups[].logGroupName' --output text); do
+  rec "IAM-ENF/18-log-gone-${g##*/}" aws logs filter-log-events --log-group-name "$g" --filter-pattern '"NonExistentQueue"'
+done
 ```
 
-Cost under USD 0.01, 15 minutes. Teardown: `aws sns unsubscribe --subscription-arn "$SUB"; aws sns unsubscribe --subscription-arn "$LSUB"; aws lambda remove-permission --function-name "$P-enf-fn" --statement-id enf-sns-sa; aws sqs delete-queue --queue-url "$SQ"; aws sqs purge-queue --queue-url "$DLQ"`.
+Cost under USD 0.01, 20 minutes. Teardown: `aws sns unsubscribe --subscription-arn "$SUB"; aws sns unsubscribe --subscription-arn "$LSUB"; aws sns unsubscribe --subscription-arn "$GSUB"; aws lambda remove-permission --function-name "$P-enf-fn" --statement-id enf-sns-sa; aws sqs delete-queue --queue-url "$SQ"; aws sqs purge-queue --queue-url "$DLQ"; for g in $(aws logs describe-log-groups --log-group-name-prefix "sns/$R/$A/$P-enf-t" --query 'logGroups[].logGroupName' --output text); do aws logs delete-log-group --log-group-name "$g"; done; aws iam delete-role-policy --role-name "$P-enf-snslogs" --policy-name logs; aws iam delete-role --role-name "$P-enf-snslogs"`.
 
 ### 13.21 IAM-ENF-19. SNS Subscribe does not check the queue policy
 
