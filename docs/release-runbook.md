@@ -4,7 +4,7 @@ For the maintainer. Tagging, publishing and every registry login are the maintai
 
 ## What exists today
 
-- `.goreleaser.yaml` builds linux and darwin binaries for amd64 and arm64, a `tar.gz` archive of each (with LICENSE, NOTICE and README.md), `checksums.txt`, the image `ghcr.io/sustinbebustin/understudy` for linux/amd64 and linux/arm64, and a Homebrew cask. It publishes nothing: the GitHub release is disabled, `dockers_v2` is disabled outside snapshot, and the cask is committed to the tap only when `HOMEBREW_TAP_TOKEN` is set.
+- `.goreleaser.yaml` builds linux and darwin binaries for amd64 and arm64, a `tar.gz` archive of each (with LICENSE, NOTICE and README.md), `checksums.txt`, the image `ghcr.io/sustinbebustin/understudy` for linux/amd64 and linux/arm64, and a Homebrew cask. It publishes nothing: the GitHub release is disabled, `dockers_v2` is disabled outside snapshot, and the cask's `skip_upload` is `"true"`, so it is never committed to the tap. A prerelease tag such as `v0.1.0-rc.1` does not move the `latest` image tag.
 - `release.yml` runs `goreleaser release --clean` on a `v*` tag, with `contents: write` and `packages: write` on that job only, and attaches the archives, checksums and cask to the run.
 - CI's `release-check` job runs `just release-check` on every pull request: `goreleaser check`, then `goreleaser release --snapshot --clean --skip=publish`. Run it locally the same way; it writes `dist/` (gitignored) and leaves two `ghcr.io/sustinbebustin/understudy:*-amd64`/`-arm64` tag pairs in the local daemon.
 - No SBOM and no signing. `dockers_v2.sbom` is off, because the attestation runs BuildKit's scanner image and archive SBOMs need syft, neither of which the release uses today. Turning either on is a separate decision.
@@ -13,15 +13,22 @@ For the maintainer. Tagging, publishing and every registry login are the maintai
 
 - **The cask and Gatekeeper.** The darwin binaries are not signed or notarized. Homebrew quarantines what a cask downloads, so macOS may refuse to run `understudy` installed from the cask. Check it on the first release (step 5). The fixes are signing and notarizing, or a cask `hooks.post.install` that removes the quarantine attribute; the second bypasses Gatekeeper for this binary, so it is a security choice, not a default.
 - **The npm and PyPI names.** Both are `testcontainers-understudy` (testcontainers.md 8.1, finding 9); confirm before publishing, or change `package.json`/`pyproject.toml` first.
-- **The `latest` image tag.** Every non-snapshot run moves `latest`, a prerelease tag such as `v0.1.0-rc.1` included. The cask already skips prereleases (`skip_upload: auto`).
 - **Release notes.** `changelog` is disabled, so the GitHub release body is empty unless you write it after the run or enable the changelog.
 
 ## 2. Turn publishing on
 
-One pull request, reviewed and merged before the tag:
+First make sure the tap repository exists; the cask publish and the tap token both need it:
 
-1. In `.goreleaser.yaml`, set `release.disable: false`, and remove `disable: "{{ not .IsSnapshot }}"` from `dockers_v2`. Outside snapshot dockers_v2 then builds both platforms and pushes one manifest list per tag in a single step; there is no separate push to hold back.
-2. Update the header comments of `.goreleaser.yaml` and `release.yml`, which say nothing is published.
+```sh
+gh repo view sustinbebustin/homebrew-tap
+```
+
+If it does not, create it public with a `Casks/` directory before going on. A missing tap fails the tagged run in the cask step, after the image and the GitHub release are already public.
+
+Then one pull request, reviewed and merged before the tag, so a single change turns on all publishing:
+
+1. In `.goreleaser.yaml`, set `release.disable: false`, remove `disable: "{{ not .IsSnapshot }}"` from `dockers_v2`, and set the cask's `skip_upload` to `'{{ if isEnvSet "HOMEBREW_TAP_TOKEN" }}auto{{ else }}true{{ end }}'` (`auto` skips a prerelease). Outside snapshot dockers_v2 then builds both platforms and pushes one manifest list per tag in a single step; there is no separate push to hold back.
+2. Update the text that says nothing is published: the header comments of `.goreleaser.yaml` and `release.yml`, the dockers_v2 bullet in `internal/distribution/doc.go`, and section 3.2 of `docs/research/testcontainers.md`.
 3. Bump the Testcontainers modules to `X.Y.Z` in lockstep (testcontainers.md 8.8):
    - `testcontainers/go/understudy/understudy.go`: `DefaultImage = "ghcr.io/sustinbebustin/understudy:X.Y.Z"`.
    - `testcontainers/go/go.mod`: `(cd testcontainers/go && go mod edit -require=github.com/sustinbebustin/understudy@vX.Y.Z)`. The `replace => ../..` stays, since it applies only inside the repository; consumers resolve the root module at the tag pushed in step 3, which carries the same commit.
@@ -30,7 +37,7 @@ One pull request, reviewed and merged before the tag:
    - The tests that pin `0.0.0` until the first release: `testcontainers/go/understudy/understudy_test.go`, `testcontainers/python/tests/test_validation.py`, `testcontainers/node/test/validation.test.ts`.
 4. Run `just verify`, `just release-check` and `just testcontainers`.
 
-Then add the tap token: a fine-grained personal access token limited to `sustinbebustin/homebrew-tap` with Contents read and write. The workflow's own `GITHUB_TOKEN` cannot write to another repository.
+After that pull request is merged, add the tap token, never before: a fine-grained personal access token limited to `sustinbebustin/homebrew-tap` with Contents read and write. The workflow's own `GITHUB_TOKEN` cannot write to another repository.
 
 ```sh
 gh secret set HOMEBREW_TAP_TOKEN --repo sustinbebustin/understudy
@@ -44,8 +51,12 @@ From the merged commit on `main`:
 git switch main && git pull --ff-only
 git tag -a vX.Y.Z -m "understudy vX.Y.Z"
 git push origin vX.Y.Z
-gh run watch "$(gh run list --workflow release.yml --limit 1 --json databaseId --jq '.[0].databaseId')" --exit-status
+sha=$(git rev-parse 'vX.Y.Z^{commit}')
+until id=$(gh run list --workflow release.yml --commit "$sha" --limit 1 --json databaseId --jq '.[0].databaseId // empty') && [ -n "$id" ]; do sleep 5; done
+gh run watch "$id" --exit-status
 ```
+
+The loop waits for GitHub to create this tag's run; without it, `gh run list` can return nothing yet, or a previous tag's finished run.
 
 Pushing the tag is the irreversible public step. If the run fails before publishing anything, fix forward with a new patch version rather than moving the tag: the Go module proxy caches a tag the first time anyone asks for it.
 

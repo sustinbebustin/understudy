@@ -2,10 +2,11 @@ name: release
 
 # Runs GoReleaser on a v* tag. It publishes only what .goreleaser.yaml
 # enables, and today that is nothing: the GitHub release is disabled, the
-# images are built only in snapshot mode, and the Homebrew cask is committed
-# only when the HOMEBREW_TAP_TOKEN secret exists. docs/release-runbook.md
-# says what the maintainer turns on before the first tag. The archives and
-# checksums are attached to this workflow run either way.
+# images are built only in snapshot mode, and the Homebrew cask upload is
+# skipped whether or not the HOMEBREW_TAP_TOKEN secret exists.
+# docs/release-runbook.md says what the maintainer turns on before the first
+# tag. The archives and checksums are attached to this workflow run either
+# way.
 #
 # The dry run on every pull request is ci.yml's release-check job.
 #

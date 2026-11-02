@@ -1,7 +1,7 @@
 # Release configuration. Publishing is off until the maintainer turns it on
 # (docs/release-runbook.md): the GitHub release is disabled, the images are
 # pushed only when dockers_v2 is enabled outside snapshot, and the Homebrew
-# cask is committed to the tap only when HOMEBREW_TAP_TOKEN is set.
+# cask upload is skipped.
 version: 2
 
 project_name: understudy
@@ -51,9 +51,11 @@ dockers_v2:
     dockerfile: Dockerfile
     images:
       - ghcr.io/sustinbebustin/understudy
+    # A prerelease does not move latest: GoReleaser drops a tag that renders
+    # empty, as the cask's skip_upload: auto skips a prerelease.
     tags:
       - "{{ .Version }}"
-      - latest
+      - "{{ if not .Prerelease }}latest{{ end }}"
     platforms:
       - linux/amd64
       - linux/arm64
@@ -68,11 +70,12 @@ dockers_v2:
     disable: "{{ not .IsSnapshot }}"
 
 # A cask, not a formula: `brews` is deprecated in GoReleaser v2.18. The cask
-# is always written to dist/homebrew/Casks; it is committed to the tap only
-# when HOMEBREW_TAP_TOKEN is set (a token that can write to the tap; the
-# release workflow's GITHUB_TOKEN cannot), and never for a prerelease tag.
-# The URL is spelled out because the GitHub release is disabled, so
-# GoReleaser has no release to derive it from.
+# is always written to dist/homebrew/Casks and never committed to the tap
+# while skip_upload is "true". Its URLs point at the GitHub release, so the
+# upload is turned on in the same change that enables the release: a token
+# alone must not publish a cask whose downloads do not exist. The URL is
+# spelled out because the GitHub release is disabled, so GoReleaser has no
+# release to derive it from.
 homebrew_casks:
   - name: understudy
     ids: [understudy]
@@ -85,7 +88,7 @@ homebrew_casks:
       owner: sustinbebustin
       name: homebrew-tap
       token: '{{ envOrDefault "HOMEBREW_TAP_TOKEN" "" }}'
-    skip_upload: '{{ if isEnvSet "HOMEBREW_TAP_TOKEN" }}auto{{ else }}true{{ end }}'
+    skip_upload: "true"
 
 changelog:
   disable: true
