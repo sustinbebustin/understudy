@@ -2,5 +2,26 @@
   "service": "com.amazonaws.cloudwatchlogs#Logs_20140328",
   "package": "logsapi",
   "model": "cloudwatch-logs",
-  "iamPrefix": "logs"
+  "iamPrefix": "logs",
+  "boundOperations": [
+    "CreateLogGroup",
+    "CreateLogStream",
+    "DeleteLogGroup",
+    "DeleteLogStream",
+    "DeleteRetentionPolicy",
+    "DescribeLogGroups",
+    "DescribeLogStreams",
+    "FilterLogEvents",
+    "GetLogEvents",
+    "ListTagsForResource",
+    "ListTagsLogGroup",
+    "PutLogEvents",
+    "PutLogEventsInternal",
+    "PutLogGroupDeletionProtection",
+    "PutRetentionPolicy",
+    "TagLogGroup",
+    "TagResource",
+    "UntagLogGroup",
+    "UntagResource"
+  ]
 }

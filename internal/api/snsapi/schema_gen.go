@@ -67,11 +67,11 @@ var schemaBinary = smithy.Schema{ID: "com.amazonaws.sns#Binary", Type: smithy.Ty
 
 var schemaBoolean = smithy.Schema{ID: "com.amazonaws.sns#boolean", Type: smithy.TypeBoolean}
 
-var schemaCheckIfPhoneNumberIsOptedOutInput = smithy.Schema{ID: "com.amazonaws.sns#CheckIfPhoneNumberIsOptedOutInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCheckIfPhoneNumberIsOptedOutInput_phoneNumber}}
+var schemaCheckIfPhoneNumberIsOptedOutInput = smithy.Schema{ID: "com.amazonaws.sns#CheckIfPhoneNumberIsOptedOutInput", Type: smithy.TypeStructure}
 
 var memberCheckIfPhoneNumberIsOptedOutInput_phoneNumber = smithy.Member{Name: "phoneNumber", Index: 0, Target: &schemaPhoneNumber, Required: true, Sensitive: true}
 
-var schemaCheckIfPhoneNumberIsOptedOutOutput = smithy.Schema{ID: "com.amazonaws.sns#CheckIfPhoneNumberIsOptedOutResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCheckIfPhoneNumberIsOptedOutOutput_isOptedOut}}
+var schemaCheckIfPhoneNumberIsOptedOutOutput = smithy.Schema{ID: "com.amazonaws.sns#CheckIfPhoneNumberIsOptedOutResponse", Type: smithy.TypeStructure}
 
 var memberCheckIfPhoneNumberIsOptedOutOutput_isOptedOut = smithy.Member{Name: "isOptedOut", Index: 0, Target: &schemaBoolean, Default: document.Bool(false)}
 
@@ -95,7 +95,7 @@ var schemaCoralValidateValidationException = smithy.Schema{ID: "com.amazon.coral
 
 var memberCoralValidateValidationException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaCreatePlatformApplicationInput = smithy.Schema{ID: "com.amazonaws.sns#CreatePlatformApplicationInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreatePlatformApplicationInput_Name, &memberCreatePlatformApplicationInput_Platform, &memberCreatePlatformApplicationInput_Attributes}}
+var schemaCreatePlatformApplicationInput = smithy.Schema{ID: "com.amazonaws.sns#CreatePlatformApplicationInput", Type: smithy.TypeStructure}
 
 var memberCreatePlatformApplicationInput_Name = smithy.Member{Name: "Name", Index: 0, Target: &schemaString, Required: true}
 
@@ -103,11 +103,11 @@ var memberCreatePlatformApplicationInput_Platform = smithy.Member{Name: "Platfor
 
 var memberCreatePlatformApplicationInput_Attributes = smithy.Member{Name: "Attributes", Index: 2, Target: &schemaMapStringToString, Required: true}
 
-var schemaCreatePlatformApplicationOutput = smithy.Schema{ID: "com.amazonaws.sns#CreatePlatformApplicationResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreatePlatformApplicationOutput_PlatformApplicationArn}}
+var schemaCreatePlatformApplicationOutput = smithy.Schema{ID: "com.amazonaws.sns#CreatePlatformApplicationResponse", Type: smithy.TypeStructure}
 
 var memberCreatePlatformApplicationOutput_PlatformApplicationArn = smithy.Member{Name: "PlatformApplicationArn", Index: 0, Target: &schemaString}
 
-var schemaCreatePlatformEndpointInput = smithy.Schema{ID: "com.amazonaws.sns#CreatePlatformEndpointInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreatePlatformEndpointInput_PlatformApplicationArn, &memberCreatePlatformEndpointInput_Token, &memberCreatePlatformEndpointInput_CustomUserData, &memberCreatePlatformEndpointInput_Attributes}}
+var schemaCreatePlatformEndpointInput = smithy.Schema{ID: "com.amazonaws.sns#CreatePlatformEndpointInput", Type: smithy.TypeStructure}
 
 var memberCreatePlatformEndpointInput_PlatformApplicationArn = smithy.Member{Name: "PlatformApplicationArn", Index: 0, Target: &schemaString, Required: true}
 
@@ -117,11 +117,11 @@ var memberCreatePlatformEndpointInput_CustomUserData = smithy.Member{Name: "Cust
 
 var memberCreatePlatformEndpointInput_Attributes = smithy.Member{Name: "Attributes", Index: 3, Target: &schemaMapStringToString}
 
-var schemaCreatePlatformEndpointOutput = smithy.Schema{ID: "com.amazonaws.sns#CreateEndpointResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreatePlatformEndpointOutput_EndpointArn}}
+var schemaCreatePlatformEndpointOutput = smithy.Schema{ID: "com.amazonaws.sns#CreateEndpointResponse", Type: smithy.TypeStructure}
 
 var memberCreatePlatformEndpointOutput_EndpointArn = smithy.Member{Name: "EndpointArn", Index: 0, Target: &schemaString}
 
-var schemaCreateSMSSandboxPhoneNumberInput = smithy.Schema{ID: "com.amazonaws.sns#CreateSMSSandboxPhoneNumberInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateSMSSandboxPhoneNumberInput_PhoneNumber, &memberCreateSMSSandboxPhoneNumberInput_LanguageCode}}
+var schemaCreateSMSSandboxPhoneNumberInput = smithy.Schema{ID: "com.amazonaws.sns#CreateSMSSandboxPhoneNumberInput", Type: smithy.TypeStructure}
 
 var memberCreateSMSSandboxPhoneNumberInput_PhoneNumber = smithy.Member{Name: "PhoneNumber", Index: 0, Target: &schemaPhoneNumberString, Required: true, Sensitive: true}
 
@@ -149,15 +149,15 @@ var schemaDelegatesList = smithy.Schema{ID: "com.amazonaws.sns#DelegatesList", T
 
 var memberDelegatesList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaDelegate}
 
-var schemaDeleteEndpointInput = smithy.Schema{ID: "com.amazonaws.sns#DeleteEndpointInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteEndpointInput_EndpointArn}}
+var schemaDeleteEndpointInput = smithy.Schema{ID: "com.amazonaws.sns#DeleteEndpointInput", Type: smithy.TypeStructure}
 
 var memberDeleteEndpointInput_EndpointArn = smithy.Member{Name: "EndpointArn", Index: 0, Target: &schemaString, Required: true}
 
-var schemaDeletePlatformApplicationInput = smithy.Schema{ID: "com.amazonaws.sns#DeletePlatformApplicationInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeletePlatformApplicationInput_PlatformApplicationArn}}
+var schemaDeletePlatformApplicationInput = smithy.Schema{ID: "com.amazonaws.sns#DeletePlatformApplicationInput", Type: smithy.TypeStructure}
 
 var memberDeletePlatformApplicationInput_PlatformApplicationArn = smithy.Member{Name: "PlatformApplicationArn", Index: 0, Target: &schemaString, Required: true}
 
-var schemaDeleteSMSSandboxPhoneNumberInput = smithy.Schema{ID: "com.amazonaws.sns#DeleteSMSSandboxPhoneNumberInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteSMSSandboxPhoneNumberInput_PhoneNumber}}
+var schemaDeleteSMSSandboxPhoneNumberInput = smithy.Schema{ID: "com.amazonaws.sns#DeleteSMSSandboxPhoneNumberInput", Type: smithy.TypeStructure}
 
 var memberDeleteSMSSandboxPhoneNumberInput_PhoneNumber = smithy.Member{Name: "PhoneNumber", Index: 0, Target: &schemaPhoneNumberString, Required: true, Sensitive: true}
 
@@ -171,7 +171,7 @@ var schemaEmptyBatchRequestException = smithy.Schema{ID: "com.amazonaws.sns#Empt
 
 var memberEmptyBatchRequestException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaString}
 
-var schemaEndpoint = smithy.Schema{ID: "com.amazonaws.sns#Endpoint", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberEndpoint_EndpointArn, &memberEndpoint_Attributes}}
+var schemaEndpoint = smithy.Schema{ID: "com.amazonaws.sns#Endpoint", Type: smithy.TypeStructure}
 
 var memberEndpoint_EndpointArn = smithy.Member{Name: "EndpointArn", Index: 0, Target: &schemaString}
 
@@ -191,41 +191,41 @@ var schemaFilterPolicyLimitExceededException = smithy.Schema{ID: "com.amazonaws.
 
 var memberFilterPolicyLimitExceededException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaString}
 
-var schemaGetDataProtectionPolicyInput = smithy.Schema{ID: "com.amazonaws.sns#GetDataProtectionPolicyInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetDataProtectionPolicyInput_ResourceArn}}
+var schemaGetDataProtectionPolicyInput = smithy.Schema{ID: "com.amazonaws.sns#GetDataProtectionPolicyInput", Type: smithy.TypeStructure}
 
 var memberGetDataProtectionPolicyInput_ResourceArn = smithy.Member{Name: "ResourceArn", Index: 0, Target: &schemaTopicARN, Required: true}
 
-var schemaGetDataProtectionPolicyOutput = smithy.Schema{ID: "com.amazonaws.sns#GetDataProtectionPolicyResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetDataProtectionPolicyOutput_DataProtectionPolicy}}
+var schemaGetDataProtectionPolicyOutput = smithy.Schema{ID: "com.amazonaws.sns#GetDataProtectionPolicyResponse", Type: smithy.TypeStructure}
 
 var memberGetDataProtectionPolicyOutput_DataProtectionPolicy = smithy.Member{Name: "DataProtectionPolicy", Index: 0, Target: &schemaAttributeValue}
 
-var schemaGetEndpointAttributesInput = smithy.Schema{ID: "com.amazonaws.sns#GetEndpointAttributesInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetEndpointAttributesInput_EndpointArn}}
+var schemaGetEndpointAttributesInput = smithy.Schema{ID: "com.amazonaws.sns#GetEndpointAttributesInput", Type: smithy.TypeStructure}
 
 var memberGetEndpointAttributesInput_EndpointArn = smithy.Member{Name: "EndpointArn", Index: 0, Target: &schemaString, Required: true}
 
-var schemaGetEndpointAttributesOutput = smithy.Schema{ID: "com.amazonaws.sns#GetEndpointAttributesResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetEndpointAttributesOutput_Attributes}}
+var schemaGetEndpointAttributesOutput = smithy.Schema{ID: "com.amazonaws.sns#GetEndpointAttributesResponse", Type: smithy.TypeStructure}
 
 var memberGetEndpointAttributesOutput_Attributes = smithy.Member{Name: "Attributes", Index: 0, Target: &schemaMapStringToString}
 
-var schemaGetPlatformApplicationAttributesInput = smithy.Schema{ID: "com.amazonaws.sns#GetPlatformApplicationAttributesInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetPlatformApplicationAttributesInput_PlatformApplicationArn}}
+var schemaGetPlatformApplicationAttributesInput = smithy.Schema{ID: "com.amazonaws.sns#GetPlatformApplicationAttributesInput", Type: smithy.TypeStructure}
 
 var memberGetPlatformApplicationAttributesInput_PlatformApplicationArn = smithy.Member{Name: "PlatformApplicationArn", Index: 0, Target: &schemaString, Required: true}
 
-var schemaGetPlatformApplicationAttributesOutput = smithy.Schema{ID: "com.amazonaws.sns#GetPlatformApplicationAttributesResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetPlatformApplicationAttributesOutput_Attributes}}
+var schemaGetPlatformApplicationAttributesOutput = smithy.Schema{ID: "com.amazonaws.sns#GetPlatformApplicationAttributesResponse", Type: smithy.TypeStructure}
 
 var memberGetPlatformApplicationAttributesOutput_Attributes = smithy.Member{Name: "Attributes", Index: 0, Target: &schemaMapStringToString}
 
-var schemaGetSMSAttributesInput = smithy.Schema{ID: "com.amazonaws.sns#GetSMSAttributesInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetSMSAttributesInput_attributes}}
+var schemaGetSMSAttributesInput = smithy.Schema{ID: "com.amazonaws.sns#GetSMSAttributesInput", Type: smithy.TypeStructure}
 
 var memberGetSMSAttributesInput_attributes = smithy.Member{Name: "attributes", Index: 0, Target: &schemaListString}
 
-var schemaGetSMSAttributesOutput = smithy.Schema{ID: "com.amazonaws.sns#GetSMSAttributesResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetSMSAttributesOutput_attributes}}
+var schemaGetSMSAttributesOutput = smithy.Schema{ID: "com.amazonaws.sns#GetSMSAttributesResponse", Type: smithy.TypeStructure}
 
 var memberGetSMSAttributesOutput_attributes = smithy.Member{Name: "attributes", Index: 0, Target: &schemaMapStringToString}
 
 var schemaGetSMSSandboxAccountStatusInput = smithy.Schema{ID: "com.amazonaws.sns#GetSMSSandboxAccountStatusInput", Type: smithy.TypeStructure}
 
-var schemaGetSMSSandboxAccountStatusOutput = smithy.Schema{ID: "com.amazonaws.sns#GetSMSSandboxAccountStatusResult", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetSMSSandboxAccountStatusOutput_IsInSandbox}}
+var schemaGetSMSSandboxAccountStatusOutput = smithy.Schema{ID: "com.amazonaws.sns#GetSMSSandboxAccountStatusResult", Type: smithy.TypeStructure}
 
 var memberGetSMSSandboxAccountStatusOutput_IsInSandbox = smithy.Member{Name: "IsInSandbox", Index: 0, Target: &schemaBoolean, Required: true, Default: document.Bool(false)}
 
@@ -315,71 +315,71 @@ var schemaLabel = smithy.Schema{ID: "com.amazonaws.sns#label", Type: smithy.Type
 
 var schemaLanguageCodeString = smithy.Schema{ID: "com.amazonaws.sns#LanguageCodeString", Type: smithy.TypeEnum}
 
-var schemaListEndpointsByPlatformApplicationInput = smithy.Schema{ID: "com.amazonaws.sns#ListEndpointsByPlatformApplicationInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListEndpointsByPlatformApplicationInput_PlatformApplicationArn, &memberListEndpointsByPlatformApplicationInput_NextToken}}
+var schemaListEndpointsByPlatformApplicationInput = smithy.Schema{ID: "com.amazonaws.sns#ListEndpointsByPlatformApplicationInput", Type: smithy.TypeStructure}
 
 var memberListEndpointsByPlatformApplicationInput_PlatformApplicationArn = smithy.Member{Name: "PlatformApplicationArn", Index: 0, Target: &schemaString, Required: true}
 
 var memberListEndpointsByPlatformApplicationInput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schemaString}
 
-var schemaListEndpointsByPlatformApplicationOutput = smithy.Schema{ID: "com.amazonaws.sns#ListEndpointsByPlatformApplicationResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListEndpointsByPlatformApplicationOutput_Endpoints, &memberListEndpointsByPlatformApplicationOutput_NextToken}}
+var schemaListEndpointsByPlatformApplicationOutput = smithy.Schema{ID: "com.amazonaws.sns#ListEndpointsByPlatformApplicationResponse", Type: smithy.TypeStructure}
 
 var memberListEndpointsByPlatformApplicationOutput_Endpoints = smithy.Member{Name: "Endpoints", Index: 0, Target: &schemaListOfEndpoints}
 
 var memberListEndpointsByPlatformApplicationOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schemaString}
 
-var schemaListOfEndpoints = smithy.Schema{ID: "com.amazonaws.sns#ListOfEndpoints", Type: smithy.TypeList, Members: []*smithy.Member{&memberListOfEndpoints_member}}
+var schemaListOfEndpoints = smithy.Schema{ID: "com.amazonaws.sns#ListOfEndpoints", Type: smithy.TypeList}
 
 var memberListOfEndpoints_member = smithy.Member{Name: "member", Index: 0, Target: &schemaEndpoint}
 
-var schemaListOfPlatformApplications = smithy.Schema{ID: "com.amazonaws.sns#ListOfPlatformApplications", Type: smithy.TypeList, Members: []*smithy.Member{&memberListOfPlatformApplications_member}}
+var schemaListOfPlatformApplications = smithy.Schema{ID: "com.amazonaws.sns#ListOfPlatformApplications", Type: smithy.TypeList}
 
 var memberListOfPlatformApplications_member = smithy.Member{Name: "member", Index: 0, Target: &schemaPlatformApplication}
 
-var schemaListOriginationNumbersInput = smithy.Schema{ID: "com.amazonaws.sns#ListOriginationNumbersRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListOriginationNumbersInput_NextToken, &memberListOriginationNumbersInput_MaxResults}}
+var schemaListOriginationNumbersInput = smithy.Schema{ID: "com.amazonaws.sns#ListOriginationNumbersRequest", Type: smithy.TypeStructure}
 
 var memberListOriginationNumbersInput_NextToken = smithy.Member{Name: "NextToken", Index: 0, Target: &schemaNextToken}
 
 var memberListOriginationNumbersInput_MaxResults = smithy.Member{Name: "MaxResults", Index: 1, Target: &schemaMaxItemsListOriginationNumbers}
 
-var schemaListOriginationNumbersOutput = smithy.Schema{ID: "com.amazonaws.sns#ListOriginationNumbersResult", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListOriginationNumbersOutput_NextToken, &memberListOriginationNumbersOutput_PhoneNumbers}}
+var schemaListOriginationNumbersOutput = smithy.Schema{ID: "com.amazonaws.sns#ListOriginationNumbersResult", Type: smithy.TypeStructure}
 
 var memberListOriginationNumbersOutput_NextToken = smithy.Member{Name: "NextToken", Index: 0, Target: &schemaNextToken}
 
 var memberListOriginationNumbersOutput_PhoneNumbers = smithy.Member{Name: "PhoneNumbers", Index: 1, Target: &schemaPhoneNumberInformationList}
 
-var schemaListPhoneNumbersOptedOutInput = smithy.Schema{ID: "com.amazonaws.sns#ListPhoneNumbersOptedOutInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListPhoneNumbersOptedOutInput_nextToken}}
+var schemaListPhoneNumbersOptedOutInput = smithy.Schema{ID: "com.amazonaws.sns#ListPhoneNumbersOptedOutInput", Type: smithy.TypeStructure}
 
 var memberListPhoneNumbersOptedOutInput_nextToken = smithy.Member{Name: "nextToken", Index: 0, Target: &schemaString}
 
-var schemaListPhoneNumbersOptedOutOutput = smithy.Schema{ID: "com.amazonaws.sns#ListPhoneNumbersOptedOutResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListPhoneNumbersOptedOutOutput_phoneNumbers, &memberListPhoneNumbersOptedOutOutput_nextToken}}
+var schemaListPhoneNumbersOptedOutOutput = smithy.Schema{ID: "com.amazonaws.sns#ListPhoneNumbersOptedOutResponse", Type: smithy.TypeStructure}
 
 var memberListPhoneNumbersOptedOutOutput_phoneNumbers = smithy.Member{Name: "phoneNumbers", Index: 0, Target: &schemaPhoneNumberList}
 
 var memberListPhoneNumbersOptedOutOutput_nextToken = smithy.Member{Name: "nextToken", Index: 1, Target: &schemaString}
 
-var schemaListPlatformApplicationsInput = smithy.Schema{ID: "com.amazonaws.sns#ListPlatformApplicationsInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListPlatformApplicationsInput_NextToken}}
+var schemaListPlatformApplicationsInput = smithy.Schema{ID: "com.amazonaws.sns#ListPlatformApplicationsInput", Type: smithy.TypeStructure}
 
 var memberListPlatformApplicationsInput_NextToken = smithy.Member{Name: "NextToken", Index: 0, Target: &schemaString}
 
-var schemaListPlatformApplicationsOutput = smithy.Schema{ID: "com.amazonaws.sns#ListPlatformApplicationsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListPlatformApplicationsOutput_PlatformApplications, &memberListPlatformApplicationsOutput_NextToken}}
+var schemaListPlatformApplicationsOutput = smithy.Schema{ID: "com.amazonaws.sns#ListPlatformApplicationsResponse", Type: smithy.TypeStructure}
 
 var memberListPlatformApplicationsOutput_PlatformApplications = smithy.Member{Name: "PlatformApplications", Index: 0, Target: &schemaListOfPlatformApplications}
 
 var memberListPlatformApplicationsOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schemaString}
 
-var schemaListSMSSandboxPhoneNumbersInput = smithy.Schema{ID: "com.amazonaws.sns#ListSMSSandboxPhoneNumbersInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListSMSSandboxPhoneNumbersInput_NextToken, &memberListSMSSandboxPhoneNumbersInput_MaxResults}}
+var schemaListSMSSandboxPhoneNumbersInput = smithy.Schema{ID: "com.amazonaws.sns#ListSMSSandboxPhoneNumbersInput", Type: smithy.TypeStructure}
 
 var memberListSMSSandboxPhoneNumbersInput_NextToken = smithy.Member{Name: "NextToken", Index: 0, Target: &schemaNextToken}
 
 var memberListSMSSandboxPhoneNumbersInput_MaxResults = smithy.Member{Name: "MaxResults", Index: 1, Target: &schemaMaxItems}
 
-var schemaListSMSSandboxPhoneNumbersOutput = smithy.Schema{ID: "com.amazonaws.sns#ListSMSSandboxPhoneNumbersResult", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListSMSSandboxPhoneNumbersOutput_PhoneNumbers, &memberListSMSSandboxPhoneNumbersOutput_NextToken}}
+var schemaListSMSSandboxPhoneNumbersOutput = smithy.Schema{ID: "com.amazonaws.sns#ListSMSSandboxPhoneNumbersResult", Type: smithy.TypeStructure}
 
 var memberListSMSSandboxPhoneNumbersOutput_PhoneNumbers = smithy.Member{Name: "PhoneNumbers", Index: 0, Target: &schemaSMSSandboxPhoneNumberList, Required: true}
 
 var memberListSMSSandboxPhoneNumbersOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schemaString}
 
-var schemaListString = smithy.Schema{ID: "com.amazonaws.sns#ListString", Type: smithy.TypeList, Members: []*smithy.Member{&memberListString_member}}
+var schemaListString = smithy.Schema{ID: "com.amazonaws.sns#ListString", Type: smithy.TypeList}
 
 var memberListString_member = smithy.Member{Name: "member", Index: 0, Target: &schemaString}
 
@@ -423,7 +423,7 @@ var memberListTopicsOutput_Topics = smithy.Member{Name: "Topics", Index: 0, Targ
 
 var memberListTopicsOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schemaNextToken}
 
-var schemaMapStringToString = smithy.Schema{ID: "com.amazonaws.sns#MapStringToString", Type: smithy.TypeMap, Members: []*smithy.Member{&memberMapStringToString_key, &memberMapStringToString_value}}
+var schemaMapStringToString = smithy.Schema{ID: "com.amazonaws.sns#MapStringToString", Type: smithy.TypeMap}
 
 var memberMapStringToString_key = smithy.Member{Name: "key", Index: 0, Target: &schemaString}
 
@@ -469,13 +469,13 @@ var memberNotImplemented_message = smithy.Member{Name: "message", Index: 0, Targ
 
 var schemaNumberCapability = smithy.Schema{ID: "com.amazonaws.sns#NumberCapability", Type: smithy.TypeEnum}
 
-var schemaNumberCapabilityList = smithy.Schema{ID: "com.amazonaws.sns#NumberCapabilityList", Type: smithy.TypeList, Members: []*smithy.Member{&memberNumberCapabilityList_member}}
+var schemaNumberCapabilityList = smithy.Schema{ID: "com.amazonaws.sns#NumberCapabilityList", Type: smithy.TypeList}
 
 var memberNumberCapabilityList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaNumberCapability}
 
 var schemaOTPCode = smithy.Schema{ID: "com.amazonaws.sns#OTPCode", Type: smithy.TypeString}
 
-var schemaOptInPhoneNumberInput = smithy.Schema{ID: "com.amazonaws.sns#OptInPhoneNumberInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberOptInPhoneNumberInput_phoneNumber}}
+var schemaOptInPhoneNumberInput = smithy.Schema{ID: "com.amazonaws.sns#OptInPhoneNumberInput", Type: smithy.TypeStructure}
 
 var memberOptInPhoneNumberInput_phoneNumber = smithy.Member{Name: "phoneNumber", Index: 0, Target: &schemaPhoneNumber, Required: true, Sensitive: true}
 
@@ -487,7 +487,7 @@ var memberOptedOutException_message = smithy.Member{Name: "message", Index: 0, T
 
 var schemaPhoneNumber = smithy.Schema{ID: "com.amazonaws.sns#PhoneNumber", Type: smithy.TypeString, Sensitive: true}
 
-var schemaPhoneNumberInformation = smithy.Schema{ID: "com.amazonaws.sns#PhoneNumberInformation", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPhoneNumberInformation_CreatedAt, &memberPhoneNumberInformation_PhoneNumber, &memberPhoneNumberInformation_Status, &memberPhoneNumberInformation_Iso2CountryCode, &memberPhoneNumberInformation_RouteType, &memberPhoneNumberInformation_NumberCapabilities}}
+var schemaPhoneNumberInformation = smithy.Schema{ID: "com.amazonaws.sns#PhoneNumberInformation", Type: smithy.TypeStructure}
 
 var memberPhoneNumberInformation_CreatedAt = smithy.Member{Name: "CreatedAt", Index: 0, Target: &schemaTimestamp}
 
@@ -501,17 +501,17 @@ var memberPhoneNumberInformation_RouteType = smithy.Member{Name: "RouteType", In
 
 var memberPhoneNumberInformation_NumberCapabilities = smithy.Member{Name: "NumberCapabilities", Index: 5, Target: &schemaNumberCapabilityList}
 
-var schemaPhoneNumberInformationList = smithy.Schema{ID: "com.amazonaws.sns#PhoneNumberInformationList", Type: smithy.TypeList, Members: []*smithy.Member{&memberPhoneNumberInformationList_member}}
+var schemaPhoneNumberInformationList = smithy.Schema{ID: "com.amazonaws.sns#PhoneNumberInformationList", Type: smithy.TypeList}
 
 var memberPhoneNumberInformationList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaPhoneNumberInformation}
 
-var schemaPhoneNumberList = smithy.Schema{ID: "com.amazonaws.sns#PhoneNumberList", Type: smithy.TypeList, Members: []*smithy.Member{&memberPhoneNumberList_member}}
+var schemaPhoneNumberList = smithy.Schema{ID: "com.amazonaws.sns#PhoneNumberList", Type: smithy.TypeList}
 
 var memberPhoneNumberList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaPhoneNumber, Sensitive: true}
 
 var schemaPhoneNumberString = smithy.Schema{ID: "com.amazonaws.sns#PhoneNumberString", Type: smithy.TypeString, Sensitive: true}
 
-var schemaPlatformApplication = smithy.Schema{ID: "com.amazonaws.sns#PlatformApplication", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPlatformApplication_PlatformApplicationArn, &memberPlatformApplication_Attributes}}
+var schemaPlatformApplication = smithy.Schema{ID: "com.amazonaws.sns#PlatformApplication", Type: smithy.TypeStructure}
 
 var memberPlatformApplication_PlatformApplicationArn = smithy.Member{Name: "PlatformApplicationArn", Index: 0, Target: &schemaString}
 
@@ -593,7 +593,7 @@ var memberPublishOutput_MessageId = smithy.Member{Name: "MessageId", Index: 0, T
 
 var memberPublishOutput_SequenceNumber = smithy.Member{Name: "SequenceNumber", Index: 1, Target: &schemaString}
 
-var schemaPutDataProtectionPolicyInput = smithy.Schema{ID: "com.amazonaws.sns#PutDataProtectionPolicyInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutDataProtectionPolicyInput_ResourceArn, &memberPutDataProtectionPolicyInput_DataProtectionPolicy}}
+var schemaPutDataProtectionPolicyInput = smithy.Schema{ID: "com.amazonaws.sns#PutDataProtectionPolicyInput", Type: smithy.TypeStructure}
 
 var memberPutDataProtectionPolicyInput_ResourceArn = smithy.Member{Name: "ResourceArn", Index: 0, Target: &schemaTopicARN, Required: true}
 
@@ -619,31 +619,31 @@ var memberResourceNotFoundException_message = smithy.Member{Name: "message", Ind
 
 var schemaRouteType = smithy.Schema{ID: "com.amazonaws.sns#RouteType", Type: smithy.TypeEnum}
 
-var schemaSMSSandboxPhoneNumber = smithy.Schema{ID: "com.amazonaws.sns#SMSSandboxPhoneNumber", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSMSSandboxPhoneNumber_PhoneNumber, &memberSMSSandboxPhoneNumber_Status}}
+var schemaSMSSandboxPhoneNumber = smithy.Schema{ID: "com.amazonaws.sns#SMSSandboxPhoneNumber", Type: smithy.TypeStructure}
 
 var memberSMSSandboxPhoneNumber_PhoneNumber = smithy.Member{Name: "PhoneNumber", Index: 0, Target: &schemaPhoneNumberString, Sensitive: true}
 
 var memberSMSSandboxPhoneNumber_Status = smithy.Member{Name: "Status", Index: 1, Target: &schemaSMSSandboxPhoneNumberVerificationStatus}
 
-var schemaSMSSandboxPhoneNumberList = smithy.Schema{ID: "com.amazonaws.sns#SMSSandboxPhoneNumberList", Type: smithy.TypeList, Members: []*smithy.Member{&memberSMSSandboxPhoneNumberList_member}}
+var schemaSMSSandboxPhoneNumberList = smithy.Schema{ID: "com.amazonaws.sns#SMSSandboxPhoneNumberList", Type: smithy.TypeList}
 
 var memberSMSSandboxPhoneNumberList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaSMSSandboxPhoneNumber}
 
 var schemaSMSSandboxPhoneNumberVerificationStatus = smithy.Schema{ID: "com.amazonaws.sns#SMSSandboxPhoneNumberVerificationStatus", Type: smithy.TypeEnum}
 
-var schemaSetEndpointAttributesInput = smithy.Schema{ID: "com.amazonaws.sns#SetEndpointAttributesInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSetEndpointAttributesInput_EndpointArn, &memberSetEndpointAttributesInput_Attributes}}
+var schemaSetEndpointAttributesInput = smithy.Schema{ID: "com.amazonaws.sns#SetEndpointAttributesInput", Type: smithy.TypeStructure}
 
 var memberSetEndpointAttributesInput_EndpointArn = smithy.Member{Name: "EndpointArn", Index: 0, Target: &schemaString, Required: true}
 
 var memberSetEndpointAttributesInput_Attributes = smithy.Member{Name: "Attributes", Index: 1, Target: &schemaMapStringToString, Required: true}
 
-var schemaSetPlatformApplicationAttributesInput = smithy.Schema{ID: "com.amazonaws.sns#SetPlatformApplicationAttributesInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSetPlatformApplicationAttributesInput_PlatformApplicationArn, &memberSetPlatformApplicationAttributesInput_Attributes}}
+var schemaSetPlatformApplicationAttributesInput = smithy.Schema{ID: "com.amazonaws.sns#SetPlatformApplicationAttributesInput", Type: smithy.TypeStructure}
 
 var memberSetPlatformApplicationAttributesInput_PlatformApplicationArn = smithy.Member{Name: "PlatformApplicationArn", Index: 0, Target: &schemaString, Required: true}
 
 var memberSetPlatformApplicationAttributesInput_Attributes = smithy.Member{Name: "Attributes", Index: 1, Target: &schemaMapStringToString, Required: true}
 
-var schemaSetSMSAttributesInput = smithy.Schema{ID: "com.amazonaws.sns#SetSMSAttributesInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSetSMSAttributesInput_attributes}}
+var schemaSetSMSAttributesInput = smithy.Schema{ID: "com.amazonaws.sns#SetSMSAttributesInput", Type: smithy.TypeStructure}
 
 var memberSetSMSAttributesInput_attributes = smithy.Member{Name: "attributes", Index: 0, Target: &schemaMapStringToString, Required: true}
 
@@ -823,7 +823,7 @@ var memberVerificationException_Message = smithy.Member{Name: "Message", Index: 
 
 var memberVerificationException_Status = smithy.Member{Name: "Status", Index: 1, Target: &schemaString, Required: true}
 
-var schemaVerifySMSSandboxPhoneNumberInput = smithy.Schema{ID: "com.amazonaws.sns#VerifySMSSandboxPhoneNumberInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberVerifySMSSandboxPhoneNumberInput_PhoneNumber, &memberVerifySMSSandboxPhoneNumberInput_OneTimePassword}}
+var schemaVerifySMSSandboxPhoneNumberInput = smithy.Schema{ID: "com.amazonaws.sns#VerifySMSSandboxPhoneNumberInput", Type: smithy.TypeStructure}
 
 var memberVerifySMSSandboxPhoneNumberInput_PhoneNumber = smithy.Member{Name: "PhoneNumber", Index: 0, Target: &schemaPhoneNumberString, Required: true, Sensitive: true}
 

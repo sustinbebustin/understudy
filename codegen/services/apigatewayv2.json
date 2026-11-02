@@ -53,5 +53,38 @@
       "action": "apigateway:PATCH",
       "reason": "management calls are authorized as apigateway:<HTTP method> on the resource ARN, and this one is PATCH /v2/domainnames/{DomainName}; the other listed actions gate optional settings (https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-control-access-using-iam-policies-to-create-and-manage-api.html)"
     }
+  ],
+  "boundOperations": [
+    "CreateApi",
+    "CreateDeployment",
+    "CreateIntegration",
+    "CreateRoute",
+    "CreateStage",
+    "DeleteAccessLogSettings",
+    "DeleteApi",
+    "DeleteCorsConfiguration",
+    "DeleteDeployment",
+    "DeleteIntegration",
+    "DeleteRoute",
+    "DeleteRouteSettings",
+    "DeleteStage",
+    "GetApi",
+    "GetApis",
+    "GetDeployment",
+    "GetDeployments",
+    "GetIntegration",
+    "GetIntegrations",
+    "GetRoute",
+    "GetRoutes",
+    "GetStage",
+    "GetStages",
+    "GetTags",
+    "TagResource",
+    "UntagResource",
+    "UpdateApi",
+    "UpdateDeployment",
+    "UpdateIntegration",
+    "UpdateRoute",
+    "UpdateStage"
   ]
 }

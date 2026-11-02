@@ -15,11 +15,11 @@ var schemaAccountId = smithy.Schema{ID: "com.amazonaws.eventbridge#AccountId", T
 
 var schemaAction = smithy.Schema{ID: "com.amazonaws.eventbridge#Action", Type: smithy.TypeString}
 
-var schemaActivateEventSourceInput = smithy.Schema{ID: "com.amazonaws.eventbridge#ActivateEventSourceRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberActivateEventSourceInput_Name}}
+var schemaActivateEventSourceInput = smithy.Schema{ID: "com.amazonaws.eventbridge#ActivateEventSourceRequest", Type: smithy.TypeStructure}
 
 var memberActivateEventSourceInput_Name = smithy.Member{Name: "Name", Index: 0, Target: &schemaEventSourceName, Required: true}
 
-var schemaApiDestination = smithy.Schema{ID: "com.amazonaws.eventbridge#ApiDestination", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberApiDestination_ApiDestinationArn, &memberApiDestination_Name, &memberApiDestination_ApiDestinationState, &memberApiDestination_ConnectionArn, &memberApiDestination_InvocationEndpoint, &memberApiDestination_HttpMethod, &memberApiDestination_InvocationRateLimitPerSecond, &memberApiDestination_CreationTime, &memberApiDestination_LastModifiedTime}}
+var schemaApiDestination = smithy.Schema{ID: "com.amazonaws.eventbridge#ApiDestination", Type: smithy.TypeStructure}
 
 var memberApiDestination_ApiDestinationArn = smithy.Member{Name: "ApiDestinationArn", Index: 0, Target: &schemaApiDestinationArn}
 
@@ -49,7 +49,7 @@ var schemaApiDestinationInvocationRateLimitPerSecond = smithy.Schema{ID: "com.am
 
 var schemaApiDestinationName = smithy.Schema{ID: "com.amazonaws.eventbridge#ApiDestinationName", Type: smithy.TypeString}
 
-var schemaApiDestinationResponseList = smithy.Schema{ID: "com.amazonaws.eventbridge#ApiDestinationResponseList", Type: smithy.TypeList, Members: []*smithy.Member{&memberApiDestinationResponseList_member}}
+var schemaApiDestinationResponseList = smithy.Schema{ID: "com.amazonaws.eventbridge#ApiDestinationResponseList", Type: smithy.TypeList}
 
 var memberApiDestinationResponseList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaApiDestination}
 
@@ -59,7 +59,7 @@ var schemaAppSyncParameters = smithy.Schema{ID: "com.amazonaws.eventbridge#AppSy
 
 var memberAppSyncParameters_GraphQLOperation = smithy.Member{Name: "GraphQLOperation", Index: 0, Target: &schemaGraphQLOperation, Sensitive: true}
 
-var schemaArchive = smithy.Schema{ID: "com.amazonaws.eventbridge#Archive", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberArchive_ArchiveName, &memberArchive_EventSourceArn, &memberArchive_State, &memberArchive_StateReason, &memberArchive_RetentionDays, &memberArchive_SizeBytes, &memberArchive_EventCount, &memberArchive_CreationTime}}
+var schemaArchive = smithy.Schema{ID: "com.amazonaws.eventbridge#Archive", Type: smithy.TypeStructure}
 
 var memberArchive_ArchiveName = smithy.Member{Name: "ArchiveName", Index: 0, Target: &schemaArchiveName}
 
@@ -83,7 +83,7 @@ var schemaArchiveDescription = smithy.Schema{ID: "com.amazonaws.eventbridge#Arch
 
 var schemaArchiveName = smithy.Schema{ID: "com.amazonaws.eventbridge#ArchiveName", Type: smithy.TypeString}
 
-var schemaArchiveResponseList = smithy.Schema{ID: "com.amazonaws.eventbridge#ArchiveResponseList", Type: smithy.TypeList, Members: []*smithy.Member{&memberArchiveResponseList_member}}
+var schemaArchiveResponseList = smithy.Schema{ID: "com.amazonaws.eventbridge#ArchiveResponseList", Type: smithy.TypeList}
 
 var memberArchiveResponseList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaArchive}
 
@@ -127,11 +127,11 @@ var memberBatchRetryStrategy_Attempts = smithy.Member{Name: "Attempts", Index: 0
 
 var schemaBoolean = smithy.Schema{ID: "com.amazonaws.eventbridge#Boolean", Type: smithy.TypeBoolean}
 
-var schemaCancelReplayInput = smithy.Schema{ID: "com.amazonaws.eventbridge#CancelReplayRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCancelReplayInput_ReplayName}}
+var schemaCancelReplayInput = smithy.Schema{ID: "com.amazonaws.eventbridge#CancelReplayRequest", Type: smithy.TypeStructure}
 
 var memberCancelReplayInput_ReplayName = smithy.Member{Name: "ReplayName", Index: 0, Target: &schemaReplayName, Required: true}
 
-var schemaCancelReplayOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#CancelReplayResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCancelReplayOutput_ReplayArn, &memberCancelReplayOutput_State, &memberCancelReplayOutput_StateReason}}
+var schemaCancelReplayOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#CancelReplayResponse", Type: smithy.TypeStructure}
 
 var memberCancelReplayOutput_ReplayArn = smithy.Member{Name: "ReplayArn", Index: 0, Target: &schemaReplayArn}
 
@@ -169,7 +169,7 @@ var memberCondition_Key = smithy.Member{Name: "Key", Index: 1, Target: &schemaSt
 
 var memberCondition_Value = smithy.Member{Name: "Value", Index: 2, Target: &schemaString, Required: true}
 
-var schemaConnection = smithy.Schema{ID: "com.amazonaws.eventbridge#Connection", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberConnection_ConnectionArn, &memberConnection_Name, &memberConnection_ConnectionState, &memberConnection_StateReason, &memberConnection_AuthorizationType, &memberConnection_CreationTime, &memberConnection_LastModifiedTime, &memberConnection_LastAuthorizedTime}}
+var schemaConnection = smithy.Schema{ID: "com.amazonaws.eventbridge#Connection", Type: smithy.TypeStructure}
 
 var memberConnection_ConnectionArn = smithy.Member{Name: "ConnectionArn", Index: 0, Target: &schemaConnectionArn}
 
@@ -187,13 +187,13 @@ var memberConnection_LastModifiedTime = smithy.Member{Name: "LastModifiedTime", 
 
 var memberConnection_LastAuthorizedTime = smithy.Member{Name: "LastAuthorizedTime", Index: 7, Target: &schemaTimestamp}
 
-var schemaConnectionApiKeyAuthResponseParameters = smithy.Schema{ID: "com.amazonaws.eventbridge#ConnectionApiKeyAuthResponseParameters", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberConnectionApiKeyAuthResponseParameters_ApiKeyName}}
+var schemaConnectionApiKeyAuthResponseParameters = smithy.Schema{ID: "com.amazonaws.eventbridge#ConnectionApiKeyAuthResponseParameters", Type: smithy.TypeStructure}
 
 var memberConnectionApiKeyAuthResponseParameters_ApiKeyName = smithy.Member{Name: "ApiKeyName", Index: 0, Target: &schemaAuthHeaderParameters}
 
 var schemaConnectionArn = smithy.Schema{ID: "com.amazonaws.eventbridge#ConnectionArn", Type: smithy.TypeString}
 
-var schemaConnectionAuthResponseParameters = smithy.Schema{ID: "com.amazonaws.eventbridge#ConnectionAuthResponseParameters", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberConnectionAuthResponseParameters_BasicAuthParameters, &memberConnectionAuthResponseParameters_OAuthParameters, &memberConnectionAuthResponseParameters_ApiKeyAuthParameters, &memberConnectionAuthResponseParameters_InvocationHttpParameters, &memberConnectionAuthResponseParameters_ConnectivityParameters}}
+var schemaConnectionAuthResponseParameters = smithy.Schema{ID: "com.amazonaws.eventbridge#ConnectionAuthResponseParameters", Type: smithy.TypeStructure}
 
 var memberConnectionAuthResponseParameters_BasicAuthParameters = smithy.Member{Name: "BasicAuthParameters", Index: 0, Target: &schemaConnectionBasicAuthResponseParameters}
 
@@ -207,11 +207,11 @@ var memberConnectionAuthResponseParameters_ConnectivityParameters = smithy.Membe
 
 var schemaConnectionAuthorizationType = smithy.Schema{ID: "com.amazonaws.eventbridge#ConnectionAuthorizationType", Type: smithy.TypeEnum}
 
-var schemaConnectionBasicAuthResponseParameters = smithy.Schema{ID: "com.amazonaws.eventbridge#ConnectionBasicAuthResponseParameters", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberConnectionBasicAuthResponseParameters_Username}}
+var schemaConnectionBasicAuthResponseParameters = smithy.Schema{ID: "com.amazonaws.eventbridge#ConnectionBasicAuthResponseParameters", Type: smithy.TypeStructure}
 
 var memberConnectionBasicAuthResponseParameters_Username = smithy.Member{Name: "Username", Index: 0, Target: &schemaAuthHeaderParameters}
 
-var schemaConnectionBodyParameter = smithy.Schema{ID: "com.amazonaws.eventbridge#ConnectionBodyParameter", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberConnectionBodyParameter_Key, &memberConnectionBodyParameter_Value, &memberConnectionBodyParameter_IsValueSecret}}
+var schemaConnectionBodyParameter = smithy.Schema{ID: "com.amazonaws.eventbridge#ConnectionBodyParameter", Type: smithy.TypeStructure}
 
 var memberConnectionBodyParameter_Key = smithy.Member{Name: "Key", Index: 0, Target: &schemaString}
 
@@ -219,13 +219,13 @@ var memberConnectionBodyParameter_Value = smithy.Member{Name: "Value", Index: 1,
 
 var memberConnectionBodyParameter_IsValueSecret = smithy.Member{Name: "IsValueSecret", Index: 2, Target: &schemaBoolean, Default: document.Bool(false)}
 
-var schemaConnectionBodyParametersList = smithy.Schema{ID: "com.amazonaws.eventbridge#ConnectionBodyParametersList", Type: smithy.TypeList, Members: []*smithy.Member{&memberConnectionBodyParametersList_member}}
+var schemaConnectionBodyParametersList = smithy.Schema{ID: "com.amazonaws.eventbridge#ConnectionBodyParametersList", Type: smithy.TypeList}
 
 var memberConnectionBodyParametersList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaConnectionBodyParameter}
 
 var schemaConnectionDescription = smithy.Schema{ID: "com.amazonaws.eventbridge#ConnectionDescription", Type: smithy.TypeString}
 
-var schemaConnectionHeaderParameter = smithy.Schema{ID: "com.amazonaws.eventbridge#ConnectionHeaderParameter", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberConnectionHeaderParameter_Key, &memberConnectionHeaderParameter_Value, &memberConnectionHeaderParameter_IsValueSecret}}
+var schemaConnectionHeaderParameter = smithy.Schema{ID: "com.amazonaws.eventbridge#ConnectionHeaderParameter", Type: smithy.TypeStructure}
 
 var memberConnectionHeaderParameter_Key = smithy.Member{Name: "Key", Index: 0, Target: &schemaHeaderKey}
 
@@ -233,11 +233,11 @@ var memberConnectionHeaderParameter_Value = smithy.Member{Name: "Value", Index: 
 
 var memberConnectionHeaderParameter_IsValueSecret = smithy.Member{Name: "IsValueSecret", Index: 2, Target: &schemaBoolean, Default: document.Bool(false)}
 
-var schemaConnectionHeaderParametersList = smithy.Schema{ID: "com.amazonaws.eventbridge#ConnectionHeaderParametersList", Type: smithy.TypeList, Members: []*smithy.Member{&memberConnectionHeaderParametersList_member}}
+var schemaConnectionHeaderParametersList = smithy.Schema{ID: "com.amazonaws.eventbridge#ConnectionHeaderParametersList", Type: smithy.TypeList}
 
 var memberConnectionHeaderParametersList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaConnectionHeaderParameter}
 
-var schemaConnectionHttpParameters = smithy.Schema{ID: "com.amazonaws.eventbridge#ConnectionHttpParameters", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberConnectionHttpParameters_HeaderParameters, &memberConnectionHttpParameters_QueryStringParameters, &memberConnectionHttpParameters_BodyParameters}}
+var schemaConnectionHttpParameters = smithy.Schema{ID: "com.amazonaws.eventbridge#ConnectionHttpParameters", Type: smithy.TypeStructure}
 
 var memberConnectionHttpParameters_HeaderParameters = smithy.Member{Name: "HeaderParameters", Index: 0, Target: &schemaConnectionHeaderParametersList}
 
@@ -247,13 +247,13 @@ var memberConnectionHttpParameters_BodyParameters = smithy.Member{Name: "BodyPar
 
 var schemaConnectionName = smithy.Schema{ID: "com.amazonaws.eventbridge#ConnectionName", Type: smithy.TypeString}
 
-var schemaConnectionOAuthClientResponseParameters = smithy.Schema{ID: "com.amazonaws.eventbridge#ConnectionOAuthClientResponseParameters", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberConnectionOAuthClientResponseParameters_ClientID}}
+var schemaConnectionOAuthClientResponseParameters = smithy.Schema{ID: "com.amazonaws.eventbridge#ConnectionOAuthClientResponseParameters", Type: smithy.TypeStructure}
 
 var memberConnectionOAuthClientResponseParameters_ClientID = smithy.Member{Name: "ClientID", Index: 0, Target: &schemaAuthHeaderParameters}
 
 var schemaConnectionOAuthHttpMethod = smithy.Schema{ID: "com.amazonaws.eventbridge#ConnectionOAuthHttpMethod", Type: smithy.TypeEnum}
 
-var schemaConnectionOAuthResponseParameters = smithy.Schema{ID: "com.amazonaws.eventbridge#ConnectionOAuthResponseParameters", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberConnectionOAuthResponseParameters_ClientParameters, &memberConnectionOAuthResponseParameters_AuthorizationEndpoint, &memberConnectionOAuthResponseParameters_HttpMethod, &memberConnectionOAuthResponseParameters_OAuthHttpParameters}}
+var schemaConnectionOAuthResponseParameters = smithy.Schema{ID: "com.amazonaws.eventbridge#ConnectionOAuthResponseParameters", Type: smithy.TypeStructure}
 
 var memberConnectionOAuthResponseParameters_ClientParameters = smithy.Member{Name: "ClientParameters", Index: 0, Target: &schemaConnectionOAuthClientResponseParameters}
 
@@ -263,7 +263,7 @@ var memberConnectionOAuthResponseParameters_HttpMethod = smithy.Member{Name: "Ht
 
 var memberConnectionOAuthResponseParameters_OAuthHttpParameters = smithy.Member{Name: "OAuthHttpParameters", Index: 3, Target: &schemaConnectionHttpParameters}
 
-var schemaConnectionQueryStringParameter = smithy.Schema{ID: "com.amazonaws.eventbridge#ConnectionQueryStringParameter", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberConnectionQueryStringParameter_Key, &memberConnectionQueryStringParameter_Value, &memberConnectionQueryStringParameter_IsValueSecret}}
+var schemaConnectionQueryStringParameter = smithy.Schema{ID: "com.amazonaws.eventbridge#ConnectionQueryStringParameter", Type: smithy.TypeStructure}
 
 var memberConnectionQueryStringParameter_Key = smithy.Member{Name: "Key", Index: 0, Target: &schemaQueryStringKey}
 
@@ -271,11 +271,11 @@ var memberConnectionQueryStringParameter_Value = smithy.Member{Name: "Value", In
 
 var memberConnectionQueryStringParameter_IsValueSecret = smithy.Member{Name: "IsValueSecret", Index: 2, Target: &schemaBoolean, Default: document.Bool(false)}
 
-var schemaConnectionQueryStringParametersList = smithy.Schema{ID: "com.amazonaws.eventbridge#ConnectionQueryStringParametersList", Type: smithy.TypeList, Members: []*smithy.Member{&memberConnectionQueryStringParametersList_member}}
+var schemaConnectionQueryStringParametersList = smithy.Schema{ID: "com.amazonaws.eventbridge#ConnectionQueryStringParametersList", Type: smithy.TypeList}
 
 var memberConnectionQueryStringParametersList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaConnectionQueryStringParameter}
 
-var schemaConnectionResponseList = smithy.Schema{ID: "com.amazonaws.eventbridge#ConnectionResponseList", Type: smithy.TypeList, Members: []*smithy.Member{&memberConnectionResponseList_member}}
+var schemaConnectionResponseList = smithy.Schema{ID: "com.amazonaws.eventbridge#ConnectionResponseList", Type: smithy.TypeList}
 
 var memberConnectionResponseList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaConnection}
 
@@ -283,11 +283,11 @@ var schemaConnectionState = smithy.Schema{ID: "com.amazonaws.eventbridge#Connect
 
 var schemaConnectionStateReason = smithy.Schema{ID: "com.amazonaws.eventbridge#ConnectionStateReason", Type: smithy.TypeString}
 
-var schemaConnectivityResourceConfigurationArn = smithy.Schema{ID: "com.amazonaws.eventbridge#ConnectivityResourceConfigurationArn", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberConnectivityResourceConfigurationArn_ResourceConfigurationArn}}
+var schemaConnectivityResourceConfigurationArn = smithy.Schema{ID: "com.amazonaws.eventbridge#ConnectivityResourceConfigurationArn", Type: smithy.TypeStructure}
 
 var memberConnectivityResourceConfigurationArn_ResourceConfigurationArn = smithy.Member{Name: "ResourceConfigurationArn", Index: 0, Target: &schemaResourceConfigurationArn, Required: true}
 
-var schemaConnectivityResourceParameters = smithy.Schema{ID: "com.amazonaws.eventbridge#ConnectivityResourceParameters", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberConnectivityResourceParameters_ResourceParameters}}
+var schemaConnectivityResourceParameters = smithy.Schema{ID: "com.amazonaws.eventbridge#ConnectivityResourceParameters", Type: smithy.TypeStructure}
 
 var memberConnectivityResourceParameters_ResourceParameters = smithy.Member{Name: "ResourceParameters", Index: 0, Target: &schemaConnectivityResourceConfigurationArn, Required: true}
 
@@ -299,7 +299,7 @@ var schemaCoralServiceThrottlingException = smithy.Schema{ID: "com.amazon.coral.
 
 var memberCoralServiceThrottlingException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaCreateApiDestinationInput = smithy.Schema{ID: "com.amazonaws.eventbridge#CreateApiDestinationRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateApiDestinationInput_Name, &memberCreateApiDestinationInput_Description, &memberCreateApiDestinationInput_ConnectionArn, &memberCreateApiDestinationInput_InvocationEndpoint, &memberCreateApiDestinationInput_HttpMethod, &memberCreateApiDestinationInput_InvocationRateLimitPerSecond}}
+var schemaCreateApiDestinationInput = smithy.Schema{ID: "com.amazonaws.eventbridge#CreateApiDestinationRequest", Type: smithy.TypeStructure}
 
 var memberCreateApiDestinationInput_Name = smithy.Member{Name: "Name", Index: 0, Target: &schemaApiDestinationName, Required: true}
 
@@ -313,7 +313,7 @@ var memberCreateApiDestinationInput_HttpMethod = smithy.Member{Name: "HttpMethod
 
 var memberCreateApiDestinationInput_InvocationRateLimitPerSecond = smithy.Member{Name: "InvocationRateLimitPerSecond", Index: 5, Target: &schemaApiDestinationInvocationRateLimitPerSecond}
 
-var schemaCreateApiDestinationOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#CreateApiDestinationResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateApiDestinationOutput_ApiDestinationArn, &memberCreateApiDestinationOutput_ApiDestinationState, &memberCreateApiDestinationOutput_CreationTime, &memberCreateApiDestinationOutput_LastModifiedTime}}
+var schemaCreateApiDestinationOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#CreateApiDestinationResponse", Type: smithy.TypeStructure}
 
 var memberCreateApiDestinationOutput_ApiDestinationArn = smithy.Member{Name: "ApiDestinationArn", Index: 0, Target: &schemaApiDestinationArn}
 
@@ -323,7 +323,7 @@ var memberCreateApiDestinationOutput_CreationTime = smithy.Member{Name: "Creatio
 
 var memberCreateApiDestinationOutput_LastModifiedTime = smithy.Member{Name: "LastModifiedTime", Index: 3, Target: &schemaTimestamp}
 
-var schemaCreateArchiveInput = smithy.Schema{ID: "com.amazonaws.eventbridge#CreateArchiveRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateArchiveInput_ArchiveName, &memberCreateArchiveInput_EventSourceArn, &memberCreateArchiveInput_Description, &memberCreateArchiveInput_EventPattern, &memberCreateArchiveInput_RetentionDays, &memberCreateArchiveInput_KmsKeyIdentifier}}
+var schemaCreateArchiveInput = smithy.Schema{ID: "com.amazonaws.eventbridge#CreateArchiveRequest", Type: smithy.TypeStructure}
 
 var memberCreateArchiveInput_ArchiveName = smithy.Member{Name: "ArchiveName", Index: 0, Target: &schemaArchiveName, Required: true}
 
@@ -337,7 +337,7 @@ var memberCreateArchiveInput_RetentionDays = smithy.Member{Name: "RetentionDays"
 
 var memberCreateArchiveInput_KmsKeyIdentifier = smithy.Member{Name: "KmsKeyIdentifier", Index: 5, Target: &schemaKmsKeyIdentifier}
 
-var schemaCreateArchiveOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#CreateArchiveResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateArchiveOutput_ArchiveArn, &memberCreateArchiveOutput_State, &memberCreateArchiveOutput_StateReason, &memberCreateArchiveOutput_CreationTime}}
+var schemaCreateArchiveOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#CreateArchiveResponse", Type: smithy.TypeStructure}
 
 var memberCreateArchiveOutput_ArchiveArn = smithy.Member{Name: "ArchiveArn", Index: 0, Target: &schemaArchiveArn}
 
@@ -347,13 +347,13 @@ var memberCreateArchiveOutput_StateReason = smithy.Member{Name: "StateReason", I
 
 var memberCreateArchiveOutput_CreationTime = smithy.Member{Name: "CreationTime", Index: 3, Target: &schemaTimestamp}
 
-var schemaCreateConnectionApiKeyAuthRequestParameters = smithy.Schema{ID: "com.amazonaws.eventbridge#CreateConnectionApiKeyAuthRequestParameters", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateConnectionApiKeyAuthRequestParameters_ApiKeyName, &memberCreateConnectionApiKeyAuthRequestParameters_ApiKeyValue}}
+var schemaCreateConnectionApiKeyAuthRequestParameters = smithy.Schema{ID: "com.amazonaws.eventbridge#CreateConnectionApiKeyAuthRequestParameters", Type: smithy.TypeStructure}
 
 var memberCreateConnectionApiKeyAuthRequestParameters_ApiKeyName = smithy.Member{Name: "ApiKeyName", Index: 0, Target: &schemaAuthHeaderParameters, Required: true}
 
 var memberCreateConnectionApiKeyAuthRequestParameters_ApiKeyValue = smithy.Member{Name: "ApiKeyValue", Index: 1, Target: &schemaAuthHeaderParametersSensitive, Required: true, Sensitive: true}
 
-var schemaCreateConnectionAuthRequestParameters = smithy.Schema{ID: "com.amazonaws.eventbridge#CreateConnectionAuthRequestParameters", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateConnectionAuthRequestParameters_BasicAuthParameters, &memberCreateConnectionAuthRequestParameters_OAuthParameters, &memberCreateConnectionAuthRequestParameters_ApiKeyAuthParameters, &memberCreateConnectionAuthRequestParameters_InvocationHttpParameters, &memberCreateConnectionAuthRequestParameters_ConnectivityParameters}}
+var schemaCreateConnectionAuthRequestParameters = smithy.Schema{ID: "com.amazonaws.eventbridge#CreateConnectionAuthRequestParameters", Type: smithy.TypeStructure}
 
 var memberCreateConnectionAuthRequestParameters_BasicAuthParameters = smithy.Member{Name: "BasicAuthParameters", Index: 0, Target: &schemaCreateConnectionBasicAuthRequestParameters}
 
@@ -365,13 +365,13 @@ var memberCreateConnectionAuthRequestParameters_InvocationHttpParameters = smith
 
 var memberCreateConnectionAuthRequestParameters_ConnectivityParameters = smithy.Member{Name: "ConnectivityParameters", Index: 4, Target: &schemaConnectivityResourceParameters}
 
-var schemaCreateConnectionBasicAuthRequestParameters = smithy.Schema{ID: "com.amazonaws.eventbridge#CreateConnectionBasicAuthRequestParameters", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateConnectionBasicAuthRequestParameters_Username, &memberCreateConnectionBasicAuthRequestParameters_Password}}
+var schemaCreateConnectionBasicAuthRequestParameters = smithy.Schema{ID: "com.amazonaws.eventbridge#CreateConnectionBasicAuthRequestParameters", Type: smithy.TypeStructure}
 
 var memberCreateConnectionBasicAuthRequestParameters_Username = smithy.Member{Name: "Username", Index: 0, Target: &schemaAuthHeaderParameters, Required: true}
 
 var memberCreateConnectionBasicAuthRequestParameters_Password = smithy.Member{Name: "Password", Index: 1, Target: &schemaAuthHeaderParametersSensitive, Required: true, Sensitive: true}
 
-var schemaCreateConnectionInput = smithy.Schema{ID: "com.amazonaws.eventbridge#CreateConnectionRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateConnectionInput_Name, &memberCreateConnectionInput_Description, &memberCreateConnectionInput_AuthorizationType, &memberCreateConnectionInput_AuthParameters, &memberCreateConnectionInput_InvocationConnectivityParameters, &memberCreateConnectionInput_KmsKeyIdentifier}}
+var schemaCreateConnectionInput = smithy.Schema{ID: "com.amazonaws.eventbridge#CreateConnectionRequest", Type: smithy.TypeStructure}
 
 var memberCreateConnectionInput_Name = smithy.Member{Name: "Name", Index: 0, Target: &schemaConnectionName, Required: true}
 
@@ -385,13 +385,13 @@ var memberCreateConnectionInput_InvocationConnectivityParameters = smithy.Member
 
 var memberCreateConnectionInput_KmsKeyIdentifier = smithy.Member{Name: "KmsKeyIdentifier", Index: 5, Target: &schemaKmsKeyIdentifier}
 
-var schemaCreateConnectionOAuthClientRequestParameters = smithy.Schema{ID: "com.amazonaws.eventbridge#CreateConnectionOAuthClientRequestParameters", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateConnectionOAuthClientRequestParameters_ClientID, &memberCreateConnectionOAuthClientRequestParameters_ClientSecret}}
+var schemaCreateConnectionOAuthClientRequestParameters = smithy.Schema{ID: "com.amazonaws.eventbridge#CreateConnectionOAuthClientRequestParameters", Type: smithy.TypeStructure}
 
 var memberCreateConnectionOAuthClientRequestParameters_ClientID = smithy.Member{Name: "ClientID", Index: 0, Target: &schemaAuthHeaderParameters, Required: true}
 
 var memberCreateConnectionOAuthClientRequestParameters_ClientSecret = smithy.Member{Name: "ClientSecret", Index: 1, Target: &schemaAuthHeaderParametersSensitive, Required: true, Sensitive: true}
 
-var schemaCreateConnectionOAuthRequestParameters = smithy.Schema{ID: "com.amazonaws.eventbridge#CreateConnectionOAuthRequestParameters", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateConnectionOAuthRequestParameters_ClientParameters, &memberCreateConnectionOAuthRequestParameters_AuthorizationEndpoint, &memberCreateConnectionOAuthRequestParameters_HttpMethod, &memberCreateConnectionOAuthRequestParameters_OAuthHttpParameters}}
+var schemaCreateConnectionOAuthRequestParameters = smithy.Schema{ID: "com.amazonaws.eventbridge#CreateConnectionOAuthRequestParameters", Type: smithy.TypeStructure}
 
 var memberCreateConnectionOAuthRequestParameters_ClientParameters = smithy.Member{Name: "ClientParameters", Index: 0, Target: &schemaCreateConnectionOAuthClientRequestParameters, Required: true}
 
@@ -401,7 +401,7 @@ var memberCreateConnectionOAuthRequestParameters_HttpMethod = smithy.Member{Name
 
 var memberCreateConnectionOAuthRequestParameters_OAuthHttpParameters = smithy.Member{Name: "OAuthHttpParameters", Index: 3, Target: &schemaConnectionHttpParameters}
 
-var schemaCreateConnectionOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#CreateConnectionResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateConnectionOutput_ConnectionArn, &memberCreateConnectionOutput_ConnectionState, &memberCreateConnectionOutput_CreationTime, &memberCreateConnectionOutput_LastModifiedTime}}
+var schemaCreateConnectionOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#CreateConnectionResponse", Type: smithy.TypeStructure}
 
 var memberCreateConnectionOutput_ConnectionArn = smithy.Member{Name: "ConnectionArn", Index: 0, Target: &schemaConnectionArn}
 
@@ -411,7 +411,7 @@ var memberCreateConnectionOutput_CreationTime = smithy.Member{Name: "CreationTim
 
 var memberCreateConnectionOutput_LastModifiedTime = smithy.Member{Name: "LastModifiedTime", Index: 3, Target: &schemaTimestamp}
 
-var schemaCreateEndpointInput = smithy.Schema{ID: "com.amazonaws.eventbridge#CreateEndpointRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateEndpointInput_Name, &memberCreateEndpointInput_Description, &memberCreateEndpointInput_RoutingConfig, &memberCreateEndpointInput_ReplicationConfig, &memberCreateEndpointInput_EventBuses, &memberCreateEndpointInput_RoleArn}}
+var schemaCreateEndpointInput = smithy.Schema{ID: "com.amazonaws.eventbridge#CreateEndpointRequest", Type: smithy.TypeStructure}
 
 var memberCreateEndpointInput_Name = smithy.Member{Name: "Name", Index: 0, Target: &schemaEndpointName, Required: true}
 
@@ -425,7 +425,7 @@ var memberCreateEndpointInput_EventBuses = smithy.Member{Name: "EventBuses", Ind
 
 var memberCreateEndpointInput_RoleArn = smithy.Member{Name: "RoleArn", Index: 5, Target: &schemaIamRoleArn}
 
-var schemaCreateEndpointOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#CreateEndpointResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateEndpointOutput_Name, &memberCreateEndpointOutput_Arn, &memberCreateEndpointOutput_RoutingConfig, &memberCreateEndpointOutput_ReplicationConfig, &memberCreateEndpointOutput_EventBuses, &memberCreateEndpointOutput_RoleArn, &memberCreateEndpointOutput_State}}
+var schemaCreateEndpointOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#CreateEndpointResponse", Type: smithy.TypeStructure}
 
 var memberCreateEndpointOutput_Name = smithy.Member{Name: "Name", Index: 0, Target: &schemaEndpointName}
 
@@ -469,13 +469,13 @@ var memberCreateEventBusOutput_DeadLetterConfig = smithy.Member{Name: "DeadLette
 
 var memberCreateEventBusOutput_LogConfig = smithy.Member{Name: "LogConfig", Index: 4, Target: &schemaLogConfig}
 
-var schemaCreatePartnerEventSourceInput = smithy.Schema{ID: "com.amazonaws.eventbridge#CreatePartnerEventSourceRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreatePartnerEventSourceInput_Name, &memberCreatePartnerEventSourceInput_Account}}
+var schemaCreatePartnerEventSourceInput = smithy.Schema{ID: "com.amazonaws.eventbridge#CreatePartnerEventSourceRequest", Type: smithy.TypeStructure}
 
 var memberCreatePartnerEventSourceInput_Name = smithy.Member{Name: "Name", Index: 0, Target: &schemaEventSourceName, Required: true}
 
 var memberCreatePartnerEventSourceInput_Account = smithy.Member{Name: "Account", Index: 1, Target: &schemaAccountId, Required: true}
 
-var schemaCreatePartnerEventSourceOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#CreatePartnerEventSourceResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreatePartnerEventSourceOutput_EventSourceArn}}
+var schemaCreatePartnerEventSourceOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#CreatePartnerEventSourceResponse", Type: smithy.TypeStructure}
 
 var memberCreatePartnerEventSourceOutput_EventSourceArn = smithy.Member{Name: "EventSourceArn", Index: 0, Target: &schemaString}
 
@@ -485,7 +485,7 @@ var schemaDatabase = smithy.Schema{ID: "com.amazonaws.eventbridge#Database", Typ
 
 var schemaDbUser = smithy.Schema{ID: "com.amazonaws.eventbridge#DbUser", Type: smithy.TypeString}
 
-var schemaDeactivateEventSourceInput = smithy.Schema{ID: "com.amazonaws.eventbridge#DeactivateEventSourceRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeactivateEventSourceInput_Name}}
+var schemaDeactivateEventSourceInput = smithy.Schema{ID: "com.amazonaws.eventbridge#DeactivateEventSourceRequest", Type: smithy.TypeStructure}
 
 var memberDeactivateEventSourceInput_Name = smithy.Member{Name: "Name", Index: 0, Target: &schemaEventSourceName, Required: true}
 
@@ -493,11 +493,11 @@ var schemaDeadLetterConfig = smithy.Schema{ID: "com.amazonaws.eventbridge#DeadLe
 
 var memberDeadLetterConfig_Arn = smithy.Member{Name: "Arn", Index: 0, Target: &schemaResourceArn}
 
-var schemaDeauthorizeConnectionInput = smithy.Schema{ID: "com.amazonaws.eventbridge#DeauthorizeConnectionRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeauthorizeConnectionInput_Name}}
+var schemaDeauthorizeConnectionInput = smithy.Schema{ID: "com.amazonaws.eventbridge#DeauthorizeConnectionRequest", Type: smithy.TypeStructure}
 
 var memberDeauthorizeConnectionInput_Name = smithy.Member{Name: "Name", Index: 0, Target: &schemaConnectionName, Required: true}
 
-var schemaDeauthorizeConnectionOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#DeauthorizeConnectionResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeauthorizeConnectionOutput_ConnectionArn, &memberDeauthorizeConnectionOutput_ConnectionState, &memberDeauthorizeConnectionOutput_CreationTime, &memberDeauthorizeConnectionOutput_LastModifiedTime, &memberDeauthorizeConnectionOutput_LastAuthorizedTime}}
+var schemaDeauthorizeConnectionOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#DeauthorizeConnectionResponse", Type: smithy.TypeStructure}
 
 var memberDeauthorizeConnectionOutput_ConnectionArn = smithy.Member{Name: "ConnectionArn", Index: 0, Target: &schemaConnectionArn}
 
@@ -509,23 +509,23 @@ var memberDeauthorizeConnectionOutput_LastModifiedTime = smithy.Member{Name: "La
 
 var memberDeauthorizeConnectionOutput_LastAuthorizedTime = smithy.Member{Name: "LastAuthorizedTime", Index: 4, Target: &schemaTimestamp}
 
-var schemaDeleteApiDestinationInput = smithy.Schema{ID: "com.amazonaws.eventbridge#DeleteApiDestinationRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteApiDestinationInput_Name}}
+var schemaDeleteApiDestinationInput = smithy.Schema{ID: "com.amazonaws.eventbridge#DeleteApiDestinationRequest", Type: smithy.TypeStructure}
 
 var memberDeleteApiDestinationInput_Name = smithy.Member{Name: "Name", Index: 0, Target: &schemaApiDestinationName, Required: true}
 
 var schemaDeleteApiDestinationOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#DeleteApiDestinationResponse", Type: smithy.TypeStructure}
 
-var schemaDeleteArchiveInput = smithy.Schema{ID: "com.amazonaws.eventbridge#DeleteArchiveRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteArchiveInput_ArchiveName}}
+var schemaDeleteArchiveInput = smithy.Schema{ID: "com.amazonaws.eventbridge#DeleteArchiveRequest", Type: smithy.TypeStructure}
 
 var memberDeleteArchiveInput_ArchiveName = smithy.Member{Name: "ArchiveName", Index: 0, Target: &schemaArchiveName, Required: true}
 
 var schemaDeleteArchiveOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#DeleteArchiveResponse", Type: smithy.TypeStructure}
 
-var schemaDeleteConnectionInput = smithy.Schema{ID: "com.amazonaws.eventbridge#DeleteConnectionRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteConnectionInput_Name}}
+var schemaDeleteConnectionInput = smithy.Schema{ID: "com.amazonaws.eventbridge#DeleteConnectionRequest", Type: smithy.TypeStructure}
 
 var memberDeleteConnectionInput_Name = smithy.Member{Name: "Name", Index: 0, Target: &schemaConnectionName, Required: true}
 
-var schemaDeleteConnectionOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#DeleteConnectionResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteConnectionOutput_ConnectionArn, &memberDeleteConnectionOutput_ConnectionState, &memberDeleteConnectionOutput_CreationTime, &memberDeleteConnectionOutput_LastModifiedTime, &memberDeleteConnectionOutput_LastAuthorizedTime}}
+var schemaDeleteConnectionOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#DeleteConnectionResponse", Type: smithy.TypeStructure}
 
 var memberDeleteConnectionOutput_ConnectionArn = smithy.Member{Name: "ConnectionArn", Index: 0, Target: &schemaConnectionArn}
 
@@ -537,7 +537,7 @@ var memberDeleteConnectionOutput_LastModifiedTime = smithy.Member{Name: "LastMod
 
 var memberDeleteConnectionOutput_LastAuthorizedTime = smithy.Member{Name: "LastAuthorizedTime", Index: 4, Target: &schemaTimestamp}
 
-var schemaDeleteEndpointInput = smithy.Schema{ID: "com.amazonaws.eventbridge#DeleteEndpointRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteEndpointInput_Name}}
+var schemaDeleteEndpointInput = smithy.Schema{ID: "com.amazonaws.eventbridge#DeleteEndpointRequest", Type: smithy.TypeStructure}
 
 var memberDeleteEndpointInput_Name = smithy.Member{Name: "Name", Index: 0, Target: &schemaEndpointName, Required: true}
 
@@ -547,7 +547,7 @@ var schemaDeleteEventBusInput = smithy.Schema{ID: "com.amazonaws.eventbridge#Del
 
 var memberDeleteEventBusInput_Name = smithy.Member{Name: "Name", Index: 0, Target: &schemaEventBusName, Required: true}
 
-var schemaDeletePartnerEventSourceInput = smithy.Schema{ID: "com.amazonaws.eventbridge#DeletePartnerEventSourceRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeletePartnerEventSourceInput_Name, &memberDeletePartnerEventSourceInput_Account}}
+var schemaDeletePartnerEventSourceInput = smithy.Schema{ID: "com.amazonaws.eventbridge#DeletePartnerEventSourceRequest", Type: smithy.TypeStructure}
 
 var memberDeletePartnerEventSourceInput_Name = smithy.Member{Name: "Name", Index: 0, Target: &schemaEventSourceName, Required: true}
 
@@ -561,11 +561,11 @@ var memberDeleteRuleInput_EventBusName = smithy.Member{Name: "EventBusName", Ind
 
 var memberDeleteRuleInput_Force = smithy.Member{Name: "Force", Index: 2, Target: &schemaBoolean, Default: document.Bool(false)}
 
-var schemaDescribeApiDestinationInput = smithy.Schema{ID: "com.amazonaws.eventbridge#DescribeApiDestinationRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeApiDestinationInput_Name}}
+var schemaDescribeApiDestinationInput = smithy.Schema{ID: "com.amazonaws.eventbridge#DescribeApiDestinationRequest", Type: smithy.TypeStructure}
 
 var memberDescribeApiDestinationInput_Name = smithy.Member{Name: "Name", Index: 0, Target: &schemaApiDestinationName, Required: true}
 
-var schemaDescribeApiDestinationOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#DescribeApiDestinationResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeApiDestinationOutput_ApiDestinationArn, &memberDescribeApiDestinationOutput_Name, &memberDescribeApiDestinationOutput_Description, &memberDescribeApiDestinationOutput_ApiDestinationState, &memberDescribeApiDestinationOutput_ConnectionArn, &memberDescribeApiDestinationOutput_InvocationEndpoint, &memberDescribeApiDestinationOutput_HttpMethod, &memberDescribeApiDestinationOutput_InvocationRateLimitPerSecond, &memberDescribeApiDestinationOutput_CreationTime, &memberDescribeApiDestinationOutput_LastModifiedTime}}
+var schemaDescribeApiDestinationOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#DescribeApiDestinationResponse", Type: smithy.TypeStructure}
 
 var memberDescribeApiDestinationOutput_ApiDestinationArn = smithy.Member{Name: "ApiDestinationArn", Index: 0, Target: &schemaApiDestinationArn}
 
@@ -587,11 +587,11 @@ var memberDescribeApiDestinationOutput_CreationTime = smithy.Member{Name: "Creat
 
 var memberDescribeApiDestinationOutput_LastModifiedTime = smithy.Member{Name: "LastModifiedTime", Index: 9, Target: &schemaTimestamp}
 
-var schemaDescribeArchiveInput = smithy.Schema{ID: "com.amazonaws.eventbridge#DescribeArchiveRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeArchiveInput_ArchiveName}}
+var schemaDescribeArchiveInput = smithy.Schema{ID: "com.amazonaws.eventbridge#DescribeArchiveRequest", Type: smithy.TypeStructure}
 
 var memberDescribeArchiveInput_ArchiveName = smithy.Member{Name: "ArchiveName", Index: 0, Target: &schemaArchiveName, Required: true}
 
-var schemaDescribeArchiveOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#DescribeArchiveResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeArchiveOutput_ArchiveArn, &memberDescribeArchiveOutput_ArchiveName, &memberDescribeArchiveOutput_EventSourceArn, &memberDescribeArchiveOutput_Description, &memberDescribeArchiveOutput_EventPattern, &memberDescribeArchiveOutput_State, &memberDescribeArchiveOutput_StateReason, &memberDescribeArchiveOutput_KmsKeyIdentifier, &memberDescribeArchiveOutput_RetentionDays, &memberDescribeArchiveOutput_SizeBytes, &memberDescribeArchiveOutput_EventCount, &memberDescribeArchiveOutput_CreationTime}}
+var schemaDescribeArchiveOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#DescribeArchiveResponse", Type: smithy.TypeStructure}
 
 var memberDescribeArchiveOutput_ArchiveArn = smithy.Member{Name: "ArchiveArn", Index: 0, Target: &schemaArchiveArn}
 
@@ -617,15 +617,15 @@ var memberDescribeArchiveOutput_EventCount = smithy.Member{Name: "EventCount", I
 
 var memberDescribeArchiveOutput_CreationTime = smithy.Member{Name: "CreationTime", Index: 11, Target: &schemaTimestamp}
 
-var schemaDescribeConnectionConnectivityParameters = smithy.Schema{ID: "com.amazonaws.eventbridge#DescribeConnectionConnectivityParameters", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeConnectionConnectivityParameters_ResourceParameters}}
+var schemaDescribeConnectionConnectivityParameters = smithy.Schema{ID: "com.amazonaws.eventbridge#DescribeConnectionConnectivityParameters", Type: smithy.TypeStructure}
 
 var memberDescribeConnectionConnectivityParameters_ResourceParameters = smithy.Member{Name: "ResourceParameters", Index: 0, Target: &schemaDescribeConnectionResourceParameters, Required: true}
 
-var schemaDescribeConnectionInput = smithy.Schema{ID: "com.amazonaws.eventbridge#DescribeConnectionRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeConnectionInput_Name}}
+var schemaDescribeConnectionInput = smithy.Schema{ID: "com.amazonaws.eventbridge#DescribeConnectionRequest", Type: smithy.TypeStructure}
 
 var memberDescribeConnectionInput_Name = smithy.Member{Name: "Name", Index: 0, Target: &schemaConnectionName, Required: true}
 
-var schemaDescribeConnectionOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#DescribeConnectionResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeConnectionOutput_ConnectionArn, &memberDescribeConnectionOutput_Name, &memberDescribeConnectionOutput_Description, &memberDescribeConnectionOutput_InvocationConnectivityParameters, &memberDescribeConnectionOutput_ConnectionState, &memberDescribeConnectionOutput_StateReason, &memberDescribeConnectionOutput_AuthorizationType, &memberDescribeConnectionOutput_SecretArn, &memberDescribeConnectionOutput_KmsKeyIdentifier, &memberDescribeConnectionOutput_AuthParameters, &memberDescribeConnectionOutput_CreationTime, &memberDescribeConnectionOutput_LastModifiedTime, &memberDescribeConnectionOutput_LastAuthorizedTime}}
+var schemaDescribeConnectionOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#DescribeConnectionResponse", Type: smithy.TypeStructure}
 
 var memberDescribeConnectionOutput_ConnectionArn = smithy.Member{Name: "ConnectionArn", Index: 0, Target: &schemaConnectionArn}
 
@@ -653,19 +653,19 @@ var memberDescribeConnectionOutput_LastModifiedTime = smithy.Member{Name: "LastM
 
 var memberDescribeConnectionOutput_LastAuthorizedTime = smithy.Member{Name: "LastAuthorizedTime", Index: 12, Target: &schemaTimestamp}
 
-var schemaDescribeConnectionResourceParameters = smithy.Schema{ID: "com.amazonaws.eventbridge#DescribeConnectionResourceParameters", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeConnectionResourceParameters_ResourceConfigurationArn, &memberDescribeConnectionResourceParameters_ResourceAssociationArn}}
+var schemaDescribeConnectionResourceParameters = smithy.Schema{ID: "com.amazonaws.eventbridge#DescribeConnectionResourceParameters", Type: smithy.TypeStructure}
 
 var memberDescribeConnectionResourceParameters_ResourceConfigurationArn = smithy.Member{Name: "ResourceConfigurationArn", Index: 0, Target: &schemaResourceConfigurationArn, Required: true}
 
 var memberDescribeConnectionResourceParameters_ResourceAssociationArn = smithy.Member{Name: "ResourceAssociationArn", Index: 1, Target: &schemaResourceAssociationArn, Required: true}
 
-var schemaDescribeEndpointInput = smithy.Schema{ID: "com.amazonaws.eventbridge#DescribeEndpointRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeEndpointInput_Name, &memberDescribeEndpointInput_HomeRegion}}
+var schemaDescribeEndpointInput = smithy.Schema{ID: "com.amazonaws.eventbridge#DescribeEndpointRequest", Type: smithy.TypeStructure}
 
 var memberDescribeEndpointInput_Name = smithy.Member{Name: "Name", Index: 0, Target: &schemaEndpointName, Required: true}
 
 var memberDescribeEndpointInput_HomeRegion = smithy.Member{Name: "HomeRegion", Index: 1, Target: &schemaHomeRegion}
 
-var schemaDescribeEndpointOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#DescribeEndpointResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeEndpointOutput_Name, &memberDescribeEndpointOutput_Description, &memberDescribeEndpointOutput_Arn, &memberDescribeEndpointOutput_RoutingConfig, &memberDescribeEndpointOutput_ReplicationConfig, &memberDescribeEndpointOutput_EventBuses, &memberDescribeEndpointOutput_RoleArn, &memberDescribeEndpointOutput_EndpointId, &memberDescribeEndpointOutput_EndpointUrl, &memberDescribeEndpointOutput_State, &memberDescribeEndpointOutput_StateReason, &memberDescribeEndpointOutput_CreationTime, &memberDescribeEndpointOutput_LastModifiedTime}}
+var schemaDescribeEndpointOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#DescribeEndpointResponse", Type: smithy.TypeStructure}
 
 var memberDescribeEndpointOutput_Name = smithy.Member{Name: "Name", Index: 0, Target: &schemaEndpointName}
 
@@ -719,11 +719,11 @@ var memberDescribeEventBusOutput_LastModifiedTime = smithy.Member{Name: "LastMod
 
 var memberDescribeEventBusOutput_ManagedBy = smithy.Member{Name: "ManagedBy", Index: 9, Target: &schemaManagedBy}
 
-var schemaDescribeEventSourceInput = smithy.Schema{ID: "com.amazonaws.eventbridge#DescribeEventSourceRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeEventSourceInput_Name}}
+var schemaDescribeEventSourceInput = smithy.Schema{ID: "com.amazonaws.eventbridge#DescribeEventSourceRequest", Type: smithy.TypeStructure}
 
 var memberDescribeEventSourceInput_Name = smithy.Member{Name: "Name", Index: 0, Target: &schemaEventSourceName, Required: true}
 
-var schemaDescribeEventSourceOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#DescribeEventSourceResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeEventSourceOutput_Arn, &memberDescribeEventSourceOutput_CreatedBy, &memberDescribeEventSourceOutput_CreationTime, &memberDescribeEventSourceOutput_ExpirationTime, &memberDescribeEventSourceOutput_Name, &memberDescribeEventSourceOutput_State}}
+var schemaDescribeEventSourceOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#DescribeEventSourceResponse", Type: smithy.TypeStructure}
 
 var memberDescribeEventSourceOutput_Arn = smithy.Member{Name: "Arn", Index: 0, Target: &schemaString}
 
@@ -737,21 +737,21 @@ var memberDescribeEventSourceOutput_Name = smithy.Member{Name: "Name", Index: 4,
 
 var memberDescribeEventSourceOutput_State = smithy.Member{Name: "State", Index: 5, Target: &schemaEventSourceState}
 
-var schemaDescribePartnerEventSourceInput = smithy.Schema{ID: "com.amazonaws.eventbridge#DescribePartnerEventSourceRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribePartnerEventSourceInput_Name}}
+var schemaDescribePartnerEventSourceInput = smithy.Schema{ID: "com.amazonaws.eventbridge#DescribePartnerEventSourceRequest", Type: smithy.TypeStructure}
 
 var memberDescribePartnerEventSourceInput_Name = smithy.Member{Name: "Name", Index: 0, Target: &schemaEventSourceName, Required: true}
 
-var schemaDescribePartnerEventSourceOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#DescribePartnerEventSourceResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribePartnerEventSourceOutput_Arn, &memberDescribePartnerEventSourceOutput_Name}}
+var schemaDescribePartnerEventSourceOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#DescribePartnerEventSourceResponse", Type: smithy.TypeStructure}
 
 var memberDescribePartnerEventSourceOutput_Arn = smithy.Member{Name: "Arn", Index: 0, Target: &schemaString}
 
 var memberDescribePartnerEventSourceOutput_Name = smithy.Member{Name: "Name", Index: 1, Target: &schemaString}
 
-var schemaDescribeReplayInput = smithy.Schema{ID: "com.amazonaws.eventbridge#DescribeReplayRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeReplayInput_ReplayName}}
+var schemaDescribeReplayInput = smithy.Schema{ID: "com.amazonaws.eventbridge#DescribeReplayRequest", Type: smithy.TypeStructure}
 
 var memberDescribeReplayInput_ReplayName = smithy.Member{Name: "ReplayName", Index: 0, Target: &schemaReplayName, Required: true}
 
-var schemaDescribeReplayOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#DescribeReplayResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeReplayOutput_ReplayName, &memberDescribeReplayOutput_ReplayArn, &memberDescribeReplayOutput_Description, &memberDescribeReplayOutput_State, &memberDescribeReplayOutput_StateReason, &memberDescribeReplayOutput_EventSourceArn, &memberDescribeReplayOutput_Destination, &memberDescribeReplayOutput_EventStartTime, &memberDescribeReplayOutput_EventEndTime, &memberDescribeReplayOutput_EventLastReplayedTime, &memberDescribeReplayOutput_ReplayStartTime, &memberDescribeReplayOutput_ReplayEndTime}}
+var schemaDescribeReplayOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#DescribeReplayResponse", Type: smithy.TypeStructure}
 
 var memberDescribeReplayOutput_ReplayName = smithy.Member{Name: "ReplayName", Index: 0, Target: &schemaReplayName}
 
@@ -847,7 +847,7 @@ var memberEnableRuleInput_Name = smithy.Member{Name: "Name", Index: 0, Target: &
 
 var memberEnableRuleInput_EventBusName = smithy.Member{Name: "EventBusName", Index: 1, Target: &schemaEventBusNameOrArn}
 
-var schemaEndpoint = smithy.Schema{ID: "com.amazonaws.eventbridge#Endpoint", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberEndpoint_Name, &memberEndpoint_Description, &memberEndpoint_Arn, &memberEndpoint_RoutingConfig, &memberEndpoint_ReplicationConfig, &memberEndpoint_EventBuses, &memberEndpoint_RoleArn, &memberEndpoint_EndpointId, &memberEndpoint_EndpointUrl, &memberEndpoint_State, &memberEndpoint_StateReason, &memberEndpoint_CreationTime, &memberEndpoint_LastModifiedTime}}
+var schemaEndpoint = smithy.Schema{ID: "com.amazonaws.eventbridge#Endpoint", Type: smithy.TypeStructure}
 
 var memberEndpoint_Name = smithy.Member{Name: "Name", Index: 0, Target: &schemaEndpointName}
 
@@ -879,17 +879,17 @@ var schemaEndpointArn = smithy.Schema{ID: "com.amazonaws.eventbridge#EndpointArn
 
 var schemaEndpointDescription = smithy.Schema{ID: "com.amazonaws.eventbridge#EndpointDescription", Type: smithy.TypeString}
 
-var schemaEndpointEventBus = smithy.Schema{ID: "com.amazonaws.eventbridge#EndpointEventBus", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberEndpointEventBus_EventBusArn}}
+var schemaEndpointEventBus = smithy.Schema{ID: "com.amazonaws.eventbridge#EndpointEventBus", Type: smithy.TypeStructure}
 
 var memberEndpointEventBus_EventBusArn = smithy.Member{Name: "EventBusArn", Index: 0, Target: &schemaNonPartnerEventBusArn, Required: true}
 
-var schemaEndpointEventBusList = smithy.Schema{ID: "com.amazonaws.eventbridge#EndpointEventBusList", Type: smithy.TypeList, Members: []*smithy.Member{&memberEndpointEventBusList_member}}
+var schemaEndpointEventBusList = smithy.Schema{ID: "com.amazonaws.eventbridge#EndpointEventBusList", Type: smithy.TypeList}
 
 var memberEndpointEventBusList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaEndpointEventBus}
 
 var schemaEndpointId = smithy.Schema{ID: "com.amazonaws.eventbridge#EndpointId", Type: smithy.TypeString}
 
-var schemaEndpointList = smithy.Schema{ID: "com.amazonaws.eventbridge#EndpointList", Type: smithy.TypeList, Members: []*smithy.Member{&memberEndpointList_member}}
+var schemaEndpointList = smithy.Schema{ID: "com.amazonaws.eventbridge#EndpointList", Type: smithy.TypeList}
 
 var memberEndpointList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaEndpoint}
 
@@ -943,7 +943,7 @@ var schemaEventResourceList = smithy.Schema{ID: "com.amazonaws.eventbridge#Event
 
 var memberEventResourceList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaEventResource}
 
-var schemaEventSource = smithy.Schema{ID: "com.amazonaws.eventbridge#EventSource", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberEventSource_Arn, &memberEventSource_CreatedBy, &memberEventSource_CreationTime, &memberEventSource_ExpirationTime, &memberEventSource_Name, &memberEventSource_State}}
+var schemaEventSource = smithy.Schema{ID: "com.amazonaws.eventbridge#EventSource", Type: smithy.TypeStructure}
 
 var memberEventSource_Arn = smithy.Member{Name: "Arn", Index: 0, Target: &schemaString}
 
@@ -957,7 +957,7 @@ var memberEventSource_Name = smithy.Member{Name: "Name", Index: 4, Target: &sche
 
 var memberEventSource_State = smithy.Member{Name: "State", Index: 5, Target: &schemaEventSourceState}
 
-var schemaEventSourceList = smithy.Schema{ID: "com.amazonaws.eventbridge#EventSourceList", Type: smithy.TypeList, Members: []*smithy.Member{&memberEventSourceList_member}}
+var schemaEventSourceList = smithy.Schema{ID: "com.amazonaws.eventbridge#EventSourceList", Type: smithy.TypeList}
 
 var memberEventSourceList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaEventSource}
 
@@ -973,7 +973,7 @@ var schemaExpiredTokenException = smithy.Schema{ID: "com.amazon.coral.service#Ex
 
 var memberExpiredTokenException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaFailoverConfig = smithy.Schema{ID: "com.amazonaws.eventbridge#FailoverConfig", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberFailoverConfig_Primary, &memberFailoverConfig_Secondary}}
+var schemaFailoverConfig = smithy.Schema{ID: "com.amazonaws.eventbridge#FailoverConfig", Type: smithy.TypeStructure}
 
 var memberFailoverConfig_Primary = smithy.Member{Name: "Primary", Index: 0, Target: &schemaPrimary, Required: true}
 
@@ -1067,7 +1067,7 @@ var schemaLimitMax100 = smithy.Schema{ID: "com.amazonaws.eventbridge#LimitMax100
 
 var schemaLimitMin1 = smithy.Schema{ID: "com.amazonaws.eventbridge#LimitMin1", Type: smithy.TypeInteger}
 
-var schemaListApiDestinationsInput = smithy.Schema{ID: "com.amazonaws.eventbridge#ListApiDestinationsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListApiDestinationsInput_NamePrefix, &memberListApiDestinationsInput_ConnectionArn, &memberListApiDestinationsInput_NextToken, &memberListApiDestinationsInput_Limit}}
+var schemaListApiDestinationsInput = smithy.Schema{ID: "com.amazonaws.eventbridge#ListApiDestinationsRequest", Type: smithy.TypeStructure}
 
 var memberListApiDestinationsInput_NamePrefix = smithy.Member{Name: "NamePrefix", Index: 0, Target: &schemaApiDestinationName}
 
@@ -1077,13 +1077,13 @@ var memberListApiDestinationsInput_NextToken = smithy.Member{Name: "NextToken", 
 
 var memberListApiDestinationsInput_Limit = smithy.Member{Name: "Limit", Index: 3, Target: &schemaLimitMax100}
 
-var schemaListApiDestinationsOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#ListApiDestinationsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListApiDestinationsOutput_ApiDestinations, &memberListApiDestinationsOutput_NextToken}}
+var schemaListApiDestinationsOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#ListApiDestinationsResponse", Type: smithy.TypeStructure}
 
 var memberListApiDestinationsOutput_ApiDestinations = smithy.Member{Name: "ApiDestinations", Index: 0, Target: &schemaApiDestinationResponseList}
 
 var memberListApiDestinationsOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schemaNextToken}
 
-var schemaListArchivesInput = smithy.Schema{ID: "com.amazonaws.eventbridge#ListArchivesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListArchivesInput_NamePrefix, &memberListArchivesInput_EventSourceArn, &memberListArchivesInput_State, &memberListArchivesInput_NextToken, &memberListArchivesInput_Limit}}
+var schemaListArchivesInput = smithy.Schema{ID: "com.amazonaws.eventbridge#ListArchivesRequest", Type: smithy.TypeStructure}
 
 var memberListArchivesInput_NamePrefix = smithy.Member{Name: "NamePrefix", Index: 0, Target: &schemaArchiveName}
 
@@ -1095,13 +1095,13 @@ var memberListArchivesInput_NextToken = smithy.Member{Name: "NextToken", Index: 
 
 var memberListArchivesInput_Limit = smithy.Member{Name: "Limit", Index: 4, Target: &schemaLimitMax100}
 
-var schemaListArchivesOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#ListArchivesResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListArchivesOutput_Archives, &memberListArchivesOutput_NextToken}}
+var schemaListArchivesOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#ListArchivesResponse", Type: smithy.TypeStructure}
 
 var memberListArchivesOutput_Archives = smithy.Member{Name: "Archives", Index: 0, Target: &schemaArchiveResponseList}
 
 var memberListArchivesOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schemaNextToken}
 
-var schemaListConnectionsInput = smithy.Schema{ID: "com.amazonaws.eventbridge#ListConnectionsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListConnectionsInput_NamePrefix, &memberListConnectionsInput_ConnectionState, &memberListConnectionsInput_NextToken, &memberListConnectionsInput_Limit}}
+var schemaListConnectionsInput = smithy.Schema{ID: "com.amazonaws.eventbridge#ListConnectionsRequest", Type: smithy.TypeStructure}
 
 var memberListConnectionsInput_NamePrefix = smithy.Member{Name: "NamePrefix", Index: 0, Target: &schemaConnectionName}
 
@@ -1111,13 +1111,13 @@ var memberListConnectionsInput_NextToken = smithy.Member{Name: "NextToken", Inde
 
 var memberListConnectionsInput_Limit = smithy.Member{Name: "Limit", Index: 3, Target: &schemaLimitMax100}
 
-var schemaListConnectionsOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#ListConnectionsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListConnectionsOutput_Connections, &memberListConnectionsOutput_NextToken}}
+var schemaListConnectionsOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#ListConnectionsResponse", Type: smithy.TypeStructure}
 
 var memberListConnectionsOutput_Connections = smithy.Member{Name: "Connections", Index: 0, Target: &schemaConnectionResponseList}
 
 var memberListConnectionsOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schemaNextToken}
 
-var schemaListEndpointsInput = smithy.Schema{ID: "com.amazonaws.eventbridge#ListEndpointsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListEndpointsInput_NamePrefix, &memberListEndpointsInput_HomeRegion, &memberListEndpointsInput_NextToken, &memberListEndpointsInput_MaxResults}}
+var schemaListEndpointsInput = smithy.Schema{ID: "com.amazonaws.eventbridge#ListEndpointsRequest", Type: smithy.TypeStructure}
 
 var memberListEndpointsInput_NamePrefix = smithy.Member{Name: "NamePrefix", Index: 0, Target: &schemaEndpointName}
 
@@ -1127,7 +1127,7 @@ var memberListEndpointsInput_NextToken = smithy.Member{Name: "NextToken", Index:
 
 var memberListEndpointsInput_MaxResults = smithy.Member{Name: "MaxResults", Index: 3, Target: &schemaLimitMax100}
 
-var schemaListEndpointsOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#ListEndpointsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListEndpointsOutput_Endpoints, &memberListEndpointsOutput_NextToken}}
+var schemaListEndpointsOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#ListEndpointsResponse", Type: smithy.TypeStructure}
 
 var memberListEndpointsOutput_Endpoints = smithy.Member{Name: "Endpoints", Index: 0, Target: &schemaEndpointList}
 
@@ -1147,7 +1147,7 @@ var memberListEventBusesOutput_EventBuses = smithy.Member{Name: "EventBuses", In
 
 var memberListEventBusesOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schemaNextToken}
 
-var schemaListEventSourcesInput = smithy.Schema{ID: "com.amazonaws.eventbridge#ListEventSourcesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListEventSourcesInput_NamePrefix, &memberListEventSourcesInput_NextToken, &memberListEventSourcesInput_Limit}}
+var schemaListEventSourcesInput = smithy.Schema{ID: "com.amazonaws.eventbridge#ListEventSourcesRequest", Type: smithy.TypeStructure}
 
 var memberListEventSourcesInput_NamePrefix = smithy.Member{Name: "NamePrefix", Index: 0, Target: &schemaEventSourceNamePrefix}
 
@@ -1155,13 +1155,13 @@ var memberListEventSourcesInput_NextToken = smithy.Member{Name: "NextToken", Ind
 
 var memberListEventSourcesInput_Limit = smithy.Member{Name: "Limit", Index: 2, Target: &schemaLimitMax100}
 
-var schemaListEventSourcesOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#ListEventSourcesResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListEventSourcesOutput_EventSources, &memberListEventSourcesOutput_NextToken}}
+var schemaListEventSourcesOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#ListEventSourcesResponse", Type: smithy.TypeStructure}
 
 var memberListEventSourcesOutput_EventSources = smithy.Member{Name: "EventSources", Index: 0, Target: &schemaEventSourceList}
 
 var memberListEventSourcesOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schemaNextToken}
 
-var schemaListPartnerEventSourceAccountsInput = smithy.Schema{ID: "com.amazonaws.eventbridge#ListPartnerEventSourceAccountsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListPartnerEventSourceAccountsInput_EventSourceName, &memberListPartnerEventSourceAccountsInput_NextToken, &memberListPartnerEventSourceAccountsInput_Limit}}
+var schemaListPartnerEventSourceAccountsInput = smithy.Schema{ID: "com.amazonaws.eventbridge#ListPartnerEventSourceAccountsRequest", Type: smithy.TypeStructure}
 
 var memberListPartnerEventSourceAccountsInput_EventSourceName = smithy.Member{Name: "EventSourceName", Index: 0, Target: &schemaEventSourceName, Required: true}
 
@@ -1169,13 +1169,13 @@ var memberListPartnerEventSourceAccountsInput_NextToken = smithy.Member{Name: "N
 
 var memberListPartnerEventSourceAccountsInput_Limit = smithy.Member{Name: "Limit", Index: 2, Target: &schemaLimitMax100}
 
-var schemaListPartnerEventSourceAccountsOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#ListPartnerEventSourceAccountsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListPartnerEventSourceAccountsOutput_PartnerEventSourceAccounts, &memberListPartnerEventSourceAccountsOutput_NextToken}}
+var schemaListPartnerEventSourceAccountsOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#ListPartnerEventSourceAccountsResponse", Type: smithy.TypeStructure}
 
 var memberListPartnerEventSourceAccountsOutput_PartnerEventSourceAccounts = smithy.Member{Name: "PartnerEventSourceAccounts", Index: 0, Target: &schemaPartnerEventSourceAccountList}
 
 var memberListPartnerEventSourceAccountsOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schemaNextToken}
 
-var schemaListPartnerEventSourcesInput = smithy.Schema{ID: "com.amazonaws.eventbridge#ListPartnerEventSourcesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListPartnerEventSourcesInput_NamePrefix, &memberListPartnerEventSourcesInput_NextToken, &memberListPartnerEventSourcesInput_Limit}}
+var schemaListPartnerEventSourcesInput = smithy.Schema{ID: "com.amazonaws.eventbridge#ListPartnerEventSourcesRequest", Type: smithy.TypeStructure}
 
 var memberListPartnerEventSourcesInput_NamePrefix = smithy.Member{Name: "NamePrefix", Index: 0, Target: &schemaPartnerEventSourceNamePrefix, Required: true}
 
@@ -1183,13 +1183,13 @@ var memberListPartnerEventSourcesInput_NextToken = smithy.Member{Name: "NextToke
 
 var memberListPartnerEventSourcesInput_Limit = smithy.Member{Name: "Limit", Index: 2, Target: &schemaLimitMax100}
 
-var schemaListPartnerEventSourcesOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#ListPartnerEventSourcesResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListPartnerEventSourcesOutput_PartnerEventSources, &memberListPartnerEventSourcesOutput_NextToken}}
+var schemaListPartnerEventSourcesOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#ListPartnerEventSourcesResponse", Type: smithy.TypeStructure}
 
 var memberListPartnerEventSourcesOutput_PartnerEventSources = smithy.Member{Name: "PartnerEventSources", Index: 0, Target: &schemaPartnerEventSourceList}
 
 var memberListPartnerEventSourcesOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schemaNextToken}
 
-var schemaListReplaysInput = smithy.Schema{ID: "com.amazonaws.eventbridge#ListReplaysRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListReplaysInput_NamePrefix, &memberListReplaysInput_State, &memberListReplaysInput_EventSourceArn, &memberListReplaysInput_NextToken, &memberListReplaysInput_Limit}}
+var schemaListReplaysInput = smithy.Schema{ID: "com.amazonaws.eventbridge#ListReplaysRequest", Type: smithy.TypeStructure}
 
 var memberListReplaysInput_NamePrefix = smithy.Member{Name: "NamePrefix", Index: 0, Target: &schemaReplayName}
 
@@ -1201,7 +1201,7 @@ var memberListReplaysInput_NextToken = smithy.Member{Name: "NextToken", Index: 3
 
 var memberListReplaysInput_Limit = smithy.Member{Name: "Limit", Index: 4, Target: &schemaLimitMax100}
 
-var schemaListReplaysOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#ListReplaysResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListReplaysOutput_Replays, &memberListReplaysOutput_NextToken}}
+var schemaListReplaysOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#ListReplaysResponse", Type: smithy.TypeStructure}
 
 var memberListReplaysOutput_Replays = smithy.Member{Name: "Replays", Index: 0, Target: &schemaReplayList}
 
@@ -1307,13 +1307,13 @@ var schemaOperationDisabledException = smithy.Schema{ID: "com.amazonaws.eventbri
 
 var memberOperationDisabledException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaErrorMessage}
 
-var schemaPartnerEventSource = smithy.Schema{ID: "com.amazonaws.eventbridge#PartnerEventSource", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPartnerEventSource_Arn, &memberPartnerEventSource_Name}}
+var schemaPartnerEventSource = smithy.Schema{ID: "com.amazonaws.eventbridge#PartnerEventSource", Type: smithy.TypeStructure}
 
 var memberPartnerEventSource_Arn = smithy.Member{Name: "Arn", Index: 0, Target: &schemaString}
 
 var memberPartnerEventSource_Name = smithy.Member{Name: "Name", Index: 1, Target: &schemaString}
 
-var schemaPartnerEventSourceAccount = smithy.Schema{ID: "com.amazonaws.eventbridge#PartnerEventSourceAccount", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPartnerEventSourceAccount_Account, &memberPartnerEventSourceAccount_CreationTime, &memberPartnerEventSourceAccount_ExpirationTime, &memberPartnerEventSourceAccount_State}}
+var schemaPartnerEventSourceAccount = smithy.Schema{ID: "com.amazonaws.eventbridge#PartnerEventSourceAccount", Type: smithy.TypeStructure}
 
 var memberPartnerEventSourceAccount_Account = smithy.Member{Name: "Account", Index: 0, Target: &schemaAccountId}
 
@@ -1323,11 +1323,11 @@ var memberPartnerEventSourceAccount_ExpirationTime = smithy.Member{Name: "Expira
 
 var memberPartnerEventSourceAccount_State = smithy.Member{Name: "State", Index: 3, Target: &schemaEventSourceState}
 
-var schemaPartnerEventSourceAccountList = smithy.Schema{ID: "com.amazonaws.eventbridge#PartnerEventSourceAccountList", Type: smithy.TypeList, Members: []*smithy.Member{&memberPartnerEventSourceAccountList_member}}
+var schemaPartnerEventSourceAccountList = smithy.Schema{ID: "com.amazonaws.eventbridge#PartnerEventSourceAccountList", Type: smithy.TypeList}
 
 var memberPartnerEventSourceAccountList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaPartnerEventSourceAccount}
 
-var schemaPartnerEventSourceList = smithy.Schema{ID: "com.amazonaws.eventbridge#PartnerEventSourceList", Type: smithy.TypeList, Members: []*smithy.Member{&memberPartnerEventSourceList_member}}
+var schemaPartnerEventSourceList = smithy.Schema{ID: "com.amazonaws.eventbridge#PartnerEventSourceList", Type: smithy.TypeList}
 
 var memberPartnerEventSourceList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaPartnerEventSource}
 
@@ -1371,7 +1371,7 @@ var schemaPolicyLengthExceededException = smithy.Schema{ID: "com.amazonaws.event
 
 var memberPolicyLengthExceededException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaErrorMessage}
 
-var schemaPrimary = smithy.Schema{ID: "com.amazonaws.eventbridge#Primary", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPrimary_HealthCheck}}
+var schemaPrimary = smithy.Schema{ID: "com.amazonaws.eventbridge#Primary", Type: smithy.TypeStructure}
 
 var memberPrimary_HealthCheck = smithy.Member{Name: "HealthCheck", Index: 0, Target: &schemaHealthCheck, Required: true}
 
@@ -1423,17 +1423,17 @@ var schemaPutEventsResultEntryList = smithy.Schema{ID: "com.amazonaws.eventbridg
 
 var memberPutEventsResultEntryList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaPutEventsResultEntry}
 
-var schemaPutPartnerEventsInput = smithy.Schema{ID: "com.amazonaws.eventbridge#PutPartnerEventsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutPartnerEventsInput_Entries}}
+var schemaPutPartnerEventsInput = smithy.Schema{ID: "com.amazonaws.eventbridge#PutPartnerEventsRequest", Type: smithy.TypeStructure}
 
 var memberPutPartnerEventsInput_Entries = smithy.Member{Name: "Entries", Index: 0, Target: &schemaPutPartnerEventsRequestEntryList, Required: true}
 
-var schemaPutPartnerEventsOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#PutPartnerEventsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutPartnerEventsOutput_FailedEntryCount, &memberPutPartnerEventsOutput_Entries}}
+var schemaPutPartnerEventsOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#PutPartnerEventsResponse", Type: smithy.TypeStructure}
 
 var memberPutPartnerEventsOutput_FailedEntryCount = smithy.Member{Name: "FailedEntryCount", Index: 0, Target: &schemaInteger, Default: document.Number("0")}
 
 var memberPutPartnerEventsOutput_Entries = smithy.Member{Name: "Entries", Index: 1, Target: &schemaPutPartnerEventsResultEntryList}
 
-var schemaPutPartnerEventsRequestEntry = smithy.Schema{ID: "com.amazonaws.eventbridge#PutPartnerEventsRequestEntry", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutPartnerEventsRequestEntry_Time, &memberPutPartnerEventsRequestEntry_Source, &memberPutPartnerEventsRequestEntry_Resources, &memberPutPartnerEventsRequestEntry_DetailType, &memberPutPartnerEventsRequestEntry_Detail}}
+var schemaPutPartnerEventsRequestEntry = smithy.Schema{ID: "com.amazonaws.eventbridge#PutPartnerEventsRequestEntry", Type: smithy.TypeStructure}
 
 var memberPutPartnerEventsRequestEntry_Time = smithy.Member{Name: "Time", Index: 0, Target: &schemaEventTime}
 
@@ -1445,11 +1445,11 @@ var memberPutPartnerEventsRequestEntry_DetailType = smithy.Member{Name: "DetailT
 
 var memberPutPartnerEventsRequestEntry_Detail = smithy.Member{Name: "Detail", Index: 4, Target: &schemaString}
 
-var schemaPutPartnerEventsRequestEntryList = smithy.Schema{ID: "com.amazonaws.eventbridge#PutPartnerEventsRequestEntryList", Type: smithy.TypeList, Members: []*smithy.Member{&memberPutPartnerEventsRequestEntryList_member}}
+var schemaPutPartnerEventsRequestEntryList = smithy.Schema{ID: "com.amazonaws.eventbridge#PutPartnerEventsRequestEntryList", Type: smithy.TypeList}
 
 var memberPutPartnerEventsRequestEntryList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaPutPartnerEventsRequestEntry}
 
-var schemaPutPartnerEventsResultEntry = smithy.Schema{ID: "com.amazonaws.eventbridge#PutPartnerEventsResultEntry", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutPartnerEventsResultEntry_EventId, &memberPutPartnerEventsResultEntry_ErrorCode, &memberPutPartnerEventsResultEntry_ErrorMessage}}
+var schemaPutPartnerEventsResultEntry = smithy.Schema{ID: "com.amazonaws.eventbridge#PutPartnerEventsResultEntry", Type: smithy.TypeStructure}
 
 var memberPutPartnerEventsResultEntry_EventId = smithy.Member{Name: "EventId", Index: 0, Target: &schemaEventId}
 
@@ -1457,7 +1457,7 @@ var memberPutPartnerEventsResultEntry_ErrorCode = smithy.Member{Name: "ErrorCode
 
 var memberPutPartnerEventsResultEntry_ErrorMessage = smithy.Member{Name: "ErrorMessage", Index: 2, Target: &schemaErrorMessage}
 
-var schemaPutPartnerEventsResultEntryList = smithy.Schema{ID: "com.amazonaws.eventbridge#PutPartnerEventsResultEntryList", Type: smithy.TypeList, Members: []*smithy.Member{&memberPutPartnerEventsResultEntryList_member}}
+var schemaPutPartnerEventsResultEntryList = smithy.Schema{ID: "com.amazonaws.eventbridge#PutPartnerEventsResultEntryList", Type: smithy.TypeList}
 
 var memberPutPartnerEventsResultEntryList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaPutPartnerEventsResultEntry}
 
@@ -1601,7 +1601,7 @@ var schemaRemoveTargetsResultEntryList = smithy.Schema{ID: "com.amazonaws.eventb
 
 var memberRemoveTargetsResultEntryList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaRemoveTargetsResultEntry}
 
-var schemaReplay = smithy.Schema{ID: "com.amazonaws.eventbridge#Replay", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberReplay_ReplayName, &memberReplay_EventSourceArn, &memberReplay_State, &memberReplay_StateReason, &memberReplay_EventStartTime, &memberReplay_EventEndTime, &memberReplay_EventLastReplayedTime, &memberReplay_ReplayStartTime, &memberReplay_ReplayEndTime}}
+var schemaReplay = smithy.Schema{ID: "com.amazonaws.eventbridge#Replay", Type: smithy.TypeStructure}
 
 var memberReplay_ReplayName = smithy.Member{Name: "ReplayName", Index: 0, Target: &schemaReplayName}
 
@@ -1625,17 +1625,17 @@ var schemaReplayArn = smithy.Schema{ID: "com.amazonaws.eventbridge#ReplayArn", T
 
 var schemaReplayDescription = smithy.Schema{ID: "com.amazonaws.eventbridge#ReplayDescription", Type: smithy.TypeString}
 
-var schemaReplayDestination = smithy.Schema{ID: "com.amazonaws.eventbridge#ReplayDestination", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberReplayDestination_Arn, &memberReplayDestination_FilterArns}}
+var schemaReplayDestination = smithy.Schema{ID: "com.amazonaws.eventbridge#ReplayDestination", Type: smithy.TypeStructure}
 
 var memberReplayDestination_Arn = smithy.Member{Name: "Arn", Index: 0, Target: &schemaArn, Required: true}
 
 var memberReplayDestination_FilterArns = smithy.Member{Name: "FilterArns", Index: 1, Target: &schemaReplayDestinationFilters}
 
-var schemaReplayDestinationFilters = smithy.Schema{ID: "com.amazonaws.eventbridge#ReplayDestinationFilters", Type: smithy.TypeList, Members: []*smithy.Member{&memberReplayDestinationFilters_member}}
+var schemaReplayDestinationFilters = smithy.Schema{ID: "com.amazonaws.eventbridge#ReplayDestinationFilters", Type: smithy.TypeList}
 
 var memberReplayDestinationFilters_member = smithy.Member{Name: "member", Index: 0, Target: &schemaArn}
 
-var schemaReplayList = smithy.Schema{ID: "com.amazonaws.eventbridge#ReplayList", Type: smithy.TypeList, Members: []*smithy.Member{&memberReplayList_member}}
+var schemaReplayList = smithy.Schema{ID: "com.amazonaws.eventbridge#ReplayList", Type: smithy.TypeList}
 
 var memberReplayList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaReplay}
 
@@ -1645,7 +1645,7 @@ var schemaReplayState = smithy.Schema{ID: "com.amazonaws.eventbridge#ReplayState
 
 var schemaReplayStateReason = smithy.Schema{ID: "com.amazonaws.eventbridge#ReplayStateReason", Type: smithy.TypeString}
 
-var schemaReplicationConfig = smithy.Schema{ID: "com.amazonaws.eventbridge#ReplicationConfig", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberReplicationConfig_State}}
+var schemaReplicationConfig = smithy.Schema{ID: "com.amazonaws.eventbridge#ReplicationConfig", Type: smithy.TypeStructure}
 
 var memberReplicationConfig_State = smithy.Member{Name: "State", Index: 0, Target: &schemaReplicationState}
 
@@ -1681,7 +1681,7 @@ var schemaRoleArn = smithy.Schema{ID: "com.amazonaws.eventbridge#RoleArn", Type:
 
 var schemaRoute = smithy.Schema{ID: "com.amazonaws.eventbridge#Route", Type: smithy.TypeString}
 
-var schemaRoutingConfig = smithy.Schema{ID: "com.amazonaws.eventbridge#RoutingConfig", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRoutingConfig_FailoverConfig}}
+var schemaRoutingConfig = smithy.Schema{ID: "com.amazonaws.eventbridge#RoutingConfig", Type: smithy.TypeStructure}
 
 var memberRoutingConfig_FailoverConfig = smithy.Member{Name: "FailoverConfig", Index: 0, Target: &schemaFailoverConfig, Required: true}
 
@@ -1763,7 +1763,7 @@ var memberSageMakerPipelineParameters_PipelineParameterList = smithy.Member{Name
 
 var schemaScheduleExpression = smithy.Schema{ID: "com.amazonaws.eventbridge#ScheduleExpression", Type: smithy.TypeString}
 
-var schemaSecondary = smithy.Schema{ID: "com.amazonaws.eventbridge#Secondary", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSecondary_Route}}
+var schemaSecondary = smithy.Schema{ID: "com.amazonaws.eventbridge#Secondary", Type: smithy.TypeStructure}
 
 var memberSecondary_Route = smithy.Member{Name: "Route", Index: 0, Target: &schemaRoute, Required: true}
 
@@ -1789,7 +1789,7 @@ var schemaSqsParameters = smithy.Schema{ID: "com.amazonaws.eventbridge#SqsParame
 
 var memberSqsParameters_MessageGroupId = smithy.Member{Name: "MessageGroupId", Index: 0, Target: &schemaMessageGroupId}
 
-var schemaStartReplayInput = smithy.Schema{ID: "com.amazonaws.eventbridge#StartReplayRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberStartReplayInput_ReplayName, &memberStartReplayInput_Description, &memberStartReplayInput_EventSourceArn, &memberStartReplayInput_EventStartTime, &memberStartReplayInput_EventEndTime, &memberStartReplayInput_Destination}}
+var schemaStartReplayInput = smithy.Schema{ID: "com.amazonaws.eventbridge#StartReplayRequest", Type: smithy.TypeStructure}
 
 var memberStartReplayInput_ReplayName = smithy.Member{Name: "ReplayName", Index: 0, Target: &schemaReplayName, Required: true}
 
@@ -1803,7 +1803,7 @@ var memberStartReplayInput_EventEndTime = smithy.Member{Name: "EventEndTime", In
 
 var memberStartReplayInput_Destination = smithy.Member{Name: "Destination", Index: 5, Target: &schemaReplayDestination, Required: true}
 
-var schemaStartReplayOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#StartReplayResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberStartReplayOutput_ReplayArn, &memberStartReplayOutput_State, &memberStartReplayOutput_StateReason, &memberStartReplayOutput_ReplayStartTime}}
+var schemaStartReplayOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#StartReplayResponse", Type: smithy.TypeStructure}
 
 var memberStartReplayOutput_ReplayArn = smithy.Member{Name: "ReplayArn", Index: 0, Target: &schemaReplayArn}
 
@@ -1945,7 +1945,7 @@ var memberUntagResourceInput_TagKeys = smithy.Member{Name: "TagKeys", Index: 1, 
 
 var schemaUntagResourceOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#UntagResourceResponse", Type: smithy.TypeStructure}
 
-var schemaUpdateApiDestinationInput = smithy.Schema{ID: "com.amazonaws.eventbridge#UpdateApiDestinationRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateApiDestinationInput_Name, &memberUpdateApiDestinationInput_Description, &memberUpdateApiDestinationInput_ConnectionArn, &memberUpdateApiDestinationInput_InvocationEndpoint, &memberUpdateApiDestinationInput_HttpMethod, &memberUpdateApiDestinationInput_InvocationRateLimitPerSecond}}
+var schemaUpdateApiDestinationInput = smithy.Schema{ID: "com.amazonaws.eventbridge#UpdateApiDestinationRequest", Type: smithy.TypeStructure}
 
 var memberUpdateApiDestinationInput_Name = smithy.Member{Name: "Name", Index: 0, Target: &schemaApiDestinationName, Required: true}
 
@@ -1959,7 +1959,7 @@ var memberUpdateApiDestinationInput_HttpMethod = smithy.Member{Name: "HttpMethod
 
 var memberUpdateApiDestinationInput_InvocationRateLimitPerSecond = smithy.Member{Name: "InvocationRateLimitPerSecond", Index: 5, Target: &schemaApiDestinationInvocationRateLimitPerSecond}
 
-var schemaUpdateApiDestinationOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#UpdateApiDestinationResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateApiDestinationOutput_ApiDestinationArn, &memberUpdateApiDestinationOutput_ApiDestinationState, &memberUpdateApiDestinationOutput_CreationTime, &memberUpdateApiDestinationOutput_LastModifiedTime}}
+var schemaUpdateApiDestinationOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#UpdateApiDestinationResponse", Type: smithy.TypeStructure}
 
 var memberUpdateApiDestinationOutput_ApiDestinationArn = smithy.Member{Name: "ApiDestinationArn", Index: 0, Target: &schemaApiDestinationArn}
 
@@ -1969,7 +1969,7 @@ var memberUpdateApiDestinationOutput_CreationTime = smithy.Member{Name: "Creatio
 
 var memberUpdateApiDestinationOutput_LastModifiedTime = smithy.Member{Name: "LastModifiedTime", Index: 3, Target: &schemaTimestamp}
 
-var schemaUpdateArchiveInput = smithy.Schema{ID: "com.amazonaws.eventbridge#UpdateArchiveRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateArchiveInput_ArchiveName, &memberUpdateArchiveInput_Description, &memberUpdateArchiveInput_EventPattern, &memberUpdateArchiveInput_RetentionDays, &memberUpdateArchiveInput_KmsKeyIdentifier}}
+var schemaUpdateArchiveInput = smithy.Schema{ID: "com.amazonaws.eventbridge#UpdateArchiveRequest", Type: smithy.TypeStructure}
 
 var memberUpdateArchiveInput_ArchiveName = smithy.Member{Name: "ArchiveName", Index: 0, Target: &schemaArchiveName, Required: true}
 
@@ -1981,7 +1981,7 @@ var memberUpdateArchiveInput_RetentionDays = smithy.Member{Name: "RetentionDays"
 
 var memberUpdateArchiveInput_KmsKeyIdentifier = smithy.Member{Name: "KmsKeyIdentifier", Index: 4, Target: &schemaKmsKeyIdentifier}
 
-var schemaUpdateArchiveOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#UpdateArchiveResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateArchiveOutput_ArchiveArn, &memberUpdateArchiveOutput_State, &memberUpdateArchiveOutput_StateReason, &memberUpdateArchiveOutput_CreationTime}}
+var schemaUpdateArchiveOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#UpdateArchiveResponse", Type: smithy.TypeStructure}
 
 var memberUpdateArchiveOutput_ArchiveArn = smithy.Member{Name: "ArchiveArn", Index: 0, Target: &schemaArchiveArn}
 
@@ -1991,13 +1991,13 @@ var memberUpdateArchiveOutput_StateReason = smithy.Member{Name: "StateReason", I
 
 var memberUpdateArchiveOutput_CreationTime = smithy.Member{Name: "CreationTime", Index: 3, Target: &schemaTimestamp}
 
-var schemaUpdateConnectionApiKeyAuthRequestParameters = smithy.Schema{ID: "com.amazonaws.eventbridge#UpdateConnectionApiKeyAuthRequestParameters", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateConnectionApiKeyAuthRequestParameters_ApiKeyName, &memberUpdateConnectionApiKeyAuthRequestParameters_ApiKeyValue}}
+var schemaUpdateConnectionApiKeyAuthRequestParameters = smithy.Schema{ID: "com.amazonaws.eventbridge#UpdateConnectionApiKeyAuthRequestParameters", Type: smithy.TypeStructure}
 
 var memberUpdateConnectionApiKeyAuthRequestParameters_ApiKeyName = smithy.Member{Name: "ApiKeyName", Index: 0, Target: &schemaAuthHeaderParameters}
 
 var memberUpdateConnectionApiKeyAuthRequestParameters_ApiKeyValue = smithy.Member{Name: "ApiKeyValue", Index: 1, Target: &schemaAuthHeaderParametersSensitive, Sensitive: true}
 
-var schemaUpdateConnectionAuthRequestParameters = smithy.Schema{ID: "com.amazonaws.eventbridge#UpdateConnectionAuthRequestParameters", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateConnectionAuthRequestParameters_BasicAuthParameters, &memberUpdateConnectionAuthRequestParameters_OAuthParameters, &memberUpdateConnectionAuthRequestParameters_ApiKeyAuthParameters, &memberUpdateConnectionAuthRequestParameters_InvocationHttpParameters, &memberUpdateConnectionAuthRequestParameters_ConnectivityParameters}}
+var schemaUpdateConnectionAuthRequestParameters = smithy.Schema{ID: "com.amazonaws.eventbridge#UpdateConnectionAuthRequestParameters", Type: smithy.TypeStructure}
 
 var memberUpdateConnectionAuthRequestParameters_BasicAuthParameters = smithy.Member{Name: "BasicAuthParameters", Index: 0, Target: &schemaUpdateConnectionBasicAuthRequestParameters}
 
@@ -2009,13 +2009,13 @@ var memberUpdateConnectionAuthRequestParameters_InvocationHttpParameters = smith
 
 var memberUpdateConnectionAuthRequestParameters_ConnectivityParameters = smithy.Member{Name: "ConnectivityParameters", Index: 4, Target: &schemaConnectivityResourceParameters}
 
-var schemaUpdateConnectionBasicAuthRequestParameters = smithy.Schema{ID: "com.amazonaws.eventbridge#UpdateConnectionBasicAuthRequestParameters", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateConnectionBasicAuthRequestParameters_Username, &memberUpdateConnectionBasicAuthRequestParameters_Password}}
+var schemaUpdateConnectionBasicAuthRequestParameters = smithy.Schema{ID: "com.amazonaws.eventbridge#UpdateConnectionBasicAuthRequestParameters", Type: smithy.TypeStructure}
 
 var memberUpdateConnectionBasicAuthRequestParameters_Username = smithy.Member{Name: "Username", Index: 0, Target: &schemaAuthHeaderParameters}
 
 var memberUpdateConnectionBasicAuthRequestParameters_Password = smithy.Member{Name: "Password", Index: 1, Target: &schemaAuthHeaderParametersSensitive, Sensitive: true}
 
-var schemaUpdateConnectionInput = smithy.Schema{ID: "com.amazonaws.eventbridge#UpdateConnectionRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateConnectionInput_Name, &memberUpdateConnectionInput_Description, &memberUpdateConnectionInput_AuthorizationType, &memberUpdateConnectionInput_AuthParameters, &memberUpdateConnectionInput_InvocationConnectivityParameters, &memberUpdateConnectionInput_KmsKeyIdentifier}}
+var schemaUpdateConnectionInput = smithy.Schema{ID: "com.amazonaws.eventbridge#UpdateConnectionRequest", Type: smithy.TypeStructure}
 
 var memberUpdateConnectionInput_Name = smithy.Member{Name: "Name", Index: 0, Target: &schemaConnectionName, Required: true}
 
@@ -2029,13 +2029,13 @@ var memberUpdateConnectionInput_InvocationConnectivityParameters = smithy.Member
 
 var memberUpdateConnectionInput_KmsKeyIdentifier = smithy.Member{Name: "KmsKeyIdentifier", Index: 5, Target: &schemaKmsKeyIdentifier}
 
-var schemaUpdateConnectionOAuthClientRequestParameters = smithy.Schema{ID: "com.amazonaws.eventbridge#UpdateConnectionOAuthClientRequestParameters", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateConnectionOAuthClientRequestParameters_ClientID, &memberUpdateConnectionOAuthClientRequestParameters_ClientSecret}}
+var schemaUpdateConnectionOAuthClientRequestParameters = smithy.Schema{ID: "com.amazonaws.eventbridge#UpdateConnectionOAuthClientRequestParameters", Type: smithy.TypeStructure}
 
 var memberUpdateConnectionOAuthClientRequestParameters_ClientID = smithy.Member{Name: "ClientID", Index: 0, Target: &schemaAuthHeaderParameters}
 
 var memberUpdateConnectionOAuthClientRequestParameters_ClientSecret = smithy.Member{Name: "ClientSecret", Index: 1, Target: &schemaAuthHeaderParametersSensitive, Sensitive: true}
 
-var schemaUpdateConnectionOAuthRequestParameters = smithy.Schema{ID: "com.amazonaws.eventbridge#UpdateConnectionOAuthRequestParameters", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateConnectionOAuthRequestParameters_ClientParameters, &memberUpdateConnectionOAuthRequestParameters_AuthorizationEndpoint, &memberUpdateConnectionOAuthRequestParameters_HttpMethod, &memberUpdateConnectionOAuthRequestParameters_OAuthHttpParameters}}
+var schemaUpdateConnectionOAuthRequestParameters = smithy.Schema{ID: "com.amazonaws.eventbridge#UpdateConnectionOAuthRequestParameters", Type: smithy.TypeStructure}
 
 var memberUpdateConnectionOAuthRequestParameters_ClientParameters = smithy.Member{Name: "ClientParameters", Index: 0, Target: &schemaUpdateConnectionOAuthClientRequestParameters}
 
@@ -2045,7 +2045,7 @@ var memberUpdateConnectionOAuthRequestParameters_HttpMethod = smithy.Member{Name
 
 var memberUpdateConnectionOAuthRequestParameters_OAuthHttpParameters = smithy.Member{Name: "OAuthHttpParameters", Index: 3, Target: &schemaConnectionHttpParameters}
 
-var schemaUpdateConnectionOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#UpdateConnectionResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateConnectionOutput_ConnectionArn, &memberUpdateConnectionOutput_ConnectionState, &memberUpdateConnectionOutput_CreationTime, &memberUpdateConnectionOutput_LastModifiedTime, &memberUpdateConnectionOutput_LastAuthorizedTime}}
+var schemaUpdateConnectionOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#UpdateConnectionResponse", Type: smithy.TypeStructure}
 
 var memberUpdateConnectionOutput_ConnectionArn = smithy.Member{Name: "ConnectionArn", Index: 0, Target: &schemaConnectionArn}
 
@@ -2057,7 +2057,7 @@ var memberUpdateConnectionOutput_LastModifiedTime = smithy.Member{Name: "LastMod
 
 var memberUpdateConnectionOutput_LastAuthorizedTime = smithy.Member{Name: "LastAuthorizedTime", Index: 4, Target: &schemaTimestamp}
 
-var schemaUpdateEndpointInput = smithy.Schema{ID: "com.amazonaws.eventbridge#UpdateEndpointRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateEndpointInput_Name, &memberUpdateEndpointInput_Description, &memberUpdateEndpointInput_RoutingConfig, &memberUpdateEndpointInput_ReplicationConfig, &memberUpdateEndpointInput_EventBuses, &memberUpdateEndpointInput_RoleArn}}
+var schemaUpdateEndpointInput = smithy.Schema{ID: "com.amazonaws.eventbridge#UpdateEndpointRequest", Type: smithy.TypeStructure}
 
 var memberUpdateEndpointInput_Name = smithy.Member{Name: "Name", Index: 0, Target: &schemaEndpointName, Required: true}
 
@@ -2071,7 +2071,7 @@ var memberUpdateEndpointInput_EventBuses = smithy.Member{Name: "EventBuses", Ind
 
 var memberUpdateEndpointInput_RoleArn = smithy.Member{Name: "RoleArn", Index: 5, Target: &schemaIamRoleArn}
 
-var schemaUpdateEndpointOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#UpdateEndpointResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateEndpointOutput_Name, &memberUpdateEndpointOutput_Arn, &memberUpdateEndpointOutput_RoutingConfig, &memberUpdateEndpointOutput_ReplicationConfig, &memberUpdateEndpointOutput_EventBuses, &memberUpdateEndpointOutput_RoleArn, &memberUpdateEndpointOutput_EndpointId, &memberUpdateEndpointOutput_EndpointUrl, &memberUpdateEndpointOutput_State}}
+var schemaUpdateEndpointOutput = smithy.Schema{ID: "com.amazonaws.eventbridge#UpdateEndpointResponse", Type: smithy.TypeStructure}
 
 var memberUpdateEndpointOutput_Name = smithy.Member{Name: "Name", Index: 0, Target: &schemaEndpointName}
 

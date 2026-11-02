@@ -2,5 +2,30 @@
   "service": "com.amazonaws.eventbridge#AWSEvents",
   "package": "eventbridgeapi",
   "model": "eventbridge",
-  "iamPrefix": "events"
+  "iamPrefix": "events",
+  "boundOperations": [
+    "CreateEventBus",
+    "DeleteEventBus",
+    "DeleteRule",
+    "DescribeEventBus",
+    "DescribeRule",
+    "DisableRule",
+    "EnableRule",
+    "ListEventBuses",
+    "ListRuleNamesByTarget",
+    "ListRules",
+    "ListTagsForResource",
+    "ListTargetsByRule",
+    "PutEvents",
+    "PutPermission",
+    "PutRule",
+    "PutServiceEventInternal",
+    "PutTargets",
+    "RemovePermission",
+    "RemoveTargets",
+    "TagResource",
+    "TestEventPattern",
+    "UntagResource",
+    "UpdateEventBus"
+  ]
 }

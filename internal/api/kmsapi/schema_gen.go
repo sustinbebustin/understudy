@@ -87,7 +87,7 @@ var schemaConflictException = smithy.Schema{ID: "com.amazonaws.kms#ConflictExcep
 
 var memberConflictException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaErrorMessageType}
 
-var schemaConnectCustomKeyStoreInput = smithy.Schema{ID: "com.amazonaws.kms#ConnectCustomKeyStoreRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberConnectCustomKeyStoreInput_CustomKeyStoreId}}
+var schemaConnectCustomKeyStoreInput = smithy.Schema{ID: "com.amazonaws.kms#ConnectCustomKeyStoreRequest", Type: smithy.TypeStructure}
 
 var memberConnectCustomKeyStoreInput_CustomKeyStoreId = smithy.Member{Name: "CustomKeyStoreId", Index: 0, Target: &schemaCustomKeyStoreIdType, Required: true}
 
@@ -107,7 +107,7 @@ var memberCreateAliasInput_AliasName = smithy.Member{Name: "AliasName", Index: 0
 
 var memberCreateAliasInput_TargetKeyId = smithy.Member{Name: "TargetKeyId", Index: 1, Target: &schemaKeyIdType, Required: true}
 
-var schemaCreateCustomKeyStoreInput = smithy.Schema{ID: "com.amazonaws.kms#CreateCustomKeyStoreRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateCustomKeyStoreInput_CustomKeyStoreName, &memberCreateCustomKeyStoreInput_CloudHsmClusterId, &memberCreateCustomKeyStoreInput_TrustAnchorCertificate, &memberCreateCustomKeyStoreInput_KeyStorePassword, &memberCreateCustomKeyStoreInput_CustomKeyStoreType, &memberCreateCustomKeyStoreInput_XksProxyUriEndpoint, &memberCreateCustomKeyStoreInput_XksProxyUriPath, &memberCreateCustomKeyStoreInput_XksProxyVpcEndpointServiceName, &memberCreateCustomKeyStoreInput_XksProxyVpcEndpointServiceOwner, &memberCreateCustomKeyStoreInput_XksProxyAuthenticationCredential, &memberCreateCustomKeyStoreInput_XksProxyConnectivity}}
+var schemaCreateCustomKeyStoreInput = smithy.Schema{ID: "com.amazonaws.kms#CreateCustomKeyStoreRequest", Type: smithy.TypeStructure}
 
 var memberCreateCustomKeyStoreInput_CustomKeyStoreName = smithy.Member{Name: "CustomKeyStoreName", Index: 0, Target: &schemaCustomKeyStoreNameType, Required: true}
 
@@ -131,11 +131,11 @@ var memberCreateCustomKeyStoreInput_XksProxyAuthenticationCredential = smithy.Me
 
 var memberCreateCustomKeyStoreInput_XksProxyConnectivity = smithy.Member{Name: "XksProxyConnectivity", Index: 10, Target: &schemaXksProxyConnectivityType}
 
-var schemaCreateCustomKeyStoreOutput = smithy.Schema{ID: "com.amazonaws.kms#CreateCustomKeyStoreResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateCustomKeyStoreOutput_CustomKeyStoreId}}
+var schemaCreateCustomKeyStoreOutput = smithy.Schema{ID: "com.amazonaws.kms#CreateCustomKeyStoreResponse", Type: smithy.TypeStructure}
 
 var memberCreateCustomKeyStoreOutput_CustomKeyStoreId = smithy.Member{Name: "CustomKeyStoreId", Index: 0, Target: &schemaCustomKeyStoreIdType}
 
-var schemaCreateGrantInput = smithy.Schema{ID: "com.amazonaws.kms#CreateGrantRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateGrantInput_KeyId, &memberCreateGrantInput_GranteePrincipal, &memberCreateGrantInput_RetiringPrincipal, &memberCreateGrantInput_Operations, &memberCreateGrantInput_Constraints, &memberCreateGrantInput_GrantTokens, &memberCreateGrantInput_Name, &memberCreateGrantInput_DryRun, &memberCreateGrantInput_GranteeServicePrincipal, &memberCreateGrantInput_RetiringServicePrincipal}}
+var schemaCreateGrantInput = smithy.Schema{ID: "com.amazonaws.kms#CreateGrantRequest", Type: smithy.TypeStructure}
 
 var memberCreateGrantInput_KeyId = smithy.Member{Name: "KeyId", Index: 0, Target: &schemaKeyIdType, Required: true}
 
@@ -157,7 +157,7 @@ var memberCreateGrantInput_GranteeServicePrincipal = smithy.Member{Name: "Grante
 
 var memberCreateGrantInput_RetiringServicePrincipal = smithy.Member{Name: "RetiringServicePrincipal", Index: 9, Target: &schemaServicePrincipalType}
 
-var schemaCreateGrantOutput = smithy.Schema{ID: "com.amazonaws.kms#CreateGrantResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateGrantOutput_GrantToken, &memberCreateGrantOutput_GrantId}}
+var schemaCreateGrantOutput = smithy.Schema{ID: "com.amazonaws.kms#CreateGrantResponse", Type: smithy.TypeStructure}
 
 var memberCreateGrantOutput_GrantToken = smithy.Member{Name: "GrantToken", Index: 0, Target: &schemaGrantTokenType}
 
@@ -213,11 +213,11 @@ var memberCustomKeyStoreNotFoundException_message = smithy.Member{Name: "message
 
 var schemaCustomKeyStoreType = smithy.Schema{ID: "com.amazonaws.kms#CustomKeyStoreType", Type: smithy.TypeEnum}
 
-var schemaCustomKeyStoresList = smithy.Schema{ID: "com.amazonaws.kms#CustomKeyStoresList", Type: smithy.TypeList, Members: []*smithy.Member{&memberCustomKeyStoresList_member}}
+var schemaCustomKeyStoresList = smithy.Schema{ID: "com.amazonaws.kms#CustomKeyStoresList", Type: smithy.TypeList}
 
 var memberCustomKeyStoresList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaCustomKeyStoresListEntry}
 
-var schemaCustomKeyStoresListEntry = smithy.Schema{ID: "com.amazonaws.kms#CustomKeyStoresListEntry", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCustomKeyStoresListEntry_CustomKeyStoreId, &memberCustomKeyStoresListEntry_CustomKeyStoreName, &memberCustomKeyStoresListEntry_CloudHsmClusterId, &memberCustomKeyStoresListEntry_TrustAnchorCertificate, &memberCustomKeyStoresListEntry_ConnectionState, &memberCustomKeyStoresListEntry_ConnectionErrorCode, &memberCustomKeyStoresListEntry_CreationDate, &memberCustomKeyStoresListEntry_CustomKeyStoreType, &memberCustomKeyStoresListEntry_XksProxyConfiguration}}
+var schemaCustomKeyStoresListEntry = smithy.Schema{ID: "com.amazonaws.kms#CustomKeyStoresListEntry", Type: smithy.TypeStructure}
 
 var memberCustomKeyStoresListEntry_CustomKeyStoreId = smithy.Member{Name: "CustomKeyStoreId", Index: 0, Target: &schemaCustomKeyStoreIdType}
 
@@ -279,19 +279,19 @@ var schemaDeleteAliasInput = smithy.Schema{ID: "com.amazonaws.kms#DeleteAliasReq
 
 var memberDeleteAliasInput_AliasName = smithy.Member{Name: "AliasName", Index: 0, Target: &schemaAliasNameType, Required: true}
 
-var schemaDeleteCustomKeyStoreInput = smithy.Schema{ID: "com.amazonaws.kms#DeleteCustomKeyStoreRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteCustomKeyStoreInput_CustomKeyStoreId}}
+var schemaDeleteCustomKeyStoreInput = smithy.Schema{ID: "com.amazonaws.kms#DeleteCustomKeyStoreRequest", Type: smithy.TypeStructure}
 
 var memberDeleteCustomKeyStoreInput_CustomKeyStoreId = smithy.Member{Name: "CustomKeyStoreId", Index: 0, Target: &schemaCustomKeyStoreIdType, Required: true}
 
 var schemaDeleteCustomKeyStoreOutput = smithy.Schema{ID: "com.amazonaws.kms#DeleteCustomKeyStoreResponse", Type: smithy.TypeStructure}
 
-var schemaDeleteImportedKeyMaterialInput = smithy.Schema{ID: "com.amazonaws.kms#DeleteImportedKeyMaterialRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteImportedKeyMaterialInput_KeyId, &memberDeleteImportedKeyMaterialInput_KeyMaterialId}}
+var schemaDeleteImportedKeyMaterialInput = smithy.Schema{ID: "com.amazonaws.kms#DeleteImportedKeyMaterialRequest", Type: smithy.TypeStructure}
 
 var memberDeleteImportedKeyMaterialInput_KeyId = smithy.Member{Name: "KeyId", Index: 0, Target: &schemaKeyIdType, Required: true}
 
 var memberDeleteImportedKeyMaterialInput_KeyMaterialId = smithy.Member{Name: "KeyMaterialId", Index: 1, Target: &schemaBackingKeyIdType}
 
-var schemaDeleteImportedKeyMaterialOutput = smithy.Schema{ID: "com.amazonaws.kms#DeleteImportedKeyMaterialResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteImportedKeyMaterialOutput_KeyId, &memberDeleteImportedKeyMaterialOutput_KeyMaterialId}}
+var schemaDeleteImportedKeyMaterialOutput = smithy.Schema{ID: "com.amazonaws.kms#DeleteImportedKeyMaterialResponse", Type: smithy.TypeStructure}
 
 var memberDeleteImportedKeyMaterialOutput_KeyId = smithy.Member{Name: "KeyId", Index: 0, Target: &schemaKeyIdType}
 
@@ -301,7 +301,7 @@ var schemaDependencyTimeoutException = smithy.Schema{ID: "com.amazonaws.kms#Depe
 
 var memberDependencyTimeoutException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaErrorMessageType}
 
-var schemaDeriveSharedSecretInput = smithy.Schema{ID: "com.amazonaws.kms#DeriveSharedSecretRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeriveSharedSecretInput_KeyId, &memberDeriveSharedSecretInput_KeyAgreementAlgorithm, &memberDeriveSharedSecretInput_PublicKey, &memberDeriveSharedSecretInput_GrantTokens, &memberDeriveSharedSecretInput_DryRun, &memberDeriveSharedSecretInput_Recipient}}
+var schemaDeriveSharedSecretInput = smithy.Schema{ID: "com.amazonaws.kms#DeriveSharedSecretRequest", Type: smithy.TypeStructure}
 
 var memberDeriveSharedSecretInput_KeyId = smithy.Member{Name: "KeyId", Index: 0, Target: &schemaKeyIdType, Required: true}
 
@@ -315,7 +315,7 @@ var memberDeriveSharedSecretInput_DryRun = smithy.Member{Name: "DryRun", Index: 
 
 var memberDeriveSharedSecretInput_Recipient = smithy.Member{Name: "Recipient", Index: 5, Target: &schemaRecipientInfo}
 
-var schemaDeriveSharedSecretOutput = smithy.Schema{ID: "com.amazonaws.kms#DeriveSharedSecretResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeriveSharedSecretOutput_KeyId, &memberDeriveSharedSecretOutput_SharedSecret, &memberDeriveSharedSecretOutput_CiphertextForRecipient, &memberDeriveSharedSecretOutput_KeyAgreementAlgorithm, &memberDeriveSharedSecretOutput_KeyOrigin}}
+var schemaDeriveSharedSecretOutput = smithy.Schema{ID: "com.amazonaws.kms#DeriveSharedSecretResponse", Type: smithy.TypeStructure}
 
 var memberDeriveSharedSecretOutput_KeyId = smithy.Member{Name: "KeyId", Index: 0, Target: &schemaKeyIdType}
 
@@ -327,7 +327,7 @@ var memberDeriveSharedSecretOutput_KeyAgreementAlgorithm = smithy.Member{Name: "
 
 var memberDeriveSharedSecretOutput_KeyOrigin = smithy.Member{Name: "KeyOrigin", Index: 4, Target: &schemaOriginType}
 
-var schemaDescribeCustomKeyStoresInput = smithy.Schema{ID: "com.amazonaws.kms#DescribeCustomKeyStoresRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeCustomKeyStoresInput_CustomKeyStoreId, &memberDescribeCustomKeyStoresInput_CustomKeyStoreName, &memberDescribeCustomKeyStoresInput_Limit, &memberDescribeCustomKeyStoresInput_Marker}}
+var schemaDescribeCustomKeyStoresInput = smithy.Schema{ID: "com.amazonaws.kms#DescribeCustomKeyStoresRequest", Type: smithy.TypeStructure}
 
 var memberDescribeCustomKeyStoresInput_CustomKeyStoreId = smithy.Member{Name: "CustomKeyStoreId", Index: 0, Target: &schemaCustomKeyStoreIdType}
 
@@ -337,7 +337,7 @@ var memberDescribeCustomKeyStoresInput_Limit = smithy.Member{Name: "Limit", Inde
 
 var memberDescribeCustomKeyStoresInput_Marker = smithy.Member{Name: "Marker", Index: 3, Target: &schemaMarkerType}
 
-var schemaDescribeCustomKeyStoresOutput = smithy.Schema{ID: "com.amazonaws.kms#DescribeCustomKeyStoresResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeCustomKeyStoresOutput_CustomKeyStores, &memberDescribeCustomKeyStoresOutput_NextMarker, &memberDescribeCustomKeyStoresOutput_Truncated}}
+var schemaDescribeCustomKeyStoresOutput = smithy.Schema{ID: "com.amazonaws.kms#DescribeCustomKeyStoresResponse", Type: smithy.TypeStructure}
 
 var memberDescribeCustomKeyStoresOutput_CustomKeyStores = smithy.Member{Name: "CustomKeyStores", Index: 0, Target: &schemaCustomKeyStoresList}
 
@@ -369,7 +369,7 @@ var schemaDisabledException = smithy.Schema{ID: "com.amazonaws.kms#DisabledExcep
 
 var memberDisabledException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaErrorMessageType}
 
-var schemaDisconnectCustomKeyStoreInput = smithy.Schema{ID: "com.amazonaws.kms#DisconnectCustomKeyStoreRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDisconnectCustomKeyStoreInput_CustomKeyStoreId}}
+var schemaDisconnectCustomKeyStoreInput = smithy.Schema{ID: "com.amazonaws.kms#DisconnectCustomKeyStoreRequest", Type: smithy.TypeStructure}
 
 var memberDisconnectCustomKeyStoreInput_CustomKeyStoreId = smithy.Member{Name: "CustomKeyStoreId", Index: 0, Target: &schemaCustomKeyStoreIdType, Required: true}
 
@@ -473,7 +473,7 @@ var memberGenerateDataKeyOutput_CiphertextForRecipient = smithy.Member{Name: "Ci
 
 var memberGenerateDataKeyOutput_KeyMaterialId = smithy.Member{Name: "KeyMaterialId", Index: 4, Target: &schemaBackingKeyIdType}
 
-var schemaGenerateDataKeyPairInput = smithy.Schema{ID: "com.amazonaws.kms#GenerateDataKeyPairRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGenerateDataKeyPairInput_EncryptionContext, &memberGenerateDataKeyPairInput_KeyId, &memberGenerateDataKeyPairInput_KeyPairSpec, &memberGenerateDataKeyPairInput_GrantTokens, &memberGenerateDataKeyPairInput_Recipient, &memberGenerateDataKeyPairInput_DryRun}}
+var schemaGenerateDataKeyPairInput = smithy.Schema{ID: "com.amazonaws.kms#GenerateDataKeyPairRequest", Type: smithy.TypeStructure}
 
 var memberGenerateDataKeyPairInput_EncryptionContext = smithy.Member{Name: "EncryptionContext", Index: 0, Target: &schemaEncryptionContextType}
 
@@ -487,7 +487,7 @@ var memberGenerateDataKeyPairInput_Recipient = smithy.Member{Name: "Recipient", 
 
 var memberGenerateDataKeyPairInput_DryRun = smithy.Member{Name: "DryRun", Index: 5, Target: &schemaNullableBooleanType}
 
-var schemaGenerateDataKeyPairOutput = smithy.Schema{ID: "com.amazonaws.kms#GenerateDataKeyPairResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGenerateDataKeyPairOutput_PrivateKeyCiphertextBlob, &memberGenerateDataKeyPairOutput_PrivateKeyPlaintext, &memberGenerateDataKeyPairOutput_PublicKey, &memberGenerateDataKeyPairOutput_KeyId, &memberGenerateDataKeyPairOutput_KeyPairSpec, &memberGenerateDataKeyPairOutput_CiphertextForRecipient, &memberGenerateDataKeyPairOutput_KeyMaterialId}}
+var schemaGenerateDataKeyPairOutput = smithy.Schema{ID: "com.amazonaws.kms#GenerateDataKeyPairResponse", Type: smithy.TypeStructure}
 
 var memberGenerateDataKeyPairOutput_PrivateKeyCiphertextBlob = smithy.Member{Name: "PrivateKeyCiphertextBlob", Index: 0, Target: &schemaCiphertextType}
 
@@ -503,7 +503,7 @@ var memberGenerateDataKeyPairOutput_CiphertextForRecipient = smithy.Member{Name:
 
 var memberGenerateDataKeyPairOutput_KeyMaterialId = smithy.Member{Name: "KeyMaterialId", Index: 6, Target: &schemaBackingKeyIdType}
 
-var schemaGenerateDataKeyPairWithoutPlaintextInput = smithy.Schema{ID: "com.amazonaws.kms#GenerateDataKeyPairWithoutPlaintextRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGenerateDataKeyPairWithoutPlaintextInput_EncryptionContext, &memberGenerateDataKeyPairWithoutPlaintextInput_KeyId, &memberGenerateDataKeyPairWithoutPlaintextInput_KeyPairSpec, &memberGenerateDataKeyPairWithoutPlaintextInput_GrantTokens, &memberGenerateDataKeyPairWithoutPlaintextInput_DryRun}}
+var schemaGenerateDataKeyPairWithoutPlaintextInput = smithy.Schema{ID: "com.amazonaws.kms#GenerateDataKeyPairWithoutPlaintextRequest", Type: smithy.TypeStructure}
 
 var memberGenerateDataKeyPairWithoutPlaintextInput_EncryptionContext = smithy.Member{Name: "EncryptionContext", Index: 0, Target: &schemaEncryptionContextType}
 
@@ -515,7 +515,7 @@ var memberGenerateDataKeyPairWithoutPlaintextInput_GrantTokens = smithy.Member{N
 
 var memberGenerateDataKeyPairWithoutPlaintextInput_DryRun = smithy.Member{Name: "DryRun", Index: 4, Target: &schemaNullableBooleanType}
 
-var schemaGenerateDataKeyPairWithoutPlaintextOutput = smithy.Schema{ID: "com.amazonaws.kms#GenerateDataKeyPairWithoutPlaintextResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGenerateDataKeyPairWithoutPlaintextOutput_PrivateKeyCiphertextBlob, &memberGenerateDataKeyPairWithoutPlaintextOutput_PublicKey, &memberGenerateDataKeyPairWithoutPlaintextOutput_KeyId, &memberGenerateDataKeyPairWithoutPlaintextOutput_KeyPairSpec, &memberGenerateDataKeyPairWithoutPlaintextOutput_KeyMaterialId}}
+var schemaGenerateDataKeyPairWithoutPlaintextOutput = smithy.Schema{ID: "com.amazonaws.kms#GenerateDataKeyPairWithoutPlaintextResponse", Type: smithy.TypeStructure}
 
 var memberGenerateDataKeyPairWithoutPlaintextOutput_PrivateKeyCiphertextBlob = smithy.Member{Name: "PrivateKeyCiphertextBlob", Index: 0, Target: &schemaCiphertextType}
 
@@ -549,7 +549,7 @@ var memberGenerateDataKeyWithoutPlaintextOutput_KeyId = smithy.Member{Name: "Key
 
 var memberGenerateDataKeyWithoutPlaintextOutput_KeyMaterialId = smithy.Member{Name: "KeyMaterialId", Index: 2, Target: &schemaBackingKeyIdType}
 
-var schemaGenerateMacInput = smithy.Schema{ID: "com.amazonaws.kms#GenerateMacRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGenerateMacInput_Message, &memberGenerateMacInput_KeyId, &memberGenerateMacInput_MacAlgorithm, &memberGenerateMacInput_GrantTokens, &memberGenerateMacInput_DryRun}}
+var schemaGenerateMacInput = smithy.Schema{ID: "com.amazonaws.kms#GenerateMacRequest", Type: smithy.TypeStructure}
 
 var memberGenerateMacInput_Message = smithy.Member{Name: "Message", Index: 0, Target: &schemaPlaintextType, Required: true, Sensitive: true}
 
@@ -561,7 +561,7 @@ var memberGenerateMacInput_GrantTokens = smithy.Member{Name: "GrantTokens", Inde
 
 var memberGenerateMacInput_DryRun = smithy.Member{Name: "DryRun", Index: 4, Target: &schemaNullableBooleanType}
 
-var schemaGenerateMacOutput = smithy.Schema{ID: "com.amazonaws.kms#GenerateMacResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGenerateMacOutput_Mac, &memberGenerateMacOutput_MacAlgorithm, &memberGenerateMacOutput_KeyId}}
+var schemaGenerateMacOutput = smithy.Schema{ID: "com.amazonaws.kms#GenerateMacResponse", Type: smithy.TypeStructure}
 
 var memberGenerateMacOutput_Mac = smithy.Member{Name: "Mac", Index: 0, Target: &schemaCiphertextType}
 
@@ -583,11 +583,11 @@ var memberGenerateRandomOutput_Plaintext = smithy.Member{Name: "Plaintext", Inde
 
 var memberGenerateRandomOutput_CiphertextForRecipient = smithy.Member{Name: "CiphertextForRecipient", Index: 1, Target: &schemaCiphertextType}
 
-var schemaGetKeyLastUsageInput = smithy.Schema{ID: "com.amazonaws.kms#GetKeyLastUsageRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetKeyLastUsageInput_KeyId}}
+var schemaGetKeyLastUsageInput = smithy.Schema{ID: "com.amazonaws.kms#GetKeyLastUsageRequest", Type: smithy.TypeStructure}
 
 var memberGetKeyLastUsageInput_KeyId = smithy.Member{Name: "KeyId", Index: 0, Target: &schemaKeyIdType, Required: true}
 
-var schemaGetKeyLastUsageOutput = smithy.Schema{ID: "com.amazonaws.kms#GetKeyLastUsageResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetKeyLastUsageOutput_KeyId, &memberGetKeyLastUsageOutput_KeyLastUsage, &memberGetKeyLastUsageOutput_TrackingStartDate, &memberGetKeyLastUsageOutput_KeyCreationDate}}
+var schemaGetKeyLastUsageOutput = smithy.Schema{ID: "com.amazonaws.kms#GetKeyLastUsageResponse", Type: smithy.TypeStructure}
 
 var memberGetKeyLastUsageOutput_KeyId = smithy.Member{Name: "KeyId", Index: 0, Target: &schemaKeyIdType}
 
@@ -625,7 +625,7 @@ var memberGetKeyRotationStatusOutput_NextRotationDate = smithy.Member{Name: "Nex
 
 var memberGetKeyRotationStatusOutput_OnDemandRotationStartDate = smithy.Member{Name: "OnDemandRotationStartDate", Index: 4, Target: &schemaDateType}
 
-var schemaGetParametersForImportInput = smithy.Schema{ID: "com.amazonaws.kms#GetParametersForImportRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetParametersForImportInput_KeyId, &memberGetParametersForImportInput_WrappingAlgorithm, &memberGetParametersForImportInput_WrappingKeySpec}}
+var schemaGetParametersForImportInput = smithy.Schema{ID: "com.amazonaws.kms#GetParametersForImportRequest", Type: smithy.TypeStructure}
 
 var memberGetParametersForImportInput_KeyId = smithy.Member{Name: "KeyId", Index: 0, Target: &schemaKeyIdType, Required: true}
 
@@ -633,7 +633,7 @@ var memberGetParametersForImportInput_WrappingAlgorithm = smithy.Member{Name: "W
 
 var memberGetParametersForImportInput_WrappingKeySpec = smithy.Member{Name: "WrappingKeySpec", Index: 2, Target: &schemaWrappingKeySpec, Required: true}
 
-var schemaGetParametersForImportOutput = smithy.Schema{ID: "com.amazonaws.kms#GetParametersForImportResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetParametersForImportOutput_KeyId, &memberGetParametersForImportOutput_ImportToken, &memberGetParametersForImportOutput_PublicKey, &memberGetParametersForImportOutput_ParametersValidTo}}
+var schemaGetParametersForImportOutput = smithy.Schema{ID: "com.amazonaws.kms#GetParametersForImportResponse", Type: smithy.TypeStructure}
 
 var memberGetParametersForImportOutput_KeyId = smithy.Member{Name: "KeyId", Index: 0, Target: &schemaKeyIdType}
 
@@ -643,13 +643,13 @@ var memberGetParametersForImportOutput_PublicKey = smithy.Member{Name: "PublicKe
 
 var memberGetParametersForImportOutput_ParametersValidTo = smithy.Member{Name: "ParametersValidTo", Index: 3, Target: &schemaDateType}
 
-var schemaGetPublicKeyInput = smithy.Schema{ID: "com.amazonaws.kms#GetPublicKeyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetPublicKeyInput_KeyId, &memberGetPublicKeyInput_GrantTokens}}
+var schemaGetPublicKeyInput = smithy.Schema{ID: "com.amazonaws.kms#GetPublicKeyRequest", Type: smithy.TypeStructure}
 
 var memberGetPublicKeyInput_KeyId = smithy.Member{Name: "KeyId", Index: 0, Target: &schemaKeyIdType, Required: true}
 
 var memberGetPublicKeyInput_GrantTokens = smithy.Member{Name: "GrantTokens", Index: 1, Target: &schemaGrantTokenList}
 
-var schemaGetPublicKeyOutput = smithy.Schema{ID: "com.amazonaws.kms#GetPublicKeyResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetPublicKeyOutput_KeyId, &memberGetPublicKeyOutput_PublicKey, &memberGetPublicKeyOutput_CustomerMasterKeySpec, &memberGetPublicKeyOutput_KeySpec, &memberGetPublicKeyOutput_KeyUsage, &memberGetPublicKeyOutput_EncryptionAlgorithms, &memberGetPublicKeyOutput_SigningAlgorithms, &memberGetPublicKeyOutput_KeyAgreementAlgorithms}}
+var schemaGetPublicKeyOutput = smithy.Schema{ID: "com.amazonaws.kms#GetPublicKeyResponse", Type: smithy.TypeStructure}
 
 var memberGetPublicKeyOutput_KeyId = smithy.Member{Name: "KeyId", Index: 0, Target: &schemaKeyIdType}
 
@@ -669,7 +669,7 @@ var memberGetPublicKeyOutput_KeyAgreementAlgorithms = smithy.Member{Name: "KeyAg
 
 var schemaGrantConstraintSourceArnType = smithy.Schema{ID: "com.amazonaws.kms#GrantConstraintSourceArnType", Type: smithy.TypeString}
 
-var schemaGrantConstraints = smithy.Schema{ID: "com.amazonaws.kms#GrantConstraints", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGrantConstraints_EncryptionContextSubset, &memberGrantConstraints_EncryptionContextEquals, &memberGrantConstraints_SourceArn}}
+var schemaGrantConstraints = smithy.Schema{ID: "com.amazonaws.kms#GrantConstraints", Type: smithy.TypeStructure}
 
 var memberGrantConstraints_EncryptionContextSubset = smithy.Member{Name: "EncryptionContextSubset", Index: 0, Target: &schemaEncryptionContextType}
 
@@ -679,11 +679,11 @@ var memberGrantConstraints_SourceArn = smithy.Member{Name: "SourceArn", Index: 2
 
 var schemaGrantIdType = smithy.Schema{ID: "com.amazonaws.kms#GrantIdType", Type: smithy.TypeString}
 
-var schemaGrantList = smithy.Schema{ID: "com.amazonaws.kms#GrantList", Type: smithy.TypeList, Members: []*smithy.Member{&memberGrantList_member}}
+var schemaGrantList = smithy.Schema{ID: "com.amazonaws.kms#GrantList", Type: smithy.TypeList}
 
 var memberGrantList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaGrantListEntry}
 
-var schemaGrantListEntry = smithy.Schema{ID: "com.amazonaws.kms#GrantListEntry", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGrantListEntry_KeyId, &memberGrantListEntry_GrantId, &memberGrantListEntry_Name, &memberGrantListEntry_CreationDate, &memberGrantListEntry_GranteePrincipal, &memberGrantListEntry_RetiringPrincipal, &memberGrantListEntry_IssuingAccount, &memberGrantListEntry_Operations, &memberGrantListEntry_Constraints, &memberGrantListEntry_GranteeServicePrincipal, &memberGrantListEntry_RetiringServicePrincipal}}
+var schemaGrantListEntry = smithy.Schema{ID: "com.amazonaws.kms#GrantListEntry", Type: smithy.TypeStructure}
 
 var memberGrantListEntry_KeyId = smithy.Member{Name: "KeyId", Index: 0, Target: &schemaKeyIdType}
 
@@ -711,7 +711,7 @@ var schemaGrantNameType = smithy.Schema{ID: "com.amazonaws.kms#GrantNameType", T
 
 var schemaGrantOperation = smithy.Schema{ID: "com.amazonaws.kms#GrantOperation", Type: smithy.TypeEnum}
 
-var schemaGrantOperationList = smithy.Schema{ID: "com.amazonaws.kms#GrantOperationList", Type: smithy.TypeList, Members: []*smithy.Member{&memberGrantOperationList_member}}
+var schemaGrantOperationList = smithy.Schema{ID: "com.amazonaws.kms#GrantOperationList", Type: smithy.TypeList}
 
 var memberGrantOperationList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaGrantOperation}
 
@@ -721,7 +721,7 @@ var memberGrantTokenList_member = smithy.Member{Name: "member", Index: 0, Target
 
 var schemaGrantTokenType = smithy.Schema{ID: "com.amazonaws.kms#GrantTokenType", Type: smithy.TypeString}
 
-var schemaImportKeyMaterialInput = smithy.Schema{ID: "com.amazonaws.kms#ImportKeyMaterialRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberImportKeyMaterialInput_KeyId, &memberImportKeyMaterialInput_ImportToken, &memberImportKeyMaterialInput_EncryptedKeyMaterial, &memberImportKeyMaterialInput_ValidTo, &memberImportKeyMaterialInput_ExpirationModel, &memberImportKeyMaterialInput_ImportType, &memberImportKeyMaterialInput_KeyMaterialDescription, &memberImportKeyMaterialInput_KeyMaterialId}}
+var schemaImportKeyMaterialInput = smithy.Schema{ID: "com.amazonaws.kms#ImportKeyMaterialRequest", Type: smithy.TypeStructure}
 
 var memberImportKeyMaterialInput_KeyId = smithy.Member{Name: "KeyId", Index: 0, Target: &schemaKeyIdType, Required: true}
 
@@ -739,7 +739,7 @@ var memberImportKeyMaterialInput_KeyMaterialDescription = smithy.Member{Name: "K
 
 var memberImportKeyMaterialInput_KeyMaterialId = smithy.Member{Name: "KeyMaterialId", Index: 7, Target: &schemaBackingKeyIdType}
 
-var schemaImportKeyMaterialOutput = smithy.Schema{ID: "com.amazonaws.kms#ImportKeyMaterialResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberImportKeyMaterialOutput_KeyId, &memberImportKeyMaterialOutput_KeyMaterialId}}
+var schemaImportKeyMaterialOutput = smithy.Schema{ID: "com.amazonaws.kms#ImportKeyMaterialResponse", Type: smithy.TypeStructure}
 
 var memberImportKeyMaterialOutput_KeyId = smithy.Member{Name: "KeyId", Index: 0, Target: &schemaKeyIdType}
 
@@ -833,7 +833,7 @@ var schemaKeyEncryptionMechanism = smithy.Schema{ID: "com.amazonaws.kms#KeyEncry
 
 var schemaKeyIdType = smithy.Schema{ID: "com.amazonaws.kms#KeyIdType", Type: smithy.TypeString}
 
-var schemaKeyLastUsageData = smithy.Schema{ID: "com.amazonaws.kms#KeyLastUsageData", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberKeyLastUsageData_Operation, &memberKeyLastUsageData_Timestamp, &memberKeyLastUsageData_CloudTrailEventId, &memberKeyLastUsageData_KmsRequestId}}
+var schemaKeyLastUsageData = smithy.Schema{ID: "com.amazonaws.kms#KeyLastUsageData", Type: smithy.TypeStructure}
 
 var memberKeyLastUsageData_Operation = smithy.Member{Name: "Operation", Index: 0, Target: &schemaKeyLastUsageTrackingOperation}
 
@@ -951,7 +951,7 @@ var memberListAliasesOutput_NextMarker = smithy.Member{Name: "NextMarker", Index
 
 var memberListAliasesOutput_Truncated = smithy.Member{Name: "Truncated", Index: 2, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var schemaListGrantsInput = smithy.Schema{ID: "com.amazonaws.kms#ListGrantsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListGrantsInput_Limit, &memberListGrantsInput_Marker, &memberListGrantsInput_KeyId, &memberListGrantsInput_GrantId, &memberListGrantsInput_GranteePrincipal, &memberListGrantsInput_GranteeServicePrincipal}}
+var schemaListGrantsInput = smithy.Schema{ID: "com.amazonaws.kms#ListGrantsRequest", Type: smithy.TypeStructure}
 
 var memberListGrantsInput_Limit = smithy.Member{Name: "Limit", Index: 0, Target: &schemaLimitType}
 
@@ -965,7 +965,7 @@ var memberListGrantsInput_GranteePrincipal = smithy.Member{Name: "GranteePrincip
 
 var memberListGrantsInput_GranteeServicePrincipal = smithy.Member{Name: "GranteeServicePrincipal", Index: 5, Target: &schemaServicePrincipalType}
 
-var schemaListGrantsResponse = smithy.Schema{ID: "com.amazonaws.kms#ListGrantsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListGrantsResponse_Grants, &memberListGrantsResponse_NextMarker, &memberListGrantsResponse_Truncated}}
+var schemaListGrantsResponse = smithy.Schema{ID: "com.amazonaws.kms#ListGrantsResponse", Type: smithy.TypeStructure}
 
 var memberListGrantsResponse_Grants = smithy.Member{Name: "Grants", Index: 0, Target: &schemaGrantList}
 
@@ -989,7 +989,7 @@ var memberListKeyPoliciesOutput_NextMarker = smithy.Member{Name: "NextMarker", I
 
 var memberListKeyPoliciesOutput_Truncated = smithy.Member{Name: "Truncated", Index: 2, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var schemaListKeyRotationsInput = smithy.Schema{ID: "com.amazonaws.kms#ListKeyRotationsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListKeyRotationsInput_KeyId, &memberListKeyRotationsInput_IncludeKeyMaterial, &memberListKeyRotationsInput_Limit, &memberListKeyRotationsInput_Marker}}
+var schemaListKeyRotationsInput = smithy.Schema{ID: "com.amazonaws.kms#ListKeyRotationsRequest", Type: smithy.TypeStructure}
 
 var memberListKeyRotationsInput_KeyId = smithy.Member{Name: "KeyId", Index: 0, Target: &schemaKeyIdType, Required: true}
 
@@ -999,7 +999,7 @@ var memberListKeyRotationsInput_Limit = smithy.Member{Name: "Limit", Index: 2, T
 
 var memberListKeyRotationsInput_Marker = smithy.Member{Name: "Marker", Index: 3, Target: &schemaMarkerType}
 
-var schemaListKeyRotationsOutput = smithy.Schema{ID: "com.amazonaws.kms#ListKeyRotationsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListKeyRotationsOutput_Rotations, &memberListKeyRotationsOutput_NextMarker, &memberListKeyRotationsOutput_Truncated}}
+var schemaListKeyRotationsOutput = smithy.Schema{ID: "com.amazonaws.kms#ListKeyRotationsResponse", Type: smithy.TypeStructure}
 
 var memberListKeyRotationsOutput_Rotations = smithy.Member{Name: "Rotations", Index: 0, Target: &schemaRotationsList}
 
@@ -1037,7 +1037,7 @@ var memberListResourceTagsOutput_NextMarker = smithy.Member{Name: "NextMarker", 
 
 var memberListResourceTagsOutput_Truncated = smithy.Member{Name: "Truncated", Index: 2, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var schemaListRetirableGrantsInput = smithy.Schema{ID: "com.amazonaws.kms#ListRetirableGrantsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListRetirableGrantsInput_Limit, &memberListRetirableGrantsInput_Marker, &memberListRetirableGrantsInput_RetiringPrincipal, &memberListRetirableGrantsInput_RetiringServicePrincipal}}
+var schemaListRetirableGrantsInput = smithy.Schema{ID: "com.amazonaws.kms#ListRetirableGrantsRequest", Type: smithy.TypeStructure}
 
 var memberListRetirableGrantsInput_Limit = smithy.Member{Name: "Limit", Index: 0, Target: &schemaLimitType}
 
@@ -1171,7 +1171,7 @@ var memberRecipientInfo_AttestationDocument = smithy.Member{Name: "AttestationDo
 
 var schemaRegionType = smithy.Schema{ID: "com.amazonaws.kms#RegionType", Type: smithy.TypeString}
 
-var schemaReplicateKeyInput = smithy.Schema{ID: "com.amazonaws.kms#ReplicateKeyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberReplicateKeyInput_KeyId, &memberReplicateKeyInput_ReplicaRegion, &memberReplicateKeyInput_Policy, &memberReplicateKeyInput_BypassPolicyLockoutSafetyCheck, &memberReplicateKeyInput_Description, &memberReplicateKeyInput_Tags}}
+var schemaReplicateKeyInput = smithy.Schema{ID: "com.amazonaws.kms#ReplicateKeyRequest", Type: smithy.TypeStructure}
 
 var memberReplicateKeyInput_KeyId = smithy.Member{Name: "KeyId", Index: 0, Target: &schemaKeyIdType, Required: true}
 
@@ -1185,7 +1185,7 @@ var memberReplicateKeyInput_Description = smithy.Member{Name: "Description", Ind
 
 var memberReplicateKeyInput_Tags = smithy.Member{Name: "Tags", Index: 5, Target: &schemaTagList}
 
-var schemaReplicateKeyOutput = smithy.Schema{ID: "com.amazonaws.kms#ReplicateKeyResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberReplicateKeyOutput_ReplicaKeyMetadata, &memberReplicateKeyOutput_ReplicaPolicy, &memberReplicateKeyOutput_ReplicaTags}}
+var schemaReplicateKeyOutput = smithy.Schema{ID: "com.amazonaws.kms#ReplicateKeyResponse", Type: smithy.TypeStructure}
 
 var memberReplicateKeyOutput_ReplicaKeyMetadata = smithy.Member{Name: "ReplicaKeyMetadata", Index: 0, Target: &schemaKeyMetadata}
 
@@ -1197,7 +1197,7 @@ var schemaRequestEntityTooLargeException = smithy.Schema{ID: "com.amazon.coral.s
 
 var memberRequestEntityTooLargeException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaRetireGrantInput = smithy.Schema{ID: "com.amazonaws.kms#RetireGrantRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRetireGrantInput_GrantToken, &memberRetireGrantInput_KeyId, &memberRetireGrantInput_GrantId, &memberRetireGrantInput_DryRun}}
+var schemaRetireGrantInput = smithy.Schema{ID: "com.amazonaws.kms#RetireGrantRequest", Type: smithy.TypeStructure}
 
 var memberRetireGrantInput_GrantToken = smithy.Member{Name: "GrantToken", Index: 0, Target: &schemaGrantTokenType}
 
@@ -1207,7 +1207,7 @@ var memberRetireGrantInput_GrantId = smithy.Member{Name: "GrantId", Index: 2, Ta
 
 var memberRetireGrantInput_DryRun = smithy.Member{Name: "DryRun", Index: 3, Target: &schemaNullableBooleanType}
 
-var schemaRevokeGrantInput = smithy.Schema{ID: "com.amazonaws.kms#RevokeGrantRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRevokeGrantInput_KeyId, &memberRevokeGrantInput_GrantId, &memberRevokeGrantInput_DryRun}}
+var schemaRevokeGrantInput = smithy.Schema{ID: "com.amazonaws.kms#RevokeGrantRequest", Type: smithy.TypeStructure}
 
 var memberRevokeGrantInput_KeyId = smithy.Member{Name: "KeyId", Index: 0, Target: &schemaKeyIdType, Required: true}
 
@@ -1215,11 +1215,11 @@ var memberRevokeGrantInput_GrantId = smithy.Member{Name: "GrantId", Index: 1, Ta
 
 var memberRevokeGrantInput_DryRun = smithy.Member{Name: "DryRun", Index: 2, Target: &schemaNullableBooleanType}
 
-var schemaRotateKeyOnDemandInput = smithy.Schema{ID: "com.amazonaws.kms#RotateKeyOnDemandRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRotateKeyOnDemandInput_KeyId}}
+var schemaRotateKeyOnDemandInput = smithy.Schema{ID: "com.amazonaws.kms#RotateKeyOnDemandRequest", Type: smithy.TypeStructure}
 
 var memberRotateKeyOnDemandInput_KeyId = smithy.Member{Name: "KeyId", Index: 0, Target: &schemaKeyIdType, Required: true}
 
-var schemaRotateKeyOnDemandOutput = smithy.Schema{ID: "com.amazonaws.kms#RotateKeyOnDemandResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRotateKeyOnDemandOutput_KeyId}}
+var schemaRotateKeyOnDemandOutput = smithy.Schema{ID: "com.amazonaws.kms#RotateKeyOnDemandResponse", Type: smithy.TypeStructure}
 
 var memberRotateKeyOnDemandOutput_KeyId = smithy.Member{Name: "KeyId", Index: 0, Target: &schemaKeyIdType}
 
@@ -1227,11 +1227,11 @@ var schemaRotationPeriodInDaysType = smithy.Schema{ID: "com.amazonaws.kms#Rotati
 
 var schemaRotationType = smithy.Schema{ID: "com.amazonaws.kms#RotationType", Type: smithy.TypeEnum}
 
-var schemaRotationsList = smithy.Schema{ID: "com.amazonaws.kms#RotationsList", Type: smithy.TypeList, Members: []*smithy.Member{&memberRotationsList_member}}
+var schemaRotationsList = smithy.Schema{ID: "com.amazonaws.kms#RotationsList", Type: smithy.TypeList}
 
 var memberRotationsList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaRotationsListEntry}
 
-var schemaRotationsListEntry = smithy.Schema{ID: "com.amazonaws.kms#RotationsListEntry", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRotationsListEntry_KeyId, &memberRotationsListEntry_KeyMaterialId, &memberRotationsListEntry_KeyMaterialDescription, &memberRotationsListEntry_ImportState, &memberRotationsListEntry_KeyMaterialState, &memberRotationsListEntry_ExpirationModel, &memberRotationsListEntry_ValidTo, &memberRotationsListEntry_RotationDate, &memberRotationsListEntry_RotationType}}
+var schemaRotationsListEntry = smithy.Schema{ID: "com.amazonaws.kms#RotationsListEntry", Type: smithy.TypeStructure}
 
 var memberRotationsListEntry_KeyId = smithy.Member{Name: "KeyId", Index: 0, Target: &schemaKeyIdType}
 
@@ -1273,7 +1273,7 @@ var memberSerializationException_Message = smithy.Member{Name: "Message", Index:
 
 var schemaServicePrincipalType = smithy.Schema{ID: "com.amazonaws.kms#ServicePrincipalType", Type: smithy.TypeString}
 
-var schemaSignInput = smithy.Schema{ID: "com.amazonaws.kms#SignRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSignInput_KeyId, &memberSignInput_Message, &memberSignInput_MessageType, &memberSignInput_GrantTokens, &memberSignInput_SigningAlgorithm, &memberSignInput_DryRun}}
+var schemaSignInput = smithy.Schema{ID: "com.amazonaws.kms#SignRequest", Type: smithy.TypeStructure}
 
 var memberSignInput_KeyId = smithy.Member{Name: "KeyId", Index: 0, Target: &schemaKeyIdType, Required: true}
 
@@ -1287,7 +1287,7 @@ var memberSignInput_SigningAlgorithm = smithy.Member{Name: "SigningAlgorithm", I
 
 var memberSignInput_DryRun = smithy.Member{Name: "DryRun", Index: 5, Target: &schemaNullableBooleanType}
 
-var schemaSignOutput = smithy.Schema{ID: "com.amazonaws.kms#SignResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSignOutput_KeyId, &memberSignOutput_Signature, &memberSignOutput_SigningAlgorithm}}
+var schemaSignOutput = smithy.Schema{ID: "com.amazonaws.kms#SignResponse", Type: smithy.TypeStructure}
 
 var memberSignOutput_KeyId = smithy.Member{Name: "KeyId", Index: 0, Target: &schemaKeyIdType}
 
@@ -1363,7 +1363,7 @@ var memberUpdateAliasInput_AliasName = smithy.Member{Name: "AliasName", Index: 0
 
 var memberUpdateAliasInput_TargetKeyId = smithy.Member{Name: "TargetKeyId", Index: 1, Target: &schemaKeyIdType, Required: true}
 
-var schemaUpdateCustomKeyStoreInput = smithy.Schema{ID: "com.amazonaws.kms#UpdateCustomKeyStoreRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateCustomKeyStoreInput_CustomKeyStoreId, &memberUpdateCustomKeyStoreInput_NewCustomKeyStoreName, &memberUpdateCustomKeyStoreInput_KeyStorePassword, &memberUpdateCustomKeyStoreInput_CloudHsmClusterId, &memberUpdateCustomKeyStoreInput_XksProxyUriEndpoint, &memberUpdateCustomKeyStoreInput_XksProxyUriPath, &memberUpdateCustomKeyStoreInput_XksProxyVpcEndpointServiceName, &memberUpdateCustomKeyStoreInput_XksProxyVpcEndpointServiceOwner, &memberUpdateCustomKeyStoreInput_XksProxyAuthenticationCredential, &memberUpdateCustomKeyStoreInput_XksProxyConnectivity}}
+var schemaUpdateCustomKeyStoreInput = smithy.Schema{ID: "com.amazonaws.kms#UpdateCustomKeyStoreRequest", Type: smithy.TypeStructure}
 
 var memberUpdateCustomKeyStoreInput_CustomKeyStoreId = smithy.Member{Name: "CustomKeyStoreId", Index: 0, Target: &schemaCustomKeyStoreIdType, Required: true}
 
@@ -1393,7 +1393,7 @@ var memberUpdateKeyDescriptionInput_KeyId = smithy.Member{Name: "KeyId", Index: 
 
 var memberUpdateKeyDescriptionInput_Description = smithy.Member{Name: "Description", Index: 1, Target: &schemaDescriptionType, Required: true}
 
-var schemaUpdatePrimaryRegionInput = smithy.Schema{ID: "com.amazonaws.kms#UpdatePrimaryRegionRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdatePrimaryRegionInput_KeyId, &memberUpdatePrimaryRegionInput_PrimaryRegion}}
+var schemaUpdatePrimaryRegionInput = smithy.Schema{ID: "com.amazonaws.kms#UpdatePrimaryRegionRequest", Type: smithy.TypeStructure}
 
 var memberUpdatePrimaryRegionInput_KeyId = smithy.Member{Name: "KeyId", Index: 0, Target: &schemaKeyIdType, Required: true}
 
@@ -1403,7 +1403,7 @@ var schemaValidationException = smithy.Schema{ID: "com.amazon.coral.validate#Val
 
 var memberValidationException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaVerifyInput = smithy.Schema{ID: "com.amazonaws.kms#VerifyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberVerifyInput_KeyId, &memberVerifyInput_Message, &memberVerifyInput_MessageType, &memberVerifyInput_Signature, &memberVerifyInput_SigningAlgorithm, &memberVerifyInput_GrantTokens, &memberVerifyInput_DryRun}}
+var schemaVerifyInput = smithy.Schema{ID: "com.amazonaws.kms#VerifyRequest", Type: smithy.TypeStructure}
 
 var memberVerifyInput_KeyId = smithy.Member{Name: "KeyId", Index: 0, Target: &schemaKeyIdType, Required: true}
 
@@ -1419,7 +1419,7 @@ var memberVerifyInput_GrantTokens = smithy.Member{Name: "GrantTokens", Index: 5,
 
 var memberVerifyInput_DryRun = smithy.Member{Name: "DryRun", Index: 6, Target: &schemaNullableBooleanType}
 
-var schemaVerifyMacInput = smithy.Schema{ID: "com.amazonaws.kms#VerifyMacRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberVerifyMacInput_Message, &memberVerifyMacInput_KeyId, &memberVerifyMacInput_MacAlgorithm, &memberVerifyMacInput_Mac, &memberVerifyMacInput_GrantTokens, &memberVerifyMacInput_DryRun}}
+var schemaVerifyMacInput = smithy.Schema{ID: "com.amazonaws.kms#VerifyMacRequest", Type: smithy.TypeStructure}
 
 var memberVerifyMacInput_Message = smithy.Member{Name: "Message", Index: 0, Target: &schemaPlaintextType, Required: true, Sensitive: true}
 
@@ -1433,7 +1433,7 @@ var memberVerifyMacInput_GrantTokens = smithy.Member{Name: "GrantTokens", Index:
 
 var memberVerifyMacInput_DryRun = smithy.Member{Name: "DryRun", Index: 5, Target: &schemaNullableBooleanType}
 
-var schemaVerifyMacOutput = smithy.Schema{ID: "com.amazonaws.kms#VerifyMacResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberVerifyMacOutput_KeyId, &memberVerifyMacOutput_MacValid, &memberVerifyMacOutput_MacAlgorithm}}
+var schemaVerifyMacOutput = smithy.Schema{ID: "com.amazonaws.kms#VerifyMacResponse", Type: smithy.TypeStructure}
 
 var memberVerifyMacOutput_KeyId = smithy.Member{Name: "KeyId", Index: 0, Target: &schemaKeyIdType}
 
@@ -1441,7 +1441,7 @@ var memberVerifyMacOutput_MacValid = smithy.Member{Name: "MacValid", Index: 1, T
 
 var memberVerifyMacOutput_MacAlgorithm = smithy.Member{Name: "MacAlgorithm", Index: 2, Target: &schemaMacAlgorithmSpec}
 
-var schemaVerifyOutput = smithy.Schema{ID: "com.amazonaws.kms#VerifyResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberVerifyOutput_KeyId, &memberVerifyOutput_SignatureValid, &memberVerifyOutput_SigningAlgorithm}}
+var schemaVerifyOutput = smithy.Schema{ID: "com.amazonaws.kms#VerifyResponse", Type: smithy.TypeStructure}
 
 var memberVerifyOutput_KeyId = smithy.Member{Name: "KeyId", Index: 0, Target: &schemaKeyIdType}
 
@@ -1471,7 +1471,7 @@ var memberXksKeyNotFoundException_message = smithy.Member{Name: "message", Index
 
 var schemaXksProxyAuthenticationAccessKeyIdType = smithy.Schema{ID: "com.amazonaws.kms#XksProxyAuthenticationAccessKeyIdType", Type: smithy.TypeString, Sensitive: true}
 
-var schemaXksProxyAuthenticationCredentialType = smithy.Schema{ID: "com.amazonaws.kms#XksProxyAuthenticationCredentialType", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberXksProxyAuthenticationCredentialType_AccessKeyId, &memberXksProxyAuthenticationCredentialType_RawSecretAccessKey}}
+var schemaXksProxyAuthenticationCredentialType = smithy.Schema{ID: "com.amazonaws.kms#XksProxyAuthenticationCredentialType", Type: smithy.TypeStructure}
 
 var memberXksProxyAuthenticationCredentialType_AccessKeyId = smithy.Member{Name: "AccessKeyId", Index: 0, Target: &schemaXksProxyAuthenticationAccessKeyIdType, Required: true, Sensitive: true}
 
@@ -1479,7 +1479,7 @@ var memberXksProxyAuthenticationCredentialType_RawSecretAccessKey = smithy.Membe
 
 var schemaXksProxyAuthenticationRawSecretAccessKeyType = smithy.Schema{ID: "com.amazonaws.kms#XksProxyAuthenticationRawSecretAccessKeyType", Type: smithy.TypeString, Sensitive: true}
 
-var schemaXksProxyConfigurationType = smithy.Schema{ID: "com.amazonaws.kms#XksProxyConfigurationType", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberXksProxyConfigurationType_Connectivity, &memberXksProxyConfigurationType_AccessKeyId, &memberXksProxyConfigurationType_UriEndpoint, &memberXksProxyConfigurationType_UriPath, &memberXksProxyConfigurationType_VpcEndpointServiceName, &memberXksProxyConfigurationType_VpcEndpointServiceOwner}}
+var schemaXksProxyConfigurationType = smithy.Schema{ID: "com.amazonaws.kms#XksProxyConfigurationType", Type: smithy.TypeStructure}
 
 var memberXksProxyConfigurationType_Connectivity = smithy.Member{Name: "Connectivity", Index: 0, Target: &schemaXksProxyConnectivityType}
 

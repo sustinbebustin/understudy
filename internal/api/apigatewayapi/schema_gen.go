@@ -19,7 +19,7 @@ var memberAccessLogSettings_format = smithy.Member{Name: "format", Index: 0, Tar
 
 var memberAccessLogSettings_destinationArn = smithy.Member{Name: "destinationArn", Index: 1, Target: &schemaString}
 
-var schemaAccount = smithy.Schema{ID: "com.amazonaws.apigateway#Account", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAccount_cloudwatchRoleArn, &memberAccount_throttleSettings, &memberAccount_features, &memberAccount_apiKeyVersion}}
+var schemaAccount = smithy.Schema{ID: "com.amazonaws.apigateway#Account", Type: smithy.TypeStructure}
 
 var memberAccount_cloudwatchRoleArn = smithy.Member{Name: "cloudwatchRoleArn", Index: 0, Target: &schemaString}
 
@@ -29,7 +29,7 @@ var memberAccount_features = smithy.Member{Name: "features", Index: 2, Target: &
 
 var memberAccount_apiKeyVersion = smithy.Member{Name: "apiKeyVersion", Index: 3, Target: &schemaString}
 
-var schemaApiKey = smithy.Schema{ID: "com.amazonaws.apigateway#ApiKey", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberApiKey_id, &memberApiKey_value, &memberApiKey_name, &memberApiKey_customerId, &memberApiKey_description, &memberApiKey_enabled, &memberApiKey_createdDate, &memberApiKey_lastUpdatedDate, &memberApiKey_stageKeys, &memberApiKey_tags}}
+var schemaApiKey = smithy.Schema{ID: "com.amazonaws.apigateway#ApiKey", Type: smithy.TypeStructure}
 
 var memberApiKey_id = smithy.Member{Name: "id", Index: 0, Target: &schemaString}
 
@@ -55,7 +55,7 @@ var schemaApiKeySourceType = smithy.Schema{ID: "com.amazonaws.apigateway#ApiKeyS
 
 var schemaApiKeysFormat = smithy.Schema{ID: "com.amazonaws.apigateway#ApiKeysFormat", Type: smithy.TypeEnum}
 
-var schemaApiStage = smithy.Schema{ID: "com.amazonaws.apigateway#ApiStage", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberApiStage_apiId, &memberApiStage_stage, &memberApiStage_throttle}}
+var schemaApiStage = smithy.Schema{ID: "com.amazonaws.apigateway#ApiStage", Type: smithy.TypeStructure}
 
 var memberApiStage_apiId = smithy.Member{Name: "apiId", Index: 0, Target: &schemaString}
 
@@ -65,7 +65,7 @@ var memberApiStage_throttle = smithy.Member{Name: "throttle", Index: 2, Target: 
 
 var schemaApiStatus = smithy.Schema{ID: "com.amazonaws.apigateway#ApiStatus", Type: smithy.TypeEnum}
 
-var schemaAuthorizer = smithy.Schema{ID: "com.amazonaws.apigateway#Authorizer", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAuthorizer_id, &memberAuthorizer_name, &memberAuthorizer_type, &memberAuthorizer_providerARNs, &memberAuthorizer_authType, &memberAuthorizer_authorizerUri, &memberAuthorizer_authorizerCredentials, &memberAuthorizer_identitySource, &memberAuthorizer_identityValidationExpression, &memberAuthorizer_authorizerResultTtlInSeconds}}
+var schemaAuthorizer = smithy.Schema{ID: "com.amazonaws.apigateway#Authorizer", Type: smithy.TypeStructure}
 
 var memberAuthorizer_id = smithy.Member{Name: "id", Index: 0, Target: &schemaString}
 
@@ -93,7 +93,7 @@ var schemaBadRequestException = smithy.Schema{ID: "com.amazonaws.apigateway#BadR
 
 var memberBadRequestException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaString}
 
-var schemaBasePathMapping = smithy.Schema{ID: "com.amazonaws.apigateway#BasePathMapping", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberBasePathMapping_basePath, &memberBasePathMapping_restApiId, &memberBasePathMapping_stage}}
+var schemaBasePathMapping = smithy.Schema{ID: "com.amazonaws.apigateway#BasePathMapping", Type: smithy.TypeStructure}
 
 var memberBasePathMapping_basePath = smithy.Member{Name: "basePath", Index: 0, Target: &schemaString}
 
@@ -119,7 +119,7 @@ var memberCanarySettings_stageVariableOverrides = smithy.Member{Name: "stageVari
 
 var memberCanarySettings_useStageCache = smithy.Member{Name: "useStageCache", Index: 3, Target: &schemaBoolean, Default: document.Bool(false)}
 
-var schemaClientCertificate = smithy.Schema{ID: "com.amazonaws.apigateway#ClientCertificate", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberClientCertificate_clientCertificateId, &memberClientCertificate_description, &memberClientCertificate_pemEncodedCertificate, &memberClientCertificate_createdDate, &memberClientCertificate_expirationDate, &memberClientCertificate_tags}}
+var schemaClientCertificate = smithy.Schema{ID: "com.amazonaws.apigateway#ClientCertificate", Type: smithy.TypeStructure}
 
 var memberClientCertificate_clientCertificateId = smithy.Member{Name: "clientCertificateId", Index: 0, Target: &schemaString}
 
@@ -141,7 +141,7 @@ var schemaConnectionType = smithy.Schema{ID: "com.amazonaws.apigateway#Connectio
 
 var schemaContentHandlingStrategy = smithy.Schema{ID: "com.amazonaws.apigateway#ContentHandlingStrategy", Type: smithy.TypeEnum}
 
-var schemaCreateApiKeyInput = smithy.Schema{ID: "com.amazonaws.apigateway#CreateApiKeyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateApiKeyInput_name, &memberCreateApiKeyInput_description, &memberCreateApiKeyInput_enabled, &memberCreateApiKeyInput_generateDistinctId, &memberCreateApiKeyInput_value, &memberCreateApiKeyInput_stageKeys, &memberCreateApiKeyInput_customerId, &memberCreateApiKeyInput_tags}}
+var schemaCreateApiKeyInput = smithy.Schema{ID: "com.amazonaws.apigateway#CreateApiKeyRequest", Type: smithy.TypeStructure}
 
 var memberCreateApiKeyInput_name = smithy.Member{Name: "name", Index: 0, Target: &schemaString}
 
@@ -159,7 +159,7 @@ var memberCreateApiKeyInput_customerId = smithy.Member{Name: "customerId", Index
 
 var memberCreateApiKeyInput_tags = smithy.Member{Name: "tags", Index: 7, Target: &schemaMapOfStringToString}
 
-var schemaCreateAuthorizerInput = smithy.Schema{ID: "com.amazonaws.apigateway#CreateAuthorizerRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateAuthorizerInput_restApiId, &memberCreateAuthorizerInput_name, &memberCreateAuthorizerInput_type, &memberCreateAuthorizerInput_providerARNs, &memberCreateAuthorizerInput_authType, &memberCreateAuthorizerInput_authorizerUri, &memberCreateAuthorizerInput_authorizerCredentials, &memberCreateAuthorizerInput_identitySource, &memberCreateAuthorizerInput_identityValidationExpression, &memberCreateAuthorizerInput_authorizerResultTtlInSeconds}}
+var schemaCreateAuthorizerInput = smithy.Schema{ID: "com.amazonaws.apigateway#CreateAuthorizerRequest", Type: smithy.TypeStructure}
 
 var memberCreateAuthorizerInput_restApiId = smithy.Member{Name: "restApiId", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -181,7 +181,7 @@ var memberCreateAuthorizerInput_identityValidationExpression = smithy.Member{Nam
 
 var memberCreateAuthorizerInput_authorizerResultTtlInSeconds = smithy.Member{Name: "authorizerResultTtlInSeconds", Index: 9, Target: &schemaNullableInteger}
 
-var schemaCreateBasePathMappingInput = smithy.Schema{ID: "com.amazonaws.apigateway#CreateBasePathMappingRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateBasePathMappingInput_domainName, &memberCreateBasePathMappingInput_domainNameId, &memberCreateBasePathMappingInput_basePath, &memberCreateBasePathMappingInput_restApiId, &memberCreateBasePathMappingInput_stage}}
+var schemaCreateBasePathMappingInput = smithy.Schema{ID: "com.amazonaws.apigateway#CreateBasePathMappingRequest", Type: smithy.TypeStructure}
 
 var memberCreateBasePathMappingInput_domainName = smithy.Member{Name: "domainName", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -213,7 +213,7 @@ var memberCreateDeploymentInput_canarySettings = smithy.Member{Name: "canarySett
 
 var memberCreateDeploymentInput_tracingEnabled = smithy.Member{Name: "tracingEnabled", Index: 8, Target: &schemaNullableBoolean}
 
-var schemaCreateDocumentationPartInput = smithy.Schema{ID: "com.amazonaws.apigateway#CreateDocumentationPartRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateDocumentationPartInput_restApiId, &memberCreateDocumentationPartInput_location, &memberCreateDocumentationPartInput_properties}}
+var schemaCreateDocumentationPartInput = smithy.Schema{ID: "com.amazonaws.apigateway#CreateDocumentationPartRequest", Type: smithy.TypeStructure}
 
 var memberCreateDocumentationPartInput_restApiId = smithy.Member{Name: "restApiId", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -221,7 +221,7 @@ var memberCreateDocumentationPartInput_location = smithy.Member{Name: "location"
 
 var memberCreateDocumentationPartInput_properties = smithy.Member{Name: "properties", Index: 2, Target: &schemaString, Required: true}
 
-var schemaCreateDocumentationVersionInput = smithy.Schema{ID: "com.amazonaws.apigateway#CreateDocumentationVersionRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateDocumentationVersionInput_restApiId, &memberCreateDocumentationVersionInput_documentationVersion, &memberCreateDocumentationVersionInput_stageName, &memberCreateDocumentationVersionInput_description}}
+var schemaCreateDocumentationVersionInput = smithy.Schema{ID: "com.amazonaws.apigateway#CreateDocumentationVersionRequest", Type: smithy.TypeStructure}
 
 var memberCreateDocumentationVersionInput_restApiId = smithy.Member{Name: "restApiId", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -231,7 +231,7 @@ var memberCreateDocumentationVersionInput_stageName = smithy.Member{Name: "stage
 
 var memberCreateDocumentationVersionInput_description = smithy.Member{Name: "description", Index: 3, Target: &schemaString}
 
-var schemaCreateDomainNameAccessAssociationInput = smithy.Schema{ID: "com.amazonaws.apigateway#CreateDomainNameAccessAssociationRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateDomainNameAccessAssociationInput_domainNameArn, &memberCreateDomainNameAccessAssociationInput_accessAssociationSourceType, &memberCreateDomainNameAccessAssociationInput_accessAssociationSource, &memberCreateDomainNameAccessAssociationInput_tags}}
+var schemaCreateDomainNameAccessAssociationInput = smithy.Schema{ID: "com.amazonaws.apigateway#CreateDomainNameAccessAssociationRequest", Type: smithy.TypeStructure}
 
 var memberCreateDomainNameAccessAssociationInput_domainNameArn = smithy.Member{Name: "domainNameArn", Index: 0, Target: &schemaString, Required: true}
 
@@ -241,7 +241,7 @@ var memberCreateDomainNameAccessAssociationInput_accessAssociationSource = smith
 
 var memberCreateDomainNameAccessAssociationInput_tags = smithy.Member{Name: "tags", Index: 3, Target: &schemaMapOfStringToString}
 
-var schemaCreateDomainNameInput = smithy.Schema{ID: "com.amazonaws.apigateway#CreateDomainNameRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateDomainNameInput_domainName, &memberCreateDomainNameInput_certificateName, &memberCreateDomainNameInput_certificateBody, &memberCreateDomainNameInput_certificatePrivateKey, &memberCreateDomainNameInput_certificateChain, &memberCreateDomainNameInput_certificateArn, &memberCreateDomainNameInput_regionalCertificateName, &memberCreateDomainNameInput_regionalCertificateArn, &memberCreateDomainNameInput_endpointConfiguration, &memberCreateDomainNameInput_tags, &memberCreateDomainNameInput_securityPolicy, &memberCreateDomainNameInput_endpointAccessMode, &memberCreateDomainNameInput_mutualTlsAuthentication, &memberCreateDomainNameInput_ownershipVerificationCertificateArn, &memberCreateDomainNameInput_policy, &memberCreateDomainNameInput_routingMode}}
+var schemaCreateDomainNameInput = smithy.Schema{ID: "com.amazonaws.apigateway#CreateDomainNameRequest", Type: smithy.TypeStructure}
 
 var memberCreateDomainNameInput_domainName = smithy.Member{Name: "domainName", Index: 0, Target: &schemaString, Required: true}
 
@@ -275,7 +275,7 @@ var memberCreateDomainNameInput_policy = smithy.Member{Name: "policy", Index: 14
 
 var memberCreateDomainNameInput_routingMode = smithy.Member{Name: "routingMode", Index: 15, Target: &schemaRoutingMode}
 
-var schemaCreateModelInput = smithy.Schema{ID: "com.amazonaws.apigateway#CreateModelRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateModelInput_restApiId, &memberCreateModelInput_name, &memberCreateModelInput_description, &memberCreateModelInput_schema, &memberCreateModelInput_contentType}}
+var schemaCreateModelInput = smithy.Schema{ID: "com.amazonaws.apigateway#CreateModelRequest", Type: smithy.TypeStructure}
 
 var memberCreateModelInput_restApiId = smithy.Member{Name: "restApiId", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -287,7 +287,7 @@ var memberCreateModelInput_schema = smithy.Member{Name: "schema", Index: 3, Targ
 
 var memberCreateModelInput_contentType = smithy.Member{Name: "contentType", Index: 4, Target: &schemaString, Required: true}
 
-var schemaCreateRequestValidatorInput = smithy.Schema{ID: "com.amazonaws.apigateway#CreateRequestValidatorRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateRequestValidatorInput_restApiId, &memberCreateRequestValidatorInput_name, &memberCreateRequestValidatorInput_validateRequestBody, &memberCreateRequestValidatorInput_validateRequestParameters}}
+var schemaCreateRequestValidatorInput = smithy.Schema{ID: "com.amazonaws.apigateway#CreateRequestValidatorRequest", Type: smithy.TypeStructure}
 
 var memberCreateRequestValidatorInput_restApiId = smithy.Member{Name: "restApiId", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -357,7 +357,7 @@ var memberCreateStageInput_tracingEnabled = smithy.Member{Name: "tracingEnabled"
 
 var memberCreateStageInput_tags = smithy.Member{Name: "tags", Index: 10, Target: &schemaMapOfStringToString}
 
-var schemaCreateUsagePlanInput = smithy.Schema{ID: "com.amazonaws.apigateway#CreateUsagePlanRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateUsagePlanInput_name, &memberCreateUsagePlanInput_description, &memberCreateUsagePlanInput_apiStages, &memberCreateUsagePlanInput_throttle, &memberCreateUsagePlanInput_quota, &memberCreateUsagePlanInput_tags}}
+var schemaCreateUsagePlanInput = smithy.Schema{ID: "com.amazonaws.apigateway#CreateUsagePlanRequest", Type: smithy.TypeStructure}
 
 var memberCreateUsagePlanInput_name = smithy.Member{Name: "name", Index: 0, Target: &schemaString, Required: true}
 
@@ -371,7 +371,7 @@ var memberCreateUsagePlanInput_quota = smithy.Member{Name: "quota", Index: 4, Ta
 
 var memberCreateUsagePlanInput_tags = smithy.Member{Name: "tags", Index: 5, Target: &schemaMapOfStringToString}
 
-var schemaCreateUsagePlanKeyInput = smithy.Schema{ID: "com.amazonaws.apigateway#CreateUsagePlanKeyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateUsagePlanKeyInput_usagePlanId, &memberCreateUsagePlanKeyInput_keyId, &memberCreateUsagePlanKeyInput_keyType}}
+var schemaCreateUsagePlanKeyInput = smithy.Schema{ID: "com.amazonaws.apigateway#CreateUsagePlanKeyRequest", Type: smithy.TypeStructure}
 
 var memberCreateUsagePlanKeyInput_usagePlanId = smithy.Member{Name: "usagePlanId", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -379,7 +379,7 @@ var memberCreateUsagePlanKeyInput_keyId = smithy.Member{Name: "keyId", Index: 1,
 
 var memberCreateUsagePlanKeyInput_keyType = smithy.Member{Name: "keyType", Index: 2, Target: &schemaString, Required: true}
 
-var schemaCreateVpcLinkInput = smithy.Schema{ID: "com.amazonaws.apigateway#CreateVpcLinkRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateVpcLinkInput_name, &memberCreateVpcLinkInput_description, &memberCreateVpcLinkInput_targetArns, &memberCreateVpcLinkInput_tags}}
+var schemaCreateVpcLinkInput = smithy.Schema{ID: "com.amazonaws.apigateway#CreateVpcLinkRequest", Type: smithy.TypeStructure}
 
 var memberCreateVpcLinkInput_name = smithy.Member{Name: "name", Index: 0, Target: &schemaString, Required: true}
 
@@ -389,17 +389,17 @@ var memberCreateVpcLinkInput_targetArns = smithy.Member{Name: "targetArns", Inde
 
 var memberCreateVpcLinkInput_tags = smithy.Member{Name: "tags", Index: 3, Target: &schemaMapOfStringToString}
 
-var schemaDeleteApiKeyInput = smithy.Schema{ID: "com.amazonaws.apigateway#DeleteApiKeyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteApiKeyInput_apiKey}}
+var schemaDeleteApiKeyInput = smithy.Schema{ID: "com.amazonaws.apigateway#DeleteApiKeyRequest", Type: smithy.TypeStructure}
 
 var memberDeleteApiKeyInput_apiKey = smithy.Member{Name: "apiKey", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaDeleteAuthorizerInput = smithy.Schema{ID: "com.amazonaws.apigateway#DeleteAuthorizerRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteAuthorizerInput_restApiId, &memberDeleteAuthorizerInput_authorizerId}}
+var schemaDeleteAuthorizerInput = smithy.Schema{ID: "com.amazonaws.apigateway#DeleteAuthorizerRequest", Type: smithy.TypeStructure}
 
 var memberDeleteAuthorizerInput_restApiId = smithy.Member{Name: "restApiId", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
 var memberDeleteAuthorizerInput_authorizerId = smithy.Member{Name: "authorizerId", Index: 1, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaDeleteBasePathMappingInput = smithy.Schema{ID: "com.amazonaws.apigateway#DeleteBasePathMappingRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteBasePathMappingInput_domainName, &memberDeleteBasePathMappingInput_domainNameId, &memberDeleteBasePathMappingInput_basePath}}
+var schemaDeleteBasePathMappingInput = smithy.Schema{ID: "com.amazonaws.apigateway#DeleteBasePathMappingRequest", Type: smithy.TypeStructure}
 
 var memberDeleteBasePathMappingInput_domainName = smithy.Member{Name: "domainName", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -407,7 +407,7 @@ var memberDeleteBasePathMappingInput_domainNameId = smithy.Member{Name: "domainN
 
 var memberDeleteBasePathMappingInput_basePath = smithy.Member{Name: "basePath", Index: 2, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaDeleteClientCertificateInput = smithy.Schema{ID: "com.amazonaws.apigateway#DeleteClientCertificateRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteClientCertificateInput_clientCertificateId}}
+var schemaDeleteClientCertificateInput = smithy.Schema{ID: "com.amazonaws.apigateway#DeleteClientCertificateRequest", Type: smithy.TypeStructure}
 
 var memberDeleteClientCertificateInput_clientCertificateId = smithy.Member{Name: "clientCertificateId", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -417,29 +417,29 @@ var memberDeleteDeploymentInput_restApiId = smithy.Member{Name: "restApiId", Ind
 
 var memberDeleteDeploymentInput_deploymentId = smithy.Member{Name: "deploymentId", Index: 1, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaDeleteDocumentationPartInput = smithy.Schema{ID: "com.amazonaws.apigateway#DeleteDocumentationPartRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteDocumentationPartInput_restApiId, &memberDeleteDocumentationPartInput_documentationPartId}}
+var schemaDeleteDocumentationPartInput = smithy.Schema{ID: "com.amazonaws.apigateway#DeleteDocumentationPartRequest", Type: smithy.TypeStructure}
 
 var memberDeleteDocumentationPartInput_restApiId = smithy.Member{Name: "restApiId", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
 var memberDeleteDocumentationPartInput_documentationPartId = smithy.Member{Name: "documentationPartId", Index: 1, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaDeleteDocumentationVersionInput = smithy.Schema{ID: "com.amazonaws.apigateway#DeleteDocumentationVersionRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteDocumentationVersionInput_restApiId, &memberDeleteDocumentationVersionInput_documentationVersion}}
+var schemaDeleteDocumentationVersionInput = smithy.Schema{ID: "com.amazonaws.apigateway#DeleteDocumentationVersionRequest", Type: smithy.TypeStructure}
 
 var memberDeleteDocumentationVersionInput_restApiId = smithy.Member{Name: "restApiId", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
 var memberDeleteDocumentationVersionInput_documentationVersion = smithy.Member{Name: "documentationVersion", Index: 1, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaDeleteDomainNameAccessAssociationInput = smithy.Schema{ID: "com.amazonaws.apigateway#DeleteDomainNameAccessAssociationRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteDomainNameAccessAssociationInput_domainNameAccessAssociationArn}}
+var schemaDeleteDomainNameAccessAssociationInput = smithy.Schema{ID: "com.amazonaws.apigateway#DeleteDomainNameAccessAssociationRequest", Type: smithy.TypeStructure}
 
 var memberDeleteDomainNameAccessAssociationInput_domainNameAccessAssociationArn = smithy.Member{Name: "domainNameAccessAssociationArn", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaDeleteDomainNameInput = smithy.Schema{ID: "com.amazonaws.apigateway#DeleteDomainNameRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteDomainNameInput_domainName, &memberDeleteDomainNameInput_domainNameId}}
+var schemaDeleteDomainNameInput = smithy.Schema{ID: "com.amazonaws.apigateway#DeleteDomainNameRequest", Type: smithy.TypeStructure}
 
 var memberDeleteDomainNameInput_domainName = smithy.Member{Name: "domainName", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
 var memberDeleteDomainNameInput_domainNameId = smithy.Member{Name: "domainNameId", Index: 1, Target: &schemaString, HTTP: smithy.HTTPQuery{Name: "domainNameId"}}
 
-var schemaDeleteGatewayResponseInput = smithy.Schema{ID: "com.amazonaws.apigateway#DeleteGatewayResponseRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteGatewayResponseInput_restApiId, &memberDeleteGatewayResponseInput_responseType}}
+var schemaDeleteGatewayResponseInput = smithy.Schema{ID: "com.amazonaws.apigateway#DeleteGatewayResponseRequest", Type: smithy.TypeStructure}
 
 var memberDeleteGatewayResponseInput_restApiId = smithy.Member{Name: "restApiId", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -481,13 +481,13 @@ var memberDeleteMethodResponseInput_httpMethod = smithy.Member{Name: "httpMethod
 
 var memberDeleteMethodResponseInput_statusCode = smithy.Member{Name: "statusCode", Index: 3, Target: &schemaStatusCode, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaDeleteModelInput = smithy.Schema{ID: "com.amazonaws.apigateway#DeleteModelRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteModelInput_restApiId, &memberDeleteModelInput_modelName}}
+var schemaDeleteModelInput = smithy.Schema{ID: "com.amazonaws.apigateway#DeleteModelRequest", Type: smithy.TypeStructure}
 
 var memberDeleteModelInput_restApiId = smithy.Member{Name: "restApiId", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
 var memberDeleteModelInput_modelName = smithy.Member{Name: "modelName", Index: 1, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaDeleteRequestValidatorInput = smithy.Schema{ID: "com.amazonaws.apigateway#DeleteRequestValidatorRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteRequestValidatorInput_restApiId, &memberDeleteRequestValidatorInput_requestValidatorId}}
+var schemaDeleteRequestValidatorInput = smithy.Schema{ID: "com.amazonaws.apigateway#DeleteRequestValidatorRequest", Type: smithy.TypeStructure}
 
 var memberDeleteRequestValidatorInput_restApiId = smithy.Member{Name: "restApiId", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -509,17 +509,17 @@ var memberDeleteStageInput_restApiId = smithy.Member{Name: "restApiId", Index: 0
 
 var memberDeleteStageInput_stageName = smithy.Member{Name: "stageName", Index: 1, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaDeleteUsagePlanInput = smithy.Schema{ID: "com.amazonaws.apigateway#DeleteUsagePlanRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteUsagePlanInput_usagePlanId}}
+var schemaDeleteUsagePlanInput = smithy.Schema{ID: "com.amazonaws.apigateway#DeleteUsagePlanRequest", Type: smithy.TypeStructure}
 
 var memberDeleteUsagePlanInput_usagePlanId = smithy.Member{Name: "usagePlanId", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaDeleteUsagePlanKeyInput = smithy.Schema{ID: "com.amazonaws.apigateway#DeleteUsagePlanKeyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteUsagePlanKeyInput_usagePlanId, &memberDeleteUsagePlanKeyInput_keyId}}
+var schemaDeleteUsagePlanKeyInput = smithy.Schema{ID: "com.amazonaws.apigateway#DeleteUsagePlanKeyRequest", Type: smithy.TypeStructure}
 
 var memberDeleteUsagePlanKeyInput_usagePlanId = smithy.Member{Name: "usagePlanId", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
 var memberDeleteUsagePlanKeyInput_keyId = smithy.Member{Name: "keyId", Index: 1, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaDeleteVpcLinkInput = smithy.Schema{ID: "com.amazonaws.apigateway#DeleteVpcLinkRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteVpcLinkInput_vpcLinkId}}
+var schemaDeleteVpcLinkInput = smithy.Schema{ID: "com.amazonaws.apigateway#DeleteVpcLinkRequest", Type: smithy.TypeStructure}
 
 var memberDeleteVpcLinkInput_vpcLinkId = smithy.Member{Name: "vpcLinkId", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -541,7 +541,7 @@ var memberDeploymentCanarySettings_stageVariableOverrides = smithy.Member{Name: 
 
 var memberDeploymentCanarySettings_useStageCache = smithy.Member{Name: "useStageCache", Index: 2, Target: &schemaBoolean, Default: document.Bool(false)}
 
-var schemaDocumentationPart = smithy.Schema{ID: "com.amazonaws.apigateway#DocumentationPart", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDocumentationPart_id, &memberDocumentationPart_location, &memberDocumentationPart_properties}}
+var schemaDocumentationPart = smithy.Schema{ID: "com.amazonaws.apigateway#DocumentationPart", Type: smithy.TypeStructure}
 
 var memberDocumentationPart_id = smithy.Member{Name: "id", Index: 0, Target: &schemaString}
 
@@ -549,7 +549,7 @@ var memberDocumentationPart_location = smithy.Member{Name: "location", Index: 1,
 
 var memberDocumentationPart_properties = smithy.Member{Name: "properties", Index: 2, Target: &schemaString}
 
-var schemaDocumentationPartLocation = smithy.Schema{ID: "com.amazonaws.apigateway#DocumentationPartLocation", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDocumentationPartLocation_type, &memberDocumentationPartLocation_path, &memberDocumentationPartLocation_method, &memberDocumentationPartLocation_statusCode, &memberDocumentationPartLocation_name}}
+var schemaDocumentationPartLocation = smithy.Schema{ID: "com.amazonaws.apigateway#DocumentationPartLocation", Type: smithy.TypeStructure}
 
 var memberDocumentationPartLocation_type = smithy.Member{Name: "type", Index: 0, Target: &schemaDocumentationPartType, Required: true}
 
@@ -565,7 +565,7 @@ var schemaDocumentationPartLocationStatusCode = smithy.Schema{ID: "com.amazonaws
 
 var schemaDocumentationPartType = smithy.Schema{ID: "com.amazonaws.apigateway#DocumentationPartType", Type: smithy.TypeEnum}
 
-var schemaDocumentationVersion = smithy.Schema{ID: "com.amazonaws.apigateway#DocumentationVersion", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDocumentationVersion_version, &memberDocumentationVersion_createdDate, &memberDocumentationVersion_description}}
+var schemaDocumentationVersion = smithy.Schema{ID: "com.amazonaws.apigateway#DocumentationVersion", Type: smithy.TypeStructure}
 
 var memberDocumentationVersion_version = smithy.Member{Name: "version", Index: 0, Target: &schemaString}
 
@@ -573,7 +573,7 @@ var memberDocumentationVersion_createdDate = smithy.Member{Name: "createdDate", 
 
 var memberDocumentationVersion_description = smithy.Member{Name: "description", Index: 2, Target: &schemaString}
 
-var schemaDomainName = smithy.Schema{ID: "com.amazonaws.apigateway#DomainName", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDomainName_domainName, &memberDomainName_domainNameId, &memberDomainName_domainNameArn, &memberDomainName_certificateName, &memberDomainName_certificateArn, &memberDomainName_certificateUploadDate, &memberDomainName_regionalDomainName, &memberDomainName_regionalHostedZoneId, &memberDomainName_regionalCertificateName, &memberDomainName_regionalCertificateArn, &memberDomainName_distributionDomainName, &memberDomainName_distributionHostedZoneId, &memberDomainName_endpointConfiguration, &memberDomainName_domainNameStatus, &memberDomainName_domainNameStatusMessage, &memberDomainName_securityPolicy, &memberDomainName_endpointAccessMode, &memberDomainName_tags, &memberDomainName_mutualTlsAuthentication, &memberDomainName_ownershipVerificationCertificateArn, &memberDomainName_managementPolicy, &memberDomainName_policy, &memberDomainName_routingMode}}
+var schemaDomainName = smithy.Schema{ID: "com.amazonaws.apigateway#DomainName", Type: smithy.TypeStructure}
 
 var memberDomainName_domainName = smithy.Member{Name: "domainName", Index: 0, Target: &schemaString}
 
@@ -621,7 +621,7 @@ var memberDomainName_policy = smithy.Member{Name: "policy", Index: 21, Target: &
 
 var memberDomainName_routingMode = smithy.Member{Name: "routingMode", Index: 22, Target: &schemaRoutingMode}
 
-var schemaDomainNameAccessAssociation = smithy.Schema{ID: "com.amazonaws.apigateway#DomainNameAccessAssociation", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDomainNameAccessAssociation_domainNameAccessAssociationArn, &memberDomainNameAccessAssociation_domainNameArn, &memberDomainNameAccessAssociation_accessAssociationSourceType, &memberDomainNameAccessAssociation_accessAssociationSource, &memberDomainNameAccessAssociation_tags}}
+var schemaDomainNameAccessAssociation = smithy.Schema{ID: "com.amazonaws.apigateway#DomainNameAccessAssociation", Type: smithy.TypeStructure}
 
 var memberDomainNameAccessAssociation_domainNameAccessAssociationArn = smithy.Member{Name: "domainNameAccessAssociationArn", Index: 0, Target: &schemaString}
 
@@ -653,19 +653,19 @@ var schemaExpiredTokenException = smithy.Schema{ID: "com.amazon.coral.service#Ex
 
 var memberExpiredTokenException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaFlushStageAuthorizersCacheInput = smithy.Schema{ID: "com.amazonaws.apigateway#FlushStageAuthorizersCacheRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberFlushStageAuthorizersCacheInput_restApiId, &memberFlushStageAuthorizersCacheInput_stageName}}
+var schemaFlushStageAuthorizersCacheInput = smithy.Schema{ID: "com.amazonaws.apigateway#FlushStageAuthorizersCacheRequest", Type: smithy.TypeStructure}
 
 var memberFlushStageAuthorizersCacheInput_restApiId = smithy.Member{Name: "restApiId", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
 var memberFlushStageAuthorizersCacheInput_stageName = smithy.Member{Name: "stageName", Index: 1, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaFlushStageCacheInput = smithy.Schema{ID: "com.amazonaws.apigateway#FlushStageCacheRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberFlushStageCacheInput_restApiId, &memberFlushStageCacheInput_stageName}}
+var schemaFlushStageCacheInput = smithy.Schema{ID: "com.amazonaws.apigateway#FlushStageCacheRequest", Type: smithy.TypeStructure}
 
 var memberFlushStageCacheInput_restApiId = smithy.Member{Name: "restApiId", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
 var memberFlushStageCacheInput_stageName = smithy.Member{Name: "stageName", Index: 1, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaGatewayResponse = smithy.Schema{ID: "com.amazonaws.apigateway#GatewayResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGatewayResponse_responseType, &memberGatewayResponse_statusCode, &memberGatewayResponse_responseParameters, &memberGatewayResponse_responseTemplates, &memberGatewayResponse_defaultResponse}}
+var schemaGatewayResponse = smithy.Schema{ID: "com.amazonaws.apigateway#GatewayResponse", Type: smithy.TypeStructure}
 
 var memberGatewayResponse_responseType = smithy.Member{Name: "responseType", Index: 0, Target: &schemaGatewayResponseType}
 
@@ -679,7 +679,7 @@ var memberGatewayResponse_defaultResponse = smithy.Member{Name: "defaultResponse
 
 var schemaGatewayResponseType = smithy.Schema{ID: "com.amazonaws.apigateway#GatewayResponseType", Type: smithy.TypeEnum}
 
-var schemaGenerateClientCertificateInput = smithy.Schema{ID: "com.amazonaws.apigateway#GenerateClientCertificateRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGenerateClientCertificateInput_description, &memberGenerateClientCertificateInput_tags}}
+var schemaGenerateClientCertificateInput = smithy.Schema{ID: "com.amazonaws.apigateway#GenerateClientCertificateRequest", Type: smithy.TypeStructure}
 
 var memberGenerateClientCertificateInput_description = smithy.Member{Name: "description", Index: 0, Target: &schemaString}
 
@@ -687,13 +687,13 @@ var memberGenerateClientCertificateInput_tags = smithy.Member{Name: "tags", Inde
 
 var schemaGetAccountInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetAccountRequest", Type: smithy.TypeStructure}
 
-var schemaGetApiKeyInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetApiKeyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetApiKeyInput_apiKey, &memberGetApiKeyInput_includeValue}}
+var schemaGetApiKeyInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetApiKeyRequest", Type: smithy.TypeStructure}
 
 var memberGetApiKeyInput_apiKey = smithy.Member{Name: "apiKey", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
 var memberGetApiKeyInput_includeValue = smithy.Member{Name: "includeValue", Index: 1, Target: &schemaNullableBoolean, HTTP: smithy.HTTPQuery{Name: "includeValue"}}
 
-var schemaGetApiKeysInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetApiKeysRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetApiKeysInput_position, &memberGetApiKeysInput_limit, &memberGetApiKeysInput_nameQuery, &memberGetApiKeysInput_customerId, &memberGetApiKeysInput_includeValues}}
+var schemaGetApiKeysInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetApiKeysRequest", Type: smithy.TypeStructure}
 
 var memberGetApiKeysInput_position = smithy.Member{Name: "position", Index: 0, Target: &schemaString, HTTP: smithy.HTTPQuery{Name: "position"}}
 
@@ -705,7 +705,7 @@ var memberGetApiKeysInput_customerId = smithy.Member{Name: "customerId", Index: 
 
 var memberGetApiKeysInput_includeValues = smithy.Member{Name: "includeValues", Index: 4, Target: &schemaNullableBoolean, HTTP: smithy.HTTPQuery{Name: "includeValues"}}
 
-var schemaGetApiKeysOutput = smithy.Schema{ID: "com.amazonaws.apigateway#ApiKeys", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetApiKeysOutput_warnings, &memberGetApiKeysOutput_items, &memberGetApiKeysOutput_position}}
+var schemaGetApiKeysOutput = smithy.Schema{ID: "com.amazonaws.apigateway#ApiKeys", Type: smithy.TypeStructure}
 
 var memberGetApiKeysOutput_warnings = smithy.Member{Name: "warnings", Index: 0, Target: &schemaListOfString}
 
@@ -713,13 +713,13 @@ var memberGetApiKeysOutput_items = smithy.Member{Name: "items", Index: 1, Target
 
 var memberGetApiKeysOutput_position = smithy.Member{Name: "position", Index: 2, Target: &schemaString, HTTP: smithy.HTTPQuery{Name: "position"}}
 
-var schemaGetAuthorizerInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetAuthorizerRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetAuthorizerInput_restApiId, &memberGetAuthorizerInput_authorizerId}}
+var schemaGetAuthorizerInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetAuthorizerRequest", Type: smithy.TypeStructure}
 
 var memberGetAuthorizerInput_restApiId = smithy.Member{Name: "restApiId", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
 var memberGetAuthorizerInput_authorizerId = smithy.Member{Name: "authorizerId", Index: 1, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaGetAuthorizersInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetAuthorizersRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetAuthorizersInput_restApiId, &memberGetAuthorizersInput_position, &memberGetAuthorizersInput_limit}}
+var schemaGetAuthorizersInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetAuthorizersRequest", Type: smithy.TypeStructure}
 
 var memberGetAuthorizersInput_restApiId = smithy.Member{Name: "restApiId", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -727,13 +727,13 @@ var memberGetAuthorizersInput_position = smithy.Member{Name: "position", Index: 
 
 var memberGetAuthorizersInput_limit = smithy.Member{Name: "limit", Index: 2, Target: &schemaNullableInteger, HTTP: smithy.HTTPQuery{Name: "limit"}}
 
-var schemaGetAuthorizersOutput = smithy.Schema{ID: "com.amazonaws.apigateway#Authorizers", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetAuthorizersOutput_items, &memberGetAuthorizersOutput_position}}
+var schemaGetAuthorizersOutput = smithy.Schema{ID: "com.amazonaws.apigateway#Authorizers", Type: smithy.TypeStructure}
 
 var memberGetAuthorizersOutput_items = smithy.Member{Name: "items", Index: 0, Target: &schemaListOfAuthorizer, JSONName: "item"}
 
 var memberGetAuthorizersOutput_position = smithy.Member{Name: "position", Index: 1, Target: &schemaString, HTTP: smithy.HTTPQuery{Name: "position"}}
 
-var schemaGetBasePathMappingInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetBasePathMappingRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetBasePathMappingInput_domainName, &memberGetBasePathMappingInput_domainNameId, &memberGetBasePathMappingInput_basePath}}
+var schemaGetBasePathMappingInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetBasePathMappingRequest", Type: smithy.TypeStructure}
 
 var memberGetBasePathMappingInput_domainName = smithy.Member{Name: "domainName", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -741,7 +741,7 @@ var memberGetBasePathMappingInput_domainNameId = smithy.Member{Name: "domainName
 
 var memberGetBasePathMappingInput_basePath = smithy.Member{Name: "basePath", Index: 2, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaGetBasePathMappingsInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetBasePathMappingsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetBasePathMappingsInput_domainName, &memberGetBasePathMappingsInput_domainNameId, &memberGetBasePathMappingsInput_position, &memberGetBasePathMappingsInput_limit}}
+var schemaGetBasePathMappingsInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetBasePathMappingsRequest", Type: smithy.TypeStructure}
 
 var memberGetBasePathMappingsInput_domainName = smithy.Member{Name: "domainName", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -751,23 +751,23 @@ var memberGetBasePathMappingsInput_position = smithy.Member{Name: "position", In
 
 var memberGetBasePathMappingsInput_limit = smithy.Member{Name: "limit", Index: 3, Target: &schemaNullableInteger, HTTP: smithy.HTTPQuery{Name: "limit"}}
 
-var schemaGetBasePathMappingsOutput = smithy.Schema{ID: "com.amazonaws.apigateway#BasePathMappings", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetBasePathMappingsOutput_items, &memberGetBasePathMappingsOutput_position}}
+var schemaGetBasePathMappingsOutput = smithy.Schema{ID: "com.amazonaws.apigateway#BasePathMappings", Type: smithy.TypeStructure}
 
 var memberGetBasePathMappingsOutput_items = smithy.Member{Name: "items", Index: 0, Target: &schemaListOfBasePathMapping, JSONName: "item"}
 
 var memberGetBasePathMappingsOutput_position = smithy.Member{Name: "position", Index: 1, Target: &schemaString, HTTP: smithy.HTTPQuery{Name: "position"}}
 
-var schemaGetClientCertificateInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetClientCertificateRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetClientCertificateInput_clientCertificateId}}
+var schemaGetClientCertificateInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetClientCertificateRequest", Type: smithy.TypeStructure}
 
 var memberGetClientCertificateInput_clientCertificateId = smithy.Member{Name: "clientCertificateId", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaGetClientCertificatesInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetClientCertificatesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetClientCertificatesInput_position, &memberGetClientCertificatesInput_limit}}
+var schemaGetClientCertificatesInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetClientCertificatesRequest", Type: smithy.TypeStructure}
 
 var memberGetClientCertificatesInput_position = smithy.Member{Name: "position", Index: 0, Target: &schemaString, HTTP: smithy.HTTPQuery{Name: "position"}}
 
 var memberGetClientCertificatesInput_limit = smithy.Member{Name: "limit", Index: 1, Target: &schemaNullableInteger, HTTP: smithy.HTTPQuery{Name: "limit"}}
 
-var schemaGetClientCertificatesOutput = smithy.Schema{ID: "com.amazonaws.apigateway#ClientCertificates", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetClientCertificatesOutput_items, &memberGetClientCertificatesOutput_position}}
+var schemaGetClientCertificatesOutput = smithy.Schema{ID: "com.amazonaws.apigateway#ClientCertificates", Type: smithy.TypeStructure}
 
 var memberGetClientCertificatesOutput_items = smithy.Member{Name: "items", Index: 0, Target: &schemaListOfClientCertificate, JSONName: "item"}
 
@@ -795,13 +795,13 @@ var memberGetDeploymentsOutput_items = smithy.Member{Name: "items", Index: 0, Ta
 
 var memberGetDeploymentsOutput_position = smithy.Member{Name: "position", Index: 1, Target: &schemaString, HTTP: smithy.HTTPQuery{Name: "position"}}
 
-var schemaGetDocumentationPartInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetDocumentationPartRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetDocumentationPartInput_restApiId, &memberGetDocumentationPartInput_documentationPartId}}
+var schemaGetDocumentationPartInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetDocumentationPartRequest", Type: smithy.TypeStructure}
 
 var memberGetDocumentationPartInput_restApiId = smithy.Member{Name: "restApiId", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
 var memberGetDocumentationPartInput_documentationPartId = smithy.Member{Name: "documentationPartId", Index: 1, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaGetDocumentationPartsInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetDocumentationPartsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetDocumentationPartsInput_restApiId, &memberGetDocumentationPartsInput_type, &memberGetDocumentationPartsInput_nameQuery, &memberGetDocumentationPartsInput_path, &memberGetDocumentationPartsInput_position, &memberGetDocumentationPartsInput_limit, &memberGetDocumentationPartsInput_locationStatus}}
+var schemaGetDocumentationPartsInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetDocumentationPartsRequest", Type: smithy.TypeStructure}
 
 var memberGetDocumentationPartsInput_restApiId = smithy.Member{Name: "restApiId", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -817,19 +817,19 @@ var memberGetDocumentationPartsInput_limit = smithy.Member{Name: "limit", Index:
 
 var memberGetDocumentationPartsInput_locationStatus = smithy.Member{Name: "locationStatus", Index: 6, Target: &schemaLocationStatusType, HTTP: smithy.HTTPQuery{Name: "locationStatus"}}
 
-var schemaGetDocumentationPartsOutput = smithy.Schema{ID: "com.amazonaws.apigateway#DocumentationParts", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetDocumentationPartsOutput_items, &memberGetDocumentationPartsOutput_position}}
+var schemaGetDocumentationPartsOutput = smithy.Schema{ID: "com.amazonaws.apigateway#DocumentationParts", Type: smithy.TypeStructure}
 
 var memberGetDocumentationPartsOutput_items = smithy.Member{Name: "items", Index: 0, Target: &schemaListOfDocumentationPart, JSONName: "item"}
 
 var memberGetDocumentationPartsOutput_position = smithy.Member{Name: "position", Index: 1, Target: &schemaString, HTTP: smithy.HTTPQuery{Name: "position"}}
 
-var schemaGetDocumentationVersionInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetDocumentationVersionRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetDocumentationVersionInput_restApiId, &memberGetDocumentationVersionInput_documentationVersion}}
+var schemaGetDocumentationVersionInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetDocumentationVersionRequest", Type: smithy.TypeStructure}
 
 var memberGetDocumentationVersionInput_restApiId = smithy.Member{Name: "restApiId", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
 var memberGetDocumentationVersionInput_documentationVersion = smithy.Member{Name: "documentationVersion", Index: 1, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaGetDocumentationVersionsInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetDocumentationVersionsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetDocumentationVersionsInput_restApiId, &memberGetDocumentationVersionsInput_position, &memberGetDocumentationVersionsInput_limit}}
+var schemaGetDocumentationVersionsInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetDocumentationVersionsRequest", Type: smithy.TypeStructure}
 
 var memberGetDocumentationVersionsInput_restApiId = smithy.Member{Name: "restApiId", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -837,13 +837,13 @@ var memberGetDocumentationVersionsInput_position = smithy.Member{Name: "position
 
 var memberGetDocumentationVersionsInput_limit = smithy.Member{Name: "limit", Index: 2, Target: &schemaNullableInteger, HTTP: smithy.HTTPQuery{Name: "limit"}}
 
-var schemaGetDocumentationVersionsOutput = smithy.Schema{ID: "com.amazonaws.apigateway#DocumentationVersions", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetDocumentationVersionsOutput_items, &memberGetDocumentationVersionsOutput_position}}
+var schemaGetDocumentationVersionsOutput = smithy.Schema{ID: "com.amazonaws.apigateway#DocumentationVersions", Type: smithy.TypeStructure}
 
 var memberGetDocumentationVersionsOutput_items = smithy.Member{Name: "items", Index: 0, Target: &schemaListOfDocumentationVersion, JSONName: "item"}
 
 var memberGetDocumentationVersionsOutput_position = smithy.Member{Name: "position", Index: 1, Target: &schemaString, HTTP: smithy.HTTPQuery{Name: "position"}}
 
-var schemaGetDomainNameAccessAssociationsInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetDomainNameAccessAssociationsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetDomainNameAccessAssociationsInput_position, &memberGetDomainNameAccessAssociationsInput_limit, &memberGetDomainNameAccessAssociationsInput_resourceOwner}}
+var schemaGetDomainNameAccessAssociationsInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetDomainNameAccessAssociationsRequest", Type: smithy.TypeStructure}
 
 var memberGetDomainNameAccessAssociationsInput_position = smithy.Member{Name: "position", Index: 0, Target: &schemaString, HTTP: smithy.HTTPQuery{Name: "position"}}
 
@@ -851,19 +851,19 @@ var memberGetDomainNameAccessAssociationsInput_limit = smithy.Member{Name: "limi
 
 var memberGetDomainNameAccessAssociationsInput_resourceOwner = smithy.Member{Name: "resourceOwner", Index: 2, Target: &schemaResourceOwner, HTTP: smithy.HTTPQuery{Name: "resourceOwner"}}
 
-var schemaGetDomainNameAccessAssociationsOutput = smithy.Schema{ID: "com.amazonaws.apigateway#DomainNameAccessAssociations", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetDomainNameAccessAssociationsOutput_items, &memberGetDomainNameAccessAssociationsOutput_position}}
+var schemaGetDomainNameAccessAssociationsOutput = smithy.Schema{ID: "com.amazonaws.apigateway#DomainNameAccessAssociations", Type: smithy.TypeStructure}
 
 var memberGetDomainNameAccessAssociationsOutput_items = smithy.Member{Name: "items", Index: 0, Target: &schemaListOfDomainNameAccessAssociation, JSONName: "item"}
 
 var memberGetDomainNameAccessAssociationsOutput_position = smithy.Member{Name: "position", Index: 1, Target: &schemaString, HTTP: smithy.HTTPQuery{Name: "position"}}
 
-var schemaGetDomainNameInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetDomainNameRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetDomainNameInput_domainName, &memberGetDomainNameInput_domainNameId}}
+var schemaGetDomainNameInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetDomainNameRequest", Type: smithy.TypeStructure}
 
 var memberGetDomainNameInput_domainName = smithy.Member{Name: "domainName", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
 var memberGetDomainNameInput_domainNameId = smithy.Member{Name: "domainNameId", Index: 1, Target: &schemaString, HTTP: smithy.HTTPQuery{Name: "domainNameId"}}
 
-var schemaGetDomainNamesInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetDomainNamesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetDomainNamesInput_position, &memberGetDomainNamesInput_limit, &memberGetDomainNamesInput_resourceOwner}}
+var schemaGetDomainNamesInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetDomainNamesRequest", Type: smithy.TypeStructure}
 
 var memberGetDomainNamesInput_position = smithy.Member{Name: "position", Index: 0, Target: &schemaString, HTTP: smithy.HTTPQuery{Name: "position"}}
 
@@ -871,13 +871,13 @@ var memberGetDomainNamesInput_limit = smithy.Member{Name: "limit", Index: 1, Tar
 
 var memberGetDomainNamesInput_resourceOwner = smithy.Member{Name: "resourceOwner", Index: 2, Target: &schemaResourceOwner, HTTP: smithy.HTTPQuery{Name: "resourceOwner"}}
 
-var schemaGetDomainNamesOutput = smithy.Schema{ID: "com.amazonaws.apigateway#DomainNames", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetDomainNamesOutput_items, &memberGetDomainNamesOutput_position}}
+var schemaGetDomainNamesOutput = smithy.Schema{ID: "com.amazonaws.apigateway#DomainNames", Type: smithy.TypeStructure}
 
 var memberGetDomainNamesOutput_items = smithy.Member{Name: "items", Index: 0, Target: &schemaListOfDomainName, JSONName: "item"}
 
 var memberGetDomainNamesOutput_position = smithy.Member{Name: "position", Index: 1, Target: &schemaString, HTTP: smithy.HTTPQuery{Name: "position"}}
 
-var schemaGetExportInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetExportRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetExportInput_restApiId, &memberGetExportInput_stageName, &memberGetExportInput_exportType, &memberGetExportInput_parameters, &memberGetExportInput_accepts}}
+var schemaGetExportInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetExportRequest", Type: smithy.TypeStructure}
 
 var memberGetExportInput_restApiId = smithy.Member{Name: "restApiId", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -889,7 +889,7 @@ var memberGetExportInput_parameters = smithy.Member{Name: "parameters", Index: 3
 
 var memberGetExportInput_accepts = smithy.Member{Name: "accepts", Index: 4, Target: &schemaString, HTTP: smithy.HTTPHeader{Name: "Accept"}}
 
-var schemaGetExportOutput = smithy.Schema{ID: "com.amazonaws.apigateway#ExportResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetExportOutput_contentType, &memberGetExportOutput_contentDisposition, &memberGetExportOutput_body}}
+var schemaGetExportOutput = smithy.Schema{ID: "com.amazonaws.apigateway#ExportResponse", Type: smithy.TypeStructure}
 
 var memberGetExportOutput_contentType = smithy.Member{Name: "contentType", Index: 0, Target: &schemaString, HTTP: smithy.HTTPHeader{Name: "Content-Type"}}
 
@@ -897,13 +897,13 @@ var memberGetExportOutput_contentDisposition = smithy.Member{Name: "contentDispo
 
 var memberGetExportOutput_body = smithy.Member{Name: "body", Index: 2, Target: &schemaBlob, HTTP: smithy.HTTPPayload{}}
 
-var schemaGetGatewayResponseInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetGatewayResponseRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetGatewayResponseInput_restApiId, &memberGetGatewayResponseInput_responseType}}
+var schemaGetGatewayResponseInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetGatewayResponseRequest", Type: smithy.TypeStructure}
 
 var memberGetGatewayResponseInput_restApiId = smithy.Member{Name: "restApiId", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
 var memberGetGatewayResponseInput_responseType = smithy.Member{Name: "responseType", Index: 1, Target: &schemaGatewayResponseType, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaGetGatewayResponsesInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetGatewayResponsesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetGatewayResponsesInput_restApiId, &memberGetGatewayResponsesInput_position, &memberGetGatewayResponsesInput_limit}}
+var schemaGetGatewayResponsesInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetGatewayResponsesRequest", Type: smithy.TypeStructure}
 
 var memberGetGatewayResponsesInput_restApiId = smithy.Member{Name: "restApiId", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -911,7 +911,7 @@ var memberGetGatewayResponsesInput_position = smithy.Member{Name: "position", In
 
 var memberGetGatewayResponsesInput_limit = smithy.Member{Name: "limit", Index: 2, Target: &schemaNullableInteger, HTTP: smithy.HTTPQuery{Name: "limit"}}
 
-var schemaGetGatewayResponsesOutput = smithy.Schema{ID: "com.amazonaws.apigateway#GatewayResponses", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetGatewayResponsesOutput_items, &memberGetGatewayResponsesOutput_position}}
+var schemaGetGatewayResponsesOutput = smithy.Schema{ID: "com.amazonaws.apigateway#GatewayResponses", Type: smithy.TypeStructure}
 
 var memberGetGatewayResponsesOutput_items = smithy.Member{Name: "items", Index: 0, Target: &schemaListOfGatewayResponse, JSONName: "item"}
 
@@ -953,7 +953,7 @@ var memberGetMethodResponseInput_httpMethod = smithy.Member{Name: "httpMethod", 
 
 var memberGetMethodResponseInput_statusCode = smithy.Member{Name: "statusCode", Index: 3, Target: &schemaStatusCode, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaGetModelInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetModelRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetModelInput_restApiId, &memberGetModelInput_modelName, &memberGetModelInput_flatten}}
+var schemaGetModelInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetModelRequest", Type: smithy.TypeStructure}
 
 var memberGetModelInput_restApiId = smithy.Member{Name: "restApiId", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -961,17 +961,17 @@ var memberGetModelInput_modelName = smithy.Member{Name: "modelName", Index: 1, T
 
 var memberGetModelInput_flatten = smithy.Member{Name: "flatten", Index: 2, Target: &schemaBoolean, Default: document.Bool(false), HTTP: smithy.HTTPQuery{Name: "flatten"}}
 
-var schemaGetModelTemplateInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetModelTemplateRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetModelTemplateInput_restApiId, &memberGetModelTemplateInput_modelName}}
+var schemaGetModelTemplateInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetModelTemplateRequest", Type: smithy.TypeStructure}
 
 var memberGetModelTemplateInput_restApiId = smithy.Member{Name: "restApiId", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
 var memberGetModelTemplateInput_modelName = smithy.Member{Name: "modelName", Index: 1, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaGetModelTemplateOutput = smithy.Schema{ID: "com.amazonaws.apigateway#Template", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetModelTemplateOutput_value}}
+var schemaGetModelTemplateOutput = smithy.Schema{ID: "com.amazonaws.apigateway#Template", Type: smithy.TypeStructure}
 
 var memberGetModelTemplateOutput_value = smithy.Member{Name: "value", Index: 0, Target: &schemaString}
 
-var schemaGetModelsInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetModelsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetModelsInput_restApiId, &memberGetModelsInput_position, &memberGetModelsInput_limit}}
+var schemaGetModelsInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetModelsRequest", Type: smithy.TypeStructure}
 
 var memberGetModelsInput_restApiId = smithy.Member{Name: "restApiId", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -979,19 +979,19 @@ var memberGetModelsInput_position = smithy.Member{Name: "position", Index: 1, Ta
 
 var memberGetModelsInput_limit = smithy.Member{Name: "limit", Index: 2, Target: &schemaNullableInteger, HTTP: smithy.HTTPQuery{Name: "limit"}}
 
-var schemaGetModelsOutput = smithy.Schema{ID: "com.amazonaws.apigateway#Models", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetModelsOutput_items, &memberGetModelsOutput_position}}
+var schemaGetModelsOutput = smithy.Schema{ID: "com.amazonaws.apigateway#Models", Type: smithy.TypeStructure}
 
 var memberGetModelsOutput_items = smithy.Member{Name: "items", Index: 0, Target: &schemaListOfModel, JSONName: "item"}
 
 var memberGetModelsOutput_position = smithy.Member{Name: "position", Index: 1, Target: &schemaString, HTTP: smithy.HTTPQuery{Name: "position"}}
 
-var schemaGetRequestValidatorInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetRequestValidatorRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetRequestValidatorInput_restApiId, &memberGetRequestValidatorInput_requestValidatorId}}
+var schemaGetRequestValidatorInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetRequestValidatorRequest", Type: smithy.TypeStructure}
 
 var memberGetRequestValidatorInput_restApiId = smithy.Member{Name: "restApiId", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
 var memberGetRequestValidatorInput_requestValidatorId = smithy.Member{Name: "requestValidatorId", Index: 1, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaGetRequestValidatorsInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetRequestValidatorsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetRequestValidatorsInput_restApiId, &memberGetRequestValidatorsInput_position, &memberGetRequestValidatorsInput_limit}}
+var schemaGetRequestValidatorsInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetRequestValidatorsRequest", Type: smithy.TypeStructure}
 
 var memberGetRequestValidatorsInput_restApiId = smithy.Member{Name: "restApiId", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -999,7 +999,7 @@ var memberGetRequestValidatorsInput_position = smithy.Member{Name: "position", I
 
 var memberGetRequestValidatorsInput_limit = smithy.Member{Name: "limit", Index: 2, Target: &schemaNullableInteger, HTTP: smithy.HTTPQuery{Name: "limit"}}
 
-var schemaGetRequestValidatorsOutput = smithy.Schema{ID: "com.amazonaws.apigateway#RequestValidators", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetRequestValidatorsOutput_items, &memberGetRequestValidatorsOutput_position}}
+var schemaGetRequestValidatorsOutput = smithy.Schema{ID: "com.amazonaws.apigateway#RequestValidators", Type: smithy.TypeStructure}
 
 var memberGetRequestValidatorsOutput_items = smithy.Member{Name: "items", Index: 0, Target: &schemaListOfRequestValidator, JSONName: "item"}
 
@@ -1045,7 +1045,7 @@ var memberGetRestApisOutput_items = smithy.Member{Name: "items", Index: 0, Targe
 
 var memberGetRestApisOutput_position = smithy.Member{Name: "position", Index: 1, Target: &schemaString, HTTP: smithy.HTTPQuery{Name: "position"}}
 
-var schemaGetSdkInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetSdkRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetSdkInput_restApiId, &memberGetSdkInput_stageName, &memberGetSdkInput_sdkType, &memberGetSdkInput_parameters}}
+var schemaGetSdkInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetSdkRequest", Type: smithy.TypeStructure}
 
 var memberGetSdkInput_restApiId = smithy.Member{Name: "restApiId", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -1055,7 +1055,7 @@ var memberGetSdkInput_sdkType = smithy.Member{Name: "sdkType", Index: 2, Target:
 
 var memberGetSdkInput_parameters = smithy.Member{Name: "parameters", Index: 3, Target: &schemaMapOfStringToString, HTTP: smithy.HTTPQueryParams{}}
 
-var schemaGetSdkOutput = smithy.Schema{ID: "com.amazonaws.apigateway#SdkResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetSdkOutput_contentType, &memberGetSdkOutput_contentDisposition, &memberGetSdkOutput_body}}
+var schemaGetSdkOutput = smithy.Schema{ID: "com.amazonaws.apigateway#SdkResponse", Type: smithy.TypeStructure}
 
 var memberGetSdkOutput_contentType = smithy.Member{Name: "contentType", Index: 0, Target: &schemaString, HTTP: smithy.HTTPHeader{Name: "Content-Type"}}
 
@@ -1063,17 +1063,17 @@ var memberGetSdkOutput_contentDisposition = smithy.Member{Name: "contentDisposit
 
 var memberGetSdkOutput_body = smithy.Member{Name: "body", Index: 2, Target: &schemaBlob, HTTP: smithy.HTTPPayload{}}
 
-var schemaGetSdkTypeInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetSdkTypeRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetSdkTypeInput_id}}
+var schemaGetSdkTypeInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetSdkTypeRequest", Type: smithy.TypeStructure}
 
 var memberGetSdkTypeInput_id = smithy.Member{Name: "id", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaGetSdkTypesInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetSdkTypesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetSdkTypesInput_position, &memberGetSdkTypesInput_limit}}
+var schemaGetSdkTypesInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetSdkTypesRequest", Type: smithy.TypeStructure}
 
 var memberGetSdkTypesInput_position = smithy.Member{Name: "position", Index: 0, Target: &schemaString, HTTP: smithy.HTTPQuery{Name: "position"}}
 
 var memberGetSdkTypesInput_limit = smithy.Member{Name: "limit", Index: 1, Target: &schemaNullableInteger, HTTP: smithy.HTTPQuery{Name: "limit"}}
 
-var schemaGetSdkTypesOutput = smithy.Schema{ID: "com.amazonaws.apigateway#SdkTypes", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetSdkTypesOutput_items}}
+var schemaGetSdkTypesOutput = smithy.Schema{ID: "com.amazonaws.apigateway#SdkTypes", Type: smithy.TypeStructure}
 
 var memberGetSdkTypesOutput_items = smithy.Member{Name: "items", Index: 0, Target: &schemaListOfSdkType, JSONName: "item"}
 
@@ -1105,7 +1105,7 @@ var schemaGetTagsOutput = smithy.Schema{ID: "com.amazonaws.apigateway#Tags", Typ
 
 var memberGetTagsOutput_tags = smithy.Member{Name: "tags", Index: 0, Target: &schemaMapOfStringToString}
 
-var schemaGetUsageInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetUsageRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetUsageInput_usagePlanId, &memberGetUsageInput_keyId, &memberGetUsageInput_startDate, &memberGetUsageInput_endDate, &memberGetUsageInput_position, &memberGetUsageInput_limit}}
+var schemaGetUsageInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetUsageRequest", Type: smithy.TypeStructure}
 
 var memberGetUsageInput_usagePlanId = smithy.Member{Name: "usagePlanId", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -1119,17 +1119,17 @@ var memberGetUsageInput_position = smithy.Member{Name: "position", Index: 4, Tar
 
 var memberGetUsageInput_limit = smithy.Member{Name: "limit", Index: 5, Target: &schemaNullableInteger, HTTP: smithy.HTTPQuery{Name: "limit"}}
 
-var schemaGetUsagePlanInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetUsagePlanRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetUsagePlanInput_usagePlanId}}
+var schemaGetUsagePlanInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetUsagePlanRequest", Type: smithy.TypeStructure}
 
 var memberGetUsagePlanInput_usagePlanId = smithy.Member{Name: "usagePlanId", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaGetUsagePlanKeyInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetUsagePlanKeyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetUsagePlanKeyInput_usagePlanId, &memberGetUsagePlanKeyInput_keyId}}
+var schemaGetUsagePlanKeyInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetUsagePlanKeyRequest", Type: smithy.TypeStructure}
 
 var memberGetUsagePlanKeyInput_usagePlanId = smithy.Member{Name: "usagePlanId", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
 var memberGetUsagePlanKeyInput_keyId = smithy.Member{Name: "keyId", Index: 1, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaGetUsagePlanKeysInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetUsagePlanKeysRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetUsagePlanKeysInput_usagePlanId, &memberGetUsagePlanKeysInput_position, &memberGetUsagePlanKeysInput_limit, &memberGetUsagePlanKeysInput_nameQuery}}
+var schemaGetUsagePlanKeysInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetUsagePlanKeysRequest", Type: smithy.TypeStructure}
 
 var memberGetUsagePlanKeysInput_usagePlanId = smithy.Member{Name: "usagePlanId", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -1139,13 +1139,13 @@ var memberGetUsagePlanKeysInput_limit = smithy.Member{Name: "limit", Index: 2, T
 
 var memberGetUsagePlanKeysInput_nameQuery = smithy.Member{Name: "nameQuery", Index: 3, Target: &schemaString, HTTP: smithy.HTTPQuery{Name: "name"}}
 
-var schemaGetUsagePlanKeysOutput = smithy.Schema{ID: "com.amazonaws.apigateway#UsagePlanKeys", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetUsagePlanKeysOutput_items, &memberGetUsagePlanKeysOutput_position}}
+var schemaGetUsagePlanKeysOutput = smithy.Schema{ID: "com.amazonaws.apigateway#UsagePlanKeys", Type: smithy.TypeStructure}
 
 var memberGetUsagePlanKeysOutput_items = smithy.Member{Name: "items", Index: 0, Target: &schemaListOfUsagePlanKey, JSONName: "item"}
 
 var memberGetUsagePlanKeysOutput_position = smithy.Member{Name: "position", Index: 1, Target: &schemaString, HTTP: smithy.HTTPQuery{Name: "position"}}
 
-var schemaGetUsagePlansInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetUsagePlansRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetUsagePlansInput_position, &memberGetUsagePlansInput_keyId, &memberGetUsagePlansInput_limit}}
+var schemaGetUsagePlansInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetUsagePlansRequest", Type: smithy.TypeStructure}
 
 var memberGetUsagePlansInput_position = smithy.Member{Name: "position", Index: 0, Target: &schemaString, HTTP: smithy.HTTPQuery{Name: "position"}}
 
@@ -1153,29 +1153,29 @@ var memberGetUsagePlansInput_keyId = smithy.Member{Name: "keyId", Index: 1, Targ
 
 var memberGetUsagePlansInput_limit = smithy.Member{Name: "limit", Index: 2, Target: &schemaNullableInteger, HTTP: smithy.HTTPQuery{Name: "limit"}}
 
-var schemaGetUsagePlansOutput = smithy.Schema{ID: "com.amazonaws.apigateway#UsagePlans", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetUsagePlansOutput_items, &memberGetUsagePlansOutput_position}}
+var schemaGetUsagePlansOutput = smithy.Schema{ID: "com.amazonaws.apigateway#UsagePlans", Type: smithy.TypeStructure}
 
 var memberGetUsagePlansOutput_items = smithy.Member{Name: "items", Index: 0, Target: &schemaListOfUsagePlan, JSONName: "item"}
 
 var memberGetUsagePlansOutput_position = smithy.Member{Name: "position", Index: 1, Target: &schemaString, HTTP: smithy.HTTPQuery{Name: "position"}}
 
-var schemaGetVpcLinkInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetVpcLinkRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetVpcLinkInput_vpcLinkId}}
+var schemaGetVpcLinkInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetVpcLinkRequest", Type: smithy.TypeStructure}
 
 var memberGetVpcLinkInput_vpcLinkId = smithy.Member{Name: "vpcLinkId", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaGetVpcLinksInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetVpcLinksRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetVpcLinksInput_position, &memberGetVpcLinksInput_limit}}
+var schemaGetVpcLinksInput = smithy.Schema{ID: "com.amazonaws.apigateway#GetVpcLinksRequest", Type: smithy.TypeStructure}
 
 var memberGetVpcLinksInput_position = smithy.Member{Name: "position", Index: 0, Target: &schemaString, HTTP: smithy.HTTPQuery{Name: "position"}}
 
 var memberGetVpcLinksInput_limit = smithy.Member{Name: "limit", Index: 1, Target: &schemaNullableInteger, HTTP: smithy.HTTPQuery{Name: "limit"}}
 
-var schemaGetVpcLinksOutput = smithy.Schema{ID: "com.amazonaws.apigateway#VpcLinks", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetVpcLinksOutput_items, &memberGetVpcLinksOutput_position}}
+var schemaGetVpcLinksOutput = smithy.Schema{ID: "com.amazonaws.apigateway#VpcLinks", Type: smithy.TypeStructure}
 
 var memberGetVpcLinksOutput_items = smithy.Member{Name: "items", Index: 0, Target: &schemaListOfVpcLink, JSONName: "item"}
 
 var memberGetVpcLinksOutput_position = smithy.Member{Name: "position", Index: 1, Target: &schemaString, HTTP: smithy.HTTPQuery{Name: "position"}}
 
-var schemaImportApiKeysInput = smithy.Schema{ID: "com.amazonaws.apigateway#ImportApiKeysRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberImportApiKeysInput_body, &memberImportApiKeysInput_format, &memberImportApiKeysInput_failOnWarnings}}
+var schemaImportApiKeysInput = smithy.Schema{ID: "com.amazonaws.apigateway#ImportApiKeysRequest", Type: smithy.TypeStructure}
 
 var memberImportApiKeysInput_body = smithy.Member{Name: "body", Index: 0, Target: &schemaBlob, Required: true, HTTP: smithy.HTTPPayload{}}
 
@@ -1183,13 +1183,13 @@ var memberImportApiKeysInput_format = smithy.Member{Name: "format", Index: 1, Ta
 
 var memberImportApiKeysInput_failOnWarnings = smithy.Member{Name: "failOnWarnings", Index: 2, Target: &schemaBoolean, Default: document.Bool(false), HTTP: smithy.HTTPQuery{Name: "failonwarnings"}}
 
-var schemaImportApiKeysOutput = smithy.Schema{ID: "com.amazonaws.apigateway#ApiKeyIds", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberImportApiKeysOutput_ids, &memberImportApiKeysOutput_warnings}}
+var schemaImportApiKeysOutput = smithy.Schema{ID: "com.amazonaws.apigateway#ApiKeyIds", Type: smithy.TypeStructure}
 
 var memberImportApiKeysOutput_ids = smithy.Member{Name: "ids", Index: 0, Target: &schemaListOfString}
 
 var memberImportApiKeysOutput_warnings = smithy.Member{Name: "warnings", Index: 1, Target: &schemaListOfString}
 
-var schemaImportDocumentationPartsInput = smithy.Schema{ID: "com.amazonaws.apigateway#ImportDocumentationPartsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberImportDocumentationPartsInput_restApiId, &memberImportDocumentationPartsInput_mode, &memberImportDocumentationPartsInput_failOnWarnings, &memberImportDocumentationPartsInput_body}}
+var schemaImportDocumentationPartsInput = smithy.Schema{ID: "com.amazonaws.apigateway#ImportDocumentationPartsRequest", Type: smithy.TypeStructure}
 
 var memberImportDocumentationPartsInput_restApiId = smithy.Member{Name: "restApiId", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -1199,13 +1199,13 @@ var memberImportDocumentationPartsInput_failOnWarnings = smithy.Member{Name: "fa
 
 var memberImportDocumentationPartsInput_body = smithy.Member{Name: "body", Index: 3, Target: &schemaBlob, Required: true, HTTP: smithy.HTTPPayload{}}
 
-var schemaImportDocumentationPartsOutput = smithy.Schema{ID: "com.amazonaws.apigateway#DocumentationPartIds", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberImportDocumentationPartsOutput_ids, &memberImportDocumentationPartsOutput_warnings}}
+var schemaImportDocumentationPartsOutput = smithy.Schema{ID: "com.amazonaws.apigateway#DocumentationPartIds", Type: smithy.TypeStructure}
 
 var memberImportDocumentationPartsOutput_ids = smithy.Member{Name: "ids", Index: 0, Target: &schemaListOfString}
 
 var memberImportDocumentationPartsOutput_warnings = smithy.Member{Name: "warnings", Index: 1, Target: &schemaListOfString}
 
-var schemaImportRestApiInput = smithy.Schema{ID: "com.amazonaws.apigateway#ImportRestApiRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberImportRestApiInput_failOnWarnings, &memberImportRestApiInput_parameters, &memberImportRestApiInput_body}}
+var schemaImportRestApiInput = smithy.Schema{ID: "com.amazonaws.apigateway#ImportRestApiRequest", Type: smithy.TypeStructure}
 
 var memberImportRestApiInput_failOnWarnings = smithy.Member{Name: "failOnWarnings", Index: 0, Target: &schemaBoolean, Default: document.Bool(false), HTTP: smithy.HTTPQuery{Name: "failonwarnings"}}
 
@@ -1285,27 +1285,27 @@ var memberLimitExceededException_retryAfterSeconds = smithy.Member{Name: "retryA
 
 var memberLimitExceededException_message = smithy.Member{Name: "message", Index: 1, Target: &schemaString}
 
-var schemaListOfARNs = smithy.Schema{ID: "com.amazonaws.apigateway#ListOfARNs", Type: smithy.TypeList, Members: []*smithy.Member{&memberListOfARNs_member}}
+var schemaListOfARNs = smithy.Schema{ID: "com.amazonaws.apigateway#ListOfARNs", Type: smithy.TypeList}
 
 var memberListOfARNs_member = smithy.Member{Name: "member", Index: 0, Target: &schemaProviderARN}
 
-var schemaListOfApiKey = smithy.Schema{ID: "com.amazonaws.apigateway#ListOfApiKey", Type: smithy.TypeList, Members: []*smithy.Member{&memberListOfApiKey_member}}
+var schemaListOfApiKey = smithy.Schema{ID: "com.amazonaws.apigateway#ListOfApiKey", Type: smithy.TypeList}
 
 var memberListOfApiKey_member = smithy.Member{Name: "member", Index: 0, Target: &schemaApiKey}
 
-var schemaListOfApiStage = smithy.Schema{ID: "com.amazonaws.apigateway#ListOfApiStage", Type: smithy.TypeList, Members: []*smithy.Member{&memberListOfApiStage_member}}
+var schemaListOfApiStage = smithy.Schema{ID: "com.amazonaws.apigateway#ListOfApiStage", Type: smithy.TypeList}
 
 var memberListOfApiStage_member = smithy.Member{Name: "member", Index: 0, Target: &schemaApiStage}
 
-var schemaListOfAuthorizer = smithy.Schema{ID: "com.amazonaws.apigateway#ListOfAuthorizer", Type: smithy.TypeList, Members: []*smithy.Member{&memberListOfAuthorizer_member}}
+var schemaListOfAuthorizer = smithy.Schema{ID: "com.amazonaws.apigateway#ListOfAuthorizer", Type: smithy.TypeList}
 
 var memberListOfAuthorizer_member = smithy.Member{Name: "member", Index: 0, Target: &schemaAuthorizer}
 
-var schemaListOfBasePathMapping = smithy.Schema{ID: "com.amazonaws.apigateway#ListOfBasePathMapping", Type: smithy.TypeList, Members: []*smithy.Member{&memberListOfBasePathMapping_member}}
+var schemaListOfBasePathMapping = smithy.Schema{ID: "com.amazonaws.apigateway#ListOfBasePathMapping", Type: smithy.TypeList}
 
 var memberListOfBasePathMapping_member = smithy.Member{Name: "member", Index: 0, Target: &schemaBasePathMapping}
 
-var schemaListOfClientCertificate = smithy.Schema{ID: "com.amazonaws.apigateway#ListOfClientCertificate", Type: smithy.TypeList, Members: []*smithy.Member{&memberListOfClientCertificate_member}}
+var schemaListOfClientCertificate = smithy.Schema{ID: "com.amazonaws.apigateway#ListOfClientCertificate", Type: smithy.TypeList}
 
 var memberListOfClientCertificate_member = smithy.Member{Name: "member", Index: 0, Target: &schemaClientCertificate}
 
@@ -1313,19 +1313,19 @@ var schemaListOfDeployment = smithy.Schema{ID: "com.amazonaws.apigateway#ListOfD
 
 var memberListOfDeployment_member = smithy.Member{Name: "member", Index: 0, Target: &schemaDeployment}
 
-var schemaListOfDocumentationPart = smithy.Schema{ID: "com.amazonaws.apigateway#ListOfDocumentationPart", Type: smithy.TypeList, Members: []*smithy.Member{&memberListOfDocumentationPart_member}}
+var schemaListOfDocumentationPart = smithy.Schema{ID: "com.amazonaws.apigateway#ListOfDocumentationPart", Type: smithy.TypeList}
 
 var memberListOfDocumentationPart_member = smithy.Member{Name: "member", Index: 0, Target: &schemaDocumentationPart}
 
-var schemaListOfDocumentationVersion = smithy.Schema{ID: "com.amazonaws.apigateway#ListOfDocumentationVersion", Type: smithy.TypeList, Members: []*smithy.Member{&memberListOfDocumentationVersion_member}}
+var schemaListOfDocumentationVersion = smithy.Schema{ID: "com.amazonaws.apigateway#ListOfDocumentationVersion", Type: smithy.TypeList}
 
 var memberListOfDocumentationVersion_member = smithy.Member{Name: "member", Index: 0, Target: &schemaDocumentationVersion}
 
-var schemaListOfDomainName = smithy.Schema{ID: "com.amazonaws.apigateway#ListOfDomainName", Type: smithy.TypeList, Members: []*smithy.Member{&memberListOfDomainName_member}}
+var schemaListOfDomainName = smithy.Schema{ID: "com.amazonaws.apigateway#ListOfDomainName", Type: smithy.TypeList}
 
 var memberListOfDomainName_member = smithy.Member{Name: "member", Index: 0, Target: &schemaDomainName}
 
-var schemaListOfDomainNameAccessAssociation = smithy.Schema{ID: "com.amazonaws.apigateway#ListOfDomainNameAccessAssociation", Type: smithy.TypeList, Members: []*smithy.Member{&memberListOfDomainNameAccessAssociation_member}}
+var schemaListOfDomainNameAccessAssociation = smithy.Schema{ID: "com.amazonaws.apigateway#ListOfDomainNameAccessAssociation", Type: smithy.TypeList}
 
 var memberListOfDomainNameAccessAssociation_member = smithy.Member{Name: "member", Index: 0, Target: &schemaDomainNameAccessAssociation}
 
@@ -1333,15 +1333,15 @@ var schemaListOfEndpointType = smithy.Schema{ID: "com.amazonaws.apigateway#ListO
 
 var memberListOfEndpointType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaEndpointType}
 
-var schemaListOfGatewayResponse = smithy.Schema{ID: "com.amazonaws.apigateway#ListOfGatewayResponse", Type: smithy.TypeList, Members: []*smithy.Member{&memberListOfGatewayResponse_member}}
+var schemaListOfGatewayResponse = smithy.Schema{ID: "com.amazonaws.apigateway#ListOfGatewayResponse", Type: smithy.TypeList}
 
 var memberListOfGatewayResponse_member = smithy.Member{Name: "member", Index: 0, Target: &schemaGatewayResponse}
 
-var schemaListOfLong = smithy.Schema{ID: "com.amazonaws.apigateway#ListOfLong", Type: smithy.TypeList, Members: []*smithy.Member{&memberListOfLong_member}}
+var schemaListOfLong = smithy.Schema{ID: "com.amazonaws.apigateway#ListOfLong", Type: smithy.TypeList}
 
 var memberListOfLong_member = smithy.Member{Name: "member", Index: 0, Target: &schemaLong, Default: document.Number("0")}
 
-var schemaListOfModel = smithy.Schema{ID: "com.amazonaws.apigateway#ListOfModel", Type: smithy.TypeList, Members: []*smithy.Member{&memberListOfModel_member}}
+var schemaListOfModel = smithy.Schema{ID: "com.amazonaws.apigateway#ListOfModel", Type: smithy.TypeList}
 
 var memberListOfModel_member = smithy.Member{Name: "member", Index: 0, Target: &schemaModel}
 
@@ -1349,7 +1349,7 @@ var schemaListOfPatchOperation = smithy.Schema{ID: "com.amazonaws.apigateway#Lis
 
 var memberListOfPatchOperation_member = smithy.Member{Name: "member", Index: 0, Target: &schemaPatchOperation}
 
-var schemaListOfRequestValidator = smithy.Schema{ID: "com.amazonaws.apigateway#ListOfRequestValidator", Type: smithy.TypeList, Members: []*smithy.Member{&memberListOfRequestValidator_member}}
+var schemaListOfRequestValidator = smithy.Schema{ID: "com.amazonaws.apigateway#ListOfRequestValidator", Type: smithy.TypeList}
 
 var memberListOfRequestValidator_member = smithy.Member{Name: "member", Index: 0, Target: &schemaRequestValidator}
 
@@ -1361,11 +1361,11 @@ var schemaListOfRestApi = smithy.Schema{ID: "com.amazonaws.apigateway#ListOfRest
 
 var memberListOfRestApi_member = smithy.Member{Name: "member", Index: 0, Target: &schemaRestApi}
 
-var schemaListOfSdkConfigurationProperty = smithy.Schema{ID: "com.amazonaws.apigateway#ListOfSdkConfigurationProperty", Type: smithy.TypeList, Members: []*smithy.Member{&memberListOfSdkConfigurationProperty_member}}
+var schemaListOfSdkConfigurationProperty = smithy.Schema{ID: "com.amazonaws.apigateway#ListOfSdkConfigurationProperty", Type: smithy.TypeList}
 
 var memberListOfSdkConfigurationProperty_member = smithy.Member{Name: "member", Index: 0, Target: &schemaSdkConfigurationProperty}
 
-var schemaListOfSdkType = smithy.Schema{ID: "com.amazonaws.apigateway#ListOfSdkType", Type: smithy.TypeList, Members: []*smithy.Member{&memberListOfSdkType_member}}
+var schemaListOfSdkType = smithy.Schema{ID: "com.amazonaws.apigateway#ListOfSdkType", Type: smithy.TypeList}
 
 var memberListOfSdkType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaSdkType}
 
@@ -1373,7 +1373,7 @@ var schemaListOfStage = smithy.Schema{ID: "com.amazonaws.apigateway#ListOfStage"
 
 var memberListOfStage_member = smithy.Member{Name: "member", Index: 0, Target: &schemaStage}
 
-var schemaListOfStageKeys = smithy.Schema{ID: "com.amazonaws.apigateway#ListOfStageKeys", Type: smithy.TypeList, Members: []*smithy.Member{&memberListOfStageKeys_member}}
+var schemaListOfStageKeys = smithy.Schema{ID: "com.amazonaws.apigateway#ListOfStageKeys", Type: smithy.TypeList}
 
 var memberListOfStageKeys_member = smithy.Member{Name: "member", Index: 0, Target: &schemaStageKey}
 
@@ -1381,19 +1381,19 @@ var schemaListOfString = smithy.Schema{ID: "com.amazonaws.apigateway#ListOfStrin
 
 var memberListOfString_member = smithy.Member{Name: "member", Index: 0, Target: &schemaString}
 
-var schemaListOfUsage = smithy.Schema{ID: "com.amazonaws.apigateway#ListOfUsage", Type: smithy.TypeList, Members: []*smithy.Member{&memberListOfUsage_member}}
+var schemaListOfUsage = smithy.Schema{ID: "com.amazonaws.apigateway#ListOfUsage", Type: smithy.TypeList}
 
 var memberListOfUsage_member = smithy.Member{Name: "member", Index: 0, Target: &schemaListOfLong}
 
-var schemaListOfUsagePlan = smithy.Schema{ID: "com.amazonaws.apigateway#ListOfUsagePlan", Type: smithy.TypeList, Members: []*smithy.Member{&memberListOfUsagePlan_member}}
+var schemaListOfUsagePlan = smithy.Schema{ID: "com.amazonaws.apigateway#ListOfUsagePlan", Type: smithy.TypeList}
 
 var memberListOfUsagePlan_member = smithy.Member{Name: "member", Index: 0, Target: &schemaUsagePlan}
 
-var schemaListOfUsagePlanKey = smithy.Schema{ID: "com.amazonaws.apigateway#ListOfUsagePlanKey", Type: smithy.TypeList, Members: []*smithy.Member{&memberListOfUsagePlanKey_member}}
+var schemaListOfUsagePlanKey = smithy.Schema{ID: "com.amazonaws.apigateway#ListOfUsagePlanKey", Type: smithy.TypeList}
 
 var memberListOfUsagePlanKey_member = smithy.Member{Name: "member", Index: 0, Target: &schemaUsagePlanKey}
 
-var schemaListOfVpcLink = smithy.Schema{ID: "com.amazonaws.apigateway#ListOfVpcLink", Type: smithy.TypeList, Members: []*smithy.Member{&memberListOfVpcLink_member}}
+var schemaListOfVpcLink = smithy.Schema{ID: "com.amazonaws.apigateway#ListOfVpcLink", Type: smithy.TypeList}
 
 var memberListOfVpcLink_member = smithy.Member{Name: "member", Index: 0, Target: &schemaVpcLink}
 
@@ -1401,7 +1401,7 @@ var schemaLocationStatusType = smithy.Schema{ID: "com.amazonaws.apigateway#Locat
 
 var schemaLong = smithy.Schema{ID: "com.amazonaws.apigateway#Long", Type: smithy.TypeLong}
 
-var schemaMapOfApiStageThrottleSettings = smithy.Schema{ID: "com.amazonaws.apigateway#MapOfApiStageThrottleSettings", Type: smithy.TypeMap, Members: []*smithy.Member{&memberMapOfApiStageThrottleSettings_key, &memberMapOfApiStageThrottleSettings_value}}
+var schemaMapOfApiStageThrottleSettings = smithy.Schema{ID: "com.amazonaws.apigateway#MapOfApiStageThrottleSettings", Type: smithy.TypeMap}
 
 var memberMapOfApiStageThrottleSettings_key = smithy.Member{Name: "key", Index: 0, Target: &schemaString}
 
@@ -1413,7 +1413,7 @@ var memberMapOfIntegrationResponse_key = smithy.Member{Name: "key", Index: 0, Ta
 
 var memberMapOfIntegrationResponse_value = smithy.Member{Name: "value", Index: 1, Target: &schemaIntegrationResponse}
 
-var schemaMapOfKeyUsages = smithy.Schema{ID: "com.amazonaws.apigateway#MapOfKeyUsages", Type: smithy.TypeMap, Members: []*smithy.Member{&memberMapOfKeyUsages_key, &memberMapOfKeyUsages_value}}
+var schemaMapOfKeyUsages = smithy.Schema{ID: "com.amazonaws.apigateway#MapOfKeyUsages", Type: smithy.TypeMap}
 
 var memberMapOfKeyUsages_key = smithy.Member{Name: "key", Index: 0, Target: &schemaString}
 
@@ -1449,7 +1449,7 @@ var memberMapOfStringToBoolean_key = smithy.Member{Name: "key", Index: 0, Target
 
 var memberMapOfStringToBoolean_value = smithy.Member{Name: "value", Index: 1, Target: &schemaNullableBoolean}
 
-var schemaMapOfStringToList = smithy.Schema{ID: "com.amazonaws.apigateway#MapOfStringToList", Type: smithy.TypeMap, Members: []*smithy.Member{&memberMapOfStringToList_key, &memberMapOfStringToList_value}}
+var schemaMapOfStringToList = smithy.Schema{ID: "com.amazonaws.apigateway#MapOfStringToList", Type: smithy.TypeMap}
 
 var memberMapOfStringToList_key = smithy.Member{Name: "key", Index: 0, Target: &schemaString}
 
@@ -1525,7 +1525,7 @@ var schemaMissingAuthenticationTokenException = smithy.Schema{ID: "com.amazon.co
 
 var memberMissingAuthenticationTokenException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaModel = smithy.Schema{ID: "com.amazonaws.apigateway#Model", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberModel_id, &memberModel_name, &memberModel_description, &memberModel_schema, &memberModel_contentType}}
+var schemaModel = smithy.Schema{ID: "com.amazonaws.apigateway#Model", Type: smithy.TypeStructure}
 
 var memberModel_id = smithy.Member{Name: "id", Index: 0, Target: &schemaString}
 
@@ -1537,7 +1537,7 @@ var memberModel_schema = smithy.Member{Name: "schema", Index: 3, Target: &schema
 
 var memberModel_contentType = smithy.Member{Name: "contentType", Index: 4, Target: &schemaString}
 
-var schemaMutualTlsAuthentication = smithy.Schema{ID: "com.amazonaws.apigateway#MutualTlsAuthentication", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberMutualTlsAuthentication_truststoreUri, &memberMutualTlsAuthentication_truststoreVersion, &memberMutualTlsAuthentication_truststoreWarnings}}
+var schemaMutualTlsAuthentication = smithy.Schema{ID: "com.amazonaws.apigateway#MutualTlsAuthentication", Type: smithy.TypeStructure}
 
 var memberMutualTlsAuthentication_truststoreUri = smithy.Member{Name: "truststoreUri", Index: 0, Target: &schemaString}
 
@@ -1545,7 +1545,7 @@ var memberMutualTlsAuthentication_truststoreVersion = smithy.Member{Name: "trust
 
 var memberMutualTlsAuthentication_truststoreWarnings = smithy.Member{Name: "truststoreWarnings", Index: 2, Target: &schemaListOfString}
 
-var schemaMutualTlsAuthenticationInput = smithy.Schema{ID: "com.amazonaws.apigateway#MutualTlsAuthenticationInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberMutualTlsAuthenticationInput_truststoreUri, &memberMutualTlsAuthenticationInput_truststoreVersion}}
+var schemaMutualTlsAuthenticationInput = smithy.Schema{ID: "com.amazonaws.apigateway#MutualTlsAuthenticationInput", Type: smithy.TypeStructure}
 
 var memberMutualTlsAuthenticationInput_truststoreUri = smithy.Member{Name: "truststoreUri", Index: 0, Target: &schemaString}
 
@@ -1583,7 +1583,7 @@ var memberPathToMapOfMethodSnapshot_value = smithy.Member{Name: "value", Index: 
 
 var schemaProviderARN = smithy.Schema{ID: "com.amazonaws.apigateway#ProviderARN", Type: smithy.TypeString}
 
-var schemaPutGatewayResponseInput = smithy.Schema{ID: "com.amazonaws.apigateway#PutGatewayResponseRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutGatewayResponseInput_restApiId, &memberPutGatewayResponseInput_responseType, &memberPutGatewayResponseInput_statusCode, &memberPutGatewayResponseInput_responseParameters, &memberPutGatewayResponseInput_responseTemplates}}
+var schemaPutGatewayResponseInput = smithy.Schema{ID: "com.amazonaws.apigateway#PutGatewayResponseRequest", Type: smithy.TypeStructure}
 
 var memberPutGatewayResponseInput_restApiId = smithy.Member{Name: "restApiId", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -1693,7 +1693,7 @@ var memberPutMethodResponseInput_responseModels = smithy.Member{Name: "responseM
 
 var schemaPutMode = smithy.Schema{ID: "com.amazonaws.apigateway#PutMode", Type: smithy.TypeEnum}
 
-var schemaPutRestApiInput = smithy.Schema{ID: "com.amazonaws.apigateway#PutRestApiRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutRestApiInput_restApiId, &memberPutRestApiInput_mode, &memberPutRestApiInput_failOnWarnings, &memberPutRestApiInput_parameters, &memberPutRestApiInput_body}}
+var schemaPutRestApiInput = smithy.Schema{ID: "com.amazonaws.apigateway#PutRestApiRequest", Type: smithy.TypeStructure}
 
 var memberPutRestApiInput_restApiId = smithy.Member{Name: "restApiId", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -1707,7 +1707,7 @@ var memberPutRestApiInput_body = smithy.Member{Name: "body", Index: 4, Target: &
 
 var schemaQuotaPeriodType = smithy.Schema{ID: "com.amazonaws.apigateway#QuotaPeriodType", Type: smithy.TypeEnum}
 
-var schemaQuotaSettings = smithy.Schema{ID: "com.amazonaws.apigateway#QuotaSettings", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberQuotaSettings_limit, &memberQuotaSettings_offset, &memberQuotaSettings_period}}
+var schemaQuotaSettings = smithy.Schema{ID: "com.amazonaws.apigateway#QuotaSettings", Type: smithy.TypeStructure}
 
 var memberQuotaSettings_limit = smithy.Member{Name: "limit", Index: 0, Target: &schemaInteger, Default: document.Number("0")}
 
@@ -1715,7 +1715,7 @@ var memberQuotaSettings_offset = smithy.Member{Name: "offset", Index: 1, Target:
 
 var memberQuotaSettings_period = smithy.Member{Name: "period", Index: 2, Target: &schemaQuotaPeriodType}
 
-var schemaRejectDomainNameAccessAssociationInput = smithy.Schema{ID: "com.amazonaws.apigateway#RejectDomainNameAccessAssociationRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRejectDomainNameAccessAssociationInput_domainNameAccessAssociationArn, &memberRejectDomainNameAccessAssociationInput_domainNameArn}}
+var schemaRejectDomainNameAccessAssociationInput = smithy.Schema{ID: "com.amazonaws.apigateway#RejectDomainNameAccessAssociationRequest", Type: smithy.TypeStructure}
 
 var memberRejectDomainNameAccessAssociationInput_domainNameAccessAssociationArn = smithy.Member{Name: "domainNameAccessAssociationArn", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPQuery{Name: "domainNameAccessAssociationArn"}}
 
@@ -1725,7 +1725,7 @@ var schemaRequestEntityTooLargeException = smithy.Schema{ID: "com.amazon.coral.s
 
 var memberRequestEntityTooLargeException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaRequestValidator = smithy.Schema{ID: "com.amazonaws.apigateway#RequestValidator", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRequestValidator_id, &memberRequestValidator_name, &memberRequestValidator_validateRequestBody, &memberRequestValidator_validateRequestParameters}}
+var schemaRequestValidator = smithy.Schema{ID: "com.amazonaws.apigateway#RequestValidator", Type: smithy.TypeStructure}
 
 var memberRequestValidator_id = smithy.Member{Name: "id", Index: 0, Target: &schemaString}
 
@@ -1791,7 +1791,7 @@ var memberRestApi_apiStatusMessage = smithy.Member{Name: "apiStatusMessage", Ind
 
 var schemaRoutingMode = smithy.Schema{ID: "com.amazonaws.apigateway#RoutingMode", Type: smithy.TypeEnum}
 
-var schemaSdkConfigurationProperty = smithy.Schema{ID: "com.amazonaws.apigateway#SdkConfigurationProperty", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSdkConfigurationProperty_name, &memberSdkConfigurationProperty_friendlyName, &memberSdkConfigurationProperty_description, &memberSdkConfigurationProperty_required, &memberSdkConfigurationProperty_defaultValue}}
+var schemaSdkConfigurationProperty = smithy.Schema{ID: "com.amazonaws.apigateway#SdkConfigurationProperty", Type: smithy.TypeStructure}
 
 var memberSdkConfigurationProperty_name = smithy.Member{Name: "name", Index: 0, Target: &schemaString}
 
@@ -1803,7 +1803,7 @@ var memberSdkConfigurationProperty_required = smithy.Member{Name: "required", In
 
 var memberSdkConfigurationProperty_defaultValue = smithy.Member{Name: "defaultValue", Index: 4, Target: &schemaString}
 
-var schemaSdkType = smithy.Schema{ID: "com.amazonaws.apigateway#SdkType", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSdkType_id, &memberSdkType_friendlyName, &memberSdkType_description, &memberSdkType_configurationProperties}}
+var schemaSdkType = smithy.Schema{ID: "com.amazonaws.apigateway#SdkType", Type: smithy.TypeStructure}
 
 var memberSdkType_id = smithy.Member{Name: "id", Index: 0, Target: &schemaString}
 
@@ -1865,7 +1865,7 @@ var memberStage_createdDate = smithy.Member{Name: "createdDate", Index: 15, Targ
 
 var memberStage_lastUpdatedDate = smithy.Member{Name: "lastUpdatedDate", Index: 16, Target: &schemaTimestamp}
 
-var schemaStageKey = smithy.Schema{ID: "com.amazonaws.apigateway#StageKey", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberStageKey_restApiId, &memberStageKey_stageName}}
+var schemaStageKey = smithy.Schema{ID: "com.amazonaws.apigateway#StageKey", Type: smithy.TypeStructure}
 
 var memberStageKey_restApiId = smithy.Member{Name: "restApiId", Index: 0, Target: &schemaString}
 
@@ -1881,7 +1881,7 @@ var memberTagResourceInput_resourceArn = smithy.Member{Name: "resourceArn", Inde
 
 var memberTagResourceInput_tags = smithy.Member{Name: "tags", Index: 1, Target: &schemaMapOfStringToString, Required: true}
 
-var schemaTestInvokeAuthorizerInput = smithy.Schema{ID: "com.amazonaws.apigateway#TestInvokeAuthorizerRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberTestInvokeAuthorizerInput_restApiId, &memberTestInvokeAuthorizerInput_authorizerId, &memberTestInvokeAuthorizerInput_headers, &memberTestInvokeAuthorizerInput_multiValueHeaders, &memberTestInvokeAuthorizerInput_pathWithQueryString, &memberTestInvokeAuthorizerInput_body, &memberTestInvokeAuthorizerInput_stageVariables, &memberTestInvokeAuthorizerInput_additionalContext}}
+var schemaTestInvokeAuthorizerInput = smithy.Schema{ID: "com.amazonaws.apigateway#TestInvokeAuthorizerRequest", Type: smithy.TypeStructure}
 
 var memberTestInvokeAuthorizerInput_restApiId = smithy.Member{Name: "restApiId", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -1899,7 +1899,7 @@ var memberTestInvokeAuthorizerInput_stageVariables = smithy.Member{Name: "stageV
 
 var memberTestInvokeAuthorizerInput_additionalContext = smithy.Member{Name: "additionalContext", Index: 7, Target: &schemaMapOfStringToString}
 
-var schemaTestInvokeAuthorizerOutput = smithy.Schema{ID: "com.amazonaws.apigateway#TestInvokeAuthorizerResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberTestInvokeAuthorizerOutput_clientStatus, &memberTestInvokeAuthorizerOutput_log, &memberTestInvokeAuthorizerOutput_latency, &memberTestInvokeAuthorizerOutput_principalId, &memberTestInvokeAuthorizerOutput_policy, &memberTestInvokeAuthorizerOutput_authorization, &memberTestInvokeAuthorizerOutput_claims}}
+var schemaTestInvokeAuthorizerOutput = smithy.Schema{ID: "com.amazonaws.apigateway#TestInvokeAuthorizerResponse", Type: smithy.TypeStructure}
 
 var memberTestInvokeAuthorizerOutput_clientStatus = smithy.Member{Name: "clientStatus", Index: 0, Target: &schemaInteger, Default: document.Number("0")}
 
@@ -1915,7 +1915,7 @@ var memberTestInvokeAuthorizerOutput_authorization = smithy.Member{Name: "author
 
 var memberTestInvokeAuthorizerOutput_claims = smithy.Member{Name: "claims", Index: 6, Target: &schemaMapOfStringToString}
 
-var schemaTestInvokeMethodInput = smithy.Schema{ID: "com.amazonaws.apigateway#TestInvokeMethodRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberTestInvokeMethodInput_restApiId, &memberTestInvokeMethodInput_resourceId, &memberTestInvokeMethodInput_httpMethod, &memberTestInvokeMethodInput_pathWithQueryString, &memberTestInvokeMethodInput_body, &memberTestInvokeMethodInput_headers, &memberTestInvokeMethodInput_multiValueHeaders, &memberTestInvokeMethodInput_clientCertificateId, &memberTestInvokeMethodInput_stageVariables}}
+var schemaTestInvokeMethodInput = smithy.Schema{ID: "com.amazonaws.apigateway#TestInvokeMethodRequest", Type: smithy.TypeStructure}
 
 var memberTestInvokeMethodInput_restApiId = smithy.Member{Name: "restApiId", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -1935,7 +1935,7 @@ var memberTestInvokeMethodInput_clientCertificateId = smithy.Member{Name: "clien
 
 var memberTestInvokeMethodInput_stageVariables = smithy.Member{Name: "stageVariables", Index: 8, Target: &schemaMapOfStringToString}
 
-var schemaTestInvokeMethodOutput = smithy.Schema{ID: "com.amazonaws.apigateway#TestInvokeMethodResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberTestInvokeMethodOutput_status, &memberTestInvokeMethodOutput_body, &memberTestInvokeMethodOutput_headers, &memberTestInvokeMethodOutput_multiValueHeaders, &memberTestInvokeMethodOutput_log, &memberTestInvokeMethodOutput_latency}}
+var schemaTestInvokeMethodOutput = smithy.Schema{ID: "com.amazonaws.apigateway#TestInvokeMethodResponse", Type: smithy.TypeStructure}
 
 var memberTestInvokeMethodOutput_status = smithy.Member{Name: "status", Index: 0, Target: &schemaInteger, Default: document.Number("0")}
 
@@ -1949,7 +1949,7 @@ var memberTestInvokeMethodOutput_log = smithy.Member{Name: "log", Index: 4, Targ
 
 var memberTestInvokeMethodOutput_latency = smithy.Member{Name: "latency", Index: 5, Target: &schemaLong, Default: document.Number("0")}
 
-var schemaThrottleSettings = smithy.Schema{ID: "com.amazonaws.apigateway#ThrottleSettings", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberThrottleSettings_burstLimit, &memberThrottleSettings_rateLimit}}
+var schemaThrottleSettings = smithy.Schema{ID: "com.amazonaws.apigateway#ThrottleSettings", Type: smithy.TypeStructure}
 
 var memberThrottleSettings_burstLimit = smithy.Member{Name: "burstLimit", Index: 0, Target: &schemaInteger, Default: document.Number("0")}
 
@@ -1991,17 +1991,17 @@ var memberUntagResourceInput_resourceArn = smithy.Member{Name: "resourceArn", In
 
 var memberUntagResourceInput_tagKeys = smithy.Member{Name: "tagKeys", Index: 1, Target: &schemaListOfString, Required: true, HTTP: smithy.HTTPQuery{Name: "tagKeys"}}
 
-var schemaUpdateAccountInput = smithy.Schema{ID: "com.amazonaws.apigateway#UpdateAccountRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateAccountInput_patchOperations}}
+var schemaUpdateAccountInput = smithy.Schema{ID: "com.amazonaws.apigateway#UpdateAccountRequest", Type: smithy.TypeStructure}
 
 var memberUpdateAccountInput_patchOperations = smithy.Member{Name: "patchOperations", Index: 0, Target: &schemaListOfPatchOperation}
 
-var schemaUpdateApiKeyInput = smithy.Schema{ID: "com.amazonaws.apigateway#UpdateApiKeyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateApiKeyInput_apiKey, &memberUpdateApiKeyInput_patchOperations}}
+var schemaUpdateApiKeyInput = smithy.Schema{ID: "com.amazonaws.apigateway#UpdateApiKeyRequest", Type: smithy.TypeStructure}
 
 var memberUpdateApiKeyInput_apiKey = smithy.Member{Name: "apiKey", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
 var memberUpdateApiKeyInput_patchOperations = smithy.Member{Name: "patchOperations", Index: 1, Target: &schemaListOfPatchOperation}
 
-var schemaUpdateAuthorizerInput = smithy.Schema{ID: "com.amazonaws.apigateway#UpdateAuthorizerRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateAuthorizerInput_restApiId, &memberUpdateAuthorizerInput_authorizerId, &memberUpdateAuthorizerInput_patchOperations}}
+var schemaUpdateAuthorizerInput = smithy.Schema{ID: "com.amazonaws.apigateway#UpdateAuthorizerRequest", Type: smithy.TypeStructure}
 
 var memberUpdateAuthorizerInput_restApiId = smithy.Member{Name: "restApiId", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -2009,7 +2009,7 @@ var memberUpdateAuthorizerInput_authorizerId = smithy.Member{Name: "authorizerId
 
 var memberUpdateAuthorizerInput_patchOperations = smithy.Member{Name: "patchOperations", Index: 2, Target: &schemaListOfPatchOperation}
 
-var schemaUpdateBasePathMappingInput = smithy.Schema{ID: "com.amazonaws.apigateway#UpdateBasePathMappingRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateBasePathMappingInput_domainName, &memberUpdateBasePathMappingInput_domainNameId, &memberUpdateBasePathMappingInput_basePath, &memberUpdateBasePathMappingInput_patchOperations}}
+var schemaUpdateBasePathMappingInput = smithy.Schema{ID: "com.amazonaws.apigateway#UpdateBasePathMappingRequest", Type: smithy.TypeStructure}
 
 var memberUpdateBasePathMappingInput_domainName = smithy.Member{Name: "domainName", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -2019,7 +2019,7 @@ var memberUpdateBasePathMappingInput_basePath = smithy.Member{Name: "basePath", 
 
 var memberUpdateBasePathMappingInput_patchOperations = smithy.Member{Name: "patchOperations", Index: 3, Target: &schemaListOfPatchOperation}
 
-var schemaUpdateClientCertificateInput = smithy.Schema{ID: "com.amazonaws.apigateway#UpdateClientCertificateRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateClientCertificateInput_clientCertificateId, &memberUpdateClientCertificateInput_patchOperations}}
+var schemaUpdateClientCertificateInput = smithy.Schema{ID: "com.amazonaws.apigateway#UpdateClientCertificateRequest", Type: smithy.TypeStructure}
 
 var memberUpdateClientCertificateInput_clientCertificateId = smithy.Member{Name: "clientCertificateId", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -2033,7 +2033,7 @@ var memberUpdateDeploymentInput_deploymentId = smithy.Member{Name: "deploymentId
 
 var memberUpdateDeploymentInput_patchOperations = smithy.Member{Name: "patchOperations", Index: 2, Target: &schemaListOfPatchOperation}
 
-var schemaUpdateDocumentationPartInput = smithy.Schema{ID: "com.amazonaws.apigateway#UpdateDocumentationPartRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateDocumentationPartInput_restApiId, &memberUpdateDocumentationPartInput_documentationPartId, &memberUpdateDocumentationPartInput_patchOperations}}
+var schemaUpdateDocumentationPartInput = smithy.Schema{ID: "com.amazonaws.apigateway#UpdateDocumentationPartRequest", Type: smithy.TypeStructure}
 
 var memberUpdateDocumentationPartInput_restApiId = smithy.Member{Name: "restApiId", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -2041,7 +2041,7 @@ var memberUpdateDocumentationPartInput_documentationPartId = smithy.Member{Name:
 
 var memberUpdateDocumentationPartInput_patchOperations = smithy.Member{Name: "patchOperations", Index: 2, Target: &schemaListOfPatchOperation}
 
-var schemaUpdateDocumentationVersionInput = smithy.Schema{ID: "com.amazonaws.apigateway#UpdateDocumentationVersionRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateDocumentationVersionInput_restApiId, &memberUpdateDocumentationVersionInput_documentationVersion, &memberUpdateDocumentationVersionInput_patchOperations}}
+var schemaUpdateDocumentationVersionInput = smithy.Schema{ID: "com.amazonaws.apigateway#UpdateDocumentationVersionRequest", Type: smithy.TypeStructure}
 
 var memberUpdateDocumentationVersionInput_restApiId = smithy.Member{Name: "restApiId", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -2049,7 +2049,7 @@ var memberUpdateDocumentationVersionInput_documentationVersion = smithy.Member{N
 
 var memberUpdateDocumentationVersionInput_patchOperations = smithy.Member{Name: "patchOperations", Index: 2, Target: &schemaListOfPatchOperation}
 
-var schemaUpdateDomainNameInput = smithy.Schema{ID: "com.amazonaws.apigateway#UpdateDomainNameRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateDomainNameInput_domainName, &memberUpdateDomainNameInput_domainNameId, &memberUpdateDomainNameInput_patchOperations}}
+var schemaUpdateDomainNameInput = smithy.Schema{ID: "com.amazonaws.apigateway#UpdateDomainNameRequest", Type: smithy.TypeStructure}
 
 var memberUpdateDomainNameInput_domainName = smithy.Member{Name: "domainName", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -2057,7 +2057,7 @@ var memberUpdateDomainNameInput_domainNameId = smithy.Member{Name: "domainNameId
 
 var memberUpdateDomainNameInput_patchOperations = smithy.Member{Name: "patchOperations", Index: 2, Target: &schemaListOfPatchOperation}
 
-var schemaUpdateGatewayResponseInput = smithy.Schema{ID: "com.amazonaws.apigateway#UpdateGatewayResponseRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateGatewayResponseInput_restApiId, &memberUpdateGatewayResponseInput_responseType, &memberUpdateGatewayResponseInput_patchOperations}}
+var schemaUpdateGatewayResponseInput = smithy.Schema{ID: "com.amazonaws.apigateway#UpdateGatewayResponseRequest", Type: smithy.TypeStructure}
 
 var memberUpdateGatewayResponseInput_restApiId = smithy.Member{Name: "restApiId", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -2109,7 +2109,7 @@ var memberUpdateMethodResponseInput_statusCode = smithy.Member{Name: "statusCode
 
 var memberUpdateMethodResponseInput_patchOperations = smithy.Member{Name: "patchOperations", Index: 4, Target: &schemaListOfPatchOperation}
 
-var schemaUpdateModelInput = smithy.Schema{ID: "com.amazonaws.apigateway#UpdateModelRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateModelInput_restApiId, &memberUpdateModelInput_modelName, &memberUpdateModelInput_patchOperations}}
+var schemaUpdateModelInput = smithy.Schema{ID: "com.amazonaws.apigateway#UpdateModelRequest", Type: smithy.TypeStructure}
 
 var memberUpdateModelInput_restApiId = smithy.Member{Name: "restApiId", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -2117,7 +2117,7 @@ var memberUpdateModelInput_modelName = smithy.Member{Name: "modelName", Index: 1
 
 var memberUpdateModelInput_patchOperations = smithy.Member{Name: "patchOperations", Index: 2, Target: &schemaListOfPatchOperation}
 
-var schemaUpdateRequestValidatorInput = smithy.Schema{ID: "com.amazonaws.apigateway#UpdateRequestValidatorRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateRequestValidatorInput_restApiId, &memberUpdateRequestValidatorInput_requestValidatorId, &memberUpdateRequestValidatorInput_patchOperations}}
+var schemaUpdateRequestValidatorInput = smithy.Schema{ID: "com.amazonaws.apigateway#UpdateRequestValidatorRequest", Type: smithy.TypeStructure}
 
 var memberUpdateRequestValidatorInput_restApiId = smithy.Member{Name: "restApiId", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -2147,7 +2147,7 @@ var memberUpdateStageInput_stageName = smithy.Member{Name: "stageName", Index: 1
 
 var memberUpdateStageInput_patchOperations = smithy.Member{Name: "patchOperations", Index: 2, Target: &schemaListOfPatchOperation}
 
-var schemaUpdateUsageInput = smithy.Schema{ID: "com.amazonaws.apigateway#UpdateUsageRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateUsageInput_usagePlanId, &memberUpdateUsageInput_keyId, &memberUpdateUsageInput_patchOperations}}
+var schemaUpdateUsageInput = smithy.Schema{ID: "com.amazonaws.apigateway#UpdateUsageRequest", Type: smithy.TypeStructure}
 
 var memberUpdateUsageInput_usagePlanId = smithy.Member{Name: "usagePlanId", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -2155,19 +2155,19 @@ var memberUpdateUsageInput_keyId = smithy.Member{Name: "keyId", Index: 1, Target
 
 var memberUpdateUsageInput_patchOperations = smithy.Member{Name: "patchOperations", Index: 2, Target: &schemaListOfPatchOperation}
 
-var schemaUpdateUsagePlanInput = smithy.Schema{ID: "com.amazonaws.apigateway#UpdateUsagePlanRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateUsagePlanInput_usagePlanId, &memberUpdateUsagePlanInput_patchOperations}}
+var schemaUpdateUsagePlanInput = smithy.Schema{ID: "com.amazonaws.apigateway#UpdateUsagePlanRequest", Type: smithy.TypeStructure}
 
 var memberUpdateUsagePlanInput_usagePlanId = smithy.Member{Name: "usagePlanId", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
 var memberUpdateUsagePlanInput_patchOperations = smithy.Member{Name: "patchOperations", Index: 1, Target: &schemaListOfPatchOperation}
 
-var schemaUpdateVpcLinkInput = smithy.Schema{ID: "com.amazonaws.apigateway#UpdateVpcLinkRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateVpcLinkInput_vpcLinkId, &memberUpdateVpcLinkInput_patchOperations}}
+var schemaUpdateVpcLinkInput = smithy.Schema{ID: "com.amazonaws.apigateway#UpdateVpcLinkRequest", Type: smithy.TypeStructure}
 
 var memberUpdateVpcLinkInput_vpcLinkId = smithy.Member{Name: "vpcLinkId", Index: 0, Target: &schemaString, Required: true, HTTP: smithy.HTTPLabel{}}
 
 var memberUpdateVpcLinkInput_patchOperations = smithy.Member{Name: "patchOperations", Index: 1, Target: &schemaListOfPatchOperation}
 
-var schemaUsage = smithy.Schema{ID: "com.amazonaws.apigateway#Usage", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUsage_usagePlanId, &memberUsage_startDate, &memberUsage_endDate, &memberUsage_items, &memberUsage_position}}
+var schemaUsage = smithy.Schema{ID: "com.amazonaws.apigateway#Usage", Type: smithy.TypeStructure}
 
 var memberUsage_usagePlanId = smithy.Member{Name: "usagePlanId", Index: 0, Target: &schemaString}
 
@@ -2179,7 +2179,7 @@ var memberUsage_items = smithy.Member{Name: "items", Index: 3, Target: &schemaMa
 
 var memberUsage_position = smithy.Member{Name: "position", Index: 4, Target: &schemaString, HTTP: smithy.HTTPQuery{Name: "position"}}
 
-var schemaUsagePlan = smithy.Schema{ID: "com.amazonaws.apigateway#UsagePlan", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUsagePlan_id, &memberUsagePlan_name, &memberUsagePlan_description, &memberUsagePlan_apiStages, &memberUsagePlan_throttle, &memberUsagePlan_quota, &memberUsagePlan_productCode, &memberUsagePlan_tags}}
+var schemaUsagePlan = smithy.Schema{ID: "com.amazonaws.apigateway#UsagePlan", Type: smithy.TypeStructure}
 
 var memberUsagePlan_id = smithy.Member{Name: "id", Index: 0, Target: &schemaString}
 
@@ -2197,7 +2197,7 @@ var memberUsagePlan_productCode = smithy.Member{Name: "productCode", Index: 6, T
 
 var memberUsagePlan_tags = smithy.Member{Name: "tags", Index: 7, Target: &schemaMapOfStringToString}
 
-var schemaUsagePlanKey = smithy.Schema{ID: "com.amazonaws.apigateway#UsagePlanKey", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUsagePlanKey_id, &memberUsagePlanKey_type, &memberUsagePlanKey_value, &memberUsagePlanKey_name}}
+var schemaUsagePlanKey = smithy.Schema{ID: "com.amazonaws.apigateway#UsagePlanKey", Type: smithy.TypeStructure}
 
 var memberUsagePlanKey_id = smithy.Member{Name: "id", Index: 0, Target: &schemaString}
 
@@ -2211,7 +2211,7 @@ var schemaValidationException = smithy.Schema{ID: "com.amazon.coral.validate#Val
 
 var memberValidationException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaVpcLink = smithy.Schema{ID: "com.amazonaws.apigateway#VpcLink", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberVpcLink_id, &memberVpcLink_name, &memberVpcLink_description, &memberVpcLink_targetArns, &memberVpcLink_status, &memberVpcLink_statusMessage, &memberVpcLink_tags}}
+var schemaVpcLink = smithy.Schema{ID: "com.amazonaws.apigateway#VpcLink", Type: smithy.TypeStructure}
 
 var memberVpcLink_id = smithy.Member{Name: "id", Index: 0, Target: &schemaString}
 

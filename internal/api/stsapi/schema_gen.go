@@ -64,7 +64,7 @@ var memberAssumeRoleOutput_SessionTokenUtilization = smithy.Member{Name: "Sessio
 
 var memberAssumeRoleOutput_SessionTokenSize = smithy.Member{Name: "SessionTokenSize", Index: 5, Target: &schemaSessionTokenSizeType}
 
-var schemaAssumeRoleWithSAMLInput = smithy.Schema{ID: "com.amazonaws.sts#AssumeRoleWithSAMLRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAssumeRoleWithSAMLInput_RoleArn, &memberAssumeRoleWithSAMLInput_PrincipalArn, &memberAssumeRoleWithSAMLInput_SAMLAssertion, &memberAssumeRoleWithSAMLInput_PolicyArns, &memberAssumeRoleWithSAMLInput_Policy, &memberAssumeRoleWithSAMLInput_DurationSeconds, &memberAssumeRoleWithSAMLInput_MinimumSessionTokenSize}}
+var schemaAssumeRoleWithSAMLInput = smithy.Schema{ID: "com.amazonaws.sts#AssumeRoleWithSAMLRequest", Type: smithy.TypeStructure}
 
 var memberAssumeRoleWithSAMLInput_RoleArn = smithy.Member{Name: "RoleArn", Index: 0, Target: &schemaArnType, Required: true}
 
@@ -80,7 +80,7 @@ var memberAssumeRoleWithSAMLInput_DurationSeconds = smithy.Member{Name: "Duratio
 
 var memberAssumeRoleWithSAMLInput_MinimumSessionTokenSize = smithy.Member{Name: "MinimumSessionTokenSize", Index: 6, Target: &schemaMinimumSessionTokenSizeType}
 
-var schemaAssumeRoleWithSAMLOutput = smithy.Schema{ID: "com.amazonaws.sts#AssumeRoleWithSAMLResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAssumeRoleWithSAMLOutput_Credentials, &memberAssumeRoleWithSAMLOutput_AssumedRoleUser, &memberAssumeRoleWithSAMLOutput_PackedPolicySize, &memberAssumeRoleWithSAMLOutput_Subject, &memberAssumeRoleWithSAMLOutput_SubjectType, &memberAssumeRoleWithSAMLOutput_Issuer, &memberAssumeRoleWithSAMLOutput_Audience, &memberAssumeRoleWithSAMLOutput_NameQualifier, &memberAssumeRoleWithSAMLOutput_SourceIdentity, &memberAssumeRoleWithSAMLOutput_SessionTokenUtilization, &memberAssumeRoleWithSAMLOutput_SessionTokenSize}}
+var schemaAssumeRoleWithSAMLOutput = smithy.Schema{ID: "com.amazonaws.sts#AssumeRoleWithSAMLResponse", Type: smithy.TypeStructure}
 
 var memberAssumeRoleWithSAMLOutput_Credentials = smithy.Member{Name: "Credentials", Index: 0, Target: &schemaCredentials}
 
@@ -104,7 +104,7 @@ var memberAssumeRoleWithSAMLOutput_SessionTokenUtilization = smithy.Member{Name:
 
 var memberAssumeRoleWithSAMLOutput_SessionTokenSize = smithy.Member{Name: "SessionTokenSize", Index: 10, Target: &schemaSessionTokenSizeType}
 
-var schemaAssumeRoleWithWebIdentityInput = smithy.Schema{ID: "com.amazonaws.sts#AssumeRoleWithWebIdentityRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAssumeRoleWithWebIdentityInput_RoleArn, &memberAssumeRoleWithWebIdentityInput_RoleSessionName, &memberAssumeRoleWithWebIdentityInput_WebIdentityToken, &memberAssumeRoleWithWebIdentityInput_ProviderId, &memberAssumeRoleWithWebIdentityInput_PolicyArns, &memberAssumeRoleWithWebIdentityInput_Policy, &memberAssumeRoleWithWebIdentityInput_DurationSeconds, &memberAssumeRoleWithWebIdentityInput_MinimumSessionTokenSize}}
+var schemaAssumeRoleWithWebIdentityInput = smithy.Schema{ID: "com.amazonaws.sts#AssumeRoleWithWebIdentityRequest", Type: smithy.TypeStructure}
 
 var memberAssumeRoleWithWebIdentityInput_RoleArn = smithy.Member{Name: "RoleArn", Index: 0, Target: &schemaArnType, Required: true}
 
@@ -122,7 +122,7 @@ var memberAssumeRoleWithWebIdentityInput_DurationSeconds = smithy.Member{Name: "
 
 var memberAssumeRoleWithWebIdentityInput_MinimumSessionTokenSize = smithy.Member{Name: "MinimumSessionTokenSize", Index: 7, Target: &schemaMinimumSessionTokenSizeType}
 
-var schemaAssumeRoleWithWebIdentityOutput = smithy.Schema{ID: "com.amazonaws.sts#AssumeRoleWithWebIdentityResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAssumeRoleWithWebIdentityOutput_Credentials, &memberAssumeRoleWithWebIdentityOutput_SubjectFromWebIdentityToken, &memberAssumeRoleWithWebIdentityOutput_AssumedRoleUser, &memberAssumeRoleWithWebIdentityOutput_PackedPolicySize, &memberAssumeRoleWithWebIdentityOutput_Provider, &memberAssumeRoleWithWebIdentityOutput_Audience, &memberAssumeRoleWithWebIdentityOutput_SourceIdentity, &memberAssumeRoleWithWebIdentityOutput_SessionTokenUtilization, &memberAssumeRoleWithWebIdentityOutput_SessionTokenSize}}
+var schemaAssumeRoleWithWebIdentityOutput = smithy.Schema{ID: "com.amazonaws.sts#AssumeRoleWithWebIdentityResponse", Type: smithy.TypeStructure}
 
 var memberAssumeRoleWithWebIdentityOutput_Credentials = smithy.Member{Name: "Credentials", Index: 0, Target: &schemaCredentials}
 
@@ -142,7 +142,7 @@ var memberAssumeRoleWithWebIdentityOutput_SessionTokenUtilization = smithy.Membe
 
 var memberAssumeRoleWithWebIdentityOutput_SessionTokenSize = smithy.Member{Name: "SessionTokenSize", Index: 8, Target: &schemaSessionTokenSizeType}
 
-var schemaAssumeRootInput = smithy.Schema{ID: "com.amazonaws.sts#AssumeRootRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAssumeRootInput_TargetPrincipal, &memberAssumeRootInput_TaskPolicyArn, &memberAssumeRootInput_DurationSeconds, &memberAssumeRootInput_MinimumSessionTokenSize}}
+var schemaAssumeRootInput = smithy.Schema{ID: "com.amazonaws.sts#AssumeRootRequest", Type: smithy.TypeStructure}
 
 var memberAssumeRootInput_TargetPrincipal = smithy.Member{Name: "TargetPrincipal", Index: 0, Target: &schemaTargetPrincipalType, Required: true}
 
@@ -152,7 +152,7 @@ var memberAssumeRootInput_DurationSeconds = smithy.Member{Name: "DurationSeconds
 
 var memberAssumeRootInput_MinimumSessionTokenSize = smithy.Member{Name: "MinimumSessionTokenSize", Index: 3, Target: &schemaMinimumSessionTokenSizeType}
 
-var schemaAssumeRootOutput = smithy.Schema{ID: "com.amazonaws.sts#AssumeRootResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAssumeRootOutput_Credentials, &memberAssumeRootOutput_SourceIdentity, &memberAssumeRootOutput_SessionTokenUtilization, &memberAssumeRootOutput_SessionTokenSize}}
+var schemaAssumeRootOutput = smithy.Schema{ID: "com.amazonaws.sts#AssumeRootResponse", Type: smithy.TypeStructure}
 
 var memberAssumeRootOutput_Credentials = smithy.Member{Name: "Credentials", Index: 0, Target: &schemaCredentials}
 
@@ -188,11 +188,11 @@ var memberCredentials_Expiration = smithy.Member{Name: "Expiration", Index: 3, T
 
 var schemaDateType = smithy.Schema{ID: "com.amazonaws.sts#dateType", Type: smithy.TypeTimestamp}
 
-var schemaDecodeAuthorizationMessageInput = smithy.Schema{ID: "com.amazonaws.sts#DecodeAuthorizationMessageRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDecodeAuthorizationMessageInput_EncodedMessage}}
+var schemaDecodeAuthorizationMessageInput = smithy.Schema{ID: "com.amazonaws.sts#DecodeAuthorizationMessageRequest", Type: smithy.TypeStructure}
 
 var memberDecodeAuthorizationMessageInput_EncodedMessage = smithy.Member{Name: "EncodedMessage", Index: 0, Target: &schemaEncodedMessageType, Required: true}
 
-var schemaDecodeAuthorizationMessageOutput = smithy.Schema{ID: "com.amazonaws.sts#DecodeAuthorizationMessageResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDecodeAuthorizationMessageOutput_DecodedMessage}}
+var schemaDecodeAuthorizationMessageOutput = smithy.Schema{ID: "com.amazonaws.sts#DecodeAuthorizationMessageResponse", Type: smithy.TypeStructure}
 
 var memberDecodeAuthorizationMessageOutput_DecodedMessage = smithy.Member{Name: "DecodedMessage", Index: 0, Target: &schemaDecodedMessageType}
 
@@ -222,17 +222,17 @@ var schemaExternalIdType = smithy.Schema{ID: "com.amazonaws.sts#externalIdType",
 
 var schemaFederatedIdType = smithy.Schema{ID: "com.amazonaws.sts#federatedIdType", Type: smithy.TypeString}
 
-var schemaFederatedUser = smithy.Schema{ID: "com.amazonaws.sts#FederatedUser", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberFederatedUser_FederatedUserId, &memberFederatedUser_Arn}}
+var schemaFederatedUser = smithy.Schema{ID: "com.amazonaws.sts#FederatedUser", Type: smithy.TypeStructure}
 
 var memberFederatedUser_FederatedUserId = smithy.Member{Name: "FederatedUserId", Index: 0, Target: &schemaFederatedIdType, Required: true}
 
 var memberFederatedUser_Arn = smithy.Member{Name: "Arn", Index: 1, Target: &schemaArnType, Required: true}
 
-var schemaGetAccessKeyInfoInput = smithy.Schema{ID: "com.amazonaws.sts#GetAccessKeyInfoRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetAccessKeyInfoInput_AccessKeyId}}
+var schemaGetAccessKeyInfoInput = smithy.Schema{ID: "com.amazonaws.sts#GetAccessKeyInfoRequest", Type: smithy.TypeStructure}
 
 var memberGetAccessKeyInfoInput_AccessKeyId = smithy.Member{Name: "AccessKeyId", Index: 0, Target: &schemaAccessKeyIdType, Required: true}
 
-var schemaGetAccessKeyInfoOutput = smithy.Schema{ID: "com.amazonaws.sts#GetAccessKeyInfoResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetAccessKeyInfoOutput_Account}}
+var schemaGetAccessKeyInfoOutput = smithy.Schema{ID: "com.amazonaws.sts#GetAccessKeyInfoResponse", Type: smithy.TypeStructure}
 
 var memberGetAccessKeyInfoOutput_Account = smithy.Member{Name: "Account", Index: 0, Target: &schemaAccountType}
 
@@ -246,11 +246,11 @@ var memberGetCallerIdentityOutput_Account = smithy.Member{Name: "Account", Index
 
 var memberGetCallerIdentityOutput_Arn = smithy.Member{Name: "Arn", Index: 2, Target: &schemaArnType}
 
-var schemaGetDelegatedAccessTokenInput = smithy.Schema{ID: "com.amazonaws.sts#GetDelegatedAccessTokenRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetDelegatedAccessTokenInput_TradeInToken}}
+var schemaGetDelegatedAccessTokenInput = smithy.Schema{ID: "com.amazonaws.sts#GetDelegatedAccessTokenRequest", Type: smithy.TypeStructure}
 
 var memberGetDelegatedAccessTokenInput_TradeInToken = smithy.Member{Name: "TradeInToken", Index: 0, Target: &schemaTradeInTokenType, Required: true, Sensitive: true}
 
-var schemaGetDelegatedAccessTokenOutput = smithy.Schema{ID: "com.amazonaws.sts#GetDelegatedAccessTokenResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetDelegatedAccessTokenOutput_Credentials, &memberGetDelegatedAccessTokenOutput_PackedPolicySize, &memberGetDelegatedAccessTokenOutput_AssumedPrincipal}}
+var schemaGetDelegatedAccessTokenOutput = smithy.Schema{ID: "com.amazonaws.sts#GetDelegatedAccessTokenResponse", Type: smithy.TypeStructure}
 
 var memberGetDelegatedAccessTokenOutput_Credentials = smithy.Member{Name: "Credentials", Index: 0, Target: &schemaCredentials}
 
@@ -258,7 +258,7 @@ var memberGetDelegatedAccessTokenOutput_PackedPolicySize = smithy.Member{Name: "
 
 var memberGetDelegatedAccessTokenOutput_AssumedPrincipal = smithy.Member{Name: "AssumedPrincipal", Index: 2, Target: &schemaArnType}
 
-var schemaGetFederationTokenInput = smithy.Schema{ID: "com.amazonaws.sts#GetFederationTokenRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetFederationTokenInput_Name, &memberGetFederationTokenInput_Policy, &memberGetFederationTokenInput_PolicyArns, &memberGetFederationTokenInput_DurationSeconds, &memberGetFederationTokenInput_Tags, &memberGetFederationTokenInput_MinimumSessionTokenSize}}
+var schemaGetFederationTokenInput = smithy.Schema{ID: "com.amazonaws.sts#GetFederationTokenRequest", Type: smithy.TypeStructure}
 
 var memberGetFederationTokenInput_Name = smithy.Member{Name: "Name", Index: 0, Target: &schemaUserNameType, Required: true}
 
@@ -272,7 +272,7 @@ var memberGetFederationTokenInput_Tags = smithy.Member{Name: "Tags", Index: 4, T
 
 var memberGetFederationTokenInput_MinimumSessionTokenSize = smithy.Member{Name: "MinimumSessionTokenSize", Index: 5, Target: &schemaMinimumSessionTokenSizeType}
 
-var schemaGetFederationTokenOutput = smithy.Schema{ID: "com.amazonaws.sts#GetFederationTokenResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetFederationTokenOutput_Credentials, &memberGetFederationTokenOutput_FederatedUser, &memberGetFederationTokenOutput_PackedPolicySize, &memberGetFederationTokenOutput_SessionTokenUtilization, &memberGetFederationTokenOutput_SessionTokenSize}}
+var schemaGetFederationTokenOutput = smithy.Schema{ID: "com.amazonaws.sts#GetFederationTokenResponse", Type: smithy.TypeStructure}
 
 var memberGetFederationTokenOutput_Credentials = smithy.Member{Name: "Credentials", Index: 0, Target: &schemaCredentials}
 
@@ -302,7 +302,7 @@ var memberGetSessionTokenOutput_SessionTokenUtilization = smithy.Member{Name: "S
 
 var memberGetSessionTokenOutput_SessionTokenSize = smithy.Member{Name: "SessionTokenSize", Index: 2, Target: &schemaSessionTokenSizeType}
 
-var schemaGetWebIdentityTokenInput = smithy.Schema{ID: "com.amazonaws.sts#GetWebIdentityTokenRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetWebIdentityTokenInput_Audience, &memberGetWebIdentityTokenInput_DurationSeconds, &memberGetWebIdentityTokenInput_SigningAlgorithm, &memberGetWebIdentityTokenInput_Tags}}
+var schemaGetWebIdentityTokenInput = smithy.Schema{ID: "com.amazonaws.sts#GetWebIdentityTokenRequest", Type: smithy.TypeStructure}
 
 var memberGetWebIdentityTokenInput_Audience = smithy.Member{Name: "Audience", Index: 0, Target: &schemaWebIdentityTokenAudienceListType, Required: true}
 
@@ -312,7 +312,7 @@ var memberGetWebIdentityTokenInput_SigningAlgorithm = smithy.Member{Name: "Signi
 
 var memberGetWebIdentityTokenInput_Tags = smithy.Member{Name: "Tags", Index: 3, Target: &schemaTagListType}
 
-var schemaGetWebIdentityTokenOutput = smithy.Schema{ID: "com.amazonaws.sts#GetWebIdentityTokenResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetWebIdentityTokenOutput_WebIdentityToken, &memberGetWebIdentityTokenOutput_Expiration}}
+var schemaGetWebIdentityTokenOutput = smithy.Schema{ID: "com.amazonaws.sts#GetWebIdentityTokenResponse", Type: smithy.TypeStructure}
 
 var memberGetWebIdentityTokenOutput_WebIdentityToken = smithy.Member{Name: "WebIdentityToken", Index: 0, Target: &schemaWebIdentityTokenType, Sensitive: true}
 
@@ -510,7 +510,7 @@ var memberValidationException_message = smithy.Member{Name: "message", Index: 0,
 
 var schemaWebIdentitySubjectType = smithy.Schema{ID: "com.amazonaws.sts#webIdentitySubjectType", Type: smithy.TypeString}
 
-var schemaWebIdentityTokenAudienceListType = smithy.Schema{ID: "com.amazonaws.sts#webIdentityTokenAudienceListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberWebIdentityTokenAudienceListType_member}}
+var schemaWebIdentityTokenAudienceListType = smithy.Schema{ID: "com.amazonaws.sts#webIdentityTokenAudienceListType", Type: smithy.TypeList}
 
 var memberWebIdentityTokenAudienceListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaWebIdentityTokenAudienceStringType}
 

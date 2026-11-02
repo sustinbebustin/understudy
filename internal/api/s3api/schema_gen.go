@@ -7,7 +7,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy/document"
 )
 
-var schemaAbacStatus = smithy.Schema{ID: "com.amazonaws.s3#AbacStatus", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAbacStatus_Status}}
+var schemaAbacStatus = smithy.Schema{ID: "com.amazonaws.s3#AbacStatus", Type: smithy.TypeStructure}
 
 var memberAbacStatus_Status = smithy.Member{Name: "Status", Index: 0, Target: &schemaBucketAbacStatus}
 
@@ -135,7 +135,7 @@ var schemaAnnotationCount = smithy.Schema{ID: "com.amazonaws.s3#AnnotationCount"
 
 var schemaAnnotationDirective = smithy.Schema{ID: "com.amazonaws.s3#AnnotationDirective", Type: smithy.TypeEnum}
 
-var schemaAnnotationEntry = smithy.Schema{ID: "com.amazonaws.s3#AnnotationEntry", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAnnotationEntry_AnnotationName, &memberAnnotationEntry_LastModified, &memberAnnotationEntry_ETag, &memberAnnotationEntry_ChecksumAlgorithm, &memberAnnotationEntry_Size, &memberAnnotationEntry_ReplicationStatus}}
+var schemaAnnotationEntry = smithy.Schema{ID: "com.amazonaws.s3#AnnotationEntry", Type: smithy.TypeStructure}
 
 var memberAnnotationEntry_AnnotationName = smithy.Member{Name: "AnnotationName", Index: 0, Target: &schemaAnnotationName, Required: true}
 
@@ -151,7 +151,7 @@ var memberAnnotationEntry_ReplicationStatus = smithy.Member{Name: "ReplicationSt
 
 var schemaAnnotationLimitExceeded = smithy.Schema{ID: "com.amazonaws.s3#AnnotationLimitExceeded", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var schemaAnnotationList = smithy.Schema{ID: "com.amazonaws.s3#AnnotationList", Type: smithy.TypeList, Members: []*smithy.Member{&memberAnnotationList_member}}
+var schemaAnnotationList = smithy.Schema{ID: "com.amazonaws.s3#AnnotationList", Type: smithy.TypeList}
 
 var memberAnnotationList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaAnnotationEntry, XMLName: "AnnotationEntry"}
 
@@ -161,7 +161,7 @@ var schemaAnnotationNameTooLong = smithy.Schema{ID: "com.amazonaws.s3#Annotation
 
 var schemaAnnotationPrefix = smithy.Schema{ID: "com.amazonaws.s3#AnnotationPrefix", Type: smithy.TypeString}
 
-var schemaAnnotationTableConfiguration = smithy.Schema{ID: "com.amazonaws.s3#AnnotationTableConfiguration", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAnnotationTableConfiguration_ConfigurationState, &memberAnnotationTableConfiguration_EncryptionConfiguration, &memberAnnotationTableConfiguration_Role}}
+var schemaAnnotationTableConfiguration = smithy.Schema{ID: "com.amazonaws.s3#AnnotationTableConfiguration", Type: smithy.TypeStructure}
 
 var memberAnnotationTableConfiguration_ConfigurationState = smithy.Member{Name: "ConfigurationState", Index: 0, Target: &schemaAnnotationConfigurationState, Required: true}
 
@@ -169,7 +169,7 @@ var memberAnnotationTableConfiguration_EncryptionConfiguration = smithy.Member{N
 
 var memberAnnotationTableConfiguration_Role = smithy.Member{Name: "Role", Index: 2, Target: &schemaRole}
 
-var schemaAnnotationTableConfigurationResult = smithy.Schema{ID: "com.amazonaws.s3#AnnotationTableConfigurationResult", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAnnotationTableConfigurationResult_ConfigurationState, &memberAnnotationTableConfigurationResult_TableStatus, &memberAnnotationTableConfigurationResult_Error, &memberAnnotationTableConfigurationResult_TableName, &memberAnnotationTableConfigurationResult_TableArn, &memberAnnotationTableConfigurationResult_Role}}
+var schemaAnnotationTableConfigurationResult = smithy.Schema{ID: "com.amazonaws.s3#AnnotationTableConfigurationResult", Type: smithy.TypeStructure}
 
 var memberAnnotationTableConfigurationResult_ConfigurationState = smithy.Member{Name: "ConfigurationState", Index: 0, Target: &schemaAnnotationConfigurationState, Required: true}
 
@@ -183,7 +183,7 @@ var memberAnnotationTableConfigurationResult_TableArn = smithy.Member{Name: "Tab
 
 var memberAnnotationTableConfigurationResult_Role = smithy.Member{Name: "Role", Index: 5, Target: &schemaRole}
 
-var schemaAnnotationTableConfigurationUpdates = smithy.Schema{ID: "com.amazonaws.s3#AnnotationTableConfigurationUpdates", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAnnotationTableConfigurationUpdates_ConfigurationState, &memberAnnotationTableConfigurationUpdates_EncryptionConfiguration, &memberAnnotationTableConfigurationUpdates_Role}}
+var schemaAnnotationTableConfigurationUpdates = smithy.Schema{ID: "com.amazonaws.s3#AnnotationTableConfigurationUpdates", Type: smithy.TypeStructure}
 
 var memberAnnotationTableConfigurationUpdates_ConfigurationState = smithy.Member{Name: "ConfigurationState", Index: 0, Target: &schemaAnnotationConfigurationState, Required: true}
 
@@ -301,7 +301,7 @@ var schemaCORSRules = smithy.Schema{ID: "com.amazonaws.s3#CORSRules", Type: smit
 
 var memberCORSRules_member = smithy.Member{Name: "member", Index: 0, Target: &schemaCORSRule}
 
-var schemaCSVInput = smithy.Schema{ID: "com.amazonaws.s3#CSVInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCSVInput_FileHeaderInfo, &memberCSVInput_Comments, &memberCSVInput_QuoteEscapeCharacter, &memberCSVInput_RecordDelimiter, &memberCSVInput_FieldDelimiter, &memberCSVInput_QuoteCharacter, &memberCSVInput_AllowQuotedRecordDelimiter}}
+var schemaCSVInput = smithy.Schema{ID: "com.amazonaws.s3#CSVInput", Type: smithy.TypeStructure}
 
 var memberCSVInput_FileHeaderInfo = smithy.Member{Name: "FileHeaderInfo", Index: 0, Target: &schemaFileHeaderInfo}
 
@@ -317,7 +317,7 @@ var memberCSVInput_QuoteCharacter = smithy.Member{Name: "QuoteCharacter", Index:
 
 var memberCSVInput_AllowQuotedRecordDelimiter = smithy.Member{Name: "AllowQuotedRecordDelimiter", Index: 6, Target: &schemaAllowQuotedRecordDelimiter}
 
-var schemaCSVOutput = smithy.Schema{ID: "com.amazonaws.s3#CSVOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCSVOutput_QuoteFields, &memberCSVOutput_QuoteEscapeCharacter, &memberCSVOutput_RecordDelimiter, &memberCSVOutput_FieldDelimiter, &memberCSVOutput_QuoteCharacter}}
+var schemaCSVOutput = smithy.Schema{ID: "com.amazonaws.s3#CSVOutput", Type: smithy.TypeStructure}
 
 var memberCSVOutput_QuoteFields = smithy.Member{Name: "QuoteFields", Index: 0, Target: &schemaQuoteFields}
 
@@ -781,7 +781,7 @@ var memberCreateBucketInput_ObjectOwnership = smithy.Member{Name: "ObjectOwnersh
 
 var memberCreateBucketInput_BucketNamespace = smithy.Member{Name: "BucketNamespace", Index: 10, Target: &schemaBucketNamespace, HTTP: smithy.HTTPHeader{Name: "x-amz-bucket-namespace"}}
 
-var schemaCreateBucketMetadataConfigurationInput = smithy.Schema{ID: "com.amazonaws.s3#CreateBucketMetadataConfigurationRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateBucketMetadataConfigurationInput_Bucket, &memberCreateBucketMetadataConfigurationInput_ContentMD5, &memberCreateBucketMetadataConfigurationInput_ChecksumAlgorithm, &memberCreateBucketMetadataConfigurationInput_MetadataConfiguration, &memberCreateBucketMetadataConfigurationInput_ExpectedBucketOwner}}
+var schemaCreateBucketMetadataConfigurationInput = smithy.Schema{ID: "com.amazonaws.s3#CreateBucketMetadataConfigurationRequest", Type: smithy.TypeStructure}
 
 var memberCreateBucketMetadataConfigurationInput_Bucket = smithy.Member{Name: "Bucket", Index: 0, Target: &schemaBucketName, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -793,7 +793,7 @@ var memberCreateBucketMetadataConfigurationInput_MetadataConfiguration = smithy.
 
 var memberCreateBucketMetadataConfigurationInput_ExpectedBucketOwner = smithy.Member{Name: "ExpectedBucketOwner", Index: 4, Target: &schemaAccountId, HTTP: smithy.HTTPHeader{Name: "x-amz-expected-bucket-owner"}}
 
-var schemaCreateBucketMetadataTableConfigurationInput = smithy.Schema{ID: "com.amazonaws.s3#CreateBucketMetadataTableConfigurationRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateBucketMetadataTableConfigurationInput_Bucket, &memberCreateBucketMetadataTableConfigurationInput_ContentMD5, &memberCreateBucketMetadataTableConfigurationInput_ChecksumAlgorithm, &memberCreateBucketMetadataTableConfigurationInput_MetadataTableConfiguration, &memberCreateBucketMetadataTableConfigurationInput_ExpectedBucketOwner}}
+var schemaCreateBucketMetadataTableConfigurationInput = smithy.Schema{ID: "com.amazonaws.s3#CreateBucketMetadataTableConfigurationRequest", Type: smithy.TypeStructure}
 
 var memberCreateBucketMetadataTableConfigurationInput_Bucket = smithy.Member{Name: "Bucket", Index: 0, Target: &schemaBucketName, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -911,7 +911,7 @@ var memberCreateMultipartUploadOutput_ChecksumAlgorithm = smithy.Member{Name: "C
 
 var memberCreateMultipartUploadOutput_ChecksumType = smithy.Member{Name: "ChecksumType", Index: 13, Target: &schemaChecksumType, HTTP: smithy.HTTPHeader{Name: "x-amz-checksum-type"}}
 
-var schemaCreateSessionInput = smithy.Schema{ID: "com.amazonaws.s3#CreateSessionRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateSessionInput_SessionMode, &memberCreateSessionInput_Bucket, &memberCreateSessionInput_ServerSideEncryption, &memberCreateSessionInput_SSEKMSKeyId, &memberCreateSessionInput_SSEKMSEncryptionContext, &memberCreateSessionInput_BucketKeyEnabled}}
+var schemaCreateSessionInput = smithy.Schema{ID: "com.amazonaws.s3#CreateSessionRequest", Type: smithy.TypeStructure}
 
 var memberCreateSessionInput_SessionMode = smithy.Member{Name: "SessionMode", Index: 0, Target: &schemaSessionMode, HTTP: smithy.HTTPHeader{Name: "x-amz-create-session-mode"}}
 
@@ -925,7 +925,7 @@ var memberCreateSessionInput_SSEKMSEncryptionContext = smithy.Member{Name: "SSEK
 
 var memberCreateSessionInput_BucketKeyEnabled = smithy.Member{Name: "BucketKeyEnabled", Index: 5, Target: &schemaBucketKeyEnabled, HTTP: smithy.HTTPHeader{Name: "x-amz-server-side-encryption-bucket-key-enabled"}}
 
-var schemaCreateSessionOutput = smithy.Schema{ID: "com.amazonaws.s3#CreateSessionOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateSessionOutput_ServerSideEncryption, &memberCreateSessionOutput_SSEKMSKeyId, &memberCreateSessionOutput_SSEKMSEncryptionContext, &memberCreateSessionOutput_BucketKeyEnabled, &memberCreateSessionOutput_Credentials}, XMLName: "CreateSessionResult"}
+var schemaCreateSessionOutput = smithy.Schema{ID: "com.amazonaws.s3#CreateSessionOutput", Type: smithy.TypeStructure, XMLName: "CreateSessionResult"}
 
 var memberCreateSessionOutput_ServerSideEncryption = smithy.Member{Name: "ServerSideEncryption", Index: 0, Target: &schemaServerSideEncryption, HTTP: smithy.HTTPHeader{Name: "x-amz-server-side-encryption"}}
 
@@ -1011,13 +1011,13 @@ var memberDeleteBucketLifecycleInput_Bucket = smithy.Member{Name: "Bucket", Inde
 
 var memberDeleteBucketLifecycleInput_ExpectedBucketOwner = smithy.Member{Name: "ExpectedBucketOwner", Index: 1, Target: &schemaAccountId, HTTP: smithy.HTTPHeader{Name: "x-amz-expected-bucket-owner"}}
 
-var schemaDeleteBucketMetadataConfigurationInput = smithy.Schema{ID: "com.amazonaws.s3#DeleteBucketMetadataConfigurationRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteBucketMetadataConfigurationInput_Bucket, &memberDeleteBucketMetadataConfigurationInput_ExpectedBucketOwner}}
+var schemaDeleteBucketMetadataConfigurationInput = smithy.Schema{ID: "com.amazonaws.s3#DeleteBucketMetadataConfigurationRequest", Type: smithy.TypeStructure}
 
 var memberDeleteBucketMetadataConfigurationInput_Bucket = smithy.Member{Name: "Bucket", Index: 0, Target: &schemaBucketName, Required: true, HTTP: smithy.HTTPLabel{}}
 
 var memberDeleteBucketMetadataConfigurationInput_ExpectedBucketOwner = smithy.Member{Name: "ExpectedBucketOwner", Index: 1, Target: &schemaAccountId, HTTP: smithy.HTTPHeader{Name: "x-amz-expected-bucket-owner"}}
 
-var schemaDeleteBucketMetadataTableConfigurationInput = smithy.Schema{ID: "com.amazonaws.s3#DeleteBucketMetadataTableConfigurationRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteBucketMetadataTableConfigurationInput_Bucket, &memberDeleteBucketMetadataTableConfigurationInput_ExpectedBucketOwner}}
+var schemaDeleteBucketMetadataTableConfigurationInput = smithy.Schema{ID: "com.amazonaws.s3#DeleteBucketMetadataTableConfigurationRequest", Type: smithy.TypeStructure}
 
 var memberDeleteBucketMetadataTableConfigurationInput_Bucket = smithy.Member{Name: "Bucket", Index: 0, Target: &schemaBucketName, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -1087,7 +1087,7 @@ var schemaDeleteMarkers = smithy.Schema{ID: "com.amazonaws.s3#DeleteMarkers", Ty
 
 var memberDeleteMarkers_member = smithy.Member{Name: "member", Index: 0, Target: &schemaDeleteMarkerEntry}
 
-var schemaDeleteObjectAnnotationInput = smithy.Schema{ID: "com.amazonaws.s3#DeleteObjectAnnotationRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteObjectAnnotationInput_Bucket, &memberDeleteObjectAnnotationInput_Key, &memberDeleteObjectAnnotationInput_AnnotationName, &memberDeleteObjectAnnotationInput_VersionId, &memberDeleteObjectAnnotationInput_RequestPayer, &memberDeleteObjectAnnotationInput_ExpectedBucketOwner, &memberDeleteObjectAnnotationInput_ObjectIfMatch}}
+var schemaDeleteObjectAnnotationInput = smithy.Schema{ID: "com.amazonaws.s3#DeleteObjectAnnotationRequest", Type: smithy.TypeStructure}
 
 var memberDeleteObjectAnnotationInput_Bucket = smithy.Member{Name: "Bucket", Index: 0, Target: &schemaBucketName, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -1103,7 +1103,7 @@ var memberDeleteObjectAnnotationInput_ExpectedBucketOwner = smithy.Member{Name: 
 
 var memberDeleteObjectAnnotationInput_ObjectIfMatch = smithy.Member{Name: "ObjectIfMatch", Index: 6, Target: &schemaObjectIfMatch, HTTP: smithy.HTTPHeader{Name: "x-amz-object-if-match"}}
 
-var schemaDeleteObjectAnnotationOutput = smithy.Schema{ID: "com.amazonaws.s3#DeleteObjectAnnotationOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteObjectAnnotationOutput_ObjectVersionId, &memberDeleteObjectAnnotationOutput_RequestCharged}}
+var schemaDeleteObjectAnnotationOutput = smithy.Schema{ID: "com.amazonaws.s3#DeleteObjectAnnotationOutput", Type: smithy.TypeStructure}
 
 var memberDeleteObjectAnnotationOutput_ObjectVersionId = smithy.Member{Name: "ObjectVersionId", Index: 0, Target: &schemaObjectVersionId, HTTP: smithy.HTTPHeader{Name: "x-amz-object-version-id"}}
 
@@ -1217,7 +1217,7 @@ var memberDestination_ReplicationTime = smithy.Member{Name: "ReplicationTime", I
 
 var memberDestination_Metrics = smithy.Member{Name: "Metrics", Index: 6, Target: &schemaMetrics}
 
-var schemaDestinationResult = smithy.Schema{ID: "com.amazonaws.s3#DestinationResult", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDestinationResult_TableBucketType, &memberDestinationResult_TableBucketArn, &memberDestinationResult_TableNamespace}}
+var schemaDestinationResult = smithy.Schema{ID: "com.amazonaws.s3#DestinationResult", Type: smithy.TypeStructure}
 
 var memberDestinationResult_TableBucketType = smithy.Member{Name: "TableBucketType", Index: 0, Target: &schemaS3TablesBucketType}
 
@@ -1237,7 +1237,7 @@ var schemaEnableRequestProgress = smithy.Schema{ID: "com.amazonaws.s3#EnableRequ
 
 var schemaEncodingType = smithy.Schema{ID: "com.amazonaws.s3#EncodingType", Type: smithy.TypeEnum}
 
-var schemaEncryption = smithy.Schema{ID: "com.amazonaws.s3#Encryption", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberEncryption_EncryptionType, &memberEncryption_KMSKeyId, &memberEncryption_KMSContext}}
+var schemaEncryption = smithy.Schema{ID: "com.amazonaws.s3#Encryption", Type: smithy.TypeStructure}
 
 var memberEncryption_EncryptionType = smithy.Member{Name: "EncryptionType", Index: 0, Target: &schemaServerSideEncryption, Required: true}
 
@@ -1285,7 +1285,7 @@ var memberError_Message = smithy.Member{Name: "Message", Index: 3, Target: &sche
 
 var schemaErrorCode = smithy.Schema{ID: "com.amazonaws.s3#ErrorCode", Type: smithy.TypeString}
 
-var schemaErrorDetails = smithy.Schema{ID: "com.amazonaws.s3#ErrorDetails", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberErrorDetails_ErrorCode, &memberErrorDetails_ErrorMessage}}
+var schemaErrorDetails = smithy.Schema{ID: "com.amazonaws.s3#ErrorDetails", Type: smithy.TypeStructure}
 
 var memberErrorDetails_ErrorCode = smithy.Member{Name: "ErrorCode", Index: 0, Target: &schemaErrorCode}
 
@@ -1363,13 +1363,13 @@ var schemaFilterRuleName = smithy.Schema{ID: "com.amazonaws.s3#FilterRuleName", 
 
 var schemaFilterRuleValue = smithy.Schema{ID: "com.amazonaws.s3#FilterRuleValue", Type: smithy.TypeString}
 
-var schemaGetBucketAbacInput = smithy.Schema{ID: "com.amazonaws.s3#GetBucketAbacRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetBucketAbacInput_Bucket, &memberGetBucketAbacInput_ExpectedBucketOwner}}
+var schemaGetBucketAbacInput = smithy.Schema{ID: "com.amazonaws.s3#GetBucketAbacRequest", Type: smithy.TypeStructure}
 
 var memberGetBucketAbacInput_Bucket = smithy.Member{Name: "Bucket", Index: 0, Target: &schemaBucketName, Required: true, HTTP: smithy.HTTPLabel{}}
 
 var memberGetBucketAbacInput_ExpectedBucketOwner = smithy.Member{Name: "ExpectedBucketOwner", Index: 1, Target: &schemaAccountId, HTTP: smithy.HTTPHeader{Name: "x-amz-expected-bucket-owner"}}
 
-var schemaGetBucketAbacOutput = smithy.Schema{ID: "com.amazonaws.s3#GetBucketAbacOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetBucketAbacOutput_AbacStatus}}
+var schemaGetBucketAbacOutput = smithy.Schema{ID: "com.amazonaws.s3#GetBucketAbacOutput", Type: smithy.TypeStructure}
 
 var memberGetBucketAbacOutput_AbacStatus = smithy.Member{Name: "AbacStatus", Index: 0, Target: &schemaAbacStatus, HTTP: smithy.HTTPPayload{}}
 
@@ -1487,31 +1487,31 @@ var schemaGetBucketLoggingOutput = smithy.Schema{ID: "com.amazonaws.s3#GetBucket
 
 var memberGetBucketLoggingOutput_LoggingEnabled = smithy.Member{Name: "LoggingEnabled", Index: 0, Target: &schemaLoggingEnabled}
 
-var schemaGetBucketMetadataConfigurationInput = smithy.Schema{ID: "com.amazonaws.s3#GetBucketMetadataConfigurationRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetBucketMetadataConfigurationInput_Bucket, &memberGetBucketMetadataConfigurationInput_ExpectedBucketOwner}}
+var schemaGetBucketMetadataConfigurationInput = smithy.Schema{ID: "com.amazonaws.s3#GetBucketMetadataConfigurationRequest", Type: smithy.TypeStructure}
 
 var memberGetBucketMetadataConfigurationInput_Bucket = smithy.Member{Name: "Bucket", Index: 0, Target: &schemaBucketName, Required: true, HTTP: smithy.HTTPLabel{}}
 
 var memberGetBucketMetadataConfigurationInput_ExpectedBucketOwner = smithy.Member{Name: "ExpectedBucketOwner", Index: 1, Target: &schemaAccountId, HTTP: smithy.HTTPHeader{Name: "x-amz-expected-bucket-owner"}}
 
-var schemaGetBucketMetadataConfigurationOutput = smithy.Schema{ID: "com.amazonaws.s3#GetBucketMetadataConfigurationOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetBucketMetadataConfigurationOutput_GetBucketMetadataConfigurationResult}}
+var schemaGetBucketMetadataConfigurationOutput = smithy.Schema{ID: "com.amazonaws.s3#GetBucketMetadataConfigurationOutput", Type: smithy.TypeStructure}
 
 var memberGetBucketMetadataConfigurationOutput_GetBucketMetadataConfigurationResult = smithy.Member{Name: "GetBucketMetadataConfigurationResult", Index: 0, Target: &schemaGetBucketMetadataConfigurationResult, HTTP: smithy.HTTPPayload{}}
 
-var schemaGetBucketMetadataConfigurationResult = smithy.Schema{ID: "com.amazonaws.s3#GetBucketMetadataConfigurationResult", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetBucketMetadataConfigurationResult_MetadataConfigurationResult}}
+var schemaGetBucketMetadataConfigurationResult = smithy.Schema{ID: "com.amazonaws.s3#GetBucketMetadataConfigurationResult", Type: smithy.TypeStructure}
 
 var memberGetBucketMetadataConfigurationResult_MetadataConfigurationResult = smithy.Member{Name: "MetadataConfigurationResult", Index: 0, Target: &schemaMetadataConfigurationResult, Required: true}
 
-var schemaGetBucketMetadataTableConfigurationInput = smithy.Schema{ID: "com.amazonaws.s3#GetBucketMetadataTableConfigurationRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetBucketMetadataTableConfigurationInput_Bucket, &memberGetBucketMetadataTableConfigurationInput_ExpectedBucketOwner}}
+var schemaGetBucketMetadataTableConfigurationInput = smithy.Schema{ID: "com.amazonaws.s3#GetBucketMetadataTableConfigurationRequest", Type: smithy.TypeStructure}
 
 var memberGetBucketMetadataTableConfigurationInput_Bucket = smithy.Member{Name: "Bucket", Index: 0, Target: &schemaBucketName, Required: true, HTTP: smithy.HTTPLabel{}}
 
 var memberGetBucketMetadataTableConfigurationInput_ExpectedBucketOwner = smithy.Member{Name: "ExpectedBucketOwner", Index: 1, Target: &schemaAccountId, HTTP: smithy.HTTPHeader{Name: "x-amz-expected-bucket-owner"}}
 
-var schemaGetBucketMetadataTableConfigurationOutput = smithy.Schema{ID: "com.amazonaws.s3#GetBucketMetadataTableConfigurationOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetBucketMetadataTableConfigurationOutput_GetBucketMetadataTableConfigurationResult}}
+var schemaGetBucketMetadataTableConfigurationOutput = smithy.Schema{ID: "com.amazonaws.s3#GetBucketMetadataTableConfigurationOutput", Type: smithy.TypeStructure}
 
 var memberGetBucketMetadataTableConfigurationOutput_GetBucketMetadataTableConfigurationResult = smithy.Member{Name: "GetBucketMetadataTableConfigurationResult", Index: 0, Target: &schemaGetBucketMetadataTableConfigurationResult, HTTP: smithy.HTTPPayload{}}
 
-var schemaGetBucketMetadataTableConfigurationResult = smithy.Schema{ID: "com.amazonaws.s3#GetBucketMetadataTableConfigurationResult", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetBucketMetadataTableConfigurationResult_MetadataTableConfigurationResult, &memberGetBucketMetadataTableConfigurationResult_Status, &memberGetBucketMetadataTableConfigurationResult_Error}}
+var schemaGetBucketMetadataTableConfigurationResult = smithy.Schema{ID: "com.amazonaws.s3#GetBucketMetadataTableConfigurationResult", Type: smithy.TypeStructure}
 
 var memberGetBucketMetadataTableConfigurationResult_MetadataTableConfigurationResult = smithy.Member{Name: "MetadataTableConfigurationResult", Index: 0, Target: &schemaMetadataTableConfigurationResult, Required: true}
 
@@ -1557,13 +1557,13 @@ var schemaGetBucketPolicyOutput = smithy.Schema{ID: "com.amazonaws.s3#GetBucketP
 
 var memberGetBucketPolicyOutput_Policy = smithy.Member{Name: "Policy", Index: 0, Target: &schemaPolicy, HTTP: smithy.HTTPPayload{}}
 
-var schemaGetBucketPolicyStatusInput = smithy.Schema{ID: "com.amazonaws.s3#GetBucketPolicyStatusRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetBucketPolicyStatusInput_Bucket, &memberGetBucketPolicyStatusInput_ExpectedBucketOwner}}
+var schemaGetBucketPolicyStatusInput = smithy.Schema{ID: "com.amazonaws.s3#GetBucketPolicyStatusRequest", Type: smithy.TypeStructure}
 
 var memberGetBucketPolicyStatusInput_Bucket = smithy.Member{Name: "Bucket", Index: 0, Target: &schemaBucketName, Required: true, HTTP: smithy.HTTPLabel{}}
 
 var memberGetBucketPolicyStatusInput_ExpectedBucketOwner = smithy.Member{Name: "ExpectedBucketOwner", Index: 1, Target: &schemaAccountId, HTTP: smithy.HTTPHeader{Name: "x-amz-expected-bucket-owner"}}
 
-var schemaGetBucketPolicyStatusOutput = smithy.Schema{ID: "com.amazonaws.s3#GetBucketPolicyStatusOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetBucketPolicyStatusOutput_PolicyStatus}}
+var schemaGetBucketPolicyStatusOutput = smithy.Schema{ID: "com.amazonaws.s3#GetBucketPolicyStatusOutput", Type: smithy.TypeStructure}
 
 var memberGetBucketPolicyStatusOutput_PolicyStatus = smithy.Member{Name: "PolicyStatus", Index: 0, Target: &schemaPolicyStatus, HTTP: smithy.HTTPPayload{}}
 
@@ -1625,7 +1625,7 @@ var memberGetBucketWebsiteOutput_ErrorDocument = smithy.Member{Name: "ErrorDocum
 
 var memberGetBucketWebsiteOutput_RoutingRules = smithy.Member{Name: "RoutingRules", Index: 3, Target: &schemaRoutingRules}
 
-var schemaGetObjectAclInput = smithy.Schema{ID: "com.amazonaws.s3#GetObjectAclRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetObjectAclInput_Bucket, &memberGetObjectAclInput_Key, &memberGetObjectAclInput_VersionId, &memberGetObjectAclInput_RequestPayer, &memberGetObjectAclInput_ExpectedBucketOwner}}
+var schemaGetObjectAclInput = smithy.Schema{ID: "com.amazonaws.s3#GetObjectAclRequest", Type: smithy.TypeStructure}
 
 var memberGetObjectAclInput_Bucket = smithy.Member{Name: "Bucket", Index: 0, Target: &schemaBucketName, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -1637,7 +1637,7 @@ var memberGetObjectAclInput_RequestPayer = smithy.Member{Name: "RequestPayer", I
 
 var memberGetObjectAclInput_ExpectedBucketOwner = smithy.Member{Name: "ExpectedBucketOwner", Index: 4, Target: &schemaAccountId, HTTP: smithy.HTTPHeader{Name: "x-amz-expected-bucket-owner"}}
 
-var schemaGetObjectAclOutput = smithy.Schema{ID: "com.amazonaws.s3#GetObjectAclOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetObjectAclOutput_Owner, &memberGetObjectAclOutput_Grants, &memberGetObjectAclOutput_RequestCharged}, XMLName: "AccessControlPolicy"}
+var schemaGetObjectAclOutput = smithy.Schema{ID: "com.amazonaws.s3#GetObjectAclOutput", Type: smithy.TypeStructure, XMLName: "AccessControlPolicy"}
 
 var memberGetObjectAclOutput_Owner = smithy.Member{Name: "Owner", Index: 0, Target: &schemaOwner}
 
@@ -1645,7 +1645,7 @@ var memberGetObjectAclOutput_Grants = smithy.Member{Name: "Grants", Index: 1, Ta
 
 var memberGetObjectAclOutput_RequestCharged = smithy.Member{Name: "RequestCharged", Index: 2, Target: &schemaRequestCharged, HTTP: smithy.HTTPHeader{Name: "x-amz-request-charged"}}
 
-var schemaGetObjectAnnotationInput = smithy.Schema{ID: "com.amazonaws.s3#GetObjectAnnotationRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetObjectAnnotationInput_Bucket, &memberGetObjectAnnotationInput_Key, &memberGetObjectAnnotationInput_AnnotationName, &memberGetObjectAnnotationInput_VersionId, &memberGetObjectAnnotationInput_RequestPayer, &memberGetObjectAnnotationInput_ExpectedBucketOwner, &memberGetObjectAnnotationInput_ChecksumMode}}
+var schemaGetObjectAnnotationInput = smithy.Schema{ID: "com.amazonaws.s3#GetObjectAnnotationRequest", Type: smithy.TypeStructure}
 
 var memberGetObjectAnnotationInput_Bucket = smithy.Member{Name: "Bucket", Index: 0, Target: &schemaBucketName, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -1661,7 +1661,7 @@ var memberGetObjectAnnotationInput_ExpectedBucketOwner = smithy.Member{Name: "Ex
 
 var memberGetObjectAnnotationInput_ChecksumMode = smithy.Member{Name: "ChecksumMode", Index: 6, Target: &schemaChecksumMode, HTTP: smithy.HTTPHeader{Name: "x-amz-checksum-mode"}}
 
-var schemaGetObjectAnnotationOutput = smithy.Schema{ID: "com.amazonaws.s3#GetObjectAnnotationOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetObjectAnnotationOutput_AnnotationPayload, &memberGetObjectAnnotationOutput_ObjectVersionId, &memberGetObjectAnnotationOutput_LastModified, &memberGetObjectAnnotationOutput_ContentLength, &memberGetObjectAnnotationOutput_ETag, &memberGetObjectAnnotationOutput_ChecksumCRC32, &memberGetObjectAnnotationOutput_ChecksumCRC32C, &memberGetObjectAnnotationOutput_ChecksumCRC64NVME, &memberGetObjectAnnotationOutput_ChecksumSHA1, &memberGetObjectAnnotationOutput_ChecksumSHA256, &memberGetObjectAnnotationOutput_ChecksumSHA512, &memberGetObjectAnnotationOutput_ChecksumMD5, &memberGetObjectAnnotationOutput_ChecksumXXHASH64, &memberGetObjectAnnotationOutput_ChecksumXXHASH3, &memberGetObjectAnnotationOutput_ChecksumXXHASH128, &memberGetObjectAnnotationOutput_ChecksumType, &memberGetObjectAnnotationOutput_ServerSideEncryption, &memberGetObjectAnnotationOutput_RequestCharged, &memberGetObjectAnnotationOutput_ReplicationStatus}}
+var schemaGetObjectAnnotationOutput = smithy.Schema{ID: "com.amazonaws.s3#GetObjectAnnotationOutput", Type: smithy.TypeStructure}
 
 var memberGetObjectAnnotationOutput_AnnotationPayload = smithy.Member{Name: "AnnotationPayload", Index: 0, Target: &schemaStreamingBlob, Default: document.String(""), HTTP: smithy.HTTPPayload{}}
 
@@ -1959,7 +1959,7 @@ var memberGetObjectTaggingOutput_VersionId = smithy.Member{Name: "VersionId", In
 
 var memberGetObjectTaggingOutput_TagSet = smithy.Member{Name: "TagSet", Index: 1, Target: &schemaTagSet, Required: true}
 
-var schemaGetObjectTorrentInput = smithy.Schema{ID: "com.amazonaws.s3#GetObjectTorrentRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetObjectTorrentInput_Bucket, &memberGetObjectTorrentInput_Key, &memberGetObjectTorrentInput_RequestPayer, &memberGetObjectTorrentInput_ExpectedBucketOwner}}
+var schemaGetObjectTorrentInput = smithy.Schema{ID: "com.amazonaws.s3#GetObjectTorrentRequest", Type: smithy.TypeStructure}
 
 var memberGetObjectTorrentInput_Bucket = smithy.Member{Name: "Bucket", Index: 0, Target: &schemaBucketName, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -1969,7 +1969,7 @@ var memberGetObjectTorrentInput_RequestPayer = smithy.Member{Name: "RequestPayer
 
 var memberGetObjectTorrentInput_ExpectedBucketOwner = smithy.Member{Name: "ExpectedBucketOwner", Index: 3, Target: &schemaAccountId, HTTP: smithy.HTTPHeader{Name: "x-amz-expected-bucket-owner"}}
 
-var schemaGetObjectTorrentOutput = smithy.Schema{ID: "com.amazonaws.s3#GetObjectTorrentOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetObjectTorrentOutput_Body, &memberGetObjectTorrentOutput_RequestCharged}}
+var schemaGetObjectTorrentOutput = smithy.Schema{ID: "com.amazonaws.s3#GetObjectTorrentOutput", Type: smithy.TypeStructure}
 
 var memberGetObjectTorrentOutput_Body = smithy.Member{Name: "Body", Index: 0, Target: &schemaStreamingBlob, Default: document.String(""), HTTP: smithy.HTTPPayload{}}
 
@@ -1985,7 +1985,7 @@ var schemaGetPublicAccessBlockOutput = smithy.Schema{ID: "com.amazonaws.s3#GetPu
 
 var memberGetPublicAccessBlockOutput_PublicAccessBlockConfiguration = smithy.Member{Name: "PublicAccessBlockConfiguration", Index: 0, Target: &schemaPublicAccessBlockConfiguration, HTTP: smithy.HTTPPayload{}}
 
-var schemaGlacierJobParameters = smithy.Schema{ID: "com.amazonaws.s3#GlacierJobParameters", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGlacierJobParameters_Tier}}
+var schemaGlacierJobParameters = smithy.Schema{ID: "com.amazonaws.s3#GlacierJobParameters", Type: smithy.TypeStructure}
 
 var memberGlacierJobParameters_Tier = smithy.Member{Name: "Tier", Index: 0, Target: &schemaTier, Required: true}
 
@@ -2219,7 +2219,7 @@ var memberInitiator_ID = smithy.Member{Name: "ID", Index: 0, Target: &schemaID}
 
 var memberInitiator_DisplayName = smithy.Member{Name: "DisplayName", Index: 1, Target: &schemaDisplayName}
 
-var schemaInputSerialization = smithy.Schema{ID: "com.amazonaws.s3#InputSerialization", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberInputSerialization_CSV, &memberInputSerialization_CompressionType, &memberInputSerialization_JSON, &memberInputSerialization_Parquet}}
+var schemaInputSerialization = smithy.Schema{ID: "com.amazonaws.s3#InputSerialization", Type: smithy.TypeStructure}
 
 var memberInputSerialization_CSV = smithy.Member{Name: "CSV", Index: 0, Target: &schemaCSVInput}
 
@@ -2409,13 +2409,13 @@ var schemaInventorySchedule = smithy.Schema{ID: "com.amazonaws.s3#InventorySched
 
 var memberInventorySchedule_Frequency = smithy.Member{Name: "Frequency", Index: 0, Target: &schemaInventoryFrequency, Required: true}
 
-var schemaInventoryTableConfiguration = smithy.Schema{ID: "com.amazonaws.s3#InventoryTableConfiguration", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberInventoryTableConfiguration_ConfigurationState, &memberInventoryTableConfiguration_EncryptionConfiguration}}
+var schemaInventoryTableConfiguration = smithy.Schema{ID: "com.amazonaws.s3#InventoryTableConfiguration", Type: smithy.TypeStructure}
 
 var memberInventoryTableConfiguration_ConfigurationState = smithy.Member{Name: "ConfigurationState", Index: 0, Target: &schemaInventoryConfigurationState, Required: true}
 
 var memberInventoryTableConfiguration_EncryptionConfiguration = smithy.Member{Name: "EncryptionConfiguration", Index: 1, Target: &schemaMetadataTableEncryptionConfiguration}
 
-var schemaInventoryTableConfigurationResult = smithy.Schema{ID: "com.amazonaws.s3#InventoryTableConfigurationResult", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberInventoryTableConfigurationResult_ConfigurationState, &memberInventoryTableConfigurationResult_TableStatus, &memberInventoryTableConfigurationResult_Error, &memberInventoryTableConfigurationResult_TableName, &memberInventoryTableConfigurationResult_TableArn}}
+var schemaInventoryTableConfigurationResult = smithy.Schema{ID: "com.amazonaws.s3#InventoryTableConfigurationResult", Type: smithy.TypeStructure}
 
 var memberInventoryTableConfigurationResult_ConfigurationState = smithy.Member{Name: "ConfigurationState", Index: 0, Target: &schemaInventoryConfigurationState, Required: true}
 
@@ -2427,7 +2427,7 @@ var memberInventoryTableConfigurationResult_TableName = smithy.Member{Name: "Tab
 
 var memberInventoryTableConfigurationResult_TableArn = smithy.Member{Name: "TableArn", Index: 4, Target: &schemaS3TablesArn}
 
-var schemaInventoryTableConfigurationUpdates = smithy.Schema{ID: "com.amazonaws.s3#InventoryTableConfigurationUpdates", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberInventoryTableConfigurationUpdates_ConfigurationState, &memberInventoryTableConfigurationUpdates_EncryptionConfiguration}}
+var schemaInventoryTableConfigurationUpdates = smithy.Schema{ID: "com.amazonaws.s3#InventoryTableConfigurationUpdates", Type: smithy.TypeStructure}
 
 var memberInventoryTableConfigurationUpdates_ConfigurationState = smithy.Member{Name: "ConfigurationState", Index: 0, Target: &schemaInventoryConfigurationState, Required: true}
 
@@ -2443,23 +2443,23 @@ var schemaIsRestoreInProgress = smithy.Schema{ID: "com.amazonaws.s3#IsRestoreInP
 
 var schemaIsTruncated = smithy.Schema{ID: "com.amazonaws.s3#IsTruncated", Type: smithy.TypeBoolean}
 
-var schemaJSONInput = smithy.Schema{ID: "com.amazonaws.s3#JSONInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberJSONInput_Type}}
+var schemaJSONInput = smithy.Schema{ID: "com.amazonaws.s3#JSONInput", Type: smithy.TypeStructure}
 
 var memberJSONInput_Type = smithy.Member{Name: "Type", Index: 0, Target: &schemaJSONType}
 
-var schemaJSONOutput = smithy.Schema{ID: "com.amazonaws.s3#JSONOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberJSONOutput_RecordDelimiter}}
+var schemaJSONOutput = smithy.Schema{ID: "com.amazonaws.s3#JSONOutput", Type: smithy.TypeStructure}
 
 var memberJSONOutput_RecordDelimiter = smithy.Member{Name: "RecordDelimiter", Index: 0, Target: &schemaRecordDelimiter}
 
 var schemaJSONType = smithy.Schema{ID: "com.amazonaws.s3#JSONType", Type: smithy.TypeEnum}
 
-var schemaJournalTableConfiguration = smithy.Schema{ID: "com.amazonaws.s3#JournalTableConfiguration", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberJournalTableConfiguration_RecordExpiration, &memberJournalTableConfiguration_EncryptionConfiguration}}
+var schemaJournalTableConfiguration = smithy.Schema{ID: "com.amazonaws.s3#JournalTableConfiguration", Type: smithy.TypeStructure}
 
 var memberJournalTableConfiguration_RecordExpiration = smithy.Member{Name: "RecordExpiration", Index: 0, Target: &schemaRecordExpiration, Required: true}
 
 var memberJournalTableConfiguration_EncryptionConfiguration = smithy.Member{Name: "EncryptionConfiguration", Index: 1, Target: &schemaMetadataTableEncryptionConfiguration}
 
-var schemaJournalTableConfigurationResult = smithy.Schema{ID: "com.amazonaws.s3#JournalTableConfigurationResult", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberJournalTableConfigurationResult_TableStatus, &memberJournalTableConfigurationResult_Error, &memberJournalTableConfigurationResult_TableName, &memberJournalTableConfigurationResult_TableArn, &memberJournalTableConfigurationResult_RecordExpiration}}
+var schemaJournalTableConfigurationResult = smithy.Schema{ID: "com.amazonaws.s3#JournalTableConfigurationResult", Type: smithy.TypeStructure}
 
 var memberJournalTableConfigurationResult_TableStatus = smithy.Member{Name: "TableStatus", Index: 0, Target: &schemaMetadataTableStatus, Required: true}
 
@@ -2471,7 +2471,7 @@ var memberJournalTableConfigurationResult_TableArn = smithy.Member{Name: "TableA
 
 var memberJournalTableConfigurationResult_RecordExpiration = smithy.Member{Name: "RecordExpiration", Index: 4, Target: &schemaRecordExpiration, Required: true}
 
-var schemaJournalTableConfigurationUpdates = smithy.Schema{ID: "com.amazonaws.s3#JournalTableConfigurationUpdates", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberJournalTableConfigurationUpdates_RecordExpiration}}
+var schemaJournalTableConfigurationUpdates = smithy.Schema{ID: "com.amazonaws.s3#JournalTableConfigurationUpdates", Type: smithy.TypeStructure}
 
 var memberJournalTableConfigurationUpdates_RecordExpiration = smithy.Member{Name: "RecordExpiration", Index: 0, Target: &schemaRecordExpiration, Required: true}
 
@@ -2659,13 +2659,13 @@ var memberListBucketsOutput_ContinuationToken = smithy.Member{Name: "Continuatio
 
 var memberListBucketsOutput_Prefix = smithy.Member{Name: "Prefix", Index: 3, Target: &schemaPrefix}
 
-var schemaListDirectoryBucketsInput = smithy.Schema{ID: "com.amazonaws.s3#ListDirectoryBucketsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListDirectoryBucketsInput_ContinuationToken, &memberListDirectoryBucketsInput_MaxDirectoryBuckets}}
+var schemaListDirectoryBucketsInput = smithy.Schema{ID: "com.amazonaws.s3#ListDirectoryBucketsRequest", Type: smithy.TypeStructure}
 
 var memberListDirectoryBucketsInput_ContinuationToken = smithy.Member{Name: "ContinuationToken", Index: 0, Target: &schemaDirectoryBucketToken, HTTP: smithy.HTTPQuery{Name: "continuation-token"}}
 
 var memberListDirectoryBucketsInput_MaxDirectoryBuckets = smithy.Member{Name: "MaxDirectoryBuckets", Index: 1, Target: &schemaMaxDirectoryBuckets, HTTP: smithy.HTTPQuery{Name: "max-directory-buckets"}}
 
-var schemaListDirectoryBucketsOutput = smithy.Schema{ID: "com.amazonaws.s3#ListDirectoryBucketsOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListDirectoryBucketsOutput_Buckets, &memberListDirectoryBucketsOutput_ContinuationToken}, XMLName: "ListAllMyDirectoryBucketsResult"}
+var schemaListDirectoryBucketsOutput = smithy.Schema{ID: "com.amazonaws.s3#ListDirectoryBucketsOutput", Type: smithy.TypeStructure, XMLName: "ListAllMyDirectoryBucketsResult"}
 
 var memberListDirectoryBucketsOutput_Buckets = smithy.Member{Name: "Buckets", Index: 0, Target: &schemaBuckets}
 
@@ -2719,7 +2719,7 @@ var memberListMultipartUploadsOutput_EncodingType = smithy.Member{Name: "Encodin
 
 var memberListMultipartUploadsOutput_RequestCharged = smithy.Member{Name: "RequestCharged", Index: 12, Target: &schemaRequestCharged, HTTP: smithy.HTTPHeader{Name: "x-amz-request-charged"}}
 
-var schemaListObjectAnnotationsInput = smithy.Schema{ID: "com.amazonaws.s3#ListObjectAnnotationsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListObjectAnnotationsInput_Bucket, &memberListObjectAnnotationsInput_Key, &memberListObjectAnnotationsInput_VersionId, &memberListObjectAnnotationsInput_MaxAnnotationResults, &memberListObjectAnnotationsInput_AnnotationPrefix, &memberListObjectAnnotationsInput_ContinuationToken, &memberListObjectAnnotationsInput_RequestPayer, &memberListObjectAnnotationsInput_ExpectedBucketOwner}}
+var schemaListObjectAnnotationsInput = smithy.Schema{ID: "com.amazonaws.s3#ListObjectAnnotationsRequest", Type: smithy.TypeStructure}
 
 var memberListObjectAnnotationsInput_Bucket = smithy.Member{Name: "Bucket", Index: 0, Target: &schemaBucketName, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -2737,7 +2737,7 @@ var memberListObjectAnnotationsInput_RequestPayer = smithy.Member{Name: "Request
 
 var memberListObjectAnnotationsInput_ExpectedBucketOwner = smithy.Member{Name: "ExpectedBucketOwner", Index: 7, Target: &schemaAccountId, HTTP: smithy.HTTPHeader{Name: "x-amz-expected-bucket-owner"}}
 
-var schemaListObjectAnnotationsOutput = smithy.Schema{ID: "com.amazonaws.s3#ListObjectAnnotationsOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListObjectAnnotationsOutput_Annotations, &memberListObjectAnnotationsOutput_Bucket, &memberListObjectAnnotationsOutput_Key, &memberListObjectAnnotationsOutput_ObjectVersionId, &memberListObjectAnnotationsOutput_AnnotationPrefix, &memberListObjectAnnotationsOutput_MaxAnnotationResults, &memberListObjectAnnotationsOutput_AnnotationCount, &memberListObjectAnnotationsOutput_ContinuationToken, &memberListObjectAnnotationsOutput_NextContinuationToken, &memberListObjectAnnotationsOutput_RequestCharged}}
+var schemaListObjectAnnotationsOutput = smithy.Schema{ID: "com.amazonaws.s3#ListObjectAnnotationsOutput", Type: smithy.TypeStructure}
 
 var memberListObjectAnnotationsOutput_Annotations = smithy.Member{Name: "Annotations", Index: 0, Target: &schemaAnnotationList}
 
@@ -3025,7 +3025,7 @@ var memberMetadata_key = smithy.Member{Name: "key", Index: 0, Target: &schemaMet
 
 var memberMetadata_value = smithy.Member{Name: "value", Index: 1, Target: &schemaMetadataValue}
 
-var schemaMetadataConfiguration = smithy.Schema{ID: "com.amazonaws.s3#MetadataConfiguration", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberMetadataConfiguration_JournalTableConfiguration, &memberMetadataConfiguration_InventoryTableConfiguration, &memberMetadataConfiguration_AnnotationTableConfiguration}}
+var schemaMetadataConfiguration = smithy.Schema{ID: "com.amazonaws.s3#MetadataConfiguration", Type: smithy.TypeStructure}
 
 var memberMetadataConfiguration_JournalTableConfiguration = smithy.Member{Name: "JournalTableConfiguration", Index: 0, Target: &schemaJournalTableConfiguration, Required: true}
 
@@ -3033,7 +3033,7 @@ var memberMetadataConfiguration_InventoryTableConfiguration = smithy.Member{Name
 
 var memberMetadataConfiguration_AnnotationTableConfiguration = smithy.Member{Name: "AnnotationTableConfiguration", Index: 2, Target: &schemaAnnotationTableConfiguration}
 
-var schemaMetadataConfigurationResult = smithy.Schema{ID: "com.amazonaws.s3#MetadataConfigurationResult", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberMetadataConfigurationResult_DestinationResult, &memberMetadataConfigurationResult_JournalTableConfigurationResult, &memberMetadataConfigurationResult_InventoryTableConfigurationResult, &memberMetadataConfigurationResult_AnnotationTableConfigurationResult}}
+var schemaMetadataConfigurationResult = smithy.Schema{ID: "com.amazonaws.s3#MetadataConfigurationResult", Type: smithy.TypeStructure}
 
 var memberMetadataConfigurationResult_DestinationResult = smithy.Member{Name: "DestinationResult", Index: 0, Target: &schemaDestinationResult, Required: true}
 
@@ -3045,7 +3045,7 @@ var memberMetadataConfigurationResult_AnnotationTableConfigurationResult = smith
 
 var schemaMetadataDirective = smithy.Schema{ID: "com.amazonaws.s3#MetadataDirective", Type: smithy.TypeEnum}
 
-var schemaMetadataEntry = smithy.Schema{ID: "com.amazonaws.s3#MetadataEntry", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberMetadataEntry_Name, &memberMetadataEntry_Value}}
+var schemaMetadataEntry = smithy.Schema{ID: "com.amazonaws.s3#MetadataEntry", Type: smithy.TypeStructure}
 
 var memberMetadataEntry_Name = smithy.Member{Name: "Name", Index: 0, Target: &schemaMetadataKey}
 
@@ -3053,15 +3053,15 @@ var memberMetadataEntry_Value = smithy.Member{Name: "Value", Index: 1, Target: &
 
 var schemaMetadataKey = smithy.Schema{ID: "com.amazonaws.s3#MetadataKey", Type: smithy.TypeString}
 
-var schemaMetadataTableConfiguration = smithy.Schema{ID: "com.amazonaws.s3#MetadataTableConfiguration", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberMetadataTableConfiguration_S3TablesDestination}}
+var schemaMetadataTableConfiguration = smithy.Schema{ID: "com.amazonaws.s3#MetadataTableConfiguration", Type: smithy.TypeStructure}
 
 var memberMetadataTableConfiguration_S3TablesDestination = smithy.Member{Name: "S3TablesDestination", Index: 0, Target: &schemaS3TablesDestination, Required: true}
 
-var schemaMetadataTableConfigurationResult = smithy.Schema{ID: "com.amazonaws.s3#MetadataTableConfigurationResult", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberMetadataTableConfigurationResult_S3TablesDestinationResult}}
+var schemaMetadataTableConfigurationResult = smithy.Schema{ID: "com.amazonaws.s3#MetadataTableConfigurationResult", Type: smithy.TypeStructure}
 
 var memberMetadataTableConfigurationResult_S3TablesDestinationResult = smithy.Member{Name: "S3TablesDestinationResult", Index: 0, Target: &schemaS3TablesDestinationResult, Required: true}
 
-var schemaMetadataTableEncryptionConfiguration = smithy.Schema{ID: "com.amazonaws.s3#MetadataTableEncryptionConfiguration", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberMetadataTableEncryptionConfiguration_SseAlgorithm, &memberMetadataTableEncryptionConfiguration_KmsKeyArn}}
+var schemaMetadataTableEncryptionConfiguration = smithy.Schema{ID: "com.amazonaws.s3#MetadataTableEncryptionConfiguration", Type: smithy.TypeStructure}
 
 var memberMetadataTableEncryptionConfiguration_SseAlgorithm = smithy.Member{Name: "SseAlgorithm", Index: 0, Target: &schemaTableSseAlgorithm, Required: true}
 
@@ -3275,7 +3275,7 @@ var memberObjectAttributesList_member = smithy.Member{Name: "member", Index: 0, 
 
 var schemaObjectCannedACL = smithy.Schema{ID: "com.amazonaws.s3#ObjectCannedACL", Type: smithy.TypeEnum}
 
-var schemaObjectEncryption = smithy.Schema{ID: "com.amazonaws.s3#ObjectEncryption", Type: smithy.TypeUnion, Members: []*smithy.Member{&memberObjectEncryption_SSEKMS}}
+var schemaObjectEncryption = smithy.Schema{ID: "com.amazonaws.s3#ObjectEncryption", Type: smithy.TypeUnion}
 
 var memberObjectEncryption_SSEKMS = smithy.Member{Name: "SSEKMS", Index: 0, Target: &schemaSSEKMSEncryption, XMLName: "SSE-KMS"}
 
@@ -3427,11 +3427,11 @@ var schemaOptionalObjectAttributesList = smithy.Schema{ID: "com.amazonaws.s3#Opt
 
 var memberOptionalObjectAttributesList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaOptionalObjectAttributes}
 
-var schemaOutputLocation = smithy.Schema{ID: "com.amazonaws.s3#OutputLocation", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberOutputLocation_S3}}
+var schemaOutputLocation = smithy.Schema{ID: "com.amazonaws.s3#OutputLocation", Type: smithy.TypeStructure}
 
 var memberOutputLocation_S3 = smithy.Member{Name: "S3", Index: 0, Target: &schemaS3Location}
 
-var schemaOutputSerialization = smithy.Schema{ID: "com.amazonaws.s3#OutputSerialization", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberOutputSerialization_CSV, &memberOutputSerialization_JSON}}
+var schemaOutputSerialization = smithy.Schema{ID: "com.amazonaws.s3#OutputSerialization", Type: smithy.TypeStructure}
 
 var memberOutputSerialization_CSV = smithy.Member{Name: "CSV", Index: 0, Target: &schemaCSVOutput}
 
@@ -3525,7 +3525,7 @@ var schemaPermission = smithy.Schema{ID: "com.amazonaws.s3#Permission", Type: sm
 
 var schemaPolicy = smithy.Schema{ID: "com.amazonaws.s3#Policy", Type: smithy.TypeString}
 
-var schemaPolicyStatus = smithy.Schema{ID: "com.amazonaws.s3#PolicyStatus", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPolicyStatus_IsPublic}}
+var schemaPolicyStatus = smithy.Schema{ID: "com.amazonaws.s3#PolicyStatus", Type: smithy.TypeStructure}
 
 var memberPolicyStatus_IsPublic = smithy.Member{Name: "IsPublic", Index: 0, Target: &schemaIsPublic, XMLName: "IsPublic"}
 
@@ -3537,7 +3537,7 @@ var schemaPrefix = smithy.Schema{ID: "com.amazonaws.s3#Prefix", Type: smithy.Typ
 
 var schemaPriority = smithy.Schema{ID: "com.amazonaws.s3#Priority", Type: smithy.TypeInteger}
 
-var schemaProgress = smithy.Schema{ID: "com.amazonaws.s3#Progress", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberProgress_BytesScanned, &memberProgress_BytesProcessed, &memberProgress_BytesReturned}}
+var schemaProgress = smithy.Schema{ID: "com.amazonaws.s3#Progress", Type: smithy.TypeStructure}
 
 var memberProgress_BytesScanned = smithy.Member{Name: "BytesScanned", Index: 0, Target: &schemaBytesScanned}
 
@@ -3545,7 +3545,7 @@ var memberProgress_BytesProcessed = smithy.Member{Name: "BytesProcessed", Index:
 
 var memberProgress_BytesReturned = smithy.Member{Name: "BytesReturned", Index: 2, Target: &schemaBytesReturned}
 
-var schemaProgressEvent = smithy.Schema{ID: "com.amazonaws.s3#ProgressEvent", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberProgressEvent_Details}}
+var schemaProgressEvent = smithy.Schema{ID: "com.amazonaws.s3#ProgressEvent", Type: smithy.TypeStructure}
 
 var memberProgressEvent_Details = smithy.Member{Name: "Details", Index: 0, Target: &schemaProgress}
 
@@ -3561,7 +3561,7 @@ var memberPublicAccessBlockConfiguration_BlockPublicPolicy = smithy.Member{Name:
 
 var memberPublicAccessBlockConfiguration_RestrictPublicBuckets = smithy.Member{Name: "RestrictPublicBuckets", Index: 3, Target: &schemaSetting, XMLName: "RestrictPublicBuckets"}
 
-var schemaPutBucketAbacInput = smithy.Schema{ID: "com.amazonaws.s3#PutBucketAbacRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutBucketAbacInput_Bucket, &memberPutBucketAbacInput_ContentMD5, &memberPutBucketAbacInput_ChecksumAlgorithm, &memberPutBucketAbacInput_ExpectedBucketOwner, &memberPutBucketAbacInput_AbacStatus}}
+var schemaPutBucketAbacInput = smithy.Schema{ID: "com.amazonaws.s3#PutBucketAbacRequest", Type: smithy.TypeStructure}
 
 var memberPutBucketAbacInput_Bucket = smithy.Member{Name: "Bucket", Index: 0, Target: &schemaBucketName, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -3799,7 +3799,7 @@ var memberPutBucketWebsiteInput_WebsiteConfiguration = smithy.Member{Name: "Webs
 
 var memberPutBucketWebsiteInput_ExpectedBucketOwner = smithy.Member{Name: "ExpectedBucketOwner", Index: 4, Target: &schemaAccountId, HTTP: smithy.HTTPHeader{Name: "x-amz-expected-bucket-owner"}}
 
-var schemaPutObjectAclInput = smithy.Schema{ID: "com.amazonaws.s3#PutObjectAclRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutObjectAclInput_ACL, &memberPutObjectAclInput_AccessControlPolicy, &memberPutObjectAclInput_Bucket, &memberPutObjectAclInput_ContentMD5, &memberPutObjectAclInput_ChecksumAlgorithm, &memberPutObjectAclInput_GrantFullControl, &memberPutObjectAclInput_GrantRead, &memberPutObjectAclInput_GrantReadACP, &memberPutObjectAclInput_GrantWrite, &memberPutObjectAclInput_GrantWriteACP, &memberPutObjectAclInput_Key, &memberPutObjectAclInput_RequestPayer, &memberPutObjectAclInput_VersionId, &memberPutObjectAclInput_ExpectedBucketOwner}}
+var schemaPutObjectAclInput = smithy.Schema{ID: "com.amazonaws.s3#PutObjectAclRequest", Type: smithy.TypeStructure}
 
 var memberPutObjectAclInput_ACL = smithy.Member{Name: "ACL", Index: 0, Target: &schemaObjectCannedACL, HTTP: smithy.HTTPHeader{Name: "x-amz-acl"}}
 
@@ -3829,7 +3829,7 @@ var memberPutObjectAclInput_VersionId = smithy.Member{Name: "VersionId", Index: 
 
 var memberPutObjectAclInput_ExpectedBucketOwner = smithy.Member{Name: "ExpectedBucketOwner", Index: 13, Target: &schemaAccountId, HTTP: smithy.HTTPHeader{Name: "x-amz-expected-bucket-owner"}}
 
-var schemaPutObjectAclOutput = smithy.Schema{ID: "com.amazonaws.s3#PutObjectAclOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutObjectAclOutput_RequestCharged}}
+var schemaPutObjectAclOutput = smithy.Schema{ID: "com.amazonaws.s3#PutObjectAclOutput", Type: smithy.TypeStructure}
 
 var memberPutObjectAclOutput_RequestCharged = smithy.Member{Name: "RequestCharged", Index: 0, Target: &schemaRequestCharged, HTTP: smithy.HTTPHeader{Name: "x-amz-request-charged"}}
 
@@ -3875,7 +3875,7 @@ var memberPutObjectAnnotationInput_RequestPayer = smithy.Member{Name: "RequestPa
 
 var memberPutObjectAnnotationInput_ExpectedBucketOwner = smithy.Member{Name: "ExpectedBucketOwner", Index: 19, Target: &schemaAccountId, HTTP: smithy.HTTPHeader{Name: "x-amz-expected-bucket-owner"}}
 
-var schemaPutObjectAnnotationOutput = smithy.Schema{ID: "com.amazonaws.s3#PutObjectAnnotationOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutObjectAnnotationOutput_Key, &memberPutObjectAnnotationOutput_AnnotationName, &memberPutObjectAnnotationOutput_ObjectVersionId, &memberPutObjectAnnotationOutput_ETag, &memberPutObjectAnnotationOutput_ChecksumCRC32, &memberPutObjectAnnotationOutput_ChecksumCRC32C, &memberPutObjectAnnotationOutput_ChecksumCRC64NVME, &memberPutObjectAnnotationOutput_ChecksumSHA1, &memberPutObjectAnnotationOutput_ChecksumSHA256, &memberPutObjectAnnotationOutput_ChecksumSHA512, &memberPutObjectAnnotationOutput_ChecksumMD5, &memberPutObjectAnnotationOutput_ChecksumXXHASH64, &memberPutObjectAnnotationOutput_ChecksumXXHASH3, &memberPutObjectAnnotationOutput_ChecksumXXHASH128, &memberPutObjectAnnotationOutput_ChecksumType, &memberPutObjectAnnotationOutput_ServerSideEncryption, &memberPutObjectAnnotationOutput_RequestCharged}}
+var schemaPutObjectAnnotationOutput = smithy.Schema{ID: "com.amazonaws.s3#PutObjectAnnotationOutput", Type: smithy.TypeStructure}
 
 var memberPutObjectAnnotationOutput_Key = smithy.Member{Name: "Key", Index: 0, Target: &schemaObjectKey}
 
@@ -4185,7 +4185,7 @@ var schemaRange = smithy.Schema{ID: "com.amazonaws.s3#Range", Type: smithy.TypeS
 
 var schemaRecordDelimiter = smithy.Schema{ID: "com.amazonaws.s3#RecordDelimiter", Type: smithy.TypeString}
 
-var schemaRecordExpiration = smithy.Schema{ID: "com.amazonaws.s3#RecordExpiration", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRecordExpiration_Expiration, &memberRecordExpiration_Days}}
+var schemaRecordExpiration = smithy.Schema{ID: "com.amazonaws.s3#RecordExpiration", Type: smithy.TypeStructure}
 
 var memberRecordExpiration_Expiration = smithy.Member{Name: "Expiration", Index: 0, Target: &schemaExpirationState, Required: true}
 
@@ -4193,7 +4193,7 @@ var memberRecordExpiration_Days = smithy.Member{Name: "Days", Index: 1, Target: 
 
 var schemaRecordExpirationDays = smithy.Schema{ID: "com.amazonaws.s3#RecordExpirationDays", Type: smithy.TypeInteger}
 
-var schemaRecordsEvent = smithy.Schema{ID: "com.amazonaws.s3#RecordsEvent", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRecordsEvent_Payload}}
+var schemaRecordsEvent = smithy.Schema{ID: "com.amazonaws.s3#RecordsEvent", Type: smithy.TypeStructure}
 
 var memberRecordsEvent_Payload = smithy.Member{Name: "Payload", Index: 0, Target: &schemaBody}
 
@@ -4217,7 +4217,7 @@ var memberRedirectAllRequestsTo_Protocol = smithy.Member{Name: "Protocol", Index
 
 var schemaRegion = smithy.Schema{ID: "com.amazonaws.s3#Region", Type: smithy.TypeString}
 
-var schemaRenameObjectInput = smithy.Schema{ID: "com.amazonaws.s3#RenameObjectRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRenameObjectInput_Bucket, &memberRenameObjectInput_Key, &memberRenameObjectInput_RenameSource, &memberRenameObjectInput_DestinationIfMatch, &memberRenameObjectInput_DestinationIfNoneMatch, &memberRenameObjectInput_DestinationIfModifiedSince, &memberRenameObjectInput_DestinationIfUnmodifiedSince, &memberRenameObjectInput_SourceIfMatch, &memberRenameObjectInput_SourceIfNoneMatch, &memberRenameObjectInput_SourceIfModifiedSince, &memberRenameObjectInput_SourceIfUnmodifiedSince, &memberRenameObjectInput_ClientToken}}
+var schemaRenameObjectInput = smithy.Schema{ID: "com.amazonaws.s3#RenameObjectRequest", Type: smithy.TypeStructure}
 
 var memberRenameObjectInput_Bucket = smithy.Member{Name: "Bucket", Index: 0, Target: &schemaBucketName, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -4339,7 +4339,7 @@ var schemaRequestPaymentConfiguration = smithy.Schema{ID: "com.amazonaws.s3#Requ
 
 var memberRequestPaymentConfiguration_Payer = smithy.Member{Name: "Payer", Index: 0, Target: &schemaPayer, Required: true}
 
-var schemaRequestProgress = smithy.Schema{ID: "com.amazonaws.s3#RequestProgress", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRequestProgress_Enabled}}
+var schemaRequestProgress = smithy.Schema{ID: "com.amazonaws.s3#RequestProgress", Type: smithy.TypeStructure}
 
 var memberRequestProgress_Enabled = smithy.Member{Name: "Enabled", Index: 0, Target: &schemaEnableRequestProgress}
 
@@ -4371,7 +4371,7 @@ var schemaRestore = smithy.Schema{ID: "com.amazonaws.s3#Restore", Type: smithy.T
 
 var schemaRestoreExpiryDate = smithy.Schema{ID: "com.amazonaws.s3#RestoreExpiryDate", Type: smithy.TypeTimestamp}
 
-var schemaRestoreObjectInput = smithy.Schema{ID: "com.amazonaws.s3#RestoreObjectRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRestoreObjectInput_Bucket, &memberRestoreObjectInput_Key, &memberRestoreObjectInput_VersionId, &memberRestoreObjectInput_RestoreRequest, &memberRestoreObjectInput_RequestPayer, &memberRestoreObjectInput_ChecksumAlgorithm, &memberRestoreObjectInput_ExpectedBucketOwner}}
+var schemaRestoreObjectInput = smithy.Schema{ID: "com.amazonaws.s3#RestoreObjectRequest", Type: smithy.TypeStructure}
 
 var memberRestoreObjectInput_Bucket = smithy.Member{Name: "Bucket", Index: 0, Target: &schemaBucketName, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -4387,7 +4387,7 @@ var memberRestoreObjectInput_ChecksumAlgorithm = smithy.Member{Name: "ChecksumAl
 
 var memberRestoreObjectInput_ExpectedBucketOwner = smithy.Member{Name: "ExpectedBucketOwner", Index: 6, Target: &schemaAccountId, HTTP: smithy.HTTPHeader{Name: "x-amz-expected-bucket-owner"}}
 
-var schemaRestoreObjectOutput = smithy.Schema{ID: "com.amazonaws.s3#RestoreObjectOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRestoreObjectOutput_RequestCharged, &memberRestoreObjectOutput_RestoreOutputPath}}
+var schemaRestoreObjectOutput = smithy.Schema{ID: "com.amazonaws.s3#RestoreObjectOutput", Type: smithy.TypeStructure}
 
 var memberRestoreObjectOutput_RequestCharged = smithy.Member{Name: "RequestCharged", Index: 0, Target: &schemaRequestCharged, HTTP: smithy.HTTPHeader{Name: "x-amz-request-charged"}}
 
@@ -4395,7 +4395,7 @@ var memberRestoreObjectOutput_RestoreOutputPath = smithy.Member{Name: "RestoreOu
 
 var schemaRestoreOutputPath = smithy.Schema{ID: "com.amazonaws.s3#RestoreOutputPath", Type: smithy.TypeString}
 
-var schemaRestoreRequest = smithy.Schema{ID: "com.amazonaws.s3#RestoreRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRestoreRequest_Days, &memberRestoreRequest_GlacierJobParameters, &memberRestoreRequest_Type, &memberRestoreRequest_Tier, &memberRestoreRequest_Description, &memberRestoreRequest_SelectParameters, &memberRestoreRequest_OutputLocation}}
+var schemaRestoreRequest = smithy.Schema{ID: "com.amazonaws.s3#RestoreRequest", Type: smithy.TypeStructure}
 
 var memberRestoreRequest_Days = smithy.Member{Name: "Days", Index: 0, Target: &schemaDays}
 
@@ -4435,7 +4435,7 @@ var schemaS3KeyFilter = smithy.Schema{ID: "com.amazonaws.s3#S3KeyFilter", Type: 
 
 var memberS3KeyFilter_FilterRules = smithy.Member{Name: "FilterRules", Index: 0, Target: &schemaFilterRuleList, XMLName: "FilterRule", XMLFlattened: true}
 
-var schemaS3Location = smithy.Schema{ID: "com.amazonaws.s3#S3Location", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberS3Location_BucketName, &memberS3Location_Prefix, &memberS3Location_Encryption, &memberS3Location_CannedACL, &memberS3Location_AccessControlList, &memberS3Location_Tagging, &memberS3Location_UserMetadata, &memberS3Location_StorageClass}}
+var schemaS3Location = smithy.Schema{ID: "com.amazonaws.s3#S3Location", Type: smithy.TypeStructure}
 
 var memberS3Location_BucketName = smithy.Member{Name: "BucketName", Index: 0, Target: &schemaBucketName, Required: true}
 
@@ -4461,13 +4461,13 @@ var schemaS3TablesBucketArn = smithy.Schema{ID: "com.amazonaws.s3#S3TablesBucket
 
 var schemaS3TablesBucketType = smithy.Schema{ID: "com.amazonaws.s3#S3TablesBucketType", Type: smithy.TypeEnum}
 
-var schemaS3TablesDestination = smithy.Schema{ID: "com.amazonaws.s3#S3TablesDestination", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberS3TablesDestination_TableBucketArn, &memberS3TablesDestination_TableName}}
+var schemaS3TablesDestination = smithy.Schema{ID: "com.amazonaws.s3#S3TablesDestination", Type: smithy.TypeStructure}
 
 var memberS3TablesDestination_TableBucketArn = smithy.Member{Name: "TableBucketArn", Index: 0, Target: &schemaS3TablesBucketArn, Required: true}
 
 var memberS3TablesDestination_TableName = smithy.Member{Name: "TableName", Index: 1, Target: &schemaS3TablesName, Required: true}
 
-var schemaS3TablesDestinationResult = smithy.Schema{ID: "com.amazonaws.s3#S3TablesDestinationResult", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberS3TablesDestinationResult_TableBucketArn, &memberS3TablesDestinationResult_TableName, &memberS3TablesDestinationResult_TableArn, &memberS3TablesDestinationResult_TableNamespace}}
+var schemaS3TablesDestinationResult = smithy.Schema{ID: "com.amazonaws.s3#S3TablesDestinationResult", Type: smithy.TypeStructure}
 
 var memberS3TablesDestinationResult_TableBucketArn = smithy.Member{Name: "TableBucketArn", Index: 0, Target: &schemaS3TablesBucketArn, Required: true}
 
@@ -4491,7 +4491,7 @@ var schemaSSEKMS = smithy.Schema{ID: "com.amazonaws.s3#SSEKMS", Type: smithy.Typ
 
 var memberSSEKMS_KeyId = smithy.Member{Name: "KeyId", Index: 0, Target: &schemaSSEKMSKeyId, Required: true, Sensitive: true}
 
-var schemaSSEKMSEncryption = smithy.Schema{ID: "com.amazonaws.s3#SSEKMSEncryption", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSSEKMSEncryption_KMSKeyArn, &memberSSEKMSEncryption_BucketKeyEnabled}, XMLName: "SSE-KMS"}
+var schemaSSEKMSEncryption = smithy.Schema{ID: "com.amazonaws.s3#SSEKMSEncryption", Type: smithy.TypeStructure, XMLName: "SSE-KMS"}
 
 var memberSSEKMSEncryption_KMSKeyArn = smithy.Member{Name: "KMSKeyArn", Index: 0, Target: &schemaNonEmptyKmsKeyArnString, Required: true, Sensitive: true}
 
@@ -4503,13 +4503,13 @@ var schemaSSEKMSKeyId = smithy.Schema{ID: "com.amazonaws.s3#SSEKMSKeyId", Type: 
 
 var schemaSSES3 = smithy.Schema{ID: "com.amazonaws.s3#SSES3", Type: smithy.TypeStructure, XMLName: "SSE-S3"}
 
-var schemaScanRange = smithy.Schema{ID: "com.amazonaws.s3#ScanRange", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberScanRange_Start, &memberScanRange_End}}
+var schemaScanRange = smithy.Schema{ID: "com.amazonaws.s3#ScanRange", Type: smithy.TypeStructure}
 
 var memberScanRange_Start = smithy.Member{Name: "Start", Index: 0, Target: &schemaStart}
 
 var memberScanRange_End = smithy.Member{Name: "End", Index: 1, Target: &schemaEnd}
 
-var schemaSelectObjectContentEventStream = smithy.Schema{ID: "com.amazonaws.s3#SelectObjectContentEventStream", Type: smithy.TypeUnion, Members: []*smithy.Member{&memberSelectObjectContentEventStream_Records, &memberSelectObjectContentEventStream_Stats, &memberSelectObjectContentEventStream_Progress, &memberSelectObjectContentEventStream_Cont, &memberSelectObjectContentEventStream_End}, Streaming: true}
+var schemaSelectObjectContentEventStream = smithy.Schema{ID: "com.amazonaws.s3#SelectObjectContentEventStream", Type: smithy.TypeUnion, Streaming: true}
 
 var memberSelectObjectContentEventStream_Records = smithy.Member{Name: "Records", Index: 0, Target: &schemaRecordsEvent}
 
@@ -4521,7 +4521,7 @@ var memberSelectObjectContentEventStream_Cont = smithy.Member{Name: "Cont", Inde
 
 var memberSelectObjectContentEventStream_End = smithy.Member{Name: "End", Index: 4, Target: &schemaEndEvent}
 
-var schemaSelectObjectContentInput = smithy.Schema{ID: "com.amazonaws.s3#SelectObjectContentRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSelectObjectContentInput_Bucket, &memberSelectObjectContentInput_Key, &memberSelectObjectContentInput_SSECustomerAlgorithm, &memberSelectObjectContentInput_SSECustomerKey, &memberSelectObjectContentInput_SSECustomerKeyMD5, &memberSelectObjectContentInput_Expression, &memberSelectObjectContentInput_ExpressionType, &memberSelectObjectContentInput_RequestProgress, &memberSelectObjectContentInput_InputSerialization, &memberSelectObjectContentInput_OutputSerialization, &memberSelectObjectContentInput_ScanRange, &memberSelectObjectContentInput_ExpectedBucketOwner}}
+var schemaSelectObjectContentInput = smithy.Schema{ID: "com.amazonaws.s3#SelectObjectContentRequest", Type: smithy.TypeStructure}
 
 var memberSelectObjectContentInput_Bucket = smithy.Member{Name: "Bucket", Index: 0, Target: &schemaBucketName, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -4547,11 +4547,11 @@ var memberSelectObjectContentInput_ScanRange = smithy.Member{Name: "ScanRange", 
 
 var memberSelectObjectContentInput_ExpectedBucketOwner = smithy.Member{Name: "ExpectedBucketOwner", Index: 11, Target: &schemaAccountId, HTTP: smithy.HTTPHeader{Name: "x-amz-expected-bucket-owner"}}
 
-var schemaSelectObjectContentOutput = smithy.Schema{ID: "com.amazonaws.s3#SelectObjectContentOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSelectObjectContentOutput_Payload}}
+var schemaSelectObjectContentOutput = smithy.Schema{ID: "com.amazonaws.s3#SelectObjectContentOutput", Type: smithy.TypeStructure}
 
 var memberSelectObjectContentOutput_Payload = smithy.Member{Name: "Payload", Index: 0, Target: &schemaSelectObjectContentEventStream, HTTP: smithy.HTTPPayload{}}
 
-var schemaSelectParameters = smithy.Schema{ID: "com.amazonaws.s3#SelectParameters", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSelectParameters_InputSerialization, &memberSelectParameters_ExpressionType, &memberSelectParameters_Expression, &memberSelectParameters_OutputSerialization}}
+var schemaSelectParameters = smithy.Schema{ID: "com.amazonaws.s3#SelectParameters", Type: smithy.TypeStructure}
 
 var memberSelectParameters_InputSerialization = smithy.Member{Name: "InputSerialization", Index: 0, Target: &schemaInputSerialization, Required: true}
 
@@ -4591,7 +4591,7 @@ var memberServerSideEncryptionRules_member = smithy.Member{Name: "member", Index
 
 var schemaSessionCredentialValue = smithy.Schema{ID: "com.amazonaws.s3#SessionCredentialValue", Type: smithy.TypeString, Sensitive: true}
 
-var schemaSessionCredentials = smithy.Schema{ID: "com.amazonaws.s3#SessionCredentials", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSessionCredentials_AccessKeyId, &memberSessionCredentials_SecretAccessKey, &memberSessionCredentials_SessionToken, &memberSessionCredentials_Expiration}}
+var schemaSessionCredentials = smithy.Schema{ID: "com.amazonaws.s3#SessionCredentials", Type: smithy.TypeStructure}
 
 var memberSessionCredentials_AccessKeyId = smithy.Member{Name: "AccessKeyId", Index: 0, Target: &schemaAccessKeyIdValue, Required: true, XMLName: "AccessKeyId"}
 
@@ -4649,7 +4649,7 @@ var schemaStart = smithy.Schema{ID: "com.amazonaws.s3#Start", Type: smithy.TypeL
 
 var schemaStartAfter = smithy.Schema{ID: "com.amazonaws.s3#StartAfter", Type: smithy.TypeString}
 
-var schemaStats = smithy.Schema{ID: "com.amazonaws.s3#Stats", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberStats_BytesScanned, &memberStats_BytesProcessed, &memberStats_BytesReturned}}
+var schemaStats = smithy.Schema{ID: "com.amazonaws.s3#Stats", Type: smithy.TypeStructure}
 
 var memberStats_BytesScanned = smithy.Member{Name: "BytesScanned", Index: 0, Target: &schemaBytesScanned}
 
@@ -4657,7 +4657,7 @@ var memberStats_BytesProcessed = smithy.Member{Name: "BytesProcessed", Index: 1,
 
 var memberStats_BytesReturned = smithy.Member{Name: "BytesReturned", Index: 2, Target: &schemaBytesReturned}
 
-var schemaStatsEvent = smithy.Schema{ID: "com.amazonaws.s3#StatsEvent", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberStatsEvent_Details}}
+var schemaStatsEvent = smithy.Schema{ID: "com.amazonaws.s3#StatsEvent", Type: smithy.TypeStructure}
 
 var memberStatsEvent_Details = smithy.Member{Name: "Details", Index: 0, Target: &schemaStats}
 
@@ -4777,7 +4777,7 @@ var schemaUnexpectedContent = smithy.Schema{ID: "com.amazonaws.s3#UnexpectedCont
 
 var schemaUnsupportedMediaType = smithy.Schema{ID: "com.amazonaws.s3#UnsupportedMediaType", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 415}}
 
-var schemaUpdateBucketMetadataAnnotationTableConfigurationInput = smithy.Schema{ID: "com.amazonaws.s3#UpdateBucketMetadataAnnotationTableConfigurationRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateBucketMetadataAnnotationTableConfigurationInput_Bucket, &memberUpdateBucketMetadataAnnotationTableConfigurationInput_ContentMD5, &memberUpdateBucketMetadataAnnotationTableConfigurationInput_ChecksumAlgorithm, &memberUpdateBucketMetadataAnnotationTableConfigurationInput_AnnotationTableConfiguration, &memberUpdateBucketMetadataAnnotationTableConfigurationInput_ExpectedBucketOwner}}
+var schemaUpdateBucketMetadataAnnotationTableConfigurationInput = smithy.Schema{ID: "com.amazonaws.s3#UpdateBucketMetadataAnnotationTableConfigurationRequest", Type: smithy.TypeStructure}
 
 var memberUpdateBucketMetadataAnnotationTableConfigurationInput_Bucket = smithy.Member{Name: "Bucket", Index: 0, Target: &schemaBucketName, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -4789,7 +4789,7 @@ var memberUpdateBucketMetadataAnnotationTableConfigurationInput_AnnotationTableC
 
 var memberUpdateBucketMetadataAnnotationTableConfigurationInput_ExpectedBucketOwner = smithy.Member{Name: "ExpectedBucketOwner", Index: 4, Target: &schemaAccountId, HTTP: smithy.HTTPHeader{Name: "x-amz-expected-bucket-owner"}}
 
-var schemaUpdateBucketMetadataInventoryTableConfigurationInput = smithy.Schema{ID: "com.amazonaws.s3#UpdateBucketMetadataInventoryTableConfigurationRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateBucketMetadataInventoryTableConfigurationInput_Bucket, &memberUpdateBucketMetadataInventoryTableConfigurationInput_ContentMD5, &memberUpdateBucketMetadataInventoryTableConfigurationInput_ChecksumAlgorithm, &memberUpdateBucketMetadataInventoryTableConfigurationInput_InventoryTableConfiguration, &memberUpdateBucketMetadataInventoryTableConfigurationInput_ExpectedBucketOwner}}
+var schemaUpdateBucketMetadataInventoryTableConfigurationInput = smithy.Schema{ID: "com.amazonaws.s3#UpdateBucketMetadataInventoryTableConfigurationRequest", Type: smithy.TypeStructure}
 
 var memberUpdateBucketMetadataInventoryTableConfigurationInput_Bucket = smithy.Member{Name: "Bucket", Index: 0, Target: &schemaBucketName, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -4801,7 +4801,7 @@ var memberUpdateBucketMetadataInventoryTableConfigurationInput_InventoryTableCon
 
 var memberUpdateBucketMetadataInventoryTableConfigurationInput_ExpectedBucketOwner = smithy.Member{Name: "ExpectedBucketOwner", Index: 4, Target: &schemaAccountId, HTTP: smithy.HTTPHeader{Name: "x-amz-expected-bucket-owner"}}
 
-var schemaUpdateBucketMetadataJournalTableConfigurationInput = smithy.Schema{ID: "com.amazonaws.s3#UpdateBucketMetadataJournalTableConfigurationRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateBucketMetadataJournalTableConfigurationInput_Bucket, &memberUpdateBucketMetadataJournalTableConfigurationInput_ContentMD5, &memberUpdateBucketMetadataJournalTableConfigurationInput_ChecksumAlgorithm, &memberUpdateBucketMetadataJournalTableConfigurationInput_JournalTableConfiguration, &memberUpdateBucketMetadataJournalTableConfigurationInput_ExpectedBucketOwner}}
+var schemaUpdateBucketMetadataJournalTableConfigurationInput = smithy.Schema{ID: "com.amazonaws.s3#UpdateBucketMetadataJournalTableConfigurationRequest", Type: smithy.TypeStructure}
 
 var memberUpdateBucketMetadataJournalTableConfigurationInput_Bucket = smithy.Member{Name: "Bucket", Index: 0, Target: &schemaBucketName, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -4813,7 +4813,7 @@ var memberUpdateBucketMetadataJournalTableConfigurationInput_JournalTableConfigu
 
 var memberUpdateBucketMetadataJournalTableConfigurationInput_ExpectedBucketOwner = smithy.Member{Name: "ExpectedBucketOwner", Index: 4, Target: &schemaAccountId, HTTP: smithy.HTTPHeader{Name: "x-amz-expected-bucket-owner"}}
 
-var schemaUpdateObjectEncryptionInput = smithy.Schema{ID: "com.amazonaws.s3#UpdateObjectEncryptionRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateObjectEncryptionInput_Bucket, &memberUpdateObjectEncryptionInput_Key, &memberUpdateObjectEncryptionInput_VersionId, &memberUpdateObjectEncryptionInput_ObjectEncryption, &memberUpdateObjectEncryptionInput_RequestPayer, &memberUpdateObjectEncryptionInput_ExpectedBucketOwner, &memberUpdateObjectEncryptionInput_ContentMD5, &memberUpdateObjectEncryptionInput_ChecksumAlgorithm}}
+var schemaUpdateObjectEncryptionInput = smithy.Schema{ID: "com.amazonaws.s3#UpdateObjectEncryptionRequest", Type: smithy.TypeStructure}
 
 var memberUpdateObjectEncryptionInput_Bucket = smithy.Member{Name: "Bucket", Index: 0, Target: &schemaBucketName, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -4831,7 +4831,7 @@ var memberUpdateObjectEncryptionInput_ContentMD5 = smithy.Member{Name: "ContentM
 
 var memberUpdateObjectEncryptionInput_ChecksumAlgorithm = smithy.Member{Name: "ChecksumAlgorithm", Index: 7, Target: &schemaChecksumAlgorithm, HTTP: smithy.HTTPHeader{Name: "x-amz-sdk-checksum-algorithm"}}
 
-var schemaUpdateObjectEncryptionOutput = smithy.Schema{ID: "com.amazonaws.s3#UpdateObjectEncryptionResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateObjectEncryptionOutput_RequestCharged}}
+var schemaUpdateObjectEncryptionOutput = smithy.Schema{ID: "com.amazonaws.s3#UpdateObjectEncryptionResponse", Type: smithy.TypeStructure}
 
 var memberUpdateObjectEncryptionOutput_RequestCharged = smithy.Member{Name: "RequestCharged", Index: 0, Target: &schemaRequestCharged, HTTP: smithy.HTTPHeader{Name: "x-amz-request-charged"}}
 
@@ -4979,7 +4979,7 @@ var memberUploadPartOutput_BucketKeyEnabled = smithy.Member{Name: "BucketKeyEnab
 
 var memberUploadPartOutput_RequestCharged = smithy.Member{Name: "RequestCharged", Index: 16, Target: &schemaRequestCharged, HTTP: smithy.HTTPHeader{Name: "x-amz-request-charged"}}
 
-var schemaUserMetadata = smithy.Schema{ID: "com.amazonaws.s3#UserMetadata", Type: smithy.TypeList, Members: []*smithy.Member{&memberUserMetadata_member}}
+var schemaUserMetadata = smithy.Schema{ID: "com.amazonaws.s3#UserMetadata", Type: smithy.TypeList}
 
 var memberUserMetadata_member = smithy.Member{Name: "member", Index: 0, Target: &schemaMetadataEntry, XMLName: "MetadataEntry"}
 

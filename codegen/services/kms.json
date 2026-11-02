@@ -9,5 +9,34 @@
       "action": "kms:ReEncryptFrom",
       "reason": "the call needs both actions, ReEncryptFrom on the source key and ReEncryptTo on the destination key; the source key is checked first (smithy-models.md 8)"
     }
+  ],
+  "boundOperations": [
+    "CancelKeyDeletion",
+    "CreateAlias",
+    "CreateKey",
+    "Decrypt",
+    "DeleteAlias",
+    "DescribeKey",
+    "DisableKey",
+    "DisableKeyRotation",
+    "EnableKey",
+    "EnableKeyRotation",
+    "Encrypt",
+    "GenerateDataKey",
+    "GenerateDataKeyWithoutPlaintext",
+    "GenerateRandom",
+    "GetKeyPolicy",
+    "GetKeyRotationStatus",
+    "ListAliases",
+    "ListKeyPolicies",
+    "ListKeys",
+    "ListResourceTags",
+    "PutKeyPolicy",
+    "ReEncrypt",
+    "ScheduleKeyDeletion",
+    "TagResource",
+    "UntagResource",
+    "UpdateAlias",
+    "UpdateKeyDescription"
   ]
 }

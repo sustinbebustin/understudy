@@ -19,11 +19,11 @@ var schemaAccountIds = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#AccountId
 
 var memberAccountIds_member = smithy.Member{Name: "member", Index: 0, Target: &schemaAccountId}
 
-var schemaAccountPolicies = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#AccountPolicies", Type: smithy.TypeList, Members: []*smithy.Member{&memberAccountPolicies_member}}
+var schemaAccountPolicies = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#AccountPolicies", Type: smithy.TypeList}
 
 var memberAccountPolicies_member = smithy.Member{Name: "member", Index: 0, Target: &schemaAccountPolicy}
 
-var schemaAccountPolicy = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#AccountPolicy", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAccountPolicy_policyName, &memberAccountPolicy_policyDocument, &memberAccountPolicy_lastUpdatedTime, &memberAccountPolicy_policyType, &memberAccountPolicy_scope, &memberAccountPolicy_selectionCriteria, &memberAccountPolicy_accountId}}
+var schemaAccountPolicy = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#AccountPolicy", Type: smithy.TypeStructure}
 
 var memberAccountPolicy_policyName = smithy.Member{Name: "policyName", Index: 0, Target: &schemaPolicyName}
 
@@ -43,11 +43,11 @@ var schemaAccountPolicyDocument = smithy.Schema{ID: "com.amazonaws.cloudwatchlog
 
 var schemaActionStatus = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ActionStatus", Type: smithy.TypeEnum}
 
-var schemaAddKeyEntries = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#AddKeyEntries", Type: smithy.TypeList, Members: []*smithy.Member{&memberAddKeyEntries_member}}
+var schemaAddKeyEntries = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#AddKeyEntries", Type: smithy.TypeList}
 
 var memberAddKeyEntries_member = smithy.Member{Name: "member", Index: 0, Target: &schemaAddKeyEntry}
 
-var schemaAddKeyEntry = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#AddKeyEntry", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAddKeyEntry_key, &memberAddKeyEntry_value, &memberAddKeyEntry_overwriteIfExists}}
+var schemaAddKeyEntry = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#AddKeyEntry", Type: smithy.TypeStructure}
 
 var memberAddKeyEntry_key = smithy.Member{Name: "key", Index: 0, Target: &schemaKey, Required: true}
 
@@ -57,15 +57,15 @@ var memberAddKeyEntry_overwriteIfExists = smithy.Member{Name: "overwriteIfExists
 
 var schemaAddKeyValue = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#AddKeyValue", Type: smithy.TypeString}
 
-var schemaAddKeys = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#AddKeys", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAddKeys_entries}}
+var schemaAddKeys = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#AddKeys", Type: smithy.TypeStructure}
 
 var memberAddKeys_entries = smithy.Member{Name: "entries", Index: 0, Target: &schemaAddKeyEntries, Required: true}
 
-var schemaAggregateLogGroupSummaries = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#AggregateLogGroupSummaries", Type: smithy.TypeList, Members: []*smithy.Member{&memberAggregateLogGroupSummaries_member}}
+var schemaAggregateLogGroupSummaries = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#AggregateLogGroupSummaries", Type: smithy.TypeList}
 
 var memberAggregateLogGroupSummaries_member = smithy.Member{Name: "member", Index: 0, Target: &schemaAggregateLogGroupSummary}
 
-var schemaAggregateLogGroupSummary = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#AggregateLogGroupSummary", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAggregateLogGroupSummary_logGroupCount, &memberAggregateLogGroupSummary_groupingIdentifiers}}
+var schemaAggregateLogGroupSummary = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#AggregateLogGroupSummary", Type: smithy.TypeStructure}
 
 var memberAggregateLogGroupSummary_logGroupCount = smithy.Member{Name: "logGroupCount", Index: 0, Target: &schemaLogGroupCount}
 
@@ -73,21 +73,21 @@ var memberAggregateLogGroupSummary_groupingIdentifiers = smithy.Member{Name: "gr
 
 var schemaAllowedActionForAllowVendedLogsDeliveryForResource = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#AllowedActionForAllowVendedLogsDeliveryForResource", Type: smithy.TypeString}
 
-var schemaAllowedFieldDelimiters = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#AllowedFieldDelimiters", Type: smithy.TypeList, Members: []*smithy.Member{&memberAllowedFieldDelimiters_member}}
+var schemaAllowedFieldDelimiters = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#AllowedFieldDelimiters", Type: smithy.TypeList}
 
 var memberAllowedFieldDelimiters_member = smithy.Member{Name: "member", Index: 0, Target: &schemaFieldDelimiter}
 
-var schemaAllowedFields = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#AllowedFields", Type: smithy.TypeList, Members: []*smithy.Member{&memberAllowedFields_member}}
+var schemaAllowedFields = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#AllowedFields", Type: smithy.TypeList}
 
 var memberAllowedFields_member = smithy.Member{Name: "member", Index: 0, Target: &schemaRecordField}
 
 var schemaAmazonResourceName = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#AmazonResourceName", Type: smithy.TypeString}
 
-var schemaAnomalies = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Anomalies", Type: smithy.TypeList, Members: []*smithy.Member{&memberAnomalies_member}}
+var schemaAnomalies = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Anomalies", Type: smithy.TypeList}
 
 var memberAnomalies_member = smithy.Member{Name: "member", Index: 0, Target: &schemaAnomaly}
 
-var schemaAnomaly = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Anomaly", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAnomaly_anomalyId, &memberAnomaly_patternId, &memberAnomaly_anomalyDetectorArn, &memberAnomaly_patternString, &memberAnomaly_patternRegex, &memberAnomaly_priority, &memberAnomaly_firstSeen, &memberAnomaly_lastSeen, &memberAnomaly_description, &memberAnomaly_active, &memberAnomaly_state, &memberAnomaly_histogram, &memberAnomaly_logSamples, &memberAnomaly_patternTokens, &memberAnomaly_logGroupArnList, &memberAnomaly_suppressed, &memberAnomaly_suppressedDate, &memberAnomaly_suppressedUntil, &memberAnomaly_isPatternLevelSuppression}}
+var schemaAnomaly = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Anomaly", Type: smithy.TypeStructure}
 
 var memberAnomaly_anomalyId = smithy.Member{Name: "anomalyId", Index: 0, Target: &schemaAnomalyId, Required: true}
 
@@ -127,7 +127,7 @@ var memberAnomaly_suppressedUntil = smithy.Member{Name: "suppressedUntil", Index
 
 var memberAnomaly_isPatternLevelSuppression = smithy.Member{Name: "isPatternLevelSuppression", Index: 18, Target: &schemaBoolean}
 
-var schemaAnomalyDetector = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#AnomalyDetector", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAnomalyDetector_anomalyDetectorArn, &memberAnomalyDetector_detectorName, &memberAnomalyDetector_logGroupArnList, &memberAnomalyDetector_evaluationFrequency, &memberAnomalyDetector_filterPattern, &memberAnomalyDetector_anomalyDetectorStatus, &memberAnomalyDetector_kmsKeyId, &memberAnomalyDetector_creationTimeStamp, &memberAnomalyDetector_lastModifiedTimeStamp, &memberAnomalyDetector_anomalyVisibilityTime}}
+var schemaAnomalyDetector = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#AnomalyDetector", Type: smithy.TypeStructure}
 
 var memberAnomalyDetector_anomalyDetectorArn = smithy.Member{Name: "anomalyDetectorArn", Index: 0, Target: &schemaAnomalyDetectorArn}
 
@@ -153,7 +153,7 @@ var schemaAnomalyDetectorArn = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#A
 
 var schemaAnomalyDetectorStatus = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#AnomalyDetectorStatus", Type: smithy.TypeEnum}
 
-var schemaAnomalyDetectors = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#AnomalyDetectors", Type: smithy.TypeList, Members: []*smithy.Member{&memberAnomalyDetectors_member}}
+var schemaAnomalyDetectors = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#AnomalyDetectors", Type: smithy.TypeList}
 
 var memberAnomalyDetectors_member = smithy.Member{Name: "member", Index: 0, Target: &schemaAnomalyDetector}
 
@@ -165,7 +165,7 @@ var schemaApplyOnTransformedLogs = smithy.Schema{ID: "com.amazonaws.cloudwatchlo
 
 var schemaArn = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Arn", Type: smithy.TypeString}
 
-var schemaAssociateKmsKeyInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#AssociateKmsKeyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAssociateKmsKeyInput_logGroupName, &memberAssociateKmsKeyInput_kmsKeyId, &memberAssociateKmsKeyInput_resourceIdentifier}}
+var schemaAssociateKmsKeyInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#AssociateKmsKeyRequest", Type: smithy.TypeStructure}
 
 var memberAssociateKmsKeyInput_logGroupName = smithy.Member{Name: "logGroupName", Index: 0, Target: &schemaLogGroupName}
 
@@ -173,13 +173,13 @@ var memberAssociateKmsKeyInput_kmsKeyId = smithy.Member{Name: "kmsKeyId", Index:
 
 var memberAssociateKmsKeyInput_resourceIdentifier = smithy.Member{Name: "resourceIdentifier", Index: 2, Target: &schemaResourceIdentifier}
 
-var schemaAssociateSourceToS3TableIntegrationInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#AssociateSourceToS3TableIntegrationRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAssociateSourceToS3TableIntegrationInput_integrationArn, &memberAssociateSourceToS3TableIntegrationInput_dataSource}}
+var schemaAssociateSourceToS3TableIntegrationInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#AssociateSourceToS3TableIntegrationRequest", Type: smithy.TypeStructure}
 
 var memberAssociateSourceToS3TableIntegrationInput_integrationArn = smithy.Member{Name: "integrationArn", Index: 0, Target: &schemaArn, Required: true}
 
 var memberAssociateSourceToS3TableIntegrationInput_dataSource = smithy.Member{Name: "dataSource", Index: 1, Target: &schemaDataSource, Required: true}
 
-var schemaAssociateSourceToS3TableIntegrationOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#AssociateSourceToS3TableIntegrationResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAssociateSourceToS3TableIntegrationOutput_identifier}}
+var schemaAssociateSourceToS3TableIntegrationOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#AssociateSourceToS3TableIntegrationResponse", Type: smithy.TypeStructure}
 
 var memberAssociateSourceToS3TableIntegrationOutput_identifier = smithy.Member{Name: "identifier", Index: 0, Target: &schemaS3TableIntegrationSourceIdentifier}
 
@@ -193,7 +193,7 @@ var schemaBoolean = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Boolean", Ty
 
 var schemaBytesScannedValue = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#BytesScannedValue", Type: smithy.TypeDouble}
 
-var schemaCSV = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#CSV", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCSV_quoteCharacter, &memberCSV_delimiter, &memberCSV_columns, &memberCSV_source, &memberCSV_destination}}
+var schemaCSV = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#CSV", Type: smithy.TypeStructure}
 
 var memberCSV_quoteCharacter = smithy.Member{Name: "quoteCharacter", Index: 0, Target: &schemaQuoteCharacter}
 
@@ -205,15 +205,15 @@ var memberCSV_source = smithy.Member{Name: "source", Index: 3, Target: &schemaSo
 
 var memberCSV_destination = smithy.Member{Name: "destination", Index: 4, Target: &schemaDestinationField}
 
-var schemaCancelExportTaskInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#CancelExportTaskRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCancelExportTaskInput_taskId}}
+var schemaCancelExportTaskInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#CancelExportTaskRequest", Type: smithy.TypeStructure}
 
 var memberCancelExportTaskInput_taskId = smithy.Member{Name: "taskId", Index: 0, Target: &schemaExportTaskId, Required: true}
 
-var schemaCancelImportTaskInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#CancelImportTaskRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCancelImportTaskInput_importId}}
+var schemaCancelImportTaskInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#CancelImportTaskRequest", Type: smithy.TypeStructure}
 
 var memberCancelImportTaskInput_importId = smithy.Member{Name: "importId", Index: 0, Target: &schemaImportId, Required: true}
 
-var schemaCancelImportTaskOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#CancelImportTaskResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCancelImportTaskOutput_importId, &memberCancelImportTaskOutput_importStatistics, &memberCancelImportTaskOutput_importStatus, &memberCancelImportTaskOutput_creationTime, &memberCancelImportTaskOutput_lastUpdatedTime}}
+var schemaCancelImportTaskOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#CancelImportTaskResponse", Type: smithy.TypeStructure}
 
 var memberCancelImportTaskOutput_importId = smithy.Member{Name: "importId", Index: 0, Target: &schemaImportId}
 
@@ -231,11 +231,11 @@ var schemaCollectionRetentionDays = smithy.Schema{ID: "com.amazonaws.cloudwatchl
 
 var schemaColumn = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Column", Type: smithy.TypeString}
 
-var schemaColumns = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Columns", Type: smithy.TypeList, Members: []*smithy.Member{&memberColumns_member}}
+var schemaColumns = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Columns", Type: smithy.TypeList}
 
 var memberColumns_member = smithy.Member{Name: "member", Index: 0, Target: &schemaColumn}
 
-var schemaConfigurationTemplate = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ConfigurationTemplate", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberConfigurationTemplate_service, &memberConfigurationTemplate_logType, &memberConfigurationTemplate_resourceType, &memberConfigurationTemplate_deliveryDestinationType, &memberConfigurationTemplate_defaultDeliveryConfigValues, &memberConfigurationTemplate_allowedFields, &memberConfigurationTemplate_allowedOutputFormats, &memberConfigurationTemplate_allowedActionForAllowVendedLogsDeliveryForResource, &memberConfigurationTemplate_allowedFieldDelimiters, &memberConfigurationTemplate_allowedSuffixPathFields, &memberConfigurationTemplate_deliverySourceConfiguration, &memberConfigurationTemplate_s3TablesIntegration}}
+var schemaConfigurationTemplate = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ConfigurationTemplate", Type: smithy.TypeStructure}
 
 var memberConfigurationTemplate_service = smithy.Member{Name: "service", Index: 0, Target: &schemaServiceShape}
 
@@ -261,7 +261,7 @@ var memberConfigurationTemplate_deliverySourceConfiguration = smithy.Member{Name
 
 var memberConfigurationTemplate_s3TablesIntegration = smithy.Member{Name: "s3TablesIntegration", Index: 11, Target: &schemaS3TablesIntegration}
 
-var schemaConfigurationTemplateDeliveryConfigValues = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ConfigurationTemplateDeliveryConfigValues", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberConfigurationTemplateDeliveryConfigValues_recordFields, &memberConfigurationTemplateDeliveryConfigValues_fieldDelimiter, &memberConfigurationTemplateDeliveryConfigValues_s3DeliveryConfiguration}}
+var schemaConfigurationTemplateDeliveryConfigValues = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ConfigurationTemplateDeliveryConfigValues", Type: smithy.TypeStructure}
 
 var memberConfigurationTemplateDeliveryConfigValues_recordFields = smithy.Member{Name: "recordFields", Index: 0, Target: &schemaRecordFields}
 
@@ -269,7 +269,7 @@ var memberConfigurationTemplateDeliveryConfigValues_fieldDelimiter = smithy.Memb
 
 var memberConfigurationTemplateDeliveryConfigValues_s3DeliveryConfiguration = smithy.Member{Name: "s3DeliveryConfiguration", Index: 2, Target: &schemaS3DeliveryConfiguration}
 
-var schemaConfigurationTemplates = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ConfigurationTemplates", Type: smithy.TypeList, Members: []*smithy.Member{&memberConfigurationTemplates_member}}
+var schemaConfigurationTemplates = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ConfigurationTemplates", Type: smithy.TypeList}
 
 var memberConfigurationTemplates_member = smithy.Member{Name: "member", Index: 0, Target: &schemaConfigurationTemplate}
 
@@ -277,15 +277,15 @@ var schemaConflictException = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Co
 
 var memberConflictException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaMessage}
 
-var schemaCopyValue = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#CopyValue", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCopyValue_entries}}
+var schemaCopyValue = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#CopyValue", Type: smithy.TypeStructure}
 
 var memberCopyValue_entries = smithy.Member{Name: "entries", Index: 0, Target: &schemaCopyValueEntries, Required: true}
 
-var schemaCopyValueEntries = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#CopyValueEntries", Type: smithy.TypeList, Members: []*smithy.Member{&memberCopyValueEntries_member}}
+var schemaCopyValueEntries = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#CopyValueEntries", Type: smithy.TypeList}
 
 var memberCopyValueEntries_member = smithy.Member{Name: "member", Index: 0, Target: &schemaCopyValueEntry}
 
-var schemaCopyValueEntry = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#CopyValueEntry", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCopyValueEntry_source, &memberCopyValueEntry_target, &memberCopyValueEntry_overwriteIfExists}}
+var schemaCopyValueEntry = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#CopyValueEntry", Type: smithy.TypeStructure}
 
 var memberCopyValueEntry_source = smithy.Member{Name: "source", Index: 0, Target: &schemaSource, Required: true}
 
@@ -307,7 +307,7 @@ var memberCoralServiceUnrecognizedClientException_message = smithy.Member{Name: 
 
 var schemaCount = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Count", Type: smithy.TypeLong}
 
-var schemaCreateDeliveryInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#CreateDeliveryRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateDeliveryInput_deliverySourceName, &memberCreateDeliveryInput_deliveryDestinationArn, &memberCreateDeliveryInput_recordFields, &memberCreateDeliveryInput_fieldDelimiter, &memberCreateDeliveryInput_s3DeliveryConfiguration, &memberCreateDeliveryInput_tags}}
+var schemaCreateDeliveryInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#CreateDeliveryRequest", Type: smithy.TypeStructure}
 
 var memberCreateDeliveryInput_deliverySourceName = smithy.Member{Name: "deliverySourceName", Index: 0, Target: &schemaDeliverySourceName, Required: true}
 
@@ -321,11 +321,11 @@ var memberCreateDeliveryInput_s3DeliveryConfiguration = smithy.Member{Name: "s3D
 
 var memberCreateDeliveryInput_tags = smithy.Member{Name: "tags", Index: 5, Target: &schemaTags}
 
-var schemaCreateDeliveryOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#CreateDeliveryResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateDeliveryOutput_delivery}}
+var schemaCreateDeliveryOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#CreateDeliveryResponse", Type: smithy.TypeStructure}
 
 var memberCreateDeliveryOutput_delivery = smithy.Member{Name: "delivery", Index: 0, Target: &schemaDelivery}
 
-var schemaCreateExportTaskInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#CreateExportTaskRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateExportTaskInput_taskName, &memberCreateExportTaskInput_logGroupName, &memberCreateExportTaskInput_logStreamNamePrefix, &memberCreateExportTaskInput_from, &memberCreateExportTaskInput_to, &memberCreateExportTaskInput_destination, &memberCreateExportTaskInput_destinationPrefix}}
+var schemaCreateExportTaskInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#CreateExportTaskRequest", Type: smithy.TypeStructure}
 
 var memberCreateExportTaskInput_taskName = smithy.Member{Name: "taskName", Index: 0, Target: &schemaExportTaskName}
 
@@ -341,11 +341,11 @@ var memberCreateExportTaskInput_destination = smithy.Member{Name: "destination",
 
 var memberCreateExportTaskInput_destinationPrefix = smithy.Member{Name: "destinationPrefix", Index: 6, Target: &schemaExportDestinationPrefix}
 
-var schemaCreateExportTaskOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#CreateExportTaskResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateExportTaskOutput_taskId}}
+var schemaCreateExportTaskOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#CreateExportTaskResponse", Type: smithy.TypeStructure}
 
 var memberCreateExportTaskOutput_taskId = smithy.Member{Name: "taskId", Index: 0, Target: &schemaExportTaskId}
 
-var schemaCreateImportTaskInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#CreateImportTaskRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateImportTaskInput_importSourceArn, &memberCreateImportTaskInput_importRoleArn, &memberCreateImportTaskInput_importFilter}}
+var schemaCreateImportTaskInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#CreateImportTaskRequest", Type: smithy.TypeStructure}
 
 var memberCreateImportTaskInput_importSourceArn = smithy.Member{Name: "importSourceArn", Index: 0, Target: &schemaArn, Required: true}
 
@@ -353,7 +353,7 @@ var memberCreateImportTaskInput_importRoleArn = smithy.Member{Name: "importRoleA
 
 var memberCreateImportTaskInput_importFilter = smithy.Member{Name: "importFilter", Index: 2, Target: &schemaImportFilter}
 
-var schemaCreateImportTaskOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#CreateImportTaskResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateImportTaskOutput_importId, &memberCreateImportTaskOutput_importDestinationArn, &memberCreateImportTaskOutput_creationTime}}
+var schemaCreateImportTaskOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#CreateImportTaskResponse", Type: smithy.TypeStructure}
 
 var memberCreateImportTaskOutput_importId = smithy.Member{Name: "importId", Index: 0, Target: &schemaImportId}
 
@@ -361,7 +361,7 @@ var memberCreateImportTaskOutput_importDestinationArn = smithy.Member{Name: "imp
 
 var memberCreateImportTaskOutput_creationTime = smithy.Member{Name: "creationTime", Index: 2, Target: &schemaTimestamp}
 
-var schemaCreateLogAnomalyDetectorInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#CreateLogAnomalyDetectorRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateLogAnomalyDetectorInput_logGroupArnList, &memberCreateLogAnomalyDetectorInput_detectorName, &memberCreateLogAnomalyDetectorInput_evaluationFrequency, &memberCreateLogAnomalyDetectorInput_filterPattern, &memberCreateLogAnomalyDetectorInput_kmsKeyId, &memberCreateLogAnomalyDetectorInput_anomalyVisibilityTime, &memberCreateLogAnomalyDetectorInput_tags}}
+var schemaCreateLogAnomalyDetectorInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#CreateLogAnomalyDetectorRequest", Type: smithy.TypeStructure}
 
 var memberCreateLogAnomalyDetectorInput_logGroupArnList = smithy.Member{Name: "logGroupArnList", Index: 0, Target: &schemaLogGroupArnList, Required: true}
 
@@ -377,7 +377,7 @@ var memberCreateLogAnomalyDetectorInput_anomalyVisibilityTime = smithy.Member{Na
 
 var memberCreateLogAnomalyDetectorInput_tags = smithy.Member{Name: "tags", Index: 6, Target: &schemaTags}
 
-var schemaCreateLogAnomalyDetectorOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#CreateLogAnomalyDetectorResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateLogAnomalyDetectorOutput_anomalyDetectorArn}}
+var schemaCreateLogAnomalyDetectorOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#CreateLogAnomalyDetectorResponse", Type: smithy.TypeStructure}
 
 var memberCreateLogAnomalyDetectorOutput_anomalyDetectorArn = smithy.Member{Name: "anomalyDetectorArn", Index: 0, Target: &schemaAnomalyDetectorArn}
 
@@ -399,7 +399,7 @@ var memberCreateLogStreamInput_logGroupName = smithy.Member{Name: "logGroupName"
 
 var memberCreateLogStreamInput_logStreamName = smithy.Member{Name: "logStreamName", Index: 1, Target: &schemaLogStreamName, Required: true}
 
-var schemaCreateLookupTableInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#CreateLookupTableRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateLookupTableInput_lookupTableName, &memberCreateLookupTableInput_description, &memberCreateLookupTableInput_tableBody, &memberCreateLookupTableInput_queryId, &memberCreateLookupTableInput_kmsKeyId, &memberCreateLookupTableInput_tags}}
+var schemaCreateLookupTableInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#CreateLookupTableRequest", Type: smithy.TypeStructure}
 
 var memberCreateLookupTableInput_lookupTableName = smithy.Member{Name: "lookupTableName", Index: 0, Target: &schemaLookupTableName, Required: true}
 
@@ -413,13 +413,13 @@ var memberCreateLookupTableInput_kmsKeyId = smithy.Member{Name: "kmsKeyId", Inde
 
 var memberCreateLookupTableInput_tags = smithy.Member{Name: "tags", Index: 5, Target: &schemaTags}
 
-var schemaCreateLookupTableOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#CreateLookupTableResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateLookupTableOutput_lookupTableArn, &memberCreateLookupTableOutput_createdAt}}
+var schemaCreateLookupTableOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#CreateLookupTableResponse", Type: smithy.TypeStructure}
 
 var memberCreateLookupTableOutput_lookupTableArn = smithy.Member{Name: "lookupTableArn", Index: 0, Target: &schemaArn}
 
 var memberCreateLookupTableOutput_createdAt = smithy.Member{Name: "createdAt", Index: 1, Target: &schemaTimestamp}
 
-var schemaCreateScheduledQueryInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#CreateScheduledQueryRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateScheduledQueryInput_name, &memberCreateScheduledQueryInput_description, &memberCreateScheduledQueryInput_queryLanguage, &memberCreateScheduledQueryInput_queryString, &memberCreateScheduledQueryInput_logGroupIdentifiers, &memberCreateScheduledQueryInput_scheduleExpression, &memberCreateScheduledQueryInput_timezone, &memberCreateScheduledQueryInput_startTimeOffset, &memberCreateScheduledQueryInput_endTimeOffset, &memberCreateScheduledQueryInput_destinationConfiguration, &memberCreateScheduledQueryInput_scheduleStartTime, &memberCreateScheduledQueryInput_scheduleEndTime, &memberCreateScheduledQueryInput_executionRoleArn, &memberCreateScheduledQueryInput_state, &memberCreateScheduledQueryInput_tags}}
+var schemaCreateScheduledQueryInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#CreateScheduledQueryRequest", Type: smithy.TypeStructure}
 
 var memberCreateScheduledQueryInput_name = smithy.Member{Name: "name", Index: 0, Target: &schemaScheduledQueryName, Required: true}
 
@@ -451,13 +451,13 @@ var memberCreateScheduledQueryInput_state = smithy.Member{Name: "state", Index: 
 
 var memberCreateScheduledQueryInput_tags = smithy.Member{Name: "tags", Index: 14, Target: &schemaTags}
 
-var schemaCreateScheduledQueryOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#CreateScheduledQueryResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateScheduledQueryOutput_scheduledQueryArn, &memberCreateScheduledQueryOutput_state}}
+var schemaCreateScheduledQueryOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#CreateScheduledQueryResponse", Type: smithy.TypeStructure}
 
 var memberCreateScheduledQueryOutput_scheduledQueryArn = smithy.Member{Name: "scheduledQueryArn", Index: 0, Target: &schemaArn}
 
 var memberCreateScheduledQueryOutput_state = smithy.Member{Name: "state", Index: 1, Target: &schemaScheduledQueryState}
 
-var schemaDashboardViewerPrincipals = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DashboardViewerPrincipals", Type: smithy.TypeList, Members: []*smithy.Member{&memberDashboardViewerPrincipals_member}}
+var schemaDashboardViewerPrincipals = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DashboardViewerPrincipals", Type: smithy.TypeList}
 
 var memberDashboardViewerPrincipals_member = smithy.Member{Name: "member", Index: 0, Target: &schemaArn}
 
@@ -473,19 +473,19 @@ var schemaDataProtectionPolicyDocument = smithy.Schema{ID: "com.amazonaws.cloudw
 
 var schemaDataProtectionStatus = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DataProtectionStatus", Type: smithy.TypeEnum}
 
-var schemaDataSource = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DataSource", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDataSource_name, &memberDataSource_type}}
+var schemaDataSource = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DataSource", Type: smithy.TypeStructure}
 
 var memberDataSource_name = smithy.Member{Name: "name", Index: 0, Target: &schemaDataSourceName, Required: true}
 
 var memberDataSource_type = smithy.Member{Name: "type", Index: 1, Target: &schemaDataSourceType}
 
-var schemaDataSourceFilter = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DataSourceFilter", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDataSourceFilter_name, &memberDataSourceFilter_type}}
+var schemaDataSourceFilter = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DataSourceFilter", Type: smithy.TypeStructure}
 
 var memberDataSourceFilter_name = smithy.Member{Name: "name", Index: 0, Target: &schemaDataSourceName, Required: true}
 
 var memberDataSourceFilter_type = smithy.Member{Name: "type", Index: 1, Target: &schemaDataSourceType}
 
-var schemaDataSourceFilters = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DataSourceFilters", Type: smithy.TypeList, Members: []*smithy.Member{&memberDataSourceFilters_member}}
+var schemaDataSourceFilters = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DataSourceFilters", Type: smithy.TypeList}
 
 var memberDataSourceFilters_member = smithy.Member{Name: "member", Index: 0, Target: &schemaDataSourceFilter}
 
@@ -495,7 +495,7 @@ var schemaDataSourceType = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DataS
 
 var schemaDataType = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DataType", Type: smithy.TypeString}
 
-var schemaDateTimeConverter = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DateTimeConverter", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDateTimeConverter_source, &memberDateTimeConverter_target, &memberDateTimeConverter_targetFormat, &memberDateTimeConverter_matchPatterns, &memberDateTimeConverter_sourceTimezone, &memberDateTimeConverter_targetTimezone, &memberDateTimeConverter_locale}}
+var schemaDateTimeConverter = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DateTimeConverter", Type: smithy.TypeStructure}
 
 var memberDateTimeConverter_source = smithy.Member{Name: "source", Index: 0, Target: &schemaSource, Required: true}
 
@@ -515,43 +515,43 @@ var schemaDays = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Days", Type: sm
 
 var schemaDefaultValue = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DefaultValue", Type: smithy.TypeDouble}
 
-var schemaDeleteAccountPolicyInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeleteAccountPolicyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteAccountPolicyInput_policyName, &memberDeleteAccountPolicyInput_policyType}}
+var schemaDeleteAccountPolicyInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeleteAccountPolicyRequest", Type: smithy.TypeStructure}
 
 var memberDeleteAccountPolicyInput_policyName = smithy.Member{Name: "policyName", Index: 0, Target: &schemaPolicyName, Required: true}
 
 var memberDeleteAccountPolicyInput_policyType = smithy.Member{Name: "policyType", Index: 1, Target: &schemaPolicyType, Required: true}
 
-var schemaDeleteDataProtectionPolicyInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeleteDataProtectionPolicyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteDataProtectionPolicyInput_logGroupIdentifier}}
+var schemaDeleteDataProtectionPolicyInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeleteDataProtectionPolicyRequest", Type: smithy.TypeStructure}
 
 var memberDeleteDataProtectionPolicyInput_logGroupIdentifier = smithy.Member{Name: "logGroupIdentifier", Index: 0, Target: &schemaLogGroupIdentifier, Required: true}
 
-var schemaDeleteDeliveryDestinationInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeleteDeliveryDestinationRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteDeliveryDestinationInput_name}}
+var schemaDeleteDeliveryDestinationInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeleteDeliveryDestinationRequest", Type: smithy.TypeStructure}
 
 var memberDeleteDeliveryDestinationInput_name = smithy.Member{Name: "name", Index: 0, Target: &schemaDeliveryDestinationName, Required: true}
 
-var schemaDeleteDeliveryDestinationPolicyInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeleteDeliveryDestinationPolicyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteDeliveryDestinationPolicyInput_deliveryDestinationName}}
+var schemaDeleteDeliveryDestinationPolicyInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeleteDeliveryDestinationPolicyRequest", Type: smithy.TypeStructure}
 
 var memberDeleteDeliveryDestinationPolicyInput_deliveryDestinationName = smithy.Member{Name: "deliveryDestinationName", Index: 0, Target: &schemaDeliveryDestinationName, Required: true}
 
-var schemaDeleteDeliveryInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeleteDeliveryRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteDeliveryInput_id}}
+var schemaDeleteDeliveryInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeleteDeliveryRequest", Type: smithy.TypeStructure}
 
 var memberDeleteDeliveryInput_id = smithy.Member{Name: "id", Index: 0, Target: &schemaDeliveryId, Required: true}
 
-var schemaDeleteDeliverySourceInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeleteDeliverySourceRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteDeliverySourceInput_name}}
+var schemaDeleteDeliverySourceInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeleteDeliverySourceRequest", Type: smithy.TypeStructure}
 
 var memberDeleteDeliverySourceInput_name = smithy.Member{Name: "name", Index: 0, Target: &schemaDeliverySourceName, Required: true}
 
-var schemaDeleteDestinationInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeleteDestinationRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteDestinationInput_destinationName}}
+var schemaDeleteDestinationInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeleteDestinationRequest", Type: smithy.TypeStructure}
 
 var memberDeleteDestinationInput_destinationName = smithy.Member{Name: "destinationName", Index: 0, Target: &schemaDestinationName, Required: true}
 
-var schemaDeleteIndexPolicyInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeleteIndexPolicyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteIndexPolicyInput_logGroupIdentifier}}
+var schemaDeleteIndexPolicyInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeleteIndexPolicyRequest", Type: smithy.TypeStructure}
 
 var memberDeleteIndexPolicyInput_logGroupIdentifier = smithy.Member{Name: "logGroupIdentifier", Index: 0, Target: &schemaLogGroupIdentifier, Required: true}
 
 var schemaDeleteIndexPolicyOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeleteIndexPolicyResponse", Type: smithy.TypeStructure}
 
-var schemaDeleteIntegrationInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeleteIntegrationRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteIntegrationInput_integrationName, &memberDeleteIntegrationInput_force}}
+var schemaDeleteIntegrationInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeleteIntegrationRequest", Type: smithy.TypeStructure}
 
 var memberDeleteIntegrationInput_integrationName = smithy.Member{Name: "integrationName", Index: 0, Target: &schemaIntegrationName, Required: true}
 
@@ -559,11 +559,11 @@ var memberDeleteIntegrationInput_force = smithy.Member{Name: "force", Index: 1, 
 
 var schemaDeleteIntegrationOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeleteIntegrationResponse", Type: smithy.TypeStructure}
 
-var schemaDeleteKeys = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeleteKeys", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteKeys_withKeys}}
+var schemaDeleteKeys = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeleteKeys", Type: smithy.TypeStructure}
 
 var memberDeleteKeys_withKeys = smithy.Member{Name: "withKeys", Index: 0, Target: &schemaDeleteWithKeys, Required: true}
 
-var schemaDeleteLogAnomalyDetectorInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeleteLogAnomalyDetectorRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteLogAnomalyDetectorInput_anomalyDetectorArn}}
+var schemaDeleteLogAnomalyDetectorInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeleteLogAnomalyDetectorRequest", Type: smithy.TypeStructure}
 
 var memberDeleteLogAnomalyDetectorInput_anomalyDetectorArn = smithy.Member{Name: "anomalyDetectorArn", Index: 0, Target: &schemaAnomalyDetectorArn, Required: true}
 
@@ -577,25 +577,25 @@ var memberDeleteLogStreamInput_logGroupName = smithy.Member{Name: "logGroupName"
 
 var memberDeleteLogStreamInput_logStreamName = smithy.Member{Name: "logStreamName", Index: 1, Target: &schemaLogStreamName, Required: true}
 
-var schemaDeleteLookupTableInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeleteLookupTableRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteLookupTableInput_lookupTableArn}}
+var schemaDeleteLookupTableInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeleteLookupTableRequest", Type: smithy.TypeStructure}
 
 var memberDeleteLookupTableInput_lookupTableArn = smithy.Member{Name: "lookupTableArn", Index: 0, Target: &schemaArn, Required: true}
 
-var schemaDeleteMetricFilterInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeleteMetricFilterRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteMetricFilterInput_logGroupName, &memberDeleteMetricFilterInput_filterName}}
+var schemaDeleteMetricFilterInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeleteMetricFilterRequest", Type: smithy.TypeStructure}
 
 var memberDeleteMetricFilterInput_logGroupName = smithy.Member{Name: "logGroupName", Index: 0, Target: &schemaLogGroupName, Required: true}
 
 var memberDeleteMetricFilterInput_filterName = smithy.Member{Name: "filterName", Index: 1, Target: &schemaFilterName, Required: true}
 
-var schemaDeleteQueryDefinitionInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeleteQueryDefinitionRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteQueryDefinitionInput_queryDefinitionId}}
+var schemaDeleteQueryDefinitionInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeleteQueryDefinitionRequest", Type: smithy.TypeStructure}
 
 var memberDeleteQueryDefinitionInput_queryDefinitionId = smithy.Member{Name: "queryDefinitionId", Index: 0, Target: &schemaQueryId, Required: true}
 
-var schemaDeleteQueryDefinitionOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeleteQueryDefinitionResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteQueryDefinitionOutput_success}}
+var schemaDeleteQueryDefinitionOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeleteQueryDefinitionResponse", Type: smithy.TypeStructure}
 
 var memberDeleteQueryDefinitionOutput_success = smithy.Member{Name: "success", Index: 0, Target: &schemaSuccess, Default: document.Bool(false)}
 
-var schemaDeleteResourcePolicyInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeleteResourcePolicyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteResourcePolicyInput_policyName, &memberDeleteResourcePolicyInput_resourceArn, &memberDeleteResourcePolicyInput_expectedRevisionId}}
+var schemaDeleteResourcePolicyInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeleteResourcePolicyRequest", Type: smithy.TypeStructure}
 
 var memberDeleteResourcePolicyInput_policyName = smithy.Member{Name: "policyName", Index: 0, Target: &schemaPolicyName}
 
@@ -607,29 +607,29 @@ var schemaDeleteRetentionPolicyInput = smithy.Schema{ID: "com.amazonaws.cloudwat
 
 var memberDeleteRetentionPolicyInput_logGroupName = smithy.Member{Name: "logGroupName", Index: 0, Target: &schemaLogGroupName, Required: true}
 
-var schemaDeleteScheduledQueryInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeleteScheduledQueryRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteScheduledQueryInput_identifier}}
+var schemaDeleteScheduledQueryInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeleteScheduledQueryRequest", Type: smithy.TypeStructure}
 
 var memberDeleteScheduledQueryInput_identifier = smithy.Member{Name: "identifier", Index: 0, Target: &schemaScheduledQueryIdentifier, Required: true}
 
 var schemaDeleteScheduledQueryOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeleteScheduledQueryResponse", Type: smithy.TypeStructure}
 
-var schemaDeleteSubscriptionFilterInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeleteSubscriptionFilterRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteSubscriptionFilterInput_logGroupName, &memberDeleteSubscriptionFilterInput_filterName}}
+var schemaDeleteSubscriptionFilterInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeleteSubscriptionFilterRequest", Type: smithy.TypeStructure}
 
 var memberDeleteSubscriptionFilterInput_logGroupName = smithy.Member{Name: "logGroupName", Index: 0, Target: &schemaLogGroupName, Required: true}
 
 var memberDeleteSubscriptionFilterInput_filterName = smithy.Member{Name: "filterName", Index: 1, Target: &schemaFilterName, Required: true}
 
-var schemaDeleteSyslogConfigurationInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeleteSyslogConfigurationRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteSyslogConfigurationInput_logGroupIdentifier, &memberDeleteSyslogConfigurationInput_vpcEndpointId}}
+var schemaDeleteSyslogConfigurationInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeleteSyslogConfigurationRequest", Type: smithy.TypeStructure}
 
 var memberDeleteSyslogConfigurationInput_logGroupIdentifier = smithy.Member{Name: "logGroupIdentifier", Index: 0, Target: &schemaLogGroupIdentifier, Required: true}
 
 var memberDeleteSyslogConfigurationInput_vpcEndpointId = smithy.Member{Name: "vpcEndpointId", Index: 1, Target: &schemaVpcEndpointId}
 
-var schemaDeleteTransformerInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeleteTransformerRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteTransformerInput_logGroupIdentifier}}
+var schemaDeleteTransformerInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeleteTransformerRequest", Type: smithy.TypeStructure}
 
 var memberDeleteTransformerInput_logGroupIdentifier = smithy.Member{Name: "logGroupIdentifier", Index: 0, Target: &schemaLogGroupIdentifier, Required: true}
 
-var schemaDeleteWithKeys = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeleteWithKeys", Type: smithy.TypeList, Members: []*smithy.Member{&memberDeleteWithKeys_member}}
+var schemaDeleteWithKeys = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeleteWithKeys", Type: smithy.TypeList}
 
 var memberDeleteWithKeys_member = smithy.Member{Name: "member", Index: 0, Target: &schemaWithKey}
 
@@ -637,11 +637,11 @@ var schemaDeletionProtectionEnabled = smithy.Schema{ID: "com.amazonaws.cloudwatc
 
 var schemaDelimiter = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Delimiter", Type: smithy.TypeString}
 
-var schemaDeliveries = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Deliveries", Type: smithy.TypeList, Members: []*smithy.Member{&memberDeliveries_member}}
+var schemaDeliveries = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Deliveries", Type: smithy.TypeList}
 
 var memberDeliveries_member = smithy.Member{Name: "member", Index: 0, Target: &schemaDelivery}
 
-var schemaDelivery = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Delivery", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDelivery_id, &memberDelivery_arn, &memberDelivery_deliverySourceName, &memberDelivery_deliveryDestinationArn, &memberDelivery_deliveryDestinationType, &memberDelivery_recordFields, &memberDelivery_fieldDelimiter, &memberDelivery_s3DeliveryConfiguration, &memberDelivery_tags}}
+var schemaDelivery = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Delivery", Type: smithy.TypeStructure}
 
 var memberDelivery_id = smithy.Member{Name: "id", Index: 0, Target: &schemaDeliveryId}
 
@@ -661,7 +661,7 @@ var memberDelivery_s3DeliveryConfiguration = smithy.Member{Name: "s3DeliveryConf
 
 var memberDelivery_tags = smithy.Member{Name: "tags", Index: 8, Target: &schemaTags}
 
-var schemaDeliveryDestination = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeliveryDestination", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeliveryDestination_name, &memberDeliveryDestination_arn, &memberDeliveryDestination_deliveryDestinationType, &memberDeliveryDestination_outputFormat, &memberDeliveryDestination_deliveryDestinationConfiguration, &memberDeliveryDestination_roleArn, &memberDeliveryDestination_tags}}
+var schemaDeliveryDestination = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeliveryDestination", Type: smithy.TypeStructure}
 
 var memberDeliveryDestination_name = smithy.Member{Name: "name", Index: 0, Target: &schemaDeliveryDestinationName}
 
@@ -677,7 +677,7 @@ var memberDeliveryDestination_roleArn = smithy.Member{Name: "roleArn", Index: 5,
 
 var memberDeliveryDestination_tags = smithy.Member{Name: "tags", Index: 6, Target: &schemaTags}
 
-var schemaDeliveryDestinationConfiguration = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeliveryDestinationConfiguration", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeliveryDestinationConfiguration_destinationResourceArn}}
+var schemaDeliveryDestinationConfiguration = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeliveryDestinationConfiguration", Type: smithy.TypeStructure}
 
 var memberDeliveryDestinationConfiguration_destinationResourceArn = smithy.Member{Name: "destinationResourceArn", Index: 0, Target: &schemaArn, Required: true}
 
@@ -687,17 +687,17 @@ var schemaDeliveryDestinationPolicy = smithy.Schema{ID: "com.amazonaws.cloudwatc
 
 var schemaDeliveryDestinationType = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeliveryDestinationType", Type: smithy.TypeEnum}
 
-var schemaDeliveryDestinationTypes = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeliveryDestinationTypes", Type: smithy.TypeList, Members: []*smithy.Member{&memberDeliveryDestinationTypes_member}}
+var schemaDeliveryDestinationTypes = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeliveryDestinationTypes", Type: smithy.TypeList}
 
 var memberDeliveryDestinationTypes_member = smithy.Member{Name: "member", Index: 0, Target: &schemaDeliveryDestinationType}
 
-var schemaDeliveryDestinations = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeliveryDestinations", Type: smithy.TypeList, Members: []*smithy.Member{&memberDeliveryDestinations_member}}
+var schemaDeliveryDestinations = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeliveryDestinations", Type: smithy.TypeList}
 
 var memberDeliveryDestinations_member = smithy.Member{Name: "member", Index: 0, Target: &schemaDeliveryDestination}
 
 var schemaDeliveryId = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeliveryId", Type: smithy.TypeString}
 
-var schemaDeliverySource = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeliverySource", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeliverySource_name, &memberDeliverySource_arn, &memberDeliverySource_resourceArns, &memberDeliverySource_service, &memberDeliverySource_logType, &memberDeliverySource_tags, &memberDeliverySource_deliverySourceConfiguration, &memberDeliverySource_status, &memberDeliverySource_statusReason}}
+var schemaDeliverySource = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeliverySource", Type: smithy.TypeStructure}
 
 var memberDeliverySource_name = smithy.Member{Name: "name", Index: 0, Target: &schemaDeliverySourceName}
 
@@ -717,7 +717,7 @@ var memberDeliverySource_status = smithy.Member{Name: "status", Index: 7, Target
 
 var memberDeliverySource_statusReason = smithy.Member{Name: "statusReason", Index: 8, Target: &schemaDeliverySourceStatusReason}
 
-var schemaDeliverySourceConfiguration = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeliverySourceConfiguration", Type: smithy.TypeMap, Members: []*smithy.Member{&memberDeliverySourceConfiguration_key, &memberDeliverySourceConfiguration_value}}
+var schemaDeliverySourceConfiguration = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeliverySourceConfiguration", Type: smithy.TypeMap}
 
 var memberDeliverySourceConfiguration_key = smithy.Member{Name: "key", Index: 0, Target: &schemaDeliverySourceConfigurationKey}
 
@@ -727,7 +727,7 @@ var schemaDeliverySourceConfigurationKey = smithy.Schema{ID: "com.amazonaws.clou
 
 var schemaDeliverySourceConfigurationNumericValue = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeliverySourceConfigurationNumericValue", Type: smithy.TypeDouble}
 
-var schemaDeliverySourceConfigurationSchema = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeliverySourceConfigurationSchema", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeliverySourceConfigurationSchema_keyName, &memberDeliverySourceConfigurationSchema_valueType, &memberDeliverySourceConfigurationSchema_defaultValue, &memberDeliverySourceConfigurationSchema_supportedValues, &memberDeliverySourceConfigurationSchema_minValue, &memberDeliverySourceConfigurationSchema_maxValue}}
+var schemaDeliverySourceConfigurationSchema = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeliverySourceConfigurationSchema", Type: smithy.TypeStructure}
 
 var memberDeliverySourceConfigurationSchema_keyName = smithy.Member{Name: "keyName", Index: 0, Target: &schemaDeliverySourceConfigurationSchemaField, Required: true}
 
@@ -745,11 +745,11 @@ var schemaDeliverySourceConfigurationSchemaField = smithy.Schema{ID: "com.amazon
 
 var schemaDeliverySourceConfigurationSchemaValueType = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeliverySourceConfigurationSchemaValueType", Type: smithy.TypeEnum}
 
-var schemaDeliverySourceConfigurationSchemas = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeliverySourceConfigurationSchemas", Type: smithy.TypeList, Members: []*smithy.Member{&memberDeliverySourceConfigurationSchemas_member}}
+var schemaDeliverySourceConfigurationSchemas = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeliverySourceConfigurationSchemas", Type: smithy.TypeList}
 
 var memberDeliverySourceConfigurationSchemas_member = smithy.Member{Name: "member", Index: 0, Target: &schemaDeliverySourceConfigurationSchema}
 
-var schemaDeliverySourceConfigurationSupportedValues = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeliverySourceConfigurationSupportedValues", Type: smithy.TypeList, Members: []*smithy.Member{&memberDeliverySourceConfigurationSupportedValues_member}}
+var schemaDeliverySourceConfigurationSupportedValues = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeliverySourceConfigurationSupportedValues", Type: smithy.TypeList}
 
 var memberDeliverySourceConfigurationSupportedValues_member = smithy.Member{Name: "member", Index: 0, Target: &schemaDeliverySourceConfigurationSchemaField}
 
@@ -761,7 +761,7 @@ var schemaDeliverySourceStatus = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs
 
 var schemaDeliverySourceStatusReason = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeliverySourceStatusReason", Type: smithy.TypeEnum}
 
-var schemaDeliverySources = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeliverySources", Type: smithy.TypeList, Members: []*smithy.Member{&memberDeliverySources_member}}
+var schemaDeliverySources = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DeliverySources", Type: smithy.TypeList}
 
 var memberDeliverySources_member = smithy.Member{Name: "member", Index: 0, Target: &schemaDeliverySource}
 
@@ -769,7 +769,7 @@ var schemaDeliverySuffixPath = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#D
 
 var schemaDescending = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Descending", Type: smithy.TypeBoolean}
 
-var schemaDescribeAccountPoliciesInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeAccountPoliciesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeAccountPoliciesInput_policyType, &memberDescribeAccountPoliciesInput_policyName, &memberDescribeAccountPoliciesInput_accountIdentifiers, &memberDescribeAccountPoliciesInput_nextToken}}
+var schemaDescribeAccountPoliciesInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeAccountPoliciesRequest", Type: smithy.TypeStructure}
 
 var memberDescribeAccountPoliciesInput_policyType = smithy.Member{Name: "policyType", Index: 0, Target: &schemaPolicyType, Required: true}
 
@@ -779,13 +779,13 @@ var memberDescribeAccountPoliciesInput_accountIdentifiers = smithy.Member{Name: 
 
 var memberDescribeAccountPoliciesInput_nextToken = smithy.Member{Name: "nextToken", Index: 3, Target: &schemaNextToken}
 
-var schemaDescribeAccountPoliciesOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeAccountPoliciesResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeAccountPoliciesOutput_accountPolicies, &memberDescribeAccountPoliciesOutput_nextToken}}
+var schemaDescribeAccountPoliciesOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeAccountPoliciesResponse", Type: smithy.TypeStructure}
 
 var memberDescribeAccountPoliciesOutput_accountPolicies = smithy.Member{Name: "accountPolicies", Index: 0, Target: &schemaAccountPolicies}
 
 var memberDescribeAccountPoliciesOutput_nextToken = smithy.Member{Name: "nextToken", Index: 1, Target: &schemaNextToken}
 
-var schemaDescribeConfigurationTemplatesInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeConfigurationTemplatesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeConfigurationTemplatesInput_service, &memberDescribeConfigurationTemplatesInput_logTypes, &memberDescribeConfigurationTemplatesInput_resourceTypes, &memberDescribeConfigurationTemplatesInput_deliveryDestinationTypes, &memberDescribeConfigurationTemplatesInput_nextToken, &memberDescribeConfigurationTemplatesInput_limit}}
+var schemaDescribeConfigurationTemplatesInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeConfigurationTemplatesRequest", Type: smithy.TypeStructure}
 
 var memberDescribeConfigurationTemplatesInput_service = smithy.Member{Name: "service", Index: 0, Target: &schemaServiceShape}
 
@@ -799,49 +799,49 @@ var memberDescribeConfigurationTemplatesInput_nextToken = smithy.Member{Name: "n
 
 var memberDescribeConfigurationTemplatesInput_limit = smithy.Member{Name: "limit", Index: 5, Target: &schemaDescribeLimit}
 
-var schemaDescribeConfigurationTemplatesOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeConfigurationTemplatesResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeConfigurationTemplatesOutput_configurationTemplates, &memberDescribeConfigurationTemplatesOutput_nextToken}}
+var schemaDescribeConfigurationTemplatesOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeConfigurationTemplatesResponse", Type: smithy.TypeStructure}
 
 var memberDescribeConfigurationTemplatesOutput_configurationTemplates = smithy.Member{Name: "configurationTemplates", Index: 0, Target: &schemaConfigurationTemplates}
 
 var memberDescribeConfigurationTemplatesOutput_nextToken = smithy.Member{Name: "nextToken", Index: 1, Target: &schemaNextToken}
 
-var schemaDescribeDeliveriesInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeDeliveriesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeDeliveriesInput_nextToken, &memberDescribeDeliveriesInput_limit}}
+var schemaDescribeDeliveriesInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeDeliveriesRequest", Type: smithy.TypeStructure}
 
 var memberDescribeDeliveriesInput_nextToken = smithy.Member{Name: "nextToken", Index: 0, Target: &schemaNextToken}
 
 var memberDescribeDeliveriesInput_limit = smithy.Member{Name: "limit", Index: 1, Target: &schemaDescribeLimit}
 
-var schemaDescribeDeliveriesOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeDeliveriesResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeDeliveriesOutput_deliveries, &memberDescribeDeliveriesOutput_nextToken}}
+var schemaDescribeDeliveriesOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeDeliveriesResponse", Type: smithy.TypeStructure}
 
 var memberDescribeDeliveriesOutput_deliveries = smithy.Member{Name: "deliveries", Index: 0, Target: &schemaDeliveries}
 
 var memberDescribeDeliveriesOutput_nextToken = smithy.Member{Name: "nextToken", Index: 1, Target: &schemaNextToken}
 
-var schemaDescribeDeliveryDestinationsInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeDeliveryDestinationsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeDeliveryDestinationsInput_nextToken, &memberDescribeDeliveryDestinationsInput_limit}}
+var schemaDescribeDeliveryDestinationsInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeDeliveryDestinationsRequest", Type: smithy.TypeStructure}
 
 var memberDescribeDeliveryDestinationsInput_nextToken = smithy.Member{Name: "nextToken", Index: 0, Target: &schemaNextToken}
 
 var memberDescribeDeliveryDestinationsInput_limit = smithy.Member{Name: "limit", Index: 1, Target: &schemaDescribeLimit}
 
-var schemaDescribeDeliveryDestinationsOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeDeliveryDestinationsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeDeliveryDestinationsOutput_deliveryDestinations, &memberDescribeDeliveryDestinationsOutput_nextToken}}
+var schemaDescribeDeliveryDestinationsOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeDeliveryDestinationsResponse", Type: smithy.TypeStructure}
 
 var memberDescribeDeliveryDestinationsOutput_deliveryDestinations = smithy.Member{Name: "deliveryDestinations", Index: 0, Target: &schemaDeliveryDestinations}
 
 var memberDescribeDeliveryDestinationsOutput_nextToken = smithy.Member{Name: "nextToken", Index: 1, Target: &schemaNextToken}
 
-var schemaDescribeDeliverySourcesInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeDeliverySourcesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeDeliverySourcesInput_nextToken, &memberDescribeDeliverySourcesInput_limit}}
+var schemaDescribeDeliverySourcesInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeDeliverySourcesRequest", Type: smithy.TypeStructure}
 
 var memberDescribeDeliverySourcesInput_nextToken = smithy.Member{Name: "nextToken", Index: 0, Target: &schemaNextToken}
 
 var memberDescribeDeliverySourcesInput_limit = smithy.Member{Name: "limit", Index: 1, Target: &schemaDescribeLimit}
 
-var schemaDescribeDeliverySourcesOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeDeliverySourcesResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeDeliverySourcesOutput_deliverySources, &memberDescribeDeliverySourcesOutput_nextToken}}
+var schemaDescribeDeliverySourcesOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeDeliverySourcesResponse", Type: smithy.TypeStructure}
 
 var memberDescribeDeliverySourcesOutput_deliverySources = smithy.Member{Name: "deliverySources", Index: 0, Target: &schemaDeliverySources}
 
 var memberDescribeDeliverySourcesOutput_nextToken = smithy.Member{Name: "nextToken", Index: 1, Target: &schemaNextToken}
 
-var schemaDescribeDestinationsInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeDestinationsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeDestinationsInput_DestinationNamePrefix, &memberDescribeDestinationsInput_nextToken, &memberDescribeDestinationsInput_limit}}
+var schemaDescribeDestinationsInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeDestinationsRequest", Type: smithy.TypeStructure}
 
 var memberDescribeDestinationsInput_DestinationNamePrefix = smithy.Member{Name: "DestinationNamePrefix", Index: 0, Target: &schemaDestinationName}
 
@@ -849,13 +849,13 @@ var memberDescribeDestinationsInput_nextToken = smithy.Member{Name: "nextToken",
 
 var memberDescribeDestinationsInput_limit = smithy.Member{Name: "limit", Index: 2, Target: &schemaDescribeLimit}
 
-var schemaDescribeDestinationsOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeDestinationsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeDestinationsOutput_destinations, &memberDescribeDestinationsOutput_nextToken}}
+var schemaDescribeDestinationsOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeDestinationsResponse", Type: smithy.TypeStructure}
 
 var memberDescribeDestinationsOutput_destinations = smithy.Member{Name: "destinations", Index: 0, Target: &schemaDestinations}
 
 var memberDescribeDestinationsOutput_nextToken = smithy.Member{Name: "nextToken", Index: 1, Target: &schemaNextToken}
 
-var schemaDescribeExportTasksInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeExportTasksRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeExportTasksInput_taskId, &memberDescribeExportTasksInput_statusCode, &memberDescribeExportTasksInput_nextToken, &memberDescribeExportTasksInput_limit}}
+var schemaDescribeExportTasksInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeExportTasksRequest", Type: smithy.TypeStructure}
 
 var memberDescribeExportTasksInput_taskId = smithy.Member{Name: "taskId", Index: 0, Target: &schemaExportTaskId}
 
@@ -865,13 +865,13 @@ var memberDescribeExportTasksInput_nextToken = smithy.Member{Name: "nextToken", 
 
 var memberDescribeExportTasksInput_limit = smithy.Member{Name: "limit", Index: 3, Target: &schemaDescribeLimit}
 
-var schemaDescribeExportTasksOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeExportTasksResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeExportTasksOutput_exportTasks, &memberDescribeExportTasksOutput_nextToken}}
+var schemaDescribeExportTasksOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeExportTasksResponse", Type: smithy.TypeStructure}
 
 var memberDescribeExportTasksOutput_exportTasks = smithy.Member{Name: "exportTasks", Index: 0, Target: &schemaExportTasks}
 
 var memberDescribeExportTasksOutput_nextToken = smithy.Member{Name: "nextToken", Index: 1, Target: &schemaNextToken}
 
-var schemaDescribeFieldIndexesInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeFieldIndexesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeFieldIndexesInput_logGroupIdentifiers, &memberDescribeFieldIndexesInput_indexCategories, &memberDescribeFieldIndexesInput_nextToken}}
+var schemaDescribeFieldIndexesInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeFieldIndexesRequest", Type: smithy.TypeStructure}
 
 var memberDescribeFieldIndexesInput_logGroupIdentifiers = smithy.Member{Name: "logGroupIdentifiers", Index: 0, Target: &schemaDescribeFieldIndexesLogGroupIdentifiers, Required: true}
 
@@ -879,17 +879,17 @@ var memberDescribeFieldIndexesInput_indexCategories = smithy.Member{Name: "index
 
 var memberDescribeFieldIndexesInput_nextToken = smithy.Member{Name: "nextToken", Index: 2, Target: &schemaNextToken}
 
-var schemaDescribeFieldIndexesLogGroupIdentifiers = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeFieldIndexesLogGroupIdentifiers", Type: smithy.TypeList, Members: []*smithy.Member{&memberDescribeFieldIndexesLogGroupIdentifiers_member}}
+var schemaDescribeFieldIndexesLogGroupIdentifiers = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeFieldIndexesLogGroupIdentifiers", Type: smithy.TypeList}
 
 var memberDescribeFieldIndexesLogGroupIdentifiers_member = smithy.Member{Name: "member", Index: 0, Target: &schemaLogGroupIdentifier}
 
-var schemaDescribeFieldIndexesOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeFieldIndexesResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeFieldIndexesOutput_fieldIndexes, &memberDescribeFieldIndexesOutput_nextToken}}
+var schemaDescribeFieldIndexesOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeFieldIndexesResponse", Type: smithy.TypeStructure}
 
 var memberDescribeFieldIndexesOutput_fieldIndexes = smithy.Member{Name: "fieldIndexes", Index: 0, Target: &schemaFieldIndexes}
 
 var memberDescribeFieldIndexesOutput_nextToken = smithy.Member{Name: "nextToken", Index: 1, Target: &schemaNextToken}
 
-var schemaDescribeImportTaskBatchesInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeImportTaskBatchesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeImportTaskBatchesInput_importId, &memberDescribeImportTaskBatchesInput_batchImportStatus, &memberDescribeImportTaskBatchesInput_limit, &memberDescribeImportTaskBatchesInput_nextToken}}
+var schemaDescribeImportTaskBatchesInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeImportTaskBatchesRequest", Type: smithy.TypeStructure}
 
 var memberDescribeImportTaskBatchesInput_importId = smithy.Member{Name: "importId", Index: 0, Target: &schemaImportId, Required: true}
 
@@ -899,7 +899,7 @@ var memberDescribeImportTaskBatchesInput_limit = smithy.Member{Name: "limit", In
 
 var memberDescribeImportTaskBatchesInput_nextToken = smithy.Member{Name: "nextToken", Index: 3, Target: &schemaNextToken}
 
-var schemaDescribeImportTaskBatchesOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeImportTaskBatchesResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeImportTaskBatchesOutput_importSourceArn, &memberDescribeImportTaskBatchesOutput_importId, &memberDescribeImportTaskBatchesOutput_importBatches, &memberDescribeImportTaskBatchesOutput_nextToken}}
+var schemaDescribeImportTaskBatchesOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeImportTaskBatchesResponse", Type: smithy.TypeStructure}
 
 var memberDescribeImportTaskBatchesOutput_importSourceArn = smithy.Member{Name: "importSourceArn", Index: 0, Target: &schemaArn}
 
@@ -909,7 +909,7 @@ var memberDescribeImportTaskBatchesOutput_importBatches = smithy.Member{Name: "i
 
 var memberDescribeImportTaskBatchesOutput_nextToken = smithy.Member{Name: "nextToken", Index: 3, Target: &schemaNextToken}
 
-var schemaDescribeImportTasksInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeImportTasksRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeImportTasksInput_importId, &memberDescribeImportTasksInput_importStatus, &memberDescribeImportTasksInput_importSourceArn, &memberDescribeImportTasksInput_limit, &memberDescribeImportTasksInput_nextToken}}
+var schemaDescribeImportTasksInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeImportTasksRequest", Type: smithy.TypeStructure}
 
 var memberDescribeImportTasksInput_importId = smithy.Member{Name: "importId", Index: 0, Target: &schemaImportId}
 
@@ -921,23 +921,23 @@ var memberDescribeImportTasksInput_limit = smithy.Member{Name: "limit", Index: 3
 
 var memberDescribeImportTasksInput_nextToken = smithy.Member{Name: "nextToken", Index: 4, Target: &schemaNextToken}
 
-var schemaDescribeImportTasksOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeImportTasksResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeImportTasksOutput_imports, &memberDescribeImportTasksOutput_nextToken}}
+var schemaDescribeImportTasksOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeImportTasksResponse", Type: smithy.TypeStructure}
 
 var memberDescribeImportTasksOutput_imports = smithy.Member{Name: "imports", Index: 0, Target: &schemaImportList}
 
 var memberDescribeImportTasksOutput_nextToken = smithy.Member{Name: "nextToken", Index: 1, Target: &schemaNextToken}
 
-var schemaDescribeIndexPoliciesInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeIndexPoliciesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeIndexPoliciesInput_logGroupIdentifiers, &memberDescribeIndexPoliciesInput_nextToken}}
+var schemaDescribeIndexPoliciesInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeIndexPoliciesRequest", Type: smithy.TypeStructure}
 
 var memberDescribeIndexPoliciesInput_logGroupIdentifiers = smithy.Member{Name: "logGroupIdentifiers", Index: 0, Target: &schemaDescribeIndexPoliciesLogGroupIdentifiers, Required: true}
 
 var memberDescribeIndexPoliciesInput_nextToken = smithy.Member{Name: "nextToken", Index: 1, Target: &schemaNextToken}
 
-var schemaDescribeIndexPoliciesLogGroupIdentifiers = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeIndexPoliciesLogGroupIdentifiers", Type: smithy.TypeList, Members: []*smithy.Member{&memberDescribeIndexPoliciesLogGroupIdentifiers_member}}
+var schemaDescribeIndexPoliciesLogGroupIdentifiers = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeIndexPoliciesLogGroupIdentifiers", Type: smithy.TypeList}
 
 var memberDescribeIndexPoliciesLogGroupIdentifiers_member = smithy.Member{Name: "member", Index: 0, Target: &schemaLogGroupIdentifier}
 
-var schemaDescribeIndexPoliciesOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeIndexPoliciesResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeIndexPoliciesOutput_indexPolicies, &memberDescribeIndexPoliciesOutput_nextToken}}
+var schemaDescribeIndexPoliciesOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeIndexPoliciesResponse", Type: smithy.TypeStructure}
 
 var memberDescribeIndexPoliciesOutput_indexPolicies = smithy.Member{Name: "indexPolicies", Index: 0, Target: &schemaIndexPolicies}
 
@@ -995,7 +995,7 @@ var memberDescribeLogStreamsOutput_logStreams = smithy.Member{Name: "logStreams"
 
 var memberDescribeLogStreamsOutput_nextToken = smithy.Member{Name: "nextToken", Index: 1, Target: &schemaNextToken}
 
-var schemaDescribeLookupTablesInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeLookupTablesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeLookupTablesInput_lookupTableNamePrefix, &memberDescribeLookupTablesInput_maxResults, &memberDescribeLookupTablesInput_nextToken}}
+var schemaDescribeLookupTablesInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeLookupTablesRequest", Type: smithy.TypeStructure}
 
 var memberDescribeLookupTablesInput_lookupTableNamePrefix = smithy.Member{Name: "lookupTableNamePrefix", Index: 0, Target: &schemaLookupTableName}
 
@@ -1005,13 +1005,13 @@ var memberDescribeLookupTablesInput_nextToken = smithy.Member{Name: "nextToken",
 
 var schemaDescribeLookupTablesMaxResults = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeLookupTablesMaxResults", Type: smithy.TypeInteger}
 
-var schemaDescribeLookupTablesOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeLookupTablesResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeLookupTablesOutput_lookupTables, &memberDescribeLookupTablesOutput_nextToken}}
+var schemaDescribeLookupTablesOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeLookupTablesResponse", Type: smithy.TypeStructure}
 
 var memberDescribeLookupTablesOutput_lookupTables = smithy.Member{Name: "lookupTables", Index: 0, Target: &schemaLookupTables}
 
 var memberDescribeLookupTablesOutput_nextToken = smithy.Member{Name: "nextToken", Index: 1, Target: &schemaNextToken}
 
-var schemaDescribeMetricFiltersInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeMetricFiltersRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeMetricFiltersInput_logGroupName, &memberDescribeMetricFiltersInput_filterNamePrefix, &memberDescribeMetricFiltersInput_nextToken, &memberDescribeMetricFiltersInput_limit, &memberDescribeMetricFiltersInput_metricName, &memberDescribeMetricFiltersInput_metricNamespace}}
+var schemaDescribeMetricFiltersInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeMetricFiltersRequest", Type: smithy.TypeStructure}
 
 var memberDescribeMetricFiltersInput_logGroupName = smithy.Member{Name: "logGroupName", Index: 0, Target: &schemaLogGroupName}
 
@@ -1025,13 +1025,13 @@ var memberDescribeMetricFiltersInput_metricName = smithy.Member{Name: "metricNam
 
 var memberDescribeMetricFiltersInput_metricNamespace = smithy.Member{Name: "metricNamespace", Index: 5, Target: &schemaMetricNamespace}
 
-var schemaDescribeMetricFiltersOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeMetricFiltersResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeMetricFiltersOutput_metricFilters, &memberDescribeMetricFiltersOutput_nextToken}}
+var schemaDescribeMetricFiltersOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeMetricFiltersResponse", Type: smithy.TypeStructure}
 
 var memberDescribeMetricFiltersOutput_metricFilters = smithy.Member{Name: "metricFilters", Index: 0, Target: &schemaMetricFilters}
 
 var memberDescribeMetricFiltersOutput_nextToken = smithy.Member{Name: "nextToken", Index: 1, Target: &schemaNextToken}
 
-var schemaDescribeQueriesInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeQueriesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeQueriesInput_logGroupName, &memberDescribeQueriesInput_status, &memberDescribeQueriesInput_maxResults, &memberDescribeQueriesInput_nextToken, &memberDescribeQueriesInput_queryLanguage}}
+var schemaDescribeQueriesInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeQueriesRequest", Type: smithy.TypeStructure}
 
 var memberDescribeQueriesInput_logGroupName = smithy.Member{Name: "logGroupName", Index: 0, Target: &schemaLogGroupName}
 
@@ -1045,13 +1045,13 @@ var memberDescribeQueriesInput_queryLanguage = smithy.Member{Name: "queryLanguag
 
 var schemaDescribeQueriesMaxResults = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeQueriesMaxResults", Type: smithy.TypeInteger}
 
-var schemaDescribeQueriesOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeQueriesResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeQueriesOutput_queries, &memberDescribeQueriesOutput_nextToken}}
+var schemaDescribeQueriesOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeQueriesResponse", Type: smithy.TypeStructure}
 
 var memberDescribeQueriesOutput_queries = smithy.Member{Name: "queries", Index: 0, Target: &schemaQueryInfoList}
 
 var memberDescribeQueriesOutput_nextToken = smithy.Member{Name: "nextToken", Index: 1, Target: &schemaNextToken}
 
-var schemaDescribeQueryDefinitionsInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeQueryDefinitionsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeQueryDefinitionsInput_queryLanguage, &memberDescribeQueryDefinitionsInput_queryDefinitionNamePrefix, &memberDescribeQueryDefinitionsInput_maxResults, &memberDescribeQueryDefinitionsInput_nextToken}}
+var schemaDescribeQueryDefinitionsInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeQueryDefinitionsRequest", Type: smithy.TypeStructure}
 
 var memberDescribeQueryDefinitionsInput_queryLanguage = smithy.Member{Name: "queryLanguage", Index: 0, Target: &schemaQueryLanguage}
 
@@ -1061,13 +1061,13 @@ var memberDescribeQueryDefinitionsInput_maxResults = smithy.Member{Name: "maxRes
 
 var memberDescribeQueryDefinitionsInput_nextToken = smithy.Member{Name: "nextToken", Index: 3, Target: &schemaNextToken}
 
-var schemaDescribeQueryDefinitionsOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeQueryDefinitionsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeQueryDefinitionsOutput_queryDefinitions, &memberDescribeQueryDefinitionsOutput_nextToken}}
+var schemaDescribeQueryDefinitionsOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeQueryDefinitionsResponse", Type: smithy.TypeStructure}
 
 var memberDescribeQueryDefinitionsOutput_queryDefinitions = smithy.Member{Name: "queryDefinitions", Index: 0, Target: &schemaQueryDefinitionList}
 
 var memberDescribeQueryDefinitionsOutput_nextToken = smithy.Member{Name: "nextToken", Index: 1, Target: &schemaNextToken}
 
-var schemaDescribeResourcePoliciesInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeResourcePoliciesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeResourcePoliciesInput_nextToken, &memberDescribeResourcePoliciesInput_limit, &memberDescribeResourcePoliciesInput_resourceArn, &memberDescribeResourcePoliciesInput_policyScope}}
+var schemaDescribeResourcePoliciesInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeResourcePoliciesRequest", Type: smithy.TypeStructure}
 
 var memberDescribeResourcePoliciesInput_nextToken = smithy.Member{Name: "nextToken", Index: 0, Target: &schemaNextToken}
 
@@ -1077,13 +1077,13 @@ var memberDescribeResourcePoliciesInput_resourceArn = smithy.Member{Name: "resou
 
 var memberDescribeResourcePoliciesInput_policyScope = smithy.Member{Name: "policyScope", Index: 3, Target: &schemaPolicyScope}
 
-var schemaDescribeResourcePoliciesOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeResourcePoliciesResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeResourcePoliciesOutput_resourcePolicies, &memberDescribeResourcePoliciesOutput_nextToken}}
+var schemaDescribeResourcePoliciesOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeResourcePoliciesResponse", Type: smithy.TypeStructure}
 
 var memberDescribeResourcePoliciesOutput_resourcePolicies = smithy.Member{Name: "resourcePolicies", Index: 0, Target: &schemaResourcePolicies}
 
 var memberDescribeResourcePoliciesOutput_nextToken = smithy.Member{Name: "nextToken", Index: 1, Target: &schemaNextToken}
 
-var schemaDescribeSubscriptionFiltersInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeSubscriptionFiltersRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeSubscriptionFiltersInput_logGroupName, &memberDescribeSubscriptionFiltersInput_filterNamePrefix, &memberDescribeSubscriptionFiltersInput_nextToken, &memberDescribeSubscriptionFiltersInput_limit}}
+var schemaDescribeSubscriptionFiltersInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeSubscriptionFiltersRequest", Type: smithy.TypeStructure}
 
 var memberDescribeSubscriptionFiltersInput_logGroupName = smithy.Member{Name: "logGroupName", Index: 0, Target: &schemaLogGroupName, Required: true}
 
@@ -1093,7 +1093,7 @@ var memberDescribeSubscriptionFiltersInput_nextToken = smithy.Member{Name: "next
 
 var memberDescribeSubscriptionFiltersInput_limit = smithy.Member{Name: "limit", Index: 3, Target: &schemaDescribeLimit}
 
-var schemaDescribeSubscriptionFiltersOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeSubscriptionFiltersResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeSubscriptionFiltersOutput_subscriptionFilters, &memberDescribeSubscriptionFiltersOutput_nextToken}}
+var schemaDescribeSubscriptionFiltersOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DescribeSubscriptionFiltersResponse", Type: smithy.TypeStructure}
 
 var memberDescribeSubscriptionFiltersOutput_subscriptionFilters = smithy.Member{Name: "subscriptionFilters", Index: 0, Target: &schemaSubscriptionFilters}
 
@@ -1101,7 +1101,7 @@ var memberDescribeSubscriptionFiltersOutput_nextToken = smithy.Member{Name: "nex
 
 var schemaDescription = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Description", Type: smithy.TypeString}
 
-var schemaDestination = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Destination", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDestination_destinationName, &memberDestination_targetArn, &memberDestination_roleArn, &memberDestination_accessPolicy, &memberDestination_arn, &memberDestination_creationTime}}
+var schemaDestination = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Destination", Type: smithy.TypeStructure}
 
 var memberDestination_destinationName = smithy.Member{Name: "destinationName", Index: 0, Target: &schemaDestinationName}
 
@@ -1117,7 +1117,7 @@ var memberDestination_creationTime = smithy.Member{Name: "creationTime", Index: 
 
 var schemaDestinationArn = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DestinationArn", Type: smithy.TypeString}
 
-var schemaDestinationConfiguration = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DestinationConfiguration", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDestinationConfiguration_s3Configuration, &memberDestinationConfiguration_lookupTableConfiguration}}
+var schemaDestinationConfiguration = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DestinationConfiguration", Type: smithy.TypeStructure}
 
 var memberDestinationConfiguration_s3Configuration = smithy.Member{Name: "s3Configuration", Index: 0, Target: &schemaS3Configuration}
 
@@ -1127,7 +1127,7 @@ var schemaDestinationField = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Des
 
 var schemaDestinationName = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DestinationName", Type: smithy.TypeString}
 
-var schemaDestinations = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Destinations", Type: smithy.TypeList, Members: []*smithy.Member{&memberDestinations_member}}
+var schemaDestinations = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Destinations", Type: smithy.TypeList}
 
 var memberDestinations_member = smithy.Member{Name: "member", Index: 0, Target: &schemaDestination}
 
@@ -1135,7 +1135,7 @@ var schemaDetectorKmsKeyArn = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#De
 
 var schemaDetectorName = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DetectorName", Type: smithy.TypeString}
 
-var schemaDimensions = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Dimensions", Type: smithy.TypeMap, Members: []*smithy.Member{&memberDimensions_key, &memberDimensions_value}}
+var schemaDimensions = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Dimensions", Type: smithy.TypeMap}
 
 var memberDimensions_key = smithy.Member{Name: "key", Index: 0, Target: &schemaDimensionsKey}
 
@@ -1145,17 +1145,17 @@ var schemaDimensionsKey = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Dimens
 
 var schemaDimensionsValue = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DimensionsValue", Type: smithy.TypeString}
 
-var schemaDisassociateKmsKeyInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DisassociateKmsKeyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDisassociateKmsKeyInput_logGroupName, &memberDisassociateKmsKeyInput_resourceIdentifier}}
+var schemaDisassociateKmsKeyInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DisassociateKmsKeyRequest", Type: smithy.TypeStructure}
 
 var memberDisassociateKmsKeyInput_logGroupName = smithy.Member{Name: "logGroupName", Index: 0, Target: &schemaLogGroupName}
 
 var memberDisassociateKmsKeyInput_resourceIdentifier = smithy.Member{Name: "resourceIdentifier", Index: 1, Target: &schemaResourceIdentifier}
 
-var schemaDisassociateSourceFromS3TableIntegrationInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DisassociateSourceFromS3TableIntegrationRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDisassociateSourceFromS3TableIntegrationInput_identifier}}
+var schemaDisassociateSourceFromS3TableIntegrationInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DisassociateSourceFromS3TableIntegrationRequest", Type: smithy.TypeStructure}
 
 var memberDisassociateSourceFromS3TableIntegrationInput_identifier = smithy.Member{Name: "identifier", Index: 0, Target: &schemaS3TableIntegrationSourceIdentifier, Required: true}
 
-var schemaDisassociateSourceFromS3TableIntegrationOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DisassociateSourceFromS3TableIntegrationResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDisassociateSourceFromS3TableIntegrationOutput_identifier}}
+var schemaDisassociateSourceFromS3TableIntegrationOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DisassociateSourceFromS3TableIntegrationResponse", Type: smithy.TypeStructure}
 
 var memberDisassociateSourceFromS3TableIntegrationOutput_identifier = smithy.Member{Name: "identifier", Index: 0, Target: &schemaS3TableIntegrationSourceIdentifier}
 
@@ -1163,7 +1163,7 @@ var schemaDistribution = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Distrib
 
 var schemaDynamicTokenPosition = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#DynamicTokenPosition", Type: smithy.TypeInteger}
 
-var schemaEmitSystemFields = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#EmitSystemFields", Type: smithy.TypeList, Members: []*smithy.Member{&memberEmitSystemFields_member}}
+var schemaEmitSystemFields = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#EmitSystemFields", Type: smithy.TypeList}
 
 var memberEmitSystemFields_member = smithy.Member{Name: "member", Index: 0, Target: &schemaSystemField}
 
@@ -1199,7 +1199,7 @@ var schemaEntityKeyAttributesValue = smithy.Schema{ID: "com.amazonaws.cloudwatch
 
 var schemaEntityRejectionErrorType = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#EntityRejectionErrorType", Type: smithy.TypeEnum}
 
-var schemaEnumerations = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Enumerations", Type: smithy.TypeMap, Members: []*smithy.Member{&memberEnumerations_key, &memberEnumerations_value}}
+var schemaEnumerations = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Enumerations", Type: smithy.TypeMap}
 
 var memberEnumerations_key = smithy.Member{Name: "key", Index: 0, Target: &schemaTokenString}
 
@@ -1225,7 +1225,7 @@ var schemaEventsLimitStartQuery = smithy.Schema{ID: "com.amazonaws.cloudwatchlog
 
 var schemaExecutionStatus = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ExecutionStatus", Type: smithy.TypeEnum}
 
-var schemaExecutionStatusList = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ExecutionStatusList", Type: smithy.TypeList, Members: []*smithy.Member{&memberExecutionStatusList_member}}
+var schemaExecutionStatusList = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ExecutionStatusList", Type: smithy.TypeList}
 
 var memberExecutionStatusList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaExecutionStatus}
 
@@ -1239,7 +1239,7 @@ var schemaExportDestinationBucket = smithy.Schema{ID: "com.amazonaws.cloudwatchl
 
 var schemaExportDestinationPrefix = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ExportDestinationPrefix", Type: smithy.TypeString}
 
-var schemaExportTask = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ExportTask", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberExportTask_taskId, &memberExportTask_taskName, &memberExportTask_logGroupName, &memberExportTask_from, &memberExportTask_to, &memberExportTask_destination, &memberExportTask_destinationPrefix, &memberExportTask_status, &memberExportTask_executionInfo}}
+var schemaExportTask = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ExportTask", Type: smithy.TypeStructure}
 
 var memberExportTask_taskId = smithy.Member{Name: "taskId", Index: 0, Target: &schemaExportTaskId}
 
@@ -1259,7 +1259,7 @@ var memberExportTask_status = smithy.Member{Name: "status", Index: 7, Target: &s
 
 var memberExportTask_executionInfo = smithy.Member{Name: "executionInfo", Index: 8, Target: &schemaExportTaskExecutionInfo}
 
-var schemaExportTaskExecutionInfo = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ExportTaskExecutionInfo", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberExportTaskExecutionInfo_creationTime, &memberExportTaskExecutionInfo_completionTime}}
+var schemaExportTaskExecutionInfo = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ExportTaskExecutionInfo", Type: smithy.TypeStructure}
 
 var memberExportTaskExecutionInfo_creationTime = smithy.Member{Name: "creationTime", Index: 0, Target: &schemaTimestamp}
 
@@ -1269,7 +1269,7 @@ var schemaExportTaskId = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ExportT
 
 var schemaExportTaskName = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ExportTaskName", Type: smithy.TypeString}
 
-var schemaExportTaskStatus = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ExportTaskStatus", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberExportTaskStatus_code, &memberExportTaskStatus_message}}
+var schemaExportTaskStatus = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ExportTaskStatus", Type: smithy.TypeStructure}
 
 var memberExportTaskStatus_code = smithy.Member{Name: "code", Index: 0, Target: &schemaExportTaskStatusCode}
 
@@ -1279,11 +1279,11 @@ var schemaExportTaskStatusCode = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs
 
 var schemaExportTaskStatusMessage = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ExportTaskStatusMessage", Type: smithy.TypeString}
 
-var schemaExportTasks = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ExportTasks", Type: smithy.TypeList, Members: []*smithy.Member{&memberExportTasks_member}}
+var schemaExportTasks = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ExportTasks", Type: smithy.TypeList}
 
 var memberExportTasks_member = smithy.Member{Name: "member", Index: 0, Target: &schemaExportTask}
 
-var schemaExtractedValues = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ExtractedValues", Type: smithy.TypeMap, Members: []*smithy.Member{&memberExtractedValues_key, &memberExtractedValues_value}}
+var schemaExtractedValues = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ExtractedValues", Type: smithy.TypeMap}
 
 var memberExtractedValues_key = smithy.Member{Name: "key", Index: 0, Target: &schemaToken}
 
@@ -1295,7 +1295,7 @@ var schemaFieldDelimiter = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Field
 
 var schemaFieldHeader = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#FieldHeader", Type: smithy.TypeString}
 
-var schemaFieldIndex = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#FieldIndex", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberFieldIndex_logGroupIdentifier, &memberFieldIndex_fieldIndexName, &memberFieldIndex_lastScanTime, &memberFieldIndex_firstEventTime, &memberFieldIndex_lastEventTime, &memberFieldIndex_type, &memberFieldIndex_indexCategory}}
+var schemaFieldIndex = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#FieldIndex", Type: smithy.TypeStructure}
 
 var memberFieldIndex_logGroupIdentifier = smithy.Member{Name: "logGroupIdentifier", Index: 0, Target: &schemaLogGroupIdentifier}
 
@@ -1313,17 +1313,17 @@ var memberFieldIndex_indexCategory = smithy.Member{Name: "indexCategory", Index:
 
 var schemaFieldIndexName = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#FieldIndexName", Type: smithy.TypeString}
 
-var schemaFieldIndexNames = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#FieldIndexNames", Type: smithy.TypeList, Members: []*smithy.Member{&memberFieldIndexNames_member}}
+var schemaFieldIndexNames = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#FieldIndexNames", Type: smithy.TypeList}
 
 var memberFieldIndexNames_member = smithy.Member{Name: "member", Index: 0, Target: &schemaFieldIndexName}
 
-var schemaFieldIndexes = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#FieldIndexes", Type: smithy.TypeList, Members: []*smithy.Member{&memberFieldIndexes_member}}
+var schemaFieldIndexes = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#FieldIndexes", Type: smithy.TypeList}
 
 var memberFieldIndexes_member = smithy.Member{Name: "member", Index: 0, Target: &schemaFieldIndex}
 
 var schemaFieldSelectionCriteria = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#FieldSelectionCriteria", Type: smithy.TypeString}
 
-var schemaFieldsData = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#FieldsData", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberFieldsData_data}}
+var schemaFieldsData = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#FieldsData", Type: smithy.TypeStructure}
 
 var memberFieldsData_data = smithy.Member{Name: "data", Index: 0, Target: &schemaData}
 
@@ -1393,11 +1393,11 @@ var schemaForceUpdate = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ForceUpd
 
 var schemaFromKey = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#FromKey", Type: smithy.TypeString}
 
-var schemaGetDataProtectionPolicyInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetDataProtectionPolicyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetDataProtectionPolicyInput_logGroupIdentifier}}
+var schemaGetDataProtectionPolicyInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetDataProtectionPolicyRequest", Type: smithy.TypeStructure}
 
 var memberGetDataProtectionPolicyInput_logGroupIdentifier = smithy.Member{Name: "logGroupIdentifier", Index: 0, Target: &schemaLogGroupIdentifier, Required: true}
 
-var schemaGetDataProtectionPolicyOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetDataProtectionPolicyResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetDataProtectionPolicyOutput_logGroupIdentifier, &memberGetDataProtectionPolicyOutput_policyDocument, &memberGetDataProtectionPolicyOutput_lastUpdatedTime}}
+var schemaGetDataProtectionPolicyOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetDataProtectionPolicyResponse", Type: smithy.TypeStructure}
 
 var memberGetDataProtectionPolicyOutput_logGroupIdentifier = smithy.Member{Name: "logGroupIdentifier", Index: 0, Target: &schemaLogGroupIdentifier}
 
@@ -1405,43 +1405,43 @@ var memberGetDataProtectionPolicyOutput_policyDocument = smithy.Member{Name: "po
 
 var memberGetDataProtectionPolicyOutput_lastUpdatedTime = smithy.Member{Name: "lastUpdatedTime", Index: 2, Target: &schemaTimestamp}
 
-var schemaGetDeliveryDestinationInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetDeliveryDestinationRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetDeliveryDestinationInput_name}}
+var schemaGetDeliveryDestinationInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetDeliveryDestinationRequest", Type: smithy.TypeStructure}
 
 var memberGetDeliveryDestinationInput_name = smithy.Member{Name: "name", Index: 0, Target: &schemaDeliveryDestinationName, Required: true}
 
-var schemaGetDeliveryDestinationOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetDeliveryDestinationResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetDeliveryDestinationOutput_deliveryDestination}}
+var schemaGetDeliveryDestinationOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetDeliveryDestinationResponse", Type: smithy.TypeStructure}
 
 var memberGetDeliveryDestinationOutput_deliveryDestination = smithy.Member{Name: "deliveryDestination", Index: 0, Target: &schemaDeliveryDestination}
 
-var schemaGetDeliveryDestinationPolicyInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetDeliveryDestinationPolicyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetDeliveryDestinationPolicyInput_deliveryDestinationName}}
+var schemaGetDeliveryDestinationPolicyInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetDeliveryDestinationPolicyRequest", Type: smithy.TypeStructure}
 
 var memberGetDeliveryDestinationPolicyInput_deliveryDestinationName = smithy.Member{Name: "deliveryDestinationName", Index: 0, Target: &schemaDeliveryDestinationName, Required: true}
 
-var schemaGetDeliveryDestinationPolicyOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetDeliveryDestinationPolicyResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetDeliveryDestinationPolicyOutput_policy}}
+var schemaGetDeliveryDestinationPolicyOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetDeliveryDestinationPolicyResponse", Type: smithy.TypeStructure}
 
 var memberGetDeliveryDestinationPolicyOutput_policy = smithy.Member{Name: "policy", Index: 0, Target: &schemaPolicy}
 
-var schemaGetDeliveryInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetDeliveryRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetDeliveryInput_id}}
+var schemaGetDeliveryInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetDeliveryRequest", Type: smithy.TypeStructure}
 
 var memberGetDeliveryInput_id = smithy.Member{Name: "id", Index: 0, Target: &schemaDeliveryId, Required: true}
 
-var schemaGetDeliveryOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetDeliveryResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetDeliveryOutput_delivery}}
+var schemaGetDeliveryOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetDeliveryResponse", Type: smithy.TypeStructure}
 
 var memberGetDeliveryOutput_delivery = smithy.Member{Name: "delivery", Index: 0, Target: &schemaDelivery}
 
-var schemaGetDeliverySourceInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetDeliverySourceRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetDeliverySourceInput_name}}
+var schemaGetDeliverySourceInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetDeliverySourceRequest", Type: smithy.TypeStructure}
 
 var memberGetDeliverySourceInput_name = smithy.Member{Name: "name", Index: 0, Target: &schemaDeliverySourceName, Required: true}
 
-var schemaGetDeliverySourceOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetDeliverySourceResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetDeliverySourceOutput_deliverySource}}
+var schemaGetDeliverySourceOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetDeliverySourceResponse", Type: smithy.TypeStructure}
 
 var memberGetDeliverySourceOutput_deliverySource = smithy.Member{Name: "deliverySource", Index: 0, Target: &schemaDeliverySource}
 
-var schemaGetIntegrationInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetIntegrationRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetIntegrationInput_integrationName}}
+var schemaGetIntegrationInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetIntegrationRequest", Type: smithy.TypeStructure}
 
 var memberGetIntegrationInput_integrationName = smithy.Member{Name: "integrationName", Index: 0, Target: &schemaIntegrationName, Required: true}
 
-var schemaGetIntegrationOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetIntegrationResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetIntegrationOutput_integrationName, &memberGetIntegrationOutput_integrationType, &memberGetIntegrationOutput_integrationStatus, &memberGetIntegrationOutput_integrationDetails}}
+var schemaGetIntegrationOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetIntegrationResponse", Type: smithy.TypeStructure}
 
 var memberGetIntegrationOutput_integrationName = smithy.Member{Name: "integrationName", Index: 0, Target: &schemaIntegrationName}
 
@@ -1451,11 +1451,11 @@ var memberGetIntegrationOutput_integrationStatus = smithy.Member{Name: "integrat
 
 var memberGetIntegrationOutput_integrationDetails = smithy.Member{Name: "integrationDetails", Index: 3, Target: &schemaIntegrationDetails}
 
-var schemaGetLogAnomalyDetectorInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetLogAnomalyDetectorRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetLogAnomalyDetectorInput_anomalyDetectorArn}}
+var schemaGetLogAnomalyDetectorInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetLogAnomalyDetectorRequest", Type: smithy.TypeStructure}
 
 var memberGetLogAnomalyDetectorInput_anomalyDetectorArn = smithy.Member{Name: "anomalyDetectorArn", Index: 0, Target: &schemaAnomalyDetectorArn, Required: true}
 
-var schemaGetLogAnomalyDetectorOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetLogAnomalyDetectorResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetLogAnomalyDetectorOutput_detectorName, &memberGetLogAnomalyDetectorOutput_logGroupArnList, &memberGetLogAnomalyDetectorOutput_evaluationFrequency, &memberGetLogAnomalyDetectorOutput_filterPattern, &memberGetLogAnomalyDetectorOutput_anomalyDetectorStatus, &memberGetLogAnomalyDetectorOutput_kmsKeyId, &memberGetLogAnomalyDetectorOutput_creationTimeStamp, &memberGetLogAnomalyDetectorOutput_lastModifiedTimeStamp, &memberGetLogAnomalyDetectorOutput_anomalyVisibilityTime}}
+var schemaGetLogAnomalyDetectorOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetLogAnomalyDetectorResponse", Type: smithy.TypeStructure}
 
 var memberGetLogAnomalyDetectorOutput_detectorName = smithy.Member{Name: "detectorName", Index: 0, Target: &schemaDetectorName}
 
@@ -1503,17 +1503,17 @@ var memberGetLogEventsOutput_nextForwardToken = smithy.Member{Name: "nextForward
 
 var memberGetLogEventsOutput_nextBackwardToken = smithy.Member{Name: "nextBackwardToken", Index: 2, Target: &schemaNextToken}
 
-var schemaGetLogFieldsInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetLogFieldsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetLogFieldsInput_dataSourceName, &memberGetLogFieldsInput_dataSourceType}}
+var schemaGetLogFieldsInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetLogFieldsRequest", Type: smithy.TypeStructure}
 
 var memberGetLogFieldsInput_dataSourceName = smithy.Member{Name: "dataSourceName", Index: 0, Target: &schemaDataSourceName, Required: true}
 
 var memberGetLogFieldsInput_dataSourceType = smithy.Member{Name: "dataSourceType", Index: 1, Target: &schemaDataSourceType, Required: true}
 
-var schemaGetLogFieldsOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetLogFieldsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetLogFieldsOutput_logFields}}
+var schemaGetLogFieldsOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetLogFieldsResponse", Type: smithy.TypeStructure}
 
 var memberGetLogFieldsOutput_logFields = smithy.Member{Name: "logFields", Index: 0, Target: &schemaLogFieldsList}
 
-var schemaGetLogGroupFieldsInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetLogGroupFieldsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetLogGroupFieldsInput_logGroupName, &memberGetLogGroupFieldsInput_time, &memberGetLogGroupFieldsInput_logGroupIdentifier}}
+var schemaGetLogGroupFieldsInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetLogGroupFieldsRequest", Type: smithy.TypeStructure}
 
 var memberGetLogGroupFieldsInput_logGroupName = smithy.Member{Name: "logGroupName", Index: 0, Target: &schemaLogGroupName}
 
@@ -1521,41 +1521,41 @@ var memberGetLogGroupFieldsInput_time = smithy.Member{Name: "time", Index: 1, Ta
 
 var memberGetLogGroupFieldsInput_logGroupIdentifier = smithy.Member{Name: "logGroupIdentifier", Index: 2, Target: &schemaLogGroupIdentifier}
 
-var schemaGetLogGroupFieldsOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetLogGroupFieldsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetLogGroupFieldsOutput_logGroupFields}}
+var schemaGetLogGroupFieldsOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetLogGroupFieldsResponse", Type: smithy.TypeStructure}
 
 var memberGetLogGroupFieldsOutput_logGroupFields = smithy.Member{Name: "logGroupFields", Index: 0, Target: &schemaLogGroupFieldList}
 
-var schemaGetLogObjectInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetLogObjectRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetLogObjectInput_unmask, &memberGetLogObjectInput_logObjectPointer}}
+var schemaGetLogObjectInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetLogObjectRequest", Type: smithy.TypeStructure}
 
 var memberGetLogObjectInput_unmask = smithy.Member{Name: "unmask", Index: 0, Target: &schemaUnmask, Default: document.Bool(false)}
 
 var memberGetLogObjectInput_logObjectPointer = smithy.Member{Name: "logObjectPointer", Index: 1, Target: &schemaLogObjectPointer, Required: true}
 
-var schemaGetLogObjectOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetLogObjectResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetLogObjectOutput_fieldStream}}
+var schemaGetLogObjectOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetLogObjectResponse", Type: smithy.TypeStructure}
 
 var memberGetLogObjectOutput_fieldStream = smithy.Member{Name: "fieldStream", Index: 0, Target: &schemaGetLogObjectResponseStream}
 
-var schemaGetLogObjectResponseStream = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetLogObjectResponseStream", Type: smithy.TypeUnion, Members: []*smithy.Member{&memberGetLogObjectResponseStream_fields, &memberGetLogObjectResponseStream_InternalStreamingException}, Streaming: true}
+var schemaGetLogObjectResponseStream = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetLogObjectResponseStream", Type: smithy.TypeUnion, Streaming: true}
 
 var memberGetLogObjectResponseStream_fields = smithy.Member{Name: "fields", Index: 0, Target: &schemaFieldsData}
 
 var memberGetLogObjectResponseStream_InternalStreamingException = smithy.Member{Name: "InternalStreamingException", Index: 1, Target: &schemaInternalStreamingException}
 
-var schemaGetLogRecordInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetLogRecordRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetLogRecordInput_logRecordPointer, &memberGetLogRecordInput_unmask}}
+var schemaGetLogRecordInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetLogRecordRequest", Type: smithy.TypeStructure}
 
 var memberGetLogRecordInput_logRecordPointer = smithy.Member{Name: "logRecordPointer", Index: 0, Target: &schemaLogRecordPointer, Required: true}
 
 var memberGetLogRecordInput_unmask = smithy.Member{Name: "unmask", Index: 1, Target: &schemaUnmask, Default: document.Bool(false)}
 
-var schemaGetLogRecordOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetLogRecordResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetLogRecordOutput_logRecord}}
+var schemaGetLogRecordOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetLogRecordResponse", Type: smithy.TypeStructure}
 
 var memberGetLogRecordOutput_logRecord = smithy.Member{Name: "logRecord", Index: 0, Target: &schemaLogRecord}
 
-var schemaGetLookupTableInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetLookupTableRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetLookupTableInput_lookupTableArn}}
+var schemaGetLookupTableInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetLookupTableRequest", Type: smithy.TypeStructure}
 
 var memberGetLookupTableInput_lookupTableArn = smithy.Member{Name: "lookupTableArn", Index: 0, Target: &schemaArn, Required: true}
 
-var schemaGetLookupTableOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetLookupTableResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetLookupTableOutput_lookupTableArn, &memberGetLookupTableOutput_lookupTableName, &memberGetLookupTableOutput_description, &memberGetLookupTableOutput_tableBody, &memberGetLookupTableOutput_sizeBytes, &memberGetLookupTableOutput_lastUpdatedTime, &memberGetLookupTableOutput_kmsKeyId}}
+var schemaGetLookupTableOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetLookupTableResponse", Type: smithy.TypeStructure}
 
 var memberGetLookupTableOutput_lookupTableArn = smithy.Member{Name: "lookupTableArn", Index: 0, Target: &schemaArn}
 
@@ -1571,7 +1571,7 @@ var memberGetLookupTableOutput_lastUpdatedTime = smithy.Member{Name: "lastUpdate
 
 var memberGetLookupTableOutput_kmsKeyId = smithy.Member{Name: "kmsKeyId", Index: 6, Target: &schemaKmsKeyId}
 
-var schemaGetQueryResultsInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetQueryResultsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetQueryResultsInput_queryId, &memberGetQueryResultsInput_nextToken, &memberGetQueryResultsInput_maxItems}}
+var schemaGetQueryResultsInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetQueryResultsRequest", Type: smithy.TypeStructure}
 
 var memberGetQueryResultsInput_queryId = smithy.Member{Name: "queryId", Index: 0, Target: &schemaQueryId, Required: true}
 
@@ -1583,7 +1583,7 @@ var schemaGetQueryResultsMaxItems = smithy.Schema{ID: "com.amazonaws.cloudwatchl
 
 var schemaGetQueryResultsNextToken = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetQueryResultsNextToken", Type: smithy.TypeString}
 
-var schemaGetQueryResultsOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetQueryResultsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetQueryResultsOutput_queryLanguage, &memberGetQueryResultsOutput_results, &memberGetQueryResultsOutput_statistics, &memberGetQueryResultsOutput_status, &memberGetQueryResultsOutput_encryptionKey, &memberGetQueryResultsOutput_nextToken}}
+var schemaGetQueryResultsOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetQueryResultsResponse", Type: smithy.TypeStructure}
 
 var memberGetQueryResultsOutput_queryLanguage = smithy.Member{Name: "queryLanguage", Index: 0, Target: &schemaQueryLanguage}
 
@@ -1597,7 +1597,7 @@ var memberGetQueryResultsOutput_encryptionKey = smithy.Member{Name: "encryptionK
 
 var memberGetQueryResultsOutput_nextToken = smithy.Member{Name: "nextToken", Index: 5, Target: &schemaGetQueryResultsNextToken}
 
-var schemaGetScheduledQueryHistoryInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetScheduledQueryHistoryRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetScheduledQueryHistoryInput_identifier, &memberGetScheduledQueryHistoryInput_startTime, &memberGetScheduledQueryHistoryInput_endTime, &memberGetScheduledQueryHistoryInput_executionStatuses, &memberGetScheduledQueryHistoryInput_maxResults, &memberGetScheduledQueryHistoryInput_nextToken}}
+var schemaGetScheduledQueryHistoryInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetScheduledQueryHistoryRequest", Type: smithy.TypeStructure}
 
 var memberGetScheduledQueryHistoryInput_identifier = smithy.Member{Name: "identifier", Index: 0, Target: &schemaScheduledQueryIdentifier, Required: true}
 
@@ -1613,7 +1613,7 @@ var memberGetScheduledQueryHistoryInput_nextToken = smithy.Member{Name: "nextTok
 
 var schemaGetScheduledQueryHistoryMaxResults = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetScheduledQueryHistoryMaxResults", Type: smithy.TypeInteger}
 
-var schemaGetScheduledQueryHistoryOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetScheduledQueryHistoryResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetScheduledQueryHistoryOutput_name, &memberGetScheduledQueryHistoryOutput_scheduledQueryArn, &memberGetScheduledQueryHistoryOutput_triggerHistory, &memberGetScheduledQueryHistoryOutput_nextToken}}
+var schemaGetScheduledQueryHistoryOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetScheduledQueryHistoryResponse", Type: smithy.TypeStructure}
 
 var memberGetScheduledQueryHistoryOutput_name = smithy.Member{Name: "name", Index: 0, Target: &schemaScheduledQueryName}
 
@@ -1623,11 +1623,11 @@ var memberGetScheduledQueryHistoryOutput_triggerHistory = smithy.Member{Name: "t
 
 var memberGetScheduledQueryHistoryOutput_nextToken = smithy.Member{Name: "nextToken", Index: 3, Target: &schemaNextToken}
 
-var schemaGetScheduledQueryInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetScheduledQueryRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetScheduledQueryInput_identifier}}
+var schemaGetScheduledQueryInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetScheduledQueryRequest", Type: smithy.TypeStructure}
 
 var memberGetScheduledQueryInput_identifier = smithy.Member{Name: "identifier", Index: 0, Target: &schemaScheduledQueryIdentifier, Required: true}
 
-var schemaGetScheduledQueryOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetScheduledQueryResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetScheduledQueryOutput_scheduledQueryArn, &memberGetScheduledQueryOutput_name, &memberGetScheduledQueryOutput_description, &memberGetScheduledQueryOutput_queryLanguage, &memberGetScheduledQueryOutput_queryString, &memberGetScheduledQueryOutput_logGroupIdentifiers, &memberGetScheduledQueryOutput_scheduleExpression, &memberGetScheduledQueryOutput_timezone, &memberGetScheduledQueryOutput_startTimeOffset, &memberGetScheduledQueryOutput_endTimeOffset, &memberGetScheduledQueryOutput_destinationConfiguration, &memberGetScheduledQueryOutput_state, &memberGetScheduledQueryOutput_scheduleType, &memberGetScheduledQueryOutput_lastTriggeredTime, &memberGetScheduledQueryOutput_lastExecutionStatus, &memberGetScheduledQueryOutput_scheduleStartTime, &memberGetScheduledQueryOutput_scheduleEndTime, &memberGetScheduledQueryOutput_executionRoleArn, &memberGetScheduledQueryOutput_creationTime, &memberGetScheduledQueryOutput_lastUpdatedTime}}
+var schemaGetScheduledQueryOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetScheduledQueryResponse", Type: smithy.TypeStructure}
 
 var memberGetScheduledQueryOutput_scheduledQueryArn = smithy.Member{Name: "scheduledQueryArn", Index: 0, Target: &schemaArn}
 
@@ -1671,17 +1671,17 @@ var memberGetScheduledQueryOutput_lastUpdatedTime = smithy.Member{Name: "lastUpd
 
 var schemaGetStorageTierPolicyInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetStorageTierPolicyRequest", Type: smithy.TypeStructure}
 
-var schemaGetStorageTierPolicyOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetStorageTierPolicyResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetStorageTierPolicyOutput_storageTier, &memberGetStorageTierPolicyOutput_lastUpdatedTime}}
+var schemaGetStorageTierPolicyOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetStorageTierPolicyResponse", Type: smithy.TypeStructure}
 
 var memberGetStorageTierPolicyOutput_storageTier = smithy.Member{Name: "storageTier", Index: 0, Target: &schemaStorageTier}
 
 var memberGetStorageTierPolicyOutput_lastUpdatedTime = smithy.Member{Name: "lastUpdatedTime", Index: 1, Target: &schemaTimestamp}
 
-var schemaGetTransformerInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetTransformerRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetTransformerInput_logGroupIdentifier}}
+var schemaGetTransformerInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetTransformerRequest", Type: smithy.TypeStructure}
 
 var memberGetTransformerInput_logGroupIdentifier = smithy.Member{Name: "logGroupIdentifier", Index: 0, Target: &schemaLogGroupIdentifier, Required: true}
 
-var schemaGetTransformerOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetTransformerResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetTransformerOutput_logGroupIdentifier, &memberGetTransformerOutput_creationTime, &memberGetTransformerOutput_lastModifiedTime, &memberGetTransformerOutput_transformerConfig}}
+var schemaGetTransformerOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GetTransformerResponse", Type: smithy.TypeStructure}
 
 var memberGetTransformerOutput_logGroupIdentifier = smithy.Member{Name: "logGroupIdentifier", Index: 0, Target: &schemaLogGroupIdentifier}
 
@@ -1691,7 +1691,7 @@ var memberGetTransformerOutput_lastModifiedTime = smithy.Member{Name: "lastModif
 
 var memberGetTransformerOutput_transformerConfig = smithy.Member{Name: "transformerConfig", Index: 3, Target: &schemaProcessors}
 
-var schemaGrok = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Grok", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGrok_source, &memberGrok_match}}
+var schemaGrok = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Grok", Type: smithy.TypeStructure}
 
 var memberGrok_source = smithy.Member{Name: "source", Index: 0, Target: &schemaSource}
 
@@ -1699,7 +1699,7 @@ var memberGrok_match = smithy.Member{Name: "match", Index: 1, Target: &schemaGro
 
 var schemaGrokMatch = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GrokMatch", Type: smithy.TypeString}
 
-var schemaGroupingIdentifier = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GroupingIdentifier", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGroupingIdentifier_key, &memberGroupingIdentifier_value}}
+var schemaGroupingIdentifier = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GroupingIdentifier", Type: smithy.TypeStructure}
 
 var memberGroupingIdentifier_key = smithy.Member{Name: "key", Index: 0, Target: &schemaGroupingIdentifierKey}
 
@@ -1709,17 +1709,17 @@ var schemaGroupingIdentifierKey = smithy.Schema{ID: "com.amazonaws.cloudwatchlog
 
 var schemaGroupingIdentifierValue = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GroupingIdentifierValue", Type: smithy.TypeString}
 
-var schemaGroupingIdentifiers = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GroupingIdentifiers", Type: smithy.TypeList, Members: []*smithy.Member{&memberGroupingIdentifiers_member}}
+var schemaGroupingIdentifiers = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#GroupingIdentifiers", Type: smithy.TypeList}
 
 var memberGroupingIdentifiers_member = smithy.Member{Name: "member", Index: 0, Target: &schemaGroupingIdentifier}
 
-var schemaHistogram = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Histogram", Type: smithy.TypeMap, Members: []*smithy.Member{&memberHistogram_key, &memberHistogram_value}}
+var schemaHistogram = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Histogram", Type: smithy.TypeMap}
 
 var memberHistogram_key = smithy.Member{Name: "key", Index: 0, Target: &schemaTime}
 
 var memberHistogram_value = smithy.Member{Name: "value", Index: 1, Target: &schemaCount, Default: document.Number("0")}
 
-var schemaImport = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Import", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberImport_importId, &memberImport_importSourceArn, &memberImport_importStatus, &memberImport_importDestinationArn, &memberImport_importStatistics, &memberImport_importFilter, &memberImport_creationTime, &memberImport_lastUpdatedTime, &memberImport_errorMessage}}
+var schemaImport = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Import", Type: smithy.TypeStructure}
 
 var memberImport_importId = smithy.Member{Name: "importId", Index: 0, Target: &schemaImportId}
 
@@ -1739,7 +1739,7 @@ var memberImport_lastUpdatedTime = smithy.Member{Name: "lastUpdatedTime", Index:
 
 var memberImport_errorMessage = smithy.Member{Name: "errorMessage", Index: 8, Target: &schemaErrorMessage}
 
-var schemaImportBatch = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ImportBatch", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberImportBatch_batchId, &memberImportBatch_status, &memberImportBatch_errorMessage}}
+var schemaImportBatch = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ImportBatch", Type: smithy.TypeStructure}
 
 var memberImportBatch_batchId = smithy.Member{Name: "batchId", Index: 0, Target: &schemaBatchId, Required: true}
 
@@ -1747,11 +1747,11 @@ var memberImportBatch_status = smithy.Member{Name: "status", Index: 1, Target: &
 
 var memberImportBatch_errorMessage = smithy.Member{Name: "errorMessage", Index: 2, Target: &schemaErrorMessage}
 
-var schemaImportBatchList = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ImportBatchList", Type: smithy.TypeList, Members: []*smithy.Member{&memberImportBatchList_member}}
+var schemaImportBatchList = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ImportBatchList", Type: smithy.TypeList}
 
 var memberImportBatchList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaImportBatch}
 
-var schemaImportFilter = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ImportFilter", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberImportFilter_startEventTime, &memberImportFilter_endEventTime}}
+var schemaImportFilter = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ImportFilter", Type: smithy.TypeStructure}
 
 var memberImportFilter_startEventTime = smithy.Member{Name: "startEventTime", Index: 0, Target: &schemaTimestamp}
 
@@ -1759,17 +1759,17 @@ var memberImportFilter_endEventTime = smithy.Member{Name: "endEventTime", Index:
 
 var schemaImportId = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ImportId", Type: smithy.TypeString}
 
-var schemaImportList = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ImportList", Type: smithy.TypeList, Members: []*smithy.Member{&memberImportList_member}}
+var schemaImportList = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ImportList", Type: smithy.TypeList}
 
 var memberImportList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaImport}
 
-var schemaImportStatistics = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ImportStatistics", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberImportStatistics_bytesImported}}
+var schemaImportStatistics = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ImportStatistics", Type: smithy.TypeStructure}
 
 var memberImportStatistics_bytesImported = smithy.Member{Name: "bytesImported", Index: 0, Target: &schemaStoredBytes}
 
 var schemaImportStatus = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ImportStatus", Type: smithy.TypeEnum}
 
-var schemaImportStatusList = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ImportStatusList", Type: smithy.TypeList, Members: []*smithy.Member{&memberImportStatusList_member}}
+var schemaImportStatusList = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ImportStatusList", Type: smithy.TypeList}
 
 var memberImportStatusList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaImportStatus}
 
@@ -1779,17 +1779,17 @@ var schemaIncompleteSignatureException = smithy.Schema{ID: "com.amazon.coral.ser
 
 var memberIncompleteSignatureException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaIndexCategories = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#IndexCategories", Type: smithy.TypeList, Members: []*smithy.Member{&memberIndexCategories_member}}
+var schemaIndexCategories = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#IndexCategories", Type: smithy.TypeList}
 
 var memberIndexCategories_member = smithy.Member{Name: "member", Index: 0, Target: &schemaIndexCategory}
 
 var schemaIndexCategory = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#IndexCategory", Type: smithy.TypeEnum}
 
-var schemaIndexPolicies = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#IndexPolicies", Type: smithy.TypeList, Members: []*smithy.Member{&memberIndexPolicies_member}}
+var schemaIndexPolicies = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#IndexPolicies", Type: smithy.TypeList}
 
 var memberIndexPolicies_member = smithy.Member{Name: "member", Index: 0, Target: &schemaIndexPolicy}
 
-var schemaIndexPolicy = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#IndexPolicy", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberIndexPolicy_logGroupIdentifier, &memberIndexPolicy_lastUpdateTime, &memberIndexPolicy_policyDocument, &memberIndexPolicy_policyName, &memberIndexPolicy_source}}
+var schemaIndexPolicy = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#IndexPolicy", Type: smithy.TypeStructure}
 
 var memberIndexPolicy_logGroupIdentifier = smithy.Member{Name: "logGroupIdentifier", Index: 0, Target: &schemaLogGroupIdentifier}
 
@@ -1829,7 +1829,7 @@ var memberInputLogStreamNames_member = smithy.Member{Name: "member", Index: 0, T
 
 var schemaInteger = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Integer", Type: smithy.TypeInteger}
 
-var schemaIntegrationDetails = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#IntegrationDetails", Type: smithy.TypeUnion, Members: []*smithy.Member{&memberIntegrationDetails_openSearchIntegrationDetails}}
+var schemaIntegrationDetails = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#IntegrationDetails", Type: smithy.TypeUnion}
 
 var memberIntegrationDetails_openSearchIntegrationDetails = smithy.Member{Name: "openSearchIntegrationDetails", Index: 0, Target: &schemaOpenSearchIntegrationDetails}
 
@@ -1841,11 +1841,11 @@ var schemaIntegrationStatus = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#In
 
 var schemaIntegrationStatusMessage = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#IntegrationStatusMessage", Type: smithy.TypeString}
 
-var schemaIntegrationSummaries = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#IntegrationSummaries", Type: smithy.TypeList, Members: []*smithy.Member{&memberIntegrationSummaries_member}}
+var schemaIntegrationSummaries = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#IntegrationSummaries", Type: smithy.TypeList}
 
 var memberIntegrationSummaries_member = smithy.Member{Name: "member", Index: 0, Target: &schemaIntegrationSummary}
 
-var schemaIntegrationSummary = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#IntegrationSummary", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberIntegrationSummary_integrationName, &memberIntegrationSummary_integrationType, &memberIntegrationSummary_integrationStatus}}
+var schemaIntegrationSummary = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#IntegrationSummary", Type: smithy.TypeStructure}
 
 var memberIntegrationSummary_integrationName = smithy.Member{Name: "integrationName", Index: 0, Target: &schemaIntegrationName}
 
@@ -1903,7 +1903,7 @@ var memberLimitExceededException_message = smithy.Member{Name: "message", Index:
 
 var schemaListAggregateLogGroupSummariesGroupBy = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ListAggregateLogGroupSummariesGroupBy", Type: smithy.TypeEnum}
 
-var schemaListAggregateLogGroupSummariesInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ListAggregateLogGroupSummariesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListAggregateLogGroupSummariesInput_accountIdentifiers, &memberListAggregateLogGroupSummariesInput_includeLinkedAccounts, &memberListAggregateLogGroupSummariesInput_logGroupClass, &memberListAggregateLogGroupSummariesInput_logGroupNamePattern, &memberListAggregateLogGroupSummariesInput_dataSources, &memberListAggregateLogGroupSummariesInput_groupBy, &memberListAggregateLogGroupSummariesInput_nextToken, &memberListAggregateLogGroupSummariesInput_limit}}
+var schemaListAggregateLogGroupSummariesInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ListAggregateLogGroupSummariesRequest", Type: smithy.TypeStructure}
 
 var memberListAggregateLogGroupSummariesInput_accountIdentifiers = smithy.Member{Name: "accountIdentifiers", Index: 0, Target: &schemaAccountIds}
 
@@ -1921,13 +1921,13 @@ var memberListAggregateLogGroupSummariesInput_nextToken = smithy.Member{Name: "n
 
 var memberListAggregateLogGroupSummariesInput_limit = smithy.Member{Name: "limit", Index: 7, Target: &schemaListLogGroupsRequestLimit}
 
-var schemaListAggregateLogGroupSummariesOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ListAggregateLogGroupSummariesResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListAggregateLogGroupSummariesOutput_aggregateLogGroupSummaries, &memberListAggregateLogGroupSummariesOutput_nextToken}}
+var schemaListAggregateLogGroupSummariesOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ListAggregateLogGroupSummariesResponse", Type: smithy.TypeStructure}
 
 var memberListAggregateLogGroupSummariesOutput_aggregateLogGroupSummaries = smithy.Member{Name: "aggregateLogGroupSummaries", Index: 0, Target: &schemaAggregateLogGroupSummaries}
 
 var memberListAggregateLogGroupSummariesOutput_nextToken = smithy.Member{Name: "nextToken", Index: 1, Target: &schemaNextToken}
 
-var schemaListAnomaliesInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ListAnomaliesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListAnomaliesInput_anomalyDetectorArn, &memberListAnomaliesInput_suppressionState, &memberListAnomaliesInput_limit, &memberListAnomaliesInput_nextToken}}
+var schemaListAnomaliesInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ListAnomaliesRequest", Type: smithy.TypeStructure}
 
 var memberListAnomaliesInput_anomalyDetectorArn = smithy.Member{Name: "anomalyDetectorArn", Index: 0, Target: &schemaAnomalyDetectorArn}
 
@@ -1939,13 +1939,13 @@ var memberListAnomaliesInput_nextToken = smithy.Member{Name: "nextToken", Index:
 
 var schemaListAnomaliesLimit = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ListAnomaliesLimit", Type: smithy.TypeInteger}
 
-var schemaListAnomaliesOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ListAnomaliesResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListAnomaliesOutput_anomalies, &memberListAnomaliesOutput_nextToken}}
+var schemaListAnomaliesOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ListAnomaliesResponse", Type: smithy.TypeStructure}
 
 var memberListAnomaliesOutput_anomalies = smithy.Member{Name: "anomalies", Index: 0, Target: &schemaAnomalies}
 
 var memberListAnomaliesOutput_nextToken = smithy.Member{Name: "nextToken", Index: 1, Target: &schemaNextToken}
 
-var schemaListIntegrationsInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ListIntegrationsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListIntegrationsInput_integrationNamePrefix, &memberListIntegrationsInput_integrationType, &memberListIntegrationsInput_integrationStatus}}
+var schemaListIntegrationsInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ListIntegrationsRequest", Type: smithy.TypeStructure}
 
 var memberListIntegrationsInput_integrationNamePrefix = smithy.Member{Name: "integrationNamePrefix", Index: 0, Target: &schemaIntegrationNamePrefix}
 
@@ -1953,13 +1953,13 @@ var memberListIntegrationsInput_integrationType = smithy.Member{Name: "integrati
 
 var memberListIntegrationsInput_integrationStatus = smithy.Member{Name: "integrationStatus", Index: 2, Target: &schemaIntegrationStatus}
 
-var schemaListIntegrationsOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ListIntegrationsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListIntegrationsOutput_integrationSummaries}}
+var schemaListIntegrationsOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ListIntegrationsResponse", Type: smithy.TypeStructure}
 
 var memberListIntegrationsOutput_integrationSummaries = smithy.Member{Name: "integrationSummaries", Index: 0, Target: &schemaIntegrationSummaries}
 
 var schemaListLimit = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ListLimit", Type: smithy.TypeInteger}
 
-var schemaListLogAnomalyDetectorsInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ListLogAnomalyDetectorsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListLogAnomalyDetectorsInput_filterLogGroupArn, &memberListLogAnomalyDetectorsInput_limit, &memberListLogAnomalyDetectorsInput_nextToken}}
+var schemaListLogAnomalyDetectorsInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ListLogAnomalyDetectorsRequest", Type: smithy.TypeStructure}
 
 var memberListLogAnomalyDetectorsInput_filterLogGroupArn = smithy.Member{Name: "filterLogGroupArn", Index: 0, Target: &schemaLogGroupArn}
 
@@ -1969,13 +1969,13 @@ var memberListLogAnomalyDetectorsInput_nextToken = smithy.Member{Name: "nextToke
 
 var schemaListLogAnomalyDetectorsLimit = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ListLogAnomalyDetectorsLimit", Type: smithy.TypeInteger}
 
-var schemaListLogAnomalyDetectorsOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ListLogAnomalyDetectorsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListLogAnomalyDetectorsOutput_anomalyDetectors, &memberListLogAnomalyDetectorsOutput_nextToken}}
+var schemaListLogAnomalyDetectorsOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ListLogAnomalyDetectorsResponse", Type: smithy.TypeStructure}
 
 var memberListLogAnomalyDetectorsOutput_anomalyDetectors = smithy.Member{Name: "anomalyDetectors", Index: 0, Target: &schemaAnomalyDetectors}
 
 var memberListLogAnomalyDetectorsOutput_nextToken = smithy.Member{Name: "nextToken", Index: 1, Target: &schemaNextToken}
 
-var schemaListLogGroupsForQueryInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ListLogGroupsForQueryRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListLogGroupsForQueryInput_queryId, &memberListLogGroupsForQueryInput_nextToken, &memberListLogGroupsForQueryInput_maxResults}}
+var schemaListLogGroupsForQueryInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ListLogGroupsForQueryRequest", Type: smithy.TypeStructure}
 
 var memberListLogGroupsForQueryInput_queryId = smithy.Member{Name: "queryId", Index: 0, Target: &schemaQueryId, Required: true}
 
@@ -1985,13 +1985,13 @@ var memberListLogGroupsForQueryInput_maxResults = smithy.Member{Name: "maxResult
 
 var schemaListLogGroupsForQueryMaxResults = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ListLogGroupsForQueryMaxResults", Type: smithy.TypeInteger}
 
-var schemaListLogGroupsForQueryOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ListLogGroupsForQueryResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListLogGroupsForQueryOutput_logGroupIdentifiers, &memberListLogGroupsForQueryOutput_nextToken}}
+var schemaListLogGroupsForQueryOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ListLogGroupsForQueryResponse", Type: smithy.TypeStructure}
 
 var memberListLogGroupsForQueryOutput_logGroupIdentifiers = smithy.Member{Name: "logGroupIdentifiers", Index: 0, Target: &schemaLogGroupIdentifiers}
 
 var memberListLogGroupsForQueryOutput_nextToken = smithy.Member{Name: "nextToken", Index: 1, Target: &schemaNextToken}
 
-var schemaListLogGroupsInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ListLogGroupsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListLogGroupsInput_logGroupNamePattern, &memberListLogGroupsInput_logGroupClass, &memberListLogGroupsInput_includeLinkedAccounts, &memberListLogGroupsInput_accountIdentifiers, &memberListLogGroupsInput_nextToken, &memberListLogGroupsInput_limit, &memberListLogGroupsInput_dataSources, &memberListLogGroupsInput_fieldIndexNames, &memberListLogGroupsInput_logGroupTags}}
+var schemaListLogGroupsInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ListLogGroupsRequest", Type: smithy.TypeStructure}
 
 var memberListLogGroupsInput_logGroupNamePattern = smithy.Member{Name: "logGroupNamePattern", Index: 0, Target: &schemaLogGroupNameRegexPattern}
 
@@ -2011,7 +2011,7 @@ var memberListLogGroupsInput_fieldIndexNames = smithy.Member{Name: "fieldIndexNa
 
 var memberListLogGroupsInput_logGroupTags = smithy.Member{Name: "logGroupTags", Index: 8, Target: &schemaTagFilters}
 
-var schemaListLogGroupsOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ListLogGroupsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListLogGroupsOutput_logGroups, &memberListLogGroupsOutput_nextToken}}
+var schemaListLogGroupsOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ListLogGroupsResponse", Type: smithy.TypeStructure}
 
 var memberListLogGroupsOutput_logGroups = smithy.Member{Name: "logGroups", Index: 0, Target: &schemaLogGroupSummaries}
 
@@ -2019,7 +2019,7 @@ var memberListLogGroupsOutput_nextToken = smithy.Member{Name: "nextToken", Index
 
 var schemaListLogGroupsRequestLimit = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ListLogGroupsRequestLimit", Type: smithy.TypeInteger}
 
-var schemaListScheduledQueriesInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ListScheduledQueriesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListScheduledQueriesInput_maxResults, &memberListScheduledQueriesInput_nextToken, &memberListScheduledQueriesInput_state, &memberListScheduledQueriesInput_scheduleType}}
+var schemaListScheduledQueriesInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ListScheduledQueriesRequest", Type: smithy.TypeStructure}
 
 var memberListScheduledQueriesInput_maxResults = smithy.Member{Name: "maxResults", Index: 0, Target: &schemaListScheduledQueriesMaxResults}
 
@@ -2031,13 +2031,13 @@ var memberListScheduledQueriesInput_scheduleType = smithy.Member{Name: "schedule
 
 var schemaListScheduledQueriesMaxResults = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ListScheduledQueriesMaxResults", Type: smithy.TypeInteger}
 
-var schemaListScheduledQueriesOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ListScheduledQueriesResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListScheduledQueriesOutput_nextToken, &memberListScheduledQueriesOutput_scheduledQueries}}
+var schemaListScheduledQueriesOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ListScheduledQueriesResponse", Type: smithy.TypeStructure}
 
 var memberListScheduledQueriesOutput_nextToken = smithy.Member{Name: "nextToken", Index: 0, Target: &schemaNextToken}
 
 var memberListScheduledQueriesOutput_scheduledQueries = smithy.Member{Name: "scheduledQueries", Index: 1, Target: &schemaScheduledQuerySummaryList}
 
-var schemaListSourcesForS3TableIntegrationInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ListSourcesForS3TableIntegrationRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListSourcesForS3TableIntegrationInput_integrationArn, &memberListSourcesForS3TableIntegrationInput_maxResults, &memberListSourcesForS3TableIntegrationInput_nextToken}}
+var schemaListSourcesForS3TableIntegrationInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ListSourcesForS3TableIntegrationRequest", Type: smithy.TypeStructure}
 
 var memberListSourcesForS3TableIntegrationInput_integrationArn = smithy.Member{Name: "integrationArn", Index: 0, Target: &schemaArn, Required: true}
 
@@ -2047,13 +2047,13 @@ var memberListSourcesForS3TableIntegrationInput_nextToken = smithy.Member{Name: 
 
 var schemaListSourcesForS3TableIntegrationMaxResults = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ListSourcesForS3TableIntegrationMaxResults", Type: smithy.TypeInteger}
 
-var schemaListSourcesForS3TableIntegrationOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ListSourcesForS3TableIntegrationResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListSourcesForS3TableIntegrationOutput_sources, &memberListSourcesForS3TableIntegrationOutput_nextToken}}
+var schemaListSourcesForS3TableIntegrationOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ListSourcesForS3TableIntegrationResponse", Type: smithy.TypeStructure}
 
 var memberListSourcesForS3TableIntegrationOutput_sources = smithy.Member{Name: "sources", Index: 0, Target: &schemaS3TableIntegrationSources}
 
 var memberListSourcesForS3TableIntegrationOutput_nextToken = smithy.Member{Name: "nextToken", Index: 1, Target: &schemaNextToken}
 
-var schemaListSyslogConfigurationsInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ListSyslogConfigurationsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListSyslogConfigurationsInput_logGroupIdentifier, &memberListSyslogConfigurationsInput_vpcEndpointId, &memberListSyslogConfigurationsInput_nextToken, &memberListSyslogConfigurationsInput_maxResults}}
+var schemaListSyslogConfigurationsInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ListSyslogConfigurationsRequest", Type: smithy.TypeStructure}
 
 var memberListSyslogConfigurationsInput_logGroupIdentifier = smithy.Member{Name: "logGroupIdentifier", Index: 0, Target: &schemaLogGroupIdentifier}
 
@@ -2065,7 +2065,7 @@ var memberListSyslogConfigurationsInput_maxResults = smithy.Member{Name: "maxRes
 
 var schemaListSyslogConfigurationsMaxResults = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ListSyslogConfigurationsMaxResults", Type: smithy.TypeInteger}
 
-var schemaListSyslogConfigurationsOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ListSyslogConfigurationsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListSyslogConfigurationsOutput_syslogConfigurations, &memberListSyslogConfigurationsOutput_nextToken}}
+var schemaListSyslogConfigurationsOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ListSyslogConfigurationsResponse", Type: smithy.TypeStructure}
 
 var memberListSyslogConfigurationsOutput_syslogConfigurations = smithy.Member{Name: "syslogConfigurations", Index: 0, Target: &schemaSyslogConfigurations}
 
@@ -2087,7 +2087,7 @@ var schemaListTagsLogGroupOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlo
 
 var memberListTagsLogGroupOutput_tags = smithy.Member{Name: "tags", Index: 0, Target: &schemaTags}
 
-var schemaListToMap = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ListToMap", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListToMap_source, &memberListToMap_key, &memberListToMap_valueKey, &memberListToMap_target, &memberListToMap_flatten, &memberListToMap_flattenedElement}}
+var schemaListToMap = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ListToMap", Type: smithy.TypeStructure}
 
 var memberListToMap_source = smithy.Member{Name: "source", Index: 0, Target: &schemaSource, Required: true}
 
@@ -2101,7 +2101,7 @@ var memberListToMap_flatten = smithy.Member{Name: "flatten", Index: 4, Target: &
 
 var memberListToMap_flattenedElement = smithy.Member{Name: "flattenedElement", Index: 5, Target: &schemaFlattenedElement}
 
-var schemaLiveTailSessionLogEvent = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#LiveTailSessionLogEvent", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberLiveTailSessionLogEvent_logStreamName, &memberLiveTailSessionLogEvent_logGroupIdentifier, &memberLiveTailSessionLogEvent_message, &memberLiveTailSessionLogEvent_timestamp, &memberLiveTailSessionLogEvent_ingestionTime}}
+var schemaLiveTailSessionLogEvent = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#LiveTailSessionLogEvent", Type: smithy.TypeStructure}
 
 var memberLiveTailSessionLogEvent_logStreamName = smithy.Member{Name: "logStreamName", Index: 0, Target: &schemaLogStreamName}
 
@@ -2113,15 +2113,15 @@ var memberLiveTailSessionLogEvent_timestamp = smithy.Member{Name: "timestamp", I
 
 var memberLiveTailSessionLogEvent_ingestionTime = smithy.Member{Name: "ingestionTime", Index: 4, Target: &schemaTimestamp}
 
-var schemaLiveTailSessionMetadata = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#LiveTailSessionMetadata", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberLiveTailSessionMetadata_sampled}}
+var schemaLiveTailSessionMetadata = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#LiveTailSessionMetadata", Type: smithy.TypeStructure}
 
 var memberLiveTailSessionMetadata_sampled = smithy.Member{Name: "sampled", Index: 0, Target: &schemaIsSampled, Default: document.Bool(false)}
 
-var schemaLiveTailSessionResults = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#LiveTailSessionResults", Type: smithy.TypeList, Members: []*smithy.Member{&memberLiveTailSessionResults_member}}
+var schemaLiveTailSessionResults = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#LiveTailSessionResults", Type: smithy.TypeList}
 
 var memberLiveTailSessionResults_member = smithy.Member{Name: "member", Index: 0, Target: &schemaLiveTailSessionLogEvent}
 
-var schemaLiveTailSessionStart = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#LiveTailSessionStart", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberLiveTailSessionStart_requestId, &memberLiveTailSessionStart_sessionId, &memberLiveTailSessionStart_logGroupIdentifiers, &memberLiveTailSessionStart_logStreamNames, &memberLiveTailSessionStart_logStreamNamePrefixes, &memberLiveTailSessionStart_logEventFilterPattern}}
+var schemaLiveTailSessionStart = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#LiveTailSessionStart", Type: smithy.TypeStructure}
 
 var memberLiveTailSessionStart_requestId = smithy.Member{Name: "requestId", Index: 0, Target: &schemaRequestId}
 
@@ -2135,7 +2135,7 @@ var memberLiveTailSessionStart_logStreamNamePrefixes = smithy.Member{Name: "logS
 
 var memberLiveTailSessionStart_logEventFilterPattern = smithy.Member{Name: "logEventFilterPattern", Index: 5, Target: &schemaFilterPattern}
 
-var schemaLiveTailSessionUpdate = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#LiveTailSessionUpdate", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberLiveTailSessionUpdate_sessionMetadata, &memberLiveTailSessionUpdate_sessionResults}}
+var schemaLiveTailSessionUpdate = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#LiveTailSessionUpdate", Type: smithy.TypeStructure}
 
 var memberLiveTailSessionUpdate_sessionMetadata = smithy.Member{Name: "sessionMetadata", Index: 0, Target: &schemaLiveTailSessionMetadata}
 
@@ -2143,7 +2143,7 @@ var memberLiveTailSessionUpdate_sessionResults = smithy.Member{Name: "sessionRes
 
 var schemaLocale = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Locale", Type: smithy.TypeString}
 
-var schemaLogEvent = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#LogEvent", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberLogEvent_timestamp, &memberLogEvent_message}}
+var schemaLogEvent = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#LogEvent", Type: smithy.TypeStructure}
 
 var memberLogEvent_timestamp = smithy.Member{Name: "timestamp", Index: 0, Target: &schemaTimestamp}
 
@@ -2201,7 +2201,7 @@ var memberLogGroup_bearerTokenAuthenticationEnabled = smithy.Member{Name: "beare
 
 var schemaLogGroupArn = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#LogGroupArn", Type: smithy.TypeString}
 
-var schemaLogGroupArnList = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#LogGroupArnList", Type: smithy.TypeList, Members: []*smithy.Member{&memberLogGroupArnList_member}}
+var schemaLogGroupArnList = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#LogGroupArnList", Type: smithy.TypeList}
 
 var memberLogGroupArnList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaLogGroupArn}
 
@@ -2209,19 +2209,19 @@ var schemaLogGroupClass = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#LogGro
 
 var schemaLogGroupCount = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#LogGroupCount", Type: smithy.TypeInteger}
 
-var schemaLogGroupField = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#LogGroupField", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberLogGroupField_name, &memberLogGroupField_percent}}
+var schemaLogGroupField = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#LogGroupField", Type: smithy.TypeStructure}
 
 var memberLogGroupField_name = smithy.Member{Name: "name", Index: 0, Target: &schemaField}
 
 var memberLogGroupField_percent = smithy.Member{Name: "percent", Index: 1, Target: &schemaPercentage, Default: document.Number("0")}
 
-var schemaLogGroupFieldList = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#LogGroupFieldList", Type: smithy.TypeList, Members: []*smithy.Member{&memberLogGroupFieldList_member}}
+var schemaLogGroupFieldList = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#LogGroupFieldList", Type: smithy.TypeList}
 
 var memberLogGroupFieldList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaLogGroupField}
 
 var schemaLogGroupIdentifier = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#LogGroupIdentifier", Type: smithy.TypeString}
 
-var schemaLogGroupIdentifiers = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#LogGroupIdentifiers", Type: smithy.TypeList, Members: []*smithy.Member{&memberLogGroupIdentifiers_member}}
+var schemaLogGroupIdentifiers = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#LogGroupIdentifiers", Type: smithy.TypeList}
 
 var memberLogGroupIdentifiers_member = smithy.Member{Name: "member", Index: 0, Target: &schemaLogGroupIdentifier}
 
@@ -2231,15 +2231,15 @@ var schemaLogGroupNamePattern = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#
 
 var schemaLogGroupNameRegexPattern = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#LogGroupNameRegexPattern", Type: smithy.TypeString}
 
-var schemaLogGroupNames = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#LogGroupNames", Type: smithy.TypeList, Members: []*smithy.Member{&memberLogGroupNames_member}}
+var schemaLogGroupNames = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#LogGroupNames", Type: smithy.TypeList}
 
 var memberLogGroupNames_member = smithy.Member{Name: "member", Index: 0, Target: &schemaLogGroupName}
 
-var schemaLogGroupSummaries = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#LogGroupSummaries", Type: smithy.TypeList, Members: []*smithy.Member{&memberLogGroupSummaries_member}}
+var schemaLogGroupSummaries = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#LogGroupSummaries", Type: smithy.TypeList}
 
 var memberLogGroupSummaries_member = smithy.Member{Name: "member", Index: 0, Target: &schemaLogGroupSummary}
 
-var schemaLogGroupSummary = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#LogGroupSummary", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberLogGroupSummary_logGroupName, &memberLogGroupSummary_logGroupArn, &memberLogGroupSummary_logGroupClass}}
+var schemaLogGroupSummary = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#LogGroupSummary", Type: smithy.TypeStructure}
 
 var memberLogGroupSummary_logGroupName = smithy.Member{Name: "logGroupName", Index: 0, Target: &schemaLogGroupName}
 
@@ -2253,7 +2253,7 @@ var memberLogGroups_member = smithy.Member{Name: "member", Index: 0, Target: &sc
 
 var schemaLogObjectPointer = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#LogObjectPointer", Type: smithy.TypeString}
 
-var schemaLogRecord = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#LogRecord", Type: smithy.TypeMap, Members: []*smithy.Member{&memberLogRecord_key, &memberLogRecord_value}}
+var schemaLogRecord = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#LogRecord", Type: smithy.TypeMap}
 
 var memberLogRecord_key = smithy.Member{Name: "key", Index: 0, Target: &schemaField}
 
@@ -2261,7 +2261,7 @@ var memberLogRecord_value = smithy.Member{Name: "value", Index: 1, Target: &sche
 
 var schemaLogRecordPointer = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#LogRecordPointer", Type: smithy.TypeString}
 
-var schemaLogSamples = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#LogSamples", Type: smithy.TypeList, Members: []*smithy.Member{&memberLogSamples_member}}
+var schemaLogSamples = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#LogSamples", Type: smithy.TypeList}
 
 var memberLogSamples_member = smithy.Member{Name: "member", Index: 0, Target: &schemaLogEvent}
 
@@ -2293,11 +2293,11 @@ var memberLogStreams_member = smithy.Member{Name: "member", Index: 0, Target: &s
 
 var schemaLogType = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#LogType", Type: smithy.TypeString}
 
-var schemaLogTypes = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#LogTypes", Type: smithy.TypeList, Members: []*smithy.Member{&memberLogTypes_member}}
+var schemaLogTypes = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#LogTypes", Type: smithy.TypeList}
 
 var memberLogTypes_member = smithy.Member{Name: "member", Index: 0, Target: &schemaLogType}
 
-var schemaLookupTable = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#LookupTable", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberLookupTable_lookupTableArn, &memberLookupTable_lookupTableName, &memberLookupTable_description, &memberLookupTable_tableFields, &memberLookupTable_recordsCount, &memberLookupTable_sizeBytes, &memberLookupTable_lastUpdatedTime, &memberLookupTable_kmsKeyId}}
+var schemaLookupTable = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#LookupTable", Type: smithy.TypeStructure}
 
 var memberLookupTable_lookupTableArn = smithy.Member{Name: "lookupTableArn", Index: 0, Target: &schemaArn}
 
@@ -2315,7 +2315,7 @@ var memberLookupTable_lastUpdatedTime = smithy.Member{Name: "lastUpdatedTime", I
 
 var memberLookupTable_kmsKeyId = smithy.Member{Name: "kmsKeyId", Index: 7, Target: &schemaKmsKeyId}
 
-var schemaLookupTableConfiguration = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#LookupTableConfiguration", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberLookupTableConfiguration_tableName, &memberLookupTableConfiguration_roleArn, &memberLookupTableConfiguration_description, &memberLookupTableConfiguration_kmsKeyId, &memberLookupTableConfiguration_tags}}
+var schemaLookupTableConfiguration = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#LookupTableConfiguration", Type: smithy.TypeStructure}
 
 var memberLookupTableConfiguration_tableName = smithy.Member{Name: "tableName", Index: 0, Target: &schemaLookupTableName, Required: true}
 
@@ -2331,15 +2331,15 @@ var schemaLookupTableDescription = smithy.Schema{ID: "com.amazonaws.cloudwatchlo
 
 var schemaLookupTableName = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#LookupTableName", Type: smithy.TypeString}
 
-var schemaLookupTables = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#LookupTables", Type: smithy.TypeList, Members: []*smithy.Member{&memberLookupTables_member}}
+var schemaLookupTables = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#LookupTables", Type: smithy.TypeList}
 
 var memberLookupTables_member = smithy.Member{Name: "member", Index: 0, Target: &schemaLookupTable}
 
-var schemaLowerCaseString = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#LowerCaseString", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberLowerCaseString_withKeys}}
+var schemaLowerCaseString = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#LowerCaseString", Type: smithy.TypeStructure}
 
 var memberLowerCaseString_withKeys = smithy.Member{Name: "withKeys", Index: 0, Target: &schemaLowerCaseStringWithKeys, Required: true}
 
-var schemaLowerCaseStringWithKeys = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#LowerCaseStringWithKeys", Type: smithy.TypeList, Members: []*smithy.Member{&memberLowerCaseStringWithKeys_member}}
+var schemaLowerCaseStringWithKeys = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#LowerCaseStringWithKeys", Type: smithy.TypeList}
 
 var memberLowerCaseStringWithKeys_member = smithy.Member{Name: "member", Index: 0, Target: &schemaWithKey}
 
@@ -2353,13 +2353,13 @@ var schemaMappingVersion = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Mappi
 
 var schemaMatchPattern = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#MatchPattern", Type: smithy.TypeString}
 
-var schemaMatchPatterns = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#MatchPatterns", Type: smithy.TypeList, Members: []*smithy.Member{&memberMatchPatterns_member}}
+var schemaMatchPatterns = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#MatchPatterns", Type: smithy.TypeList}
 
 var memberMatchPatterns_member = smithy.Member{Name: "member", Index: 0, Target: &schemaMatchPattern}
 
 var schemaMessage = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Message", Type: smithy.TypeString}
 
-var schemaMetricFilter = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#MetricFilter", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberMetricFilter_filterName, &memberMetricFilter_filterPattern, &memberMetricFilter_metricTransformations, &memberMetricFilter_creationTime, &memberMetricFilter_logGroupName, &memberMetricFilter_applyOnTransformedLogs, &memberMetricFilter_fieldSelectionCriteria, &memberMetricFilter_emitSystemFieldDimensions}}
+var schemaMetricFilter = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#MetricFilter", Type: smithy.TypeStructure}
 
 var memberMetricFilter_filterName = smithy.Member{Name: "filterName", Index: 0, Target: &schemaFilterName}
 
@@ -2377,7 +2377,7 @@ var memberMetricFilter_fieldSelectionCriteria = smithy.Member{Name: "fieldSelect
 
 var memberMetricFilter_emitSystemFieldDimensions = smithy.Member{Name: "emitSystemFieldDimensions", Index: 7, Target: &schemaEmitSystemFields}
 
-var schemaMetricFilterMatchRecord = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#MetricFilterMatchRecord", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberMetricFilterMatchRecord_eventNumber, &memberMetricFilterMatchRecord_eventMessage, &memberMetricFilterMatchRecord_extractedValues}}
+var schemaMetricFilterMatchRecord = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#MetricFilterMatchRecord", Type: smithy.TypeStructure}
 
 var memberMetricFilterMatchRecord_eventNumber = smithy.Member{Name: "eventNumber", Index: 0, Target: &schemaEventNumber, Default: document.Number("0")}
 
@@ -2385,11 +2385,11 @@ var memberMetricFilterMatchRecord_eventMessage = smithy.Member{Name: "eventMessa
 
 var memberMetricFilterMatchRecord_extractedValues = smithy.Member{Name: "extractedValues", Index: 2, Target: &schemaExtractedValues}
 
-var schemaMetricFilterMatches = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#MetricFilterMatches", Type: smithy.TypeList, Members: []*smithy.Member{&memberMetricFilterMatches_member}}
+var schemaMetricFilterMatches = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#MetricFilterMatches", Type: smithy.TypeList}
 
 var memberMetricFilterMatches_member = smithy.Member{Name: "member", Index: 0, Target: &schemaMetricFilterMatchRecord}
 
-var schemaMetricFilters = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#MetricFilters", Type: smithy.TypeList, Members: []*smithy.Member{&memberMetricFilters_member}}
+var schemaMetricFilters = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#MetricFilters", Type: smithy.TypeList}
 
 var memberMetricFilters_member = smithy.Member{Name: "member", Index: 0, Target: &schemaMetricFilter}
 
@@ -2397,7 +2397,7 @@ var schemaMetricName = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#MetricNam
 
 var schemaMetricNamespace = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#MetricNamespace", Type: smithy.TypeString}
 
-var schemaMetricTransformation = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#MetricTransformation", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberMetricTransformation_metricName, &memberMetricTransformation_metricNamespace, &memberMetricTransformation_metricValue, &memberMetricTransformation_defaultValue, &memberMetricTransformation_dimensions, &memberMetricTransformation_unit}}
+var schemaMetricTransformation = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#MetricTransformation", Type: smithy.TypeStructure}
 
 var memberMetricTransformation_metricName = smithy.Member{Name: "metricName", Index: 0, Target: &schemaMetricName, Required: true}
 
@@ -2411,7 +2411,7 @@ var memberMetricTransformation_dimensions = smithy.Member{Name: "dimensions", In
 
 var memberMetricTransformation_unit = smithy.Member{Name: "unit", Index: 5, Target: &schemaStandardUnit}
 
-var schemaMetricTransformations = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#MetricTransformations", Type: smithy.TypeList, Members: []*smithy.Member{&memberMetricTransformations_member}}
+var schemaMetricTransformations = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#MetricTransformations", Type: smithy.TypeList}
 
 var memberMetricTransformations_member = smithy.Member{Name: "member", Index: 0, Target: &schemaMetricTransformation}
 
@@ -2421,11 +2421,11 @@ var schemaMissingAuthenticationTokenException = smithy.Schema{ID: "com.amazon.co
 
 var memberMissingAuthenticationTokenException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaMoveKeyEntries = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#MoveKeyEntries", Type: smithy.TypeList, Members: []*smithy.Member{&memberMoveKeyEntries_member}}
+var schemaMoveKeyEntries = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#MoveKeyEntries", Type: smithy.TypeList}
 
 var memberMoveKeyEntries_member = smithy.Member{Name: "member", Index: 0, Target: &schemaMoveKeyEntry}
 
-var schemaMoveKeyEntry = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#MoveKeyEntry", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberMoveKeyEntry_source, &memberMoveKeyEntry_target, &memberMoveKeyEntry_overwriteIfExists}}
+var schemaMoveKeyEntry = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#MoveKeyEntry", Type: smithy.TypeStructure}
 
 var memberMoveKeyEntry_source = smithy.Member{Name: "source", Index: 0, Target: &schemaSource, Required: true}
 
@@ -2433,7 +2433,7 @@ var memberMoveKeyEntry_target = smithy.Member{Name: "target", Index: 1, Target: 
 
 var memberMoveKeyEntry_overwriteIfExists = smithy.Member{Name: "overwriteIfExists", Index: 2, Target: &schemaOverwriteIfExists, Default: document.Bool(false)}
 
-var schemaMoveKeys = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#MoveKeys", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberMoveKeys_entries}}
+var schemaMoveKeys = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#MoveKeys", Type: smithy.TypeStructure}
 
 var memberMoveKeys_entries = smithy.Member{Name: "entries", Index: 0, Target: &schemaMoveKeyEntries, Required: true}
 
@@ -2447,7 +2447,7 @@ var memberNotImplemented_message = smithy.Member{Name: "message", Index: 0, Targ
 
 var schemaOCSFVersion = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#OCSFVersion", Type: smithy.TypeEnum}
 
-var schemaOpenSearchApplication = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#OpenSearchApplication", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberOpenSearchApplication_applicationEndpoint, &memberOpenSearchApplication_applicationArn, &memberOpenSearchApplication_applicationId, &memberOpenSearchApplication_status}}
+var schemaOpenSearchApplication = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#OpenSearchApplication", Type: smithy.TypeStructure}
 
 var memberOpenSearchApplication_applicationEndpoint = smithy.Member{Name: "applicationEndpoint", Index: 0, Target: &schemaOpenSearchApplicationEndpoint}
 
@@ -2461,7 +2461,7 @@ var schemaOpenSearchApplicationEndpoint = smithy.Schema{ID: "com.amazonaws.cloud
 
 var schemaOpenSearchApplicationId = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#OpenSearchApplicationId", Type: smithy.TypeString}
 
-var schemaOpenSearchCollection = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#OpenSearchCollection", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberOpenSearchCollection_collectionEndpoint, &memberOpenSearchCollection_collectionArn, &memberOpenSearchCollection_status}}
+var schemaOpenSearchCollection = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#OpenSearchCollection", Type: smithy.TypeStructure}
 
 var memberOpenSearchCollection_collectionEndpoint = smithy.Member{Name: "collectionEndpoint", Index: 0, Target: &schemaOpenSearchCollectionEndpoint}
 
@@ -2471,13 +2471,13 @@ var memberOpenSearchCollection_status = smithy.Member{Name: "status", Index: 2, 
 
 var schemaOpenSearchCollectionEndpoint = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#OpenSearchCollectionEndpoint", Type: smithy.TypeString}
 
-var schemaOpenSearchDataAccessPolicy = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#OpenSearchDataAccessPolicy", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberOpenSearchDataAccessPolicy_policyName, &memberOpenSearchDataAccessPolicy_status}}
+var schemaOpenSearchDataAccessPolicy = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#OpenSearchDataAccessPolicy", Type: smithy.TypeStructure}
 
 var memberOpenSearchDataAccessPolicy_policyName = smithy.Member{Name: "policyName", Index: 0, Target: &schemaOpenSearchPolicyName}
 
 var memberOpenSearchDataAccessPolicy_status = smithy.Member{Name: "status", Index: 1, Target: &schemaOpenSearchResourceStatus}
 
-var schemaOpenSearchDataSource = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#OpenSearchDataSource", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberOpenSearchDataSource_dataSourceName, &memberOpenSearchDataSource_status}}
+var schemaOpenSearchDataSource = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#OpenSearchDataSource", Type: smithy.TypeStructure}
 
 var memberOpenSearchDataSource_dataSourceName = smithy.Member{Name: "dataSourceName", Index: 0, Target: &schemaOpenSearchDataSourceName}
 
@@ -2485,13 +2485,13 @@ var memberOpenSearchDataSource_status = smithy.Member{Name: "status", Index: 1, 
 
 var schemaOpenSearchDataSourceName = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#OpenSearchDataSourceName", Type: smithy.TypeString}
 
-var schemaOpenSearchEncryptionPolicy = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#OpenSearchEncryptionPolicy", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberOpenSearchEncryptionPolicy_policyName, &memberOpenSearchEncryptionPolicy_status}}
+var schemaOpenSearchEncryptionPolicy = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#OpenSearchEncryptionPolicy", Type: smithy.TypeStructure}
 
 var memberOpenSearchEncryptionPolicy_policyName = smithy.Member{Name: "policyName", Index: 0, Target: &schemaOpenSearchPolicyName}
 
 var memberOpenSearchEncryptionPolicy_status = smithy.Member{Name: "status", Index: 1, Target: &schemaOpenSearchResourceStatus}
 
-var schemaOpenSearchIntegrationDetails = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#OpenSearchIntegrationDetails", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberOpenSearchIntegrationDetails_dataSource, &memberOpenSearchIntegrationDetails_application, &memberOpenSearchIntegrationDetails_collection, &memberOpenSearchIntegrationDetails_workspace, &memberOpenSearchIntegrationDetails_encryptionPolicy, &memberOpenSearchIntegrationDetails_networkPolicy, &memberOpenSearchIntegrationDetails_accessPolicy, &memberOpenSearchIntegrationDetails_lifecyclePolicy}}
+var schemaOpenSearchIntegrationDetails = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#OpenSearchIntegrationDetails", Type: smithy.TypeStructure}
 
 var memberOpenSearchIntegrationDetails_dataSource = smithy.Member{Name: "dataSource", Index: 0, Target: &schemaOpenSearchDataSource}
 
@@ -2509,13 +2509,13 @@ var memberOpenSearchIntegrationDetails_accessPolicy = smithy.Member{Name: "acces
 
 var memberOpenSearchIntegrationDetails_lifecyclePolicy = smithy.Member{Name: "lifecyclePolicy", Index: 7, Target: &schemaOpenSearchLifecyclePolicy}
 
-var schemaOpenSearchLifecyclePolicy = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#OpenSearchLifecyclePolicy", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberOpenSearchLifecyclePolicy_policyName, &memberOpenSearchLifecyclePolicy_status}}
+var schemaOpenSearchLifecyclePolicy = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#OpenSearchLifecyclePolicy", Type: smithy.TypeStructure}
 
 var memberOpenSearchLifecyclePolicy_policyName = smithy.Member{Name: "policyName", Index: 0, Target: &schemaOpenSearchPolicyName}
 
 var memberOpenSearchLifecyclePolicy_status = smithy.Member{Name: "status", Index: 1, Target: &schemaOpenSearchResourceStatus}
 
-var schemaOpenSearchNetworkPolicy = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#OpenSearchNetworkPolicy", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberOpenSearchNetworkPolicy_policyName, &memberOpenSearchNetworkPolicy_status}}
+var schemaOpenSearchNetworkPolicy = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#OpenSearchNetworkPolicy", Type: smithy.TypeStructure}
 
 var memberOpenSearchNetworkPolicy_policyName = smithy.Member{Name: "policyName", Index: 0, Target: &schemaOpenSearchPolicyName}
 
@@ -2523,7 +2523,7 @@ var memberOpenSearchNetworkPolicy_status = smithy.Member{Name: "status", Index: 
 
 var schemaOpenSearchPolicyName = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#OpenSearchPolicyName", Type: smithy.TypeString}
 
-var schemaOpenSearchResourceConfig = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#OpenSearchResourceConfig", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberOpenSearchResourceConfig_kmsKeyArn, &memberOpenSearchResourceConfig_dataSourceRoleArn, &memberOpenSearchResourceConfig_dashboardViewerPrincipals, &memberOpenSearchResourceConfig_applicationArn, &memberOpenSearchResourceConfig_retentionDays}}
+var schemaOpenSearchResourceConfig = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#OpenSearchResourceConfig", Type: smithy.TypeStructure}
 
 var memberOpenSearchResourceConfig_kmsKeyArn = smithy.Member{Name: "kmsKeyArn", Index: 0, Target: &schemaArn}
 
@@ -2535,7 +2535,7 @@ var memberOpenSearchResourceConfig_applicationArn = smithy.Member{Name: "applica
 
 var memberOpenSearchResourceConfig_retentionDays = smithy.Member{Name: "retentionDays", Index: 4, Target: &schemaCollectionRetentionDays, Required: true}
 
-var schemaOpenSearchResourceStatus = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#OpenSearchResourceStatus", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberOpenSearchResourceStatus_status, &memberOpenSearchResourceStatus_statusMessage}}
+var schemaOpenSearchResourceStatus = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#OpenSearchResourceStatus", Type: smithy.TypeStructure}
 
 var memberOpenSearchResourceStatus_status = smithy.Member{Name: "status", Index: 0, Target: &schemaOpenSearchResourceStatusType}
 
@@ -2543,7 +2543,7 @@ var memberOpenSearchResourceStatus_statusMessage = smithy.Member{Name: "statusMe
 
 var schemaOpenSearchResourceStatusType = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#OpenSearchResourceStatusType", Type: smithy.TypeEnum}
 
-var schemaOpenSearchWorkspace = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#OpenSearchWorkspace", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberOpenSearchWorkspace_workspaceId, &memberOpenSearchWorkspace_status}}
+var schemaOpenSearchWorkspace = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#OpenSearchWorkspace", Type: smithy.TypeStructure}
 
 var memberOpenSearchWorkspace_workspaceId = smithy.Member{Name: "workspaceId", Index: 0, Target: &schemaOpenSearchWorkspaceId}
 
@@ -2559,7 +2559,7 @@ var schemaOrderBy = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#OrderBy", Ty
 
 var schemaOutputFormat = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#OutputFormat", Type: smithy.TypeEnum}
 
-var schemaOutputFormats = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#OutputFormats", Type: smithy.TypeList, Members: []*smithy.Member{&memberOutputFormats_member}}
+var schemaOutputFormats = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#OutputFormats", Type: smithy.TypeList}
 
 var memberOutputFormats_member = smithy.Member{Name: "member", Index: 0, Target: &schemaOutputFormat}
 
@@ -2577,17 +2577,17 @@ var memberOutputLogEvents_member = smithy.Member{Name: "member", Index: 0, Targe
 
 var schemaOverwriteIfExists = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#OverwriteIfExists", Type: smithy.TypeBoolean}
 
-var schemaParseCloudfront = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ParseCloudfront", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberParseCloudfront_source}}
+var schemaParseCloudfront = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ParseCloudfront", Type: smithy.TypeStructure}
 
 var memberParseCloudfront_source = smithy.Member{Name: "source", Index: 0, Target: &schemaSource}
 
-var schemaParseJSON = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ParseJSON", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberParseJSON_source, &memberParseJSON_destination}}
+var schemaParseJSON = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ParseJSON", Type: smithy.TypeStructure}
 
 var memberParseJSON_source = smithy.Member{Name: "source", Index: 0, Target: &schemaSource}
 
 var memberParseJSON_destination = smithy.Member{Name: "destination", Index: 1, Target: &schemaDestinationField}
 
-var schemaParseKeyValue = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ParseKeyValue", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberParseKeyValue_source, &memberParseKeyValue_destination, &memberParseKeyValue_fieldDelimiter, &memberParseKeyValue_keyValueDelimiter, &memberParseKeyValue_keyPrefix, &memberParseKeyValue_nonMatchValue, &memberParseKeyValue_overwriteIfExists}}
+var schemaParseKeyValue = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ParseKeyValue", Type: smithy.TypeStructure}
 
 var memberParseKeyValue_source = smithy.Member{Name: "source", Index: 0, Target: &schemaSource}
 
@@ -2603,15 +2603,15 @@ var memberParseKeyValue_nonMatchValue = smithy.Member{Name: "nonMatchValue", Ind
 
 var memberParseKeyValue_overwriteIfExists = smithy.Member{Name: "overwriteIfExists", Index: 6, Target: &schemaOverwriteIfExists, Default: document.Bool(false)}
 
-var schemaParsePostgres = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ParsePostgres", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberParsePostgres_source}}
+var schemaParsePostgres = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ParsePostgres", Type: smithy.TypeStructure}
 
 var memberParsePostgres_source = smithy.Member{Name: "source", Index: 0, Target: &schemaSource}
 
-var schemaParseRoute53 = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ParseRoute53", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberParseRoute53_source}}
+var schemaParseRoute53 = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ParseRoute53", Type: smithy.TypeStructure}
 
 var memberParseRoute53_source = smithy.Member{Name: "source", Index: 0, Target: &schemaSource}
 
-var schemaParseToOCSF = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ParseToOCSF", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberParseToOCSF_source, &memberParseToOCSF_eventSource, &memberParseToOCSF_ocsfVersion, &memberParseToOCSF_mappingVersion}}
+var schemaParseToOCSF = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ParseToOCSF", Type: smithy.TypeStructure}
 
 var memberParseToOCSF_source = smithy.Member{Name: "source", Index: 0, Target: &schemaSource}
 
@@ -2621,11 +2621,11 @@ var memberParseToOCSF_ocsfVersion = smithy.Member{Name: "ocsfVersion", Index: 2,
 
 var memberParseToOCSF_mappingVersion = smithy.Member{Name: "mappingVersion", Index: 3, Target: &schemaMappingVersion}
 
-var schemaParseVPC = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ParseVPC", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberParseVPC_source}}
+var schemaParseVPC = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ParseVPC", Type: smithy.TypeStructure}
 
 var memberParseVPC_source = smithy.Member{Name: "source", Index: 0, Target: &schemaSource}
 
-var schemaParseWAF = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ParseWAF", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberParseWAF_source}}
+var schemaParseWAF = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ParseWAF", Type: smithy.TypeStructure}
 
 var memberParseWAF_source = smithy.Member{Name: "source", Index: 0, Target: &schemaSource}
 
@@ -2637,7 +2637,7 @@ var schemaPatternRegex = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Pattern
 
 var schemaPatternString = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PatternString", Type: smithy.TypeString}
 
-var schemaPatternToken = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PatternToken", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPatternToken_dynamicTokenPosition, &memberPatternToken_isDynamic, &memberPatternToken_tokenString, &memberPatternToken_enumerations, &memberPatternToken_inferredTokenName}}
+var schemaPatternToken = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PatternToken", Type: smithy.TypeStructure}
 
 var memberPatternToken_dynamicTokenPosition = smithy.Member{Name: "dynamicTokenPosition", Index: 0, Target: &schemaDynamicTokenPosition, Default: document.Number("0")}
 
@@ -2649,13 +2649,13 @@ var memberPatternToken_enumerations = smithy.Member{Name: "enumerations", Index:
 
 var memberPatternToken_inferredTokenName = smithy.Member{Name: "inferredTokenName", Index: 4, Target: &schemaInferredTokenName}
 
-var schemaPatternTokens = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PatternTokens", Type: smithy.TypeList, Members: []*smithy.Member{&memberPatternTokens_member}}
+var schemaPatternTokens = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PatternTokens", Type: smithy.TypeList}
 
 var memberPatternTokens_member = smithy.Member{Name: "member", Index: 0, Target: &schemaPatternToken}
 
 var schemaPercentage = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Percentage", Type: smithy.TypeInteger}
 
-var schemaPolicy = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Policy", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPolicy_deliveryDestinationPolicy}}
+var schemaPolicy = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Policy", Type: smithy.TypeStructure}
 
 var memberPolicy_deliveryDestinationPolicy = smithy.Member{Name: "deliveryDestinationPolicy", Index: 0, Target: &schemaDeliveryDestinationPolicy}
 
@@ -2669,7 +2669,7 @@ var schemaPolicyType = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PolicyTyp
 
 var schemaPriority = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Priority", Type: smithy.TypeString}
 
-var schemaProcessor = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Processor", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberProcessor_addKeys, &memberProcessor_copyValue, &memberProcessor_csv, &memberProcessor_dateTimeConverter, &memberProcessor_deleteKeys, &memberProcessor_grok, &memberProcessor_listToMap, &memberProcessor_lowerCaseString, &memberProcessor_moveKeys, &memberProcessor_parseCloudfront, &memberProcessor_parseJSON, &memberProcessor_parseKeyValue, &memberProcessor_parseRoute53, &memberProcessor_parseToOCSF, &memberProcessor_parsePostgres, &memberProcessor_parseVPC, &memberProcessor_parseWAF, &memberProcessor_renameKeys, &memberProcessor_splitString, &memberProcessor_substituteString, &memberProcessor_trimString, &memberProcessor_typeConverter, &memberProcessor_upperCaseString}}
+var schemaProcessor = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Processor", Type: smithy.TypeStructure}
 
 var memberProcessor_addKeys = smithy.Member{Name: "addKeys", Index: 0, Target: &schemaAddKeys}
 
@@ -2717,11 +2717,11 @@ var memberProcessor_typeConverter = smithy.Member{Name: "typeConverter", Index: 
 
 var memberProcessor_upperCaseString = smithy.Member{Name: "upperCaseString", Index: 22, Target: &schemaUpperCaseString}
 
-var schemaProcessors = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Processors", Type: smithy.TypeList, Members: []*smithy.Member{&memberProcessors_member}}
+var schemaProcessors = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Processors", Type: smithy.TypeList}
 
 var memberProcessors_member = smithy.Member{Name: "member", Index: 0, Target: &schemaProcessor}
 
-var schemaPutAccountPolicyInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutAccountPolicyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutAccountPolicyInput_policyName, &memberPutAccountPolicyInput_policyDocument, &memberPutAccountPolicyInput_policyType, &memberPutAccountPolicyInput_scope, &memberPutAccountPolicyInput_selectionCriteria}}
+var schemaPutAccountPolicyInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutAccountPolicyRequest", Type: smithy.TypeStructure}
 
 var memberPutAccountPolicyInput_policyName = smithy.Member{Name: "policyName", Index: 0, Target: &schemaPolicyName, Required: true}
 
@@ -2733,23 +2733,23 @@ var memberPutAccountPolicyInput_scope = smithy.Member{Name: "scope", Index: 3, T
 
 var memberPutAccountPolicyInput_selectionCriteria = smithy.Member{Name: "selectionCriteria", Index: 4, Target: &schemaSelectionCriteria}
 
-var schemaPutAccountPolicyOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutAccountPolicyResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutAccountPolicyOutput_accountPolicy}}
+var schemaPutAccountPolicyOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutAccountPolicyResponse", Type: smithy.TypeStructure}
 
 var memberPutAccountPolicyOutput_accountPolicy = smithy.Member{Name: "accountPolicy", Index: 0, Target: &schemaAccountPolicy}
 
-var schemaPutBearerTokenAuthenticationInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutBearerTokenAuthenticationRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutBearerTokenAuthenticationInput_logGroupIdentifier, &memberPutBearerTokenAuthenticationInput_bearerTokenAuthenticationEnabled}}
+var schemaPutBearerTokenAuthenticationInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutBearerTokenAuthenticationRequest", Type: smithy.TypeStructure}
 
 var memberPutBearerTokenAuthenticationInput_logGroupIdentifier = smithy.Member{Name: "logGroupIdentifier", Index: 0, Target: &schemaLogGroupIdentifier, Required: true}
 
 var memberPutBearerTokenAuthenticationInput_bearerTokenAuthenticationEnabled = smithy.Member{Name: "bearerTokenAuthenticationEnabled", Index: 1, Target: &schemaBearerTokenAuthenticationEnabled, Required: true}
 
-var schemaPutDataProtectionPolicyInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutDataProtectionPolicyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutDataProtectionPolicyInput_logGroupIdentifier, &memberPutDataProtectionPolicyInput_policyDocument}}
+var schemaPutDataProtectionPolicyInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutDataProtectionPolicyRequest", Type: smithy.TypeStructure}
 
 var memberPutDataProtectionPolicyInput_logGroupIdentifier = smithy.Member{Name: "logGroupIdentifier", Index: 0, Target: &schemaLogGroupIdentifier, Required: true}
 
 var memberPutDataProtectionPolicyInput_policyDocument = smithy.Member{Name: "policyDocument", Index: 1, Target: &schemaDataProtectionPolicyDocument, Required: true}
 
-var schemaPutDataProtectionPolicyOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutDataProtectionPolicyResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutDataProtectionPolicyOutput_logGroupIdentifier, &memberPutDataProtectionPolicyOutput_policyDocument, &memberPutDataProtectionPolicyOutput_lastUpdatedTime}}
+var schemaPutDataProtectionPolicyOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutDataProtectionPolicyResponse", Type: smithy.TypeStructure}
 
 var memberPutDataProtectionPolicyOutput_logGroupIdentifier = smithy.Member{Name: "logGroupIdentifier", Index: 0, Target: &schemaLogGroupIdentifier}
 
@@ -2757,7 +2757,7 @@ var memberPutDataProtectionPolicyOutput_policyDocument = smithy.Member{Name: "po
 
 var memberPutDataProtectionPolicyOutput_lastUpdatedTime = smithy.Member{Name: "lastUpdatedTime", Index: 2, Target: &schemaTimestamp}
 
-var schemaPutDeliveryDestinationInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutDeliveryDestinationRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutDeliveryDestinationInput_name, &memberPutDeliveryDestinationInput_outputFormat, &memberPutDeliveryDestinationInput_deliveryDestinationConfiguration, &memberPutDeliveryDestinationInput_deliveryDestinationType, &memberPutDeliveryDestinationInput_roleArn, &memberPutDeliveryDestinationInput_tags}}
+var schemaPutDeliveryDestinationInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutDeliveryDestinationRequest", Type: smithy.TypeStructure}
 
 var memberPutDeliveryDestinationInput_name = smithy.Member{Name: "name", Index: 0, Target: &schemaDeliveryDestinationName, Required: true}
 
@@ -2771,21 +2771,21 @@ var memberPutDeliveryDestinationInput_roleArn = smithy.Member{Name: "roleArn", I
 
 var memberPutDeliveryDestinationInput_tags = smithy.Member{Name: "tags", Index: 5, Target: &schemaTags}
 
-var schemaPutDeliveryDestinationOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutDeliveryDestinationResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutDeliveryDestinationOutput_deliveryDestination}}
+var schemaPutDeliveryDestinationOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutDeliveryDestinationResponse", Type: smithy.TypeStructure}
 
 var memberPutDeliveryDestinationOutput_deliveryDestination = smithy.Member{Name: "deliveryDestination", Index: 0, Target: &schemaDeliveryDestination}
 
-var schemaPutDeliveryDestinationPolicyInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutDeliveryDestinationPolicyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutDeliveryDestinationPolicyInput_deliveryDestinationName, &memberPutDeliveryDestinationPolicyInput_deliveryDestinationPolicy}}
+var schemaPutDeliveryDestinationPolicyInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutDeliveryDestinationPolicyRequest", Type: smithy.TypeStructure}
 
 var memberPutDeliveryDestinationPolicyInput_deliveryDestinationName = smithy.Member{Name: "deliveryDestinationName", Index: 0, Target: &schemaDeliveryDestinationName, Required: true}
 
 var memberPutDeliveryDestinationPolicyInput_deliveryDestinationPolicy = smithy.Member{Name: "deliveryDestinationPolicy", Index: 1, Target: &schemaDeliveryDestinationPolicy, Required: true}
 
-var schemaPutDeliveryDestinationPolicyOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutDeliveryDestinationPolicyResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutDeliveryDestinationPolicyOutput_policy}}
+var schemaPutDeliveryDestinationPolicyOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutDeliveryDestinationPolicyResponse", Type: smithy.TypeStructure}
 
 var memberPutDeliveryDestinationPolicyOutput_policy = smithy.Member{Name: "policy", Index: 0, Target: &schemaPolicy}
 
-var schemaPutDeliverySourceInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutDeliverySourceRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutDeliverySourceInput_name, &memberPutDeliverySourceInput_resourceArn, &memberPutDeliverySourceInput_logType, &memberPutDeliverySourceInput_tags, &memberPutDeliverySourceInput_deliverySourceConfiguration}}
+var schemaPutDeliverySourceInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutDeliverySourceRequest", Type: smithy.TypeStructure}
 
 var memberPutDeliverySourceInput_name = smithy.Member{Name: "name", Index: 0, Target: &schemaDeliverySourceName, Required: true}
 
@@ -2797,11 +2797,11 @@ var memberPutDeliverySourceInput_tags = smithy.Member{Name: "tags", Index: 3, Ta
 
 var memberPutDeliverySourceInput_deliverySourceConfiguration = smithy.Member{Name: "deliverySourceConfiguration", Index: 4, Target: &schemaDeliverySourceConfiguration}
 
-var schemaPutDeliverySourceOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutDeliverySourceResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutDeliverySourceOutput_deliverySource}}
+var schemaPutDeliverySourceOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutDeliverySourceResponse", Type: smithy.TypeStructure}
 
 var memberPutDeliverySourceOutput_deliverySource = smithy.Member{Name: "deliverySource", Index: 0, Target: &schemaDeliverySource}
 
-var schemaPutDestinationInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutDestinationRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutDestinationInput_destinationName, &memberPutDestinationInput_targetArn, &memberPutDestinationInput_roleArn, &memberPutDestinationInput_tags}}
+var schemaPutDestinationInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutDestinationRequest", Type: smithy.TypeStructure}
 
 var memberPutDestinationInput_destinationName = smithy.Member{Name: "destinationName", Index: 0, Target: &schemaDestinationName, Required: true}
 
@@ -2811,11 +2811,11 @@ var memberPutDestinationInput_roleArn = smithy.Member{Name: "roleArn", Index: 2,
 
 var memberPutDestinationInput_tags = smithy.Member{Name: "tags", Index: 3, Target: &schemaTags}
 
-var schemaPutDestinationOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutDestinationResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutDestinationOutput_destination}}
+var schemaPutDestinationOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutDestinationResponse", Type: smithy.TypeStructure}
 
 var memberPutDestinationOutput_destination = smithy.Member{Name: "destination", Index: 0, Target: &schemaDestination}
 
-var schemaPutDestinationPolicyInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutDestinationPolicyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutDestinationPolicyInput_destinationName, &memberPutDestinationPolicyInput_accessPolicy, &memberPutDestinationPolicyInput_forceUpdate}}
+var schemaPutDestinationPolicyInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutDestinationPolicyRequest", Type: smithy.TypeStructure}
 
 var memberPutDestinationPolicyInput_destinationName = smithy.Member{Name: "destinationName", Index: 0, Target: &schemaDestinationName, Required: true}
 
@@ -2823,17 +2823,17 @@ var memberPutDestinationPolicyInput_accessPolicy = smithy.Member{Name: "accessPo
 
 var memberPutDestinationPolicyInput_forceUpdate = smithy.Member{Name: "forceUpdate", Index: 2, Target: &schemaForceUpdate}
 
-var schemaPutIndexPolicyInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutIndexPolicyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutIndexPolicyInput_logGroupIdentifier, &memberPutIndexPolicyInput_policyDocument}}
+var schemaPutIndexPolicyInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutIndexPolicyRequest", Type: smithy.TypeStructure}
 
 var memberPutIndexPolicyInput_logGroupIdentifier = smithy.Member{Name: "logGroupIdentifier", Index: 0, Target: &schemaLogGroupIdentifier, Required: true}
 
 var memberPutIndexPolicyInput_policyDocument = smithy.Member{Name: "policyDocument", Index: 1, Target: &schemaPolicyDocument, Required: true}
 
-var schemaPutIndexPolicyOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutIndexPolicyResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutIndexPolicyOutput_indexPolicy}}
+var schemaPutIndexPolicyOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutIndexPolicyResponse", Type: smithy.TypeStructure}
 
 var memberPutIndexPolicyOutput_indexPolicy = smithy.Member{Name: "indexPolicy", Index: 0, Target: &schemaIndexPolicy}
 
-var schemaPutIntegrationInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutIntegrationRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutIntegrationInput_integrationName, &memberPutIntegrationInput_resourceConfig, &memberPutIntegrationInput_integrationType}}
+var schemaPutIntegrationInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutIntegrationRequest", Type: smithy.TypeStructure}
 
 var memberPutIntegrationInput_integrationName = smithy.Member{Name: "integrationName", Index: 0, Target: &schemaIntegrationName, Required: true}
 
@@ -2841,7 +2841,7 @@ var memberPutIntegrationInput_resourceConfig = smithy.Member{Name: "resourceConf
 
 var memberPutIntegrationInput_integrationType = smithy.Member{Name: "integrationType", Index: 2, Target: &schemaIntegrationType, Required: true}
 
-var schemaPutIntegrationOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutIntegrationResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutIntegrationOutput_integrationName, &memberPutIntegrationOutput_integrationStatus}}
+var schemaPutIntegrationOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutIntegrationResponse", Type: smithy.TypeStructure}
 
 var memberPutIntegrationOutput_integrationName = smithy.Member{Name: "integrationName", Index: 0, Target: &schemaIntegrationName}
 
@@ -2881,7 +2881,7 @@ var memberPutLogGroupDeletionProtectionInput_logGroupIdentifier = smithy.Member{
 
 var memberPutLogGroupDeletionProtectionInput_deletionProtectionEnabled = smithy.Member{Name: "deletionProtectionEnabled", Index: 1, Target: &schemaDeletionProtectionEnabled, Required: true}
 
-var schemaPutMetricFilterInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutMetricFilterRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutMetricFilterInput_logGroupName, &memberPutMetricFilterInput_filterName, &memberPutMetricFilterInput_filterPattern, &memberPutMetricFilterInput_metricTransformations, &memberPutMetricFilterInput_applyOnTransformedLogs, &memberPutMetricFilterInput_fieldSelectionCriteria, &memberPutMetricFilterInput_emitSystemFieldDimensions}}
+var schemaPutMetricFilterInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutMetricFilterRequest", Type: smithy.TypeStructure}
 
 var memberPutMetricFilterInput_logGroupName = smithy.Member{Name: "logGroupName", Index: 0, Target: &schemaLogGroupName, Required: true}
 
@@ -2897,7 +2897,7 @@ var memberPutMetricFilterInput_fieldSelectionCriteria = smithy.Member{Name: "fie
 
 var memberPutMetricFilterInput_emitSystemFieldDimensions = smithy.Member{Name: "emitSystemFieldDimensions", Index: 6, Target: &schemaEmitSystemFields}
 
-var schemaPutQueryDefinitionInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutQueryDefinitionRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutQueryDefinitionInput_queryLanguage, &memberPutQueryDefinitionInput_name, &memberPutQueryDefinitionInput_queryDefinitionId, &memberPutQueryDefinitionInput_logGroupNames, &memberPutQueryDefinitionInput_queryString, &memberPutQueryDefinitionInput_clientToken, &memberPutQueryDefinitionInput_parameters}}
+var schemaPutQueryDefinitionInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutQueryDefinitionRequest", Type: smithy.TypeStructure}
 
 var memberPutQueryDefinitionInput_queryLanguage = smithy.Member{Name: "queryLanguage", Index: 0, Target: &schemaQueryLanguage}
 
@@ -2913,11 +2913,11 @@ var memberPutQueryDefinitionInput_clientToken = smithy.Member{Name: "clientToken
 
 var memberPutQueryDefinitionInput_parameters = smithy.Member{Name: "parameters", Index: 6, Target: &schemaQueryParameterList}
 
-var schemaPutQueryDefinitionOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutQueryDefinitionResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutQueryDefinitionOutput_queryDefinitionId}}
+var schemaPutQueryDefinitionOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutQueryDefinitionResponse", Type: smithy.TypeStructure}
 
 var memberPutQueryDefinitionOutput_queryDefinitionId = smithy.Member{Name: "queryDefinitionId", Index: 0, Target: &schemaQueryId}
 
-var schemaPutResourcePolicyInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutResourcePolicyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutResourcePolicyInput_policyName, &memberPutResourcePolicyInput_policyDocument, &memberPutResourcePolicyInput_resourceArn, &memberPutResourcePolicyInput_expectedRevisionId}}
+var schemaPutResourcePolicyInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutResourcePolicyRequest", Type: smithy.TypeStructure}
 
 var memberPutResourcePolicyInput_policyName = smithy.Member{Name: "policyName", Index: 0, Target: &schemaPolicyName}
 
@@ -2927,7 +2927,7 @@ var memberPutResourcePolicyInput_resourceArn = smithy.Member{Name: "resourceArn"
 
 var memberPutResourcePolicyInput_expectedRevisionId = smithy.Member{Name: "expectedRevisionId", Index: 3, Target: &schemaExpectedRevisionId}
 
-var schemaPutResourcePolicyOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutResourcePolicyResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutResourcePolicyOutput_resourcePolicy, &memberPutResourcePolicyOutput_revisionId}}
+var schemaPutResourcePolicyOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutResourcePolicyResponse", Type: smithy.TypeStructure}
 
 var memberPutResourcePolicyOutput_resourcePolicy = smithy.Member{Name: "resourcePolicy", Index: 0, Target: &schemaResourcePolicy}
 
@@ -2939,17 +2939,17 @@ var memberPutRetentionPolicyInput_logGroupName = smithy.Member{Name: "logGroupNa
 
 var memberPutRetentionPolicyInput_retentionInDays = smithy.Member{Name: "retentionInDays", Index: 1, Target: &schemaDays, Required: true}
 
-var schemaPutStorageTierPolicyInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutStorageTierPolicyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutStorageTierPolicyInput_storageTier}}
+var schemaPutStorageTierPolicyInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutStorageTierPolicyRequest", Type: smithy.TypeStructure}
 
 var memberPutStorageTierPolicyInput_storageTier = smithy.Member{Name: "storageTier", Index: 0, Target: &schemaStorageTier, Required: true}
 
-var schemaPutStorageTierPolicyOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutStorageTierPolicyResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutStorageTierPolicyOutput_storageTier, &memberPutStorageTierPolicyOutput_lastUpdatedTime}}
+var schemaPutStorageTierPolicyOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutStorageTierPolicyResponse", Type: smithy.TypeStructure}
 
 var memberPutStorageTierPolicyOutput_storageTier = smithy.Member{Name: "storageTier", Index: 0, Target: &schemaStorageTier}
 
 var memberPutStorageTierPolicyOutput_lastUpdatedTime = smithy.Member{Name: "lastUpdatedTime", Index: 1, Target: &schemaTimestamp}
 
-var schemaPutSubscriptionFilterInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutSubscriptionFilterRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutSubscriptionFilterInput_logGroupName, &memberPutSubscriptionFilterInput_filterName, &memberPutSubscriptionFilterInput_filterPattern, &memberPutSubscriptionFilterInput_destinationArn, &memberPutSubscriptionFilterInput_roleArn, &memberPutSubscriptionFilterInput_distribution, &memberPutSubscriptionFilterInput_applyOnTransformedLogs, &memberPutSubscriptionFilterInput_fieldSelectionCriteria, &memberPutSubscriptionFilterInput_emitSystemFields}}
+var schemaPutSubscriptionFilterInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutSubscriptionFilterRequest", Type: smithy.TypeStructure}
 
 var memberPutSubscriptionFilterInput_logGroupName = smithy.Member{Name: "logGroupName", Index: 0, Target: &schemaLogGroupName, Required: true}
 
@@ -2969,13 +2969,13 @@ var memberPutSubscriptionFilterInput_fieldSelectionCriteria = smithy.Member{Name
 
 var memberPutSubscriptionFilterInput_emitSystemFields = smithy.Member{Name: "emitSystemFields", Index: 8, Target: &schemaEmitSystemFields}
 
-var schemaPutSyslogConfigurationInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutSyslogConfigurationRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutSyslogConfigurationInput_logGroupIdentifier, &memberPutSyslogConfigurationInput_vpcEndpointId}}
+var schemaPutSyslogConfigurationInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutSyslogConfigurationRequest", Type: smithy.TypeStructure}
 
 var memberPutSyslogConfigurationInput_logGroupIdentifier = smithy.Member{Name: "logGroupIdentifier", Index: 0, Target: &schemaLogGroupIdentifier, Required: true}
 
 var memberPutSyslogConfigurationInput_vpcEndpointId = smithy.Member{Name: "vpcEndpointId", Index: 1, Target: &schemaVpcEndpointId}
 
-var schemaPutTransformerInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutTransformerRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutTransformerInput_logGroupIdentifier, &memberPutTransformerInput_transformerConfig}}
+var schemaPutTransformerInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutTransformerRequest", Type: smithy.TypeStructure}
 
 var memberPutTransformerInput_logGroupIdentifier = smithy.Member{Name: "logGroupIdentifier", Index: 0, Target: &schemaLogGroupIdentifier, Required: true}
 
@@ -2995,7 +2995,7 @@ var memberQueryCompileErrorLocation_startCharOffset = smithy.Member{Name: "start
 
 var memberQueryCompileErrorLocation_endCharOffset = smithy.Member{Name: "endCharOffset", Index: 1, Target: &schemaQueryCharOffset}
 
-var schemaQueryDefinition = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#QueryDefinition", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberQueryDefinition_queryLanguage, &memberQueryDefinition_queryDefinitionId, &memberQueryDefinition_name, &memberQueryDefinition_queryString, &memberQueryDefinition_lastModified, &memberQueryDefinition_logGroupNames, &memberQueryDefinition_parameters}}
+var schemaQueryDefinition = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#QueryDefinition", Type: smithy.TypeStructure}
 
 var memberQueryDefinition_queryLanguage = smithy.Member{Name: "queryLanguage", Index: 0, Target: &schemaQueryLanguage}
 
@@ -3011,7 +3011,7 @@ var memberQueryDefinition_logGroupNames = smithy.Member{Name: "logGroupNames", I
 
 var memberQueryDefinition_parameters = smithy.Member{Name: "parameters", Index: 6, Target: &schemaQueryParameterList}
 
-var schemaQueryDefinitionList = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#QueryDefinitionList", Type: smithy.TypeList, Members: []*smithy.Member{&memberQueryDefinitionList_member}}
+var schemaQueryDefinitionList = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#QueryDefinitionList", Type: smithy.TypeList}
 
 var memberQueryDefinitionList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaQueryDefinition}
 
@@ -3023,7 +3023,7 @@ var schemaQueryDuration = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#QueryD
 
 var schemaQueryId = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#QueryId", Type: smithy.TypeString}
 
-var schemaQueryInfo = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#QueryInfo", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberQueryInfo_queryLanguage, &memberQueryInfo_queryId, &memberQueryInfo_queryString, &memberQueryInfo_status, &memberQueryInfo_createTime, &memberQueryInfo_logGroupName, &memberQueryInfo_queryDuration, &memberQueryInfo_bytesScanned, &memberQueryInfo_userIdentity}}
+var schemaQueryInfo = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#QueryInfo", Type: smithy.TypeStructure}
 
 var memberQueryInfo_queryLanguage = smithy.Member{Name: "queryLanguage", Index: 0, Target: &schemaQueryLanguage}
 
@@ -3043,7 +3043,7 @@ var memberQueryInfo_bytesScanned = smithy.Member{Name: "bytesScanned", Index: 7,
 
 var memberQueryInfo_userIdentity = smithy.Member{Name: "userIdentity", Index: 8, Target: &schemaUserIdentity}
 
-var schemaQueryInfoList = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#QueryInfoList", Type: smithy.TypeList, Members: []*smithy.Member{&memberQueryInfoList_member}}
+var schemaQueryInfoList = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#QueryInfoList", Type: smithy.TypeList}
 
 var memberQueryInfoList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaQueryInfo}
 
@@ -3051,7 +3051,7 @@ var schemaQueryLanguage = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#QueryL
 
 var schemaQueryListMaxResults = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#QueryListMaxResults", Type: smithy.TypeInteger}
 
-var schemaQueryParameter = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#QueryParameter", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberQueryParameter_name, &memberQueryParameter_defaultValue, &memberQueryParameter_description}}
+var schemaQueryParameter = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#QueryParameter", Type: smithy.TypeStructure}
 
 var memberQueryParameter_name = smithy.Member{Name: "name", Index: 0, Target: &schemaQueryParameterName, Required: true}
 
@@ -3063,17 +3063,17 @@ var schemaQueryParameterDefaultValue = smithy.Schema{ID: "com.amazonaws.cloudwat
 
 var schemaQueryParameterDescription = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#QueryParameterDescription", Type: smithy.TypeString}
 
-var schemaQueryParameterList = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#QueryParameterList", Type: smithy.TypeList, Members: []*smithy.Member{&memberQueryParameterList_member}}
+var schemaQueryParameterList = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#QueryParameterList", Type: smithy.TypeList}
 
 var memberQueryParameterList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaQueryParameter}
 
 var schemaQueryParameterName = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#QueryParameterName", Type: smithy.TypeString}
 
-var schemaQueryResults = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#QueryResults", Type: smithy.TypeList, Members: []*smithy.Member{&memberQueryResults_member}}
+var schemaQueryResults = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#QueryResults", Type: smithy.TypeList}
 
 var memberQueryResults_member = smithy.Member{Name: "member", Index: 0, Target: &schemaResultRows}
 
-var schemaQueryStatistics = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#QueryStatistics", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberQueryStatistics_recordsMatched, &memberQueryStatistics_recordsScanned, &memberQueryStatistics_estimatedRecordsSkipped, &memberQueryStatistics_bytesScanned, &memberQueryStatistics_estimatedBytesSkipped, &memberQueryStatistics_logGroupsScanned, &memberQueryStatistics_resultCount}}
+var schemaQueryStatistics = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#QueryStatistics", Type: smithy.TypeStructure}
 
 var memberQueryStatistics_recordsMatched = smithy.Member{Name: "recordsMatched", Index: 0, Target: &schemaStatsValue, Default: document.Number("0")}
 
@@ -3095,13 +3095,13 @@ var schemaQueryString = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#QueryStr
 
 var schemaQuoteCharacter = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#QuoteCharacter", Type: smithy.TypeString}
 
-var schemaRecordField = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#RecordField", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRecordField_name, &memberRecordField_mandatory}}
+var schemaRecordField = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#RecordField", Type: smithy.TypeStructure}
 
 var memberRecordField_name = smithy.Member{Name: "name", Index: 0, Target: &schemaFieldHeader}
 
 var memberRecordField_mandatory = smithy.Member{Name: "mandatory", Index: 1, Target: &schemaBoolean}
 
-var schemaRecordFields = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#RecordFields", Type: smithy.TypeList, Members: []*smithy.Member{&memberRecordFields_member}}
+var schemaRecordFields = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#RecordFields", Type: smithy.TypeList}
 
 var memberRecordFields_member = smithy.Member{Name: "member", Index: 0, Target: &schemaFieldHeader}
 
@@ -3119,11 +3119,11 @@ var memberRejectedLogEventsInfo_tooOldLogEventEndIndex = smithy.Member{Name: "to
 
 var memberRejectedLogEventsInfo_expiredLogEventEndIndex = smithy.Member{Name: "expiredLogEventEndIndex", Index: 2, Target: &schemaLogEventIndex}
 
-var schemaRenameKeyEntries = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#RenameKeyEntries", Type: smithy.TypeList, Members: []*smithy.Member{&memberRenameKeyEntries_member}}
+var schemaRenameKeyEntries = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#RenameKeyEntries", Type: smithy.TypeList}
 
 var memberRenameKeyEntries_member = smithy.Member{Name: "member", Index: 0, Target: &schemaRenameKeyEntry}
 
-var schemaRenameKeyEntry = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#RenameKeyEntry", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRenameKeyEntry_key, &memberRenameKeyEntry_renameTo, &memberRenameKeyEntry_overwriteIfExists}}
+var schemaRenameKeyEntry = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#RenameKeyEntry", Type: smithy.TypeStructure}
 
 var memberRenameKeyEntry_key = smithy.Member{Name: "key", Index: 0, Target: &schemaKey, Required: true}
 
@@ -3131,7 +3131,7 @@ var memberRenameKeyEntry_renameTo = smithy.Member{Name: "renameTo", Index: 1, Ta
 
 var memberRenameKeyEntry_overwriteIfExists = smithy.Member{Name: "overwriteIfExists", Index: 2, Target: &schemaOverwriteIfExists, Default: document.Bool(false)}
 
-var schemaRenameKeys = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#RenameKeys", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRenameKeys_entries}}
+var schemaRenameKeys = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#RenameKeys", Type: smithy.TypeStructure}
 
 var memberRenameKeys_entries = smithy.Member{Name: "entries", Index: 0, Target: &schemaRenameKeyEntries, Required: true}
 
@@ -3147,11 +3147,11 @@ var schemaResourceAlreadyExistsException = smithy.Schema{ID: "com.amazonaws.clou
 
 var memberResourceAlreadyExistsException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaMessage}
 
-var schemaResourceArns = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ResourceArns", Type: smithy.TypeList, Members: []*smithy.Member{&memberResourceArns_member}}
+var schemaResourceArns = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ResourceArns", Type: smithy.TypeList}
 
 var memberResourceArns_member = smithy.Member{Name: "member", Index: 0, Target: &schemaArn}
 
-var schemaResourceConfig = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ResourceConfig", Type: smithy.TypeUnion, Members: []*smithy.Member{&memberResourceConfig_openSearchResourceConfig}}
+var schemaResourceConfig = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ResourceConfig", Type: smithy.TypeUnion}
 
 var memberResourceConfig_openSearchResourceConfig = smithy.Member{Name: "openSearchResourceConfig", Index: 0, Target: &schemaOpenSearchResourceConfig}
 
@@ -3161,11 +3161,11 @@ var schemaResourceNotFoundException = smithy.Schema{ID: "com.amazonaws.cloudwatc
 
 var memberResourceNotFoundException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaMessage}
 
-var schemaResourcePolicies = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ResourcePolicies", Type: smithy.TypeList, Members: []*smithy.Member{&memberResourcePolicies_member}}
+var schemaResourcePolicies = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ResourcePolicies", Type: smithy.TypeList}
 
 var memberResourcePolicies_member = smithy.Member{Name: "member", Index: 0, Target: &schemaResourcePolicy}
 
-var schemaResourcePolicy = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ResourcePolicy", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberResourcePolicy_policyName, &memberResourcePolicy_policyDocument, &memberResourcePolicy_lastUpdatedTime, &memberResourcePolicy_policyScope, &memberResourcePolicy_resourceArn, &memberResourcePolicy_revisionId}}
+var schemaResourcePolicy = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ResourcePolicy", Type: smithy.TypeStructure}
 
 var memberResourcePolicy_policyName = smithy.Member{Name: "policyName", Index: 0, Target: &schemaPolicyName}
 
@@ -3181,23 +3181,23 @@ var memberResourcePolicy_revisionId = smithy.Member{Name: "revisionId", Index: 5
 
 var schemaResourceType = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ResourceType", Type: smithy.TypeString}
 
-var schemaResourceTypes = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ResourceTypes", Type: smithy.TypeList, Members: []*smithy.Member{&memberResourceTypes_member}}
+var schemaResourceTypes = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ResourceTypes", Type: smithy.TypeList}
 
 var memberResourceTypes_member = smithy.Member{Name: "member", Index: 0, Target: &schemaResourceType}
 
-var schemaResultField = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ResultField", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberResultField_field, &memberResultField_value}}
+var schemaResultField = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ResultField", Type: smithy.TypeStructure}
 
 var memberResultField_field = smithy.Member{Name: "field", Index: 0, Target: &schemaField}
 
 var memberResultField_value = smithy.Member{Name: "value", Index: 1, Target: &schemaValue}
 
-var schemaResultRows = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ResultRows", Type: smithy.TypeList, Members: []*smithy.Member{&memberResultRows_member}}
+var schemaResultRows = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ResultRows", Type: smithy.TypeList}
 
 var memberResultRows_member = smithy.Member{Name: "member", Index: 0, Target: &schemaResultField}
 
 var schemaRoleArn = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#RoleArn", Type: smithy.TypeString}
 
-var schemaS3Configuration = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#S3Configuration", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberS3Configuration_destinationIdentifier, &memberS3Configuration_roleArn, &memberS3Configuration_ownerAccountId, &memberS3Configuration_kmsKeyId}}
+var schemaS3Configuration = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#S3Configuration", Type: smithy.TypeStructure}
 
 var memberS3Configuration_destinationIdentifier = smithy.Member{Name: "destinationIdentifier", Index: 0, Target: &schemaS3Uri, Required: true}
 
@@ -3207,13 +3207,13 @@ var memberS3Configuration_ownerAccountId = smithy.Member{Name: "ownerAccountId",
 
 var memberS3Configuration_kmsKeyId = smithy.Member{Name: "kmsKeyId", Index: 3, Target: &schemaKmsKeyId}
 
-var schemaS3DeliveryConfiguration = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#S3DeliveryConfiguration", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberS3DeliveryConfiguration_suffixPath, &memberS3DeliveryConfiguration_enableHiveCompatiblePath}}
+var schemaS3DeliveryConfiguration = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#S3DeliveryConfiguration", Type: smithy.TypeStructure}
 
 var memberS3DeliveryConfiguration_suffixPath = smithy.Member{Name: "suffixPath", Index: 0, Target: &schemaDeliverySuffixPath}
 
 var memberS3DeliveryConfiguration_enableHiveCompatiblePath = smithy.Member{Name: "enableHiveCompatiblePath", Index: 1, Target: &schemaBoolean}
 
-var schemaS3TableIntegrationSource = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#S3TableIntegrationSource", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberS3TableIntegrationSource_identifier, &memberS3TableIntegrationSource_dataSource, &memberS3TableIntegrationSource_status, &memberS3TableIntegrationSource_statusReason, &memberS3TableIntegrationSource_createdTimeStamp, &memberS3TableIntegrationSource_parentSourceIdentifier}}
+var schemaS3TableIntegrationSource = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#S3TableIntegrationSource", Type: smithy.TypeStructure}
 
 var memberS3TableIntegrationSource_identifier = smithy.Member{Name: "identifier", Index: 0, Target: &schemaS3TableIntegrationSourceIdentifier}
 
@@ -3233,7 +3233,7 @@ var schemaS3TableIntegrationSourceStatus = smithy.Schema{ID: "com.amazonaws.clou
 
 var schemaS3TableIntegrationSourceStatusReason = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#S3TableIntegrationSourceStatusReason", Type: smithy.TypeString}
 
-var schemaS3TableIntegrationSources = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#S3TableIntegrationSources", Type: smithy.TypeList, Members: []*smithy.Member{&memberS3TableIntegrationSources_member}}
+var schemaS3TableIntegrationSources = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#S3TableIntegrationSources", Type: smithy.TypeList}
 
 var memberS3TableIntegrationSources_member = smithy.Member{Name: "member", Index: 0, Target: &schemaS3TableIntegrationSource}
 
@@ -3241,7 +3241,7 @@ var schemaS3TablesDatasourceName = smithy.Schema{ID: "com.amazonaws.cloudwatchlo
 
 var schemaS3TablesDatasourceType = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#S3TablesDatasourceType", Type: smithy.TypeString}
 
-var schemaS3TablesIntegration = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#S3TablesIntegration", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberS3TablesIntegration_datasourceName, &memberS3TablesIntegration_datasourceType}}
+var schemaS3TablesIntegration = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#S3TablesIntegration", Type: smithy.TypeStructure}
 
 var memberS3TablesIntegration_datasourceName = smithy.Member{Name: "datasourceName", Index: 0, Target: &schemaS3TablesDatasourceName}
 
@@ -3257,7 +3257,7 @@ var schemaScheduleType = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Schedul
 
 var schemaScheduledQueryDescription = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ScheduledQueryDescription", Type: smithy.TypeString}
 
-var schemaScheduledQueryDestination = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ScheduledQueryDestination", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberScheduledQueryDestination_destinationType, &memberScheduledQueryDestination_destinationIdentifier, &memberScheduledQueryDestination_status, &memberScheduledQueryDestination_processedIdentifier, &memberScheduledQueryDestination_errorMessage}}
+var schemaScheduledQueryDestination = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ScheduledQueryDestination", Type: smithy.TypeStructure}
 
 var memberScheduledQueryDestination_destinationType = smithy.Member{Name: "destinationType", Index: 0, Target: &schemaScheduledQueryDestinationType}
 
@@ -3269,7 +3269,7 @@ var memberScheduledQueryDestination_processedIdentifier = smithy.Member{Name: "p
 
 var memberScheduledQueryDestination_errorMessage = smithy.Member{Name: "errorMessage", Index: 4, Target: &schemaString}
 
-var schemaScheduledQueryDestinationList = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ScheduledQueryDestinationList", Type: smithy.TypeList, Members: []*smithy.Member{&memberScheduledQueryDestinationList_member}}
+var schemaScheduledQueryDestinationList = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ScheduledQueryDestinationList", Type: smithy.TypeList}
 
 var memberScheduledQueryDestinationList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaScheduledQueryDestination}
 
@@ -3277,7 +3277,7 @@ var schemaScheduledQueryDestinationType = smithy.Schema{ID: "com.amazonaws.cloud
 
 var schemaScheduledQueryIdentifier = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ScheduledQueryIdentifier", Type: smithy.TypeString}
 
-var schemaScheduledQueryLogGroupIdentifiers = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ScheduledQueryLogGroupIdentifiers", Type: smithy.TypeList, Members: []*smithy.Member{&memberScheduledQueryLogGroupIdentifiers_member}}
+var schemaScheduledQueryLogGroupIdentifiers = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ScheduledQueryLogGroupIdentifiers", Type: smithy.TypeList}
 
 var memberScheduledQueryLogGroupIdentifiers_member = smithy.Member{Name: "member", Index: 0, Target: &schemaLogGroupIdentifier}
 
@@ -3285,7 +3285,7 @@ var schemaScheduledQueryName = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#S
 
 var schemaScheduledQueryState = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ScheduledQueryState", Type: smithy.TypeEnum}
 
-var schemaScheduledQuerySummary = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ScheduledQuerySummary", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberScheduledQuerySummary_scheduledQueryArn, &memberScheduledQuerySummary_name, &memberScheduledQuerySummary_state, &memberScheduledQuerySummary_scheduleType, &memberScheduledQuerySummary_lastTriggeredTime, &memberScheduledQuerySummary_lastExecutionStatus, &memberScheduledQuerySummary_scheduleExpression, &memberScheduledQuerySummary_timezone, &memberScheduledQuerySummary_destinationConfiguration, &memberScheduledQuerySummary_creationTime, &memberScheduledQuerySummary_lastUpdatedTime}}
+var schemaScheduledQuerySummary = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ScheduledQuerySummary", Type: smithy.TypeStructure}
 
 var memberScheduledQuerySummary_scheduledQueryArn = smithy.Member{Name: "scheduledQueryArn", Index: 0, Target: &schemaArn}
 
@@ -3309,7 +3309,7 @@ var memberScheduledQuerySummary_creationTime = smithy.Member{Name: "creationTime
 
 var memberScheduledQuerySummary_lastUpdatedTime = smithy.Member{Name: "lastUpdatedTime", Index: 10, Target: &schemaTimestamp}
 
-var schemaScheduledQuerySummaryList = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ScheduledQuerySummaryList", Type: smithy.TypeList, Members: []*smithy.Member{&memberScheduledQuerySummaryList_member}}
+var schemaScheduledQuerySummaryList = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ScheduledQuerySummaryList", Type: smithy.TypeList}
 
 var memberScheduledQuerySummaryList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaScheduledQuerySummary}
 
@@ -3361,17 +3361,17 @@ var schemaSource = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Source", Type
 
 var schemaSourceTimezone = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#SourceTimezone", Type: smithy.TypeString}
 
-var schemaSplitString = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#SplitString", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSplitString_entries}}
+var schemaSplitString = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#SplitString", Type: smithy.TypeStructure}
 
 var memberSplitString_entries = smithy.Member{Name: "entries", Index: 0, Target: &schemaSplitStringEntries, Required: true}
 
 var schemaSplitStringDelimiter = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#SplitStringDelimiter", Type: smithy.TypeString}
 
-var schemaSplitStringEntries = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#SplitStringEntries", Type: smithy.TypeList, Members: []*smithy.Member{&memberSplitStringEntries_member}}
+var schemaSplitStringEntries = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#SplitStringEntries", Type: smithy.TypeList}
 
 var memberSplitStringEntries_member = smithy.Member{Name: "member", Index: 0, Target: &schemaSplitStringEntry}
 
-var schemaSplitStringEntry = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#SplitStringEntry", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSplitStringEntry_source, &memberSplitStringEntry_delimiter}}
+var schemaSplitStringEntry = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#SplitStringEntry", Type: smithy.TypeStructure}
 
 var memberSplitStringEntry_source = smithy.Member{Name: "source", Index: 0, Target: &schemaSource, Required: true}
 
@@ -3381,7 +3381,7 @@ var schemaStandardUnit = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Standar
 
 var schemaStartFromHead = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#StartFromHead", Type: smithy.TypeBoolean}
 
-var schemaStartLiveTailInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#StartLiveTailRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberStartLiveTailInput_logGroupIdentifiers, &memberStartLiveTailInput_logStreamNames, &memberStartLiveTailInput_logStreamNamePrefixes, &memberStartLiveTailInput_logEventFilterPattern}}
+var schemaStartLiveTailInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#StartLiveTailRequest", Type: smithy.TypeStructure}
 
 var memberStartLiveTailInput_logGroupIdentifiers = smithy.Member{Name: "logGroupIdentifiers", Index: 0, Target: &schemaStartLiveTailLogGroupIdentifiers, Required: true}
 
@@ -3391,15 +3391,15 @@ var memberStartLiveTailInput_logStreamNamePrefixes = smithy.Member{Name: "logStr
 
 var memberStartLiveTailInput_logEventFilterPattern = smithy.Member{Name: "logEventFilterPattern", Index: 3, Target: &schemaFilterPattern}
 
-var schemaStartLiveTailLogGroupIdentifiers = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#StartLiveTailLogGroupIdentifiers", Type: smithy.TypeList, Members: []*smithy.Member{&memberStartLiveTailLogGroupIdentifiers_member}}
+var schemaStartLiveTailLogGroupIdentifiers = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#StartLiveTailLogGroupIdentifiers", Type: smithy.TypeList}
 
 var memberStartLiveTailLogGroupIdentifiers_member = smithy.Member{Name: "member", Index: 0, Target: &schemaLogGroupIdentifier}
 
-var schemaStartLiveTailOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#StartLiveTailResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberStartLiveTailOutput_responseStream}}
+var schemaStartLiveTailOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#StartLiveTailResponse", Type: smithy.TypeStructure}
 
 var memberStartLiveTailOutput_responseStream = smithy.Member{Name: "responseStream", Index: 0, Target: &schemaStartLiveTailResponseStream}
 
-var schemaStartLiveTailResponseStream = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#StartLiveTailResponseStream", Type: smithy.TypeUnion, Members: []*smithy.Member{&memberStartLiveTailResponseStream_sessionStart, &memberStartLiveTailResponseStream_sessionUpdate, &memberStartLiveTailResponseStream_SessionTimeoutException, &memberStartLiveTailResponseStream_SessionStreamingException}, Streaming: true}
+var schemaStartLiveTailResponseStream = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#StartLiveTailResponseStream", Type: smithy.TypeUnion, Streaming: true}
 
 var memberStartLiveTailResponseStream_sessionStart = smithy.Member{Name: "sessionStart", Index: 0, Target: &schemaLiveTailSessionStart}
 
@@ -3409,7 +3409,7 @@ var memberStartLiveTailResponseStream_SessionTimeoutException = smithy.Member{Na
 
 var memberStartLiveTailResponseStream_SessionStreamingException = smithy.Member{Name: "SessionStreamingException", Index: 3, Target: &schemaSessionStreamingException}
 
-var schemaStartQueryInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#StartQueryRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberStartQueryInput_queryLanguage, &memberStartQueryInput_logGroupName, &memberStartQueryInput_logGroupNames, &memberStartQueryInput_logGroupIdentifiers, &memberStartQueryInput_startTime, &memberStartQueryInput_endTime, &memberStartQueryInput_queryString, &memberStartQueryInput_limit}}
+var schemaStartQueryInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#StartQueryRequest", Type: smithy.TypeStructure}
 
 var memberStartQueryInput_queryLanguage = smithy.Member{Name: "queryLanguage", Index: 0, Target: &schemaQueryLanguage}
 
@@ -3427,7 +3427,7 @@ var memberStartQueryInput_queryString = smithy.Member{Name: "queryString", Index
 
 var memberStartQueryInput_limit = smithy.Member{Name: "limit", Index: 7, Target: &schemaEventsLimitStartQuery}
 
-var schemaStartQueryOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#StartQueryResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberStartQueryOutput_queryId}}
+var schemaStartQueryOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#StartQueryResponse", Type: smithy.TypeStructure}
 
 var memberStartQueryOutput_queryId = smithy.Member{Name: "queryId", Index: 0, Target: &schemaQueryId}
 
@@ -3437,11 +3437,11 @@ var schemaState = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#State", Type: 
 
 var schemaStatsValue = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#StatsValue", Type: smithy.TypeDouble}
 
-var schemaStopQueryInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#StopQueryRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberStopQueryInput_queryId}}
+var schemaStopQueryInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#StopQueryRequest", Type: smithy.TypeStructure}
 
 var memberStopQueryInput_queryId = smithy.Member{Name: "queryId", Index: 0, Target: &schemaQueryId, Required: true}
 
-var schemaStopQueryOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#StopQueryResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberStopQueryOutput_success}}
+var schemaStopQueryOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#StopQueryResponse", Type: smithy.TypeStructure}
 
 var memberStopQueryOutput_success = smithy.Member{Name: "success", Index: 0, Target: &schemaSuccess, Default: document.Bool(false)}
 
@@ -3451,7 +3451,7 @@ var schemaStoredBytes = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#StoredBy
 
 var schemaString = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#String", Type: smithy.TypeString}
 
-var schemaSubscriptionFilter = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#SubscriptionFilter", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSubscriptionFilter_filterName, &memberSubscriptionFilter_logGroupName, &memberSubscriptionFilter_filterPattern, &memberSubscriptionFilter_destinationArn, &memberSubscriptionFilter_roleArn, &memberSubscriptionFilter_distribution, &memberSubscriptionFilter_applyOnTransformedLogs, &memberSubscriptionFilter_creationTime, &memberSubscriptionFilter_fieldSelectionCriteria, &memberSubscriptionFilter_emitSystemFields}}
+var schemaSubscriptionFilter = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#SubscriptionFilter", Type: smithy.TypeStructure}
 
 var memberSubscriptionFilter_filterName = smithy.Member{Name: "filterName", Index: 0, Target: &schemaFilterName}
 
@@ -3473,19 +3473,19 @@ var memberSubscriptionFilter_fieldSelectionCriteria = smithy.Member{Name: "field
 
 var memberSubscriptionFilter_emitSystemFields = smithy.Member{Name: "emitSystemFields", Index: 9, Target: &schemaEmitSystemFields}
 
-var schemaSubscriptionFilters = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#SubscriptionFilters", Type: smithy.TypeList, Members: []*smithy.Member{&memberSubscriptionFilters_member}}
+var schemaSubscriptionFilters = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#SubscriptionFilters", Type: smithy.TypeList}
 
 var memberSubscriptionFilters_member = smithy.Member{Name: "member", Index: 0, Target: &schemaSubscriptionFilter}
 
-var schemaSubstituteString = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#SubstituteString", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSubstituteString_entries}}
+var schemaSubstituteString = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#SubstituteString", Type: smithy.TypeStructure}
 
 var memberSubstituteString_entries = smithy.Member{Name: "entries", Index: 0, Target: &schemaSubstituteStringEntries, Required: true}
 
-var schemaSubstituteStringEntries = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#SubstituteStringEntries", Type: smithy.TypeList, Members: []*smithy.Member{&memberSubstituteStringEntries_member}}
+var schemaSubstituteStringEntries = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#SubstituteStringEntries", Type: smithy.TypeList}
 
 var memberSubstituteStringEntries_member = smithy.Member{Name: "member", Index: 0, Target: &schemaSubstituteStringEntry}
 
-var schemaSubstituteStringEntry = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#SubstituteStringEntry", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSubstituteStringEntry_source, &memberSubstituteStringEntry_from, &memberSubstituteStringEntry_to}}
+var schemaSubstituteStringEntry = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#SubstituteStringEntry", Type: smithy.TypeStructure}
 
 var memberSubstituteStringEntry_source = smithy.Member{Name: "source", Index: 0, Target: &schemaSource, Required: true}
 
@@ -3495,7 +3495,7 @@ var memberSubstituteStringEntry_to = smithy.Member{Name: "to", Index: 2, Target:
 
 var schemaSuccess = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Success", Type: smithy.TypeBoolean}
 
-var schemaSuppressionPeriod = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#SuppressionPeriod", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSuppressionPeriod_value, &memberSuppressionPeriod_suppressionUnit}}
+var schemaSuppressionPeriod = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#SuppressionPeriod", Type: smithy.TypeStructure}
 
 var memberSuppressionPeriod_value = smithy.Member{Name: "value", Index: 0, Target: &schemaInteger, Default: document.Number("0")}
 
@@ -3507,7 +3507,7 @@ var schemaSuppressionType = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Supp
 
 var schemaSuppressionUnit = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#SuppressionUnit", Type: smithy.TypeEnum}
 
-var schemaSyslogConfiguration = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#SyslogConfiguration", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSyslogConfiguration_logGroupArn, &memberSyslogConfiguration_sourceType, &memberSyslogConfiguration_vpcEndpointId, &memberSyslogConfiguration_createdAt}}
+var schemaSyslogConfiguration = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#SyslogConfiguration", Type: smithy.TypeStructure}
 
 var memberSyslogConfiguration_logGroupArn = smithy.Member{Name: "logGroupArn", Index: 0, Target: &schemaLogGroupArn}
 
@@ -3517,7 +3517,7 @@ var memberSyslogConfiguration_vpcEndpointId = smithy.Member{Name: "vpcEndpointId
 
 var memberSyslogConfiguration_createdAt = smithy.Member{Name: "createdAt", Index: 3, Target: &schemaTimestamp}
 
-var schemaSyslogConfigurations = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#SyslogConfigurations", Type: smithy.TypeList, Members: []*smithy.Member{&memberSyslogConfigurations_member}}
+var schemaSyslogConfigurations = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#SyslogConfigurations", Type: smithy.TypeList}
 
 var memberSyslogConfigurations_member = smithy.Member{Name: "member", Index: 0, Target: &schemaSyslogConfiguration}
 
@@ -3527,11 +3527,11 @@ var schemaSystemField = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#SystemFi
 
 var schemaTableBody = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#TableBody", Type: smithy.TypeString}
 
-var schemaTableFields = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#TableFields", Type: smithy.TypeList, Members: []*smithy.Member{&memberTableFields_member}}
+var schemaTableFields = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#TableFields", Type: smithy.TypeList}
 
 var memberTableFields_member = smithy.Member{Name: "member", Index: 0, Target: &schemaString}
 
-var schemaTagFilter = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#TagFilter", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberTagFilter_key, &memberTagFilter_values}}
+var schemaTagFilter = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#TagFilter", Type: smithy.TypeStructure}
 
 var memberTagFilter_key = smithy.Member{Name: "key", Index: 0, Target: &schemaTagFilterKey, Required: true}
 
@@ -3541,11 +3541,11 @@ var schemaTagFilterKey = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#TagFilt
 
 var schemaTagFilterValue = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#TagFilterValue", Type: smithy.TypeString}
 
-var schemaTagFilterValues = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#TagFilterValues", Type: smithy.TypeList, Members: []*smithy.Member{&memberTagFilterValues_member}}
+var schemaTagFilterValues = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#TagFilterValues", Type: smithy.TypeList}
 
 var memberTagFilterValues_member = smithy.Member{Name: "member", Index: 0, Target: &schemaTagFilterValue}
 
-var schemaTagFilters = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#TagFilters", Type: smithy.TypeList, Members: []*smithy.Member{&memberTagFilters_member}}
+var schemaTagFilters = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#TagFilters", Type: smithy.TypeList}
 
 var memberTagFilters_member = smithy.Member{Name: "member", Index: 0, Target: &schemaTagFilter}
 
@@ -3587,27 +3587,27 @@ var schemaTargetFormat = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#TargetF
 
 var schemaTargetTimezone = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#TargetTimezone", Type: smithy.TypeString}
 
-var schemaTestEventMessages = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#TestEventMessages", Type: smithy.TypeList, Members: []*smithy.Member{&memberTestEventMessages_member}}
+var schemaTestEventMessages = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#TestEventMessages", Type: smithy.TypeList}
 
 var memberTestEventMessages_member = smithy.Member{Name: "member", Index: 0, Target: &schemaEventMessage}
 
-var schemaTestMetricFilterInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#TestMetricFilterRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberTestMetricFilterInput_filterPattern, &memberTestMetricFilterInput_logEventMessages}}
+var schemaTestMetricFilterInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#TestMetricFilterRequest", Type: smithy.TypeStructure}
 
 var memberTestMetricFilterInput_filterPattern = smithy.Member{Name: "filterPattern", Index: 0, Target: &schemaFilterPattern, Required: true}
 
 var memberTestMetricFilterInput_logEventMessages = smithy.Member{Name: "logEventMessages", Index: 1, Target: &schemaTestEventMessages, Required: true}
 
-var schemaTestMetricFilterOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#TestMetricFilterResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberTestMetricFilterOutput_matches}}
+var schemaTestMetricFilterOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#TestMetricFilterResponse", Type: smithy.TypeStructure}
 
 var memberTestMetricFilterOutput_matches = smithy.Member{Name: "matches", Index: 0, Target: &schemaMetricFilterMatches}
 
-var schemaTestTransformerInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#TestTransformerRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberTestTransformerInput_transformerConfig, &memberTestTransformerInput_logEventMessages}}
+var schemaTestTransformerInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#TestTransformerRequest", Type: smithy.TypeStructure}
 
 var memberTestTransformerInput_transformerConfig = smithy.Member{Name: "transformerConfig", Index: 0, Target: &schemaProcessors, Required: true}
 
 var memberTestTransformerInput_logEventMessages = smithy.Member{Name: "logEventMessages", Index: 1, Target: &schemaTestEventMessages, Required: true}
 
-var schemaTestTransformerOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#TestTransformerResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberTestTransformerOutput_transformedLogs}}
+var schemaTestTransformerOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#TestTransformerResponse", Type: smithy.TypeStructure}
 
 var memberTestTransformerOutput_transformedLogs = smithy.Member{Name: "transformedLogs", Index: 0, Target: &schemaTransformedLogs}
 
@@ -3635,7 +3635,7 @@ var memberTooManyTagsException_resourceName = smithy.Member{Name: "resourceName"
 
 var schemaTransformedEventMessage = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#TransformedEventMessage", Type: smithy.TypeString}
 
-var schemaTransformedLogRecord = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#TransformedLogRecord", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberTransformedLogRecord_eventNumber, &memberTransformedLogRecord_eventMessage, &memberTransformedLogRecord_transformedEventMessage}}
+var schemaTransformedLogRecord = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#TransformedLogRecord", Type: smithy.TypeStructure}
 
 var memberTransformedLogRecord_eventNumber = smithy.Member{Name: "eventNumber", Index: 0, Target: &schemaEventNumber, Default: document.Number("0")}
 
@@ -3643,11 +3643,11 @@ var memberTransformedLogRecord_eventMessage = smithy.Member{Name: "eventMessage"
 
 var memberTransformedLogRecord_transformedEventMessage = smithy.Member{Name: "transformedEventMessage", Index: 2, Target: &schemaTransformedEventMessage}
 
-var schemaTransformedLogs = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#TransformedLogs", Type: smithy.TypeList, Members: []*smithy.Member{&memberTransformedLogs_member}}
+var schemaTransformedLogs = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#TransformedLogs", Type: smithy.TypeList}
 
 var memberTransformedLogs_member = smithy.Member{Name: "member", Index: 0, Target: &schemaTransformedLogRecord}
 
-var schemaTriggerHistoryRecord = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#TriggerHistoryRecord", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberTriggerHistoryRecord_queryId, &memberTriggerHistoryRecord_executionStatus, &memberTriggerHistoryRecord_triggeredTimestamp, &memberTriggerHistoryRecord_errorMessage, &memberTriggerHistoryRecord_destinations}}
+var schemaTriggerHistoryRecord = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#TriggerHistoryRecord", Type: smithy.TypeStructure}
 
 var memberTriggerHistoryRecord_queryId = smithy.Member{Name: "queryId", Index: 0, Target: &schemaQueryId}
 
@@ -3659,29 +3659,29 @@ var memberTriggerHistoryRecord_errorMessage = smithy.Member{Name: "errorMessage"
 
 var memberTriggerHistoryRecord_destinations = smithy.Member{Name: "destinations", Index: 4, Target: &schemaScheduledQueryDestinationList}
 
-var schemaTriggerHistoryRecordList = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#TriggerHistoryRecordList", Type: smithy.TypeList, Members: []*smithy.Member{&memberTriggerHistoryRecordList_member}}
+var schemaTriggerHistoryRecordList = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#TriggerHistoryRecordList", Type: smithy.TypeList}
 
 var memberTriggerHistoryRecordList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaTriggerHistoryRecord}
 
-var schemaTrimString = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#TrimString", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberTrimString_withKeys}}
+var schemaTrimString = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#TrimString", Type: smithy.TypeStructure}
 
 var memberTrimString_withKeys = smithy.Member{Name: "withKeys", Index: 0, Target: &schemaTrimStringWithKeys, Required: true}
 
-var schemaTrimStringWithKeys = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#TrimStringWithKeys", Type: smithy.TypeList, Members: []*smithy.Member{&memberTrimStringWithKeys_member}}
+var schemaTrimStringWithKeys = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#TrimStringWithKeys", Type: smithy.TypeList}
 
 var memberTrimStringWithKeys_member = smithy.Member{Name: "member", Index: 0, Target: &schemaWithKey}
 
 var schemaType = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Type", Type: smithy.TypeEnum}
 
-var schemaTypeConverter = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#TypeConverter", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberTypeConverter_entries}}
+var schemaTypeConverter = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#TypeConverter", Type: smithy.TypeStructure}
 
 var memberTypeConverter_entries = smithy.Member{Name: "entries", Index: 0, Target: &schemaTypeConverterEntries, Required: true}
 
-var schemaTypeConverterEntries = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#TypeConverterEntries", Type: smithy.TypeList, Members: []*smithy.Member{&memberTypeConverterEntries_member}}
+var schemaTypeConverterEntries = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#TypeConverterEntries", Type: smithy.TypeList}
 
 var memberTypeConverterEntries_member = smithy.Member{Name: "member", Index: 0, Target: &schemaTypeConverterEntry}
 
-var schemaTypeConverterEntry = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#TypeConverterEntry", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberTypeConverterEntry_key, &memberTypeConverterEntry_type}}
+var schemaTypeConverterEntry = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#TypeConverterEntry", Type: smithy.TypeStructure}
 
 var memberTypeConverterEntry_key = smithy.Member{Name: "key", Index: 0, Target: &schemaKey, Required: true}
 
@@ -3709,7 +3709,7 @@ var memberUntagResourceInput_resourceArn = smithy.Member{Name: "resourceArn", In
 
 var memberUntagResourceInput_tagKeys = smithy.Member{Name: "tagKeys", Index: 1, Target: &schemaTagKeyList, Required: true}
 
-var schemaUpdateAnomalyInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#UpdateAnomalyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateAnomalyInput_anomalyId, &memberUpdateAnomalyInput_patternId, &memberUpdateAnomalyInput_anomalyDetectorArn, &memberUpdateAnomalyInput_suppressionType, &memberUpdateAnomalyInput_suppressionPeriod, &memberUpdateAnomalyInput_baseline}}
+var schemaUpdateAnomalyInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#UpdateAnomalyRequest", Type: smithy.TypeStructure}
 
 var memberUpdateAnomalyInput_anomalyId = smithy.Member{Name: "anomalyId", Index: 0, Target: &schemaAnomalyId}
 
@@ -3723,7 +3723,7 @@ var memberUpdateAnomalyInput_suppressionPeriod = smithy.Member{Name: "suppressio
 
 var memberUpdateAnomalyInput_baseline = smithy.Member{Name: "baseline", Index: 5, Target: &schemaBaseline}
 
-var schemaUpdateDeliveryConfigurationInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#UpdateDeliveryConfigurationRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateDeliveryConfigurationInput_id, &memberUpdateDeliveryConfigurationInput_recordFields, &memberUpdateDeliveryConfigurationInput_fieldDelimiter, &memberUpdateDeliveryConfigurationInput_s3DeliveryConfiguration}}
+var schemaUpdateDeliveryConfigurationInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#UpdateDeliveryConfigurationRequest", Type: smithy.TypeStructure}
 
 var memberUpdateDeliveryConfigurationInput_id = smithy.Member{Name: "id", Index: 0, Target: &schemaDeliveryId, Required: true}
 
@@ -3735,7 +3735,7 @@ var memberUpdateDeliveryConfigurationInput_s3DeliveryConfiguration = smithy.Memb
 
 var schemaUpdateDeliveryConfigurationOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#UpdateDeliveryConfigurationResponse", Type: smithy.TypeStructure}
 
-var schemaUpdateLogAnomalyDetectorInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#UpdateLogAnomalyDetectorRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateLogAnomalyDetectorInput_anomalyDetectorArn, &memberUpdateLogAnomalyDetectorInput_evaluationFrequency, &memberUpdateLogAnomalyDetectorInput_filterPattern, &memberUpdateLogAnomalyDetectorInput_anomalyVisibilityTime, &memberUpdateLogAnomalyDetectorInput_enabled}}
+var schemaUpdateLogAnomalyDetectorInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#UpdateLogAnomalyDetectorRequest", Type: smithy.TypeStructure}
 
 var memberUpdateLogAnomalyDetectorInput_anomalyDetectorArn = smithy.Member{Name: "anomalyDetectorArn", Index: 0, Target: &schemaAnomalyDetectorArn, Required: true}
 
@@ -3747,7 +3747,7 @@ var memberUpdateLogAnomalyDetectorInput_anomalyVisibilityTime = smithy.Member{Na
 
 var memberUpdateLogAnomalyDetectorInput_enabled = smithy.Member{Name: "enabled", Index: 4, Target: &schemaBoolean, Required: true}
 
-var schemaUpdateLookupTableInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#UpdateLookupTableRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateLookupTableInput_lookupTableArn, &memberUpdateLookupTableInput_description, &memberUpdateLookupTableInput_tableBody, &memberUpdateLookupTableInput_queryId, &memberUpdateLookupTableInput_kmsKeyId}}
+var schemaUpdateLookupTableInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#UpdateLookupTableRequest", Type: smithy.TypeStructure}
 
 var memberUpdateLookupTableInput_lookupTableArn = smithy.Member{Name: "lookupTableArn", Index: 0, Target: &schemaArn, Required: true}
 
@@ -3759,13 +3759,13 @@ var memberUpdateLookupTableInput_queryId = smithy.Member{Name: "queryId", Index:
 
 var memberUpdateLookupTableInput_kmsKeyId = smithy.Member{Name: "kmsKeyId", Index: 4, Target: &schemaKmsKeyId}
 
-var schemaUpdateLookupTableOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#UpdateLookupTableResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateLookupTableOutput_lookupTableArn, &memberUpdateLookupTableOutput_lastUpdatedTime}}
+var schemaUpdateLookupTableOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#UpdateLookupTableResponse", Type: smithy.TypeStructure}
 
 var memberUpdateLookupTableOutput_lookupTableArn = smithy.Member{Name: "lookupTableArn", Index: 0, Target: &schemaArn}
 
 var memberUpdateLookupTableOutput_lastUpdatedTime = smithy.Member{Name: "lastUpdatedTime", Index: 1, Target: &schemaTimestamp}
 
-var schemaUpdateScheduledQueryInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#UpdateScheduledQueryRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateScheduledQueryInput_identifier, &memberUpdateScheduledQueryInput_description, &memberUpdateScheduledQueryInput_queryLanguage, &memberUpdateScheduledQueryInput_queryString, &memberUpdateScheduledQueryInput_logGroupIdentifiers, &memberUpdateScheduledQueryInput_scheduleExpression, &memberUpdateScheduledQueryInput_timezone, &memberUpdateScheduledQueryInput_startTimeOffset, &memberUpdateScheduledQueryInput_endTimeOffset, &memberUpdateScheduledQueryInput_destinationConfiguration, &memberUpdateScheduledQueryInput_scheduleStartTime, &memberUpdateScheduledQueryInput_scheduleEndTime, &memberUpdateScheduledQueryInput_executionRoleArn, &memberUpdateScheduledQueryInput_state}}
+var schemaUpdateScheduledQueryInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#UpdateScheduledQueryRequest", Type: smithy.TypeStructure}
 
 var memberUpdateScheduledQueryInput_identifier = smithy.Member{Name: "identifier", Index: 0, Target: &schemaScheduledQueryIdentifier, Required: true}
 
@@ -3795,7 +3795,7 @@ var memberUpdateScheduledQueryInput_executionRoleArn = smithy.Member{Name: "exec
 
 var memberUpdateScheduledQueryInput_state = smithy.Member{Name: "state", Index: 13, Target: &schemaScheduledQueryState}
 
-var schemaUpdateScheduledQueryOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#UpdateScheduledQueryResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateScheduledQueryOutput_scheduledQueryArn, &memberUpdateScheduledQueryOutput_name, &memberUpdateScheduledQueryOutput_description, &memberUpdateScheduledQueryOutput_queryLanguage, &memberUpdateScheduledQueryOutput_queryString, &memberUpdateScheduledQueryOutput_logGroupIdentifiers, &memberUpdateScheduledQueryOutput_scheduleExpression, &memberUpdateScheduledQueryOutput_timezone, &memberUpdateScheduledQueryOutput_startTimeOffset, &memberUpdateScheduledQueryOutput_endTimeOffset, &memberUpdateScheduledQueryOutput_destinationConfiguration, &memberUpdateScheduledQueryOutput_state, &memberUpdateScheduledQueryOutput_scheduleType, &memberUpdateScheduledQueryOutput_lastTriggeredTime, &memberUpdateScheduledQueryOutput_lastExecutionStatus, &memberUpdateScheduledQueryOutput_scheduleStartTime, &memberUpdateScheduledQueryOutput_scheduleEndTime, &memberUpdateScheduledQueryOutput_executionRoleArn, &memberUpdateScheduledQueryOutput_creationTime, &memberUpdateScheduledQueryOutput_lastUpdatedTime}}
+var schemaUpdateScheduledQueryOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#UpdateScheduledQueryResponse", Type: smithy.TypeStructure}
 
 var memberUpdateScheduledQueryOutput_scheduledQueryArn = smithy.Member{Name: "scheduledQueryArn", Index: 0, Target: &schemaArn}
 
@@ -3837,11 +3837,11 @@ var memberUpdateScheduledQueryOutput_creationTime = smithy.Member{Name: "creatio
 
 var memberUpdateScheduledQueryOutput_lastUpdatedTime = smithy.Member{Name: "lastUpdatedTime", Index: 19, Target: &schemaTimestamp}
 
-var schemaUpperCaseString = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#UpperCaseString", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpperCaseString_withKeys}}
+var schemaUpperCaseString = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#UpperCaseString", Type: smithy.TypeStructure}
 
 var memberUpperCaseString_withKeys = smithy.Member{Name: "withKeys", Index: 0, Target: &schemaUpperCaseStringWithKeys, Required: true}
 
-var schemaUpperCaseStringWithKeys = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#UpperCaseStringWithKeys", Type: smithy.TypeList, Members: []*smithy.Member{&memberUpperCaseStringWithKeys_member}}
+var schemaUpperCaseStringWithKeys = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#UpperCaseStringWithKeys", Type: smithy.TypeList}
 
 var memberUpperCaseStringWithKeys_member = smithy.Member{Name: "member", Index: 0, Target: &schemaWithKey}
 
@@ -3858,9 +3858,3 @@ var schemaValueKey = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ValueKey", 
 var schemaVpcEndpointId = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#VpcEndpointId", Type: smithy.TypeString}
 
 var schemaWithKey = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#WithKey", Type: smithy.TypeString}
-
-func init() {
-	schemaLogFieldType.Members = []*smithy.Member{&memberLogFieldType_type, &memberLogFieldType_element, &memberLogFieldType_fields}
-	schemaLogFieldsList.Members = []*smithy.Member{&memberLogFieldsList_member}
-	schemaLogFieldsListItem.Members = []*smithy.Member{&memberLogFieldsListItem_logFieldName, &memberLogFieldsListItem_logFieldType}
-}

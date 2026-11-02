@@ -47,6 +47,53 @@ func TestServiceConfigBoundOperations(t *testing.T) {
 	}
 }
 
+// TestWireBoundPrunesUnboundClosures: under WireBound, the bound operations'
+// inputs and outputs and every error shape carry their members, with what
+// they reach; any other shape keeps its ID and traits but no members, while
+// its member variables stay declared, with Targets, for the serde code. An
+// unbound input with a @streaming member keeps its own members, because
+// signature verification reads them before the 501, but not its targets'.
+func TestWireBoundPrunesUnboundClosures(t *testing.T) {
+	in := goldenInputs(t)
+	model := string(in.Model.Content)
+	for _, e := range []struct{ old, new string }{
+		{
+			"\"NextToken\": {\"target\": \"com.example.golden#String\"}\n      }\n    },\n    \"com.example.golden#ListPartsResponse\": {",
+			"\"NextToken\": {\"target\": \"com.example.golden#String\"}, \"Upload\": {\"target\": \"com.example.golden#Upload\"}\n      }\n    },\n" +
+				"    \"com.example.golden#Upload\": {\"type\": \"blob\", \"traits\": {\"smithy.api#streaming\": {}}},\n    \"com.example.golden#ListPartsResponse\": {",
+		},
+	} {
+		if n := strings.Count(model, e.old); n != 1 {
+			t.Fatalf("the fixture model holds %s %d times, want once; update the anchor", e.old, n)
+		}
+		model = strings.Replace(model, e.old, e.new, 1)
+	}
+	in.Model.Content = []byte(model)
+	in.Config.Wiring = codegen.WireBound{Operations: []string{"GetThing"}}
+	files, err := codegen.Generate(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := files["schema_gen.go"]
+	mustContain(t, "schema_gen.go", src,
+		// the bound operation's closure
+		`var schemaGetThingInput = smithy.Schema{ID: "com.example.golden#GetThingRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetThingInput_ThingId}}`,
+		`var schemaGetThingOutput = smithy.Schema{ID: "com.example.golden#GetThingResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{`,
+		// an error shape, although only unbound PutKinds names it
+		`var schemaKindsFault = smithy.Schema{ID: "com.example.golden#KindsFault", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberKindsFault_Message}, Error: `,
+		// unbound closures: stubs, their members still declared
+		`var schemaPutKindsInput = smithy.Schema{ID: "com.example.golden#PutKindsRequest", Type: smithy.TypeStructure}`,
+		`var memberPutKindsInput_Tags = smithy.Member{Name: "Tags", Index: 16, Target: &schemaTagList}`,
+		`var schemaTagList = smithy.Schema{ID: "com.example.golden#TagList", Type: smithy.TypeList}`,
+		`var schemaSweepInput = smithy.Schema{ID: "com.example.golden#SweepRequest", Type: smithy.TypeStructure}`,
+		// the streaming input keeps its members, its output does not
+		`var schemaListPartsInput = smithy.Schema{ID: "com.example.golden#ListPartsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListPartsInput_ThingId, &memberListPartsInput_NextToken, &memberListPartsInput_Upload}}`,
+		`var schemaListPartsOutput = smithy.Schema{ID: "com.example.golden#ListPartsResponse", Type: smithy.TypeStructure}`,
+		`var schemaNestedList = smithy.Schema{ID: "com.example.golden#NestedList", Type: smithy.TypeList}`,
+		`var schemaUpload = smithy.Schema{ID: "com.example.golden#Upload", Type: smithy.TypeBlob, Streaming: true}`,
+	)
+}
+
 // TestBoundOperationsNameTypedOperations: each bound operation is a modeled
 // or internal operation of the model; a raw one has no schemas to wire.
 func TestBoundOperationsNameTypedOperations(t *testing.T) {

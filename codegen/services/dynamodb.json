@@ -25,5 +25,33 @@
       "action": "dynamodb:PutItem",
       "reason": "the item kinds decide the actions per call; the descriptor lists PutItem first, as smithy-models.md 8 does"
     }
+  ],
+  "boundOperations": [
+    "BatchExecuteStatement",
+    "BatchGetItem",
+    "BatchWriteItem",
+    "CreateTable",
+    "DeleteItem",
+    "DeleteTable",
+    "DescribeContinuousBackups",
+    "DescribeLimits",
+    "DescribeTable",
+    "DescribeTimeToLive",
+    "ExecuteStatement",
+    "ExecuteTransaction",
+    "GetItem",
+    "ListTables",
+    "ListTagsOfResource",
+    "PutItem",
+    "Query",
+    "Scan",
+    "TagResource",
+    "TransactGetItems",
+    "TransactWriteItems",
+    "UntagResource",
+    "UpdateContinuousBackups",
+    "UpdateItem",
+    "UpdateTable",
+    "UpdateTimeToLive"
   ]
 }

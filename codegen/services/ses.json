@@ -6,5 +6,25 @@
   "sdkService": "ses",
   "rawOperations": [
     {"name": "VerificationLink", "iam": []}
+  ],
+  "boundOperations": [
+    "CreateTemplate",
+    "DeleteIdentity",
+    "DeleteTemplate",
+    "DeleteVerifiedEmailAddress",
+    "GetIdentityNotificationAttributes",
+    "GetIdentityVerificationAttributes",
+    "GetSendQuota",
+    "GetTemplate",
+    "ListIdentities",
+    "ListTemplates",
+    "ListVerifiedEmailAddresses",
+    "SendEmail",
+    "SendRawEmail",
+    "SendTemplatedEmail",
+    "UpdateTemplate",
+    "VerifyDomainIdentity",
+    "VerifyEmailAddress",
+    "VerifyEmailIdentity"
   ]
 }

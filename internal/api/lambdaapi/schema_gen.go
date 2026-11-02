@@ -131,7 +131,7 @@ var schemaAllowOriginsList = smithy.Schema{ID: "com.amazonaws.lambda#AllowOrigin
 
 var memberAllowOriginsList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaOrigin}
 
-var schemaAllowedPublishers = smithy.Schema{ID: "com.amazonaws.lambda#AllowedPublishers", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAllowedPublishers_SigningProfileVersionArns}}
+var schemaAllowedPublishers = smithy.Schema{ID: "com.amazonaws.lambda#AllowedPublishers", Type: smithy.TypeStructure}
 
 var memberAllowedPublishers_SigningProfileVersionArns = smithy.Member{Name: "SigningProfileVersionArns", Index: 0, Target: &schemaSigningProfileVersionArns, Required: true}
 
@@ -165,7 +165,7 @@ var schemaBlobStream = smithy.Schema{ID: "com.amazonaws.lambda#BlobStream", Type
 
 var schemaBoolean = smithy.Schema{ID: "com.amazonaws.lambda#Boolean", Type: smithy.TypeBoolean}
 
-var schemaCallbackDetails = smithy.Schema{ID: "com.amazonaws.lambda#CallbackDetails", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCallbackDetails_CallbackId, &memberCallbackDetails_Result, &memberCallbackDetails_Error}}
+var schemaCallbackDetails = smithy.Schema{ID: "com.amazonaws.lambda#CallbackDetails", Type: smithy.TypeStructure}
 
 var memberCallbackDetails_CallbackId = smithy.Member{Name: "CallbackId", Index: 0, Target: &schemaCallbackId}
 
@@ -173,19 +173,19 @@ var memberCallbackDetails_Result = smithy.Member{Name: "Result", Index: 1, Targe
 
 var memberCallbackDetails_Error = smithy.Member{Name: "Error", Index: 2, Target: &schemaErrorObject}
 
-var schemaCallbackFailedDetails = smithy.Schema{ID: "com.amazonaws.lambda#CallbackFailedDetails", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCallbackFailedDetails_Error}}
+var schemaCallbackFailedDetails = smithy.Schema{ID: "com.amazonaws.lambda#CallbackFailedDetails", Type: smithy.TypeStructure}
 
 var memberCallbackFailedDetails_Error = smithy.Member{Name: "Error", Index: 0, Target: &schemaEventError, Required: true}
 
 var schemaCallbackId = smithy.Schema{ID: "com.amazonaws.lambda#CallbackId", Type: smithy.TypeString}
 
-var schemaCallbackOptions = smithy.Schema{ID: "com.amazonaws.lambda#CallbackOptions", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCallbackOptions_TimeoutSeconds, &memberCallbackOptions_HeartbeatTimeoutSeconds}}
+var schemaCallbackOptions = smithy.Schema{ID: "com.amazonaws.lambda#CallbackOptions", Type: smithy.TypeStructure}
 
 var memberCallbackOptions_TimeoutSeconds = smithy.Member{Name: "TimeoutSeconds", Index: 0, Target: &schemaDurationSeconds, Default: document.Number("0")}
 
 var memberCallbackOptions_HeartbeatTimeoutSeconds = smithy.Member{Name: "HeartbeatTimeoutSeconds", Index: 1, Target: &schemaDurationSeconds, Default: document.Number("0")}
 
-var schemaCallbackStartedDetails = smithy.Schema{ID: "com.amazonaws.lambda#CallbackStartedDetails", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCallbackStartedDetails_CallbackId, &memberCallbackStartedDetails_HeartbeatTimeout, &memberCallbackStartedDetails_Timeout}}
+var schemaCallbackStartedDetails = smithy.Schema{ID: "com.amazonaws.lambda#CallbackStartedDetails", Type: smithy.TypeStructure}
 
 var memberCallbackStartedDetails_CallbackId = smithy.Member{Name: "CallbackId", Index: 0, Target: &schemaCallbackId, Required: true}
 
@@ -193,11 +193,11 @@ var memberCallbackStartedDetails_HeartbeatTimeout = smithy.Member{Name: "Heartbe
 
 var memberCallbackStartedDetails_Timeout = smithy.Member{Name: "Timeout", Index: 2, Target: &schemaDurationSeconds}
 
-var schemaCallbackSucceededDetails = smithy.Schema{ID: "com.amazonaws.lambda#CallbackSucceededDetails", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCallbackSucceededDetails_Result}}
+var schemaCallbackSucceededDetails = smithy.Schema{ID: "com.amazonaws.lambda#CallbackSucceededDetails", Type: smithy.TypeStructure}
 
 var memberCallbackSucceededDetails_Result = smithy.Member{Name: "Result", Index: 0, Target: &schemaEventResult, Required: true}
 
-var schemaCallbackTimedOutDetails = smithy.Schema{ID: "com.amazonaws.lambda#CallbackTimedOutDetails", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCallbackTimedOutDetails_Error}}
+var schemaCallbackTimedOutDetails = smithy.Schema{ID: "com.amazonaws.lambda#CallbackTimedOutDetails", Type: smithy.TypeStructure}
 
 var memberCallbackTimedOutDetails_Error = smithy.Member{Name: "Error", Index: 0, Target: &schemaEventError, Required: true}
 
@@ -207,7 +207,7 @@ var memberCallbackTimeoutException_Type = smithy.Member{Name: "Type", Index: 0, 
 
 var memberCallbackTimeoutException_Message = smithy.Member{Name: "Message", Index: 1, Target: &schemaString}
 
-var schemaCapacityProvider = smithy.Schema{ID: "com.amazonaws.lambda#CapacityProvider", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCapacityProvider_CapacityProviderArn, &memberCapacityProvider_State, &memberCapacityProvider_VpcConfig, &memberCapacityProvider_PermissionsConfig, &memberCapacityProvider_InstanceRequirements, &memberCapacityProvider_CapacityProviderScalingConfig, &memberCapacityProvider_KmsKeyArn, &memberCapacityProvider_LastModified, &memberCapacityProvider_PropagateTags, &memberCapacityProvider_TelemetryConfig}}
+var schemaCapacityProvider = smithy.Schema{ID: "com.amazonaws.lambda#CapacityProvider", Type: smithy.TypeStructure}
 
 var memberCapacityProvider_CapacityProviderArn = smithy.Member{Name: "CapacityProviderArn", Index: 0, Target: &schemaCapacityProviderArn, Required: true}
 
@@ -241,7 +241,7 @@ var memberCapacityProviderLimitExceededException_Type = smithy.Member{Name: "Typ
 
 var memberCapacityProviderLimitExceededException_message = smithy.Member{Name: "message", Index: 1, Target: &schemaString}
 
-var schemaCapacityProviderLoggingConfig = smithy.Schema{ID: "com.amazonaws.lambda#CapacityProviderLoggingConfig", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCapacityProviderLoggingConfig_SystemLogLevel, &memberCapacityProviderLoggingConfig_LogGroup}}
+var schemaCapacityProviderLoggingConfig = smithy.Schema{ID: "com.amazonaws.lambda#CapacityProviderLoggingConfig", Type: smithy.TypeStructure}
 
 var memberCapacityProviderLoggingConfig_SystemLogLevel = smithy.Member{Name: "SystemLogLevel", Index: 0, Target: &schemaSystemLogLevel}
 
@@ -251,13 +251,13 @@ var schemaCapacityProviderMaxVCpuCount = smithy.Schema{ID: "com.amazonaws.lambda
 
 var schemaCapacityProviderName = smithy.Schema{ID: "com.amazonaws.lambda#CapacityProviderName", Type: smithy.TypeString}
 
-var schemaCapacityProviderPermissionsConfig = smithy.Schema{ID: "com.amazonaws.lambda#CapacityProviderPermissionsConfig", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCapacityProviderPermissionsConfig_CapacityProviderOperatorRoleArn}}
+var schemaCapacityProviderPermissionsConfig = smithy.Schema{ID: "com.amazonaws.lambda#CapacityProviderPermissionsConfig", Type: smithy.TypeStructure}
 
 var memberCapacityProviderPermissionsConfig_CapacityProviderOperatorRoleArn = smithy.Member{Name: "CapacityProviderOperatorRoleArn", Index: 0, Target: &schemaRoleArn, Required: true}
 
 var schemaCapacityProviderPredefinedMetricType = smithy.Schema{ID: "com.amazonaws.lambda#CapacityProviderPredefinedMetricType", Type: smithy.TypeEnum}
 
-var schemaCapacityProviderScalingConfig = smithy.Schema{ID: "com.amazonaws.lambda#CapacityProviderScalingConfig", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCapacityProviderScalingConfig_MaxVCpuCount, &memberCapacityProviderScalingConfig_ScalingMode, &memberCapacityProviderScalingConfig_ScalingPolicies}}
+var schemaCapacityProviderScalingConfig = smithy.Schema{ID: "com.amazonaws.lambda#CapacityProviderScalingConfig", Type: smithy.TypeStructure}
 
 var memberCapacityProviderScalingConfig_MaxVCpuCount = smithy.Member{Name: "MaxVCpuCount", Index: 0, Target: &schemaCapacityProviderMaxVCpuCount}
 
@@ -267,51 +267,51 @@ var memberCapacityProviderScalingConfig_ScalingPolicies = smithy.Member{Name: "S
 
 var schemaCapacityProviderScalingMode = smithy.Schema{ID: "com.amazonaws.lambda#CapacityProviderScalingMode", Type: smithy.TypeEnum}
 
-var schemaCapacityProviderScalingPoliciesList = smithy.Schema{ID: "com.amazonaws.lambda#CapacityProviderScalingPoliciesList", Type: smithy.TypeList, Members: []*smithy.Member{&memberCapacityProviderScalingPoliciesList_member}}
+var schemaCapacityProviderScalingPoliciesList = smithy.Schema{ID: "com.amazonaws.lambda#CapacityProviderScalingPoliciesList", Type: smithy.TypeList}
 
 var memberCapacityProviderScalingPoliciesList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaTargetTrackingScalingPolicy}
 
-var schemaCapacityProviderSecurityGroupIds = smithy.Schema{ID: "com.amazonaws.lambda#CapacityProviderSecurityGroupIds", Type: smithy.TypeList, Members: []*smithy.Member{&memberCapacityProviderSecurityGroupIds_member}}
+var schemaCapacityProviderSecurityGroupIds = smithy.Schema{ID: "com.amazonaws.lambda#CapacityProviderSecurityGroupIds", Type: smithy.TypeList}
 
 var memberCapacityProviderSecurityGroupIds_member = smithy.Member{Name: "member", Index: 0, Target: &schemaSecurityGroupId}
 
 var schemaCapacityProviderState = smithy.Schema{ID: "com.amazonaws.lambda#CapacityProviderState", Type: smithy.TypeEnum}
 
-var schemaCapacityProviderSubnetIds = smithy.Schema{ID: "com.amazonaws.lambda#CapacityProviderSubnetIds", Type: smithy.TypeList, Members: []*smithy.Member{&memberCapacityProviderSubnetIds_member}}
+var schemaCapacityProviderSubnetIds = smithy.Schema{ID: "com.amazonaws.lambda#CapacityProviderSubnetIds", Type: smithy.TypeList}
 
 var memberCapacityProviderSubnetIds_member = smithy.Member{Name: "member", Index: 0, Target: &schemaSubnetId}
 
-var schemaCapacityProviderTelemetryConfig = smithy.Schema{ID: "com.amazonaws.lambda#CapacityProviderTelemetryConfig", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCapacityProviderTelemetryConfig_LoggingConfig}}
+var schemaCapacityProviderTelemetryConfig = smithy.Schema{ID: "com.amazonaws.lambda#CapacityProviderTelemetryConfig", Type: smithy.TypeStructure}
 
 var memberCapacityProviderTelemetryConfig_LoggingConfig = smithy.Member{Name: "LoggingConfig", Index: 0, Target: &schemaCapacityProviderLoggingConfig}
 
-var schemaCapacityProviderVpcConfig = smithy.Schema{ID: "com.amazonaws.lambda#CapacityProviderVpcConfig", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCapacityProviderVpcConfig_SubnetIds, &memberCapacityProviderVpcConfig_SecurityGroupIds}}
+var schemaCapacityProviderVpcConfig = smithy.Schema{ID: "com.amazonaws.lambda#CapacityProviderVpcConfig", Type: smithy.TypeStructure}
 
 var memberCapacityProviderVpcConfig_SubnetIds = smithy.Member{Name: "SubnetIds", Index: 0, Target: &schemaCapacityProviderSubnetIds, Required: true}
 
 var memberCapacityProviderVpcConfig_SecurityGroupIds = smithy.Member{Name: "SecurityGroupIds", Index: 1, Target: &schemaCapacityProviderSecurityGroupIds, Required: true}
 
-var schemaCapacityProvidersList = smithy.Schema{ID: "com.amazonaws.lambda#CapacityProvidersList", Type: smithy.TypeList, Members: []*smithy.Member{&memberCapacityProvidersList_member}}
+var schemaCapacityProvidersList = smithy.Schema{ID: "com.amazonaws.lambda#CapacityProvidersList", Type: smithy.TypeList}
 
 var memberCapacityProvidersList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaCapacityProvider}
 
-var schemaChainedInvokeDetails = smithy.Schema{ID: "com.amazonaws.lambda#ChainedInvokeDetails", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberChainedInvokeDetails_Result, &memberChainedInvokeDetails_Error}}
+var schemaChainedInvokeDetails = smithy.Schema{ID: "com.amazonaws.lambda#ChainedInvokeDetails", Type: smithy.TypeStructure}
 
 var memberChainedInvokeDetails_Result = smithy.Member{Name: "Result", Index: 0, Target: &schemaOperationPayload, Sensitive: true}
 
 var memberChainedInvokeDetails_Error = smithy.Member{Name: "Error", Index: 1, Target: &schemaErrorObject}
 
-var schemaChainedInvokeFailedDetails = smithy.Schema{ID: "com.amazonaws.lambda#ChainedInvokeFailedDetails", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberChainedInvokeFailedDetails_Error}}
+var schemaChainedInvokeFailedDetails = smithy.Schema{ID: "com.amazonaws.lambda#ChainedInvokeFailedDetails", Type: smithy.TypeStructure}
 
 var memberChainedInvokeFailedDetails_Error = smithy.Member{Name: "Error", Index: 0, Target: &schemaEventError, Required: true}
 
-var schemaChainedInvokeOptions = smithy.Schema{ID: "com.amazonaws.lambda#ChainedInvokeOptions", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberChainedInvokeOptions_FunctionName, &memberChainedInvokeOptions_TenantId}}
+var schemaChainedInvokeOptions = smithy.Schema{ID: "com.amazonaws.lambda#ChainedInvokeOptions", Type: smithy.TypeStructure}
 
 var memberChainedInvokeOptions_FunctionName = smithy.Member{Name: "FunctionName", Index: 0, Target: &schemaNamespacedFunctionName, Required: true}
 
 var memberChainedInvokeOptions_TenantId = smithy.Member{Name: "TenantId", Index: 1, Target: &schemaTenantId}
 
-var schemaChainedInvokeStartedDetails = smithy.Schema{ID: "com.amazonaws.lambda#ChainedInvokeStartedDetails", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberChainedInvokeStartedDetails_FunctionName, &memberChainedInvokeStartedDetails_TenantId, &memberChainedInvokeStartedDetails_Input, &memberChainedInvokeStartedDetails_ExecutedVersion, &memberChainedInvokeStartedDetails_DurableExecutionArn}}
+var schemaChainedInvokeStartedDetails = smithy.Schema{ID: "com.amazonaws.lambda#ChainedInvokeStartedDetails", Type: smithy.TypeStructure}
 
 var memberChainedInvokeStartedDetails_FunctionName = smithy.Member{Name: "FunctionName", Index: 0, Target: &schemaNamespacedFunctionName, Required: true}
 
@@ -323,19 +323,19 @@ var memberChainedInvokeStartedDetails_ExecutedVersion = smithy.Member{Name: "Exe
 
 var memberChainedInvokeStartedDetails_DurableExecutionArn = smithy.Member{Name: "DurableExecutionArn", Index: 4, Target: &schemaDurableExecutionArn}
 
-var schemaChainedInvokeStoppedDetails = smithy.Schema{ID: "com.amazonaws.lambda#ChainedInvokeStoppedDetails", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberChainedInvokeStoppedDetails_Error}}
+var schemaChainedInvokeStoppedDetails = smithy.Schema{ID: "com.amazonaws.lambda#ChainedInvokeStoppedDetails", Type: smithy.TypeStructure}
 
 var memberChainedInvokeStoppedDetails_Error = smithy.Member{Name: "Error", Index: 0, Target: &schemaEventError, Required: true}
 
-var schemaChainedInvokeSucceededDetails = smithy.Schema{ID: "com.amazonaws.lambda#ChainedInvokeSucceededDetails", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberChainedInvokeSucceededDetails_Result}}
+var schemaChainedInvokeSucceededDetails = smithy.Schema{ID: "com.amazonaws.lambda#ChainedInvokeSucceededDetails", Type: smithy.TypeStructure}
 
 var memberChainedInvokeSucceededDetails_Result = smithy.Member{Name: "Result", Index: 0, Target: &schemaEventResult, Required: true}
 
-var schemaChainedInvokeTimedOutDetails = smithy.Schema{ID: "com.amazonaws.lambda#ChainedInvokeTimedOutDetails", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberChainedInvokeTimedOutDetails_Error}}
+var schemaChainedInvokeTimedOutDetails = smithy.Schema{ID: "com.amazonaws.lambda#ChainedInvokeTimedOutDetails", Type: smithy.TypeStructure}
 
 var memberChainedInvokeTimedOutDetails_Error = smithy.Member{Name: "Error", Index: 0, Target: &schemaEventError, Required: true}
 
-var schemaCheckpointDurableExecutionInput = smithy.Schema{ID: "com.amazonaws.lambda#CheckpointDurableExecutionRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCheckpointDurableExecutionInput_DurableExecutionArn, &memberCheckpointDurableExecutionInput_CheckpointToken, &memberCheckpointDurableExecutionInput_Updates, &memberCheckpointDurableExecutionInput_ClientToken}}
+var schemaCheckpointDurableExecutionInput = smithy.Schema{ID: "com.amazonaws.lambda#CheckpointDurableExecutionRequest", Type: smithy.TypeStructure}
 
 var memberCheckpointDurableExecutionInput_DurableExecutionArn = smithy.Member{Name: "DurableExecutionArn", Index: 0, Target: &schemaDurableExecutionArn, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -345,7 +345,7 @@ var memberCheckpointDurableExecutionInput_Updates = smithy.Member{Name: "Updates
 
 var memberCheckpointDurableExecutionInput_ClientToken = smithy.Member{Name: "ClientToken", Index: 3, Target: &schemaClientToken}
 
-var schemaCheckpointDurableExecutionOutput = smithy.Schema{ID: "com.amazonaws.lambda#CheckpointDurableExecutionResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCheckpointDurableExecutionOutput_CheckpointToken, &memberCheckpointDurableExecutionOutput_NewExecutionState}}
+var schemaCheckpointDurableExecutionOutput = smithy.Schema{ID: "com.amazonaws.lambda#CheckpointDurableExecutionResponse", Type: smithy.TypeStructure}
 
 var memberCheckpointDurableExecutionOutput_CheckpointToken = smithy.Member{Name: "CheckpointToken", Index: 0, Target: &schemaCheckpointToken}
 
@@ -353,7 +353,7 @@ var memberCheckpointDurableExecutionOutput_NewExecutionState = smithy.Member{Nam
 
 var schemaCheckpointToken = smithy.Schema{ID: "com.amazonaws.lambda#CheckpointToken", Type: smithy.TypeString}
 
-var schemaCheckpointUpdatedExecutionState = smithy.Schema{ID: "com.amazonaws.lambda#CheckpointUpdatedExecutionState", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCheckpointUpdatedExecutionState_Operations, &memberCheckpointUpdatedExecutionState_NextMarker}}
+var schemaCheckpointUpdatedExecutionState = smithy.Schema{ID: "com.amazonaws.lambda#CheckpointUpdatedExecutionState", Type: smithy.TypeStructure}
 
 var memberCheckpointUpdatedExecutionState_Operations = smithy.Member{Name: "Operations", Index: 0, Target: &schemaOperations}
 
@@ -379,7 +379,7 @@ var memberCodeArtifactUserPendingException_Type = smithy.Member{Name: "Type", In
 
 var memberCodeArtifactUserPendingException_message = smithy.Member{Name: "message", Index: 1, Target: &schemaString}
 
-var schemaCodeSigningConfig = smithy.Schema{ID: "com.amazonaws.lambda#CodeSigningConfig", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCodeSigningConfig_CodeSigningConfigId, &memberCodeSigningConfig_CodeSigningConfigArn, &memberCodeSigningConfig_Description, &memberCodeSigningConfig_AllowedPublishers, &memberCodeSigningConfig_CodeSigningPolicies, &memberCodeSigningConfig_LastModified}}
+var schemaCodeSigningConfig = smithy.Schema{ID: "com.amazonaws.lambda#CodeSigningConfig", Type: smithy.TypeStructure}
 
 var memberCodeSigningConfig_CodeSigningConfigId = smithy.Member{Name: "CodeSigningConfigId", Index: 0, Target: &schemaCodeSigningConfigId, Required: true}
 
@@ -397,7 +397,7 @@ var schemaCodeSigningConfigArn = smithy.Schema{ID: "com.amazonaws.lambda#CodeSig
 
 var schemaCodeSigningConfigId = smithy.Schema{ID: "com.amazonaws.lambda#CodeSigningConfigId", Type: smithy.TypeString}
 
-var schemaCodeSigningConfigList = smithy.Schema{ID: "com.amazonaws.lambda#CodeSigningConfigList", Type: smithy.TypeList, Members: []*smithy.Member{&memberCodeSigningConfigList_member}}
+var schemaCodeSigningConfigList = smithy.Schema{ID: "com.amazonaws.lambda#CodeSigningConfigList", Type: smithy.TypeList}
 
 var memberCodeSigningConfigList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaCodeSigningConfig}
 
@@ -407,7 +407,7 @@ var memberCodeSigningConfigNotFoundException_Type = smithy.Member{Name: "Type", 
 
 var memberCodeSigningConfigNotFoundException_Message = smithy.Member{Name: "Message", Index: 1, Target: &schemaString}
 
-var schemaCodeSigningPolicies = smithy.Schema{ID: "com.amazonaws.lambda#CodeSigningPolicies", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCodeSigningPolicies_UntrustedArtifactOnDeployment}}
+var schemaCodeSigningPolicies = smithy.Schema{ID: "com.amazonaws.lambda#CodeSigningPolicies", Type: smithy.TypeStructure}
 
 var memberCodeSigningPolicies_UntrustedArtifactOnDeployment = smithy.Member{Name: "UntrustedArtifactOnDeployment", Index: 0, Target: &schemaCodeSigningPolicy}
 
@@ -439,7 +439,7 @@ var schemaConcurrency = smithy.Schema{ID: "com.amazonaws.lambda#Concurrency", Ty
 
 var memberConcurrency_ReservedConcurrentExecutions = smithy.Member{Name: "ReservedConcurrentExecutions", Index: 0, Target: &schemaReservedConcurrentExecutions}
 
-var schemaContextDetails = smithy.Schema{ID: "com.amazonaws.lambda#ContextDetails", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberContextDetails_ReplayChildren, &memberContextDetails_Result, &memberContextDetails_Error}}
+var schemaContextDetails = smithy.Schema{ID: "com.amazonaws.lambda#ContextDetails", Type: smithy.TypeStructure}
 
 var memberContextDetails_ReplayChildren = smithy.Member{Name: "ReplayChildren", Index: 0, Target: &schemaReplayChildren}
 
@@ -447,17 +447,17 @@ var memberContextDetails_Result = smithy.Member{Name: "Result", Index: 1, Target
 
 var memberContextDetails_Error = smithy.Member{Name: "Error", Index: 2, Target: &schemaErrorObject}
 
-var schemaContextFailedDetails = smithy.Schema{ID: "com.amazonaws.lambda#ContextFailedDetails", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberContextFailedDetails_Error}}
+var schemaContextFailedDetails = smithy.Schema{ID: "com.amazonaws.lambda#ContextFailedDetails", Type: smithy.TypeStructure}
 
 var memberContextFailedDetails_Error = smithy.Member{Name: "Error", Index: 0, Target: &schemaEventError, Required: true}
 
-var schemaContextOptions = smithy.Schema{ID: "com.amazonaws.lambda#ContextOptions", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberContextOptions_ReplayChildren}}
+var schemaContextOptions = smithy.Schema{ID: "com.amazonaws.lambda#ContextOptions", Type: smithy.TypeStructure}
 
 var memberContextOptions_ReplayChildren = smithy.Member{Name: "ReplayChildren", Index: 0, Target: &schemaReplayChildren}
 
 var schemaContextStartedDetails = smithy.Schema{ID: "com.amazonaws.lambda#ContextStartedDetails", Type: smithy.TypeStructure}
 
-var schemaContextSucceededDetails = smithy.Schema{ID: "com.amazonaws.lambda#ContextSucceededDetails", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberContextSucceededDetails_Result}}
+var schemaContextSucceededDetails = smithy.Schema{ID: "com.amazonaws.lambda#ContextSucceededDetails", Type: smithy.TypeStructure}
 
 var memberContextSucceededDetails_Result = smithy.Member{Name: "Result", Index: 0, Target: &schemaEventResult, Required: true}
 
@@ -495,7 +495,7 @@ var memberCreateAliasInput_Description = smithy.Member{Name: "Description", Inde
 
 var memberCreateAliasInput_RoutingConfig = smithy.Member{Name: "RoutingConfig", Index: 4, Target: &schemaAliasRoutingConfiguration}
 
-var schemaCreateCapacityProviderInput = smithy.Schema{ID: "com.amazonaws.lambda#CreateCapacityProviderRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateCapacityProviderInput_CapacityProviderName, &memberCreateCapacityProviderInput_VpcConfig, &memberCreateCapacityProviderInput_PermissionsConfig, &memberCreateCapacityProviderInput_InstanceRequirements, &memberCreateCapacityProviderInput_CapacityProviderScalingConfig, &memberCreateCapacityProviderInput_KmsKeyArn, &memberCreateCapacityProviderInput_Tags, &memberCreateCapacityProviderInput_PropagateTags, &memberCreateCapacityProviderInput_TelemetryConfig}}
+var schemaCreateCapacityProviderInput = smithy.Schema{ID: "com.amazonaws.lambda#CreateCapacityProviderRequest", Type: smithy.TypeStructure}
 
 var memberCreateCapacityProviderInput_CapacityProviderName = smithy.Member{Name: "CapacityProviderName", Index: 0, Target: &schemaCapacityProviderName, Required: true}
 
@@ -515,11 +515,11 @@ var memberCreateCapacityProviderInput_PropagateTags = smithy.Member{Name: "Propa
 
 var memberCreateCapacityProviderInput_TelemetryConfig = smithy.Member{Name: "TelemetryConfig", Index: 8, Target: &schemaCapacityProviderTelemetryConfig}
 
-var schemaCreateCapacityProviderOutput = smithy.Schema{ID: "com.amazonaws.lambda#CreateCapacityProviderResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateCapacityProviderOutput_CapacityProvider}}
+var schemaCreateCapacityProviderOutput = smithy.Schema{ID: "com.amazonaws.lambda#CreateCapacityProviderResponse", Type: smithy.TypeStructure}
 
 var memberCreateCapacityProviderOutput_CapacityProvider = smithy.Member{Name: "CapacityProvider", Index: 0, Target: &schemaCapacityProvider, Required: true}
 
-var schemaCreateCodeSigningConfigInput = smithy.Schema{ID: "com.amazonaws.lambda#CreateCodeSigningConfigRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateCodeSigningConfigInput_Description, &memberCreateCodeSigningConfigInput_AllowedPublishers, &memberCreateCodeSigningConfigInput_CodeSigningPolicies, &memberCreateCodeSigningConfigInput_Tags}}
+var schemaCreateCodeSigningConfigInput = smithy.Schema{ID: "com.amazonaws.lambda#CreateCodeSigningConfigRequest", Type: smithy.TypeStructure}
 
 var memberCreateCodeSigningConfigInput_Description = smithy.Member{Name: "Description", Index: 0, Target: &schemaDescription}
 
@@ -529,7 +529,7 @@ var memberCreateCodeSigningConfigInput_CodeSigningPolicies = smithy.Member{Name:
 
 var memberCreateCodeSigningConfigInput_Tags = smithy.Member{Name: "Tags", Index: 3, Target: &schemaTags}
 
-var schemaCreateCodeSigningConfigOutput = smithy.Schema{ID: "com.amazonaws.lambda#CreateCodeSigningConfigResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateCodeSigningConfigOutput_CodeSigningConfig}}
+var schemaCreateCodeSigningConfigOutput = smithy.Schema{ID: "com.amazonaws.lambda#CreateCodeSigningConfigResponse", Type: smithy.TypeStructure}
 
 var memberCreateCodeSigningConfigOutput_CodeSigningConfig = smithy.Member{Name: "CodeSigningConfig", Index: 0, Target: &schemaCodeSigningConfig, Required: true}
 
@@ -689,15 +689,15 @@ var memberDeleteAliasInput_FunctionName = smithy.Member{Name: "FunctionName", In
 
 var memberDeleteAliasInput_Name = smithy.Member{Name: "Name", Index: 1, Target: &schemaAlias, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaDeleteCapacityProviderInput = smithy.Schema{ID: "com.amazonaws.lambda#DeleteCapacityProviderRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteCapacityProviderInput_CapacityProviderName}}
+var schemaDeleteCapacityProviderInput = smithy.Schema{ID: "com.amazonaws.lambda#DeleteCapacityProviderRequest", Type: smithy.TypeStructure}
 
 var memberDeleteCapacityProviderInput_CapacityProviderName = smithy.Member{Name: "CapacityProviderName", Index: 0, Target: &schemaCapacityProviderName, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaDeleteCapacityProviderOutput = smithy.Schema{ID: "com.amazonaws.lambda#DeleteCapacityProviderResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteCapacityProviderOutput_CapacityProvider}}
+var schemaDeleteCapacityProviderOutput = smithy.Schema{ID: "com.amazonaws.lambda#DeleteCapacityProviderResponse", Type: smithy.TypeStructure}
 
 var memberDeleteCapacityProviderOutput_CapacityProvider = smithy.Member{Name: "CapacityProvider", Index: 0, Target: &schemaCapacityProvider, Required: true}
 
-var schemaDeleteCodeSigningConfigInput = smithy.Schema{ID: "com.amazonaws.lambda#DeleteCodeSigningConfigRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteCodeSigningConfigInput_CodeSigningConfigArn}}
+var schemaDeleteCodeSigningConfigInput = smithy.Schema{ID: "com.amazonaws.lambda#DeleteCodeSigningConfigRequest", Type: smithy.TypeStructure}
 
 var memberDeleteCodeSigningConfigInput_CodeSigningConfigArn = smithy.Member{Name: "CodeSigningConfigArn", Index: 0, Target: &schemaCodeSigningConfigArn, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -707,7 +707,7 @@ var schemaDeleteEventSourceMappingInput = smithy.Schema{ID: "com.amazonaws.lambd
 
 var memberDeleteEventSourceMappingInput_UUID = smithy.Member{Name: "UUID", Index: 0, Target: &schemaUUIDString, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaDeleteFunctionCodeSigningConfigInput = smithy.Schema{ID: "com.amazonaws.lambda#DeleteFunctionCodeSigningConfigRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteFunctionCodeSigningConfigInput_FunctionName}}
+var schemaDeleteFunctionCodeSigningConfigInput = smithy.Schema{ID: "com.amazonaws.lambda#DeleteFunctionCodeSigningConfigRequest", Type: smithy.TypeStructure}
 
 var memberDeleteFunctionCodeSigningConfigInput_FunctionName = smithy.Member{Name: "FunctionName", Index: 0, Target: &schemaNamespacedFunctionName, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -743,13 +743,13 @@ var memberDeleteLayerVersionInput_LayerName = smithy.Member{Name: "LayerName", I
 
 var memberDeleteLayerVersionInput_VersionNumber = smithy.Member{Name: "VersionNumber", Index: 1, Target: &schemaLayerVersionNumber, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaDeleteProvisionedConcurrencyConfigInput = smithy.Schema{ID: "com.amazonaws.lambda#DeleteProvisionedConcurrencyConfigRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteProvisionedConcurrencyConfigInput_FunctionName, &memberDeleteProvisionedConcurrencyConfigInput_Qualifier}}
+var schemaDeleteProvisionedConcurrencyConfigInput = smithy.Schema{ID: "com.amazonaws.lambda#DeleteProvisionedConcurrencyConfigRequest", Type: smithy.TypeStructure}
 
 var memberDeleteProvisionedConcurrencyConfigInput_FunctionName = smithy.Member{Name: "FunctionName", Index: 0, Target: &schemaFunctionName, Required: true, HTTP: smithy.HTTPLabel{}}
 
 var memberDeleteProvisionedConcurrencyConfigInput_Qualifier = smithy.Member{Name: "Qualifier", Index: 1, Target: &schemaQualifier, Required: true, HTTP: smithy.HTTPQuery{Name: "Qualifier"}}
 
-var schemaDeleteResourcePolicyInput = smithy.Schema{ID: "com.amazonaws.lambda#DeleteResourcePolicyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteResourcePolicyInput_ResourceArn, &memberDeleteResourcePolicyInput_RevisionId}}
+var schemaDeleteResourcePolicyInput = smithy.Schema{ID: "com.amazonaws.lambda#DeleteResourcePolicyRequest", Type: smithy.TypeStructure}
 
 var memberDeleteResourcePolicyInput_ResourceArn = smithy.Member{Name: "ResourceArn", Index: 0, Target: &schemaPolicyResourceArn, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -793,7 +793,7 @@ var schemaDurableExecutionArn = smithy.Schema{ID: "com.amazonaws.lambda#DurableE
 
 var schemaDurableExecutionName = smithy.Schema{ID: "com.amazonaws.lambda#DurableExecutionName", Type: smithy.TypeString}
 
-var schemaDurableExecutions = smithy.Schema{ID: "com.amazonaws.lambda#DurableExecutions", Type: smithy.TypeList, Members: []*smithy.Member{&memberDurableExecutions_member}}
+var schemaDurableExecutions = smithy.Schema{ID: "com.amazonaws.lambda#DurableExecutions", Type: smithy.TypeList}
 
 var memberDurableExecutions_member = smithy.Member{Name: "member", Index: 0, Target: &schemaExecution}
 
@@ -907,7 +907,7 @@ var schemaErrorData = smithy.Schema{ID: "com.amazonaws.lambda#ErrorData", Type: 
 
 var schemaErrorMessage = smithy.Schema{ID: "com.amazonaws.lambda#ErrorMessage", Type: smithy.TypeString, Sensitive: true}
 
-var schemaErrorObject = smithy.Schema{ID: "com.amazonaws.lambda#ErrorObject", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberErrorObject_ErrorMessage, &memberErrorObject_ErrorType, &memberErrorObject_ErrorData, &memberErrorObject_StackTrace}}
+var schemaErrorObject = smithy.Schema{ID: "com.amazonaws.lambda#ErrorObject", Type: smithy.TypeStructure}
 
 var memberErrorObject_ErrorMessage = smithy.Member{Name: "ErrorMessage", Index: 0, Target: &schemaErrorMessage, Sensitive: true}
 
@@ -919,7 +919,7 @@ var memberErrorObject_StackTrace = smithy.Member{Name: "StackTrace", Index: 3, T
 
 var schemaErrorType = smithy.Schema{ID: "com.amazonaws.lambda#ErrorType", Type: smithy.TypeString, Sensitive: true}
 
-var schemaEvent = smithy.Schema{ID: "com.amazonaws.lambda#Event", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberEvent_EventType, &memberEvent_SubType, &memberEvent_EventId, &memberEvent_Id, &memberEvent_Name, &memberEvent_EventTimestamp, &memberEvent_ParentId, &memberEvent_ExecutionStartedDetails, &memberEvent_ExecutionSucceededDetails, &memberEvent_ExecutionFailedDetails, &memberEvent_ExecutionTimedOutDetails, &memberEvent_ExecutionStoppedDetails, &memberEvent_ContextStartedDetails, &memberEvent_ContextSucceededDetails, &memberEvent_ContextFailedDetails, &memberEvent_WaitStartedDetails, &memberEvent_WaitSucceededDetails, &memberEvent_WaitCancelledDetails, &memberEvent_StepStartedDetails, &memberEvent_StepSucceededDetails, &memberEvent_StepFailedDetails, &memberEvent_ChainedInvokeStartedDetails, &memberEvent_ChainedInvokeSucceededDetails, &memberEvent_ChainedInvokeFailedDetails, &memberEvent_ChainedInvokeTimedOutDetails, &memberEvent_ChainedInvokeStoppedDetails, &memberEvent_CallbackStartedDetails, &memberEvent_CallbackSucceededDetails, &memberEvent_CallbackFailedDetails, &memberEvent_CallbackTimedOutDetails, &memberEvent_InvocationCompletedDetails}}
+var schemaEvent = smithy.Schema{ID: "com.amazonaws.lambda#Event", Type: smithy.TypeStructure}
 
 var memberEvent_EventType = smithy.Member{Name: "EventType", Index: 0, Target: &schemaEventType}
 
@@ -983,7 +983,7 @@ var memberEvent_CallbackTimedOutDetails = smithy.Member{Name: "CallbackTimedOutD
 
 var memberEvent_InvocationCompletedDetails = smithy.Member{Name: "InvocationCompletedDetails", Index: 30, Target: &schemaInvocationCompletedDetails}
 
-var schemaEventError = smithy.Schema{ID: "com.amazonaws.lambda#EventError", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberEventError_Payload, &memberEventError_Truncated}}
+var schemaEventError = smithy.Schema{ID: "com.amazonaws.lambda#EventError", Type: smithy.TypeStructure}
 
 var memberEventError_Payload = smithy.Member{Name: "Payload", Index: 0, Target: &schemaErrorObject}
 
@@ -991,13 +991,13 @@ var memberEventError_Truncated = smithy.Member{Name: "Truncated", Index: 1, Targ
 
 var schemaEventId = smithy.Schema{ID: "com.amazonaws.lambda#EventId", Type: smithy.TypeInteger}
 
-var schemaEventInput = smithy.Schema{ID: "com.amazonaws.lambda#EventInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberEventInput_Payload, &memberEventInput_Truncated}}
+var schemaEventInput = smithy.Schema{ID: "com.amazonaws.lambda#EventInput", Type: smithy.TypeStructure}
 
 var memberEventInput_Payload = smithy.Member{Name: "Payload", Index: 0, Target: &schemaInputPayload, Sensitive: true}
 
 var memberEventInput_Truncated = smithy.Member{Name: "Truncated", Index: 1, Target: &schemaTruncated}
 
-var schemaEventResult = smithy.Schema{ID: "com.amazonaws.lambda#EventResult", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberEventResult_Payload, &memberEventResult_Truncated}}
+var schemaEventResult = smithy.Schema{ID: "com.amazonaws.lambda#EventResult", Type: smithy.TypeStructure}
 
 var memberEventResult_Payload = smithy.Member{Name: "Payload", Index: 0, Target: &schemaOperationPayload, Sensitive: true}
 
@@ -1099,11 +1099,11 @@ var schemaEventSourceToken = smithy.Schema{ID: "com.amazonaws.lambda#EventSource
 
 var schemaEventType = smithy.Schema{ID: "com.amazonaws.lambda#EventType", Type: smithy.TypeEnum}
 
-var schemaEvents = smithy.Schema{ID: "com.amazonaws.lambda#Events", Type: smithy.TypeList, Members: []*smithy.Member{&memberEvents_member}}
+var schemaEvents = smithy.Schema{ID: "com.amazonaws.lambda#Events", Type: smithy.TypeList}
 
 var memberEvents_member = smithy.Member{Name: "member", Index: 0, Target: &schemaEvent}
 
-var schemaExecution = smithy.Schema{ID: "com.amazonaws.lambda#Execution", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberExecution_DurableExecutionArn, &memberExecution_DurableExecutionName, &memberExecution_FunctionArn, &memberExecution_Status, &memberExecution_StartTimestamp, &memberExecution_EndTimestamp, &memberExecution_KMSKeyArn}}
+var schemaExecution = smithy.Schema{ID: "com.amazonaws.lambda#Execution", Type: smithy.TypeStructure}
 
 var memberExecution_DurableExecutionArn = smithy.Member{Name: "DurableExecutionArn", Index: 0, Target: &schemaDurableExecutionArn, Required: true}
 
@@ -1121,17 +1121,17 @@ var memberExecution_KMSKeyArn = smithy.Member{Name: "KMSKeyArn", Index: 6, Targe
 
 var schemaExecutionDataIncluded = smithy.Schema{ID: "com.amazonaws.lambda#ExecutionDataIncluded", Type: smithy.TypeBoolean}
 
-var schemaExecutionDetails = smithy.Schema{ID: "com.amazonaws.lambda#ExecutionDetails", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberExecutionDetails_InputPayload}}
+var schemaExecutionDetails = smithy.Schema{ID: "com.amazonaws.lambda#ExecutionDetails", Type: smithy.TypeStructure}
 
 var memberExecutionDetails_InputPayload = smithy.Member{Name: "InputPayload", Index: 0, Target: &schemaInputPayload, Sensitive: true}
 
 var schemaExecutionEnvironmentMemoryGiBPerVCpu = smithy.Schema{ID: "com.amazonaws.lambda#ExecutionEnvironmentMemoryGiBPerVCpu", Type: smithy.TypeDouble}
 
-var schemaExecutionFailedDetails = smithy.Schema{ID: "com.amazonaws.lambda#ExecutionFailedDetails", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberExecutionFailedDetails_Error}}
+var schemaExecutionFailedDetails = smithy.Schema{ID: "com.amazonaws.lambda#ExecutionFailedDetails", Type: smithy.TypeStructure}
 
 var memberExecutionFailedDetails_Error = smithy.Member{Name: "Error", Index: 0, Target: &schemaEventError, Required: true}
 
-var schemaExecutionStartedDetails = smithy.Schema{ID: "com.amazonaws.lambda#ExecutionStartedDetails", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberExecutionStartedDetails_Input, &memberExecutionStartedDetails_ExecutionTimeout}}
+var schemaExecutionStartedDetails = smithy.Schema{ID: "com.amazonaws.lambda#ExecutionStartedDetails", Type: smithy.TypeStructure}
 
 var memberExecutionStartedDetails_Input = smithy.Member{Name: "Input", Index: 0, Target: &schemaEventInput, Required: true}
 
@@ -1139,19 +1139,19 @@ var memberExecutionStartedDetails_ExecutionTimeout = smithy.Member{Name: "Execut
 
 var schemaExecutionStatus = smithy.Schema{ID: "com.amazonaws.lambda#ExecutionStatus", Type: smithy.TypeEnum}
 
-var schemaExecutionStatusList = smithy.Schema{ID: "com.amazonaws.lambda#ExecutionStatusList", Type: smithy.TypeList, Members: []*smithy.Member{&memberExecutionStatusList_member}}
+var schemaExecutionStatusList = smithy.Schema{ID: "com.amazonaws.lambda#ExecutionStatusList", Type: smithy.TypeList}
 
 var memberExecutionStatusList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaExecutionStatus}
 
-var schemaExecutionStoppedDetails = smithy.Schema{ID: "com.amazonaws.lambda#ExecutionStoppedDetails", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberExecutionStoppedDetails_Error}}
+var schemaExecutionStoppedDetails = smithy.Schema{ID: "com.amazonaws.lambda#ExecutionStoppedDetails", Type: smithy.TypeStructure}
 
 var memberExecutionStoppedDetails_Error = smithy.Member{Name: "Error", Index: 0, Target: &schemaEventError, Required: true}
 
-var schemaExecutionSucceededDetails = smithy.Schema{ID: "com.amazonaws.lambda#ExecutionSucceededDetails", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberExecutionSucceededDetails_Result}}
+var schemaExecutionSucceededDetails = smithy.Schema{ID: "com.amazonaws.lambda#ExecutionSucceededDetails", Type: smithy.TypeStructure}
 
 var memberExecutionSucceededDetails_Result = smithy.Member{Name: "Result", Index: 0, Target: &schemaEventResult, Required: true}
 
-var schemaExecutionTimedOutDetails = smithy.Schema{ID: "com.amazonaws.lambda#ExecutionTimedOutDetails", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberExecutionTimedOutDetails_Error}}
+var schemaExecutionTimedOutDetails = smithy.Schema{ID: "com.amazonaws.lambda#ExecutionTimedOutDetails", Type: smithy.TypeStructure}
 
 var memberExecutionTimedOutDetails_Error = smithy.Member{Name: "Error", Index: 0, Target: &schemaEventError}
 
@@ -1203,7 +1203,7 @@ var schemaFullDocument = smithy.Schema{ID: "com.amazonaws.lambda#FullDocument", 
 
 var schemaFunctionArn = smithy.Schema{ID: "com.amazonaws.lambda#FunctionArn", Type: smithy.TypeString}
 
-var schemaFunctionArnList = smithy.Schema{ID: "com.amazonaws.lambda#FunctionArnList", Type: smithy.TypeList, Members: []*smithy.Member{&memberFunctionArnList_member}}
+var schemaFunctionArnList = smithy.Schema{ID: "com.amazonaws.lambda#FunctionArnList", Type: smithy.TypeList}
 
 var memberFunctionArnList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaFunctionArn}
 
@@ -1355,7 +1355,7 @@ var schemaFunctionResponseTypeList = smithy.Schema{ID: "com.amazonaws.lambda#Fun
 
 var memberFunctionResponseTypeList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaFunctionResponseType}
 
-var schemaFunctionScalingConfig = smithy.Schema{ID: "com.amazonaws.lambda#FunctionScalingConfig", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberFunctionScalingConfig_MinExecutionEnvironments, &memberFunctionScalingConfig_MaxExecutionEnvironments}}
+var schemaFunctionScalingConfig = smithy.Schema{ID: "com.amazonaws.lambda#FunctionScalingConfig", Type: smithy.TypeStructure}
 
 var memberFunctionScalingConfig_MinExecutionEnvironments = smithy.Member{Name: "MinExecutionEnvironments", Index: 0, Target: &schemaFunctionScalingConfigExecutionEnvironments}
 
@@ -1395,11 +1395,11 @@ var schemaFunctionVersion = smithy.Schema{ID: "com.amazonaws.lambda#FunctionVers
 
 var schemaFunctionVersionLatestPublished = smithy.Schema{ID: "com.amazonaws.lambda#FunctionVersionLatestPublished", Type: smithy.TypeEnum}
 
-var schemaFunctionVersionsByCapacityProviderList = smithy.Schema{ID: "com.amazonaws.lambda#FunctionVersionsByCapacityProviderList", Type: smithy.TypeList, Members: []*smithy.Member{&memberFunctionVersionsByCapacityProviderList_member}}
+var schemaFunctionVersionsByCapacityProviderList = smithy.Schema{ID: "com.amazonaws.lambda#FunctionVersionsByCapacityProviderList", Type: smithy.TypeList}
 
 var memberFunctionVersionsByCapacityProviderList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaFunctionVersionsByCapacityProviderListItem}
 
-var schemaFunctionVersionsByCapacityProviderListItem = smithy.Schema{ID: "com.amazonaws.lambda#FunctionVersionsByCapacityProviderListItem", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberFunctionVersionsByCapacityProviderListItem_FunctionArn, &memberFunctionVersionsByCapacityProviderListItem_State}}
+var schemaFunctionVersionsByCapacityProviderListItem = smithy.Schema{ID: "com.amazonaws.lambda#FunctionVersionsByCapacityProviderListItem", Type: smithy.TypeStructure}
 
 var memberFunctionVersionsByCapacityProviderListItem_FunctionArn = smithy.Member{Name: "FunctionArn", Index: 0, Target: &schemaNameSpacedFunctionArn, Required: true}
 
@@ -1425,23 +1425,23 @@ var memberGetAliasInput_FunctionName = smithy.Member{Name: "FunctionName", Index
 
 var memberGetAliasInput_Name = smithy.Member{Name: "Name", Index: 1, Target: &schemaAlias, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaGetCapacityProviderInput = smithy.Schema{ID: "com.amazonaws.lambda#GetCapacityProviderRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetCapacityProviderInput_CapacityProviderName}}
+var schemaGetCapacityProviderInput = smithy.Schema{ID: "com.amazonaws.lambda#GetCapacityProviderRequest", Type: smithy.TypeStructure}
 
 var memberGetCapacityProviderInput_CapacityProviderName = smithy.Member{Name: "CapacityProviderName", Index: 0, Target: &schemaCapacityProviderName, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaGetCapacityProviderOutput = smithy.Schema{ID: "com.amazonaws.lambda#GetCapacityProviderResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetCapacityProviderOutput_CapacityProvider}}
+var schemaGetCapacityProviderOutput = smithy.Schema{ID: "com.amazonaws.lambda#GetCapacityProviderResponse", Type: smithy.TypeStructure}
 
 var memberGetCapacityProviderOutput_CapacityProvider = smithy.Member{Name: "CapacityProvider", Index: 0, Target: &schemaCapacityProvider, Required: true}
 
-var schemaGetCodeSigningConfigInput = smithy.Schema{ID: "com.amazonaws.lambda#GetCodeSigningConfigRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetCodeSigningConfigInput_CodeSigningConfigArn}}
+var schemaGetCodeSigningConfigInput = smithy.Schema{ID: "com.amazonaws.lambda#GetCodeSigningConfigRequest", Type: smithy.TypeStructure}
 
 var memberGetCodeSigningConfigInput_CodeSigningConfigArn = smithy.Member{Name: "CodeSigningConfigArn", Index: 0, Target: &schemaCodeSigningConfigArn, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaGetCodeSigningConfigOutput = smithy.Schema{ID: "com.amazonaws.lambda#GetCodeSigningConfigResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetCodeSigningConfigOutput_CodeSigningConfig}}
+var schemaGetCodeSigningConfigOutput = smithy.Schema{ID: "com.amazonaws.lambda#GetCodeSigningConfigResponse", Type: smithy.TypeStructure}
 
 var memberGetCodeSigningConfigOutput_CodeSigningConfig = smithy.Member{Name: "CodeSigningConfig", Index: 0, Target: &schemaCodeSigningConfig, Required: true}
 
-var schemaGetDurableExecutionHistoryInput = smithy.Schema{ID: "com.amazonaws.lambda#GetDurableExecutionHistoryRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetDurableExecutionHistoryInput_DurableExecutionArn, &memberGetDurableExecutionHistoryInput_IncludeExecutionData, &memberGetDurableExecutionHistoryInput_MaxItems, &memberGetDurableExecutionHistoryInput_Marker, &memberGetDurableExecutionHistoryInput_ReverseOrder}}
+var schemaGetDurableExecutionHistoryInput = smithy.Schema{ID: "com.amazonaws.lambda#GetDurableExecutionHistoryRequest", Type: smithy.TypeStructure}
 
 var memberGetDurableExecutionHistoryInput_DurableExecutionArn = smithy.Member{Name: "DurableExecutionArn", Index: 0, Target: &schemaDurableExecutionArn, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -1453,19 +1453,19 @@ var memberGetDurableExecutionHistoryInput_Marker = smithy.Member{Name: "Marker",
 
 var memberGetDurableExecutionHistoryInput_ReverseOrder = smithy.Member{Name: "ReverseOrder", Index: 4, Target: &schemaReverseOrder, HTTP: smithy.HTTPQuery{Name: "ReverseOrder"}}
 
-var schemaGetDurableExecutionHistoryOutput = smithy.Schema{ID: "com.amazonaws.lambda#GetDurableExecutionHistoryResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetDurableExecutionHistoryOutput_Events, &memberGetDurableExecutionHistoryOutput_NextMarker}}
+var schemaGetDurableExecutionHistoryOutput = smithy.Schema{ID: "com.amazonaws.lambda#GetDurableExecutionHistoryResponse", Type: smithy.TypeStructure}
 
 var memberGetDurableExecutionHistoryOutput_Events = smithy.Member{Name: "Events", Index: 0, Target: &schemaEvents, Required: true}
 
 var memberGetDurableExecutionHistoryOutput_NextMarker = smithy.Member{Name: "NextMarker", Index: 1, Target: &schemaString}
 
-var schemaGetDurableExecutionInput = smithy.Schema{ID: "com.amazonaws.lambda#GetDurableExecutionRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetDurableExecutionInput_DurableExecutionArn, &memberGetDurableExecutionInput_IncludeExecutionData}}
+var schemaGetDurableExecutionInput = smithy.Schema{ID: "com.amazonaws.lambda#GetDurableExecutionRequest", Type: smithy.TypeStructure}
 
 var memberGetDurableExecutionInput_DurableExecutionArn = smithy.Member{Name: "DurableExecutionArn", Index: 0, Target: &schemaDurableExecutionArn, Required: true, HTTP: smithy.HTTPLabel{}}
 
 var memberGetDurableExecutionInput_IncludeExecutionData = smithy.Member{Name: "IncludeExecutionData", Index: 1, Target: &schemaIncludeExecutionData, Default: document.Bool(true), HTTP: smithy.HTTPQuery{Name: "IncludeExecutionData"}}
 
-var schemaGetDurableExecutionOutput = smithy.Schema{ID: "com.amazonaws.lambda#GetDurableExecutionResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetDurableExecutionOutput_DurableExecutionArn, &memberGetDurableExecutionOutput_DurableExecutionName, &memberGetDurableExecutionOutput_FunctionArn, &memberGetDurableExecutionOutput_InputPayload, &memberGetDurableExecutionOutput_Result, &memberGetDurableExecutionOutput_Error, &memberGetDurableExecutionOutput_StartTimestamp, &memberGetDurableExecutionOutput_Status, &memberGetDurableExecutionOutput_EndTimestamp, &memberGetDurableExecutionOutput_Version, &memberGetDurableExecutionOutput_TraceHeader, &memberGetDurableExecutionOutput_ExecutionDataIncluded, &memberGetDurableExecutionOutput_DurableConfig}}
+var schemaGetDurableExecutionOutput = smithy.Schema{ID: "com.amazonaws.lambda#GetDurableExecutionResponse", Type: smithy.TypeStructure}
 
 var memberGetDurableExecutionOutput_DurableExecutionArn = smithy.Member{Name: "DurableExecutionArn", Index: 0, Target: &schemaDurableExecutionArn, Required: true}
 
@@ -1493,7 +1493,7 @@ var memberGetDurableExecutionOutput_ExecutionDataIncluded = smithy.Member{Name: 
 
 var memberGetDurableExecutionOutput_DurableConfig = smithy.Member{Name: "DurableConfig", Index: 12, Target: &schemaDurableConfig}
 
-var schemaGetDurableExecutionStateInput = smithy.Schema{ID: "com.amazonaws.lambda#GetDurableExecutionStateRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetDurableExecutionStateInput_DurableExecutionArn, &memberGetDurableExecutionStateInput_CheckpointToken, &memberGetDurableExecutionStateInput_Marker, &memberGetDurableExecutionStateInput_MaxItems}}
+var schemaGetDurableExecutionStateInput = smithy.Schema{ID: "com.amazonaws.lambda#GetDurableExecutionStateRequest", Type: smithy.TypeStructure}
 
 var memberGetDurableExecutionStateInput_DurableExecutionArn = smithy.Member{Name: "DurableExecutionArn", Index: 0, Target: &schemaDurableExecutionArn, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -1503,7 +1503,7 @@ var memberGetDurableExecutionStateInput_Marker = smithy.Member{Name: "Marker", I
 
 var memberGetDurableExecutionStateInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 3, Target: &schemaItemCount, Default: document.Number("0"), HTTP: smithy.HTTPQuery{Name: "MaxItems"}}
 
-var schemaGetDurableExecutionStateOutput = smithy.Schema{ID: "com.amazonaws.lambda#GetDurableExecutionStateResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetDurableExecutionStateOutput_Operations, &memberGetDurableExecutionStateOutput_NextMarker}}
+var schemaGetDurableExecutionStateOutput = smithy.Schema{ID: "com.amazonaws.lambda#GetDurableExecutionStateResponse", Type: smithy.TypeStructure}
 
 var memberGetDurableExecutionStateOutput_Operations = smithy.Member{Name: "Operations", Index: 0, Target: &schemaOperations, Required: true}
 
@@ -1561,21 +1561,21 @@ var memberGetFunctionOutput_TagsError = smithy.Member{Name: "TagsError", Index: 
 
 var memberGetFunctionOutput_Concurrency = smithy.Member{Name: "Concurrency", Index: 4, Target: &schemaConcurrency}
 
-var schemaGetFunctionRecursionConfigInput = smithy.Schema{ID: "com.amazonaws.lambda#GetFunctionRecursionConfigRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetFunctionRecursionConfigInput_FunctionName}}
+var schemaGetFunctionRecursionConfigInput = smithy.Schema{ID: "com.amazonaws.lambda#GetFunctionRecursionConfigRequest", Type: smithy.TypeStructure}
 
 var memberGetFunctionRecursionConfigInput_FunctionName = smithy.Member{Name: "FunctionName", Index: 0, Target: &schemaUnqualifiedFunctionName, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaGetFunctionRecursionConfigOutput = smithy.Schema{ID: "com.amazonaws.lambda#GetFunctionRecursionConfigResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetFunctionRecursionConfigOutput_RecursiveLoop}}
+var schemaGetFunctionRecursionConfigOutput = smithy.Schema{ID: "com.amazonaws.lambda#GetFunctionRecursionConfigResponse", Type: smithy.TypeStructure}
 
 var memberGetFunctionRecursionConfigOutput_RecursiveLoop = smithy.Member{Name: "RecursiveLoop", Index: 0, Target: &schemaRecursiveLoop}
 
-var schemaGetFunctionScalingConfigInput = smithy.Schema{ID: "com.amazonaws.lambda#GetFunctionScalingConfigRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetFunctionScalingConfigInput_FunctionName, &memberGetFunctionScalingConfigInput_Qualifier}}
+var schemaGetFunctionScalingConfigInput = smithy.Schema{ID: "com.amazonaws.lambda#GetFunctionScalingConfigRequest", Type: smithy.TypeStructure}
 
 var memberGetFunctionScalingConfigInput_FunctionName = smithy.Member{Name: "FunctionName", Index: 0, Target: &schemaUnqualifiedFunctionName, Required: true, HTTP: smithy.HTTPLabel{}}
 
 var memberGetFunctionScalingConfigInput_Qualifier = smithy.Member{Name: "Qualifier", Index: 1, Target: &schemaPublishedFunctionQualifier, Required: true, HTTP: smithy.HTTPQuery{Name: "Qualifier"}}
 
-var schemaGetFunctionScalingConfigOutput = smithy.Schema{ID: "com.amazonaws.lambda#GetFunctionScalingConfigResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetFunctionScalingConfigOutput_FunctionArn, &memberGetFunctionScalingConfigOutput_AppliedFunctionScalingConfig, &memberGetFunctionScalingConfigOutput_RequestedFunctionScalingConfig}}
+var schemaGetFunctionScalingConfigOutput = smithy.Schema{ID: "com.amazonaws.lambda#GetFunctionScalingConfigResponse", Type: smithy.TypeStructure}
 
 var memberGetFunctionScalingConfigOutput_FunctionArn = smithy.Member{Name: "FunctionArn", Index: 0, Target: &schemaFunctionArn}
 
@@ -1659,13 +1659,13 @@ var memberGetPolicyOutput_Policy = smithy.Member{Name: "Policy", Index: 0, Targe
 
 var memberGetPolicyOutput_RevisionId = smithy.Member{Name: "RevisionId", Index: 1, Target: &schemaString}
 
-var schemaGetProvisionedConcurrencyConfigInput = smithy.Schema{ID: "com.amazonaws.lambda#GetProvisionedConcurrencyConfigRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetProvisionedConcurrencyConfigInput_FunctionName, &memberGetProvisionedConcurrencyConfigInput_Qualifier}}
+var schemaGetProvisionedConcurrencyConfigInput = smithy.Schema{ID: "com.amazonaws.lambda#GetProvisionedConcurrencyConfigRequest", Type: smithy.TypeStructure}
 
 var memberGetProvisionedConcurrencyConfigInput_FunctionName = smithy.Member{Name: "FunctionName", Index: 0, Target: &schemaFunctionName, Required: true, HTTP: smithy.HTTPLabel{}}
 
 var memberGetProvisionedConcurrencyConfigInput_Qualifier = smithy.Member{Name: "Qualifier", Index: 1, Target: &schemaQualifier, Required: true, HTTP: smithy.HTTPQuery{Name: "Qualifier"}}
 
-var schemaGetProvisionedConcurrencyConfigOutput = smithy.Schema{ID: "com.amazonaws.lambda#GetProvisionedConcurrencyConfigResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetProvisionedConcurrencyConfigOutput_RequestedProvisionedConcurrentExecutions, &memberGetProvisionedConcurrencyConfigOutput_AvailableProvisionedConcurrentExecutions, &memberGetProvisionedConcurrencyConfigOutput_AllocatedProvisionedConcurrentExecutions, &memberGetProvisionedConcurrencyConfigOutput_Status, &memberGetProvisionedConcurrencyConfigOutput_StatusReason, &memberGetProvisionedConcurrencyConfigOutput_LastModified}}
+var schemaGetProvisionedConcurrencyConfigOutput = smithy.Schema{ID: "com.amazonaws.lambda#GetProvisionedConcurrencyConfigResponse", Type: smithy.TypeStructure}
 
 var memberGetProvisionedConcurrencyConfigOutput_RequestedProvisionedConcurrentExecutions = smithy.Member{Name: "RequestedProvisionedConcurrentExecutions", Index: 0, Target: &schemaPositiveInteger}
 
@@ -1679,23 +1679,23 @@ var memberGetProvisionedConcurrencyConfigOutput_StatusReason = smithy.Member{Nam
 
 var memberGetProvisionedConcurrencyConfigOutput_LastModified = smithy.Member{Name: "LastModified", Index: 5, Target: &schemaTimestamp}
 
-var schemaGetResourcePolicyInput = smithy.Schema{ID: "com.amazonaws.lambda#GetResourcePolicyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetResourcePolicyInput_ResourceArn}}
+var schemaGetResourcePolicyInput = smithy.Schema{ID: "com.amazonaws.lambda#GetResourcePolicyRequest", Type: smithy.TypeStructure}
 
 var memberGetResourcePolicyInput_ResourceArn = smithy.Member{Name: "ResourceArn", Index: 0, Target: &schemaPolicyResourceArn, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaGetResourcePolicyOutput = smithy.Schema{ID: "com.amazonaws.lambda#GetResourcePolicyResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetResourcePolicyOutput_Policy, &memberGetResourcePolicyOutput_RevisionId}}
+var schemaGetResourcePolicyOutput = smithy.Schema{ID: "com.amazonaws.lambda#GetResourcePolicyResponse", Type: smithy.TypeStructure}
 
 var memberGetResourcePolicyOutput_Policy = smithy.Member{Name: "Policy", Index: 0, Target: &schemaResourcePolicy}
 
 var memberGetResourcePolicyOutput_RevisionId = smithy.Member{Name: "RevisionId", Index: 1, Target: &schemaRevisionId}
 
-var schemaGetRuntimeManagementConfigInput = smithy.Schema{ID: "com.amazonaws.lambda#GetRuntimeManagementConfigRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetRuntimeManagementConfigInput_FunctionName, &memberGetRuntimeManagementConfigInput_Qualifier}}
+var schemaGetRuntimeManagementConfigInput = smithy.Schema{ID: "com.amazonaws.lambda#GetRuntimeManagementConfigRequest", Type: smithy.TypeStructure}
 
 var memberGetRuntimeManagementConfigInput_FunctionName = smithy.Member{Name: "FunctionName", Index: 0, Target: &schemaNamespacedFunctionName, Required: true, HTTP: smithy.HTTPLabel{}}
 
 var memberGetRuntimeManagementConfigInput_Qualifier = smithy.Member{Name: "Qualifier", Index: 1, Target: &schemaNumericLatestPublishedOrAliasQualifier, HTTP: smithy.HTTPQuery{Name: "Qualifier"}}
 
-var schemaGetRuntimeManagementConfigOutput = smithy.Schema{ID: "com.amazonaws.lambda#GetRuntimeManagementConfigResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetRuntimeManagementConfigOutput_UpdateRuntimeOn, &memberGetRuntimeManagementConfigOutput_FunctionArn, &memberGetRuntimeManagementConfigOutput_RuntimeVersionArn}}
+var schemaGetRuntimeManagementConfigOutput = smithy.Schema{ID: "com.amazonaws.lambda#GetRuntimeManagementConfigResponse", Type: smithy.TypeStructure}
 
 var memberGetRuntimeManagementConfigOutput_UpdateRuntimeOn = smithy.Member{Name: "UpdateRuntimeOn", Index: 0, Target: &schemaUpdateRuntimeOn}
 
@@ -1741,7 +1741,7 @@ var memberIncompleteSignatureException_message = smithy.Member{Name: "message", 
 
 var schemaInputPayload = smithy.Schema{ID: "com.amazonaws.lambda#InputPayload", Type: smithy.TypeString, Sensitive: true}
 
-var schemaInstanceRequirements = smithy.Schema{ID: "com.amazonaws.lambda#InstanceRequirements", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberInstanceRequirements_Architectures, &memberInstanceRequirements_AllowedInstanceTypes, &memberInstanceRequirements_ExcludedInstanceTypes}}
+var schemaInstanceRequirements = smithy.Schema{ID: "com.amazonaws.lambda#InstanceRequirements", Type: smithy.TypeStructure}
 
 var memberInstanceRequirements_Architectures = smithy.Member{Name: "Architectures", Index: 0, Target: &schemaArchitecturesList}
 
@@ -1751,7 +1751,7 @@ var memberInstanceRequirements_ExcludedInstanceTypes = smithy.Member{Name: "Excl
 
 var schemaInstanceType = smithy.Schema{ID: "com.amazonaws.lambda#InstanceType", Type: smithy.TypeString}
 
-var schemaInstanceTypeSet = smithy.Schema{ID: "com.amazonaws.lambda#InstanceTypeSet", Type: smithy.TypeList, Members: []*smithy.Member{&memberInstanceTypeSet_member}}
+var schemaInstanceTypeSet = smithy.Schema{ID: "com.amazonaws.lambda#InstanceTypeSet", Type: smithy.TypeList}
 
 var memberInstanceTypeSet_member = smithy.Member{Name: "member", Index: 0, Target: &schemaInstanceType}
 
@@ -1807,7 +1807,7 @@ var memberInvalidZipFileException_Type = smithy.Member{Name: "Type", Index: 0, T
 
 var memberInvalidZipFileException_Message = smithy.Member{Name: "Message", Index: 1, Target: &schemaString}
 
-var schemaInvocationCompletedDetails = smithy.Schema{ID: "com.amazonaws.lambda#InvocationCompletedDetails", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberInvocationCompletedDetails_StartTimestamp, &memberInvocationCompletedDetails_EndTimestamp, &memberInvocationCompletedDetails_RequestId, &memberInvocationCompletedDetails_Error}}
+var schemaInvocationCompletedDetails = smithy.Schema{ID: "com.amazonaws.lambda#InvocationCompletedDetails", Type: smithy.TypeStructure}
 
 var memberInvocationCompletedDetails_StartTimestamp = smithy.Member{Name: "StartTimestamp", Index: 0, Target: &schemaExecutionTimestamp, Required: true}
 
@@ -1825,7 +1825,7 @@ var memberInvokeAsyncInput_FunctionName = smithy.Member{Name: "FunctionName", In
 
 var memberInvokeAsyncInput_InvokeArgs = smithy.Member{Name: "InvokeArgs", Index: 1, Target: &schemaBlobStream, Required: true, HTTP: smithy.HTTPPayload{}}
 
-var schemaInvokeAsyncOutput = smithy.Schema{ID: "com.amazonaws.lambda#InvokeAsyncResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberInvokeAsyncOutput_Status}}
+var schemaInvokeAsyncOutput = smithy.Schema{ID: "com.amazonaws.lambda#InvokeAsyncResponse", Type: smithy.TypeStructure}
 
 var memberInvokeAsyncOutput_Status = smithy.Member{Name: "Status", Index: 0, Target: &schemaHttpStatus, Default: document.Number("0"), HTTP: smithy.HTTPResponseCode{}}
 
@@ -1863,11 +1863,11 @@ var memberInvokeOutput_ExecutedVersion = smithy.Member{Name: "ExecutedVersion", 
 
 var memberInvokeOutput_DurableExecutionArn = smithy.Member{Name: "DurableExecutionArn", Index: 5, Target: &schemaDurableExecutionArn, HTTP: smithy.HTTPHeader{Name: "X-Amz-Durable-Execution-Arn"}}
 
-var schemaInvokeResponseStreamUpdate = smithy.Schema{ID: "com.amazonaws.lambda#InvokeResponseStreamUpdate", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberInvokeResponseStreamUpdate_Payload}}
+var schemaInvokeResponseStreamUpdate = smithy.Schema{ID: "com.amazonaws.lambda#InvokeResponseStreamUpdate", Type: smithy.TypeStructure}
 
 var memberInvokeResponseStreamUpdate_Payload = smithy.Member{Name: "Payload", Index: 0, Target: &schemaBlob, Sensitive: true}
 
-var schemaInvokeWithResponseStreamCompleteEvent = smithy.Schema{ID: "com.amazonaws.lambda#InvokeWithResponseStreamCompleteEvent", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberInvokeWithResponseStreamCompleteEvent_ErrorCode, &memberInvokeWithResponseStreamCompleteEvent_ErrorDetails, &memberInvokeWithResponseStreamCompleteEvent_LogResult}}
+var schemaInvokeWithResponseStreamCompleteEvent = smithy.Schema{ID: "com.amazonaws.lambda#InvokeWithResponseStreamCompleteEvent", Type: smithy.TypeStructure}
 
 var memberInvokeWithResponseStreamCompleteEvent_ErrorCode = smithy.Member{Name: "ErrorCode", Index: 0, Target: &schemaString}
 
@@ -1875,7 +1875,7 @@ var memberInvokeWithResponseStreamCompleteEvent_ErrorDetails = smithy.Member{Nam
 
 var memberInvokeWithResponseStreamCompleteEvent_LogResult = smithy.Member{Name: "LogResult", Index: 2, Target: &schemaString}
 
-var schemaInvokeWithResponseStreamInput = smithy.Schema{ID: "com.amazonaws.lambda#InvokeWithResponseStreamRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberInvokeWithResponseStreamInput_FunctionName, &memberInvokeWithResponseStreamInput_LogType, &memberInvokeWithResponseStreamInput_ClientContext, &memberInvokeWithResponseStreamInput_Qualifier, &memberInvokeWithResponseStreamInput_Payload, &memberInvokeWithResponseStreamInput_TenantId, &memberInvokeWithResponseStreamInput_InvocationType}}
+var schemaInvokeWithResponseStreamInput = smithy.Schema{ID: "com.amazonaws.lambda#InvokeWithResponseStreamRequest", Type: smithy.TypeStructure}
 
 var memberInvokeWithResponseStreamInput_FunctionName = smithy.Member{Name: "FunctionName", Index: 0, Target: &schemaNamespacedFunctionName, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -1891,7 +1891,7 @@ var memberInvokeWithResponseStreamInput_TenantId = smithy.Member{Name: "TenantId
 
 var memberInvokeWithResponseStreamInput_InvocationType = smithy.Member{Name: "InvocationType", Index: 6, Target: &schemaResponseStreamingInvocationType, HTTP: smithy.HTTPHeader{Name: "X-Amz-Invocation-Type"}}
 
-var schemaInvokeWithResponseStreamOutput = smithy.Schema{ID: "com.amazonaws.lambda#InvokeWithResponseStreamResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberInvokeWithResponseStreamOutput_StatusCode, &memberInvokeWithResponseStreamOutput_ExecutedVersion, &memberInvokeWithResponseStreamOutput_EventStream, &memberInvokeWithResponseStreamOutput_ResponseStreamContentType}}
+var schemaInvokeWithResponseStreamOutput = smithy.Schema{ID: "com.amazonaws.lambda#InvokeWithResponseStreamResponse", Type: smithy.TypeStructure}
 
 var memberInvokeWithResponseStreamOutput_StatusCode = smithy.Member{Name: "StatusCode", Index: 0, Target: &schemaInteger, Default: document.Number("0"), HTTP: smithy.HTTPResponseCode{}}
 
@@ -1901,7 +1901,7 @@ var memberInvokeWithResponseStreamOutput_EventStream = smithy.Member{Name: "Even
 
 var memberInvokeWithResponseStreamOutput_ResponseStreamContentType = smithy.Member{Name: "ResponseStreamContentType", Index: 3, Target: &schemaString, HTTP: smithy.HTTPHeader{Name: "Content-Type"}}
 
-var schemaInvokeWithResponseStreamResponseEvent = smithy.Schema{ID: "com.amazonaws.lambda#InvokeWithResponseStreamResponseEvent", Type: smithy.TypeUnion, Members: []*smithy.Member{&memberInvokeWithResponseStreamResponseEvent_PayloadChunk, &memberInvokeWithResponseStreamResponseEvent_InvokeComplete}, Streaming: true}
+var schemaInvokeWithResponseStreamResponseEvent = smithy.Schema{ID: "com.amazonaws.lambda#InvokeWithResponseStreamResponseEvent", Type: smithy.TypeUnion, Streaming: true}
 
 var memberInvokeWithResponseStreamResponseEvent_PayloadChunk = smithy.Member{Name: "PayloadChunk", Index: 0, Target: &schemaInvokeResponseStreamUpdate}
 
@@ -2091,7 +2091,7 @@ var memberListAliasesOutput_NextMarker = smithy.Member{Name: "NextMarker", Index
 
 var memberListAliasesOutput_Aliases = smithy.Member{Name: "Aliases", Index: 1, Target: &schemaAliasList}
 
-var schemaListCapacityProvidersInput = smithy.Schema{ID: "com.amazonaws.lambda#ListCapacityProvidersRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListCapacityProvidersInput_State, &memberListCapacityProvidersInput_Marker, &memberListCapacityProvidersInput_MaxItems}}
+var schemaListCapacityProvidersInput = smithy.Schema{ID: "com.amazonaws.lambda#ListCapacityProvidersRequest", Type: smithy.TypeStructure}
 
 var memberListCapacityProvidersInput_State = smithy.Member{Name: "State", Index: 0, Target: &schemaCapacityProviderState, HTTP: smithy.HTTPQuery{Name: "State"}}
 
@@ -2099,25 +2099,25 @@ var memberListCapacityProvidersInput_Marker = smithy.Member{Name: "Marker", Inde
 
 var memberListCapacityProvidersInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2, Target: &schemaMaxFiftyListItems, HTTP: smithy.HTTPQuery{Name: "MaxItems"}}
 
-var schemaListCapacityProvidersOutput = smithy.Schema{ID: "com.amazonaws.lambda#ListCapacityProvidersResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListCapacityProvidersOutput_CapacityProviders, &memberListCapacityProvidersOutput_NextMarker}}
+var schemaListCapacityProvidersOutput = smithy.Schema{ID: "com.amazonaws.lambda#ListCapacityProvidersResponse", Type: smithy.TypeStructure}
 
 var memberListCapacityProvidersOutput_CapacityProviders = smithy.Member{Name: "CapacityProviders", Index: 0, Target: &schemaCapacityProvidersList, Required: true}
 
 var memberListCapacityProvidersOutput_NextMarker = smithy.Member{Name: "NextMarker", Index: 1, Target: &schemaString}
 
-var schemaListCodeSigningConfigsInput = smithy.Schema{ID: "com.amazonaws.lambda#ListCodeSigningConfigsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListCodeSigningConfigsInput_Marker, &memberListCodeSigningConfigsInput_MaxItems}}
+var schemaListCodeSigningConfigsInput = smithy.Schema{ID: "com.amazonaws.lambda#ListCodeSigningConfigsRequest", Type: smithy.TypeStructure}
 
 var memberListCodeSigningConfigsInput_Marker = smithy.Member{Name: "Marker", Index: 0, Target: &schemaString, HTTP: smithy.HTTPQuery{Name: "Marker"}}
 
 var memberListCodeSigningConfigsInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 1, Target: &schemaMaxListItems, HTTP: smithy.HTTPQuery{Name: "MaxItems"}}
 
-var schemaListCodeSigningConfigsOutput = smithy.Schema{ID: "com.amazonaws.lambda#ListCodeSigningConfigsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListCodeSigningConfigsOutput_NextMarker, &memberListCodeSigningConfigsOutput_CodeSigningConfigs}}
+var schemaListCodeSigningConfigsOutput = smithy.Schema{ID: "com.amazonaws.lambda#ListCodeSigningConfigsResponse", Type: smithy.TypeStructure}
 
 var memberListCodeSigningConfigsOutput_NextMarker = smithy.Member{Name: "NextMarker", Index: 0, Target: &schemaString}
 
 var memberListCodeSigningConfigsOutput_CodeSigningConfigs = smithy.Member{Name: "CodeSigningConfigs", Index: 1, Target: &schemaCodeSigningConfigList}
 
-var schemaListDurableExecutionsByFunctionInput = smithy.Schema{ID: "com.amazonaws.lambda#ListDurableExecutionsByFunctionRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListDurableExecutionsByFunctionInput_FunctionName, &memberListDurableExecutionsByFunctionInput_Qualifier, &memberListDurableExecutionsByFunctionInput_DurableExecutionName, &memberListDurableExecutionsByFunctionInput_Statuses, &memberListDurableExecutionsByFunctionInput_StartedAfter, &memberListDurableExecutionsByFunctionInput_StartedBefore, &memberListDurableExecutionsByFunctionInput_ReverseOrder, &memberListDurableExecutionsByFunctionInput_Marker, &memberListDurableExecutionsByFunctionInput_MaxItems}}
+var schemaListDurableExecutionsByFunctionInput = smithy.Schema{ID: "com.amazonaws.lambda#ListDurableExecutionsByFunctionRequest", Type: smithy.TypeStructure}
 
 var memberListDurableExecutionsByFunctionInput_FunctionName = smithy.Member{Name: "FunctionName", Index: 0, Target: &schemaNamespacedFunctionName, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -2137,7 +2137,7 @@ var memberListDurableExecutionsByFunctionInput_Marker = smithy.Member{Name: "Mar
 
 var memberListDurableExecutionsByFunctionInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 8, Target: &schemaItemCount, Default: document.Number("0"), HTTP: smithy.HTTPQuery{Name: "MaxItems"}}
 
-var schemaListDurableExecutionsByFunctionOutput = smithy.Schema{ID: "com.amazonaws.lambda#ListDurableExecutionsByFunctionResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListDurableExecutionsByFunctionOutput_DurableExecutions, &memberListDurableExecutionsByFunctionOutput_NextMarker}}
+var schemaListDurableExecutionsByFunctionOutput = smithy.Schema{ID: "com.amazonaws.lambda#ListDurableExecutionsByFunctionResponse", Type: smithy.TypeStructure}
 
 var memberListDurableExecutionsByFunctionOutput_DurableExecutions = smithy.Member{Name: "DurableExecutions", Index: 0, Target: &schemaDurableExecutions}
 
@@ -2187,7 +2187,7 @@ var memberListFunctionUrlConfigsOutput_FunctionUrlConfigs = smithy.Member{Name: 
 
 var memberListFunctionUrlConfigsOutput_NextMarker = smithy.Member{Name: "NextMarker", Index: 1, Target: &schemaString}
 
-var schemaListFunctionVersionsByCapacityProviderInput = smithy.Schema{ID: "com.amazonaws.lambda#ListFunctionVersionsByCapacityProviderRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListFunctionVersionsByCapacityProviderInput_CapacityProviderName, &memberListFunctionVersionsByCapacityProviderInput_Marker, &memberListFunctionVersionsByCapacityProviderInput_MaxItems}}
+var schemaListFunctionVersionsByCapacityProviderInput = smithy.Schema{ID: "com.amazonaws.lambda#ListFunctionVersionsByCapacityProviderRequest", Type: smithy.TypeStructure}
 
 var memberListFunctionVersionsByCapacityProviderInput_CapacityProviderName = smithy.Member{Name: "CapacityProviderName", Index: 0, Target: &schemaCapacityProviderName, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -2195,7 +2195,7 @@ var memberListFunctionVersionsByCapacityProviderInput_Marker = smithy.Member{Nam
 
 var memberListFunctionVersionsByCapacityProviderInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2, Target: &schemaMaxFiftyListItems, HTTP: smithy.HTTPQuery{Name: "MaxItems"}}
 
-var schemaListFunctionVersionsByCapacityProviderOutput = smithy.Schema{ID: "com.amazonaws.lambda#ListFunctionVersionsByCapacityProviderResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListFunctionVersionsByCapacityProviderOutput_CapacityProviderArn, &memberListFunctionVersionsByCapacityProviderOutput_FunctionVersions, &memberListFunctionVersionsByCapacityProviderOutput_NextMarker}}
+var schemaListFunctionVersionsByCapacityProviderOutput = smithy.Schema{ID: "com.amazonaws.lambda#ListFunctionVersionsByCapacityProviderResponse", Type: smithy.TypeStructure}
 
 var memberListFunctionVersionsByCapacityProviderOutput_CapacityProviderArn = smithy.Member{Name: "CapacityProviderArn", Index: 0, Target: &schemaCapacityProviderArn, Required: true}
 
@@ -2203,7 +2203,7 @@ var memberListFunctionVersionsByCapacityProviderOutput_FunctionVersions = smithy
 
 var memberListFunctionVersionsByCapacityProviderOutput_NextMarker = smithy.Member{Name: "NextMarker", Index: 2, Target: &schemaString}
 
-var schemaListFunctionsByCodeSigningConfigInput = smithy.Schema{ID: "com.amazonaws.lambda#ListFunctionsByCodeSigningConfigRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListFunctionsByCodeSigningConfigInput_CodeSigningConfigArn, &memberListFunctionsByCodeSigningConfigInput_Marker, &memberListFunctionsByCodeSigningConfigInput_MaxItems}}
+var schemaListFunctionsByCodeSigningConfigInput = smithy.Schema{ID: "com.amazonaws.lambda#ListFunctionsByCodeSigningConfigRequest", Type: smithy.TypeStructure}
 
 var memberListFunctionsByCodeSigningConfigInput_CodeSigningConfigArn = smithy.Member{Name: "CodeSigningConfigArn", Index: 0, Target: &schemaCodeSigningConfigArn, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -2211,7 +2211,7 @@ var memberListFunctionsByCodeSigningConfigInput_Marker = smithy.Member{Name: "Ma
 
 var memberListFunctionsByCodeSigningConfigInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2, Target: &schemaMaxListItems, HTTP: smithy.HTTPQuery{Name: "MaxItems"}}
 
-var schemaListFunctionsByCodeSigningConfigOutput = smithy.Schema{ID: "com.amazonaws.lambda#ListFunctionsByCodeSigningConfigResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListFunctionsByCodeSigningConfigOutput_NextMarker, &memberListFunctionsByCodeSigningConfigOutput_FunctionArns}}
+var schemaListFunctionsByCodeSigningConfigOutput = smithy.Schema{ID: "com.amazonaws.lambda#ListFunctionsByCodeSigningConfigResponse", Type: smithy.TypeStructure}
 
 var memberListFunctionsByCodeSigningConfigOutput_NextMarker = smithy.Member{Name: "NextMarker", Index: 0, Target: &schemaString}
 
@@ -2267,7 +2267,7 @@ var memberListLayersOutput_NextMarker = smithy.Member{Name: "NextMarker", Index:
 
 var memberListLayersOutput_Layers = smithy.Member{Name: "Layers", Index: 1, Target: &schemaLayersList}
 
-var schemaListProvisionedConcurrencyConfigsInput = smithy.Schema{ID: "com.amazonaws.lambda#ListProvisionedConcurrencyConfigsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListProvisionedConcurrencyConfigsInput_FunctionName, &memberListProvisionedConcurrencyConfigsInput_Marker, &memberListProvisionedConcurrencyConfigsInput_MaxItems}}
+var schemaListProvisionedConcurrencyConfigsInput = smithy.Schema{ID: "com.amazonaws.lambda#ListProvisionedConcurrencyConfigsRequest", Type: smithy.TypeStructure}
 
 var memberListProvisionedConcurrencyConfigsInput_FunctionName = smithy.Member{Name: "FunctionName", Index: 0, Target: &schemaFunctionName, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -2275,7 +2275,7 @@ var memberListProvisionedConcurrencyConfigsInput_Marker = smithy.Member{Name: "M
 
 var memberListProvisionedConcurrencyConfigsInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2, Target: &schemaMaxProvisionedConcurrencyConfigListItems, HTTP: smithy.HTTPQuery{Name: "MaxItems"}}
 
-var schemaListProvisionedConcurrencyConfigsOutput = smithy.Schema{ID: "com.amazonaws.lambda#ListProvisionedConcurrencyConfigsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListProvisionedConcurrencyConfigsOutput_ProvisionedConcurrencyConfigs, &memberListProvisionedConcurrencyConfigsOutput_NextMarker}}
+var schemaListProvisionedConcurrencyConfigsOutput = smithy.Schema{ID: "com.amazonaws.lambda#ListProvisionedConcurrencyConfigsResponse", Type: smithy.TypeStructure}
 
 var memberListProvisionedConcurrencyConfigsOutput_ProvisionedConcurrencyConfigs = smithy.Member{Name: "ProvisionedConcurrencyConfigs", Index: 0, Target: &schemaProvisionedConcurrencyConfigList}
 
@@ -2401,7 +2401,7 @@ var schemaOnSuccess = smithy.Schema{ID: "com.amazonaws.lambda#OnSuccess", Type: 
 
 var memberOnSuccess_Destination = smithy.Member{Name: "Destination", Index: 0, Target: &schemaDestinationArn}
 
-var schemaOperation = smithy.Schema{ID: "com.amazonaws.lambda#Operation", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberOperation_Id, &memberOperation_ParentId, &memberOperation_Name, &memberOperation_Type, &memberOperation_SubType, &memberOperation_StartTimestamp, &memberOperation_EndTimestamp, &memberOperation_Status, &memberOperation_ExecutionDetails, &memberOperation_ContextDetails, &memberOperation_StepDetails, &memberOperation_WaitDetails, &memberOperation_CallbackDetails, &memberOperation_ChainedInvokeDetails}}
+var schemaOperation = smithy.Schema{ID: "com.amazonaws.lambda#Operation", Type: smithy.TypeStructure}
 
 var memberOperation_Id = smithy.Member{Name: "Id", Index: 0, Target: &schemaOperationId, Required: true}
 
@@ -2445,7 +2445,7 @@ var schemaOperationSubType = smithy.Schema{ID: "com.amazonaws.lambda#OperationSu
 
 var schemaOperationType = smithy.Schema{ID: "com.amazonaws.lambda#OperationType", Type: smithy.TypeEnum}
 
-var schemaOperationUpdate = smithy.Schema{ID: "com.amazonaws.lambda#OperationUpdate", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberOperationUpdate_Id, &memberOperationUpdate_ParentId, &memberOperationUpdate_Name, &memberOperationUpdate_Type, &memberOperationUpdate_SubType, &memberOperationUpdate_Action, &memberOperationUpdate_Payload, &memberOperationUpdate_Error, &memberOperationUpdate_ContextOptions, &memberOperationUpdate_StepOptions, &memberOperationUpdate_WaitOptions, &memberOperationUpdate_CallbackOptions, &memberOperationUpdate_ChainedInvokeOptions}}
+var schemaOperationUpdate = smithy.Schema{ID: "com.amazonaws.lambda#OperationUpdate", Type: smithy.TypeStructure}
 
 var memberOperationUpdate_Id = smithy.Member{Name: "Id", Index: 0, Target: &schemaOperationId, Required: true}
 
@@ -2473,11 +2473,11 @@ var memberOperationUpdate_CallbackOptions = smithy.Member{Name: "CallbackOptions
 
 var memberOperationUpdate_ChainedInvokeOptions = smithy.Member{Name: "ChainedInvokeOptions", Index: 12, Target: &schemaChainedInvokeOptions}
 
-var schemaOperationUpdates = smithy.Schema{ID: "com.amazonaws.lambda#OperationUpdates", Type: smithy.TypeList, Members: []*smithy.Member{&memberOperationUpdates_member}}
+var schemaOperationUpdates = smithy.Schema{ID: "com.amazonaws.lambda#OperationUpdates", Type: smithy.TypeList}
 
 var memberOperationUpdates_member = smithy.Member{Name: "member", Index: 0, Target: &schemaOperationUpdate}
 
-var schemaOperations = smithy.Schema{ID: "com.amazonaws.lambda#Operations", Type: smithy.TypeList, Members: []*smithy.Member{&memberOperations_member}}
+var schemaOperations = smithy.Schema{ID: "com.amazonaws.lambda#Operations", Type: smithy.TypeList}
 
 var memberOperations_member = smithy.Member{Name: "member", Index: 0, Target: &schemaOperation}
 
@@ -2515,7 +2515,7 @@ var schemaPrincipal = smithy.Schema{ID: "com.amazonaws.lambda#Principal", Type: 
 
 var schemaPrincipalOrgID = smithy.Schema{ID: "com.amazonaws.lambda#PrincipalOrgID", Type: smithy.TypeString}
 
-var schemaPropagateTags = smithy.Schema{ID: "com.amazonaws.lambda#PropagateTags", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPropagateTags_Mode, &memberPropagateTags_ExplicitTags}}
+var schemaPropagateTags = smithy.Schema{ID: "com.amazonaws.lambda#PropagateTags", Type: smithy.TypeStructure}
 
 var memberPropagateTags_Mode = smithy.Member{Name: "Mode", Index: 0, Target: &schemaPropagateTagsMode}
 
@@ -2523,11 +2523,11 @@ var memberPropagateTags_ExplicitTags = smithy.Member{Name: "ExplicitTags", Index
 
 var schemaPropagateTagsMode = smithy.Schema{ID: "com.amazonaws.lambda#PropagateTagsMode", Type: smithy.TypeEnum}
 
-var schemaProvisionedConcurrencyConfigList = smithy.Schema{ID: "com.amazonaws.lambda#ProvisionedConcurrencyConfigList", Type: smithy.TypeList, Members: []*smithy.Member{&memberProvisionedConcurrencyConfigList_member}}
+var schemaProvisionedConcurrencyConfigList = smithy.Schema{ID: "com.amazonaws.lambda#ProvisionedConcurrencyConfigList", Type: smithy.TypeList}
 
 var memberProvisionedConcurrencyConfigList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaProvisionedConcurrencyConfigListItem}
 
-var schemaProvisionedConcurrencyConfigListItem = smithy.Schema{ID: "com.amazonaws.lambda#ProvisionedConcurrencyConfigListItem", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberProvisionedConcurrencyConfigListItem_FunctionArn, &memberProvisionedConcurrencyConfigListItem_RequestedProvisionedConcurrentExecutions, &memberProvisionedConcurrencyConfigListItem_AvailableProvisionedConcurrentExecutions, &memberProvisionedConcurrencyConfigListItem_AllocatedProvisionedConcurrentExecutions, &memberProvisionedConcurrencyConfigListItem_Status, &memberProvisionedConcurrencyConfigListItem_StatusReason, &memberProvisionedConcurrencyConfigListItem_LastModified}}
+var schemaProvisionedConcurrencyConfigListItem = smithy.Schema{ID: "com.amazonaws.lambda#ProvisionedConcurrencyConfigListItem", Type: smithy.TypeStructure}
 
 var memberProvisionedConcurrencyConfigListItem_FunctionArn = smithy.Member{Name: "FunctionArn", Index: 0, Target: &schemaFunctionArn}
 
@@ -2615,13 +2615,13 @@ var memberPublishVersionInput_PublishTo = smithy.Member{Name: "PublishTo", Index
 
 var schemaPublishedFunctionQualifier = smithy.Schema{ID: "com.amazonaws.lambda#PublishedFunctionQualifier", Type: smithy.TypeString}
 
-var schemaPutFunctionCodeSigningConfigInput = smithy.Schema{ID: "com.amazonaws.lambda#PutFunctionCodeSigningConfigRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutFunctionCodeSigningConfigInput_CodeSigningConfigArn, &memberPutFunctionCodeSigningConfigInput_FunctionName}}
+var schemaPutFunctionCodeSigningConfigInput = smithy.Schema{ID: "com.amazonaws.lambda#PutFunctionCodeSigningConfigRequest", Type: smithy.TypeStructure}
 
 var memberPutFunctionCodeSigningConfigInput_CodeSigningConfigArn = smithy.Member{Name: "CodeSigningConfigArn", Index: 0, Target: &schemaCodeSigningConfigArn, Required: true}
 
 var memberPutFunctionCodeSigningConfigInput_FunctionName = smithy.Member{Name: "FunctionName", Index: 1, Target: &schemaNamespacedFunctionName, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaPutFunctionCodeSigningConfigOutput = smithy.Schema{ID: "com.amazonaws.lambda#PutFunctionCodeSigningConfigResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutFunctionCodeSigningConfigOutput_CodeSigningConfigArn, &memberPutFunctionCodeSigningConfigOutput_FunctionName}}
+var schemaPutFunctionCodeSigningConfigOutput = smithy.Schema{ID: "com.amazonaws.lambda#PutFunctionCodeSigningConfigResponse", Type: smithy.TypeStructure}
 
 var memberPutFunctionCodeSigningConfigOutput_CodeSigningConfigArn = smithy.Member{Name: "CodeSigningConfigArn", Index: 0, Target: &schemaCodeSigningConfigArn, Required: true}
 
@@ -2645,17 +2645,17 @@ var memberPutFunctionEventInvokeConfigInput_MaximumEventAgeInSeconds = smithy.Me
 
 var memberPutFunctionEventInvokeConfigInput_DestinationConfig = smithy.Member{Name: "DestinationConfig", Index: 4, Target: &schemaDestinationConfig}
 
-var schemaPutFunctionRecursionConfigInput = smithy.Schema{ID: "com.amazonaws.lambda#PutFunctionRecursionConfigRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutFunctionRecursionConfigInput_FunctionName, &memberPutFunctionRecursionConfigInput_RecursiveLoop}}
+var schemaPutFunctionRecursionConfigInput = smithy.Schema{ID: "com.amazonaws.lambda#PutFunctionRecursionConfigRequest", Type: smithy.TypeStructure}
 
 var memberPutFunctionRecursionConfigInput_FunctionName = smithy.Member{Name: "FunctionName", Index: 0, Target: &schemaUnqualifiedFunctionName, Required: true, HTTP: smithy.HTTPLabel{}}
 
 var memberPutFunctionRecursionConfigInput_RecursiveLoop = smithy.Member{Name: "RecursiveLoop", Index: 1, Target: &schemaRecursiveLoop, Required: true}
 
-var schemaPutFunctionRecursionConfigOutput = smithy.Schema{ID: "com.amazonaws.lambda#PutFunctionRecursionConfigResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutFunctionRecursionConfigOutput_RecursiveLoop}}
+var schemaPutFunctionRecursionConfigOutput = smithy.Schema{ID: "com.amazonaws.lambda#PutFunctionRecursionConfigResponse", Type: smithy.TypeStructure}
 
 var memberPutFunctionRecursionConfigOutput_RecursiveLoop = smithy.Member{Name: "RecursiveLoop", Index: 0, Target: &schemaRecursiveLoop}
 
-var schemaPutFunctionScalingConfigInput = smithy.Schema{ID: "com.amazonaws.lambda#PutFunctionScalingConfigRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutFunctionScalingConfigInput_FunctionName, &memberPutFunctionScalingConfigInput_Qualifier, &memberPutFunctionScalingConfigInput_FunctionScalingConfig}}
+var schemaPutFunctionScalingConfigInput = smithy.Schema{ID: "com.amazonaws.lambda#PutFunctionScalingConfigRequest", Type: smithy.TypeStructure}
 
 var memberPutFunctionScalingConfigInput_FunctionName = smithy.Member{Name: "FunctionName", Index: 0, Target: &schemaUnqualifiedFunctionName, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -2663,11 +2663,11 @@ var memberPutFunctionScalingConfigInput_Qualifier = smithy.Member{Name: "Qualifi
 
 var memberPutFunctionScalingConfigInput_FunctionScalingConfig = smithy.Member{Name: "FunctionScalingConfig", Index: 2, Target: &schemaFunctionScalingConfig}
 
-var schemaPutFunctionScalingConfigOutput = smithy.Schema{ID: "com.amazonaws.lambda#PutFunctionScalingConfigResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutFunctionScalingConfigOutput_FunctionState}}
+var schemaPutFunctionScalingConfigOutput = smithy.Schema{ID: "com.amazonaws.lambda#PutFunctionScalingConfigResponse", Type: smithy.TypeStructure}
 
 var memberPutFunctionScalingConfigOutput_FunctionState = smithy.Member{Name: "FunctionState", Index: 0, Target: &schemaState}
 
-var schemaPutProvisionedConcurrencyConfigInput = smithy.Schema{ID: "com.amazonaws.lambda#PutProvisionedConcurrencyConfigRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutProvisionedConcurrencyConfigInput_FunctionName, &memberPutProvisionedConcurrencyConfigInput_Qualifier, &memberPutProvisionedConcurrencyConfigInput_ProvisionedConcurrentExecutions}}
+var schemaPutProvisionedConcurrencyConfigInput = smithy.Schema{ID: "com.amazonaws.lambda#PutProvisionedConcurrencyConfigRequest", Type: smithy.TypeStructure}
 
 var memberPutProvisionedConcurrencyConfigInput_FunctionName = smithy.Member{Name: "FunctionName", Index: 0, Target: &schemaFunctionName, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -2675,7 +2675,7 @@ var memberPutProvisionedConcurrencyConfigInput_Qualifier = smithy.Member{Name: "
 
 var memberPutProvisionedConcurrencyConfigInput_ProvisionedConcurrentExecutions = smithy.Member{Name: "ProvisionedConcurrentExecutions", Index: 2, Target: &schemaPositiveInteger, Required: true}
 
-var schemaPutProvisionedConcurrencyConfigOutput = smithy.Schema{ID: "com.amazonaws.lambda#PutProvisionedConcurrencyConfigResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutProvisionedConcurrencyConfigOutput_RequestedProvisionedConcurrentExecutions, &memberPutProvisionedConcurrencyConfigOutput_AllocatedProvisionedConcurrentExecutions, &memberPutProvisionedConcurrencyConfigOutput_AvailableProvisionedConcurrentExecutions, &memberPutProvisionedConcurrencyConfigOutput_Status, &memberPutProvisionedConcurrencyConfigOutput_StatusReason, &memberPutProvisionedConcurrencyConfigOutput_LastModified}}
+var schemaPutProvisionedConcurrencyConfigOutput = smithy.Schema{ID: "com.amazonaws.lambda#PutProvisionedConcurrencyConfigResponse", Type: smithy.TypeStructure}
 
 var memberPutProvisionedConcurrencyConfigOutput_RequestedProvisionedConcurrentExecutions = smithy.Member{Name: "RequestedProvisionedConcurrentExecutions", Index: 0, Target: &schemaPositiveInteger}
 
@@ -2689,7 +2689,7 @@ var memberPutProvisionedConcurrencyConfigOutput_StatusReason = smithy.Member{Nam
 
 var memberPutProvisionedConcurrencyConfigOutput_LastModified = smithy.Member{Name: "LastModified", Index: 5, Target: &schemaTimestamp}
 
-var schemaPutResourcePolicyInput = smithy.Schema{ID: "com.amazonaws.lambda#PutResourcePolicyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutResourcePolicyInput_ResourceArn, &memberPutResourcePolicyInput_Policy, &memberPutResourcePolicyInput_RevisionId}}
+var schemaPutResourcePolicyInput = smithy.Schema{ID: "com.amazonaws.lambda#PutResourcePolicyRequest", Type: smithy.TypeStructure}
 
 var memberPutResourcePolicyInput_ResourceArn = smithy.Member{Name: "ResourceArn", Index: 0, Target: &schemaPolicyResourceArn, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -2697,13 +2697,13 @@ var memberPutResourcePolicyInput_Policy = smithy.Member{Name: "Policy", Index: 1
 
 var memberPutResourcePolicyInput_RevisionId = smithy.Member{Name: "RevisionId", Index: 2, Target: &schemaRevisionId}
 
-var schemaPutResourcePolicyOutput = smithy.Schema{ID: "com.amazonaws.lambda#PutResourcePolicyResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutResourcePolicyOutput_Policy, &memberPutResourcePolicyOutput_RevisionId}}
+var schemaPutResourcePolicyOutput = smithy.Schema{ID: "com.amazonaws.lambda#PutResourcePolicyResponse", Type: smithy.TypeStructure}
 
 var memberPutResourcePolicyOutput_Policy = smithy.Member{Name: "Policy", Index: 0, Target: &schemaResourcePolicy}
 
 var memberPutResourcePolicyOutput_RevisionId = smithy.Member{Name: "RevisionId", Index: 1, Target: &schemaRevisionId}
 
-var schemaPutRuntimeManagementConfigInput = smithy.Schema{ID: "com.amazonaws.lambda#PutRuntimeManagementConfigRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutRuntimeManagementConfigInput_FunctionName, &memberPutRuntimeManagementConfigInput_Qualifier, &memberPutRuntimeManagementConfigInput_UpdateRuntimeOn, &memberPutRuntimeManagementConfigInput_RuntimeVersionArn}}
+var schemaPutRuntimeManagementConfigInput = smithy.Schema{ID: "com.amazonaws.lambda#PutRuntimeManagementConfigRequest", Type: smithy.TypeStructure}
 
 var memberPutRuntimeManagementConfigInput_FunctionName = smithy.Member{Name: "FunctionName", Index: 0, Target: &schemaNamespacedFunctionName, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -2713,7 +2713,7 @@ var memberPutRuntimeManagementConfigInput_UpdateRuntimeOn = smithy.Member{Name: 
 
 var memberPutRuntimeManagementConfigInput_RuntimeVersionArn = smithy.Member{Name: "RuntimeVersionArn", Index: 3, Target: &schemaRuntimeVersionArn}
 
-var schemaPutRuntimeManagementConfigOutput = smithy.Schema{ID: "com.amazonaws.lambda#PutRuntimeManagementConfigResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutRuntimeManagementConfigOutput_UpdateRuntimeOn, &memberPutRuntimeManagementConfigOutput_FunctionArn, &memberPutRuntimeManagementConfigOutput_RuntimeVersionArn}}
+var schemaPutRuntimeManagementConfigOutput = smithy.Schema{ID: "com.amazonaws.lambda#PutRuntimeManagementConfigResponse", Type: smithy.TypeStructure}
 
 var memberPutRuntimeManagementConfigOutput_UpdateRuntimeOn = smithy.Member{Name: "UpdateRuntimeOn", Index: 0, Target: &schemaUpdateRuntimeOn, Required: true}
 
@@ -2811,7 +2811,7 @@ var schemaResponseStreamingInvocationType = smithy.Schema{ID: "com.amazonaws.lam
 
 var schemaRetentionPeriodInDays = smithy.Schema{ID: "com.amazonaws.lambda#RetentionPeriodInDays", Type: smithy.TypeInteger}
 
-var schemaRetryDetails = smithy.Schema{ID: "com.amazonaws.lambda#RetryDetails", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRetryDetails_CurrentAttempt, &memberRetryDetails_NextAttemptDelaySeconds}}
+var schemaRetryDetails = smithy.Schema{ID: "com.amazonaws.lambda#RetryDetails", Type: smithy.TypeStructure}
 
 var memberRetryDetails_CurrentAttempt = smithy.Member{Name: "CurrentAttempt", Index: 0, Target: &schemaAttemptCount, Default: document.Number("0")}
 
@@ -2893,7 +2893,7 @@ var memberSelfManagedKafkaEventSourceConfig_ConsumerGroupId = smithy.Member{Name
 
 var memberSelfManagedKafkaEventSourceConfig_SchemaRegistryConfig = smithy.Member{Name: "SchemaRegistryConfig", Index: 1, Target: &schemaKafkaSchemaRegistryConfig}
 
-var schemaSendDurableExecutionCallbackFailureInput = smithy.Schema{ID: "com.amazonaws.lambda#SendDurableExecutionCallbackFailureRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSendDurableExecutionCallbackFailureInput_CallbackId, &memberSendDurableExecutionCallbackFailureInput_Error}}
+var schemaSendDurableExecutionCallbackFailureInput = smithy.Schema{ID: "com.amazonaws.lambda#SendDurableExecutionCallbackFailureRequest", Type: smithy.TypeStructure}
 
 var memberSendDurableExecutionCallbackFailureInput_CallbackId = smithy.Member{Name: "CallbackId", Index: 0, Target: &schemaCallbackId, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -2901,13 +2901,13 @@ var memberSendDurableExecutionCallbackFailureInput_Error = smithy.Member{Name: "
 
 var schemaSendDurableExecutionCallbackFailureOutput = smithy.Schema{ID: "com.amazonaws.lambda#SendDurableExecutionCallbackFailureResponse", Type: smithy.TypeStructure}
 
-var schemaSendDurableExecutionCallbackHeartbeatInput = smithy.Schema{ID: "com.amazonaws.lambda#SendDurableExecutionCallbackHeartbeatRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSendDurableExecutionCallbackHeartbeatInput_CallbackId}}
+var schemaSendDurableExecutionCallbackHeartbeatInput = smithy.Schema{ID: "com.amazonaws.lambda#SendDurableExecutionCallbackHeartbeatRequest", Type: smithy.TypeStructure}
 
 var memberSendDurableExecutionCallbackHeartbeatInput_CallbackId = smithy.Member{Name: "CallbackId", Index: 0, Target: &schemaCallbackId, Required: true, HTTP: smithy.HTTPLabel{}}
 
 var schemaSendDurableExecutionCallbackHeartbeatOutput = smithy.Schema{ID: "com.amazonaws.lambda#SendDurableExecutionCallbackHeartbeatResponse", Type: smithy.TypeStructure}
 
-var schemaSendDurableExecutionCallbackSuccessInput = smithy.Schema{ID: "com.amazonaws.lambda#SendDurableExecutionCallbackSuccessRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSendDurableExecutionCallbackSuccessInput_CallbackId, &memberSendDurableExecutionCallbackSuccessInput_Result}}
+var schemaSendDurableExecutionCallbackSuccessInput = smithy.Schema{ID: "com.amazonaws.lambda#SendDurableExecutionCallbackSuccessRequest", Type: smithy.TypeStructure}
 
 var memberSendDurableExecutionCallbackSuccessInput_CallbackId = smithy.Member{Name: "CallbackId", Index: 0, Target: &schemaCallbackId, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -2941,7 +2941,7 @@ var memberServiceQuotaExceededException_Type = smithy.Member{Name: "Type", Index
 
 var memberServiceQuotaExceededException_Message = smithy.Member{Name: "Message", Index: 1, Target: &schemaString}
 
-var schemaSigningProfileVersionArns = smithy.Schema{ID: "com.amazonaws.lambda#SigningProfileVersionArns", Type: smithy.TypeList, Members: []*smithy.Member{&memberSigningProfileVersionArns_member}}
+var schemaSigningProfileVersionArns = smithy.Schema{ID: "com.amazonaws.lambda#SigningProfileVersionArns", Type: smithy.TypeList}
 
 var memberSigningProfileVersionArns_member = smithy.Member{Name: "member", Index: 0, Target: &schemaArn}
 
@@ -3001,7 +3001,7 @@ var schemaSourceAccessType = smithy.Schema{ID: "com.amazonaws.lambda#SourceAcces
 
 var schemaSourceOwner = smithy.Schema{ID: "com.amazonaws.lambda#SourceOwner", Type: smithy.TypeString}
 
-var schemaStackTraceEntries = smithy.Schema{ID: "com.amazonaws.lambda#StackTraceEntries", Type: smithy.TypeList, Members: []*smithy.Member{&memberStackTraceEntries_member}}
+var schemaStackTraceEntries = smithy.Schema{ID: "com.amazonaws.lambda#StackTraceEntries", Type: smithy.TypeList}
 
 var memberStackTraceEntries_member = smithy.Member{Name: "member", Index: 0, Target: &schemaStackTraceEntry, Sensitive: true}
 
@@ -3015,7 +3015,7 @@ var schemaStateReasonCode = smithy.Schema{ID: "com.amazonaws.lambda#StateReasonC
 
 var schemaStatementId = smithy.Schema{ID: "com.amazonaws.lambda#StatementId", Type: smithy.TypeString}
 
-var schemaStepDetails = smithy.Schema{ID: "com.amazonaws.lambda#StepDetails", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberStepDetails_Attempt, &memberStepDetails_NextAttemptTimestamp, &memberStepDetails_Result, &memberStepDetails_Error}}
+var schemaStepDetails = smithy.Schema{ID: "com.amazonaws.lambda#StepDetails", Type: smithy.TypeStructure}
 
 var memberStepDetails_Attempt = smithy.Member{Name: "Attempt", Index: 0, Target: &schemaAttemptCount, Default: document.Number("0")}
 
@@ -3025,31 +3025,31 @@ var memberStepDetails_Result = smithy.Member{Name: "Result", Index: 2, Target: &
 
 var memberStepDetails_Error = smithy.Member{Name: "Error", Index: 3, Target: &schemaErrorObject}
 
-var schemaStepFailedDetails = smithy.Schema{ID: "com.amazonaws.lambda#StepFailedDetails", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberStepFailedDetails_Error, &memberStepFailedDetails_RetryDetails}}
+var schemaStepFailedDetails = smithy.Schema{ID: "com.amazonaws.lambda#StepFailedDetails", Type: smithy.TypeStructure}
 
 var memberStepFailedDetails_Error = smithy.Member{Name: "Error", Index: 0, Target: &schemaEventError, Required: true}
 
 var memberStepFailedDetails_RetryDetails = smithy.Member{Name: "RetryDetails", Index: 1, Target: &schemaRetryDetails, Required: true}
 
-var schemaStepOptions = smithy.Schema{ID: "com.amazonaws.lambda#StepOptions", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberStepOptions_NextAttemptDelaySeconds}}
+var schemaStepOptions = smithy.Schema{ID: "com.amazonaws.lambda#StepOptions", Type: smithy.TypeStructure}
 
 var memberStepOptions_NextAttemptDelaySeconds = smithy.Member{Name: "NextAttemptDelaySeconds", Index: 0, Target: &schemaDurationSeconds}
 
 var schemaStepStartedDetails = smithy.Schema{ID: "com.amazonaws.lambda#StepStartedDetails", Type: smithy.TypeStructure}
 
-var schemaStepSucceededDetails = smithy.Schema{ID: "com.amazonaws.lambda#StepSucceededDetails", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberStepSucceededDetails_Result, &memberStepSucceededDetails_RetryDetails}}
+var schemaStepSucceededDetails = smithy.Schema{ID: "com.amazonaws.lambda#StepSucceededDetails", Type: smithy.TypeStructure}
 
 var memberStepSucceededDetails_Result = smithy.Member{Name: "Result", Index: 0, Target: &schemaEventResult, Required: true}
 
 var memberStepSucceededDetails_RetryDetails = smithy.Member{Name: "RetryDetails", Index: 1, Target: &schemaRetryDetails, Required: true}
 
-var schemaStopDurableExecutionInput = smithy.Schema{ID: "com.amazonaws.lambda#StopDurableExecutionRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberStopDurableExecutionInput_DurableExecutionArn, &memberStopDurableExecutionInput_Error}}
+var schemaStopDurableExecutionInput = smithy.Schema{ID: "com.amazonaws.lambda#StopDurableExecutionRequest", Type: smithy.TypeStructure}
 
 var memberStopDurableExecutionInput_DurableExecutionArn = smithy.Member{Name: "DurableExecutionArn", Index: 0, Target: &schemaDurableExecutionArn, Required: true, HTTP: smithy.HTTPLabel{}}
 
 var memberStopDurableExecutionInput_Error = smithy.Member{Name: "Error", Index: 1, Target: &schemaErrorObject, HTTP: smithy.HTTPPayload{}}
 
-var schemaStopDurableExecutionOutput = smithy.Schema{ID: "com.amazonaws.lambda#StopDurableExecutionResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberStopDurableExecutionOutput_StopTimestamp}}
+var schemaStopDurableExecutionOutput = smithy.Schema{ID: "com.amazonaws.lambda#StopDurableExecutionResponse", Type: smithy.TypeStructure}
 
 var memberStopDurableExecutionOutput_StopTimestamp = smithy.Member{Name: "StopTimestamp", Index: 0, Target: &schemaExecutionTimestamp, Required: true}
 
@@ -3105,7 +3105,7 @@ var schemaTagsErrorCode = smithy.Schema{ID: "com.amazonaws.lambda#TagsErrorCode"
 
 var schemaTagsErrorMessage = smithy.Schema{ID: "com.amazonaws.lambda#TagsErrorMessage", Type: smithy.TypeString}
 
-var schemaTargetTrackingScalingPolicy = smithy.Schema{ID: "com.amazonaws.lambda#TargetTrackingScalingPolicy", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberTargetTrackingScalingPolicy_PredefinedMetricType, &memberTargetTrackingScalingPolicy_TargetValue}}
+var schemaTargetTrackingScalingPolicy = smithy.Schema{ID: "com.amazonaws.lambda#TargetTrackingScalingPolicy", Type: smithy.TypeStructure}
 
 var memberTargetTrackingScalingPolicy_PredefinedMetricType = smithy.Member{Name: "PredefinedMetricType", Index: 0, Target: &schemaCapacityProviderPredefinedMetricType, Required: true}
 
@@ -3145,7 +3145,7 @@ var schemaTopics = smithy.Schema{ID: "com.amazonaws.lambda#Topics", Type: smithy
 
 var memberTopics_member = smithy.Member{Name: "member", Index: 0, Target: &schemaTopic}
 
-var schemaTraceHeader = smithy.Schema{ID: "com.amazonaws.lambda#TraceHeader", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberTraceHeader_XAmznTraceId}}
+var schemaTraceHeader = smithy.Schema{ID: "com.amazonaws.lambda#TraceHeader", Type: smithy.TypeStructure}
 
 var memberTraceHeader_XAmznTraceId = smithy.Member{Name: "XAmznTraceId", Index: 0, Target: &schemaXAmznTraceId}
 
@@ -3205,7 +3205,7 @@ var memberUpdateAliasInput_RoutingConfig = smithy.Member{Name: "RoutingConfig", 
 
 var memberUpdateAliasInput_RevisionId = smithy.Member{Name: "RevisionId", Index: 5, Target: &schemaString}
 
-var schemaUpdateCapacityProviderInput = smithy.Schema{ID: "com.amazonaws.lambda#UpdateCapacityProviderRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateCapacityProviderInput_CapacityProviderName, &memberUpdateCapacityProviderInput_CapacityProviderScalingConfig, &memberUpdateCapacityProviderInput_PropagateTags, &memberUpdateCapacityProviderInput_TelemetryConfig}}
+var schemaUpdateCapacityProviderInput = smithy.Schema{ID: "com.amazonaws.lambda#UpdateCapacityProviderRequest", Type: smithy.TypeStructure}
 
 var memberUpdateCapacityProviderInput_CapacityProviderName = smithy.Member{Name: "CapacityProviderName", Index: 0, Target: &schemaCapacityProviderName, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -3215,11 +3215,11 @@ var memberUpdateCapacityProviderInput_PropagateTags = smithy.Member{Name: "Propa
 
 var memberUpdateCapacityProviderInput_TelemetryConfig = smithy.Member{Name: "TelemetryConfig", Index: 3, Target: &schemaCapacityProviderTelemetryConfig}
 
-var schemaUpdateCapacityProviderOutput = smithy.Schema{ID: "com.amazonaws.lambda#UpdateCapacityProviderResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateCapacityProviderOutput_CapacityProvider}}
+var schemaUpdateCapacityProviderOutput = smithy.Schema{ID: "com.amazonaws.lambda#UpdateCapacityProviderResponse", Type: smithy.TypeStructure}
 
 var memberUpdateCapacityProviderOutput_CapacityProvider = smithy.Member{Name: "CapacityProvider", Index: 0, Target: &schemaCapacityProvider, Required: true}
 
-var schemaUpdateCodeSigningConfigInput = smithy.Schema{ID: "com.amazonaws.lambda#UpdateCodeSigningConfigRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateCodeSigningConfigInput_CodeSigningConfigArn, &memberUpdateCodeSigningConfigInput_Description, &memberUpdateCodeSigningConfigInput_AllowedPublishers, &memberUpdateCodeSigningConfigInput_CodeSigningPolicies}}
+var schemaUpdateCodeSigningConfigInput = smithy.Schema{ID: "com.amazonaws.lambda#UpdateCodeSigningConfigRequest", Type: smithy.TypeStructure}
 
 var memberUpdateCodeSigningConfigInput_CodeSigningConfigArn = smithy.Member{Name: "CodeSigningConfigArn", Index: 0, Target: &schemaCodeSigningConfigArn, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -3229,7 +3229,7 @@ var memberUpdateCodeSigningConfigInput_AllowedPublishers = smithy.Member{Name: "
 
 var memberUpdateCodeSigningConfigInput_CodeSigningPolicies = smithy.Member{Name: "CodeSigningPolicies", Index: 3, Target: &schemaCodeSigningPolicies}
 
-var schemaUpdateCodeSigningConfigOutput = smithy.Schema{ID: "com.amazonaws.lambda#UpdateCodeSigningConfigResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateCodeSigningConfigOutput_CodeSigningConfig}}
+var schemaUpdateCodeSigningConfigOutput = smithy.Schema{ID: "com.amazonaws.lambda#UpdateCodeSigningConfigResponse", Type: smithy.TypeStructure}
 
 var memberUpdateCodeSigningConfigOutput_CodeSigningConfig = smithy.Member{Name: "CodeSigningConfig", Index: 0, Target: &schemaCodeSigningConfig, Required: true}
 
@@ -3421,25 +3421,25 @@ var memberVpcConfigResponse_Ipv6AllowedForDualStack = smithy.Member{Name: "Ipv6A
 
 var schemaVpcId = smithy.Schema{ID: "com.amazonaws.lambda#VpcId", Type: smithy.TypeString}
 
-var schemaWaitCancelledDetails = smithy.Schema{ID: "com.amazonaws.lambda#WaitCancelledDetails", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberWaitCancelledDetails_Error}}
+var schemaWaitCancelledDetails = smithy.Schema{ID: "com.amazonaws.lambda#WaitCancelledDetails", Type: smithy.TypeStructure}
 
 var memberWaitCancelledDetails_Error = smithy.Member{Name: "Error", Index: 0, Target: &schemaEventError}
 
-var schemaWaitDetails = smithy.Schema{ID: "com.amazonaws.lambda#WaitDetails", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberWaitDetails_ScheduledEndTimestamp}}
+var schemaWaitDetails = smithy.Schema{ID: "com.amazonaws.lambda#WaitDetails", Type: smithy.TypeStructure}
 
 var memberWaitDetails_ScheduledEndTimestamp = smithy.Member{Name: "ScheduledEndTimestamp", Index: 0, Target: &schemaExecutionTimestamp}
 
-var schemaWaitOptions = smithy.Schema{ID: "com.amazonaws.lambda#WaitOptions", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberWaitOptions_WaitSeconds}}
+var schemaWaitOptions = smithy.Schema{ID: "com.amazonaws.lambda#WaitOptions", Type: smithy.TypeStructure}
 
 var memberWaitOptions_WaitSeconds = smithy.Member{Name: "WaitSeconds", Index: 0, Target: &schemaDurationSeconds}
 
-var schemaWaitStartedDetails = smithy.Schema{ID: "com.amazonaws.lambda#WaitStartedDetails", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberWaitStartedDetails_Duration, &memberWaitStartedDetails_ScheduledEndTimestamp}}
+var schemaWaitStartedDetails = smithy.Schema{ID: "com.amazonaws.lambda#WaitStartedDetails", Type: smithy.TypeStructure}
 
 var memberWaitStartedDetails_Duration = smithy.Member{Name: "Duration", Index: 0, Target: &schemaDurationSeconds, Required: true}
 
 var memberWaitStartedDetails_ScheduledEndTimestamp = smithy.Member{Name: "ScheduledEndTimestamp", Index: 1, Target: &schemaExecutionTimestamp, Required: true}
 
-var schemaWaitSucceededDetails = smithy.Schema{ID: "com.amazonaws.lambda#WaitSucceededDetails", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberWaitSucceededDetails_Duration}}
+var schemaWaitSucceededDetails = smithy.Schema{ID: "com.amazonaws.lambda#WaitSucceededDetails", Type: smithy.TypeStructure}
 
 var memberWaitSucceededDetails_Duration = smithy.Member{Name: "Duration", Index: 0, Target: &schemaDurationSeconds}
 

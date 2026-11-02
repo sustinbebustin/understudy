@@ -2,5 +2,20 @@
   "service": "com.amazonaws.ssm#AmazonSSM",
   "package": "ssmapi",
   "model": "ssm",
-  "iamPrefix": "ssm"
+  "iamPrefix": "ssm",
+  "boundOperations": [
+    "AddTagsToResource",
+    "DeleteParameter",
+    "DeleteParameters",
+    "DescribeParameters",
+    "GetParameter",
+    "GetParameterHistory",
+    "GetParameters",
+    "GetParametersByPath",
+    "LabelParameterVersion",
+    "ListTagsForResource",
+    "PutParameter",
+    "RemoveTagsFromResource",
+    "UnlabelParameterVersion"
+  ]
 }

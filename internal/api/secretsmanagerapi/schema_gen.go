@@ -7,11 +7,11 @@ import (
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy/document"
 )
 
-var schemaAPIErrorListType = smithy.Schema{ID: "com.amazonaws.secretsmanager#APIErrorListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberAPIErrorListType_member}}
+var schemaAPIErrorListType = smithy.Schema{ID: "com.amazonaws.secretsmanager#APIErrorListType", Type: smithy.TypeList}
 
 var memberAPIErrorListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaAPIErrorType}
 
-var schemaAPIErrorType = smithy.Schema{ID: "com.amazonaws.secretsmanager#APIErrorType", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAPIErrorType_SecretId, &memberAPIErrorType_ErrorCode, &memberAPIErrorType_Message}}
+var schemaAPIErrorType = smithy.Schema{ID: "com.amazonaws.secretsmanager#APIErrorType", Type: smithy.TypeStructure}
 
 var memberAPIErrorType_SecretId = smithy.Member{Name: "SecretId", Index: 0, Target: &schemaSecretIdType}
 
@@ -29,7 +29,7 @@ var memberAddReplicaRegionListType_member = smithy.Member{Name: "member", Index:
 
 var schemaAutomaticallyRotateAfterDaysType = smithy.Schema{ID: "com.amazonaws.secretsmanager#AutomaticallyRotateAfterDaysType", Type: smithy.TypeLong}
 
-var schemaBatchGetSecretValueInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#BatchGetSecretValueRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberBatchGetSecretValueInput_SecretIdList, &memberBatchGetSecretValueInput_Filters, &memberBatchGetSecretValueInput_MaxResults, &memberBatchGetSecretValueInput_NextToken}}
+var schemaBatchGetSecretValueInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#BatchGetSecretValueRequest", Type: smithy.TypeStructure}
 
 var memberBatchGetSecretValueInput_SecretIdList = smithy.Member{Name: "SecretIdList", Index: 0, Target: &schemaSecretIdListType}
 
@@ -39,7 +39,7 @@ var memberBatchGetSecretValueInput_MaxResults = smithy.Member{Name: "MaxResults"
 
 var memberBatchGetSecretValueInput_NextToken = smithy.Member{Name: "NextToken", Index: 3, Target: &schemaNextTokenType}
 
-var schemaBatchGetSecretValueOutput = smithy.Schema{ID: "com.amazonaws.secretsmanager#BatchGetSecretValueResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberBatchGetSecretValueOutput_SecretValues, &memberBatchGetSecretValueOutput_NextToken, &memberBatchGetSecretValueOutput_Errors}}
+var schemaBatchGetSecretValueOutput = smithy.Schema{ID: "com.amazonaws.secretsmanager#BatchGetSecretValueResponse", Type: smithy.TypeStructure}
 
 var memberBatchGetSecretValueOutput_SecretValues = smithy.Member{Name: "SecretValues", Index: 0, Target: &schemaSecretValuesType}
 
@@ -49,11 +49,11 @@ var memberBatchGetSecretValueOutput_Errors = smithy.Member{Name: "Errors", Index
 
 var schemaBooleanType = smithy.Schema{ID: "com.amazonaws.secretsmanager#BooleanType", Type: smithy.TypeBoolean}
 
-var schemaCancelRotateSecretInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#CancelRotateSecretRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCancelRotateSecretInput_SecretId}}
+var schemaCancelRotateSecretInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#CancelRotateSecretRequest", Type: smithy.TypeStructure}
 
 var memberCancelRotateSecretInput_SecretId = smithy.Member{Name: "SecretId", Index: 0, Target: &schemaSecretIdType, Required: true}
 
-var schemaCancelRotateSecretOutput = smithy.Schema{ID: "com.amazonaws.secretsmanager#CancelRotateSecretResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCancelRotateSecretOutput_ARN, &memberCancelRotateSecretOutput_Name, &memberCancelRotateSecretOutput_VersionId}}
+var schemaCancelRotateSecretOutput = smithy.Schema{ID: "com.amazonaws.secretsmanager#CancelRotateSecretResponse", Type: smithy.TypeStructure}
 
 var memberCancelRotateSecretOutput_ARN = smithy.Member{Name: "ARN", Index: 0, Target: &schemaSecretARNType}
 
@@ -241,7 +241,7 @@ var schemaFiltersListType = smithy.Schema{ID: "com.amazonaws.secretsmanager#Filt
 
 var memberFiltersListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaFilter}
 
-var schemaGetRandomPasswordInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#GetRandomPasswordRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetRandomPasswordInput_PasswordLength, &memberGetRandomPasswordInput_ExcludeCharacters, &memberGetRandomPasswordInput_ExcludeNumbers, &memberGetRandomPasswordInput_ExcludePunctuation, &memberGetRandomPasswordInput_ExcludeUppercase, &memberGetRandomPasswordInput_ExcludeLowercase, &memberGetRandomPasswordInput_IncludeSpace, &memberGetRandomPasswordInput_RequireEachIncludedType}}
+var schemaGetRandomPasswordInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#GetRandomPasswordRequest", Type: smithy.TypeStructure}
 
 var memberGetRandomPasswordInput_PasswordLength = smithy.Member{Name: "PasswordLength", Index: 0, Target: &schemaPasswordLengthType}
 
@@ -259,7 +259,7 @@ var memberGetRandomPasswordInput_IncludeSpace = smithy.Member{Name: "IncludeSpac
 
 var memberGetRandomPasswordInput_RequireEachIncludedType = smithy.Member{Name: "RequireEachIncludedType", Index: 7, Target: &schemaRequireEachIncludedTypeType}
 
-var schemaGetRandomPasswordOutput = smithy.Schema{ID: "com.amazonaws.secretsmanager#GetRandomPasswordResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetRandomPasswordOutput_RandomPassword}}
+var schemaGetRandomPasswordOutput = smithy.Schema{ID: "com.amazonaws.secretsmanager#GetRandomPasswordResponse", Type: smithy.TypeStructure}
 
 var memberGetRandomPasswordOutput_RandomPassword = smithy.Member{Name: "RandomPassword", Index: 0, Target: &schemaRandomPasswordType, Sensitive: true}
 
@@ -467,19 +467,19 @@ var schemaRecoveryWindowInDaysType = smithy.Schema{ID: "com.amazonaws.secretsman
 
 var schemaRegionType = smithy.Schema{ID: "com.amazonaws.secretsmanager#RegionType", Type: smithy.TypeString}
 
-var schemaRemoveRegionsFromReplicationInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#RemoveRegionsFromReplicationRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRemoveRegionsFromReplicationInput_SecretId, &memberRemoveRegionsFromReplicationInput_RemoveReplicaRegions}}
+var schemaRemoveRegionsFromReplicationInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#RemoveRegionsFromReplicationRequest", Type: smithy.TypeStructure}
 
 var memberRemoveRegionsFromReplicationInput_SecretId = smithy.Member{Name: "SecretId", Index: 0, Target: &schemaSecretIdType, Required: true}
 
 var memberRemoveRegionsFromReplicationInput_RemoveReplicaRegions = smithy.Member{Name: "RemoveReplicaRegions", Index: 1, Target: &schemaRemoveReplicaRegionListType, Required: true}
 
-var schemaRemoveRegionsFromReplicationOutput = smithy.Schema{ID: "com.amazonaws.secretsmanager#RemoveRegionsFromReplicationResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRemoveRegionsFromReplicationOutput_ARN, &memberRemoveRegionsFromReplicationOutput_ReplicationStatus}}
+var schemaRemoveRegionsFromReplicationOutput = smithy.Schema{ID: "com.amazonaws.secretsmanager#RemoveRegionsFromReplicationResponse", Type: smithy.TypeStructure}
 
 var memberRemoveRegionsFromReplicationOutput_ARN = smithy.Member{Name: "ARN", Index: 0, Target: &schemaSecretARNType}
 
 var memberRemoveRegionsFromReplicationOutput_ReplicationStatus = smithy.Member{Name: "ReplicationStatus", Index: 1, Target: &schemaReplicationStatusListType}
 
-var schemaRemoveReplicaRegionListType = smithy.Schema{ID: "com.amazonaws.secretsmanager#RemoveReplicaRegionListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberRemoveReplicaRegionListType_member}}
+var schemaRemoveReplicaRegionListType = smithy.Schema{ID: "com.amazonaws.secretsmanager#RemoveReplicaRegionListType", Type: smithy.TypeList}
 
 var memberRemoveReplicaRegionListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaRegionType}
 
@@ -489,7 +489,7 @@ var memberReplicaRegionType_Region = smithy.Member{Name: "Region", Index: 0, Tar
 
 var memberReplicaRegionType_KmsKeyId = smithy.Member{Name: "KmsKeyId", Index: 1, Target: &schemaKmsKeyIdType}
 
-var schemaReplicateSecretToRegionsInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#ReplicateSecretToRegionsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberReplicateSecretToRegionsInput_SecretId, &memberReplicateSecretToRegionsInput_AddReplicaRegions, &memberReplicateSecretToRegionsInput_ForceOverwriteReplicaSecret}}
+var schemaReplicateSecretToRegionsInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#ReplicateSecretToRegionsRequest", Type: smithy.TypeStructure}
 
 var memberReplicateSecretToRegionsInput_SecretId = smithy.Member{Name: "SecretId", Index: 0, Target: &schemaSecretIdType, Required: true}
 
@@ -497,7 +497,7 @@ var memberReplicateSecretToRegionsInput_AddReplicaRegions = smithy.Member{Name: 
 
 var memberReplicateSecretToRegionsInput_ForceOverwriteReplicaSecret = smithy.Member{Name: "ForceOverwriteReplicaSecret", Index: 2, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var schemaReplicateSecretToRegionsOutput = smithy.Schema{ID: "com.amazonaws.secretsmanager#ReplicateSecretToRegionsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberReplicateSecretToRegionsOutput_ARN, &memberReplicateSecretToRegionsOutput_ReplicationStatus}}
+var schemaReplicateSecretToRegionsOutput = smithy.Schema{ID: "com.amazonaws.secretsmanager#ReplicateSecretToRegionsResponse", Type: smithy.TypeStructure}
 
 var memberReplicateSecretToRegionsOutput_ARN = smithy.Member{Name: "ARN", Index: 0, Target: &schemaSecretARNType}
 
@@ -545,7 +545,7 @@ var memberRestoreSecretOutput_Name = smithy.Member{Name: "Name", Index: 1, Targe
 
 var schemaRoleARNType = smithy.Schema{ID: "com.amazonaws.secretsmanager#RoleARNType", Type: smithy.TypeString}
 
-var schemaRotateSecretInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#RotateSecretRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRotateSecretInput_SecretId, &memberRotateSecretInput_ClientRequestToken, &memberRotateSecretInput_RotationLambdaARN, &memberRotateSecretInput_RotationRules, &memberRotateSecretInput_ExternalSecretRotationMetadata, &memberRotateSecretInput_ExternalSecretRotationRoleArn, &memberRotateSecretInput_RotateImmediately}}
+var schemaRotateSecretInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#RotateSecretRequest", Type: smithy.TypeStructure}
 
 var memberRotateSecretInput_SecretId = smithy.Member{Name: "SecretId", Index: 0, Target: &schemaSecretIdType, Required: true}
 
@@ -561,7 +561,7 @@ var memberRotateSecretInput_ExternalSecretRotationRoleArn = smithy.Member{Name: 
 
 var memberRotateSecretInput_RotateImmediately = smithy.Member{Name: "RotateImmediately", Index: 6, Target: &schemaBooleanType}
 
-var schemaRotateSecretOutput = smithy.Schema{ID: "com.amazonaws.secretsmanager#RotateSecretResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRotateSecretOutput_ARN, &memberRotateSecretOutput_Name, &memberRotateSecretOutput_VersionId}}
+var schemaRotateSecretOutput = smithy.Schema{ID: "com.amazonaws.secretsmanager#RotateSecretResponse", Type: smithy.TypeStructure}
 
 var memberRotateSecretOutput_ARN = smithy.Member{Name: "ARN", Index: 0, Target: &schemaSecretARNType}
 
@@ -589,7 +589,7 @@ var schemaSecretARNType = smithy.Schema{ID: "com.amazonaws.secretsmanager#Secret
 
 var schemaSecretBinaryType = smithy.Schema{ID: "com.amazonaws.secretsmanager#SecretBinaryType", Type: smithy.TypeBlob, Sensitive: true}
 
-var schemaSecretIdListType = smithy.Schema{ID: "com.amazonaws.secretsmanager#SecretIdListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberSecretIdListType_member}}
+var schemaSecretIdListType = smithy.Schema{ID: "com.amazonaws.secretsmanager#SecretIdListType", Type: smithy.TypeList}
 
 var memberSecretIdListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaSecretIdType}
 
@@ -645,7 +645,7 @@ var schemaSecretNameType = smithy.Schema{ID: "com.amazonaws.secretsmanager#Secre
 
 var schemaSecretStringType = smithy.Schema{ID: "com.amazonaws.secretsmanager#SecretStringType", Type: smithy.TypeString, Sensitive: true}
 
-var schemaSecretValueEntry = smithy.Schema{ID: "com.amazonaws.secretsmanager#SecretValueEntry", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSecretValueEntry_ARN, &memberSecretValueEntry_Name, &memberSecretValueEntry_VersionId, &memberSecretValueEntry_SecretBinary, &memberSecretValueEntry_SecretString, &memberSecretValueEntry_VersionStages, &memberSecretValueEntry_CreatedDate}}
+var schemaSecretValueEntry = smithy.Schema{ID: "com.amazonaws.secretsmanager#SecretValueEntry", Type: smithy.TypeStructure}
 
 var memberSecretValueEntry_ARN = smithy.Member{Name: "ARN", Index: 0, Target: &schemaSecretARNType}
 
@@ -661,7 +661,7 @@ var memberSecretValueEntry_VersionStages = smithy.Member{Name: "VersionStages", 
 
 var memberSecretValueEntry_CreatedDate = smithy.Member{Name: "CreatedDate", Index: 6, Target: &schemaCreatedDateType}
 
-var schemaSecretValuesType = smithy.Schema{ID: "com.amazonaws.secretsmanager#SecretValuesType", Type: smithy.TypeList, Members: []*smithy.Member{&memberSecretValuesType_member}}
+var schemaSecretValuesType = smithy.Schema{ID: "com.amazonaws.secretsmanager#SecretValuesType", Type: smithy.TypeList}
 
 var memberSecretValuesType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaSecretValueEntry}
 
@@ -711,11 +711,11 @@ var schemaStatusMessageType = smithy.Schema{ID: "com.amazonaws.secretsmanager#St
 
 var schemaStatusType = smithy.Schema{ID: "com.amazonaws.secretsmanager#StatusType", Type: smithy.TypeEnum}
 
-var schemaStopReplicationToReplicaInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#StopReplicationToReplicaRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberStopReplicationToReplicaInput_SecretId}}
+var schemaStopReplicationToReplicaInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#StopReplicationToReplicaRequest", Type: smithy.TypeStructure}
 
 var memberStopReplicationToReplicaInput_SecretId = smithy.Member{Name: "SecretId", Index: 0, Target: &schemaSecretIdType, Required: true}
 
-var schemaStopReplicationToReplicaOutput = smithy.Schema{ID: "com.amazonaws.secretsmanager#StopReplicationToReplicaResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberStopReplicationToReplicaOutput_ARN}}
+var schemaStopReplicationToReplicaOutput = smithy.Schema{ID: "com.amazonaws.secretsmanager#StopReplicationToReplicaResponse", Type: smithy.TypeStructure}
 
 var memberStopReplicationToReplicaOutput_ARN = smithy.Member{Name: "ARN", Index: 0, Target: &schemaSecretARNType}
 
@@ -803,25 +803,25 @@ var memberUpdateSecretVersionStageOutput_ARN = smithy.Member{Name: "ARN", Index:
 
 var memberUpdateSecretVersionStageOutput_Name = smithy.Member{Name: "Name", Index: 1, Target: &schemaSecretNameType}
 
-var schemaValidateResourcePolicyInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#ValidateResourcePolicyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberValidateResourcePolicyInput_SecretId, &memberValidateResourcePolicyInput_ResourcePolicy}}
+var schemaValidateResourcePolicyInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#ValidateResourcePolicyRequest", Type: smithy.TypeStructure}
 
 var memberValidateResourcePolicyInput_SecretId = smithy.Member{Name: "SecretId", Index: 0, Target: &schemaSecretIdType}
 
 var memberValidateResourcePolicyInput_ResourcePolicy = smithy.Member{Name: "ResourcePolicy", Index: 1, Target: &schemaNonEmptyResourcePolicyType, Required: true}
 
-var schemaValidateResourcePolicyOutput = smithy.Schema{ID: "com.amazonaws.secretsmanager#ValidateResourcePolicyResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberValidateResourcePolicyOutput_PolicyValidationPassed, &memberValidateResourcePolicyOutput_ValidationErrors}}
+var schemaValidateResourcePolicyOutput = smithy.Schema{ID: "com.amazonaws.secretsmanager#ValidateResourcePolicyResponse", Type: smithy.TypeStructure}
 
 var memberValidateResourcePolicyOutput_PolicyValidationPassed = smithy.Member{Name: "PolicyValidationPassed", Index: 0, Target: &schemaBooleanType, Default: document.Bool(false)}
 
 var memberValidateResourcePolicyOutput_ValidationErrors = smithy.Member{Name: "ValidationErrors", Index: 1, Target: &schemaValidationErrorsType}
 
-var schemaValidationErrorsEntry = smithy.Schema{ID: "com.amazonaws.secretsmanager#ValidationErrorsEntry", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberValidationErrorsEntry_CheckName, &memberValidationErrorsEntry_ErrorMessage}}
+var schemaValidationErrorsEntry = smithy.Schema{ID: "com.amazonaws.secretsmanager#ValidationErrorsEntry", Type: smithy.TypeStructure}
 
 var memberValidationErrorsEntry_CheckName = smithy.Member{Name: "CheckName", Index: 0, Target: &schemaNameType}
 
 var memberValidationErrorsEntry_ErrorMessage = smithy.Member{Name: "ErrorMessage", Index: 1, Target: &schemaErrorMessage}
 
-var schemaValidationErrorsType = smithy.Schema{ID: "com.amazonaws.secretsmanager#ValidationErrorsType", Type: smithy.TypeList, Members: []*smithy.Member{&memberValidationErrorsType_member}}
+var schemaValidationErrorsType = smithy.Schema{ID: "com.amazonaws.secretsmanager#ValidationErrorsType", Type: smithy.TypeList}
 
 var memberValidationErrorsType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaValidationErrorsEntry}
 

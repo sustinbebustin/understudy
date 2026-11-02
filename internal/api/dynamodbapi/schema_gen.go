@@ -85,19 +85,19 @@ var memberAttributeValueUpdate_Value = smithy.Member{Name: "Value", Index: 0, Ta
 
 var memberAttributeValueUpdate_Action = smithy.Member{Name: "Action", Index: 1, Target: &schemaAttributeAction}
 
-var schemaAutoScalingPolicyDescription = smithy.Schema{ID: "com.amazonaws.dynamodb#AutoScalingPolicyDescription", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAutoScalingPolicyDescription_PolicyName, &memberAutoScalingPolicyDescription_TargetTrackingScalingPolicyConfiguration}}
+var schemaAutoScalingPolicyDescription = smithy.Schema{ID: "com.amazonaws.dynamodb#AutoScalingPolicyDescription", Type: smithy.TypeStructure}
 
 var memberAutoScalingPolicyDescription_PolicyName = smithy.Member{Name: "PolicyName", Index: 0, Target: &schemaAutoScalingPolicyName}
 
 var memberAutoScalingPolicyDescription_TargetTrackingScalingPolicyConfiguration = smithy.Member{Name: "TargetTrackingScalingPolicyConfiguration", Index: 1, Target: &schemaAutoScalingTargetTrackingScalingPolicyConfigurationDescription}
 
-var schemaAutoScalingPolicyDescriptionList = smithy.Schema{ID: "com.amazonaws.dynamodb#AutoScalingPolicyDescriptionList", Type: smithy.TypeList, Members: []*smithy.Member{&memberAutoScalingPolicyDescriptionList_member}}
+var schemaAutoScalingPolicyDescriptionList = smithy.Schema{ID: "com.amazonaws.dynamodb#AutoScalingPolicyDescriptionList", Type: smithy.TypeList}
 
 var memberAutoScalingPolicyDescriptionList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaAutoScalingPolicyDescription}
 
 var schemaAutoScalingPolicyName = smithy.Schema{ID: "com.amazonaws.dynamodb#AutoScalingPolicyName", Type: smithy.TypeString}
 
-var schemaAutoScalingPolicyUpdate = smithy.Schema{ID: "com.amazonaws.dynamodb#AutoScalingPolicyUpdate", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAutoScalingPolicyUpdate_PolicyName, &memberAutoScalingPolicyUpdate_TargetTrackingScalingPolicyConfiguration}}
+var schemaAutoScalingPolicyUpdate = smithy.Schema{ID: "com.amazonaws.dynamodb#AutoScalingPolicyUpdate", Type: smithy.TypeStructure}
 
 var memberAutoScalingPolicyUpdate_PolicyName = smithy.Member{Name: "PolicyName", Index: 0, Target: &schemaAutoScalingPolicyName}
 
@@ -105,7 +105,7 @@ var memberAutoScalingPolicyUpdate_TargetTrackingScalingPolicyConfiguration = smi
 
 var schemaAutoScalingRoleArn = smithy.Schema{ID: "com.amazonaws.dynamodb#AutoScalingRoleArn", Type: smithy.TypeString}
 
-var schemaAutoScalingSettingsDescription = smithy.Schema{ID: "com.amazonaws.dynamodb#AutoScalingSettingsDescription", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAutoScalingSettingsDescription_MinimumUnits, &memberAutoScalingSettingsDescription_MaximumUnits, &memberAutoScalingSettingsDescription_AutoScalingDisabled, &memberAutoScalingSettingsDescription_AutoScalingRoleArn, &memberAutoScalingSettingsDescription_ScalingPolicies}}
+var schemaAutoScalingSettingsDescription = smithy.Schema{ID: "com.amazonaws.dynamodb#AutoScalingSettingsDescription", Type: smithy.TypeStructure}
 
 var memberAutoScalingSettingsDescription_MinimumUnits = smithy.Member{Name: "MinimumUnits", Index: 0, Target: &schemaPositiveLongObject}
 
@@ -117,7 +117,7 @@ var memberAutoScalingSettingsDescription_AutoScalingRoleArn = smithy.Member{Name
 
 var memberAutoScalingSettingsDescription_ScalingPolicies = smithy.Member{Name: "ScalingPolicies", Index: 4, Target: &schemaAutoScalingPolicyDescriptionList}
 
-var schemaAutoScalingSettingsUpdate = smithy.Schema{ID: "com.amazonaws.dynamodb#AutoScalingSettingsUpdate", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAutoScalingSettingsUpdate_MinimumUnits, &memberAutoScalingSettingsUpdate_MaximumUnits, &memberAutoScalingSettingsUpdate_AutoScalingDisabled, &memberAutoScalingSettingsUpdate_AutoScalingRoleArn, &memberAutoScalingSettingsUpdate_ScalingPolicyUpdate}}
+var schemaAutoScalingSettingsUpdate = smithy.Schema{ID: "com.amazonaws.dynamodb#AutoScalingSettingsUpdate", Type: smithy.TypeStructure}
 
 var memberAutoScalingSettingsUpdate_MinimumUnits = smithy.Member{Name: "MinimumUnits", Index: 0, Target: &schemaPositiveLongObject}
 
@@ -129,7 +129,7 @@ var memberAutoScalingSettingsUpdate_AutoScalingRoleArn = smithy.Member{Name: "Au
 
 var memberAutoScalingSettingsUpdate_ScalingPolicyUpdate = smithy.Member{Name: "ScalingPolicyUpdate", Index: 4, Target: &schemaAutoScalingPolicyUpdate}
 
-var schemaAutoScalingTargetTrackingScalingPolicyConfigurationDescription = smithy.Schema{ID: "com.amazonaws.dynamodb#AutoScalingTargetTrackingScalingPolicyConfigurationDescription", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAutoScalingTargetTrackingScalingPolicyConfigurationDescription_DisableScaleIn, &memberAutoScalingTargetTrackingScalingPolicyConfigurationDescription_ScaleInCooldown, &memberAutoScalingTargetTrackingScalingPolicyConfigurationDescription_ScaleOutCooldown, &memberAutoScalingTargetTrackingScalingPolicyConfigurationDescription_TargetValue}}
+var schemaAutoScalingTargetTrackingScalingPolicyConfigurationDescription = smithy.Schema{ID: "com.amazonaws.dynamodb#AutoScalingTargetTrackingScalingPolicyConfigurationDescription", Type: smithy.TypeStructure}
 
 var memberAutoScalingTargetTrackingScalingPolicyConfigurationDescription_DisableScaleIn = smithy.Member{Name: "DisableScaleIn", Index: 0, Target: &schemaBooleanObject}
 
@@ -139,7 +139,7 @@ var memberAutoScalingTargetTrackingScalingPolicyConfigurationDescription_ScaleOu
 
 var memberAutoScalingTargetTrackingScalingPolicyConfigurationDescription_TargetValue = smithy.Member{Name: "TargetValue", Index: 3, Target: &schemaDoubleObject, Required: true}
 
-var schemaAutoScalingTargetTrackingScalingPolicyConfigurationUpdate = smithy.Schema{ID: "com.amazonaws.dynamodb#AutoScalingTargetTrackingScalingPolicyConfigurationUpdate", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAutoScalingTargetTrackingScalingPolicyConfigurationUpdate_DisableScaleIn, &memberAutoScalingTargetTrackingScalingPolicyConfigurationUpdate_ScaleInCooldown, &memberAutoScalingTargetTrackingScalingPolicyConfigurationUpdate_ScaleOutCooldown, &memberAutoScalingTargetTrackingScalingPolicyConfigurationUpdate_TargetValue}}
+var schemaAutoScalingTargetTrackingScalingPolicyConfigurationUpdate = smithy.Schema{ID: "com.amazonaws.dynamodb#AutoScalingTargetTrackingScalingPolicyConfigurationUpdate", Type: smithy.TypeStructure}
 
 var memberAutoScalingTargetTrackingScalingPolicyConfigurationUpdate_DisableScaleIn = smithy.Member{Name: "DisableScaleIn", Index: 0, Target: &schemaBooleanObject}
 
@@ -157,7 +157,7 @@ var schemaBackupArn = smithy.Schema{ID: "com.amazonaws.dynamodb#BackupArn", Type
 
 var schemaBackupCreationDateTime = smithy.Schema{ID: "com.amazonaws.dynamodb#BackupCreationDateTime", Type: smithy.TypeTimestamp}
 
-var schemaBackupDescription = smithy.Schema{ID: "com.amazonaws.dynamodb#BackupDescription", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberBackupDescription_BackupDetails, &memberBackupDescription_SourceTableDetails, &memberBackupDescription_SourceTableFeatureDetails}}
+var schemaBackupDescription = smithy.Schema{ID: "com.amazonaws.dynamodb#BackupDescription", Type: smithy.TypeStructure}
 
 var memberBackupDescription_BackupDetails = smithy.Member{Name: "BackupDetails", Index: 0, Target: &schemaBackupDetails}
 
@@ -165,7 +165,7 @@ var memberBackupDescription_SourceTableDetails = smithy.Member{Name: "SourceTabl
 
 var memberBackupDescription_SourceTableFeatureDetails = smithy.Member{Name: "SourceTableFeatureDetails", Index: 2, Target: &schemaSourceTableFeatureDetails}
 
-var schemaBackupDetails = smithy.Schema{ID: "com.amazonaws.dynamodb#BackupDetails", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberBackupDetails_BackupArn, &memberBackupDetails_BackupName, &memberBackupDetails_BackupSizeBytes, &memberBackupDetails_BackupStatus, &memberBackupDetails_BackupType, &memberBackupDetails_BackupCreationDateTime, &memberBackupDetails_BackupExpiryDateTime}}
+var schemaBackupDetails = smithy.Schema{ID: "com.amazonaws.dynamodb#BackupDetails", Type: smithy.TypeStructure}
 
 var memberBackupDetails_BackupArn = smithy.Member{Name: "BackupArn", Index: 0, Target: &schemaBackupArn, Required: true}
 
@@ -195,11 +195,11 @@ var schemaBackupSizeBytes = smithy.Schema{ID: "com.amazonaws.dynamodb#BackupSize
 
 var schemaBackupStatus = smithy.Schema{ID: "com.amazonaws.dynamodb#BackupStatus", Type: smithy.TypeEnum}
 
-var schemaBackupSummaries = smithy.Schema{ID: "com.amazonaws.dynamodb#BackupSummaries", Type: smithy.TypeList, Members: []*smithy.Member{&memberBackupSummaries_member}}
+var schemaBackupSummaries = smithy.Schema{ID: "com.amazonaws.dynamodb#BackupSummaries", Type: smithy.TypeList}
 
 var memberBackupSummaries_member = smithy.Member{Name: "member", Index: 0, Target: &schemaBackupSummary}
 
-var schemaBackupSummary = smithy.Schema{ID: "com.amazonaws.dynamodb#BackupSummary", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberBackupSummary_TableName, &memberBackupSummary_TableId, &memberBackupSummary_TableArn, &memberBackupSummary_BackupArn, &memberBackupSummary_BackupName, &memberBackupSummary_BackupCreationDateTime, &memberBackupSummary_BackupExpiryDateTime, &memberBackupSummary_BackupStatus, &memberBackupSummary_BackupType, &memberBackupSummary_BackupSizeBytes}}
+var schemaBackupSummary = smithy.Schema{ID: "com.amazonaws.dynamodb#BackupSummary", Type: smithy.TypeStructure}
 
 var memberBackupSummary_TableName = smithy.Member{Name: "TableName", Index: 0, Target: &schemaTableName}
 
@@ -441,17 +441,17 @@ var schemaContributorInsightsMode = smithy.Schema{ID: "com.amazonaws.dynamodb#Co
 
 var schemaContributorInsightsRule = smithy.Schema{ID: "com.amazonaws.dynamodb#ContributorInsightsRule", Type: smithy.TypeString}
 
-var schemaContributorInsightsRuleList = smithy.Schema{ID: "com.amazonaws.dynamodb#ContributorInsightsRuleList", Type: smithy.TypeList, Members: []*smithy.Member{&memberContributorInsightsRuleList_member}}
+var schemaContributorInsightsRuleList = smithy.Schema{ID: "com.amazonaws.dynamodb#ContributorInsightsRuleList", Type: smithy.TypeList}
 
 var memberContributorInsightsRuleList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaContributorInsightsRule}
 
 var schemaContributorInsightsStatus = smithy.Schema{ID: "com.amazonaws.dynamodb#ContributorInsightsStatus", Type: smithy.TypeEnum}
 
-var schemaContributorInsightsSummaries = smithy.Schema{ID: "com.amazonaws.dynamodb#ContributorInsightsSummaries", Type: smithy.TypeList, Members: []*smithy.Member{&memberContributorInsightsSummaries_member}}
+var schemaContributorInsightsSummaries = smithy.Schema{ID: "com.amazonaws.dynamodb#ContributorInsightsSummaries", Type: smithy.TypeList}
 
 var memberContributorInsightsSummaries_member = smithy.Member{Name: "member", Index: 0, Target: &schemaContributorInsightsSummary}
 
-var schemaContributorInsightsSummary = smithy.Schema{ID: "com.amazonaws.dynamodb#ContributorInsightsSummary", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberContributorInsightsSummary_TableName, &memberContributorInsightsSummary_IndexName, &memberContributorInsightsSummary_ContributorInsightsStatus, &memberContributorInsightsSummary_ContributorInsightsMode}}
+var schemaContributorInsightsSummary = smithy.Schema{ID: "com.amazonaws.dynamodb#ContributorInsightsSummary", Type: smithy.TypeStructure}
 
 var memberContributorInsightsSummary_TableName = smithy.Member{Name: "TableName", Index: 0, Target: &schemaTableName}
 
@@ -465,13 +465,13 @@ var schemaCoralServiceThrottlingException = smithy.Schema{ID: "com.amazon.coral.
 
 var memberCoralServiceThrottlingException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaCreateBackupInput = smithy.Schema{ID: "com.amazonaws.dynamodb#CreateBackupInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateBackupInput_TableName, &memberCreateBackupInput_BackupName}}
+var schemaCreateBackupInput = smithy.Schema{ID: "com.amazonaws.dynamodb#CreateBackupInput", Type: smithy.TypeStructure}
 
 var memberCreateBackupInput_TableName = smithy.Member{Name: "TableName", Index: 0, Target: &schemaTableArn, Required: true}
 
 var memberCreateBackupInput_BackupName = smithy.Member{Name: "BackupName", Index: 1, Target: &schemaBackupName, Required: true}
 
-var schemaCreateBackupOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#CreateBackupOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateBackupOutput_BackupDetails}}
+var schemaCreateBackupOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#CreateBackupOutput", Type: smithy.TypeStructure}
 
 var memberCreateBackupOutput_BackupDetails = smithy.Member{Name: "BackupDetails", Index: 0, Target: &schemaBackupDetails}
 
@@ -489,13 +489,13 @@ var memberCreateGlobalSecondaryIndexAction_OnDemandThroughput = smithy.Member{Na
 
 var memberCreateGlobalSecondaryIndexAction_WarmThroughput = smithy.Member{Name: "WarmThroughput", Index: 5, Target: &schemaWarmThroughput}
 
-var schemaCreateGlobalTableInput = smithy.Schema{ID: "com.amazonaws.dynamodb#CreateGlobalTableInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateGlobalTableInput_GlobalTableName, &memberCreateGlobalTableInput_ReplicationGroup}}
+var schemaCreateGlobalTableInput = smithy.Schema{ID: "com.amazonaws.dynamodb#CreateGlobalTableInput", Type: smithy.TypeStructure}
 
 var memberCreateGlobalTableInput_GlobalTableName = smithy.Member{Name: "GlobalTableName", Index: 0, Target: &schemaTableName, Required: true}
 
 var memberCreateGlobalTableInput_ReplicationGroup = smithy.Member{Name: "ReplicationGroup", Index: 1, Target: &schemaReplicaList, Required: true}
 
-var schemaCreateGlobalTableOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#CreateGlobalTableOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateGlobalTableOutput_GlobalTableDescription}}
+var schemaCreateGlobalTableOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#CreateGlobalTableOutput", Type: smithy.TypeStructure}
 
 var memberCreateGlobalTableOutput_GlobalTableDescription = smithy.Member{Name: "GlobalTableDescription", Index: 0, Target: &schemaGlobalTableDescription}
 
@@ -503,7 +503,7 @@ var schemaCreateGlobalTableWitnessGroupMemberAction = smithy.Schema{ID: "com.ama
 
 var memberCreateGlobalTableWitnessGroupMemberAction_RegionName = smithy.Member{Name: "RegionName", Index: 0, Target: &schemaRegionName, Required: true}
 
-var schemaCreateReplicaAction = smithy.Schema{ID: "com.amazonaws.dynamodb#CreateReplicaAction", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateReplicaAction_RegionName}}
+var schemaCreateReplicaAction = smithy.Schema{ID: "com.amazonaws.dynamodb#CreateReplicaAction", Type: smithy.TypeStructure}
 
 var memberCreateReplicaAction_RegionName = smithy.Member{Name: "RegionName", Index: 0, Target: &schemaRegionName, Required: true}
 
@@ -581,11 +581,11 @@ var schemaCsvDelimiter = smithy.Schema{ID: "com.amazonaws.dynamodb#CsvDelimiter"
 
 var schemaCsvHeader = smithy.Schema{ID: "com.amazonaws.dynamodb#CsvHeader", Type: smithy.TypeString}
 
-var schemaCsvHeaderList = smithy.Schema{ID: "com.amazonaws.dynamodb#CsvHeaderList", Type: smithy.TypeList, Members: []*smithy.Member{&memberCsvHeaderList_member}}
+var schemaCsvHeaderList = smithy.Schema{ID: "com.amazonaws.dynamodb#CsvHeaderList", Type: smithy.TypeList}
 
 var memberCsvHeaderList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaCsvHeader}
 
-var schemaCsvOptions = smithy.Schema{ID: "com.amazonaws.dynamodb#CsvOptions", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCsvOptions_Delimiter, &memberCsvOptions_HeaderList}}
+var schemaCsvOptions = smithy.Schema{ID: "com.amazonaws.dynamodb#CsvOptions", Type: smithy.TypeStructure}
 
 var memberCsvOptions_Delimiter = smithy.Member{Name: "Delimiter", Index: 0, Target: &schemaCsvDelimiter}
 
@@ -607,11 +607,11 @@ var memberDelete_ExpressionAttributeValues = smithy.Member{Name: "ExpressionAttr
 
 var memberDelete_ReturnValuesOnConditionCheckFailure = smithy.Member{Name: "ReturnValuesOnConditionCheckFailure", Index: 5, Target: &schemaReturnValuesOnConditionCheckFailure}
 
-var schemaDeleteBackupInput = smithy.Schema{ID: "com.amazonaws.dynamodb#DeleteBackupInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteBackupInput_BackupArn}}
+var schemaDeleteBackupInput = smithy.Schema{ID: "com.amazonaws.dynamodb#DeleteBackupInput", Type: smithy.TypeStructure}
 
 var memberDeleteBackupInput_BackupArn = smithy.Member{Name: "BackupArn", Index: 0, Target: &schemaBackupArn, Required: true}
 
-var schemaDeleteBackupOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#DeleteBackupOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteBackupOutput_BackupDescription}}
+var schemaDeleteBackupOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#DeleteBackupOutput", Type: smithy.TypeStructure}
 
 var memberDeleteBackupOutput_BackupDescription = smithy.Member{Name: "BackupDescription", Index: 0, Target: &schemaBackupDescription}
 
@@ -655,7 +655,7 @@ var memberDeleteItemOutput_ConsumedCapacity = smithy.Member{Name: "ConsumedCapac
 
 var memberDeleteItemOutput_ItemCollectionMetrics = smithy.Member{Name: "ItemCollectionMetrics", Index: 2, Target: &schemaItemCollectionMetrics}
 
-var schemaDeleteReplicaAction = smithy.Schema{ID: "com.amazonaws.dynamodb#DeleteReplicaAction", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteReplicaAction_RegionName}}
+var schemaDeleteReplicaAction = smithy.Schema{ID: "com.amazonaws.dynamodb#DeleteReplicaAction", Type: smithy.TypeStructure}
 
 var memberDeleteReplicaAction_RegionName = smithy.Member{Name: "RegionName", Index: 0, Target: &schemaRegionName, Required: true}
 
@@ -667,13 +667,13 @@ var schemaDeleteRequest = smithy.Schema{ID: "com.amazonaws.dynamodb#DeleteReques
 
 var memberDeleteRequest_Key = smithy.Member{Name: "Key", Index: 0, Target: &schemaKey, Required: true}
 
-var schemaDeleteResourcePolicyInput = smithy.Schema{ID: "com.amazonaws.dynamodb#DeleteResourcePolicyInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteResourcePolicyInput_ResourceArn, &memberDeleteResourcePolicyInput_ExpectedRevisionId}}
+var schemaDeleteResourcePolicyInput = smithy.Schema{ID: "com.amazonaws.dynamodb#DeleteResourcePolicyInput", Type: smithy.TypeStructure}
 
 var memberDeleteResourcePolicyInput_ResourceArn = smithy.Member{Name: "ResourceArn", Index: 0, Target: &schemaResourceArnString, Required: true}
 
 var memberDeleteResourcePolicyInput_ExpectedRevisionId = smithy.Member{Name: "ExpectedRevisionId", Index: 1, Target: &schemaPolicyRevisionId}
 
-var schemaDeleteResourcePolicyOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#DeleteResourcePolicyOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteResourcePolicyOutput_RevisionId}}
+var schemaDeleteResourcePolicyOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#DeleteResourcePolicyOutput", Type: smithy.TypeStructure}
 
 var memberDeleteResourcePolicyOutput_RevisionId = smithy.Member{Name: "RevisionId", Index: 0, Target: &schemaPolicyRevisionId}
 
@@ -691,11 +691,11 @@ var memberDeleteVectorIndexAction_IndexName = smithy.Member{Name: "IndexName", I
 
 var schemaDeletionProtectionEnabled = smithy.Schema{ID: "com.amazonaws.dynamodb#DeletionProtectionEnabled", Type: smithy.TypeBoolean}
 
-var schemaDescribeBackupInput = smithy.Schema{ID: "com.amazonaws.dynamodb#DescribeBackupInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeBackupInput_BackupArn}}
+var schemaDescribeBackupInput = smithy.Schema{ID: "com.amazonaws.dynamodb#DescribeBackupInput", Type: smithy.TypeStructure}
 
 var memberDescribeBackupInput_BackupArn = smithy.Member{Name: "BackupArn", Index: 0, Target: &schemaBackupArn, Required: true}
 
-var schemaDescribeBackupOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#DescribeBackupOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeBackupOutput_BackupDescription}}
+var schemaDescribeBackupOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#DescribeBackupOutput", Type: smithy.TypeStructure}
 
 var memberDescribeBackupOutput_BackupDescription = smithy.Member{Name: "BackupDescription", Index: 0, Target: &schemaBackupDescription}
 
@@ -707,13 +707,13 @@ var schemaDescribeContinuousBackupsOutput = smithy.Schema{ID: "com.amazonaws.dyn
 
 var memberDescribeContinuousBackupsOutput_ContinuousBackupsDescription = smithy.Member{Name: "ContinuousBackupsDescription", Index: 0, Target: &schemaContinuousBackupsDescription}
 
-var schemaDescribeContributorInsightsInput = smithy.Schema{ID: "com.amazonaws.dynamodb#DescribeContributorInsightsInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeContributorInsightsInput_TableName, &memberDescribeContributorInsightsInput_IndexName}}
+var schemaDescribeContributorInsightsInput = smithy.Schema{ID: "com.amazonaws.dynamodb#DescribeContributorInsightsInput", Type: smithy.TypeStructure}
 
 var memberDescribeContributorInsightsInput_TableName = smithy.Member{Name: "TableName", Index: 0, Target: &schemaTableArn, Required: true}
 
 var memberDescribeContributorInsightsInput_IndexName = smithy.Member{Name: "IndexName", Index: 1, Target: &schemaIndexName}
 
-var schemaDescribeContributorInsightsOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#DescribeContributorInsightsOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeContributorInsightsOutput_TableName, &memberDescribeContributorInsightsOutput_IndexName, &memberDescribeContributorInsightsOutput_ContributorInsightsRuleList, &memberDescribeContributorInsightsOutput_ContributorInsightsStatus, &memberDescribeContributorInsightsOutput_LastUpdateDateTime, &memberDescribeContributorInsightsOutput_FailureException, &memberDescribeContributorInsightsOutput_ContributorInsightsMode}}
+var schemaDescribeContributorInsightsOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#DescribeContributorInsightsOutput", Type: smithy.TypeStructure}
 
 var memberDescribeContributorInsightsOutput_TableName = smithy.Member{Name: "TableName", Index: 0, Target: &schemaTableName}
 
@@ -731,49 +731,49 @@ var memberDescribeContributorInsightsOutput_ContributorInsightsMode = smithy.Mem
 
 var schemaDescribeEndpointsInput = smithy.Schema{ID: "com.amazonaws.dynamodb#DescribeEndpointsRequest", Type: smithy.TypeStructure}
 
-var schemaDescribeEndpointsOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#DescribeEndpointsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeEndpointsOutput_Endpoints}}
+var schemaDescribeEndpointsOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#DescribeEndpointsResponse", Type: smithy.TypeStructure}
 
 var memberDescribeEndpointsOutput_Endpoints = smithy.Member{Name: "Endpoints", Index: 0, Target: &schemaEndpoints, Required: true}
 
-var schemaDescribeExportInput = smithy.Schema{ID: "com.amazonaws.dynamodb#DescribeExportInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeExportInput_ExportArn}}
+var schemaDescribeExportInput = smithy.Schema{ID: "com.amazonaws.dynamodb#DescribeExportInput", Type: smithy.TypeStructure}
 
 var memberDescribeExportInput_ExportArn = smithy.Member{Name: "ExportArn", Index: 0, Target: &schemaExportArn, Required: true}
 
-var schemaDescribeExportOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#DescribeExportOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeExportOutput_ExportDescription}}
+var schemaDescribeExportOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#DescribeExportOutput", Type: smithy.TypeStructure}
 
 var memberDescribeExportOutput_ExportDescription = smithy.Member{Name: "ExportDescription", Index: 0, Target: &schemaExportDescription}
 
-var schemaDescribeGlobalTableInput = smithy.Schema{ID: "com.amazonaws.dynamodb#DescribeGlobalTableInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeGlobalTableInput_GlobalTableName}}
+var schemaDescribeGlobalTableInput = smithy.Schema{ID: "com.amazonaws.dynamodb#DescribeGlobalTableInput", Type: smithy.TypeStructure}
 
 var memberDescribeGlobalTableInput_GlobalTableName = smithy.Member{Name: "GlobalTableName", Index: 0, Target: &schemaTableName, Required: true}
 
-var schemaDescribeGlobalTableOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#DescribeGlobalTableOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeGlobalTableOutput_GlobalTableDescription}}
+var schemaDescribeGlobalTableOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#DescribeGlobalTableOutput", Type: smithy.TypeStructure}
 
 var memberDescribeGlobalTableOutput_GlobalTableDescription = smithy.Member{Name: "GlobalTableDescription", Index: 0, Target: &schemaGlobalTableDescription}
 
-var schemaDescribeGlobalTableSettingsInput = smithy.Schema{ID: "com.amazonaws.dynamodb#DescribeGlobalTableSettingsInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeGlobalTableSettingsInput_GlobalTableName}}
+var schemaDescribeGlobalTableSettingsInput = smithy.Schema{ID: "com.amazonaws.dynamodb#DescribeGlobalTableSettingsInput", Type: smithy.TypeStructure}
 
 var memberDescribeGlobalTableSettingsInput_GlobalTableName = smithy.Member{Name: "GlobalTableName", Index: 0, Target: &schemaTableName, Required: true}
 
-var schemaDescribeGlobalTableSettingsOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#DescribeGlobalTableSettingsOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeGlobalTableSettingsOutput_GlobalTableName, &memberDescribeGlobalTableSettingsOutput_ReplicaSettings}}
+var schemaDescribeGlobalTableSettingsOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#DescribeGlobalTableSettingsOutput", Type: smithy.TypeStructure}
 
 var memberDescribeGlobalTableSettingsOutput_GlobalTableName = smithy.Member{Name: "GlobalTableName", Index: 0, Target: &schemaTableName}
 
 var memberDescribeGlobalTableSettingsOutput_ReplicaSettings = smithy.Member{Name: "ReplicaSettings", Index: 1, Target: &schemaReplicaSettingsDescriptionList}
 
-var schemaDescribeImportInput = smithy.Schema{ID: "com.amazonaws.dynamodb#DescribeImportInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeImportInput_ImportArn}}
+var schemaDescribeImportInput = smithy.Schema{ID: "com.amazonaws.dynamodb#DescribeImportInput", Type: smithy.TypeStructure}
 
 var memberDescribeImportInput_ImportArn = smithy.Member{Name: "ImportArn", Index: 0, Target: &schemaImportArn, Required: true}
 
-var schemaDescribeImportOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#DescribeImportOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeImportOutput_ImportTableDescription}}
+var schemaDescribeImportOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#DescribeImportOutput", Type: smithy.TypeStructure}
 
 var memberDescribeImportOutput_ImportTableDescription = smithy.Member{Name: "ImportTableDescription", Index: 0, Target: &schemaImportTableDescription, Required: true}
 
-var schemaDescribeKinesisStreamingDestinationInput = smithy.Schema{ID: "com.amazonaws.dynamodb#DescribeKinesisStreamingDestinationInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeKinesisStreamingDestinationInput_TableName}}
+var schemaDescribeKinesisStreamingDestinationInput = smithy.Schema{ID: "com.amazonaws.dynamodb#DescribeKinesisStreamingDestinationInput", Type: smithy.TypeStructure}
 
 var memberDescribeKinesisStreamingDestinationInput_TableName = smithy.Member{Name: "TableName", Index: 0, Target: &schemaTableArn, Required: true}
 
-var schemaDescribeKinesisStreamingDestinationOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#DescribeKinesisStreamingDestinationOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeKinesisStreamingDestinationOutput_TableName, &memberDescribeKinesisStreamingDestinationOutput_KinesisDataStreamDestinations}}
+var schemaDescribeKinesisStreamingDestinationOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#DescribeKinesisStreamingDestinationOutput", Type: smithy.TypeStructure}
 
 var memberDescribeKinesisStreamingDestinationOutput_TableName = smithy.Member{Name: "TableName", Index: 0, Target: &schemaTableName}
 
@@ -799,11 +799,11 @@ var schemaDescribeTableOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#Descri
 
 var memberDescribeTableOutput_Table = smithy.Member{Name: "Table", Index: 0, Target: &schemaTableDescription}
 
-var schemaDescribeTableReplicaAutoScalingInput = smithy.Schema{ID: "com.amazonaws.dynamodb#DescribeTableReplicaAutoScalingInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeTableReplicaAutoScalingInput_TableName}}
+var schemaDescribeTableReplicaAutoScalingInput = smithy.Schema{ID: "com.amazonaws.dynamodb#DescribeTableReplicaAutoScalingInput", Type: smithy.TypeStructure}
 
 var memberDescribeTableReplicaAutoScalingInput_TableName = smithy.Member{Name: "TableName", Index: 0, Target: &schemaTableArn, Required: true}
 
-var schemaDescribeTableReplicaAutoScalingOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#DescribeTableReplicaAutoScalingOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeTableReplicaAutoScalingOutput_TableAutoScalingDescription}}
+var schemaDescribeTableReplicaAutoScalingOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#DescribeTableReplicaAutoScalingOutput", Type: smithy.TypeStructure}
 
 var memberDescribeTableReplicaAutoScalingOutput_TableAutoScalingDescription = smithy.Member{Name: "TableAutoScalingDescription", Index: 0, Target: &schemaTableAutoScalingDescription}
 
@@ -823,17 +823,17 @@ var schemaDuplicateItemException = smithy.Schema{ID: "com.amazonaws.dynamodb#Dup
 
 var memberDuplicateItemException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaErrorMessage}
 
-var schemaEnableKinesisStreamingConfiguration = smithy.Schema{ID: "com.amazonaws.dynamodb#EnableKinesisStreamingConfiguration", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberEnableKinesisStreamingConfiguration_ApproximateCreationDateTimePrecision}}
+var schemaEnableKinesisStreamingConfiguration = smithy.Schema{ID: "com.amazonaws.dynamodb#EnableKinesisStreamingConfiguration", Type: smithy.TypeStructure}
 
 var memberEnableKinesisStreamingConfiguration_ApproximateCreationDateTimePrecision = smithy.Member{Name: "ApproximateCreationDateTimePrecision", Index: 0, Target: &schemaApproximateCreationDateTimePrecision}
 
-var schemaEndpoint = smithy.Schema{ID: "com.amazonaws.dynamodb#Endpoint", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberEndpoint_Address, &memberEndpoint_CachePeriodInMinutes}}
+var schemaEndpoint = smithy.Schema{ID: "com.amazonaws.dynamodb#Endpoint", Type: smithy.TypeStructure}
 
 var memberEndpoint_Address = smithy.Member{Name: "Address", Index: 0, Target: &schemaString, Required: true}
 
 var memberEndpoint_CachePeriodInMinutes = smithy.Member{Name: "CachePeriodInMinutes", Index: 1, Target: &schemaLong, Required: true, Default: document.Number("0")}
 
-var schemaEndpoints = smithy.Schema{ID: "com.amazonaws.dynamodb#Endpoints", Type: smithy.TypeList, Members: []*smithy.Member{&memberEndpoints_member}}
+var schemaEndpoints = smithy.Schema{ID: "com.amazonaws.dynamodb#Endpoints", Type: smithy.TypeList}
 
 var memberEndpoints_member = smithy.Member{Name: "member", Index: 0, Target: &schemaEndpoint}
 
@@ -911,7 +911,7 @@ var schemaExportConflictException = smithy.Schema{ID: "com.amazonaws.dynamodb#Ex
 
 var memberExportConflictException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaErrorMessage}
 
-var schemaExportDescription = smithy.Schema{ID: "com.amazonaws.dynamodb#ExportDescription", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberExportDescription_ExportArn, &memberExportDescription_ExportStatus, &memberExportDescription_StartTime, &memberExportDescription_EndTime, &memberExportDescription_ExportManifest, &memberExportDescription_TableArn, &memberExportDescription_TableId, &memberExportDescription_ExportTime, &memberExportDescription_ClientToken, &memberExportDescription_S3Bucket, &memberExportDescription_S3BucketOwner, &memberExportDescription_S3Prefix, &memberExportDescription_S3SseAlgorithm, &memberExportDescription_S3SseKmsKeyId, &memberExportDescription_FailureCode, &memberExportDescription_FailureMessage, &memberExportDescription_ExportFormat, &memberExportDescription_BilledSizeBytes, &memberExportDescription_ItemCount, &memberExportDescription_ExportType, &memberExportDescription_IncrementalExportSpecification, &memberExportDescription_FilterSpecification}}
+var schemaExportDescription = smithy.Schema{ID: "com.amazonaws.dynamodb#ExportDescription", Type: smithy.TypeStructure}
 
 var memberExportDescription_ExportArn = smithy.Member{Name: "ExportArn", Index: 0, Target: &schemaExportArn}
 
@@ -975,11 +975,11 @@ var schemaExportStartTime = smithy.Schema{ID: "com.amazonaws.dynamodb#ExportStar
 
 var schemaExportStatus = smithy.Schema{ID: "com.amazonaws.dynamodb#ExportStatus", Type: smithy.TypeEnum}
 
-var schemaExportSummaries = smithy.Schema{ID: "com.amazonaws.dynamodb#ExportSummaries", Type: smithy.TypeList, Members: []*smithy.Member{&memberExportSummaries_member}}
+var schemaExportSummaries = smithy.Schema{ID: "com.amazonaws.dynamodb#ExportSummaries", Type: smithy.TypeList}
 
 var memberExportSummaries_member = smithy.Member{Name: "member", Index: 0, Target: &schemaExportSummary}
 
-var schemaExportSummary = smithy.Schema{ID: "com.amazonaws.dynamodb#ExportSummary", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberExportSummary_ExportArn, &memberExportSummary_ExportStatus, &memberExportSummary_ExportType}}
+var schemaExportSummary = smithy.Schema{ID: "com.amazonaws.dynamodb#ExportSummary", Type: smithy.TypeStructure}
 
 var memberExportSummary_ExportArn = smithy.Member{Name: "ExportArn", Index: 0, Target: &schemaExportArn}
 
@@ -987,7 +987,7 @@ var memberExportSummary_ExportStatus = smithy.Member{Name: "ExportStatus", Index
 
 var memberExportSummary_ExportType = smithy.Member{Name: "ExportType", Index: 2, Target: &schemaExportType}
 
-var schemaExportTableToPointInTimeInput = smithy.Schema{ID: "com.amazonaws.dynamodb#ExportTableToPointInTimeInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberExportTableToPointInTimeInput_TableArn, &memberExportTableToPointInTimeInput_ExportTime, &memberExportTableToPointInTimeInput_ClientToken, &memberExportTableToPointInTimeInput_S3Bucket, &memberExportTableToPointInTimeInput_S3BucketOwner, &memberExportTableToPointInTimeInput_S3Prefix, &memberExportTableToPointInTimeInput_S3SseAlgorithm, &memberExportTableToPointInTimeInput_S3SseKmsKeyId, &memberExportTableToPointInTimeInput_ExportFormat, &memberExportTableToPointInTimeInput_ExportType, &memberExportTableToPointInTimeInput_IncrementalExportSpecification, &memberExportTableToPointInTimeInput_FilterSpecification}}
+var schemaExportTableToPointInTimeInput = smithy.Schema{ID: "com.amazonaws.dynamodb#ExportTableToPointInTimeInput", Type: smithy.TypeStructure}
 
 var memberExportTableToPointInTimeInput_TableArn = smithy.Member{Name: "TableArn", Index: 0, Target: &schemaTableArn, Required: true}
 
@@ -1013,7 +1013,7 @@ var memberExportTableToPointInTimeInput_IncrementalExportSpecification = smithy.
 
 var memberExportTableToPointInTimeInput_FilterSpecification = smithy.Member{Name: "FilterSpecification", Index: 11, Target: &schemaFilterSpecification}
 
-var schemaExportTableToPointInTimeOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#ExportTableToPointInTimeOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberExportTableToPointInTimeOutput_ExportDescription}}
+var schemaExportTableToPointInTimeOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#ExportTableToPointInTimeOutput", Type: smithy.TypeStructure}
 
 var memberExportTableToPointInTimeOutput_ExportDescription = smithy.Member{Name: "ExportDescription", Index: 0, Target: &schemaExportDescription}
 
@@ -1043,7 +1043,7 @@ var schemaExpressionAttributeValueVariable = smithy.Schema{ID: "com.amazonaws.dy
 
 var schemaFailureCode = smithy.Schema{ID: "com.amazonaws.dynamodb#FailureCode", Type: smithy.TypeString}
 
-var schemaFailureException = smithy.Schema{ID: "com.amazonaws.dynamodb#FailureException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberFailureException_ExceptionName, &memberFailureException_ExceptionDescription}}
+var schemaFailureException = smithy.Schema{ID: "com.amazonaws.dynamodb#FailureException", Type: smithy.TypeStructure}
 
 var memberFailureException_ExceptionName = smithy.Member{Name: "ExceptionName", Index: 0, Target: &schemaExceptionName}
 
@@ -1057,7 +1057,7 @@ var memberFilterConditionMap_key = smithy.Member{Name: "key", Index: 0, Target: 
 
 var memberFilterConditionMap_value = smithy.Member{Name: "value", Index: 1, Target: &schemaCondition}
 
-var schemaFilterSpecification = smithy.Schema{ID: "com.amazonaws.dynamodb#FilterSpecification", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberFilterSpecification_FilterExpression, &memberFilterSpecification_ProjectionExpression, &memberFilterSpecification_KeyConditionExpression, &memberFilterSpecification_ExpressionAttributeNames, &memberFilterSpecification_ExpressionAttributeValues}}
+var schemaFilterSpecification = smithy.Schema{ID: "com.amazonaws.dynamodb#FilterSpecification", Type: smithy.TypeStructure}
 
 var memberFilterSpecification_FilterExpression = smithy.Member{Name: "FilterExpression", Index: 0, Target: &schemaConditionExpression}
 
@@ -1101,11 +1101,11 @@ var memberGetItemOutput_Item = smithy.Member{Name: "Item", Index: 0, Target: &sc
 
 var memberGetItemOutput_ConsumedCapacity = smithy.Member{Name: "ConsumedCapacity", Index: 1, Target: &schemaConsumedCapacity}
 
-var schemaGetResourcePolicyInput = smithy.Schema{ID: "com.amazonaws.dynamodb#GetResourcePolicyInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetResourcePolicyInput_ResourceArn}}
+var schemaGetResourcePolicyInput = smithy.Schema{ID: "com.amazonaws.dynamodb#GetResourcePolicyInput", Type: smithy.TypeStructure}
 
 var memberGetResourcePolicyInput_ResourceArn = smithy.Member{Name: "ResourceArn", Index: 0, Target: &schemaResourceArnString, Required: true}
 
-var schemaGetResourcePolicyOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#GetResourcePolicyOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetResourcePolicyOutput_Policy, &memberGetResourcePolicyOutput_RevisionId}}
+var schemaGetResourcePolicyOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#GetResourcePolicyOutput", Type: smithy.TypeStructure}
 
 var memberGetResourcePolicyOutput_Policy = smithy.Member{Name: "Policy", Index: 0, Target: &schemaResourcePolicy}
 
@@ -1125,13 +1125,13 @@ var memberGlobalSecondaryIndex_OnDemandThroughput = smithy.Member{Name: "OnDeman
 
 var memberGlobalSecondaryIndex_WarmThroughput = smithy.Member{Name: "WarmThroughput", Index: 5, Target: &schemaWarmThroughput}
 
-var schemaGlobalSecondaryIndexAutoScalingUpdate = smithy.Schema{ID: "com.amazonaws.dynamodb#GlobalSecondaryIndexAutoScalingUpdate", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGlobalSecondaryIndexAutoScalingUpdate_IndexName, &memberGlobalSecondaryIndexAutoScalingUpdate_ProvisionedWriteCapacityAutoScalingUpdate}}
+var schemaGlobalSecondaryIndexAutoScalingUpdate = smithy.Schema{ID: "com.amazonaws.dynamodb#GlobalSecondaryIndexAutoScalingUpdate", Type: smithy.TypeStructure}
 
 var memberGlobalSecondaryIndexAutoScalingUpdate_IndexName = smithy.Member{Name: "IndexName", Index: 0, Target: &schemaIndexName}
 
 var memberGlobalSecondaryIndexAutoScalingUpdate_ProvisionedWriteCapacityAutoScalingUpdate = smithy.Member{Name: "ProvisionedWriteCapacityAutoScalingUpdate", Index: 1, Target: &schemaAutoScalingSettingsUpdate}
 
-var schemaGlobalSecondaryIndexAutoScalingUpdateList = smithy.Schema{ID: "com.amazonaws.dynamodb#GlobalSecondaryIndexAutoScalingUpdateList", Type: smithy.TypeList, Members: []*smithy.Member{&memberGlobalSecondaryIndexAutoScalingUpdateList_member}}
+var schemaGlobalSecondaryIndexAutoScalingUpdateList = smithy.Schema{ID: "com.amazonaws.dynamodb#GlobalSecondaryIndexAutoScalingUpdateList", Type: smithy.TypeList}
 
 var memberGlobalSecondaryIndexAutoScalingUpdateList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaGlobalSecondaryIndexAutoScalingUpdate}
 
@@ -1163,7 +1163,7 @@ var schemaGlobalSecondaryIndexDescriptionList = smithy.Schema{ID: "com.amazonaws
 
 var memberGlobalSecondaryIndexDescriptionList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaGlobalSecondaryIndexDescription}
 
-var schemaGlobalSecondaryIndexInfo = smithy.Schema{ID: "com.amazonaws.dynamodb#GlobalSecondaryIndexInfo", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGlobalSecondaryIndexInfo_IndexName, &memberGlobalSecondaryIndexInfo_KeySchema, &memberGlobalSecondaryIndexInfo_Projection, &memberGlobalSecondaryIndexInfo_ProvisionedThroughput, &memberGlobalSecondaryIndexInfo_OnDemandThroughput}}
+var schemaGlobalSecondaryIndexInfo = smithy.Schema{ID: "com.amazonaws.dynamodb#GlobalSecondaryIndexInfo", Type: smithy.TypeStructure}
 
 var memberGlobalSecondaryIndexInfo_IndexName = smithy.Member{Name: "IndexName", Index: 0, Target: &schemaIndexName}
 
@@ -1199,11 +1199,11 @@ var memberGlobalSecondaryIndexWarmThroughputDescription_WriteUnitsPerSecond = sm
 
 var memberGlobalSecondaryIndexWarmThroughputDescription_Status = smithy.Member{Name: "Status", Index: 2, Target: &schemaIndexStatus}
 
-var schemaGlobalSecondaryIndexes = smithy.Schema{ID: "com.amazonaws.dynamodb#GlobalSecondaryIndexes", Type: smithy.TypeList, Members: []*smithy.Member{&memberGlobalSecondaryIndexes_member}}
+var schemaGlobalSecondaryIndexes = smithy.Schema{ID: "com.amazonaws.dynamodb#GlobalSecondaryIndexes", Type: smithy.TypeList}
 
 var memberGlobalSecondaryIndexes_member = smithy.Member{Name: "member", Index: 0, Target: &schemaGlobalSecondaryIndexInfo}
 
-var schemaGlobalTable = smithy.Schema{ID: "com.amazonaws.dynamodb#GlobalTable", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGlobalTable_GlobalTableName, &memberGlobalTable_ReplicationGroup}}
+var schemaGlobalTable = smithy.Schema{ID: "com.amazonaws.dynamodb#GlobalTable", Type: smithy.TypeStructure}
 
 var memberGlobalTable_GlobalTableName = smithy.Member{Name: "GlobalTableName", Index: 0, Target: &schemaTableName}
 
@@ -1215,7 +1215,7 @@ var memberGlobalTableAlreadyExistsException_message = smithy.Member{Name: "messa
 
 var schemaGlobalTableArnString = smithy.Schema{ID: "com.amazonaws.dynamodb#GlobalTableArnString", Type: smithy.TypeString}
 
-var schemaGlobalTableDescription = smithy.Schema{ID: "com.amazonaws.dynamodb#GlobalTableDescription", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGlobalTableDescription_ReplicationGroup, &memberGlobalTableDescription_GlobalTableArn, &memberGlobalTableDescription_CreationDateTime, &memberGlobalTableDescription_GlobalTableStatus, &memberGlobalTableDescription_GlobalTableName}}
+var schemaGlobalTableDescription = smithy.Schema{ID: "com.amazonaws.dynamodb#GlobalTableDescription", Type: smithy.TypeStructure}
 
 var memberGlobalTableDescription_ReplicationGroup = smithy.Member{Name: "ReplicationGroup", Index: 0, Target: &schemaReplicaDescriptionList}
 
@@ -1227,7 +1227,7 @@ var memberGlobalTableDescription_GlobalTableStatus = smithy.Member{Name: "Global
 
 var memberGlobalTableDescription_GlobalTableName = smithy.Member{Name: "GlobalTableName", Index: 4, Target: &schemaTableName}
 
-var schemaGlobalTableGlobalSecondaryIndexSettingsUpdate = smithy.Schema{ID: "com.amazonaws.dynamodb#GlobalTableGlobalSecondaryIndexSettingsUpdate", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGlobalTableGlobalSecondaryIndexSettingsUpdate_IndexName, &memberGlobalTableGlobalSecondaryIndexSettingsUpdate_ProvisionedWriteCapacityUnits, &memberGlobalTableGlobalSecondaryIndexSettingsUpdate_ProvisionedWriteCapacityAutoScalingSettingsUpdate}}
+var schemaGlobalTableGlobalSecondaryIndexSettingsUpdate = smithy.Schema{ID: "com.amazonaws.dynamodb#GlobalTableGlobalSecondaryIndexSettingsUpdate", Type: smithy.TypeStructure}
 
 var memberGlobalTableGlobalSecondaryIndexSettingsUpdate_IndexName = smithy.Member{Name: "IndexName", Index: 0, Target: &schemaIndexName, Required: true}
 
@@ -1235,11 +1235,11 @@ var memberGlobalTableGlobalSecondaryIndexSettingsUpdate_ProvisionedWriteCapacity
 
 var memberGlobalTableGlobalSecondaryIndexSettingsUpdate_ProvisionedWriteCapacityAutoScalingSettingsUpdate = smithy.Member{Name: "ProvisionedWriteCapacityAutoScalingSettingsUpdate", Index: 2, Target: &schemaAutoScalingSettingsUpdate}
 
-var schemaGlobalTableGlobalSecondaryIndexSettingsUpdateList = smithy.Schema{ID: "com.amazonaws.dynamodb#GlobalTableGlobalSecondaryIndexSettingsUpdateList", Type: smithy.TypeList, Members: []*smithy.Member{&memberGlobalTableGlobalSecondaryIndexSettingsUpdateList_member}}
+var schemaGlobalTableGlobalSecondaryIndexSettingsUpdateList = smithy.Schema{ID: "com.amazonaws.dynamodb#GlobalTableGlobalSecondaryIndexSettingsUpdateList", Type: smithy.TypeList}
 
 var memberGlobalTableGlobalSecondaryIndexSettingsUpdateList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaGlobalTableGlobalSecondaryIndexSettingsUpdate}
 
-var schemaGlobalTableList = smithy.Schema{ID: "com.amazonaws.dynamodb#GlobalTableList", Type: smithy.TypeList, Members: []*smithy.Member{&memberGlobalTableList_member}}
+var schemaGlobalTableList = smithy.Schema{ID: "com.amazonaws.dynamodb#GlobalTableList", Type: smithy.TypeList}
 
 var memberGlobalTableList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaGlobalTable}
 
@@ -1293,7 +1293,7 @@ var schemaImportStartTime = smithy.Schema{ID: "com.amazonaws.dynamodb#ImportStar
 
 var schemaImportStatus = smithy.Schema{ID: "com.amazonaws.dynamodb#ImportStatus", Type: smithy.TypeEnum}
 
-var schemaImportSummary = smithy.Schema{ID: "com.amazonaws.dynamodb#ImportSummary", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberImportSummary_ImportArn, &memberImportSummary_ImportStatus, &memberImportSummary_TableArn, &memberImportSummary_S3BucketSource, &memberImportSummary_CloudWatchLogGroupArn, &memberImportSummary_InputFormat, &memberImportSummary_StartTime, &memberImportSummary_EndTime}}
+var schemaImportSummary = smithy.Schema{ID: "com.amazonaws.dynamodb#ImportSummary", Type: smithy.TypeStructure}
 
 var memberImportSummary_ImportArn = smithy.Member{Name: "ImportArn", Index: 0, Target: &schemaImportArn}
 
@@ -1311,11 +1311,11 @@ var memberImportSummary_StartTime = smithy.Member{Name: "StartTime", Index: 6, T
 
 var memberImportSummary_EndTime = smithy.Member{Name: "EndTime", Index: 7, Target: &schemaImportEndTime}
 
-var schemaImportSummaryList = smithy.Schema{ID: "com.amazonaws.dynamodb#ImportSummaryList", Type: smithy.TypeList, Members: []*smithy.Member{&memberImportSummaryList_member}}
+var schemaImportSummaryList = smithy.Schema{ID: "com.amazonaws.dynamodb#ImportSummaryList", Type: smithy.TypeList}
 
 var memberImportSummaryList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaImportSummary}
 
-var schemaImportTableDescription = smithy.Schema{ID: "com.amazonaws.dynamodb#ImportTableDescription", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberImportTableDescription_ImportArn, &memberImportTableDescription_ImportStatus, &memberImportTableDescription_TableArn, &memberImportTableDescription_TableId, &memberImportTableDescription_ClientToken, &memberImportTableDescription_S3BucketSource, &memberImportTableDescription_ErrorCount, &memberImportTableDescription_CloudWatchLogGroupArn, &memberImportTableDescription_InputFormat, &memberImportTableDescription_InputFormatOptions, &memberImportTableDescription_InputCompressionType, &memberImportTableDescription_TableCreationParameters, &memberImportTableDescription_StartTime, &memberImportTableDescription_EndTime, &memberImportTableDescription_ProcessedSizeBytes, &memberImportTableDescription_ProcessedItemCount, &memberImportTableDescription_ImportedItemCount, &memberImportTableDescription_FailureCode, &memberImportTableDescription_FailureMessage}}
+var schemaImportTableDescription = smithy.Schema{ID: "com.amazonaws.dynamodb#ImportTableDescription", Type: smithy.TypeStructure}
 
 var memberImportTableDescription_ImportArn = smithy.Member{Name: "ImportArn", Index: 0, Target: &schemaImportArn}
 
@@ -1355,7 +1355,7 @@ var memberImportTableDescription_FailureCode = smithy.Member{Name: "FailureCode"
 
 var memberImportTableDescription_FailureMessage = smithy.Member{Name: "FailureMessage", Index: 18, Target: &schemaFailureMessage}
 
-var schemaImportTableInput = smithy.Schema{ID: "com.amazonaws.dynamodb#ImportTableInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberImportTableInput_ClientToken, &memberImportTableInput_S3BucketSource, &memberImportTableInput_InputFormat, &memberImportTableInput_InputFormatOptions, &memberImportTableInput_InputCompressionType, &memberImportTableInput_TableCreationParameters}}
+var schemaImportTableInput = smithy.Schema{ID: "com.amazonaws.dynamodb#ImportTableInput", Type: smithy.TypeStructure}
 
 var memberImportTableInput_ClientToken = smithy.Member{Name: "ClientToken", Index: 0, Target: &schemaClientToken}
 
@@ -1369,7 +1369,7 @@ var memberImportTableInput_InputCompressionType = smithy.Member{Name: "InputComp
 
 var memberImportTableInput_TableCreationParameters = smithy.Member{Name: "TableCreationParameters", Index: 5, Target: &schemaTableCreationParameters, Required: true}
 
-var schemaImportTableOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#ImportTableOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberImportTableOutput_ImportTableDescription}}
+var schemaImportTableOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#ImportTableOutput", Type: smithy.TypeStructure}
 
 var memberImportTableOutput_ImportTableDescription = smithy.Member{Name: "ImportTableDescription", Index: 0, Target: &schemaImportTableDescription, Required: true}
 
@@ -1379,7 +1379,7 @@ var schemaIncompleteSignatureException = smithy.Schema{ID: "com.amazon.coral.ser
 
 var memberIncompleteSignatureException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaIncrementalExportSpecification = smithy.Schema{ID: "com.amazonaws.dynamodb#IncrementalExportSpecification", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberIncrementalExportSpecification_ExportFromTime, &memberIncrementalExportSpecification_ExportToTime, &memberIncrementalExportSpecification_ExportViewType}}
+var schemaIncrementalExportSpecification = smithy.Schema{ID: "com.amazonaws.dynamodb#IncrementalExportSpecification", Type: smithy.TypeStructure}
 
 var memberIncrementalExportSpecification_ExportFromTime = smithy.Member{Name: "ExportFromTime", Index: 0, Target: &schemaExportFromTime}
 
@@ -1399,7 +1399,7 @@ var schemaInputCompressionType = smithy.Schema{ID: "com.amazonaws.dynamodb#Input
 
 var schemaInputFormat = smithy.Schema{ID: "com.amazonaws.dynamodb#InputFormat", Type: smithy.TypeEnum}
 
-var schemaInputFormatOptions = smithy.Schema{ID: "com.amazonaws.dynamodb#InputFormatOptions", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberInputFormatOptions_Csv}}
+var schemaInputFormatOptions = smithy.Schema{ID: "com.amazonaws.dynamodb#InputFormatOptions", Type: smithy.TypeStructure}
 
 var memberInputFormatOptions_Csv = smithy.Member{Name: "Csv", Index: 0, Target: &schemaCsvOptions}
 
@@ -1525,7 +1525,7 @@ var memberKeysAndAttributes_ProjectionExpression = smithy.Member{Name: "Projecti
 
 var memberKeysAndAttributes_ExpressionAttributeNames = smithy.Member{Name: "ExpressionAttributeNames", Index: 4, Target: &schemaExpressionAttributeNameMap}
 
-var schemaKinesisDataStreamDestination = smithy.Schema{ID: "com.amazonaws.dynamodb#KinesisDataStreamDestination", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberKinesisDataStreamDestination_StreamArn, &memberKinesisDataStreamDestination_DestinationStatus, &memberKinesisDataStreamDestination_DestinationStatusDescription, &memberKinesisDataStreamDestination_ApproximateCreationDateTimePrecision}}
+var schemaKinesisDataStreamDestination = smithy.Schema{ID: "com.amazonaws.dynamodb#KinesisDataStreamDestination", Type: smithy.TypeStructure}
 
 var memberKinesisDataStreamDestination_StreamArn = smithy.Member{Name: "StreamArn", Index: 0, Target: &schemaStreamArn}
 
@@ -1535,11 +1535,11 @@ var memberKinesisDataStreamDestination_DestinationStatusDescription = smithy.Mem
 
 var memberKinesisDataStreamDestination_ApproximateCreationDateTimePrecision = smithy.Member{Name: "ApproximateCreationDateTimePrecision", Index: 3, Target: &schemaApproximateCreationDateTimePrecision}
 
-var schemaKinesisDataStreamDestinations = smithy.Schema{ID: "com.amazonaws.dynamodb#KinesisDataStreamDestinations", Type: smithy.TypeList, Members: []*smithy.Member{&memberKinesisDataStreamDestinations_member}}
+var schemaKinesisDataStreamDestinations = smithy.Schema{ID: "com.amazonaws.dynamodb#KinesisDataStreamDestinations", Type: smithy.TypeList}
 
 var memberKinesisDataStreamDestinations_member = smithy.Member{Name: "member", Index: 0, Target: &schemaKinesisDataStreamDestination}
 
-var schemaKinesisStreamingDestinationInput = smithy.Schema{ID: "com.amazonaws.dynamodb#KinesisStreamingDestinationInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberKinesisStreamingDestinationInput_TableName, &memberKinesisStreamingDestinationInput_StreamArn, &memberKinesisStreamingDestinationInput_EnableKinesisStreamingConfiguration}}
+var schemaKinesisStreamingDestinationInput = smithy.Schema{ID: "com.amazonaws.dynamodb#KinesisStreamingDestinationInput", Type: smithy.TypeStructure}
 
 var memberKinesisStreamingDestinationInput_TableName = smithy.Member{Name: "TableName", Index: 0, Target: &schemaTableArn, Required: true}
 
@@ -1547,7 +1547,7 @@ var memberKinesisStreamingDestinationInput_StreamArn = smithy.Member{Name: "Stre
 
 var memberKinesisStreamingDestinationInput_EnableKinesisStreamingConfiguration = smithy.Member{Name: "EnableKinesisStreamingConfiguration", Index: 2, Target: &schemaEnableKinesisStreamingConfiguration}
 
-var schemaKinesisStreamingDestinationOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#KinesisStreamingDestinationOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberKinesisStreamingDestinationOutput_TableName, &memberKinesisStreamingDestinationOutput_StreamArn, &memberKinesisStreamingDestinationOutput_DestinationStatus, &memberKinesisStreamingDestinationOutput_EnableKinesisStreamingConfiguration}}
+var schemaKinesisStreamingDestinationOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#KinesisStreamingDestinationOutput", Type: smithy.TypeStructure}
 
 var memberKinesisStreamingDestinationOutput_TableName = smithy.Member{Name: "TableName", Index: 0, Target: &schemaTableName}
 
@@ -1567,7 +1567,7 @@ var schemaListAttributeValue = smithy.Schema{ID: "com.amazonaws.dynamodb#ListAtt
 
 var memberListAttributeValue_member = smithy.Member{Name: "member", Index: 0, Target: &schemaAttributeValue}
 
-var schemaListBackupsInput = smithy.Schema{ID: "com.amazonaws.dynamodb#ListBackupsInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListBackupsInput_TableName, &memberListBackupsInput_Limit, &memberListBackupsInput_TimeRangeLowerBound, &memberListBackupsInput_TimeRangeUpperBound, &memberListBackupsInput_ExclusiveStartBackupArn, &memberListBackupsInput_BackupType}}
+var schemaListBackupsInput = smithy.Schema{ID: "com.amazonaws.dynamodb#ListBackupsInput", Type: smithy.TypeStructure}
 
 var memberListBackupsInput_TableName = smithy.Member{Name: "TableName", Index: 0, Target: &schemaTableArn}
 
@@ -1581,13 +1581,13 @@ var memberListBackupsInput_ExclusiveStartBackupArn = smithy.Member{Name: "Exclus
 
 var memberListBackupsInput_BackupType = smithy.Member{Name: "BackupType", Index: 5, Target: &schemaBackupTypeFilter}
 
-var schemaListBackupsOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#ListBackupsOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListBackupsOutput_BackupSummaries, &memberListBackupsOutput_LastEvaluatedBackupArn}}
+var schemaListBackupsOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#ListBackupsOutput", Type: smithy.TypeStructure}
 
 var memberListBackupsOutput_BackupSummaries = smithy.Member{Name: "BackupSummaries", Index: 0, Target: &schemaBackupSummaries}
 
 var memberListBackupsOutput_LastEvaluatedBackupArn = smithy.Member{Name: "LastEvaluatedBackupArn", Index: 1, Target: &schemaBackupArn}
 
-var schemaListContributorInsightsInput = smithy.Schema{ID: "com.amazonaws.dynamodb#ListContributorInsightsInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListContributorInsightsInput_TableName, &memberListContributorInsightsInput_NextToken, &memberListContributorInsightsInput_MaxResults}}
+var schemaListContributorInsightsInput = smithy.Schema{ID: "com.amazonaws.dynamodb#ListContributorInsightsInput", Type: smithy.TypeStructure}
 
 var memberListContributorInsightsInput_TableName = smithy.Member{Name: "TableName", Index: 0, Target: &schemaTableArn}
 
@@ -1597,13 +1597,13 @@ var memberListContributorInsightsInput_MaxResults = smithy.Member{Name: "MaxResu
 
 var schemaListContributorInsightsLimit = smithy.Schema{ID: "com.amazonaws.dynamodb#ListContributorInsightsLimit", Type: smithy.TypeInteger}
 
-var schemaListContributorInsightsOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#ListContributorInsightsOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListContributorInsightsOutput_ContributorInsightsSummaries, &memberListContributorInsightsOutput_NextToken}}
+var schemaListContributorInsightsOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#ListContributorInsightsOutput", Type: smithy.TypeStructure}
 
 var memberListContributorInsightsOutput_ContributorInsightsSummaries = smithy.Member{Name: "ContributorInsightsSummaries", Index: 0, Target: &schemaContributorInsightsSummaries}
 
 var memberListContributorInsightsOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schemaNextTokenString}
 
-var schemaListExportsInput = smithy.Schema{ID: "com.amazonaws.dynamodb#ListExportsInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListExportsInput_TableArn, &memberListExportsInput_MaxResults, &memberListExportsInput_NextToken}}
+var schemaListExportsInput = smithy.Schema{ID: "com.amazonaws.dynamodb#ListExportsInput", Type: smithy.TypeStructure}
 
 var memberListExportsInput_TableArn = smithy.Member{Name: "TableArn", Index: 0, Target: &schemaTableArn}
 
@@ -1613,13 +1613,13 @@ var memberListExportsInput_NextToken = smithy.Member{Name: "NextToken", Index: 2
 
 var schemaListExportsMaxLimit = smithy.Schema{ID: "com.amazonaws.dynamodb#ListExportsMaxLimit", Type: smithy.TypeInteger}
 
-var schemaListExportsOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#ListExportsOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListExportsOutput_ExportSummaries, &memberListExportsOutput_NextToken}}
+var schemaListExportsOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#ListExportsOutput", Type: smithy.TypeStructure}
 
 var memberListExportsOutput_ExportSummaries = smithy.Member{Name: "ExportSummaries", Index: 0, Target: &schemaExportSummaries}
 
 var memberListExportsOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schemaExportNextToken}
 
-var schemaListGlobalTablesInput = smithy.Schema{ID: "com.amazonaws.dynamodb#ListGlobalTablesInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListGlobalTablesInput_ExclusiveStartGlobalTableName, &memberListGlobalTablesInput_Limit, &memberListGlobalTablesInput_RegionName}}
+var schemaListGlobalTablesInput = smithy.Schema{ID: "com.amazonaws.dynamodb#ListGlobalTablesInput", Type: smithy.TypeStructure}
 
 var memberListGlobalTablesInput_ExclusiveStartGlobalTableName = smithy.Member{Name: "ExclusiveStartGlobalTableName", Index: 0, Target: &schemaTableName}
 
@@ -1627,13 +1627,13 @@ var memberListGlobalTablesInput_Limit = smithy.Member{Name: "Limit", Index: 1, T
 
 var memberListGlobalTablesInput_RegionName = smithy.Member{Name: "RegionName", Index: 2, Target: &schemaRegionName}
 
-var schemaListGlobalTablesOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#ListGlobalTablesOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListGlobalTablesOutput_GlobalTables, &memberListGlobalTablesOutput_LastEvaluatedGlobalTableName}}
+var schemaListGlobalTablesOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#ListGlobalTablesOutput", Type: smithy.TypeStructure}
 
 var memberListGlobalTablesOutput_GlobalTables = smithy.Member{Name: "GlobalTables", Index: 0, Target: &schemaGlobalTableList}
 
 var memberListGlobalTablesOutput_LastEvaluatedGlobalTableName = smithy.Member{Name: "LastEvaluatedGlobalTableName", Index: 1, Target: &schemaTableName}
 
-var schemaListImportsInput = smithy.Schema{ID: "com.amazonaws.dynamodb#ListImportsInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListImportsInput_TableArn, &memberListImportsInput_PageSize, &memberListImportsInput_NextToken}}
+var schemaListImportsInput = smithy.Schema{ID: "com.amazonaws.dynamodb#ListImportsInput", Type: smithy.TypeStructure}
 
 var memberListImportsInput_TableArn = smithy.Member{Name: "TableArn", Index: 0, Target: &schemaTableArn}
 
@@ -1643,7 +1643,7 @@ var memberListImportsInput_NextToken = smithy.Member{Name: "NextToken", Index: 2
 
 var schemaListImportsMaxLimit = smithy.Schema{ID: "com.amazonaws.dynamodb#ListImportsMaxLimit", Type: smithy.TypeInteger}
 
-var schemaListImportsOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#ListImportsOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListImportsOutput_ImportSummaryList, &memberListImportsOutput_NextToken}}
+var schemaListImportsOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#ListImportsOutput", Type: smithy.TypeStructure}
 
 var memberListImportsOutput_ImportSummaryList = smithy.Member{Name: "ImportSummaryList", Index: 0, Target: &schemaImportSummaryList}
 
@@ -1701,7 +1701,7 @@ var schemaLocalSecondaryIndexDescriptionList = smithy.Schema{ID: "com.amazonaws.
 
 var memberLocalSecondaryIndexDescriptionList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaLocalSecondaryIndexDescription}
 
-var schemaLocalSecondaryIndexInfo = smithy.Schema{ID: "com.amazonaws.dynamodb#LocalSecondaryIndexInfo", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberLocalSecondaryIndexInfo_IndexName, &memberLocalSecondaryIndexInfo_KeySchema, &memberLocalSecondaryIndexInfo_Projection}}
+var schemaLocalSecondaryIndexInfo = smithy.Schema{ID: "com.amazonaws.dynamodb#LocalSecondaryIndexInfo", Type: smithy.TypeStructure}
 
 var memberLocalSecondaryIndexInfo_IndexName = smithy.Member{Name: "IndexName", Index: 0, Target: &schemaIndexName}
 
@@ -1713,7 +1713,7 @@ var schemaLocalSecondaryIndexList = smithy.Schema{ID: "com.amazonaws.dynamodb#Lo
 
 var memberLocalSecondaryIndexList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaLocalSecondaryIndex}
 
-var schemaLocalSecondaryIndexes = smithy.Schema{ID: "com.amazonaws.dynamodb#LocalSecondaryIndexes", Type: smithy.TypeList, Members: []*smithy.Member{&memberLocalSecondaryIndexes_member}}
+var schemaLocalSecondaryIndexes = smithy.Schema{ID: "com.amazonaws.dynamodb#LocalSecondaryIndexes", Type: smithy.TypeList}
 
 var memberLocalSecondaryIndexes_member = smithy.Member{Name: "member", Index: 0, Target: &schemaLocalSecondaryIndexInfo}
 
@@ -1921,7 +1921,7 @@ var schemaPutRequest = smithy.Schema{ID: "com.amazonaws.dynamodb#PutRequest", Ty
 
 var memberPutRequest_Item = smithy.Member{Name: "Item", Index: 0, Target: &schemaPutItemInputAttributeMap, Required: true}
 
-var schemaPutResourcePolicyInput = smithy.Schema{ID: "com.amazonaws.dynamodb#PutResourcePolicyInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutResourcePolicyInput_ResourceArn, &memberPutResourcePolicyInput_Policy, &memberPutResourcePolicyInput_ExpectedRevisionId, &memberPutResourcePolicyInput_ConfirmRemoveSelfResourceAccess}}
+var schemaPutResourcePolicyInput = smithy.Schema{ID: "com.amazonaws.dynamodb#PutResourcePolicyInput", Type: smithy.TypeStructure}
 
 var memberPutResourcePolicyInput_ResourceArn = smithy.Member{Name: "ResourceArn", Index: 0, Target: &schemaResourceArnString, Required: true}
 
@@ -1931,7 +1931,7 @@ var memberPutResourcePolicyInput_ExpectedRevisionId = smithy.Member{Name: "Expec
 
 var memberPutResourcePolicyInput_ConfirmRemoveSelfResourceAccess = smithy.Member{Name: "ConfirmRemoveSelfResourceAccess", Index: 3, Target: &schemaConfirmRemoveSelfResourceAccess, Default: document.Bool(false), HTTP: smithy.HTTPHeader{Name: "x-amz-confirm-remove-self-resource-access"}}
 
-var schemaPutResourcePolicyOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#PutResourcePolicyOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutResourcePolicyOutput_RevisionId}}
+var schemaPutResourcePolicyOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#PutResourcePolicyOutput", Type: smithy.TypeStructure}
 
 var memberPutResourcePolicyOutput_RevisionId = smithy.Member{Name: "RevisionId", Index: 0, Target: &schemaPolicyRevisionId}
 
@@ -1989,7 +1989,7 @@ var schemaRecoveryPeriodInDays = smithy.Schema{ID: "com.amazonaws.dynamodb#Recov
 
 var schemaRegionName = smithy.Schema{ID: "com.amazonaws.dynamodb#RegionName", Type: smithy.TypeString}
 
-var schemaReplica = smithy.Schema{ID: "com.amazonaws.dynamodb#Replica", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberReplica_RegionName}}
+var schemaReplica = smithy.Schema{ID: "com.amazonaws.dynamodb#Replica", Type: smithy.TypeStructure}
 
 var memberReplica_RegionName = smithy.Member{Name: "RegionName", Index: 0, Target: &schemaRegionName}
 
@@ -1997,7 +1997,7 @@ var schemaReplicaAlreadyExistsException = smithy.Schema{ID: "com.amazonaws.dynam
 
 var memberReplicaAlreadyExistsException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaErrorMessage}
 
-var schemaReplicaAutoScalingDescription = smithy.Schema{ID: "com.amazonaws.dynamodb#ReplicaAutoScalingDescription", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberReplicaAutoScalingDescription_RegionName, &memberReplicaAutoScalingDescription_GlobalSecondaryIndexes, &memberReplicaAutoScalingDescription_ReplicaProvisionedReadCapacityAutoScalingSettings, &memberReplicaAutoScalingDescription_ReplicaProvisionedWriteCapacityAutoScalingSettings, &memberReplicaAutoScalingDescription_ReplicaStatus}}
+var schemaReplicaAutoScalingDescription = smithy.Schema{ID: "com.amazonaws.dynamodb#ReplicaAutoScalingDescription", Type: smithy.TypeStructure}
 
 var memberReplicaAutoScalingDescription_RegionName = smithy.Member{Name: "RegionName", Index: 0, Target: &schemaRegionName}
 
@@ -2009,11 +2009,11 @@ var memberReplicaAutoScalingDescription_ReplicaProvisionedWriteCapacityAutoScali
 
 var memberReplicaAutoScalingDescription_ReplicaStatus = smithy.Member{Name: "ReplicaStatus", Index: 4, Target: &schemaReplicaStatus}
 
-var schemaReplicaAutoScalingDescriptionList = smithy.Schema{ID: "com.amazonaws.dynamodb#ReplicaAutoScalingDescriptionList", Type: smithy.TypeList, Members: []*smithy.Member{&memberReplicaAutoScalingDescriptionList_member}}
+var schemaReplicaAutoScalingDescriptionList = smithy.Schema{ID: "com.amazonaws.dynamodb#ReplicaAutoScalingDescriptionList", Type: smithy.TypeList}
 
 var memberReplicaAutoScalingDescriptionList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaReplicaAutoScalingDescription}
 
-var schemaReplicaAutoScalingUpdate = smithy.Schema{ID: "com.amazonaws.dynamodb#ReplicaAutoScalingUpdate", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberReplicaAutoScalingUpdate_RegionName, &memberReplicaAutoScalingUpdate_ReplicaGlobalSecondaryIndexUpdates, &memberReplicaAutoScalingUpdate_ReplicaProvisionedReadCapacityAutoScalingUpdate}}
+var schemaReplicaAutoScalingUpdate = smithy.Schema{ID: "com.amazonaws.dynamodb#ReplicaAutoScalingUpdate", Type: smithy.TypeStructure}
 
 var memberReplicaAutoScalingUpdate_RegionName = smithy.Member{Name: "RegionName", Index: 0, Target: &schemaRegionName, Required: true}
 
@@ -2021,7 +2021,7 @@ var memberReplicaAutoScalingUpdate_ReplicaGlobalSecondaryIndexUpdates = smithy.M
 
 var memberReplicaAutoScalingUpdate_ReplicaProvisionedReadCapacityAutoScalingUpdate = smithy.Member{Name: "ReplicaProvisionedReadCapacityAutoScalingUpdate", Index: 2, Target: &schemaAutoScalingSettingsUpdate}
 
-var schemaReplicaAutoScalingUpdateList = smithy.Schema{ID: "com.amazonaws.dynamodb#ReplicaAutoScalingUpdateList", Type: smithy.TypeList, Members: []*smithy.Member{&memberReplicaAutoScalingUpdateList_member}}
+var schemaReplicaAutoScalingUpdateList = smithy.Schema{ID: "com.amazonaws.dynamodb#ReplicaAutoScalingUpdateList", Type: smithy.TypeList}
 
 var memberReplicaAutoScalingUpdateList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaReplicaAutoScalingUpdate}
 
@@ -2065,7 +2065,7 @@ var memberReplicaGlobalSecondaryIndex_ProvisionedThroughputOverride = smithy.Mem
 
 var memberReplicaGlobalSecondaryIndex_OnDemandThroughputOverride = smithy.Member{Name: "OnDemandThroughputOverride", Index: 2, Target: &schemaOnDemandThroughputOverride}
 
-var schemaReplicaGlobalSecondaryIndexAutoScalingDescription = smithy.Schema{ID: "com.amazonaws.dynamodb#ReplicaGlobalSecondaryIndexAutoScalingDescription", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberReplicaGlobalSecondaryIndexAutoScalingDescription_IndexName, &memberReplicaGlobalSecondaryIndexAutoScalingDescription_IndexStatus, &memberReplicaGlobalSecondaryIndexAutoScalingDescription_ProvisionedReadCapacityAutoScalingSettings, &memberReplicaGlobalSecondaryIndexAutoScalingDescription_ProvisionedWriteCapacityAutoScalingSettings}}
+var schemaReplicaGlobalSecondaryIndexAutoScalingDescription = smithy.Schema{ID: "com.amazonaws.dynamodb#ReplicaGlobalSecondaryIndexAutoScalingDescription", Type: smithy.TypeStructure}
 
 var memberReplicaGlobalSecondaryIndexAutoScalingDescription_IndexName = smithy.Member{Name: "IndexName", Index: 0, Target: &schemaIndexName}
 
@@ -2075,17 +2075,17 @@ var memberReplicaGlobalSecondaryIndexAutoScalingDescription_ProvisionedReadCapac
 
 var memberReplicaGlobalSecondaryIndexAutoScalingDescription_ProvisionedWriteCapacityAutoScalingSettings = smithy.Member{Name: "ProvisionedWriteCapacityAutoScalingSettings", Index: 3, Target: &schemaAutoScalingSettingsDescription}
 
-var schemaReplicaGlobalSecondaryIndexAutoScalingDescriptionList = smithy.Schema{ID: "com.amazonaws.dynamodb#ReplicaGlobalSecondaryIndexAutoScalingDescriptionList", Type: smithy.TypeList, Members: []*smithy.Member{&memberReplicaGlobalSecondaryIndexAutoScalingDescriptionList_member}}
+var schemaReplicaGlobalSecondaryIndexAutoScalingDescriptionList = smithy.Schema{ID: "com.amazonaws.dynamodb#ReplicaGlobalSecondaryIndexAutoScalingDescriptionList", Type: smithy.TypeList}
 
 var memberReplicaGlobalSecondaryIndexAutoScalingDescriptionList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaReplicaGlobalSecondaryIndexAutoScalingDescription}
 
-var schemaReplicaGlobalSecondaryIndexAutoScalingUpdate = smithy.Schema{ID: "com.amazonaws.dynamodb#ReplicaGlobalSecondaryIndexAutoScalingUpdate", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberReplicaGlobalSecondaryIndexAutoScalingUpdate_IndexName, &memberReplicaGlobalSecondaryIndexAutoScalingUpdate_ProvisionedReadCapacityAutoScalingUpdate}}
+var schemaReplicaGlobalSecondaryIndexAutoScalingUpdate = smithy.Schema{ID: "com.amazonaws.dynamodb#ReplicaGlobalSecondaryIndexAutoScalingUpdate", Type: smithy.TypeStructure}
 
 var memberReplicaGlobalSecondaryIndexAutoScalingUpdate_IndexName = smithy.Member{Name: "IndexName", Index: 0, Target: &schemaIndexName}
 
 var memberReplicaGlobalSecondaryIndexAutoScalingUpdate_ProvisionedReadCapacityAutoScalingUpdate = smithy.Member{Name: "ProvisionedReadCapacityAutoScalingUpdate", Index: 1, Target: &schemaAutoScalingSettingsUpdate}
 
-var schemaReplicaGlobalSecondaryIndexAutoScalingUpdateList = smithy.Schema{ID: "com.amazonaws.dynamodb#ReplicaGlobalSecondaryIndexAutoScalingUpdateList", Type: smithy.TypeList, Members: []*smithy.Member{&memberReplicaGlobalSecondaryIndexAutoScalingUpdateList_member}}
+var schemaReplicaGlobalSecondaryIndexAutoScalingUpdateList = smithy.Schema{ID: "com.amazonaws.dynamodb#ReplicaGlobalSecondaryIndexAutoScalingUpdateList", Type: smithy.TypeList}
 
 var memberReplicaGlobalSecondaryIndexAutoScalingUpdateList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaReplicaGlobalSecondaryIndexAutoScalingUpdate}
 
@@ -2107,7 +2107,7 @@ var schemaReplicaGlobalSecondaryIndexList = smithy.Schema{ID: "com.amazonaws.dyn
 
 var memberReplicaGlobalSecondaryIndexList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaReplicaGlobalSecondaryIndex}
 
-var schemaReplicaGlobalSecondaryIndexSettingsDescription = smithy.Schema{ID: "com.amazonaws.dynamodb#ReplicaGlobalSecondaryIndexSettingsDescription", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberReplicaGlobalSecondaryIndexSettingsDescription_IndexName, &memberReplicaGlobalSecondaryIndexSettingsDescription_IndexStatus, &memberReplicaGlobalSecondaryIndexSettingsDescription_ProvisionedReadCapacityUnits, &memberReplicaGlobalSecondaryIndexSettingsDescription_ProvisionedReadCapacityAutoScalingSettings, &memberReplicaGlobalSecondaryIndexSettingsDescription_ProvisionedWriteCapacityUnits, &memberReplicaGlobalSecondaryIndexSettingsDescription_ProvisionedWriteCapacityAutoScalingSettings}}
+var schemaReplicaGlobalSecondaryIndexSettingsDescription = smithy.Schema{ID: "com.amazonaws.dynamodb#ReplicaGlobalSecondaryIndexSettingsDescription", Type: smithy.TypeStructure}
 
 var memberReplicaGlobalSecondaryIndexSettingsDescription_IndexName = smithy.Member{Name: "IndexName", Index: 0, Target: &schemaIndexName, Required: true}
 
@@ -2121,11 +2121,11 @@ var memberReplicaGlobalSecondaryIndexSettingsDescription_ProvisionedWriteCapacit
 
 var memberReplicaGlobalSecondaryIndexSettingsDescription_ProvisionedWriteCapacityAutoScalingSettings = smithy.Member{Name: "ProvisionedWriteCapacityAutoScalingSettings", Index: 5, Target: &schemaAutoScalingSettingsDescription}
 
-var schemaReplicaGlobalSecondaryIndexSettingsDescriptionList = smithy.Schema{ID: "com.amazonaws.dynamodb#ReplicaGlobalSecondaryIndexSettingsDescriptionList", Type: smithy.TypeList, Members: []*smithy.Member{&memberReplicaGlobalSecondaryIndexSettingsDescriptionList_member}}
+var schemaReplicaGlobalSecondaryIndexSettingsDescriptionList = smithy.Schema{ID: "com.amazonaws.dynamodb#ReplicaGlobalSecondaryIndexSettingsDescriptionList", Type: smithy.TypeList}
 
 var memberReplicaGlobalSecondaryIndexSettingsDescriptionList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaReplicaGlobalSecondaryIndexSettingsDescription}
 
-var schemaReplicaGlobalSecondaryIndexSettingsUpdate = smithy.Schema{ID: "com.amazonaws.dynamodb#ReplicaGlobalSecondaryIndexSettingsUpdate", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberReplicaGlobalSecondaryIndexSettingsUpdate_IndexName, &memberReplicaGlobalSecondaryIndexSettingsUpdate_ProvisionedReadCapacityUnits, &memberReplicaGlobalSecondaryIndexSettingsUpdate_ProvisionedReadCapacityAutoScalingSettingsUpdate}}
+var schemaReplicaGlobalSecondaryIndexSettingsUpdate = smithy.Schema{ID: "com.amazonaws.dynamodb#ReplicaGlobalSecondaryIndexSettingsUpdate", Type: smithy.TypeStructure}
 
 var memberReplicaGlobalSecondaryIndexSettingsUpdate_IndexName = smithy.Member{Name: "IndexName", Index: 0, Target: &schemaIndexName, Required: true}
 
@@ -2133,11 +2133,11 @@ var memberReplicaGlobalSecondaryIndexSettingsUpdate_ProvisionedReadCapacityUnits
 
 var memberReplicaGlobalSecondaryIndexSettingsUpdate_ProvisionedReadCapacityAutoScalingSettingsUpdate = smithy.Member{Name: "ProvisionedReadCapacityAutoScalingSettingsUpdate", Index: 2, Target: &schemaAutoScalingSettingsUpdate}
 
-var schemaReplicaGlobalSecondaryIndexSettingsUpdateList = smithy.Schema{ID: "com.amazonaws.dynamodb#ReplicaGlobalSecondaryIndexSettingsUpdateList", Type: smithy.TypeList, Members: []*smithy.Member{&memberReplicaGlobalSecondaryIndexSettingsUpdateList_member}}
+var schemaReplicaGlobalSecondaryIndexSettingsUpdateList = smithy.Schema{ID: "com.amazonaws.dynamodb#ReplicaGlobalSecondaryIndexSettingsUpdateList", Type: smithy.TypeList}
 
 var memberReplicaGlobalSecondaryIndexSettingsUpdateList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaReplicaGlobalSecondaryIndexSettingsUpdate}
 
-var schemaReplicaList = smithy.Schema{ID: "com.amazonaws.dynamodb#ReplicaList", Type: smithy.TypeList, Members: []*smithy.Member{&memberReplicaList_member}}
+var schemaReplicaList = smithy.Schema{ID: "com.amazonaws.dynamodb#ReplicaList", Type: smithy.TypeList}
 
 var memberReplicaList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaReplica}
 
@@ -2145,7 +2145,7 @@ var schemaReplicaNotFoundException = smithy.Schema{ID: "com.amazonaws.dynamodb#R
 
 var memberReplicaNotFoundException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaErrorMessage}
 
-var schemaReplicaSettingsDescription = smithy.Schema{ID: "com.amazonaws.dynamodb#ReplicaSettingsDescription", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberReplicaSettingsDescription_RegionName, &memberReplicaSettingsDescription_ReplicaStatus, &memberReplicaSettingsDescription_ReplicaBillingModeSummary, &memberReplicaSettingsDescription_ReplicaProvisionedReadCapacityUnits, &memberReplicaSettingsDescription_ReplicaProvisionedReadCapacityAutoScalingSettings, &memberReplicaSettingsDescription_ReplicaProvisionedWriteCapacityUnits, &memberReplicaSettingsDescription_ReplicaProvisionedWriteCapacityAutoScalingSettings, &memberReplicaSettingsDescription_ReplicaGlobalSecondaryIndexSettings, &memberReplicaSettingsDescription_ReplicaTableClassSummary}}
+var schemaReplicaSettingsDescription = smithy.Schema{ID: "com.amazonaws.dynamodb#ReplicaSettingsDescription", Type: smithy.TypeStructure}
 
 var memberReplicaSettingsDescription_RegionName = smithy.Member{Name: "RegionName", Index: 0, Target: &schemaRegionName, Required: true}
 
@@ -2165,11 +2165,11 @@ var memberReplicaSettingsDescription_ReplicaGlobalSecondaryIndexSettings = smith
 
 var memberReplicaSettingsDescription_ReplicaTableClassSummary = smithy.Member{Name: "ReplicaTableClassSummary", Index: 8, Target: &schemaTableClassSummary}
 
-var schemaReplicaSettingsDescriptionList = smithy.Schema{ID: "com.amazonaws.dynamodb#ReplicaSettingsDescriptionList", Type: smithy.TypeList, Members: []*smithy.Member{&memberReplicaSettingsDescriptionList_member}}
+var schemaReplicaSettingsDescriptionList = smithy.Schema{ID: "com.amazonaws.dynamodb#ReplicaSettingsDescriptionList", Type: smithy.TypeList}
 
 var memberReplicaSettingsDescriptionList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaReplicaSettingsDescription}
 
-var schemaReplicaSettingsUpdate = smithy.Schema{ID: "com.amazonaws.dynamodb#ReplicaSettingsUpdate", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberReplicaSettingsUpdate_RegionName, &memberReplicaSettingsUpdate_ReplicaProvisionedReadCapacityUnits, &memberReplicaSettingsUpdate_ReplicaProvisionedReadCapacityAutoScalingSettingsUpdate, &memberReplicaSettingsUpdate_ReplicaGlobalSecondaryIndexSettingsUpdate, &memberReplicaSettingsUpdate_ReplicaTableClass}}
+var schemaReplicaSettingsUpdate = smithy.Schema{ID: "com.amazonaws.dynamodb#ReplicaSettingsUpdate", Type: smithy.TypeStructure}
 
 var memberReplicaSettingsUpdate_RegionName = smithy.Member{Name: "RegionName", Index: 0, Target: &schemaRegionName, Required: true}
 
@@ -2181,7 +2181,7 @@ var memberReplicaSettingsUpdate_ReplicaGlobalSecondaryIndexSettingsUpdate = smit
 
 var memberReplicaSettingsUpdate_ReplicaTableClass = smithy.Member{Name: "ReplicaTableClass", Index: 4, Target: &schemaTableClass}
 
-var schemaReplicaSettingsUpdateList = smithy.Schema{ID: "com.amazonaws.dynamodb#ReplicaSettingsUpdateList", Type: smithy.TypeList, Members: []*smithy.Member{&memberReplicaSettingsUpdateList_member}}
+var schemaReplicaSettingsUpdateList = smithy.Schema{ID: "com.amazonaws.dynamodb#ReplicaSettingsUpdateList", Type: smithy.TypeList}
 
 var memberReplicaSettingsUpdateList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaReplicaSettingsUpdate}
 
@@ -2191,13 +2191,13 @@ var schemaReplicaStatusDescription = smithy.Schema{ID: "com.amazonaws.dynamodb#R
 
 var schemaReplicaStatusPercentProgress = smithy.Schema{ID: "com.amazonaws.dynamodb#ReplicaStatusPercentProgress", Type: smithy.TypeString}
 
-var schemaReplicaUpdate = smithy.Schema{ID: "com.amazonaws.dynamodb#ReplicaUpdate", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberReplicaUpdate_Create, &memberReplicaUpdate_Delete}}
+var schemaReplicaUpdate = smithy.Schema{ID: "com.amazonaws.dynamodb#ReplicaUpdate", Type: smithy.TypeStructure}
 
 var memberReplicaUpdate_Create = smithy.Member{Name: "Create", Index: 0, Target: &schemaCreateReplicaAction}
 
 var memberReplicaUpdate_Delete = smithy.Member{Name: "Delete", Index: 1, Target: &schemaDeleteReplicaAction}
 
-var schemaReplicaUpdateList = smithy.Schema{ID: "com.amazonaws.dynamodb#ReplicaUpdateList", Type: smithy.TypeList, Members: []*smithy.Member{&memberReplicaUpdateList_member}}
+var schemaReplicaUpdateList = smithy.Schema{ID: "com.amazonaws.dynamodb#ReplicaUpdateList", Type: smithy.TypeList}
 
 var memberReplicaUpdateList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaReplicaUpdate}
 
@@ -2253,7 +2253,7 @@ var memberRestoreSummary_RestoreDateTime = smithy.Member{Name: "RestoreDateTime"
 
 var memberRestoreSummary_RestoreInProgress = smithy.Member{Name: "RestoreInProgress", Index: 3, Target: &schemaRestoreInProgress, Required: true}
 
-var schemaRestoreTableFromBackupInput = smithy.Schema{ID: "com.amazonaws.dynamodb#RestoreTableFromBackupInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRestoreTableFromBackupInput_TargetTableName, &memberRestoreTableFromBackupInput_BackupArn, &memberRestoreTableFromBackupInput_BillingModeOverride, &memberRestoreTableFromBackupInput_GlobalSecondaryIndexOverride, &memberRestoreTableFromBackupInput_LocalSecondaryIndexOverride, &memberRestoreTableFromBackupInput_ProvisionedThroughputOverride, &memberRestoreTableFromBackupInput_OnDemandThroughputOverride, &memberRestoreTableFromBackupInput_SSESpecificationOverride, &memberRestoreTableFromBackupInput_VectorIndexOverride}}
+var schemaRestoreTableFromBackupInput = smithy.Schema{ID: "com.amazonaws.dynamodb#RestoreTableFromBackupInput", Type: smithy.TypeStructure}
 
 var memberRestoreTableFromBackupInput_TargetTableName = smithy.Member{Name: "TargetTableName", Index: 0, Target: &schemaTableName, Required: true}
 
@@ -2273,11 +2273,11 @@ var memberRestoreTableFromBackupInput_SSESpecificationOverride = smithy.Member{N
 
 var memberRestoreTableFromBackupInput_VectorIndexOverride = smithy.Member{Name: "VectorIndexOverride", Index: 8, Target: &schemaVectorIndexList}
 
-var schemaRestoreTableFromBackupOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#RestoreTableFromBackupOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRestoreTableFromBackupOutput_TableDescription}}
+var schemaRestoreTableFromBackupOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#RestoreTableFromBackupOutput", Type: smithy.TypeStructure}
 
 var memberRestoreTableFromBackupOutput_TableDescription = smithy.Member{Name: "TableDescription", Index: 0, Target: &schemaTableDescription}
 
-var schemaRestoreTableToPointInTimeInput = smithy.Schema{ID: "com.amazonaws.dynamodb#RestoreTableToPointInTimeInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRestoreTableToPointInTimeInput_SourceTableArn, &memberRestoreTableToPointInTimeInput_SourceTableName, &memberRestoreTableToPointInTimeInput_TargetTableName, &memberRestoreTableToPointInTimeInput_UseLatestRestorableTime, &memberRestoreTableToPointInTimeInput_RestoreDateTime, &memberRestoreTableToPointInTimeInput_BillingModeOverride, &memberRestoreTableToPointInTimeInput_GlobalSecondaryIndexOverride, &memberRestoreTableToPointInTimeInput_LocalSecondaryIndexOverride, &memberRestoreTableToPointInTimeInput_ProvisionedThroughputOverride, &memberRestoreTableToPointInTimeInput_OnDemandThroughputOverride, &memberRestoreTableToPointInTimeInput_SSESpecificationOverride, &memberRestoreTableToPointInTimeInput_VectorIndexOverride}}
+var schemaRestoreTableToPointInTimeInput = smithy.Schema{ID: "com.amazonaws.dynamodb#RestoreTableToPointInTimeInput", Type: smithy.TypeStructure}
 
 var memberRestoreTableToPointInTimeInput_SourceTableArn = smithy.Member{Name: "SourceTableArn", Index: 0, Target: &schemaTableArn}
 
@@ -2303,7 +2303,7 @@ var memberRestoreTableToPointInTimeInput_SSESpecificationOverride = smithy.Membe
 
 var memberRestoreTableToPointInTimeInput_VectorIndexOverride = smithy.Member{Name: "VectorIndexOverride", Index: 11, Target: &schemaVectorIndexList}
 
-var schemaRestoreTableToPointInTimeOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#RestoreTableToPointInTimeOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRestoreTableToPointInTimeOutput_TableDescription}}
+var schemaRestoreTableToPointInTimeOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#RestoreTableToPointInTimeOutput", Type: smithy.TypeStructure}
 
 var memberRestoreTableToPointInTimeOutput_TableDescription = smithy.Member{Name: "TableDescription", Index: 0, Target: &schemaTableDescription}
 
@@ -2319,7 +2319,7 @@ var schemaS3Bucket = smithy.Schema{ID: "com.amazonaws.dynamodb#S3Bucket", Type: 
 
 var schemaS3BucketOwner = smithy.Schema{ID: "com.amazonaws.dynamodb#S3BucketOwner", Type: smithy.TypeString}
 
-var schemaS3BucketSource = smithy.Schema{ID: "com.amazonaws.dynamodb#S3BucketSource", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberS3BucketSource_S3BucketOwner, &memberS3BucketSource_S3Bucket, &memberS3BucketSource_S3KeyPrefix}}
+var schemaS3BucketSource = smithy.Schema{ID: "com.amazonaws.dynamodb#S3BucketSource", Type: smithy.TypeStructure}
 
 var memberS3BucketSource_S3BucketOwner = smithy.Member{Name: "S3BucketOwner", Index: 0, Target: &schemaS3BucketOwner}
 
@@ -2411,13 +2411,13 @@ var schemaScanTotalSegments = smithy.Schema{ID: "com.amazonaws.dynamodb#ScanTota
 
 var schemaScoreNumber = smithy.Schema{ID: "com.amazonaws.dynamodb#ScoreNumber", Type: smithy.TypeDouble}
 
-var schemaSearchResultItem = smithy.Schema{ID: "com.amazonaws.dynamodb#SearchResultItem", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSearchResultItem_Item, &memberSearchResultItem_Score}}
+var schemaSearchResultItem = smithy.Schema{ID: "com.amazonaws.dynamodb#SearchResultItem", Type: smithy.TypeStructure}
 
 var memberSearchResultItem_Item = smithy.Member{Name: "Item", Index: 0, Target: &schemaAttributeMap}
 
 var memberSearchResultItem_Score = smithy.Member{Name: "Score", Index: 1, Target: &schemaScoreNumber, Default: document.Number("0")}
 
-var schemaSearchResultList = smithy.Schema{ID: "com.amazonaws.dynamodb#SearchResultList", Type: smithy.TypeList, Members: []*smithy.Member{&memberSearchResultList_member}}
+var schemaSearchResultList = smithy.Schema{ID: "com.amazonaws.dynamodb#SearchResultList", Type: smithy.TypeList}
 
 var memberSearchResultList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaSearchResultItem}
 
@@ -2433,11 +2433,11 @@ var memberSearchSchemaElement_SearchSchemaElementType = smithy.Member{Name: "Sea
 
 var schemaSearchSchemaElementType = smithy.Schema{ID: "com.amazonaws.dynamodb#SearchSchemaElementType", Type: smithy.TypeEnum}
 
-var schemaSearchVectorList = smithy.Schema{ID: "com.amazonaws.dynamodb#SearchVectorList", Type: smithy.TypeList, Members: []*smithy.Member{&memberSearchVectorList_member}}
+var schemaSearchVectorList = smithy.Schema{ID: "com.amazonaws.dynamodb#SearchVectorList", Type: smithy.TypeList}
 
 var memberSearchVectorList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaAttributeValue}
 
-var schemaSearchVectorsInput = smithy.Schema{ID: "com.amazonaws.dynamodb#SearchVectorsInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSearchVectorsInput_TableName, &memberSearchVectorsInput_IndexName, &memberSearchVectorsInput_ReturnConsumedCapacity, &memberSearchVectorsInput_ExpressionAttributeNames, &memberSearchVectorsInput_ExpressionAttributeValues, &memberSearchVectorsInput_ProjectionExpression, &memberSearchVectorsInput_SearchVector, &memberSearchVectorsInput_SearchConditionExpression, &memberSearchVectorsInput_TopK}}
+var schemaSearchVectorsInput = smithy.Schema{ID: "com.amazonaws.dynamodb#SearchVectorsInput", Type: smithy.TypeStructure}
 
 var memberSearchVectorsInput_TableName = smithy.Member{Name: "TableName", Index: 0, Target: &schemaTableArn, Required: true}
 
@@ -2457,7 +2457,7 @@ var memberSearchVectorsInput_SearchConditionExpression = smithy.Member{Name: "Se
 
 var memberSearchVectorsInput_TopK = smithy.Member{Name: "TopK", Index: 8, Target: &schemaTopKInteger, Required: true}
 
-var schemaSearchVectorsOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#SearchVectorsOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSearchVectorsOutput_ConsumedCapacity, &memberSearchVectorsOutput_SearchResults}}
+var schemaSearchVectorsOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#SearchVectorsOutput", Type: smithy.TypeStructure}
 
 var memberSearchVectorsOutput_ConsumedCapacity = smithy.Member{Name: "ConsumedCapacity", Index: 0, Target: &schemaVectorCapacity}
 
@@ -2479,7 +2479,7 @@ var schemaSmithyString = smithy.Schema{ID: "smithy.api#String", Type: smithy.Typ
 
 var schemaSmithyUnit = smithy.Schema{ID: "smithy.api#Unit", Type: smithy.TypeUnit}
 
-var schemaSourceTableDetails = smithy.Schema{ID: "com.amazonaws.dynamodb#SourceTableDetails", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSourceTableDetails_TableName, &memberSourceTableDetails_TableId, &memberSourceTableDetails_TableArn, &memberSourceTableDetails_TableSizeBytes, &memberSourceTableDetails_KeySchema, &memberSourceTableDetails_TableCreationDateTime, &memberSourceTableDetails_ProvisionedThroughput, &memberSourceTableDetails_OnDemandThroughput, &memberSourceTableDetails_ItemCount, &memberSourceTableDetails_BillingMode}}
+var schemaSourceTableDetails = smithy.Schema{ID: "com.amazonaws.dynamodb#SourceTableDetails", Type: smithy.TypeStructure}
 
 var memberSourceTableDetails_TableName = smithy.Member{Name: "TableName", Index: 0, Target: &schemaTableName, Required: true}
 
@@ -2501,7 +2501,7 @@ var memberSourceTableDetails_ItemCount = smithy.Member{Name: "ItemCount", Index:
 
 var memberSourceTableDetails_BillingMode = smithy.Member{Name: "BillingMode", Index: 9, Target: &schemaBillingMode}
 
-var schemaSourceTableFeatureDetails = smithy.Schema{ID: "com.amazonaws.dynamodb#SourceTableFeatureDetails", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSourceTableFeatureDetails_LocalSecondaryIndexes, &memberSourceTableFeatureDetails_GlobalSecondaryIndexes, &memberSourceTableFeatureDetails_StreamDescription, &memberSourceTableFeatureDetails_TimeToLiveDescription, &memberSourceTableFeatureDetails_SSEDescription, &memberSourceTableFeatureDetails_VectorIndexes}}
+var schemaSourceTableFeatureDetails = smithy.Schema{ID: "com.amazonaws.dynamodb#SourceTableFeatureDetails", Type: smithy.TypeStructure}
 
 var memberSourceTableFeatureDetails_LocalSecondaryIndexes = smithy.Member{Name: "LocalSecondaryIndexes", Index: 0, Target: &schemaLocalSecondaryIndexes}
 
@@ -2541,7 +2541,7 @@ var memberTableAlreadyExistsException_message = smithy.Member{Name: "message", I
 
 var schemaTableArn = smithy.Schema{ID: "com.amazonaws.dynamodb#TableArn", Type: smithy.TypeString}
 
-var schemaTableAutoScalingDescription = smithy.Schema{ID: "com.amazonaws.dynamodb#TableAutoScalingDescription", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberTableAutoScalingDescription_TableName, &memberTableAutoScalingDescription_TableStatus, &memberTableAutoScalingDescription_Replicas}}
+var schemaTableAutoScalingDescription = smithy.Schema{ID: "com.amazonaws.dynamodb#TableAutoScalingDescription", Type: smithy.TypeStructure}
 
 var memberTableAutoScalingDescription_TableName = smithy.Member{Name: "TableName", Index: 0, Target: &schemaTableName}
 
@@ -2559,7 +2559,7 @@ var memberTableClassSummary_LastUpdateDateTime = smithy.Member{Name: "LastUpdate
 
 var schemaTableCreationDateTime = smithy.Schema{ID: "com.amazonaws.dynamodb#TableCreationDateTime", Type: smithy.TypeTimestamp}
 
-var schemaTableCreationParameters = smithy.Schema{ID: "com.amazonaws.dynamodb#TableCreationParameters", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberTableCreationParameters_TableName, &memberTableCreationParameters_AttributeDefinitions, &memberTableCreationParameters_KeySchema, &memberTableCreationParameters_BillingMode, &memberTableCreationParameters_ProvisionedThroughput, &memberTableCreationParameters_OnDemandThroughput, &memberTableCreationParameters_SSESpecification, &memberTableCreationParameters_GlobalSecondaryIndexes, &memberTableCreationParameters_VectorIndexes}}
+var schemaTableCreationParameters = smithy.Schema{ID: "com.amazonaws.dynamodb#TableCreationParameters", Type: smithy.TypeStructure}
 
 var memberTableCreationParameters_TableName = smithy.Member{Name: "TableName", Index: 0, Target: &schemaTableName, Required: true}
 
@@ -2833,7 +2833,7 @@ var schemaUpdateContinuousBackupsOutput = smithy.Schema{ID: "com.amazonaws.dynam
 
 var memberUpdateContinuousBackupsOutput_ContinuousBackupsDescription = smithy.Member{Name: "ContinuousBackupsDescription", Index: 0, Target: &schemaContinuousBackupsDescription}
 
-var schemaUpdateContributorInsightsInput = smithy.Schema{ID: "com.amazonaws.dynamodb#UpdateContributorInsightsInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateContributorInsightsInput_TableName, &memberUpdateContributorInsightsInput_IndexName, &memberUpdateContributorInsightsInput_ContributorInsightsAction, &memberUpdateContributorInsightsInput_ContributorInsightsMode}}
+var schemaUpdateContributorInsightsInput = smithy.Schema{ID: "com.amazonaws.dynamodb#UpdateContributorInsightsInput", Type: smithy.TypeStructure}
 
 var memberUpdateContributorInsightsInput_TableName = smithy.Member{Name: "TableName", Index: 0, Target: &schemaTableArn, Required: true}
 
@@ -2843,7 +2843,7 @@ var memberUpdateContributorInsightsInput_ContributorInsightsAction = smithy.Memb
 
 var memberUpdateContributorInsightsInput_ContributorInsightsMode = smithy.Member{Name: "ContributorInsightsMode", Index: 3, Target: &schemaContributorInsightsMode}
 
-var schemaUpdateContributorInsightsOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#UpdateContributorInsightsOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateContributorInsightsOutput_TableName, &memberUpdateContributorInsightsOutput_IndexName, &memberUpdateContributorInsightsOutput_ContributorInsightsStatus, &memberUpdateContributorInsightsOutput_ContributorInsightsMode}}
+var schemaUpdateContributorInsightsOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#UpdateContributorInsightsOutput", Type: smithy.TypeStructure}
 
 var memberUpdateContributorInsightsOutput_TableName = smithy.Member{Name: "TableName", Index: 0, Target: &schemaTableName}
 
@@ -2865,17 +2865,17 @@ var memberUpdateGlobalSecondaryIndexAction_OnDemandThroughput = smithy.Member{Na
 
 var memberUpdateGlobalSecondaryIndexAction_WarmThroughput = smithy.Member{Name: "WarmThroughput", Index: 3, Target: &schemaWarmThroughput}
 
-var schemaUpdateGlobalTableInput = smithy.Schema{ID: "com.amazonaws.dynamodb#UpdateGlobalTableInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateGlobalTableInput_GlobalTableName, &memberUpdateGlobalTableInput_ReplicaUpdates}}
+var schemaUpdateGlobalTableInput = smithy.Schema{ID: "com.amazonaws.dynamodb#UpdateGlobalTableInput", Type: smithy.TypeStructure}
 
 var memberUpdateGlobalTableInput_GlobalTableName = smithy.Member{Name: "GlobalTableName", Index: 0, Target: &schemaTableName, Required: true}
 
 var memberUpdateGlobalTableInput_ReplicaUpdates = smithy.Member{Name: "ReplicaUpdates", Index: 1, Target: &schemaReplicaUpdateList, Required: true}
 
-var schemaUpdateGlobalTableOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#UpdateGlobalTableOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateGlobalTableOutput_GlobalTableDescription}}
+var schemaUpdateGlobalTableOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#UpdateGlobalTableOutput", Type: smithy.TypeStructure}
 
 var memberUpdateGlobalTableOutput_GlobalTableDescription = smithy.Member{Name: "GlobalTableDescription", Index: 0, Target: &schemaGlobalTableDescription}
 
-var schemaUpdateGlobalTableSettingsInput = smithy.Schema{ID: "com.amazonaws.dynamodb#UpdateGlobalTableSettingsInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateGlobalTableSettingsInput_GlobalTableName, &memberUpdateGlobalTableSettingsInput_GlobalTableBillingMode, &memberUpdateGlobalTableSettingsInput_GlobalTableProvisionedWriteCapacityUnits, &memberUpdateGlobalTableSettingsInput_GlobalTableProvisionedWriteCapacityAutoScalingSettingsUpdate, &memberUpdateGlobalTableSettingsInput_GlobalTableGlobalSecondaryIndexSettingsUpdate, &memberUpdateGlobalTableSettingsInput_ReplicaSettingsUpdate}}
+var schemaUpdateGlobalTableSettingsInput = smithy.Schema{ID: "com.amazonaws.dynamodb#UpdateGlobalTableSettingsInput", Type: smithy.TypeStructure}
 
 var memberUpdateGlobalTableSettingsInput_GlobalTableName = smithy.Member{Name: "GlobalTableName", Index: 0, Target: &schemaTableName, Required: true}
 
@@ -2889,7 +2889,7 @@ var memberUpdateGlobalTableSettingsInput_GlobalTableGlobalSecondaryIndexSettings
 
 var memberUpdateGlobalTableSettingsInput_ReplicaSettingsUpdate = smithy.Member{Name: "ReplicaSettingsUpdate", Index: 5, Target: &schemaReplicaSettingsUpdateList}
 
-var schemaUpdateGlobalTableSettingsOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#UpdateGlobalTableSettingsOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateGlobalTableSettingsOutput_GlobalTableName, &memberUpdateGlobalTableSettingsOutput_ReplicaSettings}}
+var schemaUpdateGlobalTableSettingsOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#UpdateGlobalTableSettingsOutput", Type: smithy.TypeStructure}
 
 var memberUpdateGlobalTableSettingsOutput_GlobalTableName = smithy.Member{Name: "GlobalTableName", Index: 0, Target: &schemaTableName}
 
@@ -2931,11 +2931,11 @@ var memberUpdateItemOutput_ConsumedCapacity = smithy.Member{Name: "ConsumedCapac
 
 var memberUpdateItemOutput_ItemCollectionMetrics = smithy.Member{Name: "ItemCollectionMetrics", Index: 2, Target: &schemaItemCollectionMetrics}
 
-var schemaUpdateKinesisStreamingConfiguration = smithy.Schema{ID: "com.amazonaws.dynamodb#UpdateKinesisStreamingConfiguration", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateKinesisStreamingConfiguration_ApproximateCreationDateTimePrecision}}
+var schemaUpdateKinesisStreamingConfiguration = smithy.Schema{ID: "com.amazonaws.dynamodb#UpdateKinesisStreamingConfiguration", Type: smithy.TypeStructure}
 
 var memberUpdateKinesisStreamingConfiguration_ApproximateCreationDateTimePrecision = smithy.Member{Name: "ApproximateCreationDateTimePrecision", Index: 0, Target: &schemaApproximateCreationDateTimePrecision}
 
-var schemaUpdateKinesisStreamingDestinationInput = smithy.Schema{ID: "com.amazonaws.dynamodb#UpdateKinesisStreamingDestinationInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateKinesisStreamingDestinationInput_TableName, &memberUpdateKinesisStreamingDestinationInput_StreamArn, &memberUpdateKinesisStreamingDestinationInput_UpdateKinesisStreamingConfiguration}}
+var schemaUpdateKinesisStreamingDestinationInput = smithy.Schema{ID: "com.amazonaws.dynamodb#UpdateKinesisStreamingDestinationInput", Type: smithy.TypeStructure}
 
 var memberUpdateKinesisStreamingDestinationInput_TableName = smithy.Member{Name: "TableName", Index: 0, Target: &schemaTableArn, Required: true}
 
@@ -2943,7 +2943,7 @@ var memberUpdateKinesisStreamingDestinationInput_StreamArn = smithy.Member{Name:
 
 var memberUpdateKinesisStreamingDestinationInput_UpdateKinesisStreamingConfiguration = smithy.Member{Name: "UpdateKinesisStreamingConfiguration", Index: 2, Target: &schemaUpdateKinesisStreamingConfiguration}
 
-var schemaUpdateKinesisStreamingDestinationOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#UpdateKinesisStreamingDestinationOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateKinesisStreamingDestinationOutput_TableName, &memberUpdateKinesisStreamingDestinationOutput_StreamArn, &memberUpdateKinesisStreamingDestinationOutput_DestinationStatus, &memberUpdateKinesisStreamingDestinationOutput_UpdateKinesisStreamingConfiguration}}
+var schemaUpdateKinesisStreamingDestinationOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#UpdateKinesisStreamingDestinationOutput", Type: smithy.TypeStructure}
 
 var memberUpdateKinesisStreamingDestinationOutput_TableName = smithy.Member{Name: "TableName", Index: 0, Target: &schemaTableName}
 
@@ -3005,7 +3005,7 @@ var schemaUpdateTableOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#UpdateTa
 
 var memberUpdateTableOutput_TableDescription = smithy.Member{Name: "TableDescription", Index: 0, Target: &schemaTableDescription}
 
-var schemaUpdateTableReplicaAutoScalingInput = smithy.Schema{ID: "com.amazonaws.dynamodb#UpdateTableReplicaAutoScalingInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateTableReplicaAutoScalingInput_GlobalSecondaryIndexUpdates, &memberUpdateTableReplicaAutoScalingInput_TableName, &memberUpdateTableReplicaAutoScalingInput_ProvisionedWriteCapacityAutoScalingUpdate, &memberUpdateTableReplicaAutoScalingInput_ReplicaUpdates}}
+var schemaUpdateTableReplicaAutoScalingInput = smithy.Schema{ID: "com.amazonaws.dynamodb#UpdateTableReplicaAutoScalingInput", Type: smithy.TypeStructure}
 
 var memberUpdateTableReplicaAutoScalingInput_GlobalSecondaryIndexUpdates = smithy.Member{Name: "GlobalSecondaryIndexUpdates", Index: 0, Target: &schemaGlobalSecondaryIndexAutoScalingUpdateList}
 
@@ -3015,7 +3015,7 @@ var memberUpdateTableReplicaAutoScalingInput_ProvisionedWriteCapacityAutoScaling
 
 var memberUpdateTableReplicaAutoScalingInput_ReplicaUpdates = smithy.Member{Name: "ReplicaUpdates", Index: 3, Target: &schemaReplicaAutoScalingUpdateList}
 
-var schemaUpdateTableReplicaAutoScalingOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#UpdateTableReplicaAutoScalingOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateTableReplicaAutoScalingOutput_TableAutoScalingDescription}}
+var schemaUpdateTableReplicaAutoScalingOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#UpdateTableReplicaAutoScalingOutput", Type: smithy.TypeStructure}
 
 var memberUpdateTableReplicaAutoScalingOutput_TableAutoScalingDescription = smithy.Member{Name: "TableAutoScalingDescription", Index: 0, Target: &schemaTableAutoScalingDescription}
 
@@ -3089,7 +3089,7 @@ var schemaVectorIndexDescriptionList = smithy.Schema{ID: "com.amazonaws.dynamodb
 
 var memberVectorIndexDescriptionList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaVectorIndexDescription}
 
-var schemaVectorIndexInfo = smithy.Schema{ID: "com.amazonaws.dynamodb#VectorIndexInfo", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberVectorIndexInfo_IndexName, &memberVectorIndexInfo_VectorAttribute, &memberVectorIndexInfo_SearchSchema, &memberVectorIndexInfo_Projection, &memberVectorIndexInfo_Dimensions, &memberVectorIndexInfo_DistanceFunction}}
+var schemaVectorIndexInfo = smithy.Schema{ID: "com.amazonaws.dynamodb#VectorIndexInfo", Type: smithy.TypeStructure}
 
 var memberVectorIndexInfo_IndexName = smithy.Member{Name: "IndexName", Index: 0, Target: &schemaIndexName}
 
@@ -3117,7 +3117,7 @@ var schemaVectorIndexUpdateList = smithy.Schema{ID: "com.amazonaws.dynamodb#Vect
 
 var memberVectorIndexUpdateList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaVectorIndexUpdate}
 
-var schemaVectorIndexes = smithy.Schema{ID: "com.amazonaws.dynamodb#VectorIndexes", Type: smithy.TypeList, Members: []*smithy.Member{&memberVectorIndexes_member}}
+var schemaVectorIndexes = smithy.Schema{ID: "com.amazonaws.dynamodb#VectorIndexes", Type: smithy.TypeList}
 
 var memberVectorIndexes_member = smithy.Member{Name: "member", Index: 0, Target: &schemaVectorIndexInfo}
 

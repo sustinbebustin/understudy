@@ -28,7 +28,7 @@ var schemaChannelARN = smithy.Schema{ID: "com.amazonaws.kinesis#ChannelARN", Typ
 
 var schemaChannelCountObject = smithy.Schema{ID: "com.amazonaws.kinesis#ChannelCountObject", Type: smithy.TypeInteger}
 
-var schemaChannelDescription = smithy.Schema{ID: "com.amazonaws.kinesis#ChannelDescription", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberChannelDescription_ChannelName, &memberChannelDescription_ChannelARN, &memberChannelDescription_ChannelId, &memberChannelDescription_ChannelStatus, &memberChannelDescription_ChannelStatusReason, &memberChannelDescription_ChannelCreationTimestamp, &memberChannelDescription_ServiceExecutionRoleARN, &memberChannelDescription_StreamConfigurationList, &memberChannelDescription_S3DestinationConfiguration, &memberChannelDescription_S3TablesDestinationConfiguration, &memberChannelDescription_EncryptionConfiguration, &memberChannelDescription_LoggingConfiguration}}
+var schemaChannelDescription = smithy.Schema{ID: "com.amazonaws.kinesis#ChannelDescription", Type: smithy.TypeStructure}
 
 var memberChannelDescription_ChannelName = smithy.Member{Name: "ChannelName", Index: 0, Target: &schemaChannelName, Required: true}
 
@@ -56,7 +56,7 @@ var memberChannelDescription_LoggingConfiguration = smithy.Member{Name: "Logging
 
 var schemaChannelDestinationType = smithy.Schema{ID: "com.amazonaws.kinesis#ChannelDestinationType", Type: smithy.TypeEnum}
 
-var schemaChannelEncryptionConfiguration = smithy.Schema{ID: "com.amazonaws.kinesis#ChannelEncryptionConfiguration", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberChannelEncryptionConfiguration_EncryptionType, &memberChannelEncryptionConfiguration_KeyId}}
+var schemaChannelEncryptionConfiguration = smithy.Schema{ID: "com.amazonaws.kinesis#ChannelEncryptionConfiguration", Type: smithy.TypeStructure}
 
 var memberChannelEncryptionConfiguration_EncryptionType = smithy.Member{Name: "EncryptionType", Index: 0, Target: &schemaChannelEncryptionType, Required: true}
 
@@ -66,11 +66,11 @@ var schemaChannelEncryptionType = smithy.Schema{ID: "com.amazonaws.kinesis#Chann
 
 var schemaChannelId = smithy.Schema{ID: "com.amazonaws.kinesis#ChannelId", Type: smithy.TypeString}
 
-var schemaChannelLoggingConfiguration = smithy.Schema{ID: "com.amazonaws.kinesis#ChannelLoggingConfiguration", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberChannelLoggingConfiguration_CloudWatchLogs}}
+var schemaChannelLoggingConfiguration = smithy.Schema{ID: "com.amazonaws.kinesis#ChannelLoggingConfiguration", Type: smithy.TypeStructure}
 
 var memberChannelLoggingConfiguration_CloudWatchLogs = smithy.Member{Name: "CloudWatchLogs", Index: 0, Target: &schemaCloudWatchLogs, Required: true}
 
-var schemaChannelLoggingUpdateInput = smithy.Schema{ID: "com.amazonaws.kinesis#ChannelLoggingUpdateInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberChannelLoggingUpdateInput_CloudWatchLogs}}
+var schemaChannelLoggingUpdateInput = smithy.Schema{ID: "com.amazonaws.kinesis#ChannelLoggingUpdateInput", Type: smithy.TypeStructure}
 
 var memberChannelLoggingUpdateInput_CloudWatchLogs = smithy.Member{Name: "CloudWatchLogs", Index: 0, Target: &schemaCloudWatchLogsUpdateInput, Required: true}
 
@@ -80,17 +80,17 @@ var schemaChannelStatus = smithy.Schema{ID: "com.amazonaws.kinesis#ChannelStatus
 
 var schemaChannelStatusReason = smithy.Schema{ID: "com.amazonaws.kinesis#ChannelStatusReason", Type: smithy.TypeString}
 
-var schemaChannelStreamConfiguration = smithy.Schema{ID: "com.amazonaws.kinesis#ChannelStreamConfiguration", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberChannelStreamConfiguration_StreamARN, &memberChannelStreamConfiguration_RecordConfiguration}}
+var schemaChannelStreamConfiguration = smithy.Schema{ID: "com.amazonaws.kinesis#ChannelStreamConfiguration", Type: smithy.TypeStructure}
 
 var memberChannelStreamConfiguration_StreamARN = smithy.Member{Name: "StreamARN", Index: 0, Target: &schemaStreamARN, Required: true}
 
 var memberChannelStreamConfiguration_RecordConfiguration = smithy.Member{Name: "RecordConfiguration", Index: 1, Target: &schemaRecordConfiguration, Required: true}
 
-var schemaChannelStreamConfigurationList = smithy.Schema{ID: "com.amazonaws.kinesis#ChannelStreamConfigurationList", Type: smithy.TypeList, Members: []*smithy.Member{&memberChannelStreamConfigurationList_member}}
+var schemaChannelStreamConfigurationList = smithy.Schema{ID: "com.amazonaws.kinesis#ChannelStreamConfigurationList", Type: smithy.TypeList}
 
 var memberChannelStreamConfigurationList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaChannelStreamConfiguration}
 
-var schemaChannelStreamDescription = smithy.Schema{ID: "com.amazonaws.kinesis#ChannelStreamDescription", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberChannelStreamDescription_StreamARN, &memberChannelStreamDescription_StreamCreationTimestamp, &memberChannelStreamDescription_RecordConfiguration}}
+var schemaChannelStreamDescription = smithy.Schema{ID: "com.amazonaws.kinesis#ChannelStreamDescription", Type: smithy.TypeStructure}
 
 var memberChannelStreamDescription_StreamARN = smithy.Member{Name: "StreamARN", Index: 0, Target: &schemaStreamARN, Required: true}
 
@@ -98,21 +98,21 @@ var memberChannelStreamDescription_StreamCreationTimestamp = smithy.Member{Name:
 
 var memberChannelStreamDescription_RecordConfiguration = smithy.Member{Name: "RecordConfiguration", Index: 2, Target: &schemaRecordConfiguration, Required: true}
 
-var schemaChannelStreamDescriptionList = smithy.Schema{ID: "com.amazonaws.kinesis#ChannelStreamDescriptionList", Type: smithy.TypeList, Members: []*smithy.Member{&memberChannelStreamDescriptionList_member}}
+var schemaChannelStreamDescriptionList = smithy.Schema{ID: "com.amazonaws.kinesis#ChannelStreamDescriptionList", Type: smithy.TypeList}
 
 var memberChannelStreamDescriptionList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaChannelStreamDescription}
 
-var schemaChannelStreamIdentifier = smithy.Schema{ID: "com.amazonaws.kinesis#ChannelStreamIdentifier", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberChannelStreamIdentifier_StreamARN, &memberChannelStreamIdentifier_StreamCreationTimestamp}}
+var schemaChannelStreamIdentifier = smithy.Schema{ID: "com.amazonaws.kinesis#ChannelStreamIdentifier", Type: smithy.TypeStructure}
 
 var memberChannelStreamIdentifier_StreamARN = smithy.Member{Name: "StreamARN", Index: 0, Target: &schemaStreamARN, Required: true}
 
 var memberChannelStreamIdentifier_StreamCreationTimestamp = smithy.Member{Name: "StreamCreationTimestamp", Index: 1, Target: &schemaTimestamp, Required: true}
 
-var schemaChannelStreamIdentifierList = smithy.Schema{ID: "com.amazonaws.kinesis#ChannelStreamIdentifierList", Type: smithy.TypeList, Members: []*smithy.Member{&memberChannelStreamIdentifierList_member}}
+var schemaChannelStreamIdentifierList = smithy.Schema{ID: "com.amazonaws.kinesis#ChannelStreamIdentifierList", Type: smithy.TypeList}
 
 var memberChannelStreamIdentifierList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaChannelStreamIdentifier}
 
-var schemaChannelSummary = smithy.Schema{ID: "com.amazonaws.kinesis#ChannelSummary", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberChannelSummary_ChannelName, &memberChannelSummary_ChannelARN, &memberChannelSummary_ChannelId, &memberChannelSummary_ChannelStatus, &memberChannelSummary_ChannelStatusReason, &memberChannelSummary_ChannelCreationTimestamp, &memberChannelSummary_ChannelDestinationType, &memberChannelSummary_Streams}}
+var schemaChannelSummary = smithy.Schema{ID: "com.amazonaws.kinesis#ChannelSummary", Type: smithy.TypeStructure}
 
 var memberChannelSummary_ChannelName = smithy.Member{Name: "ChannelName", Index: 0, Target: &schemaChannelName, Required: true}
 
@@ -130,7 +130,7 @@ var memberChannelSummary_ChannelDestinationType = smithy.Member{Name: "ChannelDe
 
 var memberChannelSummary_Streams = smithy.Member{Name: "Streams", Index: 7, Target: &schemaChannelStreamIdentifierList, Required: true}
 
-var schemaChannelSummaryList = smithy.Schema{ID: "com.amazonaws.kinesis#ChannelSummaryList", Type: smithy.TypeList, Members: []*smithy.Member{&memberChannelSummaryList_member}}
+var schemaChannelSummaryList = smithy.Schema{ID: "com.amazonaws.kinesis#ChannelSummaryList", Type: smithy.TypeList}
 
 var memberChannelSummaryList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaChannelSummary}
 
@@ -150,7 +150,7 @@ var schemaCloudWatchLogGroupName = smithy.Schema{ID: "com.amazonaws.kinesis#Clou
 
 var schemaCloudWatchLogStreamName = smithy.Schema{ID: "com.amazonaws.kinesis#CloudWatchLogStreamName", Type: smithy.TypeString}
 
-var schemaCloudWatchLogs = smithy.Schema{ID: "com.amazonaws.kinesis#CloudWatchLogs", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCloudWatchLogs_Enabled, &memberCloudWatchLogs_LogGroupName, &memberCloudWatchLogs_LogStreamName}}
+var schemaCloudWatchLogs = smithy.Schema{ID: "com.amazonaws.kinesis#CloudWatchLogs", Type: smithy.TypeStructure}
 
 var memberCloudWatchLogs_Enabled = smithy.Member{Name: "Enabled", Index: 0, Target: &schemaBooleanObject, Required: true}
 
@@ -158,7 +158,7 @@ var memberCloudWatchLogs_LogGroupName = smithy.Member{Name: "LogGroupName", Inde
 
 var memberCloudWatchLogs_LogStreamName = smithy.Member{Name: "LogStreamName", Index: 2, Target: &schemaCloudWatchLogStreamName}
 
-var schemaCloudWatchLogsUpdateInput = smithy.Schema{ID: "com.amazonaws.kinesis#CloudWatchLogsUpdateInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCloudWatchLogsUpdateInput_Enabled, &memberCloudWatchLogsUpdateInput_LogGroupName, &memberCloudWatchLogsUpdateInput_LogStreamName}}
+var schemaCloudWatchLogsUpdateInput = smithy.Schema{ID: "com.amazonaws.kinesis#CloudWatchLogsUpdateInput", Type: smithy.TypeStructure}
 
 var memberCloudWatchLogsUpdateInput_Enabled = smithy.Member{Name: "Enabled", Index: 0, Target: &schemaBooleanObject, Required: true}
 
@@ -166,7 +166,7 @@ var memberCloudWatchLogsUpdateInput_LogGroupName = smithy.Member{Name: "LogGroup
 
 var memberCloudWatchLogsUpdateInput_LogStreamName = smithy.Member{Name: "LogStreamName", Index: 2, Target: &schemaCloudWatchLogStreamName}
 
-var schemaConsumer = smithy.Schema{ID: "com.amazonaws.kinesis#Consumer", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberConsumer_ConsumerName, &memberConsumer_ConsumerARN, &memberConsumer_ConsumerStatus, &memberConsumer_ConsumerCreationTimestamp}}
+var schemaConsumer = smithy.Schema{ID: "com.amazonaws.kinesis#Consumer", Type: smithy.TypeStructure}
 
 var memberConsumer_ConsumerName = smithy.Member{Name: "ConsumerName", Index: 0, Target: &schemaConsumerName, Required: true}
 
@@ -180,7 +180,7 @@ var schemaConsumerARN = smithy.Schema{ID: "com.amazonaws.kinesis#ConsumerARN", T
 
 var schemaConsumerCountObject = smithy.Schema{ID: "com.amazonaws.kinesis#ConsumerCountObject", Type: smithy.TypeInteger}
 
-var schemaConsumerDescription = smithy.Schema{ID: "com.amazonaws.kinesis#ConsumerDescription", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberConsumerDescription_ConsumerName, &memberConsumerDescription_ConsumerARN, &memberConsumerDescription_ConsumerStatus, &memberConsumerDescription_ConsumerCreationTimestamp, &memberConsumerDescription_StreamARN}}
+var schemaConsumerDescription = smithy.Schema{ID: "com.amazonaws.kinesis#ConsumerDescription", Type: smithy.TypeStructure}
 
 var memberConsumerDescription_ConsumerName = smithy.Member{Name: "ConsumerName", Index: 0, Target: &schemaConsumerName, Required: true}
 
@@ -192,7 +192,7 @@ var memberConsumerDescription_ConsumerCreationTimestamp = smithy.Member{Name: "C
 
 var memberConsumerDescription_StreamARN = smithy.Member{Name: "StreamARN", Index: 4, Target: &schemaStreamARN, Required: true}
 
-var schemaConsumerList = smithy.Schema{ID: "com.amazonaws.kinesis#ConsumerList", Type: smithy.TypeList, Members: []*smithy.Member{&memberConsumerList_member}}
+var schemaConsumerList = smithy.Schema{ID: "com.amazonaws.kinesis#ConsumerList", Type: smithy.TypeList}
 
 var memberConsumerList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaConsumer}
 
@@ -208,7 +208,7 @@ var schemaCoralValidateValidationException = smithy.Schema{ID: "com.amazon.coral
 
 var memberCoralValidateValidationException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaCreateChannelInput = smithy.Schema{ID: "com.amazonaws.kinesis#CreateChannelInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateChannelInput_ChannelName, &memberCreateChannelInput_ServiceExecutionRoleARN, &memberCreateChannelInput_StreamConfigurationList, &memberCreateChannelInput_S3DestinationConfiguration, &memberCreateChannelInput_S3TablesDestinationConfiguration, &memberCreateChannelInput_EncryptionConfiguration, &memberCreateChannelInput_Tags, &memberCreateChannelInput_LoggingConfiguration}}
+var schemaCreateChannelInput = smithy.Schema{ID: "com.amazonaws.kinesis#CreateChannelInput", Type: smithy.TypeStructure}
 
 var memberCreateChannelInput_ChannelName = smithy.Member{Name: "ChannelName", Index: 0, Target: &schemaChannelName, Required: true}
 
@@ -226,7 +226,7 @@ var memberCreateChannelInput_Tags = smithy.Member{Name: "Tags", Index: 6, Target
 
 var memberCreateChannelInput_LoggingConfiguration = smithy.Member{Name: "LoggingConfiguration", Index: 7, Target: &schemaChannelLoggingConfiguration}
 
-var schemaCreateChannelOutput = smithy.Schema{ID: "com.amazonaws.kinesis#CreateChannelOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateChannelOutput_ChannelDescription}}
+var schemaCreateChannelOutput = smithy.Schema{ID: "com.amazonaws.kinesis#CreateChannelOutput", Type: smithy.TypeStructure}
 
 var memberCreateChannelOutput_ChannelDescription = smithy.Member{Name: "ChannelDescription", Index: 0, Target: &schemaChannelDescription, Required: true}
 
@@ -250,7 +250,7 @@ var schemaData = smithy.Schema{ID: "com.amazonaws.kinesis#Data", Type: smithy.Ty
 
 var schemaDataFreshnessInSeconds = smithy.Schema{ID: "com.amazonaws.kinesis#DataFreshnessInSeconds", Type: smithy.TypeInteger}
 
-var schemaDeadLetterQueueS3Configuration = smithy.Schema{ID: "com.amazonaws.kinesis#DeadLetterQueueS3Configuration", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeadLetterQueueS3Configuration_BucketARN, &memberDeadLetterQueueS3Configuration_ExpectedBucketOwner, &memberDeadLetterQueueS3Configuration_ErrorOutputPrefix}}
+var schemaDeadLetterQueueS3Configuration = smithy.Schema{ID: "com.amazonaws.kinesis#DeadLetterQueueS3Configuration", Type: smithy.TypeStructure}
 
 var memberDeadLetterQueueS3Configuration_BucketARN = smithy.Member{Name: "BucketARN", Index: 0, Target: &schemaBucketARN, Required: true}
 
@@ -268,11 +268,11 @@ var memberDecreaseStreamRetentionPeriodInput_StreamARN = smithy.Member{Name: "St
 
 var memberDecreaseStreamRetentionPeriodInput_StreamId = smithy.Member{Name: "StreamId", Index: 3, Target: &schemaStreamId}
 
-var schemaDeleteChannelInput = smithy.Schema{ID: "com.amazonaws.kinesis#DeleteChannelInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteChannelInput_ChannelARN}}
+var schemaDeleteChannelInput = smithy.Schema{ID: "com.amazonaws.kinesis#DeleteChannelInput", Type: smithy.TypeStructure}
 
 var memberDeleteChannelInput_ChannelARN = smithy.Member{Name: "ChannelARN", Index: 0, Target: &schemaChannelARN, Required: true}
 
-var schemaDeleteResourcePolicyInput = smithy.Schema{ID: "com.amazonaws.kinesis#DeleteResourcePolicyInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteResourcePolicyInput_ResourceARN, &memberDeleteResourcePolicyInput_StreamId}}
+var schemaDeleteResourcePolicyInput = smithy.Schema{ID: "com.amazonaws.kinesis#DeleteResourcePolicyInput", Type: smithy.TypeStructure}
 
 var memberDeleteResourcePolicyInput_ResourceARN = smithy.Member{Name: "ResourceARN", Index: 0, Target: &schemaResourceARN, Required: true}
 
@@ -288,7 +288,7 @@ var memberDeleteStreamInput_StreamARN = smithy.Member{Name: "StreamARN", Index: 
 
 var memberDeleteStreamInput_StreamId = smithy.Member{Name: "StreamId", Index: 3, Target: &schemaStreamId}
 
-var schemaDeregisterStreamConsumerInput = smithy.Schema{ID: "com.amazonaws.kinesis#DeregisterStreamConsumerInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeregisterStreamConsumerInput_StreamARN, &memberDeregisterStreamConsumerInput_ConsumerName, &memberDeregisterStreamConsumerInput_ConsumerARN, &memberDeregisterStreamConsumerInput_StreamId}}
+var schemaDeregisterStreamConsumerInput = smithy.Schema{ID: "com.amazonaws.kinesis#DeregisterStreamConsumerInput", Type: smithy.TypeStructure}
 
 var memberDeregisterStreamConsumerInput_StreamARN = smithy.Member{Name: "StreamARN", Index: 0, Target: &schemaStreamARN}
 
@@ -300,15 +300,15 @@ var memberDeregisterStreamConsumerInput_StreamId = smithy.Member{Name: "StreamId
 
 var schemaDescribeAccountSettingsInput = smithy.Schema{ID: "com.amazonaws.kinesis#DescribeAccountSettingsInput", Type: smithy.TypeStructure}
 
-var schemaDescribeAccountSettingsOutput = smithy.Schema{ID: "com.amazonaws.kinesis#DescribeAccountSettingsOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeAccountSettingsOutput_MinimumThroughputBillingCommitment}}
+var schemaDescribeAccountSettingsOutput = smithy.Schema{ID: "com.amazonaws.kinesis#DescribeAccountSettingsOutput", Type: smithy.TypeStructure}
 
 var memberDescribeAccountSettingsOutput_MinimumThroughputBillingCommitment = smithy.Member{Name: "MinimumThroughputBillingCommitment", Index: 0, Target: &schemaMinimumThroughputBillingCommitmentOutput}
 
-var schemaDescribeChannelInput = smithy.Schema{ID: "com.amazonaws.kinesis#DescribeChannelInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeChannelInput_ChannelARN}}
+var schemaDescribeChannelInput = smithy.Schema{ID: "com.amazonaws.kinesis#DescribeChannelInput", Type: smithy.TypeStructure}
 
 var memberDescribeChannelInput_ChannelARN = smithy.Member{Name: "ChannelARN", Index: 0, Target: &schemaChannelARN, Required: true}
 
-var schemaDescribeChannelOutput = smithy.Schema{ID: "com.amazonaws.kinesis#DescribeChannelOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeChannelOutput_ChannelDescription}}
+var schemaDescribeChannelOutput = smithy.Schema{ID: "com.amazonaws.kinesis#DescribeChannelOutput", Type: smithy.TypeStructure}
 
 var memberDescribeChannelOutput_ChannelDescription = smithy.Member{Name: "ChannelDescription", Index: 0, Target: &schemaChannelDescription, Required: true}
 
@@ -328,7 +328,7 @@ var memberDescribeLimitsOutput_ChannelCount = smithy.Member{Name: "ChannelCount"
 
 var memberDescribeLimitsOutput_ChannelCountLimit = smithy.Member{Name: "ChannelCountLimit", Index: 5, Target: &schemaChannelCountObject}
 
-var schemaDescribeStreamConsumerInput = smithy.Schema{ID: "com.amazonaws.kinesis#DescribeStreamConsumerInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeStreamConsumerInput_StreamARN, &memberDescribeStreamConsumerInput_ConsumerName, &memberDescribeStreamConsumerInput_ConsumerARN, &memberDescribeStreamConsumerInput_StreamId}}
+var schemaDescribeStreamConsumerInput = smithy.Schema{ID: "com.amazonaws.kinesis#DescribeStreamConsumerInput", Type: smithy.TypeStructure}
 
 var memberDescribeStreamConsumerInput_StreamARN = smithy.Member{Name: "StreamARN", Index: 0, Target: &schemaStreamARN}
 
@@ -338,7 +338,7 @@ var memberDescribeStreamConsumerInput_ConsumerARN = smithy.Member{Name: "Consume
 
 var memberDescribeStreamConsumerInput_StreamId = smithy.Member{Name: "StreamId", Index: 3, Target: &schemaStreamId}
 
-var schemaDescribeStreamConsumerOutput = smithy.Schema{ID: "com.amazonaws.kinesis#DescribeStreamConsumerOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeStreamConsumerOutput_ConsumerDescription}}
+var schemaDescribeStreamConsumerOutput = smithy.Schema{ID: "com.amazonaws.kinesis#DescribeStreamConsumerOutput", Type: smithy.TypeStructure}
 
 var memberDescribeStreamConsumerOutput_ConsumerDescription = smithy.Member{Name: "ConsumerDescription", Index: 0, Target: &schemaConsumerDescription, Required: true}
 
@@ -460,13 +460,13 @@ var memberGetRecordsOutput_MillisBehindLatest = smithy.Member{Name: "MillisBehin
 
 var memberGetRecordsOutput_ChildShards = smithy.Member{Name: "ChildShards", Index: 3, Target: &schemaChildShardList}
 
-var schemaGetResourcePolicyInput = smithy.Schema{ID: "com.amazonaws.kinesis#GetResourcePolicyInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetResourcePolicyInput_ResourceARN, &memberGetResourcePolicyInput_StreamId}}
+var schemaGetResourcePolicyInput = smithy.Schema{ID: "com.amazonaws.kinesis#GetResourcePolicyInput", Type: smithy.TypeStructure}
 
 var memberGetResourcePolicyInput_ResourceARN = smithy.Member{Name: "ResourceARN", Index: 0, Target: &schemaResourceARN, Required: true}
 
 var memberGetResourcePolicyInput_StreamId = smithy.Member{Name: "StreamId", Index: 1, Target: &schemaStreamId}
 
-var schemaGetResourcePolicyOutput = smithy.Schema{ID: "com.amazonaws.kinesis#GetResourcePolicyOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetResourcePolicyOutput_Policy}}
+var schemaGetResourcePolicyOutput = smithy.Schema{ID: "com.amazonaws.kinesis#GetResourcePolicyOutput", Type: smithy.TypeStructure}
 
 var memberGetResourcePolicyOutput_Policy = smithy.Member{Name: "Policy", Index: 0, Target: &schemaPolicy, Required: true}
 
@@ -560,7 +560,7 @@ var schemaLimitExceededException = smithy.Schema{ID: "com.amazonaws.kinesis#Limi
 
 var memberLimitExceededException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaErrorMessage}
 
-var schemaListChannelsInput = smithy.Schema{ID: "com.amazonaws.kinesis#ListChannelsInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListChannelsInput_StreamFilter, &memberListChannelsInput_MaxResults, &memberListChannelsInput_NextToken}}
+var schemaListChannelsInput = smithy.Schema{ID: "com.amazonaws.kinesis#ListChannelsInput", Type: smithy.TypeStructure}
 
 var memberListChannelsInput_StreamFilter = smithy.Member{Name: "StreamFilter", Index: 0, Target: &schemaStreamFilterList}
 
@@ -570,7 +570,7 @@ var memberListChannelsInput_NextToken = smithy.Member{Name: "NextToken", Index: 
 
 var schemaListChannelsInputLimit = smithy.Schema{ID: "com.amazonaws.kinesis#ListChannelsInputLimit", Type: smithy.TypeInteger}
 
-var schemaListChannelsOutput = smithy.Schema{ID: "com.amazonaws.kinesis#ListChannelsOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListChannelsOutput_ChannelSummaries, &memberListChannelsOutput_NextToken}}
+var schemaListChannelsOutput = smithy.Schema{ID: "com.amazonaws.kinesis#ListChannelsOutput", Type: smithy.TypeStructure}
 
 var memberListChannelsOutput_ChannelSummaries = smithy.Member{Name: "ChannelSummaries", Index: 0, Target: &schemaChannelSummaryList, Required: true}
 
@@ -602,7 +602,7 @@ var memberListShardsOutput_Shards = smithy.Member{Name: "Shards", Index: 0, Targ
 
 var memberListShardsOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schemaNextToken}
 
-var schemaListStreamConsumersInput = smithy.Schema{ID: "com.amazonaws.kinesis#ListStreamConsumersInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListStreamConsumersInput_StreamARN, &memberListStreamConsumersInput_NextToken, &memberListStreamConsumersInput_MaxResults, &memberListStreamConsumersInput_StreamCreationTimestamp, &memberListStreamConsumersInput_StreamId}}
+var schemaListStreamConsumersInput = smithy.Schema{ID: "com.amazonaws.kinesis#ListStreamConsumersInput", Type: smithy.TypeStructure}
 
 var memberListStreamConsumersInput_StreamARN = smithy.Member{Name: "StreamARN", Index: 0, Target: &schemaStreamARN, Required: true}
 
@@ -616,7 +616,7 @@ var memberListStreamConsumersInput_StreamId = smithy.Member{Name: "StreamId", In
 
 var schemaListStreamConsumersInputLimit = smithy.Schema{ID: "com.amazonaws.kinesis#ListStreamConsumersInputLimit", Type: smithy.TypeInteger}
 
-var schemaListStreamConsumersOutput = smithy.Schema{ID: "com.amazonaws.kinesis#ListStreamConsumersOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListStreamConsumersOutput_Consumers, &memberListStreamConsumersOutput_NextToken}}
+var schemaListStreamConsumersOutput = smithy.Schema{ID: "com.amazonaws.kinesis#ListStreamConsumersOutput", Type: smithy.TypeStructure}
 
 var memberListStreamConsumersOutput_Consumers = smithy.Member{Name: "Consumers", Index: 0, Target: &schemaConsumerList}
 
@@ -674,7 +674,7 @@ var memberListTagsForStreamOutput_HasMoreTags = smithy.Member{Name: "HasMoreTags
 
 var schemaMaxRecordSizeInKiB = smithy.Schema{ID: "com.amazonaws.kinesis#MaxRecordSizeInKiB", Type: smithy.TypeInteger}
 
-var schemaMergeShardsInput = smithy.Schema{ID: "com.amazonaws.kinesis#MergeShardsInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberMergeShardsInput_StreamName, &memberMergeShardsInput_ShardToMerge, &memberMergeShardsInput_AdjacentShardToMerge, &memberMergeShardsInput_StreamARN, &memberMergeShardsInput_StreamId}}
+var schemaMergeShardsInput = smithy.Schema{ID: "com.amazonaws.kinesis#MergeShardsInput", Type: smithy.TypeStructure}
 
 var memberMergeShardsInput_StreamName = smithy.Member{Name: "StreamName", Index: 0, Target: &schemaStreamName}
 
@@ -694,13 +694,13 @@ var memberMetricsNameList_member = smithy.Member{Name: "member", Index: 0, Targe
 
 var schemaMillisBehindLatest = smithy.Schema{ID: "com.amazonaws.kinesis#MillisBehindLatest", Type: smithy.TypeLong}
 
-var schemaMinimumThroughputBillingCommitmentInput = smithy.Schema{ID: "com.amazonaws.kinesis#MinimumThroughputBillingCommitmentInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberMinimumThroughputBillingCommitmentInput_Status}}
+var schemaMinimumThroughputBillingCommitmentInput = smithy.Schema{ID: "com.amazonaws.kinesis#MinimumThroughputBillingCommitmentInput", Type: smithy.TypeStructure}
 
 var memberMinimumThroughputBillingCommitmentInput_Status = smithy.Member{Name: "Status", Index: 0, Target: &schemaMinimumThroughputBillingCommitmentInputStatus, Required: true}
 
 var schemaMinimumThroughputBillingCommitmentInputStatus = smithy.Schema{ID: "com.amazonaws.kinesis#MinimumThroughputBillingCommitmentInputStatus", Type: smithy.TypeEnum}
 
-var schemaMinimumThroughputBillingCommitmentOutput = smithy.Schema{ID: "com.amazonaws.kinesis#MinimumThroughputBillingCommitmentOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberMinimumThroughputBillingCommitmentOutput_Status, &memberMinimumThroughputBillingCommitmentOutput_StartedAt, &memberMinimumThroughputBillingCommitmentOutput_EndedAt, &memberMinimumThroughputBillingCommitmentOutput_EarliestAllowedEndAt}}
+var schemaMinimumThroughputBillingCommitmentOutput = smithy.Schema{ID: "com.amazonaws.kinesis#MinimumThroughputBillingCommitmentOutput", Type: smithy.TypeStructure}
 
 var memberMinimumThroughputBillingCommitmentOutput_Status = smithy.Member{Name: "Status", Index: 0, Target: &schemaMinimumThroughputBillingCommitmentOutputStatus, Required: true}
 
@@ -728,13 +728,13 @@ var schemaOnDemandStreamCountLimitObject = smithy.Schema{ID: "com.amazonaws.kine
 
 var schemaOnDemandStreamCountObject = smithy.Schema{ID: "com.amazonaws.kinesis#OnDemandStreamCountObject", Type: smithy.TypeInteger}
 
-var schemaPartitionField = smithy.Schema{ID: "com.amazonaws.kinesis#PartitionField", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPartitionField_Transform, &memberPartitionField_SourceName}}
+var schemaPartitionField = smithy.Schema{ID: "com.amazonaws.kinesis#PartitionField", Type: smithy.TypeStructure}
 
 var memberPartitionField_Transform = smithy.Member{Name: "Transform", Index: 0, Target: &schemaPartitionTransform, Required: true}
 
 var memberPartitionField_SourceName = smithy.Member{Name: "SourceName", Index: 1, Target: &schemaPartitionSourceName, Required: true}
 
-var schemaPartitionFieldList = smithy.Schema{ID: "com.amazonaws.kinesis#PartitionFieldList", Type: smithy.TypeList, Members: []*smithy.Member{&memberPartitionFieldList_member}}
+var schemaPartitionFieldList = smithy.Schema{ID: "com.amazonaws.kinesis#PartitionFieldList", Type: smithy.TypeList}
 
 var memberPartitionFieldList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaPartitionField}
 
@@ -742,7 +742,7 @@ var schemaPartitionKey = smithy.Schema{ID: "com.amazonaws.kinesis#PartitionKey",
 
 var schemaPartitionSourceName = smithy.Schema{ID: "com.amazonaws.kinesis#PartitionSourceName", Type: smithy.TypeString}
 
-var schemaPartitionSpec = smithy.Schema{ID: "com.amazonaws.kinesis#PartitionSpec", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPartitionSpec_PartitionFields}}
+var schemaPartitionSpec = smithy.Schema{ID: "com.amazonaws.kinesis#PartitionSpec", Type: smithy.TypeStructure}
 
 var memberPartitionSpec_PartitionFields = smithy.Member{Name: "PartitionFields", Index: 0, Target: &schemaPartitionFieldList, Required: true}
 
@@ -828,7 +828,7 @@ var schemaPutRecordsResultEntryList = smithy.Schema{ID: "com.amazonaws.kinesis#P
 
 var memberPutRecordsResultEntryList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaPutRecordsResultEntry}
 
-var schemaPutResourcePolicyInput = smithy.Schema{ID: "com.amazonaws.kinesis#PutResourcePolicyInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutResourcePolicyInput_ResourceARN, &memberPutResourcePolicyInput_StreamId, &memberPutResourcePolicyInput_Policy}}
+var schemaPutResourcePolicyInput = smithy.Schema{ID: "com.amazonaws.kinesis#PutResourcePolicyInput", Type: smithy.TypeStructure}
 
 var memberPutResourcePolicyInput_ResourceARN = smithy.Member{Name: "ResourceARN", Index: 0, Target: &schemaResourceARN, Required: true}
 
@@ -848,7 +848,7 @@ var memberRecord_PartitionKey = smithy.Member{Name: "PartitionKey", Index: 3, Ta
 
 var memberRecord_EncryptionType = smithy.Member{Name: "EncryptionType", Index: 4, Target: &schemaEncryptionType}
 
-var schemaRecordConfiguration = smithy.Schema{ID: "com.amazonaws.kinesis#RecordConfiguration", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRecordConfiguration_RecordFormatType, &memberRecordConfiguration_GSRSchemaARN}}
+var schemaRecordConfiguration = smithy.Schema{ID: "com.amazonaws.kinesis#RecordConfiguration", Type: smithy.TypeStructure}
 
 var memberRecordConfiguration_RecordFormatType = smithy.Member{Name: "RecordFormatType", Index: 0, Target: &schemaRecordFormatType, Required: true}
 
@@ -862,7 +862,7 @@ var schemaRecordList = smithy.Schema{ID: "com.amazonaws.kinesis#RecordList", Typ
 
 var memberRecordList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaRecord}
 
-var schemaRegisterStreamConsumerInput = smithy.Schema{ID: "com.amazonaws.kinesis#RegisterStreamConsumerInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRegisterStreamConsumerInput_StreamARN, &memberRegisterStreamConsumerInput_ConsumerName, &memberRegisterStreamConsumerInput_StreamId, &memberRegisterStreamConsumerInput_Tags}}
+var schemaRegisterStreamConsumerInput = smithy.Schema{ID: "com.amazonaws.kinesis#RegisterStreamConsumerInput", Type: smithy.TypeStructure}
 
 var memberRegisterStreamConsumerInput_StreamARN = smithy.Member{Name: "StreamARN", Index: 0, Target: &schemaStreamARN, Required: true}
 
@@ -872,7 +872,7 @@ var memberRegisterStreamConsumerInput_StreamId = smithy.Member{Name: "StreamId",
 
 var memberRegisterStreamConsumerInput_Tags = smithy.Member{Name: "Tags", Index: 3, Target: &schemaTagMap}
 
-var schemaRegisterStreamConsumerOutput = smithy.Schema{ID: "com.amazonaws.kinesis#RegisterStreamConsumerOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRegisterStreamConsumerOutput_Consumer}}
+var schemaRegisterStreamConsumerOutput = smithy.Schema{ID: "com.amazonaws.kinesis#RegisterStreamConsumerOutput", Type: smithy.TypeStructure}
 
 var memberRegisterStreamConsumerOutput_Consumer = smithy.Member{Name: "Consumer", Index: 0, Target: &schemaConsumer, Required: true}
 
@@ -906,7 +906,7 @@ var schemaRoleARN = smithy.Schema{ID: "com.amazonaws.kinesis#RoleARN", Type: smi
 
 var schemaS3CompressionType = smithy.Schema{ID: "com.amazonaws.kinesis#S3CompressionType", Type: smithy.TypeEnum}
 
-var schemaS3DestinationConfiguration = smithy.Schema{ID: "com.amazonaws.kinesis#S3DestinationConfiguration", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberS3DestinationConfiguration_DataFreshnessInSeconds, &memberS3DestinationConfiguration_DeadLetterQueueS3Configuration, &memberS3DestinationConfiguration_StorageConfiguration}}
+var schemaS3DestinationConfiguration = smithy.Schema{ID: "com.amazonaws.kinesis#S3DestinationConfiguration", Type: smithy.TypeStructure}
 
 var memberS3DestinationConfiguration_DataFreshnessInSeconds = smithy.Member{Name: "DataFreshnessInSeconds", Index: 0, Target: &schemaDataFreshnessInSeconds}
 
@@ -914,7 +914,7 @@ var memberS3DestinationConfiguration_DeadLetterQueueS3Configuration = smithy.Mem
 
 var memberS3DestinationConfiguration_StorageConfiguration = smithy.Member{Name: "StorageConfiguration", Index: 2, Target: &schemaS3StorageConfiguration, Required: true}
 
-var schemaS3DestinationDescription = smithy.Schema{ID: "com.amazonaws.kinesis#S3DestinationDescription", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberS3DestinationDescription_DataFreshnessInSeconds, &memberS3DestinationDescription_DeadLetterQueueS3Configuration, &memberS3DestinationDescription_StorageConfiguration}}
+var schemaS3DestinationDescription = smithy.Schema{ID: "com.amazonaws.kinesis#S3DestinationDescription", Type: smithy.TypeStructure}
 
 var memberS3DestinationDescription_DataFreshnessInSeconds = smithy.Member{Name: "DataFreshnessInSeconds", Index: 0, Target: &schemaDataFreshnessInSeconds, Required: true}
 
@@ -922,7 +922,7 @@ var memberS3DestinationDescription_DeadLetterQueueS3Configuration = smithy.Membe
 
 var memberS3DestinationDescription_StorageConfiguration = smithy.Member{Name: "StorageConfiguration", Index: 2, Target: &schemaS3StorageConfiguration, Required: true}
 
-var schemaS3DestinationUpdateInput = smithy.Schema{ID: "com.amazonaws.kinesis#S3DestinationUpdateInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberS3DestinationUpdateInput_DataFreshnessInSeconds}}
+var schemaS3DestinationUpdateInput = smithy.Schema{ID: "com.amazonaws.kinesis#S3DestinationUpdateInput", Type: smithy.TypeStructure}
 
 var memberS3DestinationUpdateInput_DataFreshnessInSeconds = smithy.Member{Name: "DataFreshnessInSeconds", Index: 0, Target: &schemaDataFreshnessInSeconds, Required: true}
 
@@ -932,7 +932,7 @@ var schemaS3OutputKeyTemplate = smithy.Schema{ID: "com.amazonaws.kinesis#S3Outpu
 
 var schemaS3StorageClass = smithy.Schema{ID: "com.amazonaws.kinesis#S3StorageClass", Type: smithy.TypeEnum}
 
-var schemaS3StorageConfiguration = smithy.Schema{ID: "com.amazonaws.kinesis#S3StorageConfiguration", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberS3StorageConfiguration_BucketARN, &memberS3StorageConfiguration_ExpectedBucketOwner, &memberS3StorageConfiguration_OutputKeyTemplate, &memberS3StorageConfiguration_StorageClass, &memberS3StorageConfiguration_CompressionType}}
+var schemaS3StorageConfiguration = smithy.Schema{ID: "com.amazonaws.kinesis#S3StorageConfiguration", Type: smithy.TypeStructure}
 
 var memberS3StorageConfiguration_BucketARN = smithy.Member{Name: "BucketARN", Index: 0, Target: &schemaBucketARN, Required: true}
 
@@ -946,7 +946,7 @@ var memberS3StorageConfiguration_CompressionType = smithy.Member{Name: "Compress
 
 var schemaS3TablesCompressionType = smithy.Schema{ID: "com.amazonaws.kinesis#S3TablesCompressionType", Type: smithy.TypeEnum}
 
-var schemaS3TablesConfiguration = smithy.Schema{ID: "com.amazonaws.kinesis#S3TablesConfiguration", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberS3TablesConfiguration_TableBucketARN, &memberS3TablesConfiguration_Namespace, &memberS3TablesConfiguration_TableName, &memberS3TablesConfiguration_CompressionType, &memberS3TablesConfiguration_PartitionSpec}}
+var schemaS3TablesConfiguration = smithy.Schema{ID: "com.amazonaws.kinesis#S3TablesConfiguration", Type: smithy.TypeStructure}
 
 var memberS3TablesConfiguration_TableBucketARN = smithy.Member{Name: "TableBucketARN", Index: 0, Target: &schemaTableBucketARN, Required: true}
 
@@ -958,11 +958,11 @@ var memberS3TablesConfiguration_CompressionType = smithy.Member{Name: "Compressi
 
 var memberS3TablesConfiguration_PartitionSpec = smithy.Member{Name: "PartitionSpec", Index: 4, Target: &schemaPartitionSpec}
 
-var schemaS3TablesConfigurationList = smithy.Schema{ID: "com.amazonaws.kinesis#S3TablesConfigurationList", Type: smithy.TypeList, Members: []*smithy.Member{&memberS3TablesConfigurationList_member}}
+var schemaS3TablesConfigurationList = smithy.Schema{ID: "com.amazonaws.kinesis#S3TablesConfigurationList", Type: smithy.TypeList}
 
 var memberS3TablesConfigurationList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaS3TablesConfiguration}
 
-var schemaS3TablesDestinationConfiguration = smithy.Schema{ID: "com.amazonaws.kinesis#S3TablesDestinationConfiguration", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberS3TablesDestinationConfiguration_DataFreshnessInSeconds, &memberS3TablesDestinationConfiguration_DeadLetterQueueS3Configuration, &memberS3TablesDestinationConfiguration_S3TablesConfigurationList}}
+var schemaS3TablesDestinationConfiguration = smithy.Schema{ID: "com.amazonaws.kinesis#S3TablesDestinationConfiguration", Type: smithy.TypeStructure}
 
 var memberS3TablesDestinationConfiguration_DataFreshnessInSeconds = smithy.Member{Name: "DataFreshnessInSeconds", Index: 0, Target: &schemaDataFreshnessInSeconds}
 
@@ -970,7 +970,7 @@ var memberS3TablesDestinationConfiguration_DeadLetterQueueS3Configuration = smit
 
 var memberS3TablesDestinationConfiguration_S3TablesConfigurationList = smithy.Member{Name: "S3TablesConfigurationList", Index: 2, Target: &schemaS3TablesConfigurationList, Required: true}
 
-var schemaS3TablesDestinationDescription = smithy.Schema{ID: "com.amazonaws.kinesis#S3TablesDestinationDescription", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberS3TablesDestinationDescription_DataFreshnessInSeconds, &memberS3TablesDestinationDescription_DeadLetterQueueS3Configuration, &memberS3TablesDestinationDescription_S3TablesConfigurationList}}
+var schemaS3TablesDestinationDescription = smithy.Schema{ID: "com.amazonaws.kinesis#S3TablesDestinationDescription", Type: smithy.TypeStructure}
 
 var memberS3TablesDestinationDescription_DataFreshnessInSeconds = smithy.Member{Name: "DataFreshnessInSeconds", Index: 0, Target: &schemaDataFreshnessInSeconds, Required: true}
 
@@ -978,7 +978,7 @@ var memberS3TablesDestinationDescription_DeadLetterQueueS3Configuration = smithy
 
 var memberS3TablesDestinationDescription_S3TablesConfigurationList = smithy.Member{Name: "S3TablesConfigurationList", Index: 2, Target: &schemaS3TablesConfigurationList, Required: true}
 
-var schemaS3TablesDestinationUpdateInput = smithy.Schema{ID: "com.amazonaws.kinesis#S3TablesDestinationUpdateInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberS3TablesDestinationUpdateInput_DataFreshnessInSeconds}}
+var schemaS3TablesDestinationUpdateInput = smithy.Schema{ID: "com.amazonaws.kinesis#S3TablesDestinationUpdateInput", Type: smithy.TypeStructure}
 
 var memberS3TablesDestinationUpdateInput_DataFreshnessInSeconds = smithy.Member{Name: "DataFreshnessInSeconds", Index: 0, Target: &schemaDataFreshnessInSeconds, Required: true}
 
@@ -1042,7 +1042,7 @@ var schemaSmithyString = smithy.Schema{ID: "smithy.api#String", Type: smithy.Typ
 
 var schemaSmithyUnit = smithy.Schema{ID: "smithy.api#Unit", Type: smithy.TypeUnit}
 
-var schemaSplitShardInput = smithy.Schema{ID: "com.amazonaws.kinesis#SplitShardInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSplitShardInput_StreamName, &memberSplitShardInput_ShardToSplit, &memberSplitShardInput_NewStartingHashKey, &memberSplitShardInput_StreamARN, &memberSplitShardInput_StreamId}}
+var schemaSplitShardInput = smithy.Schema{ID: "com.amazonaws.kinesis#SplitShardInput", Type: smithy.TypeStructure}
 
 var memberSplitShardInput_StreamName = smithy.Member{Name: "StreamName", Index: 0, Target: &schemaStreamName}
 
@@ -1054,7 +1054,7 @@ var memberSplitShardInput_StreamARN = smithy.Member{Name: "StreamARN", Index: 3,
 
 var memberSplitShardInput_StreamId = smithy.Member{Name: "StreamId", Index: 4, Target: &schemaStreamId}
 
-var schemaStartStreamEncryptionInput = smithy.Schema{ID: "com.amazonaws.kinesis#StartStreamEncryptionInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberStartStreamEncryptionInput_StreamName, &memberStartStreamEncryptionInput_EncryptionType, &memberStartStreamEncryptionInput_KeyId, &memberStartStreamEncryptionInput_StreamARN, &memberStartStreamEncryptionInput_StreamId}}
+var schemaStartStreamEncryptionInput = smithy.Schema{ID: "com.amazonaws.kinesis#StartStreamEncryptionInput", Type: smithy.TypeStructure}
 
 var memberStartStreamEncryptionInput_StreamName = smithy.Member{Name: "StreamName", Index: 0, Target: &schemaStreamName}
 
@@ -1066,7 +1066,7 @@ var memberStartStreamEncryptionInput_StreamARN = smithy.Member{Name: "StreamARN"
 
 var memberStartStreamEncryptionInput_StreamId = smithy.Member{Name: "StreamId", Index: 4, Target: &schemaStreamId}
 
-var schemaStartingPosition = smithy.Schema{ID: "com.amazonaws.kinesis#StartingPosition", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberStartingPosition_Type, &memberStartingPosition_SequenceNumber, &memberStartingPosition_Timestamp}}
+var schemaStartingPosition = smithy.Schema{ID: "com.amazonaws.kinesis#StartingPosition", Type: smithy.TypeStructure}
 
 var memberStartingPosition_Type = smithy.Member{Name: "Type", Index: 0, Target: &schemaShardIteratorType, Required: true}
 
@@ -1074,7 +1074,7 @@ var memberStartingPosition_SequenceNumber = smithy.Member{Name: "SequenceNumber"
 
 var memberStartingPosition_Timestamp = smithy.Member{Name: "Timestamp", Index: 2, Target: &schemaTimestamp}
 
-var schemaStopStreamEncryptionInput = smithy.Schema{ID: "com.amazonaws.kinesis#StopStreamEncryptionInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberStopStreamEncryptionInput_StreamName, &memberStopStreamEncryptionInput_EncryptionType, &memberStopStreamEncryptionInput_KeyId, &memberStopStreamEncryptionInput_StreamARN, &memberStopStreamEncryptionInput_StreamId}}
+var schemaStopStreamEncryptionInput = smithy.Schema{ID: "com.amazonaws.kinesis#StopStreamEncryptionInput", Type: smithy.TypeStructure}
 
 var memberStopStreamEncryptionInput_StreamName = smithy.Member{Name: "StreamName", Index: 0, Target: &schemaStreamName}
 
@@ -1146,13 +1146,13 @@ var memberStreamDescriptionSummary_ChannelCount = smithy.Member{Name: "ChannelCo
 
 var memberStreamDescriptionSummary_RecordDistributionStrategy = smithy.Member{Name: "RecordDistributionStrategy", Index: 15, Target: &schemaRecordDistributionStrategy}
 
-var schemaStreamFilter = smithy.Schema{ID: "com.amazonaws.kinesis#StreamFilter", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberStreamFilter_StreamARN, &memberStreamFilter_StreamCreationTimestamp}}
+var schemaStreamFilter = smithy.Schema{ID: "com.amazonaws.kinesis#StreamFilter", Type: smithy.TypeStructure}
 
 var memberStreamFilter_StreamARN = smithy.Member{Name: "StreamARN", Index: 0, Target: &schemaStreamARN, Required: true}
 
 var memberStreamFilter_StreamCreationTimestamp = smithy.Member{Name: "StreamCreationTimestamp", Index: 1, Target: &schemaTimestamp}
 
-var schemaStreamFilterList = smithy.Schema{ID: "com.amazonaws.kinesis#StreamFilterList", Type: smithy.TypeList, Members: []*smithy.Member{&memberStreamFilterList_member}}
+var schemaStreamFilterList = smithy.Schema{ID: "com.amazonaws.kinesis#StreamFilterList", Type: smithy.TypeList}
 
 var memberStreamFilterList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaStreamFilter}
 
@@ -1188,7 +1188,7 @@ var schemaStreamSummaryList = smithy.Schema{ID: "com.amazonaws.kinesis#StreamSum
 
 var memberStreamSummaryList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaStreamSummary}
 
-var schemaSubscribeToShardEvent = smithy.Schema{ID: "com.amazonaws.kinesis#SubscribeToShardEvent", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSubscribeToShardEvent_Records, &memberSubscribeToShardEvent_ContinuationSequenceNumber, &memberSubscribeToShardEvent_MillisBehindLatest, &memberSubscribeToShardEvent_ChildShards}}
+var schemaSubscribeToShardEvent = smithy.Schema{ID: "com.amazonaws.kinesis#SubscribeToShardEvent", Type: smithy.TypeStructure}
 
 var memberSubscribeToShardEvent_Records = smithy.Member{Name: "Records", Index: 0, Target: &schemaRecordList, Required: true}
 
@@ -1198,7 +1198,7 @@ var memberSubscribeToShardEvent_MillisBehindLatest = smithy.Member{Name: "Millis
 
 var memberSubscribeToShardEvent_ChildShards = smithy.Member{Name: "ChildShards", Index: 3, Target: &schemaChildShardList}
 
-var schemaSubscribeToShardEventStream = smithy.Schema{ID: "com.amazonaws.kinesis#SubscribeToShardEventStream", Type: smithy.TypeUnion, Members: []*smithy.Member{&memberSubscribeToShardEventStream_SubscribeToShardEvent, &memberSubscribeToShardEventStream_ResourceNotFoundException, &memberSubscribeToShardEventStream_ResourceInUseException, &memberSubscribeToShardEventStream_KMSDisabledException, &memberSubscribeToShardEventStream_KMSInvalidStateException, &memberSubscribeToShardEventStream_KMSAccessDeniedException, &memberSubscribeToShardEventStream_KMSNotFoundException, &memberSubscribeToShardEventStream_KMSOptInRequired, &memberSubscribeToShardEventStream_KMSThrottlingException, &memberSubscribeToShardEventStream_InternalFailureException}, Streaming: true}
+var schemaSubscribeToShardEventStream = smithy.Schema{ID: "com.amazonaws.kinesis#SubscribeToShardEventStream", Type: smithy.TypeUnion, Streaming: true}
 
 var memberSubscribeToShardEventStream_SubscribeToShardEvent = smithy.Member{Name: "SubscribeToShardEvent", Index: 0, Target: &schemaSubscribeToShardEvent}
 
@@ -1220,7 +1220,7 @@ var memberSubscribeToShardEventStream_KMSThrottlingException = smithy.Member{Nam
 
 var memberSubscribeToShardEventStream_InternalFailureException = smithy.Member{Name: "InternalFailureException", Index: 9, Target: &schemaInternalFailureException}
 
-var schemaSubscribeToShardInput = smithy.Schema{ID: "com.amazonaws.kinesis#SubscribeToShardInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSubscribeToShardInput_ConsumerARN, &memberSubscribeToShardInput_StreamId, &memberSubscribeToShardInput_ShardId, &memberSubscribeToShardInput_StartingPosition, &memberSubscribeToShardInput_DryRun}}
+var schemaSubscribeToShardInput = smithy.Schema{ID: "com.amazonaws.kinesis#SubscribeToShardInput", Type: smithy.TypeStructure}
 
 var memberSubscribeToShardInput_ConsumerARN = smithy.Member{Name: "ConsumerARN", Index: 0, Target: &schemaConsumerARN, Required: true}
 
@@ -1232,7 +1232,7 @@ var memberSubscribeToShardInput_StartingPosition = smithy.Member{Name: "Starting
 
 var memberSubscribeToShardInput_DryRun = smithy.Member{Name: "DryRun", Index: 4, Target: &schemaBooleanObject}
 
-var schemaSubscribeToShardOutput = smithy.Schema{ID: "com.amazonaws.kinesis#SubscribeToShardOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSubscribeToShardOutput_EventStream}}
+var schemaSubscribeToShardOutput = smithy.Schema{ID: "com.amazonaws.kinesis#SubscribeToShardOutput", Type: smithy.TypeStructure}
 
 var memberSubscribeToShardOutput_EventStream = smithy.Member{Name: "EventStream", Index: 0, Target: &schemaSubscribeToShardEventStream, Required: true}
 
@@ -1292,15 +1292,15 @@ var memberUntagResourceInput_ResourceARN = smithy.Member{Name: "ResourceARN", In
 
 var memberUntagResourceInput_StreamId = smithy.Member{Name: "StreamId", Index: 2, Target: &schemaStreamId}
 
-var schemaUpdateAccountSettingsInput = smithy.Schema{ID: "com.amazonaws.kinesis#UpdateAccountSettingsInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateAccountSettingsInput_MinimumThroughputBillingCommitment}}
+var schemaUpdateAccountSettingsInput = smithy.Schema{ID: "com.amazonaws.kinesis#UpdateAccountSettingsInput", Type: smithy.TypeStructure}
 
 var memberUpdateAccountSettingsInput_MinimumThroughputBillingCommitment = smithy.Member{Name: "MinimumThroughputBillingCommitment", Index: 0, Target: &schemaMinimumThroughputBillingCommitmentInput, Required: true}
 
-var schemaUpdateAccountSettingsOutput = smithy.Schema{ID: "com.amazonaws.kinesis#UpdateAccountSettingsOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateAccountSettingsOutput_MinimumThroughputBillingCommitment}}
+var schemaUpdateAccountSettingsOutput = smithy.Schema{ID: "com.amazonaws.kinesis#UpdateAccountSettingsOutput", Type: smithy.TypeStructure}
 
 var memberUpdateAccountSettingsOutput_MinimumThroughputBillingCommitment = smithy.Member{Name: "MinimumThroughputBillingCommitment", Index: 0, Target: &schemaMinimumThroughputBillingCommitmentOutput}
 
-var schemaUpdateChannelInput = smithy.Schema{ID: "com.amazonaws.kinesis#UpdateChannelInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateChannelInput_ChannelARN, &memberUpdateChannelInput_S3DestinationConfiguration, &memberUpdateChannelInput_S3TablesDestinationConfiguration, &memberUpdateChannelInput_LoggingConfiguration}}
+var schemaUpdateChannelInput = smithy.Schema{ID: "com.amazonaws.kinesis#UpdateChannelInput", Type: smithy.TypeStructure}
 
 var memberUpdateChannelInput_ChannelARN = smithy.Member{Name: "ChannelARN", Index: 0, Target: &schemaChannelARN, Required: true}
 
@@ -1310,11 +1310,11 @@ var memberUpdateChannelInput_S3TablesDestinationConfiguration = smithy.Member{Na
 
 var memberUpdateChannelInput_LoggingConfiguration = smithy.Member{Name: "LoggingConfiguration", Index: 3, Target: &schemaChannelLoggingUpdateInput}
 
-var schemaUpdateChannelOutput = smithy.Schema{ID: "com.amazonaws.kinesis#UpdateChannelOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateChannelOutput_ChannelDescription}}
+var schemaUpdateChannelOutput = smithy.Schema{ID: "com.amazonaws.kinesis#UpdateChannelOutput", Type: smithy.TypeStructure}
 
 var memberUpdateChannelOutput_ChannelDescription = smithy.Member{Name: "ChannelDescription", Index: 0, Target: &schemaChannelDescription, Required: true}
 
-var schemaUpdateMaxRecordSizeInput = smithy.Schema{ID: "com.amazonaws.kinesis#UpdateMaxRecordSizeInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateMaxRecordSizeInput_StreamARN, &memberUpdateMaxRecordSizeInput_StreamId, &memberUpdateMaxRecordSizeInput_MaxRecordSizeInKiB}}
+var schemaUpdateMaxRecordSizeInput = smithy.Schema{ID: "com.amazonaws.kinesis#UpdateMaxRecordSizeInput", Type: smithy.TypeStructure}
 
 var memberUpdateMaxRecordSizeInput_StreamARN = smithy.Member{Name: "StreamARN", Index: 0, Target: &schemaStreamARN}
 
@@ -1322,7 +1322,7 @@ var memberUpdateMaxRecordSizeInput_StreamId = smithy.Member{Name: "StreamId", In
 
 var memberUpdateMaxRecordSizeInput_MaxRecordSizeInKiB = smithy.Member{Name: "MaxRecordSizeInKiB", Index: 2, Target: &schemaMaxRecordSizeInKiB, Required: true}
 
-var schemaUpdateShardCountInput = smithy.Schema{ID: "com.amazonaws.kinesis#UpdateShardCountInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateShardCountInput_StreamName, &memberUpdateShardCountInput_TargetShardCount, &memberUpdateShardCountInput_ScalingType, &memberUpdateShardCountInput_StreamARN, &memberUpdateShardCountInput_StreamId}}
+var schemaUpdateShardCountInput = smithy.Schema{ID: "com.amazonaws.kinesis#UpdateShardCountInput", Type: smithy.TypeStructure}
 
 var memberUpdateShardCountInput_StreamName = smithy.Member{Name: "StreamName", Index: 0, Target: &schemaStreamName}
 
@@ -1334,7 +1334,7 @@ var memberUpdateShardCountInput_StreamARN = smithy.Member{Name: "StreamARN", Ind
 
 var memberUpdateShardCountInput_StreamId = smithy.Member{Name: "StreamId", Index: 4, Target: &schemaStreamId}
 
-var schemaUpdateShardCountOutput = smithy.Schema{ID: "com.amazonaws.kinesis#UpdateShardCountOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateShardCountOutput_StreamName, &memberUpdateShardCountOutput_CurrentShardCount, &memberUpdateShardCountOutput_TargetShardCount, &memberUpdateShardCountOutput_StreamARN}}
+var schemaUpdateShardCountOutput = smithy.Schema{ID: "com.amazonaws.kinesis#UpdateShardCountOutput", Type: smithy.TypeStructure}
 
 var memberUpdateShardCountOutput_StreamName = smithy.Member{Name: "StreamName", Index: 0, Target: &schemaStreamName}
 
@@ -1344,7 +1344,7 @@ var memberUpdateShardCountOutput_TargetShardCount = smithy.Member{Name: "TargetS
 
 var memberUpdateShardCountOutput_StreamARN = smithy.Member{Name: "StreamARN", Index: 3, Target: &schemaStreamARN}
 
-var schemaUpdateStreamModeInput = smithy.Schema{ID: "com.amazonaws.kinesis#UpdateStreamModeInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateStreamModeInput_StreamARN, &memberUpdateStreamModeInput_StreamId, &memberUpdateStreamModeInput_StreamModeDetails, &memberUpdateStreamModeInput_WarmThroughputMiBps}}
+var schemaUpdateStreamModeInput = smithy.Schema{ID: "com.amazonaws.kinesis#UpdateStreamModeInput", Type: smithy.TypeStructure}
 
 var memberUpdateStreamModeInput_StreamARN = smithy.Member{Name: "StreamARN", Index: 0, Target: &schemaStreamARN, Required: true}
 
@@ -1354,7 +1354,7 @@ var memberUpdateStreamModeInput_StreamModeDetails = smithy.Member{Name: "StreamM
 
 var memberUpdateStreamModeInput_WarmThroughputMiBps = smithy.Member{Name: "WarmThroughputMiBps", Index: 3, Target: &schemaNaturalIntegerObject}
 
-var schemaUpdateStreamRecordDistributionStrategyInput = smithy.Schema{ID: "com.amazonaws.kinesis#UpdateStreamRecordDistributionStrategyInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateStreamRecordDistributionStrategyInput_StreamARN, &memberUpdateStreamRecordDistributionStrategyInput_StreamId, &memberUpdateStreamRecordDistributionStrategyInput_RecordDistributionStrategy}}
+var schemaUpdateStreamRecordDistributionStrategyInput = smithy.Schema{ID: "com.amazonaws.kinesis#UpdateStreamRecordDistributionStrategyInput", Type: smithy.TypeStructure}
 
 var memberUpdateStreamRecordDistributionStrategyInput_StreamARN = smithy.Member{Name: "StreamARN", Index: 0, Target: &schemaStreamARN, Required: true}
 
@@ -1362,7 +1362,7 @@ var memberUpdateStreamRecordDistributionStrategyInput_StreamId = smithy.Member{N
 
 var memberUpdateStreamRecordDistributionStrategyInput_RecordDistributionStrategy = smithy.Member{Name: "RecordDistributionStrategy", Index: 2, Target: &schemaRecordDistributionStrategy, Required: true}
 
-var schemaUpdateStreamWarmThroughputInput = smithy.Schema{ID: "com.amazonaws.kinesis#UpdateStreamWarmThroughputInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateStreamWarmThroughputInput_StreamARN, &memberUpdateStreamWarmThroughputInput_StreamName, &memberUpdateStreamWarmThroughputInput_StreamId, &memberUpdateStreamWarmThroughputInput_WarmThroughputMiBps}}
+var schemaUpdateStreamWarmThroughputInput = smithy.Schema{ID: "com.amazonaws.kinesis#UpdateStreamWarmThroughputInput", Type: smithy.TypeStructure}
 
 var memberUpdateStreamWarmThroughputInput_StreamARN = smithy.Member{Name: "StreamARN", Index: 0, Target: &schemaStreamARN}
 
@@ -1372,7 +1372,7 @@ var memberUpdateStreamWarmThroughputInput_StreamId = smithy.Member{Name: "Stream
 
 var memberUpdateStreamWarmThroughputInput_WarmThroughputMiBps = smithy.Member{Name: "WarmThroughputMiBps", Index: 3, Target: &schemaNaturalIntegerObject, Required: true}
 
-var schemaUpdateStreamWarmThroughputOutput = smithy.Schema{ID: "com.amazonaws.kinesis#UpdateStreamWarmThroughputOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateStreamWarmThroughputOutput_StreamARN, &memberUpdateStreamWarmThroughputOutput_StreamName, &memberUpdateStreamWarmThroughputOutput_WarmThroughput}}
+var schemaUpdateStreamWarmThroughputOutput = smithy.Schema{ID: "com.amazonaws.kinesis#UpdateStreamWarmThroughputOutput", Type: smithy.TypeStructure}
 
 var memberUpdateStreamWarmThroughputOutput_StreamARN = smithy.Member{Name: "StreamARN", Index: 0, Target: &schemaStreamARN}
 

@@ -2,5 +2,23 @@
   "service": "com.amazonaws.sfn#AWSStepFunctions",
   "package": "sfnapi",
   "model": "sfn",
-  "iamPrefix": "states"
+  "iamPrefix": "states",
+  "boundOperations": [
+    "CreateStateMachine",
+    "DeleteStateMachine",
+    "DescribeExecution",
+    "DescribeStateMachine",
+    "DescribeStateMachineForExecution",
+    "GetExecutionHistory",
+    "ListExecutions",
+    "ListStateMachineVersions",
+    "ListStateMachines",
+    "ListTagsForResource",
+    "StartExecution",
+    "StopExecution",
+    "TagResource",
+    "UntagResource",
+    "UpdateStateMachine",
+    "ValidateStateMachineDefinition"
+  ]
 }

@@ -45,11 +45,11 @@ var schemaAmazonResourceName = smithy.Schema{ID: "com.amazonaws.sesv2#AmazonReso
 
 var schemaArchiveArn = smithy.Schema{ID: "com.amazonaws.sesv2#ArchiveArn", Type: smithy.TypeString}
 
-var schemaArchivingOptions = smithy.Schema{ID: "com.amazonaws.sesv2#ArchivingOptions", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberArchivingOptions_ArchiveArn}}
+var schemaArchivingOptions = smithy.Schema{ID: "com.amazonaws.sesv2#ArchivingOptions", Type: smithy.TypeStructure}
 
 var memberArchivingOptions_ArchiveArn = smithy.Member{Name: "ArchiveArn", Index: 0, Target: &schemaArchiveArn}
 
-var schemaAssociateEmailIdentityCertificateInput = smithy.Schema{ID: "com.amazonaws.sesv2#AssociateEmailIdentityCertificateRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAssociateEmailIdentityCertificateInput_EmailIdentity, &memberAssociateEmailIdentityCertificateInput_FromAddress, &memberAssociateEmailIdentityCertificateInput_CertificateArn}}
+var schemaAssociateEmailIdentityCertificateInput = smithy.Schema{ID: "com.amazonaws.sesv2#AssociateEmailIdentityCertificateRequest", Type: smithy.TypeStructure}
 
 var memberAssociateEmailIdentityCertificateInput_EmailIdentity = smithy.Member{Name: "EmailIdentity", Index: 0, Target: &schemaIdentity, Required: true}
 
@@ -97,21 +97,21 @@ var schemaBadRequestException = smithy.Schema{ID: "com.amazonaws.sesv2#BadReques
 
 var memberBadRequestException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaErrorMessage}
 
-var schemaBatchGetMetricDataInput = smithy.Schema{ID: "com.amazonaws.sesv2#BatchGetMetricDataRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberBatchGetMetricDataInput_Queries}}
+var schemaBatchGetMetricDataInput = smithy.Schema{ID: "com.amazonaws.sesv2#BatchGetMetricDataRequest", Type: smithy.TypeStructure}
 
 var memberBatchGetMetricDataInput_Queries = smithy.Member{Name: "Queries", Index: 0, Target: &schemaBatchGetMetricDataQueries, Required: true}
 
-var schemaBatchGetMetricDataOutput = smithy.Schema{ID: "com.amazonaws.sesv2#BatchGetMetricDataResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberBatchGetMetricDataOutput_Results, &memberBatchGetMetricDataOutput_Errors}}
+var schemaBatchGetMetricDataOutput = smithy.Schema{ID: "com.amazonaws.sesv2#BatchGetMetricDataResponse", Type: smithy.TypeStructure}
 
 var memberBatchGetMetricDataOutput_Results = smithy.Member{Name: "Results", Index: 0, Target: &schemaMetricDataResultList}
 
 var memberBatchGetMetricDataOutput_Errors = smithy.Member{Name: "Errors", Index: 1, Target: &schemaMetricDataErrorList}
 
-var schemaBatchGetMetricDataQueries = smithy.Schema{ID: "com.amazonaws.sesv2#BatchGetMetricDataQueries", Type: smithy.TypeList, Members: []*smithy.Member{&memberBatchGetMetricDataQueries_member}}
+var schemaBatchGetMetricDataQueries = smithy.Schema{ID: "com.amazonaws.sesv2#BatchGetMetricDataQueries", Type: smithy.TypeList}
 
 var memberBatchGetMetricDataQueries_member = smithy.Member{Name: "member", Index: 0, Target: &schemaBatchGetMetricDataQuery}
 
-var schemaBatchGetMetricDataQuery = smithy.Schema{ID: "com.amazonaws.sesv2#BatchGetMetricDataQuery", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberBatchGetMetricDataQuery_Id, &memberBatchGetMetricDataQuery_Namespace, &memberBatchGetMetricDataQuery_Metric, &memberBatchGetMetricDataQuery_Dimensions, &memberBatchGetMetricDataQuery_StartDate, &memberBatchGetMetricDataQuery_EndDate}}
+var schemaBatchGetMetricDataQuery = smithy.Schema{ID: "com.amazonaws.sesv2#BatchGetMetricDataQuery", Type: smithy.TypeStructure}
 
 var memberBatchGetMetricDataQuery_Id = smithy.Member{Name: "Id", Index: 0, Target: &schemaQueryIdentifier, Required: true}
 
@@ -127,11 +127,11 @@ var memberBatchGetMetricDataQuery_EndDate = smithy.Member{Name: "EndDate", Index
 
 var schemaBehaviorOnMxFailure = smithy.Schema{ID: "com.amazonaws.sesv2#BehaviorOnMxFailure", Type: smithy.TypeEnum}
 
-var schemaBlacklistEntries = smithy.Schema{ID: "com.amazonaws.sesv2#BlacklistEntries", Type: smithy.TypeList, Members: []*smithy.Member{&memberBlacklistEntries_member}}
+var schemaBlacklistEntries = smithy.Schema{ID: "com.amazonaws.sesv2#BlacklistEntries", Type: smithy.TypeList}
 
 var memberBlacklistEntries_member = smithy.Member{Name: "member", Index: 0, Target: &schemaBlacklistEntry}
 
-var schemaBlacklistEntry = smithy.Schema{ID: "com.amazonaws.sesv2#BlacklistEntry", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberBlacklistEntry_RblName, &memberBlacklistEntry_ListingTime, &memberBlacklistEntry_Description}}
+var schemaBlacklistEntry = smithy.Schema{ID: "com.amazonaws.sesv2#BlacklistEntry", Type: smithy.TypeStructure}
 
 var memberBlacklistEntry_RblName = smithy.Member{Name: "RblName", Index: 0, Target: &schemaRblName}
 
@@ -141,11 +141,11 @@ var memberBlacklistEntry_Description = smithy.Member{Name: "Description", Index:
 
 var schemaBlacklistItemName = smithy.Schema{ID: "com.amazonaws.sesv2#BlacklistItemName", Type: smithy.TypeString}
 
-var schemaBlacklistItemNames = smithy.Schema{ID: "com.amazonaws.sesv2#BlacklistItemNames", Type: smithy.TypeList, Members: []*smithy.Member{&memberBlacklistItemNames_member}}
+var schemaBlacklistItemNames = smithy.Schema{ID: "com.amazonaws.sesv2#BlacklistItemNames", Type: smithy.TypeList}
 
 var memberBlacklistItemNames_member = smithy.Member{Name: "member", Index: 0, Target: &schemaBlacklistItemName}
 
-var schemaBlacklistReport = smithy.Schema{ID: "com.amazonaws.sesv2#BlacklistReport", Type: smithy.TypeMap, Members: []*smithy.Member{&memberBlacklistReport_key, &memberBlacklistReport_value}}
+var schemaBlacklistReport = smithy.Schema{ID: "com.amazonaws.sesv2#BlacklistReport", Type: smithy.TypeMap}
 
 var memberBlacklistReport_key = smithy.Member{Name: "key", Index: 0, Target: &schemaBlacklistItemName}
 
@@ -159,7 +159,7 @@ var memberBody_Text = smithy.Member{Name: "Text", Index: 0, Target: &schemaConte
 
 var memberBody_Html = smithy.Member{Name: "Html", Index: 1, Target: &schemaContent}
 
-var schemaBounce = smithy.Schema{ID: "com.amazonaws.sesv2#Bounce", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberBounce_BounceType, &memberBounce_BounceSubType, &memberBounce_DiagnosticCode}}
+var schemaBounce = smithy.Schema{ID: "com.amazonaws.sesv2#Bounce", Type: smithy.TypeStructure}
 
 var memberBounce_BounceType = smithy.Member{Name: "BounceType", Index: 0, Target: &schemaBounceType}
 
@@ -171,11 +171,11 @@ var schemaBounceSubType = smithy.Schema{ID: "com.amazonaws.sesv2#BounceSubType",
 
 var schemaBounceType = smithy.Schema{ID: "com.amazonaws.sesv2#BounceType", Type: smithy.TypeEnum}
 
-var schemaBulkEmailContent = smithy.Schema{ID: "com.amazonaws.sesv2#BulkEmailContent", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberBulkEmailContent_Template}}
+var schemaBulkEmailContent = smithy.Schema{ID: "com.amazonaws.sesv2#BulkEmailContent", Type: smithy.TypeStructure}
 
 var memberBulkEmailContent_Template = smithy.Member{Name: "Template", Index: 0, Target: &schemaTemplate}
 
-var schemaBulkEmailEntry = smithy.Schema{ID: "com.amazonaws.sesv2#BulkEmailEntry", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberBulkEmailEntry_Destination, &memberBulkEmailEntry_ReplacementTags, &memberBulkEmailEntry_ReplacementEmailContent, &memberBulkEmailEntry_ReplacementHeaders}}
+var schemaBulkEmailEntry = smithy.Schema{ID: "com.amazonaws.sesv2#BulkEmailEntry", Type: smithy.TypeStructure}
 
 var memberBulkEmailEntry_Destination = smithy.Member{Name: "Destination", Index: 0, Target: &schemaDestination, Required: true}
 
@@ -185,11 +185,11 @@ var memberBulkEmailEntry_ReplacementEmailContent = smithy.Member{Name: "Replacem
 
 var memberBulkEmailEntry_ReplacementHeaders = smithy.Member{Name: "ReplacementHeaders", Index: 3, Target: &schemaMessageHeaderList}
 
-var schemaBulkEmailEntryList = smithy.Schema{ID: "com.amazonaws.sesv2#BulkEmailEntryList", Type: smithy.TypeList, Members: []*smithy.Member{&memberBulkEmailEntryList_member}}
+var schemaBulkEmailEntryList = smithy.Schema{ID: "com.amazonaws.sesv2#BulkEmailEntryList", Type: smithy.TypeList}
 
 var memberBulkEmailEntryList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaBulkEmailEntry}
 
-var schemaBulkEmailEntryResult = smithy.Schema{ID: "com.amazonaws.sesv2#BulkEmailEntryResult", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberBulkEmailEntryResult_Status, &memberBulkEmailEntryResult_Error, &memberBulkEmailEntryResult_MessageId}}
+var schemaBulkEmailEntryResult = smithy.Schema{ID: "com.amazonaws.sesv2#BulkEmailEntryResult", Type: smithy.TypeStructure}
 
 var memberBulkEmailEntryResult_Status = smithy.Member{Name: "Status", Index: 0, Target: &schemaBulkEmailStatus}
 
@@ -197,7 +197,7 @@ var memberBulkEmailEntryResult_Error = smithy.Member{Name: "Error", Index: 1, Ta
 
 var memberBulkEmailEntryResult_MessageId = smithy.Member{Name: "MessageId", Index: 2, Target: &schemaOutboundMessageId}
 
-var schemaBulkEmailEntryResultList = smithy.Schema{ID: "com.amazonaws.sesv2#BulkEmailEntryResultList", Type: smithy.TypeList, Members: []*smithy.Member{&memberBulkEmailEntryResultList_member}}
+var schemaBulkEmailEntryResultList = smithy.Schema{ID: "com.amazonaws.sesv2#BulkEmailEntryResultList", Type: smithy.TypeList}
 
 var memberBulkEmailEntryResultList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaBulkEmailEntryResult}
 
@@ -205,7 +205,7 @@ var schemaBulkEmailStatus = smithy.Schema{ID: "com.amazonaws.sesv2#BulkEmailStat
 
 var schemaCampaignId = smithy.Schema{ID: "com.amazonaws.sesv2#CampaignId", Type: smithy.TypeString}
 
-var schemaCancelExportJobInput = smithy.Schema{ID: "com.amazonaws.sesv2#CancelExportJobRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCancelExportJobInput_JobId}}
+var schemaCancelExportJobInput = smithy.Schema{ID: "com.amazonaws.sesv2#CancelExportJobRequest", Type: smithy.TypeStructure}
 
 var memberCancelExportJobInput_JobId = smithy.Member{Name: "JobId", Index: 0, Target: &schemaJobId, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -217,11 +217,11 @@ var schemaCertificateArn = smithy.Schema{ID: "com.amazonaws.sesv2#CertificateArn
 
 var schemaCharset = smithy.Schema{ID: "com.amazonaws.sesv2#Charset", Type: smithy.TypeString}
 
-var schemaCloudWatchDestination = smithy.Schema{ID: "com.amazonaws.sesv2#CloudWatchDestination", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCloudWatchDestination_DimensionConfigurations}}
+var schemaCloudWatchDestination = smithy.Schema{ID: "com.amazonaws.sesv2#CloudWatchDestination", Type: smithy.TypeStructure}
 
 var memberCloudWatchDestination_DimensionConfigurations = smithy.Member{Name: "DimensionConfigurations", Index: 0, Target: &schemaCloudWatchDimensionConfigurations, Required: true}
 
-var schemaCloudWatchDimensionConfiguration = smithy.Schema{ID: "com.amazonaws.sesv2#CloudWatchDimensionConfiguration", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCloudWatchDimensionConfiguration_DimensionName, &memberCloudWatchDimensionConfiguration_DimensionValueSource, &memberCloudWatchDimensionConfiguration_DefaultDimensionValue}}
+var schemaCloudWatchDimensionConfiguration = smithy.Schema{ID: "com.amazonaws.sesv2#CloudWatchDimensionConfiguration", Type: smithy.TypeStructure}
 
 var memberCloudWatchDimensionConfiguration_DimensionName = smithy.Member{Name: "DimensionName", Index: 0, Target: &schemaDimensionName, Required: true}
 
@@ -229,11 +229,11 @@ var memberCloudWatchDimensionConfiguration_DimensionValueSource = smithy.Member{
 
 var memberCloudWatchDimensionConfiguration_DefaultDimensionValue = smithy.Member{Name: "DefaultDimensionValue", Index: 2, Target: &schemaDefaultDimensionValue, Required: true}
 
-var schemaCloudWatchDimensionConfigurations = smithy.Schema{ID: "com.amazonaws.sesv2#CloudWatchDimensionConfigurations", Type: smithy.TypeList, Members: []*smithy.Member{&memberCloudWatchDimensionConfigurations_member}}
+var schemaCloudWatchDimensionConfigurations = smithy.Schema{ID: "com.amazonaws.sesv2#CloudWatchDimensionConfigurations", Type: smithy.TypeList}
 
 var memberCloudWatchDimensionConfigurations_member = smithy.Member{Name: "member", Index: 0, Target: &schemaCloudWatchDimensionConfiguration}
 
-var schemaComplaint = smithy.Schema{ID: "com.amazonaws.sesv2#Complaint", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberComplaint_ComplaintSubType, &memberComplaint_ComplaintFeedbackType}}
+var schemaComplaint = smithy.Schema{ID: "com.amazonaws.sesv2#Complaint", Type: smithy.TypeStructure}
 
 var memberComplaint_ComplaintSubType = smithy.Member{Name: "ComplaintSubType", Index: 0, Target: &schemaComplaintSubType}
 
@@ -251,7 +251,7 @@ var schemaConfigurationOverrides = smithy.Schema{ID: "com.amazonaws.sesv2#Config
 
 var memberConfigurationOverrides_Tracking = smithy.Member{Name: "Tracking", Index: 0, Target: &schemaTrackingConfigurationOverrides}
 
-var schemaConfigurationSetFilter = smithy.Schema{ID: "com.amazonaws.sesv2#ConfigurationSetFilter", Type: smithy.TypeMap, Members: []*smithy.Member{&memberConfigurationSetFilter_key, &memberConfigurationSetFilter_value}}
+var schemaConfigurationSetFilter = smithy.Schema{ID: "com.amazonaws.sesv2#ConfigurationSetFilter", Type: smithy.TypeMap}
 
 var memberConfigurationSetFilter_key = smithy.Member{Name: "key", Index: 0, Target: &schemaConfigurationSetFilterKey}
 
@@ -263,7 +263,7 @@ var schemaConfigurationSetFilterValue = smithy.Schema{ID: "com.amazonaws.sesv2#C
 
 var schemaConfigurationSetName = smithy.Schema{ID: "com.amazonaws.sesv2#ConfigurationSetName", Type: smithy.TypeString}
 
-var schemaConfigurationSetNameList = smithy.Schema{ID: "com.amazonaws.sesv2#ConfigurationSetNameList", Type: smithy.TypeList, Members: []*smithy.Member{&memberConfigurationSetNameList_member}}
+var schemaConfigurationSetNameList = smithy.Schema{ID: "com.amazonaws.sesv2#ConfigurationSetNameList", Type: smithy.TypeList}
 
 var memberConfigurationSetNameList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaConfigurationSetName}
 
@@ -271,7 +271,7 @@ var schemaConflictException = smithy.Schema{ID: "com.amazonaws.sesv2#ConflictExc
 
 var memberConflictException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaErrorMessage}
 
-var schemaContact = smithy.Schema{ID: "com.amazonaws.sesv2#Contact", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberContact_EmailAddress, &memberContact_TopicPreferences, &memberContact_TopicDefaultPreferences, &memberContact_UnsubscribeAll, &memberContact_LastUpdatedTimestamp}}
+var schemaContact = smithy.Schema{ID: "com.amazonaws.sesv2#Contact", Type: smithy.TypeStructure}
 
 var memberContact_EmailAddress = smithy.Member{Name: "EmailAddress", Index: 0, Target: &schemaEmailAddress}
 
@@ -285,13 +285,13 @@ var memberContact_LastUpdatedTimestamp = smithy.Member{Name: "LastUpdatedTimesta
 
 var schemaContactLanguage = smithy.Schema{ID: "com.amazonaws.sesv2#ContactLanguage", Type: smithy.TypeEnum}
 
-var schemaContactList = smithy.Schema{ID: "com.amazonaws.sesv2#ContactList", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberContactList_ContactListName, &memberContactList_LastUpdatedTimestamp}}
+var schemaContactList = smithy.Schema{ID: "com.amazonaws.sesv2#ContactList", Type: smithy.TypeStructure}
 
 var memberContactList_ContactListName = smithy.Member{Name: "ContactListName", Index: 0, Target: &schemaContactListName}
 
 var memberContactList_LastUpdatedTimestamp = smithy.Member{Name: "LastUpdatedTimestamp", Index: 1, Target: &schemaTimestamp}
 
-var schemaContactListDestination = smithy.Schema{ID: "com.amazonaws.sesv2#ContactListDestination", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberContactListDestination_ContactListName, &memberContactListDestination_ContactListImportAction}}
+var schemaContactListDestination = smithy.Schema{ID: "com.amazonaws.sesv2#ContactListDestination", Type: smithy.TypeStructure}
 
 var memberContactListDestination_ContactListName = smithy.Member{Name: "ContactListName", Index: 0, Target: &schemaContactListName, Required: true}
 
@@ -309,7 +309,7 @@ var memberContent_Charset = smithy.Member{Name: "Charset", Index: 1, Target: &sc
 
 var schemaCounter = smithy.Schema{ID: "com.amazonaws.sesv2#Counter", Type: smithy.TypeLong}
 
-var schemaCreateConfigurationSetEventDestinationInput = smithy.Schema{ID: "com.amazonaws.sesv2#CreateConfigurationSetEventDestinationRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateConfigurationSetEventDestinationInput_ConfigurationSetName, &memberCreateConfigurationSetEventDestinationInput_EventDestinationName, &memberCreateConfigurationSetEventDestinationInput_EventDestination}}
+var schemaCreateConfigurationSetEventDestinationInput = smithy.Schema{ID: "com.amazonaws.sesv2#CreateConfigurationSetEventDestinationRequest", Type: smithy.TypeStructure}
 
 var memberCreateConfigurationSetEventDestinationInput_ConfigurationSetName = smithy.Member{Name: "ConfigurationSetName", Index: 0, Target: &schemaConfigurationSetName, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -319,7 +319,7 @@ var memberCreateConfigurationSetEventDestinationInput_EventDestination = smithy.
 
 var schemaCreateConfigurationSetEventDestinationOutput = smithy.Schema{ID: "com.amazonaws.sesv2#CreateConfigurationSetEventDestinationResponse", Type: smithy.TypeStructure}
 
-var schemaCreateConfigurationSetInput = smithy.Schema{ID: "com.amazonaws.sesv2#CreateConfigurationSetRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateConfigurationSetInput_ConfigurationSetName, &memberCreateConfigurationSetInput_TrackingOptions, &memberCreateConfigurationSetInput_DeliveryOptions, &memberCreateConfigurationSetInput_ReputationOptions, &memberCreateConfigurationSetInput_SendingOptions, &memberCreateConfigurationSetInput_Tags, &memberCreateConfigurationSetInput_SuppressionOptions, &memberCreateConfigurationSetInput_VdmOptions, &memberCreateConfigurationSetInput_ArchivingOptions, &memberCreateConfigurationSetInput_MessageSecurityOptions}}
+var schemaCreateConfigurationSetInput = smithy.Schema{ID: "com.amazonaws.sesv2#CreateConfigurationSetRequest", Type: smithy.TypeStructure}
 
 var memberCreateConfigurationSetInput_ConfigurationSetName = smithy.Member{Name: "ConfigurationSetName", Index: 0, Target: &schemaConfigurationSetName, Required: true}
 
@@ -343,7 +343,7 @@ var memberCreateConfigurationSetInput_MessageSecurityOptions = smithy.Member{Nam
 
 var schemaCreateConfigurationSetOutput = smithy.Schema{ID: "com.amazonaws.sesv2#CreateConfigurationSetResponse", Type: smithy.TypeStructure}
 
-var schemaCreateContactInput = smithy.Schema{ID: "com.amazonaws.sesv2#CreateContactRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateContactInput_ContactListName, &memberCreateContactInput_EmailAddress, &memberCreateContactInput_TopicPreferences, &memberCreateContactInput_UnsubscribeAll, &memberCreateContactInput_AttributesData}}
+var schemaCreateContactInput = smithy.Schema{ID: "com.amazonaws.sesv2#CreateContactRequest", Type: smithy.TypeStructure}
 
 var memberCreateContactInput_ContactListName = smithy.Member{Name: "ContactListName", Index: 0, Target: &schemaContactListName, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -355,7 +355,7 @@ var memberCreateContactInput_UnsubscribeAll = smithy.Member{Name: "UnsubscribeAl
 
 var memberCreateContactInput_AttributesData = smithy.Member{Name: "AttributesData", Index: 4, Target: &schemaAttributesData}
 
-var schemaCreateContactListInput = smithy.Schema{ID: "com.amazonaws.sesv2#CreateContactListRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateContactListInput_ContactListName, &memberCreateContactListInput_Topics, &memberCreateContactListInput_Description, &memberCreateContactListInput_Tags}}
+var schemaCreateContactListInput = smithy.Schema{ID: "com.amazonaws.sesv2#CreateContactListRequest", Type: smithy.TypeStructure}
 
 var memberCreateContactListInput_ContactListName = smithy.Member{Name: "ContactListName", Index: 0, Target: &schemaContactListName, Required: true}
 
@@ -369,7 +369,7 @@ var schemaCreateContactListOutput = smithy.Schema{ID: "com.amazonaws.sesv2#Creat
 
 var schemaCreateContactOutput = smithy.Schema{ID: "com.amazonaws.sesv2#CreateContactResponse", Type: smithy.TypeStructure}
 
-var schemaCreateCustomVerificationEmailTemplateInput = smithy.Schema{ID: "com.amazonaws.sesv2#CreateCustomVerificationEmailTemplateRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateCustomVerificationEmailTemplateInput_TemplateName, &memberCreateCustomVerificationEmailTemplateInput_FromEmailAddress, &memberCreateCustomVerificationEmailTemplateInput_TemplateSubject, &memberCreateCustomVerificationEmailTemplateInput_TemplateContent, &memberCreateCustomVerificationEmailTemplateInput_Tags, &memberCreateCustomVerificationEmailTemplateInput_SuccessRedirectionURL, &memberCreateCustomVerificationEmailTemplateInput_FailureRedirectionURL}}
+var schemaCreateCustomVerificationEmailTemplateInput = smithy.Schema{ID: "com.amazonaws.sesv2#CreateCustomVerificationEmailTemplateRequest", Type: smithy.TypeStructure}
 
 var memberCreateCustomVerificationEmailTemplateInput_TemplateName = smithy.Member{Name: "TemplateName", Index: 0, Target: &schemaEmailTemplateName, Required: true}
 
@@ -387,7 +387,7 @@ var memberCreateCustomVerificationEmailTemplateInput_FailureRedirectionURL = smi
 
 var schemaCreateCustomVerificationEmailTemplateOutput = smithy.Schema{ID: "com.amazonaws.sesv2#CreateCustomVerificationEmailTemplateResponse", Type: smithy.TypeStructure}
 
-var schemaCreateDedicatedIpPoolInput = smithy.Schema{ID: "com.amazonaws.sesv2#CreateDedicatedIpPoolRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateDedicatedIpPoolInput_PoolName, &memberCreateDedicatedIpPoolInput_Tags, &memberCreateDedicatedIpPoolInput_ScalingMode}}
+var schemaCreateDedicatedIpPoolInput = smithy.Schema{ID: "com.amazonaws.sesv2#CreateDedicatedIpPoolRequest", Type: smithy.TypeStructure}
 
 var memberCreateDedicatedIpPoolInput_PoolName = smithy.Member{Name: "PoolName", Index: 0, Target: &schemaPoolName, Required: true}
 
@@ -397,7 +397,7 @@ var memberCreateDedicatedIpPoolInput_ScalingMode = smithy.Member{Name: "ScalingM
 
 var schemaCreateDedicatedIpPoolOutput = smithy.Schema{ID: "com.amazonaws.sesv2#CreateDedicatedIpPoolResponse", Type: smithy.TypeStructure}
 
-var schemaCreateDeliverabilityTestReportInput = smithy.Schema{ID: "com.amazonaws.sesv2#CreateDeliverabilityTestReportRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateDeliverabilityTestReportInput_ReportName, &memberCreateDeliverabilityTestReportInput_FromEmailAddress, &memberCreateDeliverabilityTestReportInput_Content, &memberCreateDeliverabilityTestReportInput_Tags}}
+var schemaCreateDeliverabilityTestReportInput = smithy.Schema{ID: "com.amazonaws.sesv2#CreateDeliverabilityTestReportRequest", Type: smithy.TypeStructure}
 
 var memberCreateDeliverabilityTestReportInput_ReportName = smithy.Member{Name: "ReportName", Index: 0, Target: &schemaReportName}
 
@@ -407,7 +407,7 @@ var memberCreateDeliverabilityTestReportInput_Content = smithy.Member{Name: "Con
 
 var memberCreateDeliverabilityTestReportInput_Tags = smithy.Member{Name: "Tags", Index: 3, Target: &schemaTagList}
 
-var schemaCreateDeliverabilityTestReportOutput = smithy.Schema{ID: "com.amazonaws.sesv2#CreateDeliverabilityTestReportResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateDeliverabilityTestReportOutput_ReportId, &memberCreateDeliverabilityTestReportOutput_DeliverabilityTestStatus}}
+var schemaCreateDeliverabilityTestReportOutput = smithy.Schema{ID: "com.amazonaws.sesv2#CreateDeliverabilityTestReportResponse", Type: smithy.TypeStructure}
 
 var memberCreateDeliverabilityTestReportOutput_ReportId = smithy.Member{Name: "ReportId", Index: 0, Target: &schemaReportId, Required: true}
 
@@ -431,7 +431,7 @@ var memberCreateEmailIdentityOutput_VerifiedForSendingStatus = smithy.Member{Nam
 
 var memberCreateEmailIdentityOutput_DkimAttributes = smithy.Member{Name: "DkimAttributes", Index: 2, Target: &schemaDkimAttributes}
 
-var schemaCreateEmailIdentityPolicyInput = smithy.Schema{ID: "com.amazonaws.sesv2#CreateEmailIdentityPolicyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateEmailIdentityPolicyInput_EmailIdentity, &memberCreateEmailIdentityPolicyInput_PolicyName, &memberCreateEmailIdentityPolicyInput_Policy}}
+var schemaCreateEmailIdentityPolicyInput = smithy.Schema{ID: "com.amazonaws.sesv2#CreateEmailIdentityPolicyRequest", Type: smithy.TypeStructure}
 
 var memberCreateEmailIdentityPolicyInput_EmailIdentity = smithy.Member{Name: "EmailIdentity", Index: 0, Target: &schemaIdentity, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -451,27 +451,27 @@ var memberCreateEmailTemplateInput_Tags = smithy.Member{Name: "Tags", Index: 2, 
 
 var schemaCreateEmailTemplateOutput = smithy.Schema{ID: "com.amazonaws.sesv2#CreateEmailTemplateResponse", Type: smithy.TypeStructure}
 
-var schemaCreateExportJobInput = smithy.Schema{ID: "com.amazonaws.sesv2#CreateExportJobRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateExportJobInput_ExportDataSource, &memberCreateExportJobInput_ExportDestination}}
+var schemaCreateExportJobInput = smithy.Schema{ID: "com.amazonaws.sesv2#CreateExportJobRequest", Type: smithy.TypeStructure}
 
 var memberCreateExportJobInput_ExportDataSource = smithy.Member{Name: "ExportDataSource", Index: 0, Target: &schemaExportDataSource, Required: true}
 
 var memberCreateExportJobInput_ExportDestination = smithy.Member{Name: "ExportDestination", Index: 1, Target: &schemaExportDestination, Required: true}
 
-var schemaCreateExportJobOutput = smithy.Schema{ID: "com.amazonaws.sesv2#CreateExportJobResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateExportJobOutput_JobId}}
+var schemaCreateExportJobOutput = smithy.Schema{ID: "com.amazonaws.sesv2#CreateExportJobResponse", Type: smithy.TypeStructure}
 
 var memberCreateExportJobOutput_JobId = smithy.Member{Name: "JobId", Index: 0, Target: &schemaJobId}
 
-var schemaCreateImportJobInput = smithy.Schema{ID: "com.amazonaws.sesv2#CreateImportJobRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateImportJobInput_ImportDestination, &memberCreateImportJobInput_ImportDataSource}}
+var schemaCreateImportJobInput = smithy.Schema{ID: "com.amazonaws.sesv2#CreateImportJobRequest", Type: smithy.TypeStructure}
 
 var memberCreateImportJobInput_ImportDestination = smithy.Member{Name: "ImportDestination", Index: 0, Target: &schemaImportDestination, Required: true}
 
 var memberCreateImportJobInput_ImportDataSource = smithy.Member{Name: "ImportDataSource", Index: 1, Target: &schemaImportDataSource, Required: true}
 
-var schemaCreateImportJobOutput = smithy.Schema{ID: "com.amazonaws.sesv2#CreateImportJobResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateImportJobOutput_JobId}}
+var schemaCreateImportJobOutput = smithy.Schema{ID: "com.amazonaws.sesv2#CreateImportJobResponse", Type: smithy.TypeStructure}
 
 var memberCreateImportJobOutput_JobId = smithy.Member{Name: "JobId", Index: 0, Target: &schemaJobId}
 
-var schemaCreateMultiRegionEndpointInput = smithy.Schema{ID: "com.amazonaws.sesv2#CreateMultiRegionEndpointRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateMultiRegionEndpointInput_EndpointName, &memberCreateMultiRegionEndpointInput_Details, &memberCreateMultiRegionEndpointInput_Tags}}
+var schemaCreateMultiRegionEndpointInput = smithy.Schema{ID: "com.amazonaws.sesv2#CreateMultiRegionEndpointRequest", Type: smithy.TypeStructure}
 
 var memberCreateMultiRegionEndpointInput_EndpointName = smithy.Member{Name: "EndpointName", Index: 0, Target: &schemaEndpointName, Required: true}
 
@@ -479,13 +479,13 @@ var memberCreateMultiRegionEndpointInput_Details = smithy.Member{Name: "Details"
 
 var memberCreateMultiRegionEndpointInput_Tags = smithy.Member{Name: "Tags", Index: 2, Target: &schemaTagList}
 
-var schemaCreateMultiRegionEndpointOutput = smithy.Schema{ID: "com.amazonaws.sesv2#CreateMultiRegionEndpointResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateMultiRegionEndpointOutput_Status, &memberCreateMultiRegionEndpointOutput_EndpointId}}
+var schemaCreateMultiRegionEndpointOutput = smithy.Schema{ID: "com.amazonaws.sesv2#CreateMultiRegionEndpointResponse", Type: smithy.TypeStructure}
 
 var memberCreateMultiRegionEndpointOutput_Status = smithy.Member{Name: "Status", Index: 0, Target: &schemaStatus}
 
 var memberCreateMultiRegionEndpointOutput_EndpointId = smithy.Member{Name: "EndpointId", Index: 1, Target: &schemaEndpointId}
 
-var schemaCreateTenantInput = smithy.Schema{ID: "com.amazonaws.sesv2#CreateTenantRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateTenantInput_TenantName, &memberCreateTenantInput_Tags, &memberCreateTenantInput_SuppressionAttributes}}
+var schemaCreateTenantInput = smithy.Schema{ID: "com.amazonaws.sesv2#CreateTenantRequest", Type: smithy.TypeStructure}
 
 var memberCreateTenantInput_TenantName = smithy.Member{Name: "TenantName", Index: 0, Target: &schemaTenantName, Required: true}
 
@@ -493,7 +493,7 @@ var memberCreateTenantInput_Tags = smithy.Member{Name: "Tags", Index: 1, Target:
 
 var memberCreateTenantInput_SuppressionAttributes = smithy.Member{Name: "SuppressionAttributes", Index: 2, Target: &schemaTenantSuppressionAttributes}
 
-var schemaCreateTenantOutput = smithy.Schema{ID: "com.amazonaws.sesv2#CreateTenantResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateTenantOutput_TenantName, &memberCreateTenantOutput_TenantId, &memberCreateTenantOutput_TenantArn, &memberCreateTenantOutput_CreatedTimestamp, &memberCreateTenantOutput_Tags, &memberCreateTenantOutput_SendingStatus, &memberCreateTenantOutput_SuppressionAttributes}}
+var schemaCreateTenantOutput = smithy.Schema{ID: "com.amazonaws.sesv2#CreateTenantResponse", Type: smithy.TypeStructure}
 
 var memberCreateTenantOutput_TenantName = smithy.Member{Name: "TenantName", Index: 0, Target: &schemaTenantName}
 
@@ -509,7 +509,7 @@ var memberCreateTenantOutput_SendingStatus = smithy.Member{Name: "SendingStatus"
 
 var memberCreateTenantOutput_SuppressionAttributes = smithy.Member{Name: "SuppressionAttributes", Index: 6, Target: &schemaTenantSuppressionAttributes}
 
-var schemaCreateTenantResourceAssociationInput = smithy.Schema{ID: "com.amazonaws.sesv2#CreateTenantResourceAssociationRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateTenantResourceAssociationInput_TenantName, &memberCreateTenantResourceAssociationInput_ResourceArn}}
+var schemaCreateTenantResourceAssociationInput = smithy.Schema{ID: "com.amazonaws.sesv2#CreateTenantResourceAssociationRequest", Type: smithy.TypeStructure}
 
 var memberCreateTenantResourceAssociationInput_TenantName = smithy.Member{Name: "TenantName", Index: 0, Target: &schemaTenantName, Required: true}
 
@@ -519,7 +519,7 @@ var schemaCreateTenantResourceAssociationOutput = smithy.Schema{ID: "com.amazona
 
 var schemaCustomRedirectDomain = smithy.Schema{ID: "com.amazonaws.sesv2#CustomRedirectDomain", Type: smithy.TypeString}
 
-var schemaCustomVerificationEmailTemplateMetadata = smithy.Schema{ID: "com.amazonaws.sesv2#CustomVerificationEmailTemplateMetadata", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCustomVerificationEmailTemplateMetadata_TemplateName, &memberCustomVerificationEmailTemplateMetadata_FromEmailAddress, &memberCustomVerificationEmailTemplateMetadata_TemplateSubject, &memberCustomVerificationEmailTemplateMetadata_SuccessRedirectionURL, &memberCustomVerificationEmailTemplateMetadata_FailureRedirectionURL}}
+var schemaCustomVerificationEmailTemplateMetadata = smithy.Schema{ID: "com.amazonaws.sesv2#CustomVerificationEmailTemplateMetadata", Type: smithy.TypeStructure}
 
 var memberCustomVerificationEmailTemplateMetadata_TemplateName = smithy.Member{Name: "TemplateName", Index: 0, Target: &schemaEmailTemplateName}
 
@@ -531,11 +531,11 @@ var memberCustomVerificationEmailTemplateMetadata_SuccessRedirectionURL = smithy
 
 var memberCustomVerificationEmailTemplateMetadata_FailureRedirectionURL = smithy.Member{Name: "FailureRedirectionURL", Index: 4, Target: &schemaFailureRedirectionURL}
 
-var schemaCustomVerificationEmailTemplatesList = smithy.Schema{ID: "com.amazonaws.sesv2#CustomVerificationEmailTemplatesList", Type: smithy.TypeList, Members: []*smithy.Member{&memberCustomVerificationEmailTemplatesList_member}}
+var schemaCustomVerificationEmailTemplatesList = smithy.Schema{ID: "com.amazonaws.sesv2#CustomVerificationEmailTemplatesList", Type: smithy.TypeList}
 
 var memberCustomVerificationEmailTemplatesList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaCustomVerificationEmailTemplateMetadata}
 
-var schemaDailyVolume = smithy.Schema{ID: "com.amazonaws.sesv2#DailyVolume", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDailyVolume_StartDate, &memberDailyVolume_VolumeStatistics, &memberDailyVolume_DomainIspPlacements}}
+var schemaDailyVolume = smithy.Schema{ID: "com.amazonaws.sesv2#DailyVolume", Type: smithy.TypeStructure}
 
 var memberDailyVolume_StartDate = smithy.Member{Name: "StartDate", Index: 0, Target: &schemaTimestamp}
 
@@ -543,7 +543,7 @@ var memberDailyVolume_VolumeStatistics = smithy.Member{Name: "VolumeStatistics",
 
 var memberDailyVolume_DomainIspPlacements = smithy.Member{Name: "DomainIspPlacements", Index: 2, Target: &schemaDomainIspPlacements}
 
-var schemaDailyVolumes = smithy.Schema{ID: "com.amazonaws.sesv2#DailyVolumes", Type: smithy.TypeList, Members: []*smithy.Member{&memberDailyVolumes_member}}
+var schemaDailyVolumes = smithy.Schema{ID: "com.amazonaws.sesv2#DailyVolumes", Type: smithy.TypeList}
 
 var memberDailyVolumes_member = smithy.Member{Name: "member", Index: 0, Target: &schemaDailyVolume}
 
@@ -551,13 +551,13 @@ var schemaDashboardAttributes = smithy.Schema{ID: "com.amazonaws.sesv2#Dashboard
 
 var memberDashboardAttributes_EngagementMetrics = smithy.Member{Name: "EngagementMetrics", Index: 0, Target: &schemaFeatureStatus}
 
-var schemaDashboardOptions = smithy.Schema{ID: "com.amazonaws.sesv2#DashboardOptions", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDashboardOptions_EngagementMetrics}}
+var schemaDashboardOptions = smithy.Schema{ID: "com.amazonaws.sesv2#DashboardOptions", Type: smithy.TypeStructure}
 
 var memberDashboardOptions_EngagementMetrics = smithy.Member{Name: "EngagementMetrics", Index: 0, Target: &schemaFeatureStatus}
 
 var schemaDataFormat = smithy.Schema{ID: "com.amazonaws.sesv2#DataFormat", Type: smithy.TypeEnum}
 
-var schemaDedicatedIp = smithy.Schema{ID: "com.amazonaws.sesv2#DedicatedIp", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDedicatedIp_Ip, &memberDedicatedIp_WarmupStatus, &memberDedicatedIp_WarmupPercentage, &memberDedicatedIp_PoolName}}
+var schemaDedicatedIp = smithy.Schema{ID: "com.amazonaws.sesv2#DedicatedIp", Type: smithy.TypeStructure}
 
 var memberDedicatedIp_Ip = smithy.Member{Name: "Ip", Index: 0, Target: &schemaIp, Required: true}
 
@@ -567,11 +567,11 @@ var memberDedicatedIp_WarmupPercentage = smithy.Member{Name: "WarmupPercentage",
 
 var memberDedicatedIp_PoolName = smithy.Member{Name: "PoolName", Index: 3, Target: &schemaPoolName}
 
-var schemaDedicatedIpList = smithy.Schema{ID: "com.amazonaws.sesv2#DedicatedIpList", Type: smithy.TypeList, Members: []*smithy.Member{&memberDedicatedIpList_member}}
+var schemaDedicatedIpList = smithy.Schema{ID: "com.amazonaws.sesv2#DedicatedIpList", Type: smithy.TypeList}
 
 var memberDedicatedIpList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaDedicatedIp}
 
-var schemaDedicatedIpPool = smithy.Schema{ID: "com.amazonaws.sesv2#DedicatedIpPool", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDedicatedIpPool_PoolName, &memberDedicatedIpPool_ScalingMode}}
+var schemaDedicatedIpPool = smithy.Schema{ID: "com.amazonaws.sesv2#DedicatedIpPool", Type: smithy.TypeStructure}
 
 var memberDedicatedIpPool_PoolName = smithy.Member{Name: "PoolName", Index: 0, Target: &schemaPoolName, Required: true}
 
@@ -581,7 +581,7 @@ var schemaDefaultDimensionValue = smithy.Schema{ID: "com.amazonaws.sesv2#Default
 
 var schemaDefaultSigningScheme = smithy.Schema{ID: "com.amazonaws.sesv2#DefaultSigningScheme", Type: smithy.TypeStructure}
 
-var schemaDeleteConfigurationSetEventDestinationInput = smithy.Schema{ID: "com.amazonaws.sesv2#DeleteConfigurationSetEventDestinationRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteConfigurationSetEventDestinationInput_ConfigurationSetName, &memberDeleteConfigurationSetEventDestinationInput_EventDestinationName}}
+var schemaDeleteConfigurationSetEventDestinationInput = smithy.Schema{ID: "com.amazonaws.sesv2#DeleteConfigurationSetEventDestinationRequest", Type: smithy.TypeStructure}
 
 var memberDeleteConfigurationSetEventDestinationInput_ConfigurationSetName = smithy.Member{Name: "ConfigurationSetName", Index: 0, Target: &schemaConfigurationSetName, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -589,19 +589,19 @@ var memberDeleteConfigurationSetEventDestinationInput_EventDestinationName = smi
 
 var schemaDeleteConfigurationSetEventDestinationOutput = smithy.Schema{ID: "com.amazonaws.sesv2#DeleteConfigurationSetEventDestinationResponse", Type: smithy.TypeStructure}
 
-var schemaDeleteConfigurationSetInput = smithy.Schema{ID: "com.amazonaws.sesv2#DeleteConfigurationSetRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteConfigurationSetInput_ConfigurationSetName}}
+var schemaDeleteConfigurationSetInput = smithy.Schema{ID: "com.amazonaws.sesv2#DeleteConfigurationSetRequest", Type: smithy.TypeStructure}
 
 var memberDeleteConfigurationSetInput_ConfigurationSetName = smithy.Member{Name: "ConfigurationSetName", Index: 0, Target: &schemaConfigurationSetName, Required: true, HTTP: smithy.HTTPLabel{}}
 
 var schemaDeleteConfigurationSetOutput = smithy.Schema{ID: "com.amazonaws.sesv2#DeleteConfigurationSetResponse", Type: smithy.TypeStructure}
 
-var schemaDeleteContactInput = smithy.Schema{ID: "com.amazonaws.sesv2#DeleteContactRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteContactInput_ContactListName, &memberDeleteContactInput_EmailAddress}}
+var schemaDeleteContactInput = smithy.Schema{ID: "com.amazonaws.sesv2#DeleteContactRequest", Type: smithy.TypeStructure}
 
 var memberDeleteContactInput_ContactListName = smithy.Member{Name: "ContactListName", Index: 0, Target: &schemaContactListName, Required: true, HTTP: smithy.HTTPLabel{}}
 
 var memberDeleteContactInput_EmailAddress = smithy.Member{Name: "EmailAddress", Index: 1, Target: &schemaEmailAddress, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaDeleteContactListInput = smithy.Schema{ID: "com.amazonaws.sesv2#DeleteContactListRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteContactListInput_ContactListName}}
+var schemaDeleteContactListInput = smithy.Schema{ID: "com.amazonaws.sesv2#DeleteContactListRequest", Type: smithy.TypeStructure}
 
 var memberDeleteContactListInput_ContactListName = smithy.Member{Name: "ContactListName", Index: 0, Target: &schemaContactListName, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -609,13 +609,13 @@ var schemaDeleteContactListOutput = smithy.Schema{ID: "com.amazonaws.sesv2#Delet
 
 var schemaDeleteContactOutput = smithy.Schema{ID: "com.amazonaws.sesv2#DeleteContactResponse", Type: smithy.TypeStructure}
 
-var schemaDeleteCustomVerificationEmailTemplateInput = smithy.Schema{ID: "com.amazonaws.sesv2#DeleteCustomVerificationEmailTemplateRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteCustomVerificationEmailTemplateInput_TemplateName}}
+var schemaDeleteCustomVerificationEmailTemplateInput = smithy.Schema{ID: "com.amazonaws.sesv2#DeleteCustomVerificationEmailTemplateRequest", Type: smithy.TypeStructure}
 
 var memberDeleteCustomVerificationEmailTemplateInput_TemplateName = smithy.Member{Name: "TemplateName", Index: 0, Target: &schemaEmailTemplateName, Required: true, HTTP: smithy.HTTPLabel{}}
 
 var schemaDeleteCustomVerificationEmailTemplateOutput = smithy.Schema{ID: "com.amazonaws.sesv2#DeleteCustomVerificationEmailTemplateResponse", Type: smithy.TypeStructure}
 
-var schemaDeleteDedicatedIpPoolInput = smithy.Schema{ID: "com.amazonaws.sesv2#DeleteDedicatedIpPoolRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteDedicatedIpPoolInput_PoolName}}
+var schemaDeleteDedicatedIpPoolInput = smithy.Schema{ID: "com.amazonaws.sesv2#DeleteDedicatedIpPoolRequest", Type: smithy.TypeStructure}
 
 var memberDeleteDedicatedIpPoolInput_PoolName = smithy.Member{Name: "PoolName", Index: 0, Target: &schemaPoolName, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -627,7 +627,7 @@ var memberDeleteEmailIdentityInput_EmailIdentity = smithy.Member{Name: "EmailIde
 
 var schemaDeleteEmailIdentityOutput = smithy.Schema{ID: "com.amazonaws.sesv2#DeleteEmailIdentityResponse", Type: smithy.TypeStructure}
 
-var schemaDeleteEmailIdentityPolicyInput = smithy.Schema{ID: "com.amazonaws.sesv2#DeleteEmailIdentityPolicyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteEmailIdentityPolicyInput_EmailIdentity, &memberDeleteEmailIdentityPolicyInput_PolicyName}}
+var schemaDeleteEmailIdentityPolicyInput = smithy.Schema{ID: "com.amazonaws.sesv2#DeleteEmailIdentityPolicyRequest", Type: smithy.TypeStructure}
 
 var memberDeleteEmailIdentityPolicyInput_EmailIdentity = smithy.Member{Name: "EmailIdentity", Index: 0, Target: &schemaIdentity, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -641,15 +641,15 @@ var memberDeleteEmailTemplateInput_TemplateName = smithy.Member{Name: "TemplateN
 
 var schemaDeleteEmailTemplateOutput = smithy.Schema{ID: "com.amazonaws.sesv2#DeleteEmailTemplateResponse", Type: smithy.TypeStructure}
 
-var schemaDeleteMultiRegionEndpointInput = smithy.Schema{ID: "com.amazonaws.sesv2#DeleteMultiRegionEndpointRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteMultiRegionEndpointInput_EndpointName}}
+var schemaDeleteMultiRegionEndpointInput = smithy.Schema{ID: "com.amazonaws.sesv2#DeleteMultiRegionEndpointRequest", Type: smithy.TypeStructure}
 
 var memberDeleteMultiRegionEndpointInput_EndpointName = smithy.Member{Name: "EndpointName", Index: 0, Target: &schemaEndpointName, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaDeleteMultiRegionEndpointOutput = smithy.Schema{ID: "com.amazonaws.sesv2#DeleteMultiRegionEndpointResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteMultiRegionEndpointOutput_Status}}
+var schemaDeleteMultiRegionEndpointOutput = smithy.Schema{ID: "com.amazonaws.sesv2#DeleteMultiRegionEndpointResponse", Type: smithy.TypeStructure}
 
 var memberDeleteMultiRegionEndpointOutput_Status = smithy.Member{Name: "Status", Index: 0, Target: &schemaStatus}
 
-var schemaDeleteSuppressedDestinationInput = smithy.Schema{ID: "com.amazonaws.sesv2#DeleteSuppressedDestinationRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteSuppressedDestinationInput_EmailAddress, &memberDeleteSuppressedDestinationInput_TenantName}}
+var schemaDeleteSuppressedDestinationInput = smithy.Schema{ID: "com.amazonaws.sesv2#DeleteSuppressedDestinationRequest", Type: smithy.TypeStructure}
 
 var memberDeleteSuppressedDestinationInput_EmailAddress = smithy.Member{Name: "EmailAddress", Index: 0, Target: &schemaEmailAddress, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -657,13 +657,13 @@ var memberDeleteSuppressedDestinationInput_TenantName = smithy.Member{Name: "Ten
 
 var schemaDeleteSuppressedDestinationOutput = smithy.Schema{ID: "com.amazonaws.sesv2#DeleteSuppressedDestinationResponse", Type: smithy.TypeStructure}
 
-var schemaDeleteTenantInput = smithy.Schema{ID: "com.amazonaws.sesv2#DeleteTenantRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteTenantInput_TenantName}}
+var schemaDeleteTenantInput = smithy.Schema{ID: "com.amazonaws.sesv2#DeleteTenantRequest", Type: smithy.TypeStructure}
 
 var memberDeleteTenantInput_TenantName = smithy.Member{Name: "TenantName", Index: 0, Target: &schemaTenantName, Required: true}
 
 var schemaDeleteTenantOutput = smithy.Schema{ID: "com.amazonaws.sesv2#DeleteTenantResponse", Type: smithy.TypeStructure}
 
-var schemaDeleteTenantResourceAssociationInput = smithy.Schema{ID: "com.amazonaws.sesv2#DeleteTenantResourceAssociationRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteTenantResourceAssociationInput_TenantName, &memberDeleteTenantResourceAssociationInput_ResourceArn}}
+var schemaDeleteTenantResourceAssociationInput = smithy.Schema{ID: "com.amazonaws.sesv2#DeleteTenantResourceAssociationRequest", Type: smithy.TypeStructure}
 
 var memberDeleteTenantResourceAssociationInput_TenantName = smithy.Member{Name: "TenantName", Index: 0, Target: &schemaTenantName, Required: true}
 
@@ -673,7 +673,7 @@ var schemaDeleteTenantResourceAssociationOutput = smithy.Schema{ID: "com.amazona
 
 var schemaDeliverabilityDashboardAccountStatus = smithy.Schema{ID: "com.amazonaws.sesv2#DeliverabilityDashboardAccountStatus", Type: smithy.TypeEnum}
 
-var schemaDeliverabilityTestReport = smithy.Schema{ID: "com.amazonaws.sesv2#DeliverabilityTestReport", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeliverabilityTestReport_ReportId, &memberDeliverabilityTestReport_ReportName, &memberDeliverabilityTestReport_Subject, &memberDeliverabilityTestReport_FromEmailAddress, &memberDeliverabilityTestReport_CreateDate, &memberDeliverabilityTestReport_DeliverabilityTestStatus}}
+var schemaDeliverabilityTestReport = smithy.Schema{ID: "com.amazonaws.sesv2#DeliverabilityTestReport", Type: smithy.TypeStructure}
 
 var memberDeliverabilityTestReport_ReportId = smithy.Member{Name: "ReportId", Index: 0, Target: &schemaReportId}
 
@@ -687,7 +687,7 @@ var memberDeliverabilityTestReport_CreateDate = smithy.Member{Name: "CreateDate"
 
 var memberDeliverabilityTestReport_DeliverabilityTestStatus = smithy.Member{Name: "DeliverabilityTestStatus", Index: 5, Target: &schemaDeliverabilityTestStatus}
 
-var schemaDeliverabilityTestReports = smithy.Schema{ID: "com.amazonaws.sesv2#DeliverabilityTestReports", Type: smithy.TypeList, Members: []*smithy.Member{&memberDeliverabilityTestReports_member}}
+var schemaDeliverabilityTestReports = smithy.Schema{ID: "com.amazonaws.sesv2#DeliverabilityTestReports", Type: smithy.TypeList}
 
 var memberDeliverabilityTestReports_member = smithy.Member{Name: "member", Index: 0, Target: &schemaDeliverabilityTestReport}
 
@@ -697,7 +697,7 @@ var schemaDeliverabilityTestSubject = smithy.Schema{ID: "com.amazonaws.sesv2#Del
 
 var schemaDeliveryEventType = smithy.Schema{ID: "com.amazonaws.sesv2#DeliveryEventType", Type: smithy.TypeEnum}
 
-var schemaDeliveryOptions = smithy.Schema{ID: "com.amazonaws.sesv2#DeliveryOptions", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeliveryOptions_TlsPolicy, &memberDeliveryOptions_SendingPoolName, &memberDeliveryOptions_MaxDeliverySeconds}}
+var schemaDeliveryOptions = smithy.Schema{ID: "com.amazonaws.sesv2#DeliveryOptions", Type: smithy.TypeStructure}
 
 var memberDeliveryOptions_TlsPolicy = smithy.Member{Name: "TlsPolicy", Index: 0, Target: &schemaTlsPolicy}
 
@@ -715,7 +715,7 @@ var memberDestination_CcAddresses = smithy.Member{Name: "CcAddresses", Index: 1,
 
 var memberDestination_BccAddresses = smithy.Member{Name: "BccAddresses", Index: 2, Target: &schemaEmailAddressList}
 
-var schemaDetails = smithy.Schema{ID: "com.amazonaws.sesv2#Details", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDetails_RoutesDetails}}
+var schemaDetails = smithy.Schema{ID: "com.amazonaws.sesv2#Details", Type: smithy.TypeStructure}
 
 var memberDetails_RoutesDetails = smithy.Member{Name: "RoutesDetails", Index: 0, Target: &schemaRoutesDetails, Required: true}
 
@@ -725,13 +725,13 @@ var schemaDimensionName = smithy.Schema{ID: "com.amazonaws.sesv2#DimensionName",
 
 var schemaDimensionValueSource = smithy.Schema{ID: "com.amazonaws.sesv2#DimensionValueSource", Type: smithy.TypeEnum}
 
-var schemaDimensions = smithy.Schema{ID: "com.amazonaws.sesv2#Dimensions", Type: smithy.TypeMap, Members: []*smithy.Member{&memberDimensions_key, &memberDimensions_value}}
+var schemaDimensions = smithy.Schema{ID: "com.amazonaws.sesv2#Dimensions", Type: smithy.TypeMap}
 
 var memberDimensions_key = smithy.Member{Name: "key", Index: 0, Target: &schemaMetricDimensionName}
 
 var memberDimensions_value = smithy.Member{Name: "value", Index: 1, Target: &schemaMetricDimensionValue}
 
-var schemaDisassociateEmailIdentityCertificateInput = smithy.Schema{ID: "com.amazonaws.sesv2#DisassociateEmailIdentityCertificateRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDisassociateEmailIdentityCertificateInput_EmailIdentity, &memberDisassociateEmailIdentityCertificateInput_FromAddress}}
+var schemaDisassociateEmailIdentityCertificateInput = smithy.Schema{ID: "com.amazonaws.sesv2#DisassociateEmailIdentityCertificateRequest", Type: smithy.TypeStructure}
 
 var memberDisassociateEmailIdentityCertificateInput_EmailIdentity = smithy.Member{Name: "EmailIdentity", Index: 0, Target: &schemaIdentity, Required: true}
 
@@ -783,7 +783,7 @@ var memberDnsTokenList_member = smithy.Member{Name: "member", Index: 0, Target: 
 
 var schemaDomain = smithy.Schema{ID: "com.amazonaws.sesv2#Domain", Type: smithy.TypeString}
 
-var schemaDomainDeliverabilityCampaign = smithy.Schema{ID: "com.amazonaws.sesv2#DomainDeliverabilityCampaign", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDomainDeliverabilityCampaign_CampaignId, &memberDomainDeliverabilityCampaign_ImageUrl, &memberDomainDeliverabilityCampaign_Subject, &memberDomainDeliverabilityCampaign_FromAddress, &memberDomainDeliverabilityCampaign_SendingIps, &memberDomainDeliverabilityCampaign_FirstSeenDateTime, &memberDomainDeliverabilityCampaign_LastSeenDateTime, &memberDomainDeliverabilityCampaign_InboxCount, &memberDomainDeliverabilityCampaign_SpamCount, &memberDomainDeliverabilityCampaign_ReadRate, &memberDomainDeliverabilityCampaign_DeleteRate, &memberDomainDeliverabilityCampaign_ReadDeleteRate, &memberDomainDeliverabilityCampaign_ProjectedVolume, &memberDomainDeliverabilityCampaign_Esps}}
+var schemaDomainDeliverabilityCampaign = smithy.Schema{ID: "com.amazonaws.sesv2#DomainDeliverabilityCampaign", Type: smithy.TypeStructure}
 
 var memberDomainDeliverabilityCampaign_CampaignId = smithy.Member{Name: "CampaignId", Index: 0, Target: &schemaCampaignId}
 
@@ -813,11 +813,11 @@ var memberDomainDeliverabilityCampaign_ProjectedVolume = smithy.Member{Name: "Pr
 
 var memberDomainDeliverabilityCampaign_Esps = smithy.Member{Name: "Esps", Index: 13, Target: &schemaEsps}
 
-var schemaDomainDeliverabilityCampaignList = smithy.Schema{ID: "com.amazonaws.sesv2#DomainDeliverabilityCampaignList", Type: smithy.TypeList, Members: []*smithy.Member{&memberDomainDeliverabilityCampaignList_member}}
+var schemaDomainDeliverabilityCampaignList = smithy.Schema{ID: "com.amazonaws.sesv2#DomainDeliverabilityCampaignList", Type: smithy.TypeList}
 
 var memberDomainDeliverabilityCampaignList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaDomainDeliverabilityCampaign}
 
-var schemaDomainDeliverabilityTrackingOption = smithy.Schema{ID: "com.amazonaws.sesv2#DomainDeliverabilityTrackingOption", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDomainDeliverabilityTrackingOption_Domain, &memberDomainDeliverabilityTrackingOption_SubscriptionStartDate, &memberDomainDeliverabilityTrackingOption_InboxPlacementTrackingOption}}
+var schemaDomainDeliverabilityTrackingOption = smithy.Schema{ID: "com.amazonaws.sesv2#DomainDeliverabilityTrackingOption", Type: smithy.TypeStructure}
 
 var memberDomainDeliverabilityTrackingOption_Domain = smithy.Member{Name: "Domain", Index: 0, Target: &schemaDomain}
 
@@ -825,11 +825,11 @@ var memberDomainDeliverabilityTrackingOption_SubscriptionStartDate = smithy.Memb
 
 var memberDomainDeliverabilityTrackingOption_InboxPlacementTrackingOption = smithy.Member{Name: "InboxPlacementTrackingOption", Index: 2, Target: &schemaInboxPlacementTrackingOption}
 
-var schemaDomainDeliverabilityTrackingOptions = smithy.Schema{ID: "com.amazonaws.sesv2#DomainDeliverabilityTrackingOptions", Type: smithy.TypeList, Members: []*smithy.Member{&memberDomainDeliverabilityTrackingOptions_member}}
+var schemaDomainDeliverabilityTrackingOptions = smithy.Schema{ID: "com.amazonaws.sesv2#DomainDeliverabilityTrackingOptions", Type: smithy.TypeList}
 
 var memberDomainDeliverabilityTrackingOptions_member = smithy.Member{Name: "member", Index: 0, Target: &schemaDomainDeliverabilityTrackingOption}
 
-var schemaDomainIspPlacement = smithy.Schema{ID: "com.amazonaws.sesv2#DomainIspPlacement", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDomainIspPlacement_IspName, &memberDomainIspPlacement_InboxRawCount, &memberDomainIspPlacement_SpamRawCount, &memberDomainIspPlacement_InboxPercentage, &memberDomainIspPlacement_SpamPercentage}}
+var schemaDomainIspPlacement = smithy.Schema{ID: "com.amazonaws.sesv2#DomainIspPlacement", Type: smithy.TypeStructure}
 
 var memberDomainIspPlacement_IspName = smithy.Member{Name: "IspName", Index: 0, Target: &schemaIspName}
 
@@ -841,19 +841,19 @@ var memberDomainIspPlacement_InboxPercentage = smithy.Member{Name: "InboxPercent
 
 var memberDomainIspPlacement_SpamPercentage = smithy.Member{Name: "SpamPercentage", Index: 4, Target: &schemaPercentage}
 
-var schemaDomainIspPlacements = smithy.Schema{ID: "com.amazonaws.sesv2#DomainIspPlacements", Type: smithy.TypeList, Members: []*smithy.Member{&memberDomainIspPlacements_member}}
+var schemaDomainIspPlacements = smithy.Schema{ID: "com.amazonaws.sesv2#DomainIspPlacements", Type: smithy.TypeList}
 
 var memberDomainIspPlacements_member = smithy.Member{Name: "member", Index: 0, Target: &schemaDomainIspPlacement}
 
 var schemaEmailAddress = smithy.Schema{ID: "com.amazonaws.sesv2#EmailAddress", Type: smithy.TypeString}
 
-var schemaEmailAddressFilterList = smithy.Schema{ID: "com.amazonaws.sesv2#EmailAddressFilterList", Type: smithy.TypeList, Members: []*smithy.Member{&memberEmailAddressFilterList_member}}
+var schemaEmailAddressFilterList = smithy.Schema{ID: "com.amazonaws.sesv2#EmailAddressFilterList", Type: smithy.TypeList}
 
 var memberEmailAddressFilterList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaInsightsEmailAddress, Sensitive: true}
 
 var schemaEmailAddressInsightsConfidenceVerdict = smithy.Schema{ID: "com.amazonaws.sesv2#EmailAddressInsightsConfidenceVerdict", Type: smithy.TypeEnum}
 
-var schemaEmailAddressInsightsMailboxEvaluations = smithy.Schema{ID: "com.amazonaws.sesv2#EmailAddressInsightsMailboxEvaluations", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberEmailAddressInsightsMailboxEvaluations_HasValidSyntax, &memberEmailAddressInsightsMailboxEvaluations_HasValidDnsRecords, &memberEmailAddressInsightsMailboxEvaluations_MailboxExists, &memberEmailAddressInsightsMailboxEvaluations_IsRoleAddress, &memberEmailAddressInsightsMailboxEvaluations_IsDisposable, &memberEmailAddressInsightsMailboxEvaluations_IsRandomInput}}
+var schemaEmailAddressInsightsMailboxEvaluations = smithy.Schema{ID: "com.amazonaws.sesv2#EmailAddressInsightsMailboxEvaluations", Type: smithy.TypeStructure}
 
 var memberEmailAddressInsightsMailboxEvaluations_HasValidSyntax = smithy.Member{Name: "HasValidSyntax", Index: 0, Target: &schemaEmailAddressInsightsVerdict}
 
@@ -867,7 +867,7 @@ var memberEmailAddressInsightsMailboxEvaluations_IsDisposable = smithy.Member{Na
 
 var memberEmailAddressInsightsMailboxEvaluations_IsRandomInput = smithy.Member{Name: "IsRandomInput", Index: 5, Target: &schemaEmailAddressInsightsVerdict}
 
-var schemaEmailAddressInsightsVerdict = smithy.Schema{ID: "com.amazonaws.sesv2#EmailAddressInsightsVerdict", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberEmailAddressInsightsVerdict_ConfidenceVerdict}}
+var schemaEmailAddressInsightsVerdict = smithy.Schema{ID: "com.amazonaws.sesv2#EmailAddressInsightsVerdict", Type: smithy.TypeStructure}
 
 var memberEmailAddressInsightsVerdict_ConfidenceVerdict = smithy.Member{Name: "ConfidenceVerdict", Index: 0, Target: &schemaEmailAddressInsightsConfidenceVerdict}
 
@@ -883,7 +883,7 @@ var memberEmailContent_Raw = smithy.Member{Name: "Raw", Index: 1, Target: &schem
 
 var memberEmailContent_Template = smithy.Member{Name: "Template", Index: 2, Target: &schemaTemplate}
 
-var schemaEmailInsights = smithy.Schema{ID: "com.amazonaws.sesv2#EmailInsights", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberEmailInsights_Destination, &memberEmailInsights_Isp, &memberEmailInsights_Events}}
+var schemaEmailInsights = smithy.Schema{ID: "com.amazonaws.sesv2#EmailInsights", Type: smithy.TypeStructure}
 
 var memberEmailInsights_Destination = smithy.Member{Name: "Destination", Index: 0, Target: &schemaInsightsEmailAddress, Sensitive: true}
 
@@ -891,13 +891,13 @@ var memberEmailInsights_Isp = smithy.Member{Name: "Isp", Index: 1, Target: &sche
 
 var memberEmailInsights_Events = smithy.Member{Name: "Events", Index: 2, Target: &schemaInsightsEvents}
 
-var schemaEmailInsightsList = smithy.Schema{ID: "com.amazonaws.sesv2#EmailInsightsList", Type: smithy.TypeList, Members: []*smithy.Member{&memberEmailInsightsList_member}}
+var schemaEmailInsightsList = smithy.Schema{ID: "com.amazonaws.sesv2#EmailInsightsList", Type: smithy.TypeList}
 
 var memberEmailInsightsList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaEmailInsights}
 
 var schemaEmailSubject = smithy.Schema{ID: "com.amazonaws.sesv2#EmailSubject", Type: smithy.TypeString, Sensitive: true}
 
-var schemaEmailSubjectFilterList = smithy.Schema{ID: "com.amazonaws.sesv2#EmailSubjectFilterList", Type: smithy.TypeList, Members: []*smithy.Member{&memberEmailSubjectFilterList_member}}
+var schemaEmailSubjectFilterList = smithy.Schema{ID: "com.amazonaws.sesv2#EmailSubjectFilterList", Type: smithy.TypeList}
 
 var memberEmailSubjectFilterList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaEmailSubject, Sensitive: true}
 
@@ -943,15 +943,15 @@ var schemaErrorMessage = smithy.Schema{ID: "com.amazonaws.sesv2#ErrorMessage", T
 
 var schemaEsp = smithy.Schema{ID: "com.amazonaws.sesv2#Esp", Type: smithy.TypeString}
 
-var schemaEsps = smithy.Schema{ID: "com.amazonaws.sesv2#Esps", Type: smithy.TypeList, Members: []*smithy.Member{&memberEsps_member}}
+var schemaEsps = smithy.Schema{ID: "com.amazonaws.sesv2#Esps", Type: smithy.TypeList}
 
 var memberEsps_member = smithy.Member{Name: "member", Index: 0, Target: &schemaEsp}
 
-var schemaEventBridgeDestination = smithy.Schema{ID: "com.amazonaws.sesv2#EventBridgeDestination", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberEventBridgeDestination_EventBusArn}}
+var schemaEventBridgeDestination = smithy.Schema{ID: "com.amazonaws.sesv2#EventBridgeDestination", Type: smithy.TypeStructure}
 
 var memberEventBridgeDestination_EventBusArn = smithy.Member{Name: "EventBusArn", Index: 0, Target: &schemaAmazonResourceName, Required: true}
 
-var schemaEventDestination = smithy.Schema{ID: "com.amazonaws.sesv2#EventDestination", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberEventDestination_Name, &memberEventDestination_Enabled, &memberEventDestination_MatchingEventTypes, &memberEventDestination_KinesisFirehoseDestination, &memberEventDestination_CloudWatchDestination, &memberEventDestination_SnsDestination, &memberEventDestination_EventBridgeDestination, &memberEventDestination_PinpointDestination}}
+var schemaEventDestination = smithy.Schema{ID: "com.amazonaws.sesv2#EventDestination", Type: smithy.TypeStructure}
 
 var memberEventDestination_Name = smithy.Member{Name: "Name", Index: 0, Target: &schemaEventDestinationName, Required: true}
 
@@ -969,7 +969,7 @@ var memberEventDestination_EventBridgeDestination = smithy.Member{Name: "EventBr
 
 var memberEventDestination_PinpointDestination = smithy.Member{Name: "PinpointDestination", Index: 7, Target: &schemaPinpointDestination}
 
-var schemaEventDestinationDefinition = smithy.Schema{ID: "com.amazonaws.sesv2#EventDestinationDefinition", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberEventDestinationDefinition_Enabled, &memberEventDestinationDefinition_MatchingEventTypes, &memberEventDestinationDefinition_KinesisFirehoseDestination, &memberEventDestinationDefinition_CloudWatchDestination, &memberEventDestinationDefinition_SnsDestination, &memberEventDestinationDefinition_EventBridgeDestination, &memberEventDestinationDefinition_PinpointDestination}}
+var schemaEventDestinationDefinition = smithy.Schema{ID: "com.amazonaws.sesv2#EventDestinationDefinition", Type: smithy.TypeStructure}
 
 var memberEventDestinationDefinition_Enabled = smithy.Member{Name: "Enabled", Index: 0, Target: &schemaEnabled, Default: document.Bool(false)}
 
@@ -987,11 +987,11 @@ var memberEventDestinationDefinition_PinpointDestination = smithy.Member{Name: "
 
 var schemaEventDestinationName = smithy.Schema{ID: "com.amazonaws.sesv2#EventDestinationName", Type: smithy.TypeString}
 
-var schemaEventDestinations = smithy.Schema{ID: "com.amazonaws.sesv2#EventDestinations", Type: smithy.TypeList, Members: []*smithy.Member{&memberEventDestinations_member}}
+var schemaEventDestinations = smithy.Schema{ID: "com.amazonaws.sesv2#EventDestinations", Type: smithy.TypeList}
 
 var memberEventDestinations_member = smithy.Member{Name: "member", Index: 0, Target: &schemaEventDestination}
 
-var schemaEventDetails = smithy.Schema{ID: "com.amazonaws.sesv2#EventDetails", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberEventDetails_Bounce, &memberEventDetails_Complaint}}
+var schemaEventDetails = smithy.Schema{ID: "com.amazonaws.sesv2#EventDetails", Type: smithy.TypeStructure}
 
 var memberEventDetails_Bounce = smithy.Member{Name: "Bounce", Index: 0, Target: &schemaBounce}
 
@@ -999,7 +999,7 @@ var memberEventDetails_Complaint = smithy.Member{Name: "Complaint", Index: 1, Ta
 
 var schemaEventType = smithy.Schema{ID: "com.amazonaws.sesv2#EventType", Type: smithy.TypeEnum}
 
-var schemaEventTypes = smithy.Schema{ID: "com.amazonaws.sesv2#EventTypes", Type: smithy.TypeList, Members: []*smithy.Member{&memberEventTypes_member}}
+var schemaEventTypes = smithy.Schema{ID: "com.amazonaws.sesv2#EventTypes", Type: smithy.TypeList}
 
 var memberEventTypes_member = smithy.Member{Name: "member", Index: 0, Target: &schemaEventType}
 
@@ -1007,29 +1007,29 @@ var schemaExpiredTokenException = smithy.Schema{ID: "com.amazon.coral.service#Ex
 
 var memberExpiredTokenException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaExportDataSource = smithy.Schema{ID: "com.amazonaws.sesv2#ExportDataSource", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberExportDataSource_MetricsDataSource, &memberExportDataSource_MessageInsightsDataSource}}
+var schemaExportDataSource = smithy.Schema{ID: "com.amazonaws.sesv2#ExportDataSource", Type: smithy.TypeStructure}
 
 var memberExportDataSource_MetricsDataSource = smithy.Member{Name: "MetricsDataSource", Index: 0, Target: &schemaMetricsDataSource}
 
 var memberExportDataSource_MessageInsightsDataSource = smithy.Member{Name: "MessageInsightsDataSource", Index: 1, Target: &schemaMessageInsightsDataSource}
 
-var schemaExportDestination = smithy.Schema{ID: "com.amazonaws.sesv2#ExportDestination", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberExportDestination_DataFormat, &memberExportDestination_S3Url}}
+var schemaExportDestination = smithy.Schema{ID: "com.amazonaws.sesv2#ExportDestination", Type: smithy.TypeStructure}
 
 var memberExportDestination_DataFormat = smithy.Member{Name: "DataFormat", Index: 0, Target: &schemaDataFormat, Required: true}
 
 var memberExportDestination_S3Url = smithy.Member{Name: "S3Url", Index: 1, Target: &schemaS3Url}
 
-var schemaExportDimensionValue = smithy.Schema{ID: "com.amazonaws.sesv2#ExportDimensionValue", Type: smithy.TypeList, Members: []*smithy.Member{&memberExportDimensionValue_member}}
+var schemaExportDimensionValue = smithy.Schema{ID: "com.amazonaws.sesv2#ExportDimensionValue", Type: smithy.TypeList}
 
 var memberExportDimensionValue_member = smithy.Member{Name: "member", Index: 0, Target: &schemaMetricDimensionValue}
 
-var schemaExportDimensions = smithy.Schema{ID: "com.amazonaws.sesv2#ExportDimensions", Type: smithy.TypeMap, Members: []*smithy.Member{&memberExportDimensions_key, &memberExportDimensions_value}}
+var schemaExportDimensions = smithy.Schema{ID: "com.amazonaws.sesv2#ExportDimensions", Type: smithy.TypeMap}
 
 var memberExportDimensions_key = smithy.Member{Name: "key", Index: 0, Target: &schemaMetricDimensionName}
 
 var memberExportDimensions_value = smithy.Member{Name: "value", Index: 1, Target: &schemaExportDimensionValue}
 
-var schemaExportJobSummary = smithy.Schema{ID: "com.amazonaws.sesv2#ExportJobSummary", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberExportJobSummary_JobId, &memberExportJobSummary_ExportSourceType, &memberExportJobSummary_JobStatus, &memberExportJobSummary_CreatedTimestamp, &memberExportJobSummary_CompletedTimestamp}}
+var schemaExportJobSummary = smithy.Schema{ID: "com.amazonaws.sesv2#ExportJobSummary", Type: smithy.TypeStructure}
 
 var memberExportJobSummary_JobId = smithy.Member{Name: "JobId", Index: 0, Target: &schemaJobId}
 
@@ -1041,23 +1041,23 @@ var memberExportJobSummary_CreatedTimestamp = smithy.Member{Name: "CreatedTimest
 
 var memberExportJobSummary_CompletedTimestamp = smithy.Member{Name: "CompletedTimestamp", Index: 4, Target: &schemaTimestamp}
 
-var schemaExportJobSummaryList = smithy.Schema{ID: "com.amazonaws.sesv2#ExportJobSummaryList", Type: smithy.TypeList, Members: []*smithy.Member{&memberExportJobSummaryList_member}}
+var schemaExportJobSummaryList = smithy.Schema{ID: "com.amazonaws.sesv2#ExportJobSummaryList", Type: smithy.TypeList}
 
 var memberExportJobSummaryList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaExportJobSummary}
 
-var schemaExportMetric = smithy.Schema{ID: "com.amazonaws.sesv2#ExportMetric", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberExportMetric_Name, &memberExportMetric_Aggregation}}
+var schemaExportMetric = smithy.Schema{ID: "com.amazonaws.sesv2#ExportMetric", Type: smithy.TypeStructure}
 
 var memberExportMetric_Name = smithy.Member{Name: "Name", Index: 0, Target: &schemaMetric}
 
 var memberExportMetric_Aggregation = smithy.Member{Name: "Aggregation", Index: 1, Target: &schemaMetricAggregation}
 
-var schemaExportMetrics = smithy.Schema{ID: "com.amazonaws.sesv2#ExportMetrics", Type: smithy.TypeList, Members: []*smithy.Member{&memberExportMetrics_member}}
+var schemaExportMetrics = smithy.Schema{ID: "com.amazonaws.sesv2#ExportMetrics", Type: smithy.TypeList}
 
 var memberExportMetrics_member = smithy.Member{Name: "member", Index: 0, Target: &schemaExportMetric}
 
 var schemaExportSourceType = smithy.Schema{ID: "com.amazonaws.sesv2#ExportSourceType", Type: smithy.TypeEnum}
 
-var schemaExportStatistics = smithy.Schema{ID: "com.amazonaws.sesv2#ExportStatistics", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberExportStatistics_ProcessedRecordsCount, &memberExportStatistics_ExportedRecordsCount}}
+var schemaExportStatistics = smithy.Schema{ID: "com.amazonaws.sesv2#ExportStatistics", Type: smithy.TypeStructure}
 
 var memberExportStatistics_ProcessedRecordsCount = smithy.Member{Name: "ProcessedRecordsCount", Index: 0, Target: &schemaProcessedRecordsCount}
 
@@ -1069,7 +1069,7 @@ var schemaFailedRecordsCount = smithy.Schema{ID: "com.amazonaws.sesv2#FailedReco
 
 var schemaFailedRecordsS3Url = smithy.Schema{ID: "com.amazonaws.sesv2#FailedRecordsS3Url", Type: smithy.TypeString}
 
-var schemaFailureInfo = smithy.Schema{ID: "com.amazonaws.sesv2#FailureInfo", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberFailureInfo_FailedRecordsS3Url, &memberFailureInfo_ErrorMessage}}
+var schemaFailureInfo = smithy.Schema{ID: "com.amazonaws.sesv2#FailureInfo", Type: smithy.TypeStructure}
 
 var memberFailureInfo_FailedRecordsS3Url = smithy.Member{Name: "FailedRecordsS3Url", Index: 0, Target: &schemaFailedRecordsS3Url}
 
@@ -1105,27 +1105,27 @@ var memberGetAccountOutput_VdmAttributes = smithy.Member{Name: "VdmAttributes", 
 
 var memberGetAccountOutput_PricingAttributes = smithy.Member{Name: "PricingAttributes", Index: 8, Target: &schemaPricingAttributes}
 
-var schemaGetBlacklistReportsInput = smithy.Schema{ID: "com.amazonaws.sesv2#GetBlacklistReportsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetBlacklistReportsInput_BlacklistItemNames}}
+var schemaGetBlacklistReportsInput = smithy.Schema{ID: "com.amazonaws.sesv2#GetBlacklistReportsRequest", Type: smithy.TypeStructure}
 
 var memberGetBlacklistReportsInput_BlacklistItemNames = smithy.Member{Name: "BlacklistItemNames", Index: 0, Target: &schemaBlacklistItemNames, Required: true, HTTP: smithy.HTTPQuery{Name: "BlacklistItemNames"}}
 
-var schemaGetBlacklistReportsOutput = smithy.Schema{ID: "com.amazonaws.sesv2#GetBlacklistReportsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetBlacklistReportsOutput_BlacklistReport}}
+var schemaGetBlacklistReportsOutput = smithy.Schema{ID: "com.amazonaws.sesv2#GetBlacklistReportsResponse", Type: smithy.TypeStructure}
 
 var memberGetBlacklistReportsOutput_BlacklistReport = smithy.Member{Name: "BlacklistReport", Index: 0, Target: &schemaBlacklistReport, Required: true}
 
-var schemaGetConfigurationSetEventDestinationsInput = smithy.Schema{ID: "com.amazonaws.sesv2#GetConfigurationSetEventDestinationsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetConfigurationSetEventDestinationsInput_ConfigurationSetName}}
+var schemaGetConfigurationSetEventDestinationsInput = smithy.Schema{ID: "com.amazonaws.sesv2#GetConfigurationSetEventDestinationsRequest", Type: smithy.TypeStructure}
 
 var memberGetConfigurationSetEventDestinationsInput_ConfigurationSetName = smithy.Member{Name: "ConfigurationSetName", Index: 0, Target: &schemaConfigurationSetName, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaGetConfigurationSetEventDestinationsOutput = smithy.Schema{ID: "com.amazonaws.sesv2#GetConfigurationSetEventDestinationsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetConfigurationSetEventDestinationsOutput_EventDestinations}}
+var schemaGetConfigurationSetEventDestinationsOutput = smithy.Schema{ID: "com.amazonaws.sesv2#GetConfigurationSetEventDestinationsResponse", Type: smithy.TypeStructure}
 
 var memberGetConfigurationSetEventDestinationsOutput_EventDestinations = smithy.Member{Name: "EventDestinations", Index: 0, Target: &schemaEventDestinations}
 
-var schemaGetConfigurationSetInput = smithy.Schema{ID: "com.amazonaws.sesv2#GetConfigurationSetRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetConfigurationSetInput_ConfigurationSetName}}
+var schemaGetConfigurationSetInput = smithy.Schema{ID: "com.amazonaws.sesv2#GetConfigurationSetRequest", Type: smithy.TypeStructure}
 
 var memberGetConfigurationSetInput_ConfigurationSetName = smithy.Member{Name: "ConfigurationSetName", Index: 0, Target: &schemaConfigurationSetName, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaGetConfigurationSetOutput = smithy.Schema{ID: "com.amazonaws.sesv2#GetConfigurationSetResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetConfigurationSetOutput_ConfigurationSetName, &memberGetConfigurationSetOutput_TrackingOptions, &memberGetConfigurationSetOutput_DeliveryOptions, &memberGetConfigurationSetOutput_ReputationOptions, &memberGetConfigurationSetOutput_SendingOptions, &memberGetConfigurationSetOutput_Tags, &memberGetConfigurationSetOutput_SuppressionOptions, &memberGetConfigurationSetOutput_VdmOptions, &memberGetConfigurationSetOutput_ArchivingOptions, &memberGetConfigurationSetOutput_MessageSecurityOptions}}
+var schemaGetConfigurationSetOutput = smithy.Schema{ID: "com.amazonaws.sesv2#GetConfigurationSetResponse", Type: smithy.TypeStructure}
 
 var memberGetConfigurationSetOutput_ConfigurationSetName = smithy.Member{Name: "ConfigurationSetName", Index: 0, Target: &schemaConfigurationSetName}
 
@@ -1147,17 +1147,17 @@ var memberGetConfigurationSetOutput_ArchivingOptions = smithy.Member{Name: "Arch
 
 var memberGetConfigurationSetOutput_MessageSecurityOptions = smithy.Member{Name: "MessageSecurityOptions", Index: 9, Target: &schemaMessageSecurityOptions}
 
-var schemaGetContactInput = smithy.Schema{ID: "com.amazonaws.sesv2#GetContactRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetContactInput_ContactListName, &memberGetContactInput_EmailAddress}}
+var schemaGetContactInput = smithy.Schema{ID: "com.amazonaws.sesv2#GetContactRequest", Type: smithy.TypeStructure}
 
 var memberGetContactInput_ContactListName = smithy.Member{Name: "ContactListName", Index: 0, Target: &schemaContactListName, Required: true, HTTP: smithy.HTTPLabel{}}
 
 var memberGetContactInput_EmailAddress = smithy.Member{Name: "EmailAddress", Index: 1, Target: &schemaEmailAddress, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaGetContactListInput = smithy.Schema{ID: "com.amazonaws.sesv2#GetContactListRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetContactListInput_ContactListName}}
+var schemaGetContactListInput = smithy.Schema{ID: "com.amazonaws.sesv2#GetContactListRequest", Type: smithy.TypeStructure}
 
 var memberGetContactListInput_ContactListName = smithy.Member{Name: "ContactListName", Index: 0, Target: &schemaContactListName, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaGetContactListOutput = smithy.Schema{ID: "com.amazonaws.sesv2#GetContactListResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetContactListOutput_ContactListName, &memberGetContactListOutput_Topics, &memberGetContactListOutput_Description, &memberGetContactListOutput_CreatedTimestamp, &memberGetContactListOutput_LastUpdatedTimestamp, &memberGetContactListOutput_Tags}}
+var schemaGetContactListOutput = smithy.Schema{ID: "com.amazonaws.sesv2#GetContactListResponse", Type: smithy.TypeStructure}
 
 var memberGetContactListOutput_ContactListName = smithy.Member{Name: "ContactListName", Index: 0, Target: &schemaContactListName}
 
@@ -1171,7 +1171,7 @@ var memberGetContactListOutput_LastUpdatedTimestamp = smithy.Member{Name: "LastU
 
 var memberGetContactListOutput_Tags = smithy.Member{Name: "Tags", Index: 5, Target: &schemaTagList}
 
-var schemaGetContactOutput = smithy.Schema{ID: "com.amazonaws.sesv2#GetContactResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetContactOutput_ContactListName, &memberGetContactOutput_EmailAddress, &memberGetContactOutput_TopicPreferences, &memberGetContactOutput_TopicDefaultPreferences, &memberGetContactOutput_UnsubscribeAll, &memberGetContactOutput_AttributesData, &memberGetContactOutput_CreatedTimestamp, &memberGetContactOutput_LastUpdatedTimestamp}}
+var schemaGetContactOutput = smithy.Schema{ID: "com.amazonaws.sesv2#GetContactResponse", Type: smithy.TypeStructure}
 
 var memberGetContactOutput_ContactListName = smithy.Member{Name: "ContactListName", Index: 0, Target: &schemaContactListName}
 
@@ -1189,11 +1189,11 @@ var memberGetContactOutput_CreatedTimestamp = smithy.Member{Name: "CreatedTimest
 
 var memberGetContactOutput_LastUpdatedTimestamp = smithy.Member{Name: "LastUpdatedTimestamp", Index: 7, Target: &schemaTimestamp}
 
-var schemaGetCustomVerificationEmailTemplateInput = smithy.Schema{ID: "com.amazonaws.sesv2#GetCustomVerificationEmailTemplateRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetCustomVerificationEmailTemplateInput_TemplateName}}
+var schemaGetCustomVerificationEmailTemplateInput = smithy.Schema{ID: "com.amazonaws.sesv2#GetCustomVerificationEmailTemplateRequest", Type: smithy.TypeStructure}
 
 var memberGetCustomVerificationEmailTemplateInput_TemplateName = smithy.Member{Name: "TemplateName", Index: 0, Target: &schemaEmailTemplateName, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaGetCustomVerificationEmailTemplateOutput = smithy.Schema{ID: "com.amazonaws.sesv2#GetCustomVerificationEmailTemplateResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetCustomVerificationEmailTemplateOutput_TemplateName, &memberGetCustomVerificationEmailTemplateOutput_FromEmailAddress, &memberGetCustomVerificationEmailTemplateOutput_TemplateSubject, &memberGetCustomVerificationEmailTemplateOutput_TemplateContent, &memberGetCustomVerificationEmailTemplateOutput_Tags, &memberGetCustomVerificationEmailTemplateOutput_SuccessRedirectionURL, &memberGetCustomVerificationEmailTemplateOutput_FailureRedirectionURL}}
+var schemaGetCustomVerificationEmailTemplateOutput = smithy.Schema{ID: "com.amazonaws.sesv2#GetCustomVerificationEmailTemplateResponse", Type: smithy.TypeStructure}
 
 var memberGetCustomVerificationEmailTemplateOutput_TemplateName = smithy.Member{Name: "TemplateName", Index: 0, Target: &schemaEmailTemplateName}
 
@@ -1209,23 +1209,23 @@ var memberGetCustomVerificationEmailTemplateOutput_SuccessRedirectionURL = smith
 
 var memberGetCustomVerificationEmailTemplateOutput_FailureRedirectionURL = smithy.Member{Name: "FailureRedirectionURL", Index: 6, Target: &schemaFailureRedirectionURL}
 
-var schemaGetDedicatedIpInput = smithy.Schema{ID: "com.amazonaws.sesv2#GetDedicatedIpRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetDedicatedIpInput_Ip}}
+var schemaGetDedicatedIpInput = smithy.Schema{ID: "com.amazonaws.sesv2#GetDedicatedIpRequest", Type: smithy.TypeStructure}
 
 var memberGetDedicatedIpInput_Ip = smithy.Member{Name: "Ip", Index: 0, Target: &schemaIp, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaGetDedicatedIpOutput = smithy.Schema{ID: "com.amazonaws.sesv2#GetDedicatedIpResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetDedicatedIpOutput_DedicatedIp}}
+var schemaGetDedicatedIpOutput = smithy.Schema{ID: "com.amazonaws.sesv2#GetDedicatedIpResponse", Type: smithy.TypeStructure}
 
 var memberGetDedicatedIpOutput_DedicatedIp = smithy.Member{Name: "DedicatedIp", Index: 0, Target: &schemaDedicatedIp}
 
-var schemaGetDedicatedIpPoolInput = smithy.Schema{ID: "com.amazonaws.sesv2#GetDedicatedIpPoolRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetDedicatedIpPoolInput_PoolName}}
+var schemaGetDedicatedIpPoolInput = smithy.Schema{ID: "com.amazonaws.sesv2#GetDedicatedIpPoolRequest", Type: smithy.TypeStructure}
 
 var memberGetDedicatedIpPoolInput_PoolName = smithy.Member{Name: "PoolName", Index: 0, Target: &schemaPoolName, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaGetDedicatedIpPoolOutput = smithy.Schema{ID: "com.amazonaws.sesv2#GetDedicatedIpPoolResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetDedicatedIpPoolOutput_DedicatedIpPool}}
+var schemaGetDedicatedIpPoolOutput = smithy.Schema{ID: "com.amazonaws.sesv2#GetDedicatedIpPoolResponse", Type: smithy.TypeStructure}
 
 var memberGetDedicatedIpPoolOutput_DedicatedIpPool = smithy.Member{Name: "DedicatedIpPool", Index: 0, Target: &schemaDedicatedIpPool}
 
-var schemaGetDedicatedIpsInput = smithy.Schema{ID: "com.amazonaws.sesv2#GetDedicatedIpsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetDedicatedIpsInput_PoolName, &memberGetDedicatedIpsInput_NextToken, &memberGetDedicatedIpsInput_PageSize}}
+var schemaGetDedicatedIpsInput = smithy.Schema{ID: "com.amazonaws.sesv2#GetDedicatedIpsRequest", Type: smithy.TypeStructure}
 
 var memberGetDedicatedIpsInput_PoolName = smithy.Member{Name: "PoolName", Index: 0, Target: &schemaPoolName, HTTP: smithy.HTTPQuery{Name: "PoolName"}}
 
@@ -1233,7 +1233,7 @@ var memberGetDedicatedIpsInput_NextToken = smithy.Member{Name: "NextToken", Inde
 
 var memberGetDedicatedIpsInput_PageSize = smithy.Member{Name: "PageSize", Index: 2, Target: &schemaMaxItems, HTTP: smithy.HTTPQuery{Name: "PageSize"}}
 
-var schemaGetDedicatedIpsOutput = smithy.Schema{ID: "com.amazonaws.sesv2#GetDedicatedIpsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetDedicatedIpsOutput_DedicatedIps, &memberGetDedicatedIpsOutput_NextToken}}
+var schemaGetDedicatedIpsOutput = smithy.Schema{ID: "com.amazonaws.sesv2#GetDedicatedIpsResponse", Type: smithy.TypeStructure}
 
 var memberGetDedicatedIpsOutput_DedicatedIps = smithy.Member{Name: "DedicatedIps", Index: 0, Target: &schemaDedicatedIpList}
 
@@ -1241,7 +1241,7 @@ var memberGetDedicatedIpsOutput_NextToken = smithy.Member{Name: "NextToken", Ind
 
 var schemaGetDeliverabilityDashboardOptionsInput = smithy.Schema{ID: "com.amazonaws.sesv2#GetDeliverabilityDashboardOptionsRequest", Type: smithy.TypeStructure}
 
-var schemaGetDeliverabilityDashboardOptionsOutput = smithy.Schema{ID: "com.amazonaws.sesv2#GetDeliverabilityDashboardOptionsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetDeliverabilityDashboardOptionsOutput_DashboardEnabled, &memberGetDeliverabilityDashboardOptionsOutput_SubscriptionExpiryDate, &memberGetDeliverabilityDashboardOptionsOutput_AccountStatus, &memberGetDeliverabilityDashboardOptionsOutput_ActiveSubscribedDomains, &memberGetDeliverabilityDashboardOptionsOutput_PendingExpirationSubscribedDomains}}
+var schemaGetDeliverabilityDashboardOptionsOutput = smithy.Schema{ID: "com.amazonaws.sesv2#GetDeliverabilityDashboardOptionsResponse", Type: smithy.TypeStructure}
 
 var memberGetDeliverabilityDashboardOptionsOutput_DashboardEnabled = smithy.Member{Name: "DashboardEnabled", Index: 0, Target: &schemaEnabled, Required: true, Default: document.Bool(false)}
 
@@ -1253,11 +1253,11 @@ var memberGetDeliverabilityDashboardOptionsOutput_ActiveSubscribedDomains = smit
 
 var memberGetDeliverabilityDashboardOptionsOutput_PendingExpirationSubscribedDomains = smithy.Member{Name: "PendingExpirationSubscribedDomains", Index: 4, Target: &schemaDomainDeliverabilityTrackingOptions}
 
-var schemaGetDeliverabilityTestReportInput = smithy.Schema{ID: "com.amazonaws.sesv2#GetDeliverabilityTestReportRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetDeliverabilityTestReportInput_ReportId}}
+var schemaGetDeliverabilityTestReportInput = smithy.Schema{ID: "com.amazonaws.sesv2#GetDeliverabilityTestReportRequest", Type: smithy.TypeStructure}
 
 var memberGetDeliverabilityTestReportInput_ReportId = smithy.Member{Name: "ReportId", Index: 0, Target: &schemaReportId, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaGetDeliverabilityTestReportOutput = smithy.Schema{ID: "com.amazonaws.sesv2#GetDeliverabilityTestReportResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetDeliverabilityTestReportOutput_DeliverabilityTestReport, &memberGetDeliverabilityTestReportOutput_OverallPlacement, &memberGetDeliverabilityTestReportOutput_IspPlacements, &memberGetDeliverabilityTestReportOutput_Message, &memberGetDeliverabilityTestReportOutput_Tags}}
+var schemaGetDeliverabilityTestReportOutput = smithy.Schema{ID: "com.amazonaws.sesv2#GetDeliverabilityTestReportResponse", Type: smithy.TypeStructure}
 
 var memberGetDeliverabilityTestReportOutput_DeliverabilityTestReport = smithy.Member{Name: "DeliverabilityTestReport", Index: 0, Target: &schemaDeliverabilityTestReport, Required: true}
 
@@ -1269,15 +1269,15 @@ var memberGetDeliverabilityTestReportOutput_Message = smithy.Member{Name: "Messa
 
 var memberGetDeliverabilityTestReportOutput_Tags = smithy.Member{Name: "Tags", Index: 4, Target: &schemaTagList}
 
-var schemaGetDomainDeliverabilityCampaignInput = smithy.Schema{ID: "com.amazonaws.sesv2#GetDomainDeliverabilityCampaignRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetDomainDeliverabilityCampaignInput_CampaignId}}
+var schemaGetDomainDeliverabilityCampaignInput = smithy.Schema{ID: "com.amazonaws.sesv2#GetDomainDeliverabilityCampaignRequest", Type: smithy.TypeStructure}
 
 var memberGetDomainDeliverabilityCampaignInput_CampaignId = smithy.Member{Name: "CampaignId", Index: 0, Target: &schemaCampaignId, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaGetDomainDeliverabilityCampaignOutput = smithy.Schema{ID: "com.amazonaws.sesv2#GetDomainDeliverabilityCampaignResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetDomainDeliverabilityCampaignOutput_DomainDeliverabilityCampaign}}
+var schemaGetDomainDeliverabilityCampaignOutput = smithy.Schema{ID: "com.amazonaws.sesv2#GetDomainDeliverabilityCampaignResponse", Type: smithy.TypeStructure}
 
 var memberGetDomainDeliverabilityCampaignOutput_DomainDeliverabilityCampaign = smithy.Member{Name: "DomainDeliverabilityCampaign", Index: 0, Target: &schemaDomainDeliverabilityCampaign, Required: true}
 
-var schemaGetDomainStatisticsReportInput = smithy.Schema{ID: "com.amazonaws.sesv2#GetDomainStatisticsReportRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetDomainStatisticsReportInput_Domain, &memberGetDomainStatisticsReportInput_StartDate, &memberGetDomainStatisticsReportInput_EndDate}}
+var schemaGetDomainStatisticsReportInput = smithy.Schema{ID: "com.amazonaws.sesv2#GetDomainStatisticsReportRequest", Type: smithy.TypeStructure}
 
 var memberGetDomainStatisticsReportInput_Domain = smithy.Member{Name: "Domain", Index: 0, Target: &schemaIdentity, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -1285,17 +1285,17 @@ var memberGetDomainStatisticsReportInput_StartDate = smithy.Member{Name: "StartD
 
 var memberGetDomainStatisticsReportInput_EndDate = smithy.Member{Name: "EndDate", Index: 2, Target: &schemaTimestamp, Required: true, HTTP: smithy.HTTPQuery{Name: "EndDate"}}
 
-var schemaGetDomainStatisticsReportOutput = smithy.Schema{ID: "com.amazonaws.sesv2#GetDomainStatisticsReportResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetDomainStatisticsReportOutput_OverallVolume, &memberGetDomainStatisticsReportOutput_DailyVolumes}}
+var schemaGetDomainStatisticsReportOutput = smithy.Schema{ID: "com.amazonaws.sesv2#GetDomainStatisticsReportResponse", Type: smithy.TypeStructure}
 
 var memberGetDomainStatisticsReportOutput_OverallVolume = smithy.Member{Name: "OverallVolume", Index: 0, Target: &schemaOverallVolume, Required: true}
 
 var memberGetDomainStatisticsReportOutput_DailyVolumes = smithy.Member{Name: "DailyVolumes", Index: 1, Target: &schemaDailyVolumes, Required: true}
 
-var schemaGetEmailAddressInsightsInput = smithy.Schema{ID: "com.amazonaws.sesv2#GetEmailAddressInsightsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetEmailAddressInsightsInput_EmailAddress}}
+var schemaGetEmailAddressInsightsInput = smithy.Schema{ID: "com.amazonaws.sesv2#GetEmailAddressInsightsRequest", Type: smithy.TypeStructure}
 
 var memberGetEmailAddressInsightsInput_EmailAddress = smithy.Member{Name: "EmailAddress", Index: 0, Target: &schemaEmailAddress, Required: true}
 
-var schemaGetEmailAddressInsightsOutput = smithy.Schema{ID: "com.amazonaws.sesv2#GetEmailAddressInsightsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetEmailAddressInsightsOutput_MailboxValidation}}
+var schemaGetEmailAddressInsightsOutput = smithy.Schema{ID: "com.amazonaws.sesv2#GetEmailAddressInsightsResponse", Type: smithy.TypeStructure}
 
 var memberGetEmailAddressInsightsOutput_MailboxValidation = smithy.Member{Name: "MailboxValidation", Index: 0, Target: &schemaMailboxValidation}
 
@@ -1325,11 +1325,11 @@ var memberGetEmailIdentityOutput_VerificationStatus = smithy.Member{Name: "Verif
 
 var memberGetEmailIdentityOutput_VerificationInfo = smithy.Member{Name: "VerificationInfo", Index: 9, Target: &schemaVerificationInfo}
 
-var schemaGetEmailIdentityPoliciesInput = smithy.Schema{ID: "com.amazonaws.sesv2#GetEmailIdentityPoliciesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetEmailIdentityPoliciesInput_EmailIdentity}}
+var schemaGetEmailIdentityPoliciesInput = smithy.Schema{ID: "com.amazonaws.sesv2#GetEmailIdentityPoliciesRequest", Type: smithy.TypeStructure}
 
 var memberGetEmailIdentityPoliciesInput_EmailIdentity = smithy.Member{Name: "EmailIdentity", Index: 0, Target: &schemaIdentity, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaGetEmailIdentityPoliciesOutput = smithy.Schema{ID: "com.amazonaws.sesv2#GetEmailIdentityPoliciesResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetEmailIdentityPoliciesOutput_Policies}}
+var schemaGetEmailIdentityPoliciesOutput = smithy.Schema{ID: "com.amazonaws.sesv2#GetEmailIdentityPoliciesResponse", Type: smithy.TypeStructure}
 
 var memberGetEmailIdentityPoliciesOutput_Policies = smithy.Member{Name: "Policies", Index: 0, Target: &schemaPolicyMap}
 
@@ -1345,11 +1345,11 @@ var memberGetEmailTemplateOutput_TemplateContent = smithy.Member{Name: "Template
 
 var memberGetEmailTemplateOutput_Tags = smithy.Member{Name: "Tags", Index: 2, Target: &schemaTagList}
 
-var schemaGetExportJobInput = smithy.Schema{ID: "com.amazonaws.sesv2#GetExportJobRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetExportJobInput_JobId}}
+var schemaGetExportJobInput = smithy.Schema{ID: "com.amazonaws.sesv2#GetExportJobRequest", Type: smithy.TypeStructure}
 
 var memberGetExportJobInput_JobId = smithy.Member{Name: "JobId", Index: 0, Target: &schemaJobId, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaGetExportJobOutput = smithy.Schema{ID: "com.amazonaws.sesv2#GetExportJobResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetExportJobOutput_JobId, &memberGetExportJobOutput_ExportSourceType, &memberGetExportJobOutput_JobStatus, &memberGetExportJobOutput_ExportDestination, &memberGetExportJobOutput_ExportDataSource, &memberGetExportJobOutput_CreatedTimestamp, &memberGetExportJobOutput_CompletedTimestamp, &memberGetExportJobOutput_FailureInfo, &memberGetExportJobOutput_Statistics}}
+var schemaGetExportJobOutput = smithy.Schema{ID: "com.amazonaws.sesv2#GetExportJobResponse", Type: smithy.TypeStructure}
 
 var memberGetExportJobOutput_JobId = smithy.Member{Name: "JobId", Index: 0, Target: &schemaJobId}
 
@@ -1369,11 +1369,11 @@ var memberGetExportJobOutput_FailureInfo = smithy.Member{Name: "FailureInfo", In
 
 var memberGetExportJobOutput_Statistics = smithy.Member{Name: "Statistics", Index: 8, Target: &schemaExportStatistics}
 
-var schemaGetImportJobInput = smithy.Schema{ID: "com.amazonaws.sesv2#GetImportJobRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetImportJobInput_JobId}}
+var schemaGetImportJobInput = smithy.Schema{ID: "com.amazonaws.sesv2#GetImportJobRequest", Type: smithy.TypeStructure}
 
 var memberGetImportJobInput_JobId = smithy.Member{Name: "JobId", Index: 0, Target: &schemaJobId, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaGetImportJobOutput = smithy.Schema{ID: "com.amazonaws.sesv2#GetImportJobResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetImportJobOutput_JobId, &memberGetImportJobOutput_ImportDestination, &memberGetImportJobOutput_ImportDataSource, &memberGetImportJobOutput_FailureInfo, &memberGetImportJobOutput_JobStatus, &memberGetImportJobOutput_CreatedTimestamp, &memberGetImportJobOutput_CompletedTimestamp, &memberGetImportJobOutput_ProcessedRecordsCount, &memberGetImportJobOutput_FailedRecordsCount}}
+var schemaGetImportJobOutput = smithy.Schema{ID: "com.amazonaws.sesv2#GetImportJobResponse", Type: smithy.TypeStructure}
 
 var memberGetImportJobOutput_JobId = smithy.Member{Name: "JobId", Index: 0, Target: &schemaJobId}
 
@@ -1393,11 +1393,11 @@ var memberGetImportJobOutput_ProcessedRecordsCount = smithy.Member{Name: "Proces
 
 var memberGetImportJobOutput_FailedRecordsCount = smithy.Member{Name: "FailedRecordsCount", Index: 8, Target: &schemaFailedRecordsCount}
 
-var schemaGetMessageInsightsInput = smithy.Schema{ID: "com.amazonaws.sesv2#GetMessageInsightsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetMessageInsightsInput_MessageId}}
+var schemaGetMessageInsightsInput = smithy.Schema{ID: "com.amazonaws.sesv2#GetMessageInsightsRequest", Type: smithy.TypeStructure}
 
 var memberGetMessageInsightsInput_MessageId = smithy.Member{Name: "MessageId", Index: 0, Target: &schemaOutboundMessageId, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaGetMessageInsightsOutput = smithy.Schema{ID: "com.amazonaws.sesv2#GetMessageInsightsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetMessageInsightsOutput_MessageId, &memberGetMessageInsightsOutput_FromEmailAddress, &memberGetMessageInsightsOutput_Subject, &memberGetMessageInsightsOutput_EmailTags, &memberGetMessageInsightsOutput_Insights}}
+var schemaGetMessageInsightsOutput = smithy.Schema{ID: "com.amazonaws.sesv2#GetMessageInsightsResponse", Type: smithy.TypeStructure}
 
 var memberGetMessageInsightsOutput_MessageId = smithy.Member{Name: "MessageId", Index: 0, Target: &schemaOutboundMessageId}
 
@@ -1409,11 +1409,11 @@ var memberGetMessageInsightsOutput_EmailTags = smithy.Member{Name: "EmailTags", 
 
 var memberGetMessageInsightsOutput_Insights = smithy.Member{Name: "Insights", Index: 4, Target: &schemaEmailInsightsList}
 
-var schemaGetMultiRegionEndpointInput = smithy.Schema{ID: "com.amazonaws.sesv2#GetMultiRegionEndpointRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetMultiRegionEndpointInput_EndpointName}}
+var schemaGetMultiRegionEndpointInput = smithy.Schema{ID: "com.amazonaws.sesv2#GetMultiRegionEndpointRequest", Type: smithy.TypeStructure}
 
 var memberGetMultiRegionEndpointInput_EndpointName = smithy.Member{Name: "EndpointName", Index: 0, Target: &schemaEndpointName, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaGetMultiRegionEndpointOutput = smithy.Schema{ID: "com.amazonaws.sesv2#GetMultiRegionEndpointResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetMultiRegionEndpointOutput_EndpointName, &memberGetMultiRegionEndpointOutput_EndpointId, &memberGetMultiRegionEndpointOutput_Routes, &memberGetMultiRegionEndpointOutput_Status, &memberGetMultiRegionEndpointOutput_CreatedTimestamp, &memberGetMultiRegionEndpointOutput_LastUpdatedTimestamp}}
+var schemaGetMultiRegionEndpointOutput = smithy.Schema{ID: "com.amazonaws.sesv2#GetMultiRegionEndpointResponse", Type: smithy.TypeStructure}
 
 var memberGetMultiRegionEndpointOutput_EndpointName = smithy.Member{Name: "EndpointName", Index: 0, Target: &schemaEndpointName}
 
@@ -1427,31 +1427,31 @@ var memberGetMultiRegionEndpointOutput_CreatedTimestamp = smithy.Member{Name: "C
 
 var memberGetMultiRegionEndpointOutput_LastUpdatedTimestamp = smithy.Member{Name: "LastUpdatedTimestamp", Index: 5, Target: &schemaTimestamp}
 
-var schemaGetReputationEntityInput = smithy.Schema{ID: "com.amazonaws.sesv2#GetReputationEntityRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetReputationEntityInput_ReputationEntityReference, &memberGetReputationEntityInput_ReputationEntityType}}
+var schemaGetReputationEntityInput = smithy.Schema{ID: "com.amazonaws.sesv2#GetReputationEntityRequest", Type: smithy.TypeStructure}
 
 var memberGetReputationEntityInput_ReputationEntityReference = smithy.Member{Name: "ReputationEntityReference", Index: 0, Target: &schemaReputationEntityReference, Required: true, HTTP: smithy.HTTPLabel{}}
 
 var memberGetReputationEntityInput_ReputationEntityType = smithy.Member{Name: "ReputationEntityType", Index: 1, Target: &schemaReputationEntityType, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaGetReputationEntityOutput = smithy.Schema{ID: "com.amazonaws.sesv2#GetReputationEntityResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetReputationEntityOutput_ReputationEntity}}
+var schemaGetReputationEntityOutput = smithy.Schema{ID: "com.amazonaws.sesv2#GetReputationEntityResponse", Type: smithy.TypeStructure}
 
 var memberGetReputationEntityOutput_ReputationEntity = smithy.Member{Name: "ReputationEntity", Index: 0, Target: &schemaReputationEntity}
 
-var schemaGetSuppressedDestinationInput = smithy.Schema{ID: "com.amazonaws.sesv2#GetSuppressedDestinationRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetSuppressedDestinationInput_EmailAddress, &memberGetSuppressedDestinationInput_TenantName}}
+var schemaGetSuppressedDestinationInput = smithy.Schema{ID: "com.amazonaws.sesv2#GetSuppressedDestinationRequest", Type: smithy.TypeStructure}
 
 var memberGetSuppressedDestinationInput_EmailAddress = smithy.Member{Name: "EmailAddress", Index: 0, Target: &schemaEmailAddress, Required: true, HTTP: smithy.HTTPLabel{}}
 
 var memberGetSuppressedDestinationInput_TenantName = smithy.Member{Name: "TenantName", Index: 1, Target: &schemaTenantName, HTTP: smithy.HTTPQuery{Name: "TenantName"}}
 
-var schemaGetSuppressedDestinationOutput = smithy.Schema{ID: "com.amazonaws.sesv2#GetSuppressedDestinationResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetSuppressedDestinationOutput_SuppressedDestination}}
+var schemaGetSuppressedDestinationOutput = smithy.Schema{ID: "com.amazonaws.sesv2#GetSuppressedDestinationResponse", Type: smithy.TypeStructure}
 
 var memberGetSuppressedDestinationOutput_SuppressedDestination = smithy.Member{Name: "SuppressedDestination", Index: 0, Target: &schemaSuppressedDestination, Required: true}
 
-var schemaGetTenantInput = smithy.Schema{ID: "com.amazonaws.sesv2#GetTenantRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetTenantInput_TenantName}}
+var schemaGetTenantInput = smithy.Schema{ID: "com.amazonaws.sesv2#GetTenantRequest", Type: smithy.TypeStructure}
 
 var memberGetTenantInput_TenantName = smithy.Member{Name: "TenantName", Index: 0, Target: &schemaTenantName, Required: true}
 
-var schemaGetTenantOutput = smithy.Schema{ID: "com.amazonaws.sesv2#GetTenantResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetTenantOutput_Tenant}}
+var schemaGetTenantOutput = smithy.Schema{ID: "com.amazonaws.sesv2#GetTenantResponse", Type: smithy.TypeStructure}
 
 var memberGetTenantOutput_Tenant = smithy.Member{Name: "Tenant", Index: 0, Target: &schemaTenant}
 
@@ -1459,7 +1459,7 @@ var schemaGuardianAttributes = smithy.Schema{ID: "com.amazonaws.sesv2#GuardianAt
 
 var memberGuardianAttributes_OptimizedSharedDelivery = smithy.Member{Name: "OptimizedSharedDelivery", Index: 0, Target: &schemaFeatureStatus}
 
-var schemaGuardianOptions = smithy.Schema{ID: "com.amazonaws.sesv2#GuardianOptions", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGuardianOptions_OptimizedSharedDelivery}}
+var schemaGuardianOptions = smithy.Schema{ID: "com.amazonaws.sesv2#GuardianOptions", Type: smithy.TypeStructure}
 
 var memberGuardianOptions_OptimizedSharedDelivery = smithy.Member{Name: "OptimizedSharedDelivery", Index: 0, Target: &schemaFeatureStatus}
 
@@ -1469,7 +1469,7 @@ var schemaHttpsPolicy = smithy.Schema{ID: "com.amazonaws.sesv2#HttpsPolicy", Typ
 
 var schemaIdentity = smithy.Schema{ID: "com.amazonaws.sesv2#Identity", Type: smithy.TypeString}
 
-var schemaIdentityCertificate = smithy.Schema{ID: "com.amazonaws.sesv2#IdentityCertificate", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberIdentityCertificate_FromAddress, &memberIdentityCertificate_Status, &memberIdentityCertificate_CertificateArn, &memberIdentityCertificate_CertificateExpiryTime}}
+var schemaIdentityCertificate = smithy.Schema{ID: "com.amazonaws.sesv2#IdentityCertificate", Type: smithy.TypeStructure}
 
 var memberIdentityCertificate_FromAddress = smithy.Member{Name: "FromAddress", Index: 0, Target: &schemaEmailAddress}
 
@@ -1479,7 +1479,7 @@ var memberIdentityCertificate_CertificateArn = smithy.Member{Name: "CertificateA
 
 var memberIdentityCertificate_CertificateExpiryTime = smithy.Member{Name: "CertificateExpiryTime", Index: 3, Target: &schemaTimestamp}
 
-var schemaIdentityCertificateList = smithy.Schema{ID: "com.amazonaws.sesv2#IdentityCertificateList", Type: smithy.TypeList, Members: []*smithy.Member{&memberIdentityCertificateList_member}}
+var schemaIdentityCertificateList = smithy.Schema{ID: "com.amazonaws.sesv2#IdentityCertificateList", Type: smithy.TypeList}
 
 var memberIdentityCertificateList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaIdentityCertificate}
 
@@ -1513,13 +1513,13 @@ var schemaIdentityType = smithy.Schema{ID: "com.amazonaws.sesv2#IdentityType", T
 
 var schemaImageUrl = smithy.Schema{ID: "com.amazonaws.sesv2#ImageUrl", Type: smithy.TypeString}
 
-var schemaImportDataSource = smithy.Schema{ID: "com.amazonaws.sesv2#ImportDataSource", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberImportDataSource_S3Url, &memberImportDataSource_DataFormat}}
+var schemaImportDataSource = smithy.Schema{ID: "com.amazonaws.sesv2#ImportDataSource", Type: smithy.TypeStructure}
 
 var memberImportDataSource_S3Url = smithy.Member{Name: "S3Url", Index: 0, Target: &schemaS3Url, Required: true}
 
 var memberImportDataSource_DataFormat = smithy.Member{Name: "DataFormat", Index: 1, Target: &schemaDataFormat, Required: true}
 
-var schemaImportDestination = smithy.Schema{ID: "com.amazonaws.sesv2#ImportDestination", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberImportDestination_SuppressionListDestination, &memberImportDestination_ContactListDestination}}
+var schemaImportDestination = smithy.Schema{ID: "com.amazonaws.sesv2#ImportDestination", Type: smithy.TypeStructure}
 
 var memberImportDestination_SuppressionListDestination = smithy.Member{Name: "SuppressionListDestination", Index: 0, Target: &schemaSuppressionListDestination}
 
@@ -1527,7 +1527,7 @@ var memberImportDestination_ContactListDestination = smithy.Member{Name: "Contac
 
 var schemaImportDestinationType = smithy.Schema{ID: "com.amazonaws.sesv2#ImportDestinationType", Type: smithy.TypeEnum}
 
-var schemaImportJobSummary = smithy.Schema{ID: "com.amazonaws.sesv2#ImportJobSummary", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberImportJobSummary_JobId, &memberImportJobSummary_ImportDestination, &memberImportJobSummary_JobStatus, &memberImportJobSummary_CreatedTimestamp, &memberImportJobSummary_ProcessedRecordsCount, &memberImportJobSummary_FailedRecordsCount}}
+var schemaImportJobSummary = smithy.Schema{ID: "com.amazonaws.sesv2#ImportJobSummary", Type: smithy.TypeStructure}
 
 var memberImportJobSummary_JobId = smithy.Member{Name: "JobId", Index: 0, Target: &schemaJobId}
 
@@ -1541,11 +1541,11 @@ var memberImportJobSummary_ProcessedRecordsCount = smithy.Member{Name: "Processe
 
 var memberImportJobSummary_FailedRecordsCount = smithy.Member{Name: "FailedRecordsCount", Index: 5, Target: &schemaFailedRecordsCount}
 
-var schemaImportJobSummaryList = smithy.Schema{ID: "com.amazonaws.sesv2#ImportJobSummaryList", Type: smithy.TypeList, Members: []*smithy.Member{&memberImportJobSummaryList_member}}
+var schemaImportJobSummaryList = smithy.Schema{ID: "com.amazonaws.sesv2#ImportJobSummaryList", Type: smithy.TypeList}
 
 var memberImportJobSummaryList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaImportJobSummary}
 
-var schemaInboxPlacementTrackingOption = smithy.Schema{ID: "com.amazonaws.sesv2#InboxPlacementTrackingOption", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberInboxPlacementTrackingOption_Global, &memberInboxPlacementTrackingOption_TrackedIsps}}
+var schemaInboxPlacementTrackingOption = smithy.Schema{ID: "com.amazonaws.sesv2#InboxPlacementTrackingOption", Type: smithy.TypeStructure}
 
 var memberInboxPlacementTrackingOption_Global = smithy.Member{Name: "Global", Index: 0, Target: &schemaEnabled, Default: document.Bool(false)}
 
@@ -1557,7 +1557,7 @@ var memberIncompleteSignatureException_message = smithy.Member{Name: "message", 
 
 var schemaInsightsEmailAddress = smithy.Schema{ID: "com.amazonaws.sesv2#InsightsEmailAddress", Type: smithy.TypeString, Sensitive: true}
 
-var schemaInsightsEvent = smithy.Schema{ID: "com.amazonaws.sesv2#InsightsEvent", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberInsightsEvent_Timestamp, &memberInsightsEvent_Type, &memberInsightsEvent_Details}}
+var schemaInsightsEvent = smithy.Schema{ID: "com.amazonaws.sesv2#InsightsEvent", Type: smithy.TypeStructure}
 
 var memberInsightsEvent_Timestamp = smithy.Member{Name: "Timestamp", Index: 0, Target: &schemaTimestamp}
 
@@ -1565,7 +1565,7 @@ var memberInsightsEvent_Type = smithy.Member{Name: "Type", Index: 1, Target: &sc
 
 var memberInsightsEvent_Details = smithy.Member{Name: "Details", Index: 2, Target: &schemaEventDetails}
 
-var schemaInsightsEvents = smithy.Schema{ID: "com.amazonaws.sesv2#InsightsEvents", Type: smithy.TypeList, Members: []*smithy.Member{&memberInsightsEvents_member}}
+var schemaInsightsEvents = smithy.Schema{ID: "com.amazonaws.sesv2#InsightsEvents", Type: smithy.TypeList}
 
 var memberInsightsEvents_member = smithy.Member{Name: "member", Index: 0, Target: &schemaInsightsEvent}
 
@@ -1587,29 +1587,29 @@ var memberInvalidSignatureException_message = smithy.Member{Name: "message", Ind
 
 var schemaIp = smithy.Schema{ID: "com.amazonaws.sesv2#Ip", Type: smithy.TypeString}
 
-var schemaIpList = smithy.Schema{ID: "com.amazonaws.sesv2#IpList", Type: smithy.TypeList, Members: []*smithy.Member{&memberIpList_member}}
+var schemaIpList = smithy.Schema{ID: "com.amazonaws.sesv2#IpList", Type: smithy.TypeList}
 
 var memberIpList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaIp}
 
 var schemaIsp = smithy.Schema{ID: "com.amazonaws.sesv2#Isp", Type: smithy.TypeString}
 
-var schemaIspFilterList = smithy.Schema{ID: "com.amazonaws.sesv2#IspFilterList", Type: smithy.TypeList, Members: []*smithy.Member{&memberIspFilterList_member}}
+var schemaIspFilterList = smithy.Schema{ID: "com.amazonaws.sesv2#IspFilterList", Type: smithy.TypeList}
 
 var memberIspFilterList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaIsp}
 
 var schemaIspName = smithy.Schema{ID: "com.amazonaws.sesv2#IspName", Type: smithy.TypeString}
 
-var schemaIspNameList = smithy.Schema{ID: "com.amazonaws.sesv2#IspNameList", Type: smithy.TypeList, Members: []*smithy.Member{&memberIspNameList_member}}
+var schemaIspNameList = smithy.Schema{ID: "com.amazonaws.sesv2#IspNameList", Type: smithy.TypeList}
 
 var memberIspNameList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaIspName}
 
-var schemaIspPlacement = smithy.Schema{ID: "com.amazonaws.sesv2#IspPlacement", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberIspPlacement_IspName, &memberIspPlacement_PlacementStatistics}}
+var schemaIspPlacement = smithy.Schema{ID: "com.amazonaws.sesv2#IspPlacement", Type: smithy.TypeStructure}
 
 var memberIspPlacement_IspName = smithy.Member{Name: "IspName", Index: 0, Target: &schemaIspName}
 
 var memberIspPlacement_PlacementStatistics = smithy.Member{Name: "PlacementStatistics", Index: 1, Target: &schemaPlacementStatistics}
 
-var schemaIspPlacements = smithy.Schema{ID: "com.amazonaws.sesv2#IspPlacements", Type: smithy.TypeList, Members: []*smithy.Member{&memberIspPlacements_member}}
+var schemaIspPlacements = smithy.Schema{ID: "com.amazonaws.sesv2#IspPlacements", Type: smithy.TypeList}
 
 var memberIspPlacements_member = smithy.Member{Name: "member", Index: 0, Target: &schemaIspPlacement}
 
@@ -1617,17 +1617,17 @@ var schemaJobId = smithy.Schema{ID: "com.amazonaws.sesv2#JobId", Type: smithy.Ty
 
 var schemaJobStatus = smithy.Schema{ID: "com.amazonaws.sesv2#JobStatus", Type: smithy.TypeEnum}
 
-var schemaKinesisFirehoseDestination = smithy.Schema{ID: "com.amazonaws.sesv2#KinesisFirehoseDestination", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberKinesisFirehoseDestination_IamRoleArn, &memberKinesisFirehoseDestination_DeliveryStreamArn}}
+var schemaKinesisFirehoseDestination = smithy.Schema{ID: "com.amazonaws.sesv2#KinesisFirehoseDestination", Type: smithy.TypeStructure}
 
 var memberKinesisFirehoseDestination_IamRoleArn = smithy.Member{Name: "IamRoleArn", Index: 0, Target: &schemaAmazonResourceName, Required: true}
 
 var memberKinesisFirehoseDestination_DeliveryStreamArn = smithy.Member{Name: "DeliveryStreamArn", Index: 1, Target: &schemaAmazonResourceName, Required: true}
 
-var schemaLastDeliveryEventList = smithy.Schema{ID: "com.amazonaws.sesv2#LastDeliveryEventList", Type: smithy.TypeList, Members: []*smithy.Member{&memberLastDeliveryEventList_member}}
+var schemaLastDeliveryEventList = smithy.Schema{ID: "com.amazonaws.sesv2#LastDeliveryEventList", Type: smithy.TypeList}
 
 var memberLastDeliveryEventList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaDeliveryEventType}
 
-var schemaLastEngagementEventList = smithy.Schema{ID: "com.amazonaws.sesv2#LastEngagementEventList", Type: smithy.TypeList, Members: []*smithy.Member{&memberLastEngagementEventList_member}}
+var schemaLastEngagementEventList = smithy.Schema{ID: "com.amazonaws.sesv2#LastEngagementEventList", Type: smithy.TypeList}
 
 var memberLastEngagementEventList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaEngagementEventType}
 
@@ -1637,7 +1637,7 @@ var schemaLimitExceededException = smithy.Schema{ID: "com.amazonaws.sesv2#LimitE
 
 var memberLimitExceededException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaErrorMessage}
 
-var schemaListConfigurationSetsInput = smithy.Schema{ID: "com.amazonaws.sesv2#ListConfigurationSetsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListConfigurationSetsInput_Filter, &memberListConfigurationSetsInput_NextToken, &memberListConfigurationSetsInput_PageSize}}
+var schemaListConfigurationSetsInput = smithy.Schema{ID: "com.amazonaws.sesv2#ListConfigurationSetsRequest", Type: smithy.TypeStructure}
 
 var memberListConfigurationSetsInput_Filter = smithy.Member{Name: "Filter", Index: 0, Target: &schemaConfigurationSetFilter}
 
@@ -1645,31 +1645,31 @@ var memberListConfigurationSetsInput_NextToken = smithy.Member{Name: "NextToken"
 
 var memberListConfigurationSetsInput_PageSize = smithy.Member{Name: "PageSize", Index: 2, Target: &schemaMaxItems}
 
-var schemaListConfigurationSetsOutput = smithy.Schema{ID: "com.amazonaws.sesv2#ListConfigurationSetsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListConfigurationSetsOutput_ConfigurationSets, &memberListConfigurationSetsOutput_NextToken}}
+var schemaListConfigurationSetsOutput = smithy.Schema{ID: "com.amazonaws.sesv2#ListConfigurationSetsResponse", Type: smithy.TypeStructure}
 
 var memberListConfigurationSetsOutput_ConfigurationSets = smithy.Member{Name: "ConfigurationSets", Index: 0, Target: &schemaConfigurationSetNameList}
 
 var memberListConfigurationSetsOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schemaNextToken}
 
-var schemaListContactListsInput = smithy.Schema{ID: "com.amazonaws.sesv2#ListContactListsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListContactListsInput_PageSize, &memberListContactListsInput_NextToken}}
+var schemaListContactListsInput = smithy.Schema{ID: "com.amazonaws.sesv2#ListContactListsRequest", Type: smithy.TypeStructure}
 
 var memberListContactListsInput_PageSize = smithy.Member{Name: "PageSize", Index: 0, Target: &schemaMaxItems, HTTP: smithy.HTTPQuery{Name: "PageSize"}}
 
 var memberListContactListsInput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schemaNextToken, HTTP: smithy.HTTPQuery{Name: "NextToken"}}
 
-var schemaListContactListsOutput = smithy.Schema{ID: "com.amazonaws.sesv2#ListContactListsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListContactListsOutput_ContactLists, &memberListContactListsOutput_NextToken}}
+var schemaListContactListsOutput = smithy.Schema{ID: "com.amazonaws.sesv2#ListContactListsResponse", Type: smithy.TypeStructure}
 
 var memberListContactListsOutput_ContactLists = smithy.Member{Name: "ContactLists", Index: 0, Target: &schemaListOfContactLists}
 
 var memberListContactListsOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schemaNextToken}
 
-var schemaListContactsFilter = smithy.Schema{ID: "com.amazonaws.sesv2#ListContactsFilter", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListContactsFilter_FilteredStatus, &memberListContactsFilter_TopicFilter}}
+var schemaListContactsFilter = smithy.Schema{ID: "com.amazonaws.sesv2#ListContactsFilter", Type: smithy.TypeStructure}
 
 var memberListContactsFilter_FilteredStatus = smithy.Member{Name: "FilteredStatus", Index: 0, Target: &schemaSubscriptionStatus}
 
 var memberListContactsFilter_TopicFilter = smithy.Member{Name: "TopicFilter", Index: 1, Target: &schemaTopicFilter}
 
-var schemaListContactsInput = smithy.Schema{ID: "com.amazonaws.sesv2#ListContactsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListContactsInput_ContactListName, &memberListContactsInput_Filter, &memberListContactsInput_PageSize, &memberListContactsInput_NextToken}}
+var schemaListContactsInput = smithy.Schema{ID: "com.amazonaws.sesv2#ListContactsRequest", Type: smithy.TypeStructure}
 
 var memberListContactsInput_ContactListName = smithy.Member{Name: "ContactListName", Index: 0, Target: &schemaContactListName, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -1679,49 +1679,49 @@ var memberListContactsInput_PageSize = smithy.Member{Name: "PageSize", Index: 2,
 
 var memberListContactsInput_NextToken = smithy.Member{Name: "NextToken", Index: 3, Target: &schemaNextToken}
 
-var schemaListContactsOutput = smithy.Schema{ID: "com.amazonaws.sesv2#ListContactsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListContactsOutput_Contacts, &memberListContactsOutput_NextToken}}
+var schemaListContactsOutput = smithy.Schema{ID: "com.amazonaws.sesv2#ListContactsResponse", Type: smithy.TypeStructure}
 
 var memberListContactsOutput_Contacts = smithy.Member{Name: "Contacts", Index: 0, Target: &schemaListOfContacts}
 
 var memberListContactsOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schemaNextToken}
 
-var schemaListCustomVerificationEmailTemplatesInput = smithy.Schema{ID: "com.amazonaws.sesv2#ListCustomVerificationEmailTemplatesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListCustomVerificationEmailTemplatesInput_NextToken, &memberListCustomVerificationEmailTemplatesInput_PageSize}}
+var schemaListCustomVerificationEmailTemplatesInput = smithy.Schema{ID: "com.amazonaws.sesv2#ListCustomVerificationEmailTemplatesRequest", Type: smithy.TypeStructure}
 
 var memberListCustomVerificationEmailTemplatesInput_NextToken = smithy.Member{Name: "NextToken", Index: 0, Target: &schemaNextToken, HTTP: smithy.HTTPQuery{Name: "NextToken"}}
 
 var memberListCustomVerificationEmailTemplatesInput_PageSize = smithy.Member{Name: "PageSize", Index: 1, Target: &schemaMaxItems, HTTP: smithy.HTTPQuery{Name: "PageSize"}}
 
-var schemaListCustomVerificationEmailTemplatesOutput = smithy.Schema{ID: "com.amazonaws.sesv2#ListCustomVerificationEmailTemplatesResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListCustomVerificationEmailTemplatesOutput_CustomVerificationEmailTemplates, &memberListCustomVerificationEmailTemplatesOutput_NextToken}}
+var schemaListCustomVerificationEmailTemplatesOutput = smithy.Schema{ID: "com.amazonaws.sesv2#ListCustomVerificationEmailTemplatesResponse", Type: smithy.TypeStructure}
 
 var memberListCustomVerificationEmailTemplatesOutput_CustomVerificationEmailTemplates = smithy.Member{Name: "CustomVerificationEmailTemplates", Index: 0, Target: &schemaCustomVerificationEmailTemplatesList}
 
 var memberListCustomVerificationEmailTemplatesOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schemaNextToken}
 
-var schemaListDedicatedIpPoolsInput = smithy.Schema{ID: "com.amazonaws.sesv2#ListDedicatedIpPoolsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListDedicatedIpPoolsInput_NextToken, &memberListDedicatedIpPoolsInput_PageSize}}
+var schemaListDedicatedIpPoolsInput = smithy.Schema{ID: "com.amazonaws.sesv2#ListDedicatedIpPoolsRequest", Type: smithy.TypeStructure}
 
 var memberListDedicatedIpPoolsInput_NextToken = smithy.Member{Name: "NextToken", Index: 0, Target: &schemaNextToken, HTTP: smithy.HTTPQuery{Name: "NextToken"}}
 
 var memberListDedicatedIpPoolsInput_PageSize = smithy.Member{Name: "PageSize", Index: 1, Target: &schemaMaxItems, HTTP: smithy.HTTPQuery{Name: "PageSize"}}
 
-var schemaListDedicatedIpPoolsOutput = smithy.Schema{ID: "com.amazonaws.sesv2#ListDedicatedIpPoolsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListDedicatedIpPoolsOutput_DedicatedIpPools, &memberListDedicatedIpPoolsOutput_NextToken}}
+var schemaListDedicatedIpPoolsOutput = smithy.Schema{ID: "com.amazonaws.sesv2#ListDedicatedIpPoolsResponse", Type: smithy.TypeStructure}
 
 var memberListDedicatedIpPoolsOutput_DedicatedIpPools = smithy.Member{Name: "DedicatedIpPools", Index: 0, Target: &schemaListOfDedicatedIpPools}
 
 var memberListDedicatedIpPoolsOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schemaNextToken}
 
-var schemaListDeliverabilityTestReportsInput = smithy.Schema{ID: "com.amazonaws.sesv2#ListDeliverabilityTestReportsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListDeliverabilityTestReportsInput_NextToken, &memberListDeliverabilityTestReportsInput_PageSize}}
+var schemaListDeliverabilityTestReportsInput = smithy.Schema{ID: "com.amazonaws.sesv2#ListDeliverabilityTestReportsRequest", Type: smithy.TypeStructure}
 
 var memberListDeliverabilityTestReportsInput_NextToken = smithy.Member{Name: "NextToken", Index: 0, Target: &schemaNextToken, HTTP: smithy.HTTPQuery{Name: "NextToken"}}
 
 var memberListDeliverabilityTestReportsInput_PageSize = smithy.Member{Name: "PageSize", Index: 1, Target: &schemaMaxItems, HTTP: smithy.HTTPQuery{Name: "PageSize"}}
 
-var schemaListDeliverabilityTestReportsOutput = smithy.Schema{ID: "com.amazonaws.sesv2#ListDeliverabilityTestReportsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListDeliverabilityTestReportsOutput_DeliverabilityTestReports, &memberListDeliverabilityTestReportsOutput_NextToken}}
+var schemaListDeliverabilityTestReportsOutput = smithy.Schema{ID: "com.amazonaws.sesv2#ListDeliverabilityTestReportsResponse", Type: smithy.TypeStructure}
 
 var memberListDeliverabilityTestReportsOutput_DeliverabilityTestReports = smithy.Member{Name: "DeliverabilityTestReports", Index: 0, Target: &schemaDeliverabilityTestReports, Required: true}
 
 var memberListDeliverabilityTestReportsOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schemaNextToken}
 
-var schemaListDomainDeliverabilityCampaignsInput = smithy.Schema{ID: "com.amazonaws.sesv2#ListDomainDeliverabilityCampaignsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListDomainDeliverabilityCampaignsInput_StartDate, &memberListDomainDeliverabilityCampaignsInput_EndDate, &memberListDomainDeliverabilityCampaignsInput_SubscribedDomain, &memberListDomainDeliverabilityCampaignsInput_NextToken, &memberListDomainDeliverabilityCampaignsInput_PageSize}}
+var schemaListDomainDeliverabilityCampaignsInput = smithy.Schema{ID: "com.amazonaws.sesv2#ListDomainDeliverabilityCampaignsRequest", Type: smithy.TypeStructure}
 
 var memberListDomainDeliverabilityCampaignsInput_StartDate = smithy.Member{Name: "StartDate", Index: 0, Target: &schemaTimestamp, Required: true, HTTP: smithy.HTTPQuery{Name: "StartDate"}}
 
@@ -1733,7 +1733,7 @@ var memberListDomainDeliverabilityCampaignsInput_NextToken = smithy.Member{Name:
 
 var memberListDomainDeliverabilityCampaignsInput_PageSize = smithy.Member{Name: "PageSize", Index: 4, Target: &schemaMaxItems, HTTP: smithy.HTTPQuery{Name: "PageSize"}}
 
-var schemaListDomainDeliverabilityCampaignsOutput = smithy.Schema{ID: "com.amazonaws.sesv2#ListDomainDeliverabilityCampaignsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListDomainDeliverabilityCampaignsOutput_DomainDeliverabilityCampaigns, &memberListDomainDeliverabilityCampaignsOutput_NextToken}}
+var schemaListDomainDeliverabilityCampaignsOutput = smithy.Schema{ID: "com.amazonaws.sesv2#ListDomainDeliverabilityCampaignsResponse", Type: smithy.TypeStructure}
 
 var memberListDomainDeliverabilityCampaignsOutput_DomainDeliverabilityCampaigns = smithy.Member{Name: "DomainDeliverabilityCampaigns", Index: 0, Target: &schemaDomainDeliverabilityCampaignList, Required: true}
 
@@ -1753,7 +1753,7 @@ var memberListEmailIdentitiesOutput_EmailIdentities = smithy.Member{Name: "Email
 
 var memberListEmailIdentitiesOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schemaNextToken}
 
-var schemaListEmailIdentityCertificatesInput = smithy.Schema{ID: "com.amazonaws.sesv2#ListEmailIdentityCertificatesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListEmailIdentityCertificatesInput_EmailIdentity, &memberListEmailIdentityCertificatesInput_NextToken, &memberListEmailIdentityCertificatesInput_PageSize}}
+var schemaListEmailIdentityCertificatesInput = smithy.Schema{ID: "com.amazonaws.sesv2#ListEmailIdentityCertificatesRequest", Type: smithy.TypeStructure}
 
 var memberListEmailIdentityCertificatesInput_EmailIdentity = smithy.Member{Name: "EmailIdentity", Index: 0, Target: &schemaIdentity, Required: true}
 
@@ -1761,7 +1761,7 @@ var memberListEmailIdentityCertificatesInput_NextToken = smithy.Member{Name: "Ne
 
 var memberListEmailIdentityCertificatesInput_PageSize = smithy.Member{Name: "PageSize", Index: 2, Target: &schemaMaxItems}
 
-var schemaListEmailIdentityCertificatesOutput = smithy.Schema{ID: "com.amazonaws.sesv2#ListEmailIdentityCertificatesResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListEmailIdentityCertificatesOutput_Certificates, &memberListEmailIdentityCertificatesOutput_NextToken}}
+var schemaListEmailIdentityCertificatesOutput = smithy.Schema{ID: "com.amazonaws.sesv2#ListEmailIdentityCertificatesResponse", Type: smithy.TypeStructure}
 
 var memberListEmailIdentityCertificatesOutput_Certificates = smithy.Member{Name: "Certificates", Index: 0, Target: &schemaIdentityCertificateList}
 
@@ -1779,7 +1779,7 @@ var memberListEmailTemplatesOutput_TemplatesMetadata = smithy.Member{Name: "Temp
 
 var memberListEmailTemplatesOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schemaNextToken}
 
-var schemaListExportJobsInput = smithy.Schema{ID: "com.amazonaws.sesv2#ListExportJobsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListExportJobsInput_NextToken, &memberListExportJobsInput_PageSize, &memberListExportJobsInput_ExportSourceType, &memberListExportJobsInput_JobStatus}}
+var schemaListExportJobsInput = smithy.Schema{ID: "com.amazonaws.sesv2#ListExportJobsRequest", Type: smithy.TypeStructure}
 
 var memberListExportJobsInput_NextToken = smithy.Member{Name: "NextToken", Index: 0, Target: &schemaNextToken}
 
@@ -1789,13 +1789,13 @@ var memberListExportJobsInput_ExportSourceType = smithy.Member{Name: "ExportSour
 
 var memberListExportJobsInput_JobStatus = smithy.Member{Name: "JobStatus", Index: 3, Target: &schemaJobStatus}
 
-var schemaListExportJobsOutput = smithy.Schema{ID: "com.amazonaws.sesv2#ListExportJobsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListExportJobsOutput_ExportJobs, &memberListExportJobsOutput_NextToken}}
+var schemaListExportJobsOutput = smithy.Schema{ID: "com.amazonaws.sesv2#ListExportJobsResponse", Type: smithy.TypeStructure}
 
 var memberListExportJobsOutput_ExportJobs = smithy.Member{Name: "ExportJobs", Index: 0, Target: &schemaExportJobSummaryList}
 
 var memberListExportJobsOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schemaNextToken}
 
-var schemaListImportJobsInput = smithy.Schema{ID: "com.amazonaws.sesv2#ListImportJobsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListImportJobsInput_ImportDestinationType, &memberListImportJobsInput_NextToken, &memberListImportJobsInput_PageSize}}
+var schemaListImportJobsInput = smithy.Schema{ID: "com.amazonaws.sesv2#ListImportJobsRequest", Type: smithy.TypeStructure}
 
 var memberListImportJobsInput_ImportDestinationType = smithy.Member{Name: "ImportDestinationType", Index: 0, Target: &schemaImportDestinationType}
 
@@ -1803,7 +1803,7 @@ var memberListImportJobsInput_NextToken = smithy.Member{Name: "NextToken", Index
 
 var memberListImportJobsInput_PageSize = smithy.Member{Name: "PageSize", Index: 2, Target: &schemaMaxItems}
 
-var schemaListImportJobsOutput = smithy.Schema{ID: "com.amazonaws.sesv2#ListImportJobsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListImportJobsOutput_ImportJobs, &memberListImportJobsOutput_NextToken}}
+var schemaListImportJobsOutput = smithy.Schema{ID: "com.amazonaws.sesv2#ListImportJobsResponse", Type: smithy.TypeStructure}
 
 var memberListImportJobsOutput_ImportJobs = smithy.Member{Name: "ImportJobs", Index: 0, Target: &schemaImportJobSummaryList}
 
@@ -1815,33 +1815,33 @@ var memberListManagementOptions_ContactListName = smithy.Member{Name: "ContactLi
 
 var memberListManagementOptions_TopicName = smithy.Member{Name: "TopicName", Index: 1, Target: &schemaTopicName}
 
-var schemaListMultiRegionEndpointsInput = smithy.Schema{ID: "com.amazonaws.sesv2#ListMultiRegionEndpointsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListMultiRegionEndpointsInput_NextToken, &memberListMultiRegionEndpointsInput_PageSize}}
+var schemaListMultiRegionEndpointsInput = smithy.Schema{ID: "com.amazonaws.sesv2#ListMultiRegionEndpointsRequest", Type: smithy.TypeStructure}
 
 var memberListMultiRegionEndpointsInput_NextToken = smithy.Member{Name: "NextToken", Index: 0, Target: &schemaNextTokenV2, HTTP: smithy.HTTPQuery{Name: "NextToken"}}
 
 var memberListMultiRegionEndpointsInput_PageSize = smithy.Member{Name: "PageSize", Index: 1, Target: &schemaPageSizeV2, HTTP: smithy.HTTPQuery{Name: "PageSize"}}
 
-var schemaListMultiRegionEndpointsOutput = smithy.Schema{ID: "com.amazonaws.sesv2#ListMultiRegionEndpointsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListMultiRegionEndpointsOutput_MultiRegionEndpoints, &memberListMultiRegionEndpointsOutput_NextToken}}
+var schemaListMultiRegionEndpointsOutput = smithy.Schema{ID: "com.amazonaws.sesv2#ListMultiRegionEndpointsResponse", Type: smithy.TypeStructure}
 
 var memberListMultiRegionEndpointsOutput_MultiRegionEndpoints = smithy.Member{Name: "MultiRegionEndpoints", Index: 0, Target: &schemaMultiRegionEndpoints}
 
 var memberListMultiRegionEndpointsOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schemaNextTokenV2}
 
-var schemaListOfContactLists = smithy.Schema{ID: "com.amazonaws.sesv2#ListOfContactLists", Type: smithy.TypeList, Members: []*smithy.Member{&memberListOfContactLists_member}}
+var schemaListOfContactLists = smithy.Schema{ID: "com.amazonaws.sesv2#ListOfContactLists", Type: smithy.TypeList}
 
 var memberListOfContactLists_member = smithy.Member{Name: "member", Index: 0, Target: &schemaContactList}
 
-var schemaListOfContacts = smithy.Schema{ID: "com.amazonaws.sesv2#ListOfContacts", Type: smithy.TypeList, Members: []*smithy.Member{&memberListOfContacts_member}}
+var schemaListOfContacts = smithy.Schema{ID: "com.amazonaws.sesv2#ListOfContacts", Type: smithy.TypeList}
 
 var memberListOfContacts_member = smithy.Member{Name: "member", Index: 0, Target: &schemaContact}
 
-var schemaListOfDedicatedIpPools = smithy.Schema{ID: "com.amazonaws.sesv2#ListOfDedicatedIpPools", Type: smithy.TypeList, Members: []*smithy.Member{&memberListOfDedicatedIpPools_member}}
+var schemaListOfDedicatedIpPools = smithy.Schema{ID: "com.amazonaws.sesv2#ListOfDedicatedIpPools", Type: smithy.TypeList}
 
 var memberListOfDedicatedIpPools_member = smithy.Member{Name: "member", Index: 0, Target: &schemaPoolName}
 
 var schemaListRecommendationFilterValue = smithy.Schema{ID: "com.amazonaws.sesv2#ListRecommendationFilterValue", Type: smithy.TypeString}
 
-var schemaListRecommendationsFilter = smithy.Schema{ID: "com.amazonaws.sesv2#ListRecommendationsFilter", Type: smithy.TypeMap, Members: []*smithy.Member{&memberListRecommendationsFilter_key, &memberListRecommendationsFilter_value}}
+var schemaListRecommendationsFilter = smithy.Schema{ID: "com.amazonaws.sesv2#ListRecommendationsFilter", Type: smithy.TypeMap}
 
 var memberListRecommendationsFilter_key = smithy.Member{Name: "key", Index: 0, Target: &schemaListRecommendationsFilterKey}
 
@@ -1849,7 +1849,7 @@ var memberListRecommendationsFilter_value = smithy.Member{Name: "value", Index: 
 
 var schemaListRecommendationsFilterKey = smithy.Schema{ID: "com.amazonaws.sesv2#ListRecommendationsFilterKey", Type: smithy.TypeEnum}
 
-var schemaListRecommendationsInput = smithy.Schema{ID: "com.amazonaws.sesv2#ListRecommendationsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListRecommendationsInput_Filter, &memberListRecommendationsInput_NextToken, &memberListRecommendationsInput_PageSize}}
+var schemaListRecommendationsInput = smithy.Schema{ID: "com.amazonaws.sesv2#ListRecommendationsRequest", Type: smithy.TypeStructure}
 
 var memberListRecommendationsInput_Filter = smithy.Member{Name: "Filter", Index: 0, Target: &schemaListRecommendationsFilter}
 
@@ -1857,13 +1857,13 @@ var memberListRecommendationsInput_NextToken = smithy.Member{Name: "NextToken", 
 
 var memberListRecommendationsInput_PageSize = smithy.Member{Name: "PageSize", Index: 2, Target: &schemaMaxItems}
 
-var schemaListRecommendationsOutput = smithy.Schema{ID: "com.amazonaws.sesv2#ListRecommendationsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListRecommendationsOutput_Recommendations, &memberListRecommendationsOutput_NextToken}}
+var schemaListRecommendationsOutput = smithy.Schema{ID: "com.amazonaws.sesv2#ListRecommendationsResponse", Type: smithy.TypeStructure}
 
 var memberListRecommendationsOutput_Recommendations = smithy.Member{Name: "Recommendations", Index: 0, Target: &schemaRecommendationsList}
 
 var memberListRecommendationsOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schemaNextToken}
 
-var schemaListReputationEntitiesInput = smithy.Schema{ID: "com.amazonaws.sesv2#ListReputationEntitiesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListReputationEntitiesInput_Filter, &memberListReputationEntitiesInput_NextToken, &memberListReputationEntitiesInput_PageSize}}
+var schemaListReputationEntitiesInput = smithy.Schema{ID: "com.amazonaws.sesv2#ListReputationEntitiesRequest", Type: smithy.TypeStructure}
 
 var memberListReputationEntitiesInput_Filter = smithy.Member{Name: "Filter", Index: 0, Target: &schemaReputationEntityFilter}
 
@@ -1871,13 +1871,13 @@ var memberListReputationEntitiesInput_NextToken = smithy.Member{Name: "NextToken
 
 var memberListReputationEntitiesInput_PageSize = smithy.Member{Name: "PageSize", Index: 2, Target: &schemaMaxItems}
 
-var schemaListReputationEntitiesOutput = smithy.Schema{ID: "com.amazonaws.sesv2#ListReputationEntitiesResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListReputationEntitiesOutput_ReputationEntities, &memberListReputationEntitiesOutput_NextToken}}
+var schemaListReputationEntitiesOutput = smithy.Schema{ID: "com.amazonaws.sesv2#ListReputationEntitiesResponse", Type: smithy.TypeStructure}
 
 var memberListReputationEntitiesOutput_ReputationEntities = smithy.Member{Name: "ReputationEntities", Index: 0, Target: &schemaReputationEntitiesList}
 
 var memberListReputationEntitiesOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schemaNextToken}
 
-var schemaListResourceTenantsInput = smithy.Schema{ID: "com.amazonaws.sesv2#ListResourceTenantsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListResourceTenantsInput_ResourceArn, &memberListResourceTenantsInput_PageSize, &memberListResourceTenantsInput_NextToken}}
+var schemaListResourceTenantsInput = smithy.Schema{ID: "com.amazonaws.sesv2#ListResourceTenantsRequest", Type: smithy.TypeStructure}
 
 var memberListResourceTenantsInput_ResourceArn = smithy.Member{Name: "ResourceArn", Index: 0, Target: &schemaAmazonResourceName, Required: true}
 
@@ -1885,13 +1885,13 @@ var memberListResourceTenantsInput_PageSize = smithy.Member{Name: "PageSize", In
 
 var memberListResourceTenantsInput_NextToken = smithy.Member{Name: "NextToken", Index: 2, Target: &schemaNextToken}
 
-var schemaListResourceTenantsOutput = smithy.Schema{ID: "com.amazonaws.sesv2#ListResourceTenantsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListResourceTenantsOutput_ResourceTenants, &memberListResourceTenantsOutput_NextToken}}
+var schemaListResourceTenantsOutput = smithy.Schema{ID: "com.amazonaws.sesv2#ListResourceTenantsResponse", Type: smithy.TypeStructure}
 
 var memberListResourceTenantsOutput_ResourceTenants = smithy.Member{Name: "ResourceTenants", Index: 0, Target: &schemaResourceTenantMetadataList}
 
 var memberListResourceTenantsOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schemaNextToken}
 
-var schemaListSuppressedDestinationsInput = smithy.Schema{ID: "com.amazonaws.sesv2#ListSuppressedDestinationsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListSuppressedDestinationsInput_TenantName, &memberListSuppressedDestinationsInput_Reasons, &memberListSuppressedDestinationsInput_StartDate, &memberListSuppressedDestinationsInput_EndDate, &memberListSuppressedDestinationsInput_NextToken, &memberListSuppressedDestinationsInput_PageSize}}
+var schemaListSuppressedDestinationsInput = smithy.Schema{ID: "com.amazonaws.sesv2#ListSuppressedDestinationsRequest", Type: smithy.TypeStructure}
 
 var memberListSuppressedDestinationsInput_TenantName = smithy.Member{Name: "TenantName", Index: 0, Target: &schemaTenantName, HTTP: smithy.HTTPQuery{Name: "TenantName"}}
 
@@ -1905,7 +1905,7 @@ var memberListSuppressedDestinationsInput_NextToken = smithy.Member{Name: "NextT
 
 var memberListSuppressedDestinationsInput_PageSize = smithy.Member{Name: "PageSize", Index: 5, Target: &schemaMaxItems, HTTP: smithy.HTTPQuery{Name: "PageSize"}}
 
-var schemaListSuppressedDestinationsOutput = smithy.Schema{ID: "com.amazonaws.sesv2#ListSuppressedDestinationsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListSuppressedDestinationsOutput_SuppressedDestinationSummaries, &memberListSuppressedDestinationsOutput_NextToken}}
+var schemaListSuppressedDestinationsOutput = smithy.Schema{ID: "com.amazonaws.sesv2#ListSuppressedDestinationsResponse", Type: smithy.TypeStructure}
 
 var memberListSuppressedDestinationsOutput_SuppressedDestinationSummaries = smithy.Member{Name: "SuppressedDestinationSummaries", Index: 0, Target: &schemaSuppressedDestinationSummaries}
 
@@ -1919,7 +1919,7 @@ var schemaListTagsForResourceOutput = smithy.Schema{ID: "com.amazonaws.sesv2#Lis
 
 var memberListTagsForResourceOutput_Tags = smithy.Member{Name: "Tags", Index: 0, Target: &schemaTagList, Required: true}
 
-var schemaListTenantResourcesFilter = smithy.Schema{ID: "com.amazonaws.sesv2#ListTenantResourcesFilter", Type: smithy.TypeMap, Members: []*smithy.Member{&memberListTenantResourcesFilter_key, &memberListTenantResourcesFilter_value}}
+var schemaListTenantResourcesFilter = smithy.Schema{ID: "com.amazonaws.sesv2#ListTenantResourcesFilter", Type: smithy.TypeMap}
 
 var memberListTenantResourcesFilter_key = smithy.Member{Name: "key", Index: 0, Target: &schemaListTenantResourcesFilterKey}
 
@@ -1929,7 +1929,7 @@ var schemaListTenantResourcesFilterKey = smithy.Schema{ID: "com.amazonaws.sesv2#
 
 var schemaListTenantResourcesFilterValue = smithy.Schema{ID: "com.amazonaws.sesv2#ListTenantResourcesFilterValue", Type: smithy.TypeString}
 
-var schemaListTenantResourcesInput = smithy.Schema{ID: "com.amazonaws.sesv2#ListTenantResourcesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListTenantResourcesInput_TenantName, &memberListTenantResourcesInput_Filter, &memberListTenantResourcesInput_PageSize, &memberListTenantResourcesInput_NextToken}}
+var schemaListTenantResourcesInput = smithy.Schema{ID: "com.amazonaws.sesv2#ListTenantResourcesRequest", Type: smithy.TypeStructure}
 
 var memberListTenantResourcesInput_TenantName = smithy.Member{Name: "TenantName", Index: 0, Target: &schemaTenantName, Required: true}
 
@@ -1939,13 +1939,13 @@ var memberListTenantResourcesInput_PageSize = smithy.Member{Name: "PageSize", In
 
 var memberListTenantResourcesInput_NextToken = smithy.Member{Name: "NextToken", Index: 3, Target: &schemaNextToken}
 
-var schemaListTenantResourcesOutput = smithy.Schema{ID: "com.amazonaws.sesv2#ListTenantResourcesResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListTenantResourcesOutput_TenantResources, &memberListTenantResourcesOutput_NextToken}}
+var schemaListTenantResourcesOutput = smithy.Schema{ID: "com.amazonaws.sesv2#ListTenantResourcesResponse", Type: smithy.TypeStructure}
 
 var memberListTenantResourcesOutput_TenantResources = smithy.Member{Name: "TenantResources", Index: 0, Target: &schemaTenantResourceList}
 
 var memberListTenantResourcesOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schemaNextToken}
 
-var schemaListTenantsFilter = smithy.Schema{ID: "com.amazonaws.sesv2#ListTenantsFilter", Type: smithy.TypeMap, Members: []*smithy.Member{&memberListTenantsFilter_key, &memberListTenantsFilter_value}}
+var schemaListTenantsFilter = smithy.Schema{ID: "com.amazonaws.sesv2#ListTenantsFilter", Type: smithy.TypeMap}
 
 var memberListTenantsFilter_key = smithy.Member{Name: "key", Index: 0, Target: &schemaListTenantsFilterKey}
 
@@ -1955,7 +1955,7 @@ var schemaListTenantsFilterKey = smithy.Schema{ID: "com.amazonaws.sesv2#ListTena
 
 var schemaListTenantsFilterValue = smithy.Schema{ID: "com.amazonaws.sesv2#ListTenantsFilterValue", Type: smithy.TypeString}
 
-var schemaListTenantsInput = smithy.Schema{ID: "com.amazonaws.sesv2#ListTenantsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListTenantsInput_Filter, &memberListTenantsInput_NextToken, &memberListTenantsInput_PageSize}}
+var schemaListTenantsInput = smithy.Schema{ID: "com.amazonaws.sesv2#ListTenantsRequest", Type: smithy.TypeStructure}
 
 var memberListTenantsInput_Filter = smithy.Member{Name: "Filter", Index: 0, Target: &schemaListTenantsFilter}
 
@@ -1963,7 +1963,7 @@ var memberListTenantsInput_NextToken = smithy.Member{Name: "NextToken", Index: 1
 
 var memberListTenantsInput_PageSize = smithy.Member{Name: "PageSize", Index: 2, Target: &schemaMaxItems}
 
-var schemaListTenantsOutput = smithy.Schema{ID: "com.amazonaws.sesv2#ListTenantsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListTenantsOutput_Tenants, &memberListTenantsOutput_NextToken}}
+var schemaListTenantsOutput = smithy.Schema{ID: "com.amazonaws.sesv2#ListTenantsResponse", Type: smithy.TypeStructure}
 
 var memberListTenantsOutput_Tenants = smithy.Member{Name: "Tenants", Index: 0, Target: &schemaTenantInfoList}
 
@@ -1987,7 +1987,7 @@ var schemaMailFromDomainStatus = smithy.Schema{ID: "com.amazonaws.sesv2#MailFrom
 
 var schemaMailType = smithy.Schema{ID: "com.amazonaws.sesv2#MailType", Type: smithy.TypeEnum}
 
-var schemaMailboxValidation = smithy.Schema{ID: "com.amazonaws.sesv2#MailboxValidation", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberMailboxValidation_IsValid, &memberMailboxValidation_Evaluations}}
+var schemaMailboxValidation = smithy.Schema{ID: "com.amazonaws.sesv2#MailboxValidation", Type: smithy.TypeStructure}
 
 var memberMailboxValidation_IsValid = smithy.Member{Name: "IsValid", Index: 0, Target: &schemaEmailAddressInsightsVerdict}
 
@@ -2029,7 +2029,7 @@ var schemaMessageHeaderName = smithy.Schema{ID: "com.amazonaws.sesv2#MessageHead
 
 var schemaMessageHeaderValue = smithy.Schema{ID: "com.amazonaws.sesv2#MessageHeaderValue", Type: smithy.TypeString}
 
-var schemaMessageInsightsDataSource = smithy.Schema{ID: "com.amazonaws.sesv2#MessageInsightsDataSource", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberMessageInsightsDataSource_StartDate, &memberMessageInsightsDataSource_EndDate, &memberMessageInsightsDataSource_Include, &memberMessageInsightsDataSource_Exclude, &memberMessageInsightsDataSource_MaxResults}}
+var schemaMessageInsightsDataSource = smithy.Schema{ID: "com.amazonaws.sesv2#MessageInsightsDataSource", Type: smithy.TypeStructure}
 
 var memberMessageInsightsDataSource_StartDate = smithy.Member{Name: "StartDate", Index: 0, Target: &schemaTimestamp, Required: true}
 
@@ -2043,7 +2043,7 @@ var memberMessageInsightsDataSource_MaxResults = smithy.Member{Name: "MaxResults
 
 var schemaMessageInsightsExportMaxResults = smithy.Schema{ID: "com.amazonaws.sesv2#MessageInsightsExportMaxResults", Type: smithy.TypeInteger}
 
-var schemaMessageInsightsFilters = smithy.Schema{ID: "com.amazonaws.sesv2#MessageInsightsFilters", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberMessageInsightsFilters_FromEmailAddress, &memberMessageInsightsFilters_Destination, &memberMessageInsightsFilters_Subject, &memberMessageInsightsFilters_Isp, &memberMessageInsightsFilters_TenantName, &memberMessageInsightsFilters_LastDeliveryEvent, &memberMessageInsightsFilters_LastEngagementEvent}}
+var schemaMessageInsightsFilters = smithy.Schema{ID: "com.amazonaws.sesv2#MessageInsightsFilters", Type: smithy.TypeStructure}
 
 var memberMessageInsightsFilters_FromEmailAddress = smithy.Member{Name: "FromEmailAddress", Index: 0, Target: &schemaEmailAddressFilterList}
 
@@ -2063,7 +2063,7 @@ var schemaMessageRejected = smithy.Schema{ID: "com.amazonaws.sesv2#MessageReject
 
 var memberMessageRejected_message = smithy.Member{Name: "message", Index: 0, Target: &schemaErrorMessage}
 
-var schemaMessageSecurityOptions = smithy.Schema{ID: "com.amazonaws.sesv2#MessageSecurityOptions", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberMessageSecurityOptions_SigningScheme}}
+var schemaMessageSecurityOptions = smithy.Schema{ID: "com.amazonaws.sesv2#MessageSecurityOptions", Type: smithy.TypeStructure}
 
 var memberMessageSecurityOptions_SigningScheme = smithy.Member{Name: "SigningScheme", Index: 0, Target: &schemaSigningScheme}
 
@@ -2085,7 +2085,7 @@ var schemaMetric = smithy.Schema{ID: "com.amazonaws.sesv2#Metric", Type: smithy.
 
 var schemaMetricAggregation = smithy.Schema{ID: "com.amazonaws.sesv2#MetricAggregation", Type: smithy.TypeEnum}
 
-var schemaMetricDataError = smithy.Schema{ID: "com.amazonaws.sesv2#MetricDataError", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberMetricDataError_Id, &memberMetricDataError_Code, &memberMetricDataError_Message}}
+var schemaMetricDataError = smithy.Schema{ID: "com.amazonaws.sesv2#MetricDataError", Type: smithy.TypeStructure}
 
 var memberMetricDataError_Id = smithy.Member{Name: "Id", Index: 0, Target: &schemaQueryIdentifier}
 
@@ -2093,11 +2093,11 @@ var memberMetricDataError_Code = smithy.Member{Name: "Code", Index: 1, Target: &
 
 var memberMetricDataError_Message = smithy.Member{Name: "Message", Index: 2, Target: &schemaQueryErrorMessage}
 
-var schemaMetricDataErrorList = smithy.Schema{ID: "com.amazonaws.sesv2#MetricDataErrorList", Type: smithy.TypeList, Members: []*smithy.Member{&memberMetricDataErrorList_member}}
+var schemaMetricDataErrorList = smithy.Schema{ID: "com.amazonaws.sesv2#MetricDataErrorList", Type: smithy.TypeList}
 
 var memberMetricDataErrorList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaMetricDataError}
 
-var schemaMetricDataResult = smithy.Schema{ID: "com.amazonaws.sesv2#MetricDataResult", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberMetricDataResult_Id, &memberMetricDataResult_Timestamps, &memberMetricDataResult_Values}}
+var schemaMetricDataResult = smithy.Schema{ID: "com.amazonaws.sesv2#MetricDataResult", Type: smithy.TypeStructure}
 
 var memberMetricDataResult_Id = smithy.Member{Name: "Id", Index: 0, Target: &schemaQueryIdentifier}
 
@@ -2105,7 +2105,7 @@ var memberMetricDataResult_Timestamps = smithy.Member{Name: "Timestamps", Index:
 
 var memberMetricDataResult_Values = smithy.Member{Name: "Values", Index: 2, Target: &schemaMetricValueList}
 
-var schemaMetricDataResultList = smithy.Schema{ID: "com.amazonaws.sesv2#MetricDataResultList", Type: smithy.TypeList, Members: []*smithy.Member{&memberMetricDataResultList_member}}
+var schemaMetricDataResultList = smithy.Schema{ID: "com.amazonaws.sesv2#MetricDataResultList", Type: smithy.TypeList}
 
 var memberMetricDataResultList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaMetricDataResult}
 
@@ -2115,11 +2115,11 @@ var schemaMetricDimensionValue = smithy.Schema{ID: "com.amazonaws.sesv2#MetricDi
 
 var schemaMetricNamespace = smithy.Schema{ID: "com.amazonaws.sesv2#MetricNamespace", Type: smithy.TypeEnum}
 
-var schemaMetricValueList = smithy.Schema{ID: "com.amazonaws.sesv2#MetricValueList", Type: smithy.TypeList, Members: []*smithy.Member{&memberMetricValueList_member}}
+var schemaMetricValueList = smithy.Schema{ID: "com.amazonaws.sesv2#MetricValueList", Type: smithy.TypeList}
 
 var memberMetricValueList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaCounter, Default: document.Number("0")}
 
-var schemaMetricsDataSource = smithy.Schema{ID: "com.amazonaws.sesv2#MetricsDataSource", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberMetricsDataSource_Dimensions, &memberMetricsDataSource_Namespace, &memberMetricsDataSource_Metrics, &memberMetricsDataSource_StartDate, &memberMetricsDataSource_EndDate}}
+var schemaMetricsDataSource = smithy.Schema{ID: "com.amazonaws.sesv2#MetricsDataSource", Type: smithy.TypeStructure}
 
 var memberMetricsDataSource_Dimensions = smithy.Member{Name: "Dimensions", Index: 0, Target: &schemaExportDimensions, Required: true}
 
@@ -2135,7 +2135,7 @@ var schemaMissingAuthenticationTokenException = smithy.Schema{ID: "com.amazon.co
 
 var memberMissingAuthenticationTokenException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaMultiRegionEndpoint = smithy.Schema{ID: "com.amazonaws.sesv2#MultiRegionEndpoint", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberMultiRegionEndpoint_EndpointName, &memberMultiRegionEndpoint_Status, &memberMultiRegionEndpoint_EndpointId, &memberMultiRegionEndpoint_Regions, &memberMultiRegionEndpoint_CreatedTimestamp, &memberMultiRegionEndpoint_LastUpdatedTimestamp}}
+var schemaMultiRegionEndpoint = smithy.Schema{ID: "com.amazonaws.sesv2#MultiRegionEndpoint", Type: smithy.TypeStructure}
 
 var memberMultiRegionEndpoint_EndpointName = smithy.Member{Name: "EndpointName", Index: 0, Target: &schemaEndpointName}
 
@@ -2149,7 +2149,7 @@ var memberMultiRegionEndpoint_CreatedTimestamp = smithy.Member{Name: "CreatedTim
 
 var memberMultiRegionEndpoint_LastUpdatedTimestamp = smithy.Member{Name: "LastUpdatedTimestamp", Index: 5, Target: &schemaTimestamp}
 
-var schemaMultiRegionEndpoints = smithy.Schema{ID: "com.amazonaws.sesv2#MultiRegionEndpoints", Type: smithy.TypeList, Members: []*smithy.Member{&memberMultiRegionEndpoints_member}}
+var schemaMultiRegionEndpoints = smithy.Schema{ID: "com.amazonaws.sesv2#MultiRegionEndpoints", Type: smithy.TypeList}
 
 var memberMultiRegionEndpoints_member = smithy.Member{Name: "member", Index: 0, Target: &schemaMultiRegionEndpoint}
 
@@ -2167,7 +2167,7 @@ var memberNotImplemented_message = smithy.Member{Name: "message", Index: 0, Targ
 
 var schemaOutboundMessageId = smithy.Schema{ID: "com.amazonaws.sesv2#OutboundMessageId", Type: smithy.TypeString}
 
-var schemaOverallVolume = smithy.Schema{ID: "com.amazonaws.sesv2#OverallVolume", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberOverallVolume_VolumeStatistics, &memberOverallVolume_ReadRatePercent, &memberOverallVolume_DomainIspPlacements}}
+var schemaOverallVolume = smithy.Schema{ID: "com.amazonaws.sesv2#OverallVolume", Type: smithy.TypeStructure}
 
 var memberOverallVolume_VolumeStatistics = smithy.Member{Name: "VolumeStatistics", Index: 0, Target: &schemaVolumeStatistics}
 
@@ -2181,11 +2181,11 @@ var schemaPercentage = smithy.Schema{ID: "com.amazonaws.sesv2#Percentage", Type:
 
 var schemaPercentage100Wrapper = smithy.Schema{ID: "com.amazonaws.sesv2#Percentage100Wrapper", Type: smithy.TypeInteger}
 
-var schemaPinpointDestination = smithy.Schema{ID: "com.amazonaws.sesv2#PinpointDestination", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPinpointDestination_ApplicationArn}}
+var schemaPinpointDestination = smithy.Schema{ID: "com.amazonaws.sesv2#PinpointDestination", Type: smithy.TypeStructure}
 
 var memberPinpointDestination_ApplicationArn = smithy.Member{Name: "ApplicationArn", Index: 0, Target: &schemaAmazonResourceName}
 
-var schemaPlacementStatistics = smithy.Schema{ID: "com.amazonaws.sesv2#PlacementStatistics", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPlacementStatistics_InboxPercentage, &memberPlacementStatistics_SpamPercentage, &memberPlacementStatistics_MissingPercentage, &memberPlacementStatistics_SpfPercentage, &memberPlacementStatistics_DkimPercentage}}
+var schemaPlacementStatistics = smithy.Schema{ID: "com.amazonaws.sesv2#PlacementStatistics", Type: smithy.TypeStructure}
 
 var memberPlacementStatistics_InboxPercentage = smithy.Member{Name: "InboxPercentage", Index: 0, Target: &schemaPercentage}
 
@@ -2223,13 +2223,13 @@ var schemaPrivateKey = smithy.Schema{ID: "com.amazonaws.sesv2#PrivateKey", Type:
 
 var schemaProcessedRecordsCount = smithy.Schema{ID: "com.amazonaws.sesv2#ProcessedRecordsCount", Type: smithy.TypeInteger}
 
-var schemaPutAccountDedicatedIpWarmupAttributesInput = smithy.Schema{ID: "com.amazonaws.sesv2#PutAccountDedicatedIpWarmupAttributesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutAccountDedicatedIpWarmupAttributesInput_AutoWarmupEnabled}}
+var schemaPutAccountDedicatedIpWarmupAttributesInput = smithy.Schema{ID: "com.amazonaws.sesv2#PutAccountDedicatedIpWarmupAttributesRequest", Type: smithy.TypeStructure}
 
 var memberPutAccountDedicatedIpWarmupAttributesInput_AutoWarmupEnabled = smithy.Member{Name: "AutoWarmupEnabled", Index: 0, Target: &schemaEnabled, Default: document.Bool(false)}
 
 var schemaPutAccountDedicatedIpWarmupAttributesOutput = smithy.Schema{ID: "com.amazonaws.sesv2#PutAccountDedicatedIpWarmupAttributesResponse", Type: smithy.TypeStructure}
 
-var schemaPutAccountDetailsInput = smithy.Schema{ID: "com.amazonaws.sesv2#PutAccountDetailsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutAccountDetailsInput_MailType, &memberPutAccountDetailsInput_WebsiteURL, &memberPutAccountDetailsInput_ContactLanguage, &memberPutAccountDetailsInput_UseCaseDescription, &memberPutAccountDetailsInput_AdditionalContactEmailAddresses, &memberPutAccountDetailsInput_ProductionAccessEnabled}}
+var schemaPutAccountDetailsInput = smithy.Schema{ID: "com.amazonaws.sesv2#PutAccountDetailsRequest", Type: smithy.TypeStructure}
 
 var memberPutAccountDetailsInput_MailType = smithy.Member{Name: "MailType", Index: 0, Target: &schemaMailType, Required: true}
 
@@ -2245,19 +2245,19 @@ var memberPutAccountDetailsInput_ProductionAccessEnabled = smithy.Member{Name: "
 
 var schemaPutAccountDetailsOutput = smithy.Schema{ID: "com.amazonaws.sesv2#PutAccountDetailsResponse", Type: smithy.TypeStructure}
 
-var schemaPutAccountPricingAttributesInput = smithy.Schema{ID: "com.amazonaws.sesv2#PutAccountPricingAttributesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutAccountPricingAttributesInput_Plan}}
+var schemaPutAccountPricingAttributesInput = smithy.Schema{ID: "com.amazonaws.sesv2#PutAccountPricingAttributesRequest", Type: smithy.TypeStructure}
 
 var memberPutAccountPricingAttributesInput_Plan = smithy.Member{Name: "Plan", Index: 0, Target: &schemaPricingPlan, Required: true}
 
 var schemaPutAccountPricingAttributesOutput = smithy.Schema{ID: "com.amazonaws.sesv2#PutAccountPricingAttributesResponse", Type: smithy.TypeStructure}
 
-var schemaPutAccountSendingAttributesInput = smithy.Schema{ID: "com.amazonaws.sesv2#PutAccountSendingAttributesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutAccountSendingAttributesInput_SendingEnabled}}
+var schemaPutAccountSendingAttributesInput = smithy.Schema{ID: "com.amazonaws.sesv2#PutAccountSendingAttributesRequest", Type: smithy.TypeStructure}
 
 var memberPutAccountSendingAttributesInput_SendingEnabled = smithy.Member{Name: "SendingEnabled", Index: 0, Target: &schemaEnabled, Default: document.Bool(false)}
 
 var schemaPutAccountSendingAttributesOutput = smithy.Schema{ID: "com.amazonaws.sesv2#PutAccountSendingAttributesResponse", Type: smithy.TypeStructure}
 
-var schemaPutAccountSuppressionAttributesInput = smithy.Schema{ID: "com.amazonaws.sesv2#PutAccountSuppressionAttributesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutAccountSuppressionAttributesInput_SuppressedReasons, &memberPutAccountSuppressionAttributesInput_ValidationAttributes}}
+var schemaPutAccountSuppressionAttributesInput = smithy.Schema{ID: "com.amazonaws.sesv2#PutAccountSuppressionAttributesRequest", Type: smithy.TypeStructure}
 
 var memberPutAccountSuppressionAttributesInput_SuppressedReasons = smithy.Member{Name: "SuppressedReasons", Index: 0, Target: &schemaSuppressionListReasons}
 
@@ -2265,13 +2265,13 @@ var memberPutAccountSuppressionAttributesInput_ValidationAttributes = smithy.Mem
 
 var schemaPutAccountSuppressionAttributesOutput = smithy.Schema{ID: "com.amazonaws.sesv2#PutAccountSuppressionAttributesResponse", Type: smithy.TypeStructure}
 
-var schemaPutAccountVdmAttributesInput = smithy.Schema{ID: "com.amazonaws.sesv2#PutAccountVdmAttributesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutAccountVdmAttributesInput_VdmAttributes}}
+var schemaPutAccountVdmAttributesInput = smithy.Schema{ID: "com.amazonaws.sesv2#PutAccountVdmAttributesRequest", Type: smithy.TypeStructure}
 
 var memberPutAccountVdmAttributesInput_VdmAttributes = smithy.Member{Name: "VdmAttributes", Index: 0, Target: &schemaVdmAttributes, Required: true}
 
 var schemaPutAccountVdmAttributesOutput = smithy.Schema{ID: "com.amazonaws.sesv2#PutAccountVdmAttributesResponse", Type: smithy.TypeStructure}
 
-var schemaPutConfigurationSetArchivingOptionsInput = smithy.Schema{ID: "com.amazonaws.sesv2#PutConfigurationSetArchivingOptionsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutConfigurationSetArchivingOptionsInput_ConfigurationSetName, &memberPutConfigurationSetArchivingOptionsInput_ArchiveArn}}
+var schemaPutConfigurationSetArchivingOptionsInput = smithy.Schema{ID: "com.amazonaws.sesv2#PutConfigurationSetArchivingOptionsRequest", Type: smithy.TypeStructure}
 
 var memberPutConfigurationSetArchivingOptionsInput_ConfigurationSetName = smithy.Member{Name: "ConfigurationSetName", Index: 0, Target: &schemaConfigurationSetName, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -2279,7 +2279,7 @@ var memberPutConfigurationSetArchivingOptionsInput_ArchiveArn = smithy.Member{Na
 
 var schemaPutConfigurationSetArchivingOptionsOutput = smithy.Schema{ID: "com.amazonaws.sesv2#PutConfigurationSetArchivingOptionsResponse", Type: smithy.TypeStructure}
 
-var schemaPutConfigurationSetDeliveryOptionsInput = smithy.Schema{ID: "com.amazonaws.sesv2#PutConfigurationSetDeliveryOptionsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutConfigurationSetDeliveryOptionsInput_ConfigurationSetName, &memberPutConfigurationSetDeliveryOptionsInput_TlsPolicy, &memberPutConfigurationSetDeliveryOptionsInput_SendingPoolName, &memberPutConfigurationSetDeliveryOptionsInput_MaxDeliverySeconds}}
+var schemaPutConfigurationSetDeliveryOptionsInput = smithy.Schema{ID: "com.amazonaws.sesv2#PutConfigurationSetDeliveryOptionsRequest", Type: smithy.TypeStructure}
 
 var memberPutConfigurationSetDeliveryOptionsInput_ConfigurationSetName = smithy.Member{Name: "ConfigurationSetName", Index: 0, Target: &schemaConfigurationSetName, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -2291,7 +2291,7 @@ var memberPutConfigurationSetDeliveryOptionsInput_MaxDeliverySeconds = smithy.Me
 
 var schemaPutConfigurationSetDeliveryOptionsOutput = smithy.Schema{ID: "com.amazonaws.sesv2#PutConfigurationSetDeliveryOptionsResponse", Type: smithy.TypeStructure}
 
-var schemaPutConfigurationSetReputationOptionsInput = smithy.Schema{ID: "com.amazonaws.sesv2#PutConfigurationSetReputationOptionsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutConfigurationSetReputationOptionsInput_ConfigurationSetName, &memberPutConfigurationSetReputationOptionsInput_ReputationMetricsEnabled}}
+var schemaPutConfigurationSetReputationOptionsInput = smithy.Schema{ID: "com.amazonaws.sesv2#PutConfigurationSetReputationOptionsRequest", Type: smithy.TypeStructure}
 
 var memberPutConfigurationSetReputationOptionsInput_ConfigurationSetName = smithy.Member{Name: "ConfigurationSetName", Index: 0, Target: &schemaConfigurationSetName, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -2299,7 +2299,7 @@ var memberPutConfigurationSetReputationOptionsInput_ReputationMetricsEnabled = s
 
 var schemaPutConfigurationSetReputationOptionsOutput = smithy.Schema{ID: "com.amazonaws.sesv2#PutConfigurationSetReputationOptionsResponse", Type: smithy.TypeStructure}
 
-var schemaPutConfigurationSetSendingOptionsInput = smithy.Schema{ID: "com.amazonaws.sesv2#PutConfigurationSetSendingOptionsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutConfigurationSetSendingOptionsInput_ConfigurationSetName, &memberPutConfigurationSetSendingOptionsInput_SendingEnabled}}
+var schemaPutConfigurationSetSendingOptionsInput = smithy.Schema{ID: "com.amazonaws.sesv2#PutConfigurationSetSendingOptionsRequest", Type: smithy.TypeStructure}
 
 var memberPutConfigurationSetSendingOptionsInput_ConfigurationSetName = smithy.Member{Name: "ConfigurationSetName", Index: 0, Target: &schemaConfigurationSetName, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -2307,7 +2307,7 @@ var memberPutConfigurationSetSendingOptionsInput_SendingEnabled = smithy.Member{
 
 var schemaPutConfigurationSetSendingOptionsOutput = smithy.Schema{ID: "com.amazonaws.sesv2#PutConfigurationSetSendingOptionsResponse", Type: smithy.TypeStructure}
 
-var schemaPutConfigurationSetSuppressionOptionsInput = smithy.Schema{ID: "com.amazonaws.sesv2#PutConfigurationSetSuppressionOptionsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutConfigurationSetSuppressionOptionsInput_ConfigurationSetName, &memberPutConfigurationSetSuppressionOptionsInput_SuppressionScope, &memberPutConfigurationSetSuppressionOptionsInput_SuppressedReasons, &memberPutConfigurationSetSuppressionOptionsInput_ValidationOptions}}
+var schemaPutConfigurationSetSuppressionOptionsInput = smithy.Schema{ID: "com.amazonaws.sesv2#PutConfigurationSetSuppressionOptionsRequest", Type: smithy.TypeStructure}
 
 var memberPutConfigurationSetSuppressionOptionsInput_ConfigurationSetName = smithy.Member{Name: "ConfigurationSetName", Index: 0, Target: &schemaConfigurationSetName, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -2319,7 +2319,7 @@ var memberPutConfigurationSetSuppressionOptionsInput_ValidationOptions = smithy.
 
 var schemaPutConfigurationSetSuppressionOptionsOutput = smithy.Schema{ID: "com.amazonaws.sesv2#PutConfigurationSetSuppressionOptionsResponse", Type: smithy.TypeStructure}
 
-var schemaPutConfigurationSetTrackingOptionsInput = smithy.Schema{ID: "com.amazonaws.sesv2#PutConfigurationSetTrackingOptionsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutConfigurationSetTrackingOptionsInput_ConfigurationSetName, &memberPutConfigurationSetTrackingOptionsInput_CustomRedirectDomain, &memberPutConfigurationSetTrackingOptionsInput_HttpsPolicy}}
+var schemaPutConfigurationSetTrackingOptionsInput = smithy.Schema{ID: "com.amazonaws.sesv2#PutConfigurationSetTrackingOptionsRequest", Type: smithy.TypeStructure}
 
 var memberPutConfigurationSetTrackingOptionsInput_ConfigurationSetName = smithy.Member{Name: "ConfigurationSetName", Index: 0, Target: &schemaConfigurationSetName, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -2329,7 +2329,7 @@ var memberPutConfigurationSetTrackingOptionsInput_HttpsPolicy = smithy.Member{Na
 
 var schemaPutConfigurationSetTrackingOptionsOutput = smithy.Schema{ID: "com.amazonaws.sesv2#PutConfigurationSetTrackingOptionsResponse", Type: smithy.TypeStructure}
 
-var schemaPutConfigurationSetVdmOptionsInput = smithy.Schema{ID: "com.amazonaws.sesv2#PutConfigurationSetVdmOptionsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutConfigurationSetVdmOptionsInput_ConfigurationSetName, &memberPutConfigurationSetVdmOptionsInput_VdmOptions}}
+var schemaPutConfigurationSetVdmOptionsInput = smithy.Schema{ID: "com.amazonaws.sesv2#PutConfigurationSetVdmOptionsRequest", Type: smithy.TypeStructure}
 
 var memberPutConfigurationSetVdmOptionsInput_ConfigurationSetName = smithy.Member{Name: "ConfigurationSetName", Index: 0, Target: &schemaConfigurationSetName, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -2337,7 +2337,7 @@ var memberPutConfigurationSetVdmOptionsInput_VdmOptions = smithy.Member{Name: "V
 
 var schemaPutConfigurationSetVdmOptionsOutput = smithy.Schema{ID: "com.amazonaws.sesv2#PutConfigurationSetVdmOptionsResponse", Type: smithy.TypeStructure}
 
-var schemaPutDedicatedIpInPoolInput = smithy.Schema{ID: "com.amazonaws.sesv2#PutDedicatedIpInPoolRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutDedicatedIpInPoolInput_Ip, &memberPutDedicatedIpInPoolInput_DestinationPoolName}}
+var schemaPutDedicatedIpInPoolInput = smithy.Schema{ID: "com.amazonaws.sesv2#PutDedicatedIpInPoolRequest", Type: smithy.TypeStructure}
 
 var memberPutDedicatedIpInPoolInput_Ip = smithy.Member{Name: "Ip", Index: 0, Target: &schemaIp, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -2345,7 +2345,7 @@ var memberPutDedicatedIpInPoolInput_DestinationPoolName = smithy.Member{Name: "D
 
 var schemaPutDedicatedIpInPoolOutput = smithy.Schema{ID: "com.amazonaws.sesv2#PutDedicatedIpInPoolResponse", Type: smithy.TypeStructure}
 
-var schemaPutDedicatedIpPoolScalingAttributesInput = smithy.Schema{ID: "com.amazonaws.sesv2#PutDedicatedIpPoolScalingAttributesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutDedicatedIpPoolScalingAttributesInput_PoolName, &memberPutDedicatedIpPoolScalingAttributesInput_ScalingMode}}
+var schemaPutDedicatedIpPoolScalingAttributesInput = smithy.Schema{ID: "com.amazonaws.sesv2#PutDedicatedIpPoolScalingAttributesRequest", Type: smithy.TypeStructure}
 
 var memberPutDedicatedIpPoolScalingAttributesInput_PoolName = smithy.Member{Name: "PoolName", Index: 0, Target: &schemaPoolName, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -2353,7 +2353,7 @@ var memberPutDedicatedIpPoolScalingAttributesInput_ScalingMode = smithy.Member{N
 
 var schemaPutDedicatedIpPoolScalingAttributesOutput = smithy.Schema{ID: "com.amazonaws.sesv2#PutDedicatedIpPoolScalingAttributesResponse", Type: smithy.TypeStructure}
 
-var schemaPutDedicatedIpWarmupAttributesInput = smithy.Schema{ID: "com.amazonaws.sesv2#PutDedicatedIpWarmupAttributesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutDedicatedIpWarmupAttributesInput_Ip, &memberPutDedicatedIpWarmupAttributesInput_WarmupPercentage}}
+var schemaPutDedicatedIpWarmupAttributesInput = smithy.Schema{ID: "com.amazonaws.sesv2#PutDedicatedIpWarmupAttributesRequest", Type: smithy.TypeStructure}
 
 var memberPutDedicatedIpWarmupAttributesInput_Ip = smithy.Member{Name: "Ip", Index: 0, Target: &schemaIp, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -2361,7 +2361,7 @@ var memberPutDedicatedIpWarmupAttributesInput_WarmupPercentage = smithy.Member{N
 
 var schemaPutDedicatedIpWarmupAttributesOutput = smithy.Schema{ID: "com.amazonaws.sesv2#PutDedicatedIpWarmupAttributesResponse", Type: smithy.TypeStructure}
 
-var schemaPutDeliverabilityDashboardOptionInput = smithy.Schema{ID: "com.amazonaws.sesv2#PutDeliverabilityDashboardOptionRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutDeliverabilityDashboardOptionInput_DashboardEnabled, &memberPutDeliverabilityDashboardOptionInput_SubscribedDomains}}
+var schemaPutDeliverabilityDashboardOptionInput = smithy.Schema{ID: "com.amazonaws.sesv2#PutDeliverabilityDashboardOptionRequest", Type: smithy.TypeStructure}
 
 var memberPutDeliverabilityDashboardOptionInput_DashboardEnabled = smithy.Member{Name: "DashboardEnabled", Index: 0, Target: &schemaEnabled, Required: true, Default: document.Bool(false)}
 
@@ -2369,7 +2369,7 @@ var memberPutDeliverabilityDashboardOptionInput_SubscribedDomains = smithy.Membe
 
 var schemaPutDeliverabilityDashboardOptionOutput = smithy.Schema{ID: "com.amazonaws.sesv2#PutDeliverabilityDashboardOptionResponse", Type: smithy.TypeStructure}
 
-var schemaPutEmailIdentityConfigurationSetAttributesInput = smithy.Schema{ID: "com.amazonaws.sesv2#PutEmailIdentityConfigurationSetAttributesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutEmailIdentityConfigurationSetAttributesInput_EmailIdentity, &memberPutEmailIdentityConfigurationSetAttributesInput_ConfigurationSetName}}
+var schemaPutEmailIdentityConfigurationSetAttributesInput = smithy.Schema{ID: "com.amazonaws.sesv2#PutEmailIdentityConfigurationSetAttributesRequest", Type: smithy.TypeStructure}
 
 var memberPutEmailIdentityConfigurationSetAttributesInput_EmailIdentity = smithy.Member{Name: "EmailIdentity", Index: 0, Target: &schemaIdentity, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -2377,7 +2377,7 @@ var memberPutEmailIdentityConfigurationSetAttributesInput_ConfigurationSetName =
 
 var schemaPutEmailIdentityConfigurationSetAttributesOutput = smithy.Schema{ID: "com.amazonaws.sesv2#PutEmailIdentityConfigurationSetAttributesResponse", Type: smithy.TypeStructure}
 
-var schemaPutEmailIdentityDkimAttributesInput = smithy.Schema{ID: "com.amazonaws.sesv2#PutEmailIdentityDkimAttributesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutEmailIdentityDkimAttributesInput_EmailIdentity, &memberPutEmailIdentityDkimAttributesInput_SigningEnabled}}
+var schemaPutEmailIdentityDkimAttributesInput = smithy.Schema{ID: "com.amazonaws.sesv2#PutEmailIdentityDkimAttributesRequest", Type: smithy.TypeStructure}
 
 var memberPutEmailIdentityDkimAttributesInput_EmailIdentity = smithy.Member{Name: "EmailIdentity", Index: 0, Target: &schemaIdentity, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -2385,7 +2385,7 @@ var memberPutEmailIdentityDkimAttributesInput_SigningEnabled = smithy.Member{Nam
 
 var schemaPutEmailIdentityDkimAttributesOutput = smithy.Schema{ID: "com.amazonaws.sesv2#PutEmailIdentityDkimAttributesResponse", Type: smithy.TypeStructure}
 
-var schemaPutEmailIdentityDkimSigningAttributesInput = smithy.Schema{ID: "com.amazonaws.sesv2#PutEmailIdentityDkimSigningAttributesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutEmailIdentityDkimSigningAttributesInput_EmailIdentity, &memberPutEmailIdentityDkimSigningAttributesInput_SigningAttributesOrigin, &memberPutEmailIdentityDkimSigningAttributesInput_SigningAttributes}}
+var schemaPutEmailIdentityDkimSigningAttributesInput = smithy.Schema{ID: "com.amazonaws.sesv2#PutEmailIdentityDkimSigningAttributesRequest", Type: smithy.TypeStructure}
 
 var memberPutEmailIdentityDkimSigningAttributesInput_EmailIdentity = smithy.Member{Name: "EmailIdentity", Index: 0, Target: &schemaIdentity, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -2393,7 +2393,7 @@ var memberPutEmailIdentityDkimSigningAttributesInput_SigningAttributesOrigin = s
 
 var memberPutEmailIdentityDkimSigningAttributesInput_SigningAttributes = smithy.Member{Name: "SigningAttributes", Index: 2, Target: &schemaDkimSigningAttributes}
 
-var schemaPutEmailIdentityDkimSigningAttributesOutput = smithy.Schema{ID: "com.amazonaws.sesv2#PutEmailIdentityDkimSigningAttributesResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutEmailIdentityDkimSigningAttributesOutput_DkimStatus, &memberPutEmailIdentityDkimSigningAttributesOutput_DkimTokens, &memberPutEmailIdentityDkimSigningAttributesOutput_SigningHostedZone}}
+var schemaPutEmailIdentityDkimSigningAttributesOutput = smithy.Schema{ID: "com.amazonaws.sesv2#PutEmailIdentityDkimSigningAttributesResponse", Type: smithy.TypeStructure}
 
 var memberPutEmailIdentityDkimSigningAttributesOutput_DkimStatus = smithy.Member{Name: "DkimStatus", Index: 0, Target: &schemaDkimStatus}
 
@@ -2401,7 +2401,7 @@ var memberPutEmailIdentityDkimSigningAttributesOutput_DkimTokens = smithy.Member
 
 var memberPutEmailIdentityDkimSigningAttributesOutput_SigningHostedZone = smithy.Member{Name: "SigningHostedZone", Index: 2, Target: &schemaHostedZone}
 
-var schemaPutEmailIdentityFeedbackAttributesInput = smithy.Schema{ID: "com.amazonaws.sesv2#PutEmailIdentityFeedbackAttributesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutEmailIdentityFeedbackAttributesInput_EmailIdentity, &memberPutEmailIdentityFeedbackAttributesInput_EmailForwardingEnabled}}
+var schemaPutEmailIdentityFeedbackAttributesInput = smithy.Schema{ID: "com.amazonaws.sesv2#PutEmailIdentityFeedbackAttributesRequest", Type: smithy.TypeStructure}
 
 var memberPutEmailIdentityFeedbackAttributesInput_EmailIdentity = smithy.Member{Name: "EmailIdentity", Index: 0, Target: &schemaIdentity, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -2409,7 +2409,7 @@ var memberPutEmailIdentityFeedbackAttributesInput_EmailForwardingEnabled = smith
 
 var schemaPutEmailIdentityFeedbackAttributesOutput = smithy.Schema{ID: "com.amazonaws.sesv2#PutEmailIdentityFeedbackAttributesResponse", Type: smithy.TypeStructure}
 
-var schemaPutEmailIdentityMailFromAttributesInput = smithy.Schema{ID: "com.amazonaws.sesv2#PutEmailIdentityMailFromAttributesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutEmailIdentityMailFromAttributesInput_EmailIdentity, &memberPutEmailIdentityMailFromAttributesInput_MailFromDomain, &memberPutEmailIdentityMailFromAttributesInput_BehaviorOnMxFailure}}
+var schemaPutEmailIdentityMailFromAttributesInput = smithy.Schema{ID: "com.amazonaws.sesv2#PutEmailIdentityMailFromAttributesRequest", Type: smithy.TypeStructure}
 
 var memberPutEmailIdentityMailFromAttributesInput_EmailIdentity = smithy.Member{Name: "EmailIdentity", Index: 0, Target: &schemaIdentity, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -2419,7 +2419,7 @@ var memberPutEmailIdentityMailFromAttributesInput_BehaviorOnMxFailure = smithy.M
 
 var schemaPutEmailIdentityMailFromAttributesOutput = smithy.Schema{ID: "com.amazonaws.sesv2#PutEmailIdentityMailFromAttributesResponse", Type: smithy.TypeStructure}
 
-var schemaPutSuppressedDestinationInput = smithy.Schema{ID: "com.amazonaws.sesv2#PutSuppressedDestinationRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutSuppressedDestinationInput_EmailAddress, &memberPutSuppressedDestinationInput_Reason, &memberPutSuppressedDestinationInput_TenantName}}
+var schemaPutSuppressedDestinationInput = smithy.Schema{ID: "com.amazonaws.sesv2#PutSuppressedDestinationRequest", Type: smithy.TypeStructure}
 
 var memberPutSuppressedDestinationInput_EmailAddress = smithy.Member{Name: "EmailAddress", Index: 0, Target: &schemaEmailAddress, Required: true}
 
@@ -2429,7 +2429,7 @@ var memberPutSuppressedDestinationInput_TenantName = smithy.Member{Name: "Tenant
 
 var schemaPutSuppressedDestinationOutput = smithy.Schema{ID: "com.amazonaws.sesv2#PutSuppressedDestinationResponse", Type: smithy.TypeStructure}
 
-var schemaPutTenantSuppressionAttributesInput = smithy.Schema{ID: "com.amazonaws.sesv2#PutTenantSuppressionAttributesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutTenantSuppressionAttributesInput_TenantName, &memberPutTenantSuppressionAttributesInput_SuppressedReasons, &memberPutTenantSuppressionAttributesInput_SuppressionScope}}
+var schemaPutTenantSuppressionAttributesInput = smithy.Schema{ID: "com.amazonaws.sesv2#PutTenantSuppressionAttributesRequest", Type: smithy.TypeStructure}
 
 var memberPutTenantSuppressionAttributesInput_TenantName = smithy.Member{Name: "TenantName", Index: 0, Target: &schemaTenantName, Required: true}
 
@@ -2455,7 +2455,7 @@ var schemaRawMessageData = smithy.Schema{ID: "com.amazonaws.sesv2#RawMessageData
 
 var schemaRblName = smithy.Schema{ID: "com.amazonaws.sesv2#RblName", Type: smithy.TypeString}
 
-var schemaRecommendation = smithy.Schema{ID: "com.amazonaws.sesv2#Recommendation", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRecommendation_ResourceArn, &memberRecommendation_Type, &memberRecommendation_Description, &memberRecommendation_Status, &memberRecommendation_CreatedTimestamp, &memberRecommendation_LastUpdatedTimestamp, &memberRecommendation_Impact}}
+var schemaRecommendation = smithy.Schema{ID: "com.amazonaws.sesv2#Recommendation", Type: smithy.TypeStructure}
 
 var memberRecommendation_ResourceArn = smithy.Member{Name: "ResourceArn", Index: 0, Target: &schemaAmazonResourceName}
 
@@ -2479,23 +2479,23 @@ var schemaRecommendationStatus = smithy.Schema{ID: "com.amazonaws.sesv2#Recommen
 
 var schemaRecommendationType = smithy.Schema{ID: "com.amazonaws.sesv2#RecommendationType", Type: smithy.TypeEnum}
 
-var schemaRecommendationsList = smithy.Schema{ID: "com.amazonaws.sesv2#RecommendationsList", Type: smithy.TypeList, Members: []*smithy.Member{&memberRecommendationsList_member}}
+var schemaRecommendationsList = smithy.Schema{ID: "com.amazonaws.sesv2#RecommendationsList", Type: smithy.TypeList}
 
 var memberRecommendationsList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaRecommendation}
 
 var schemaRegion = smithy.Schema{ID: "com.amazonaws.sesv2#Region", Type: smithy.TypeString}
 
-var schemaRegions = smithy.Schema{ID: "com.amazonaws.sesv2#Regions", Type: smithy.TypeList, Members: []*smithy.Member{&memberRegions_member}}
+var schemaRegions = smithy.Schema{ID: "com.amazonaws.sesv2#Regions", Type: smithy.TypeList}
 
 var memberRegions_member = smithy.Member{Name: "member", Index: 0, Target: &schemaRegion}
 
 var schemaRenderedEmailTemplate = smithy.Schema{ID: "com.amazonaws.sesv2#RenderedEmailTemplate", Type: smithy.TypeString}
 
-var schemaReplacementEmailContent = smithy.Schema{ID: "com.amazonaws.sesv2#ReplacementEmailContent", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberReplacementEmailContent_ReplacementTemplate}}
+var schemaReplacementEmailContent = smithy.Schema{ID: "com.amazonaws.sesv2#ReplacementEmailContent", Type: smithy.TypeStructure}
 
 var memberReplacementEmailContent_ReplacementTemplate = smithy.Member{Name: "ReplacementTemplate", Index: 0, Target: &schemaReplacementTemplate}
 
-var schemaReplacementTemplate = smithy.Schema{ID: "com.amazonaws.sesv2#ReplacementTemplate", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberReplacementTemplate_ReplacementTemplateData}}
+var schemaReplacementTemplate = smithy.Schema{ID: "com.amazonaws.sesv2#ReplacementTemplate", Type: smithy.TypeStructure}
 
 var memberReplacementTemplate_ReplacementTemplateData = smithy.Member{Name: "ReplacementTemplateData", Index: 0, Target: &schemaEmailTemplateData}
 
@@ -2503,11 +2503,11 @@ var schemaReportId = smithy.Schema{ID: "com.amazonaws.sesv2#ReportId", Type: smi
 
 var schemaReportName = smithy.Schema{ID: "com.amazonaws.sesv2#ReportName", Type: smithy.TypeString}
 
-var schemaReputationEntitiesList = smithy.Schema{ID: "com.amazonaws.sesv2#ReputationEntitiesList", Type: smithy.TypeList, Members: []*smithy.Member{&memberReputationEntitiesList_member}}
+var schemaReputationEntitiesList = smithy.Schema{ID: "com.amazonaws.sesv2#ReputationEntitiesList", Type: smithy.TypeList}
 
 var memberReputationEntitiesList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaReputationEntity}
 
-var schemaReputationEntity = smithy.Schema{ID: "com.amazonaws.sesv2#ReputationEntity", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberReputationEntity_ReputationEntityReference, &memberReputationEntity_ReputationEntityType, &memberReputationEntity_ReputationManagementPolicy, &memberReputationEntity_CustomerManagedStatus, &memberReputationEntity_AwsSesManagedStatus, &memberReputationEntity_SendingStatusAggregate, &memberReputationEntity_ReputationImpact}}
+var schemaReputationEntity = smithy.Schema{ID: "com.amazonaws.sesv2#ReputationEntity", Type: smithy.TypeStructure}
 
 var memberReputationEntity_ReputationEntityReference = smithy.Member{Name: "ReputationEntityReference", Index: 0, Target: &schemaReputationEntityReference}
 
@@ -2523,7 +2523,7 @@ var memberReputationEntity_SendingStatusAggregate = smithy.Member{Name: "Sending
 
 var memberReputationEntity_ReputationImpact = smithy.Member{Name: "ReputationImpact", Index: 6, Target: &schemaRecommendationImpact}
 
-var schemaReputationEntityFilter = smithy.Schema{ID: "com.amazonaws.sesv2#ReputationEntityFilter", Type: smithy.TypeMap, Members: []*smithy.Member{&memberReputationEntityFilter_key, &memberReputationEntityFilter_value}}
+var schemaReputationEntityFilter = smithy.Schema{ID: "com.amazonaws.sesv2#ReputationEntityFilter", Type: smithy.TypeMap}
 
 var memberReputationEntityFilter_key = smithy.Member{Name: "key", Index: 0, Target: &schemaReputationEntityFilterKey}
 
@@ -2537,7 +2537,7 @@ var schemaReputationEntityReference = smithy.Schema{ID: "com.amazonaws.sesv2#Rep
 
 var schemaReputationEntityType = smithy.Schema{ID: "com.amazonaws.sesv2#ReputationEntityType", Type: smithy.TypeEnum}
 
-var schemaReputationOptions = smithy.Schema{ID: "com.amazonaws.sesv2#ReputationOptions", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberReputationOptions_ReputationMetricsEnabled, &memberReputationOptions_LastFreshStart}}
+var schemaReputationOptions = smithy.Schema{ID: "com.amazonaws.sesv2#ReputationOptions", Type: smithy.TypeStructure}
 
 var memberReputationOptions_ReputationMetricsEnabled = smithy.Member{Name: "ReputationMetricsEnabled", Index: 0, Target: &schemaEnabled, Default: document.Bool(false)}
 
@@ -2547,7 +2547,7 @@ var schemaRequestEntityTooLargeException = smithy.Schema{ID: "com.amazon.coral.s
 
 var memberRequestEntityTooLargeException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaResourceTenantMetadata = smithy.Schema{ID: "com.amazonaws.sesv2#ResourceTenantMetadata", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberResourceTenantMetadata_TenantName, &memberResourceTenantMetadata_TenantId, &memberResourceTenantMetadata_ResourceArn, &memberResourceTenantMetadata_AssociatedTimestamp}}
+var schemaResourceTenantMetadata = smithy.Schema{ID: "com.amazonaws.sesv2#ResourceTenantMetadata", Type: smithy.TypeStructure}
 
 var memberResourceTenantMetadata_TenantName = smithy.Member{Name: "TenantName", Index: 0, Target: &schemaTenantName}
 
@@ -2557,7 +2557,7 @@ var memberResourceTenantMetadata_ResourceArn = smithy.Member{Name: "ResourceArn"
 
 var memberResourceTenantMetadata_AssociatedTimestamp = smithy.Member{Name: "AssociatedTimestamp", Index: 3, Target: &schemaTimestamp}
 
-var schemaResourceTenantMetadataList = smithy.Schema{ID: "com.amazonaws.sesv2#ResourceTenantMetadataList", Type: smithy.TypeList, Members: []*smithy.Member{&memberResourceTenantMetadataList_member}}
+var schemaResourceTenantMetadataList = smithy.Schema{ID: "com.amazonaws.sesv2#ResourceTenantMetadataList", Type: smithy.TypeList}
 
 var memberResourceTenantMetadataList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaResourceTenantMetadata}
 
@@ -2571,19 +2571,19 @@ var memberReviewDetails_CaseId = smithy.Member{Name: "CaseId", Index: 1, Target:
 
 var schemaReviewStatus = smithy.Schema{ID: "com.amazonaws.sesv2#ReviewStatus", Type: smithy.TypeEnum}
 
-var schemaRoute = smithy.Schema{ID: "com.amazonaws.sesv2#Route", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRoute_Region}}
+var schemaRoute = smithy.Schema{ID: "com.amazonaws.sesv2#Route", Type: smithy.TypeStructure}
 
 var memberRoute_Region = smithy.Member{Name: "Region", Index: 0, Target: &schemaRegion, Required: true}
 
-var schemaRouteDetails = smithy.Schema{ID: "com.amazonaws.sesv2#RouteDetails", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRouteDetails_Region}}
+var schemaRouteDetails = smithy.Schema{ID: "com.amazonaws.sesv2#RouteDetails", Type: smithy.TypeStructure}
 
 var memberRouteDetails_Region = smithy.Member{Name: "Region", Index: 0, Target: &schemaRegion, Required: true}
 
-var schemaRoutes = smithy.Schema{ID: "com.amazonaws.sesv2#Routes", Type: smithy.TypeList, Members: []*smithy.Member{&memberRoutes_member}}
+var schemaRoutes = smithy.Schema{ID: "com.amazonaws.sesv2#Routes", Type: smithy.TypeList}
 
 var memberRoutes_member = smithy.Member{Name: "member", Index: 0, Target: &schemaRoute}
 
-var schemaRoutesDetails = smithy.Schema{ID: "com.amazonaws.sesv2#RoutesDetails", Type: smithy.TypeList, Members: []*smithy.Member{&memberRoutesDetails_member}}
+var schemaRoutesDetails = smithy.Schema{ID: "com.amazonaws.sesv2#RoutesDetails", Type: smithy.TypeList}
 
 var memberRoutesDetails_member = smithy.Member{Name: "member", Index: 0, Target: &schemaRouteDetails}
 
@@ -2601,7 +2601,7 @@ var schemaScalingMode = smithy.Schema{ID: "com.amazonaws.sesv2#ScalingMode", Typ
 
 var schemaSelector = smithy.Schema{ID: "com.amazonaws.sesv2#Selector", Type: smithy.TypeString}
 
-var schemaSendBulkEmailInput = smithy.Schema{ID: "com.amazonaws.sesv2#SendBulkEmailRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSendBulkEmailInput_FromEmailAddress, &memberSendBulkEmailInput_FromEmailAddressIdentityArn, &memberSendBulkEmailInput_ReplyToAddresses, &memberSendBulkEmailInput_FeedbackForwardingEmailAddress, &memberSendBulkEmailInput_FeedbackForwardingEmailAddressIdentityArn, &memberSendBulkEmailInput_DefaultEmailTags, &memberSendBulkEmailInput_DefaultContent, &memberSendBulkEmailInput_BulkEmailEntries, &memberSendBulkEmailInput_ConfigurationSetName, &memberSendBulkEmailInput_EndpointId, &memberSendBulkEmailInput_TenantName, &memberSendBulkEmailInput_ConfigurationOverrides}}
+var schemaSendBulkEmailInput = smithy.Schema{ID: "com.amazonaws.sesv2#SendBulkEmailRequest", Type: smithy.TypeStructure}
 
 var memberSendBulkEmailInput_FromEmailAddress = smithy.Member{Name: "FromEmailAddress", Index: 0, Target: &schemaEmailAddress}
 
@@ -2627,11 +2627,11 @@ var memberSendBulkEmailInput_TenantName = smithy.Member{Name: "TenantName", Inde
 
 var memberSendBulkEmailInput_ConfigurationOverrides = smithy.Member{Name: "ConfigurationOverrides", Index: 11, Target: &schemaConfigurationOverrides}
 
-var schemaSendBulkEmailOutput = smithy.Schema{ID: "com.amazonaws.sesv2#SendBulkEmailResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSendBulkEmailOutput_BulkEmailEntryResults}}
+var schemaSendBulkEmailOutput = smithy.Schema{ID: "com.amazonaws.sesv2#SendBulkEmailResponse", Type: smithy.TypeStructure}
 
 var memberSendBulkEmailOutput_BulkEmailEntryResults = smithy.Member{Name: "BulkEmailEntryResults", Index: 0, Target: &schemaBulkEmailEntryResultList, Required: true}
 
-var schemaSendCustomVerificationEmailInput = smithy.Schema{ID: "com.amazonaws.sesv2#SendCustomVerificationEmailRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSendCustomVerificationEmailInput_EmailAddress, &memberSendCustomVerificationEmailInput_TemplateName, &memberSendCustomVerificationEmailInput_ConfigurationSetName}}
+var schemaSendCustomVerificationEmailInput = smithy.Schema{ID: "com.amazonaws.sesv2#SendCustomVerificationEmailRequest", Type: smithy.TypeStructure}
 
 var memberSendCustomVerificationEmailInput_EmailAddress = smithy.Member{Name: "EmailAddress", Index: 0, Target: &schemaEmailAddress, Required: true}
 
@@ -2639,7 +2639,7 @@ var memberSendCustomVerificationEmailInput_TemplateName = smithy.Member{Name: "T
 
 var memberSendCustomVerificationEmailInput_ConfigurationSetName = smithy.Member{Name: "ConfigurationSetName", Index: 2, Target: &schemaConfigurationSetName}
 
-var schemaSendCustomVerificationEmailOutput = smithy.Schema{ID: "com.amazonaws.sesv2#SendCustomVerificationEmailResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSendCustomVerificationEmailOutput_MessageId}}
+var schemaSendCustomVerificationEmailOutput = smithy.Schema{ID: "com.amazonaws.sesv2#SendCustomVerificationEmailResponse", Type: smithy.TypeStructure}
 
 var memberSendCustomVerificationEmailOutput_MessageId = smithy.Member{Name: "MessageId", Index: 0, Target: &schemaOutboundMessageId}
 
@@ -2683,7 +2683,7 @@ var memberSendQuota_MaxSendRate = smithy.Member{Name: "MaxSendRate", Index: 1, T
 
 var memberSendQuota_SentLast24Hours = smithy.Member{Name: "SentLast24Hours", Index: 2, Target: &schemaSentLast24Hours, Default: document.Number("0")}
 
-var schemaSendingOptions = smithy.Schema{ID: "com.amazonaws.sesv2#SendingOptions", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSendingOptions_SendingEnabled}}
+var schemaSendingOptions = smithy.Schema{ID: "com.amazonaws.sesv2#SendingOptions", Type: smithy.TypeStructure}
 
 var memberSendingOptions_SendingEnabled = smithy.Member{Name: "SendingEnabled", Index: 0, Target: &schemaEnabled, Default: document.Bool(false)}
 
@@ -2705,19 +2705,19 @@ var memberSerializationException_Message = smithy.Member{Name: "Message", Index:
 
 var schemaSignatureFormat = smithy.Schema{ID: "com.amazonaws.sesv2#SignatureFormat", Type: smithy.TypeEnum}
 
-var schemaSigningScheme = smithy.Schema{ID: "com.amazonaws.sesv2#SigningScheme", Type: smithy.TypeUnion, Members: []*smithy.Member{&memberSigningScheme_DefaultScheme, &memberSigningScheme_SmimeScheme}}
+var schemaSigningScheme = smithy.Schema{ID: "com.amazonaws.sesv2#SigningScheme", Type: smithy.TypeUnion}
 
 var memberSigningScheme_DefaultScheme = smithy.Member{Name: "DefaultScheme", Index: 0, Target: &schemaDefaultSigningScheme}
 
 var memberSigningScheme_SmimeScheme = smithy.Member{Name: "SmimeScheme", Index: 1, Target: &schemaSmimeSigningScheme}
 
-var schemaSmimeSigningScheme = smithy.Schema{ID: "com.amazonaws.sesv2#SmimeSigningScheme", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSmimeSigningScheme_SignatureFormat}}
+var schemaSmimeSigningScheme = smithy.Schema{ID: "com.amazonaws.sesv2#SmimeSigningScheme", Type: smithy.TypeStructure}
 
 var memberSmimeSigningScheme_SignatureFormat = smithy.Member{Name: "SignatureFormat", Index: 0, Target: &schemaSignatureFormat}
 
 var schemaSmithyString = smithy.Schema{ID: "smithy.api#String", Type: smithy.TypeString}
 
-var schemaSnsDestination = smithy.Schema{ID: "com.amazonaws.sesv2#SnsDestination", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSnsDestination_TopicArn}}
+var schemaSnsDestination = smithy.Schema{ID: "com.amazonaws.sesv2#SnsDestination", Type: smithy.TypeStructure}
 
 var memberSnsDestination_TopicArn = smithy.Member{Name: "TopicArn", Index: 0, Target: &schemaAmazonResourceName, Required: true}
 
@@ -2725,7 +2725,7 @@ var schemaStatus = smithy.Schema{ID: "com.amazonaws.sesv2#Status", Type: smithy.
 
 var schemaStatusCause = smithy.Schema{ID: "com.amazonaws.sesv2#StatusCause", Type: smithy.TypeString}
 
-var schemaStatusRecord = smithy.Schema{ID: "com.amazonaws.sesv2#StatusRecord", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberStatusRecord_Status, &memberStatusRecord_Cause, &memberStatusRecord_LastUpdatedTimestamp}}
+var schemaStatusRecord = smithy.Schema{ID: "com.amazonaws.sesv2#StatusRecord", Type: smithy.TypeStructure}
 
 var memberStatusRecord_Status = smithy.Member{Name: "Status", Index: 0, Target: &schemaSendingStatus}
 
@@ -2739,7 +2739,7 @@ var schemaSubscriptionStatus = smithy.Schema{ID: "com.amazonaws.sesv2#Subscripti
 
 var schemaSuccessRedirectionURL = smithy.Schema{ID: "com.amazonaws.sesv2#SuccessRedirectionURL", Type: smithy.TypeString}
 
-var schemaSuppressedDestination = smithy.Schema{ID: "com.amazonaws.sesv2#SuppressedDestination", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSuppressedDestination_EmailAddress, &memberSuppressedDestination_Reason, &memberSuppressedDestination_LastUpdateTime, &memberSuppressedDestination_Attributes, &memberSuppressedDestination_TenantName}}
+var schemaSuppressedDestination = smithy.Schema{ID: "com.amazonaws.sesv2#SuppressedDestination", Type: smithy.TypeStructure}
 
 var memberSuppressedDestination_EmailAddress = smithy.Member{Name: "EmailAddress", Index: 0, Target: &schemaEmailAddress, Required: true}
 
@@ -2751,17 +2751,17 @@ var memberSuppressedDestination_Attributes = smithy.Member{Name: "Attributes", I
 
 var memberSuppressedDestination_TenantName = smithy.Member{Name: "TenantName", Index: 4, Target: &schemaTenantName}
 
-var schemaSuppressedDestinationAttributes = smithy.Schema{ID: "com.amazonaws.sesv2#SuppressedDestinationAttributes", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSuppressedDestinationAttributes_MessageId, &memberSuppressedDestinationAttributes_FeedbackId}}
+var schemaSuppressedDestinationAttributes = smithy.Schema{ID: "com.amazonaws.sesv2#SuppressedDestinationAttributes", Type: smithy.TypeStructure}
 
 var memberSuppressedDestinationAttributes_MessageId = smithy.Member{Name: "MessageId", Index: 0, Target: &schemaOutboundMessageId}
 
 var memberSuppressedDestinationAttributes_FeedbackId = smithy.Member{Name: "FeedbackId", Index: 1, Target: &schemaFeedbackId}
 
-var schemaSuppressedDestinationSummaries = smithy.Schema{ID: "com.amazonaws.sesv2#SuppressedDestinationSummaries", Type: smithy.TypeList, Members: []*smithy.Member{&memberSuppressedDestinationSummaries_member}}
+var schemaSuppressedDestinationSummaries = smithy.Schema{ID: "com.amazonaws.sesv2#SuppressedDestinationSummaries", Type: smithy.TypeList}
 
 var memberSuppressedDestinationSummaries_member = smithy.Member{Name: "member", Index: 0, Target: &schemaSuppressedDestinationSummary}
 
-var schemaSuppressedDestinationSummary = smithy.Schema{ID: "com.amazonaws.sesv2#SuppressedDestinationSummary", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSuppressedDestinationSummary_EmailAddress, &memberSuppressedDestinationSummary_Reason, &memberSuppressedDestinationSummary_LastUpdateTime}}
+var schemaSuppressedDestinationSummary = smithy.Schema{ID: "com.amazonaws.sesv2#SuppressedDestinationSummary", Type: smithy.TypeStructure}
 
 var memberSuppressedDestinationSummary_EmailAddress = smithy.Member{Name: "EmailAddress", Index: 0, Target: &schemaEmailAddress, Required: true}
 
@@ -2787,7 +2787,7 @@ var memberSuppressionConfidenceThreshold_ConfidenceVerdictThreshold = smithy.Mem
 
 var schemaSuppressionConfidenceVerdictThreshold = smithy.Schema{ID: "com.amazonaws.sesv2#SuppressionConfidenceVerdictThreshold", Type: smithy.TypeEnum}
 
-var schemaSuppressionListDestination = smithy.Schema{ID: "com.amazonaws.sesv2#SuppressionListDestination", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSuppressionListDestination_SuppressionListImportAction}}
+var schemaSuppressionListDestination = smithy.Schema{ID: "com.amazonaws.sesv2#SuppressionListDestination", Type: smithy.TypeStructure}
 
 var memberSuppressionListDestination_SuppressionListImportAction = smithy.Member{Name: "SuppressionListImportAction", Index: 0, Target: &schemaSuppressionListImportAction, Required: true}
 
@@ -2801,7 +2801,7 @@ var memberSuppressionListReasons_member = smithy.Member{Name: "member", Index: 0
 
 var schemaSuppressionListScope = smithy.Schema{ID: "com.amazonaws.sesv2#SuppressionListScope", Type: smithy.TypeEnum}
 
-var schemaSuppressionOptions = smithy.Schema{ID: "com.amazonaws.sesv2#SuppressionOptions", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSuppressionOptions_SuppressedReasons, &memberSuppressionOptions_SuppressionScope, &memberSuppressionOptions_ValidationOptions}}
+var schemaSuppressionOptions = smithy.Schema{ID: "com.amazonaws.sesv2#SuppressionOptions", Type: smithy.TypeStructure}
 
 var memberSuppressionOptions_SuppressedReasons = smithy.Member{Name: "SuppressedReasons", Index: 0, Target: &schemaSuppressionListReasons}
 
@@ -2813,7 +2813,7 @@ var schemaSuppressionValidationAttributes = smithy.Schema{ID: "com.amazonaws.ses
 
 var memberSuppressionValidationAttributes_ConditionThreshold = smithy.Member{Name: "ConditionThreshold", Index: 0, Target: &schemaSuppressionConditionThreshold, Required: true}
 
-var schemaSuppressionValidationOptions = smithy.Schema{ID: "com.amazonaws.sesv2#SuppressionValidationOptions", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSuppressionValidationOptions_ConditionThreshold}}
+var schemaSuppressionValidationOptions = smithy.Schema{ID: "com.amazonaws.sesv2#SuppressionValidationOptions", Type: smithy.TypeStructure}
 
 var memberSuppressionValidationOptions_ConditionThreshold = smithy.Member{Name: "ConditionThreshold", Index: 0, Target: &schemaSuppressionConditionThreshold, Required: true}
 
@@ -2859,7 +2859,7 @@ var memberTemplate_Attachments = smithy.Member{Name: "Attachments", Index: 5, Ta
 
 var schemaTemplateContent = smithy.Schema{ID: "com.amazonaws.sesv2#TemplateContent", Type: smithy.TypeString}
 
-var schemaTenant = smithy.Schema{ID: "com.amazonaws.sesv2#Tenant", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberTenant_TenantName, &memberTenant_TenantId, &memberTenant_TenantArn, &memberTenant_CreatedTimestamp, &memberTenant_Tags, &memberTenant_SendingStatus, &memberTenant_SuppressionAttributes}}
+var schemaTenant = smithy.Schema{ID: "com.amazonaws.sesv2#Tenant", Type: smithy.TypeStructure}
 
 var memberTenant_TenantName = smithy.Member{Name: "TenantName", Index: 0, Target: &schemaTenantName}
 
@@ -2877,7 +2877,7 @@ var memberTenant_SuppressionAttributes = smithy.Member{Name: "SuppressionAttribu
 
 var schemaTenantId = smithy.Schema{ID: "com.amazonaws.sesv2#TenantId", Type: smithy.TypeString}
 
-var schemaTenantInfo = smithy.Schema{ID: "com.amazonaws.sesv2#TenantInfo", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberTenantInfo_TenantName, &memberTenantInfo_TenantId, &memberTenantInfo_TenantArn, &memberTenantInfo_CreatedTimestamp, &memberTenantInfo_SendingStatus}}
+var schemaTenantInfo = smithy.Schema{ID: "com.amazonaws.sesv2#TenantInfo", Type: smithy.TypeStructure}
 
 var memberTenantInfo_TenantName = smithy.Member{Name: "TenantName", Index: 0, Target: &schemaTenantName}
 
@@ -2889,39 +2889,39 @@ var memberTenantInfo_CreatedTimestamp = smithy.Member{Name: "CreatedTimestamp", 
 
 var memberTenantInfo_SendingStatus = smithy.Member{Name: "SendingStatus", Index: 4, Target: &schemaSendingStatus}
 
-var schemaTenantInfoList = smithy.Schema{ID: "com.amazonaws.sesv2#TenantInfoList", Type: smithy.TypeList, Members: []*smithy.Member{&memberTenantInfoList_member}}
+var schemaTenantInfoList = smithy.Schema{ID: "com.amazonaws.sesv2#TenantInfoList", Type: smithy.TypeList}
 
 var memberTenantInfoList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaTenantInfo}
 
 var schemaTenantName = smithy.Schema{ID: "com.amazonaws.sesv2#TenantName", Type: smithy.TypeString}
 
-var schemaTenantNameFilterList = smithy.Schema{ID: "com.amazonaws.sesv2#TenantNameFilterList", Type: smithy.TypeList, Members: []*smithy.Member{&memberTenantNameFilterList_member}}
+var schemaTenantNameFilterList = smithy.Schema{ID: "com.amazonaws.sesv2#TenantNameFilterList", Type: smithy.TypeList}
 
 var memberTenantNameFilterList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaTenantName}
 
-var schemaTenantResource = smithy.Schema{ID: "com.amazonaws.sesv2#TenantResource", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberTenantResource_ResourceType, &memberTenantResource_ResourceArn}}
+var schemaTenantResource = smithy.Schema{ID: "com.amazonaws.sesv2#TenantResource", Type: smithy.TypeStructure}
 
 var memberTenantResource_ResourceType = smithy.Member{Name: "ResourceType", Index: 0, Target: &schemaResourceType}
 
 var memberTenantResource_ResourceArn = smithy.Member{Name: "ResourceArn", Index: 1, Target: &schemaAmazonResourceName}
 
-var schemaTenantResourceList = smithy.Schema{ID: "com.amazonaws.sesv2#TenantResourceList", Type: smithy.TypeList, Members: []*smithy.Member{&memberTenantResourceList_member}}
+var schemaTenantResourceList = smithy.Schema{ID: "com.amazonaws.sesv2#TenantResourceList", Type: smithy.TypeList}
 
 var memberTenantResourceList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaTenantResource}
 
-var schemaTenantSuppressionAttributes = smithy.Schema{ID: "com.amazonaws.sesv2#TenantSuppressionAttributes", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberTenantSuppressionAttributes_SuppressedReasons, &memberTenantSuppressionAttributes_SuppressionScope}}
+var schemaTenantSuppressionAttributes = smithy.Schema{ID: "com.amazonaws.sesv2#TenantSuppressionAttributes", Type: smithy.TypeStructure}
 
 var memberTenantSuppressionAttributes_SuppressedReasons = smithy.Member{Name: "SuppressedReasons", Index: 0, Target: &schemaSuppressionListReasons}
 
 var memberTenantSuppressionAttributes_SuppressionScope = smithy.Member{Name: "SuppressionScope", Index: 1, Target: &schemaSuppressionListScope}
 
-var schemaTestRenderEmailTemplateInput = smithy.Schema{ID: "com.amazonaws.sesv2#TestRenderEmailTemplateRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberTestRenderEmailTemplateInput_TemplateName, &memberTestRenderEmailTemplateInput_TemplateData}}
+var schemaTestRenderEmailTemplateInput = smithy.Schema{ID: "com.amazonaws.sesv2#TestRenderEmailTemplateRequest", Type: smithy.TypeStructure}
 
 var memberTestRenderEmailTemplateInput_TemplateName = smithy.Member{Name: "TemplateName", Index: 0, Target: &schemaEmailTemplateName, Required: true, HTTP: smithy.HTTPLabel{}}
 
 var memberTestRenderEmailTemplateInput_TemplateData = smithy.Member{Name: "TemplateData", Index: 1, Target: &schemaEmailTemplateData, Required: true}
 
-var schemaTestRenderEmailTemplateOutput = smithy.Schema{ID: "com.amazonaws.sesv2#TestRenderEmailTemplateResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberTestRenderEmailTemplateOutput_RenderedTemplate}}
+var schemaTestRenderEmailTemplateOutput = smithy.Schema{ID: "com.amazonaws.sesv2#TestRenderEmailTemplateResponse", Type: smithy.TypeStructure}
 
 var memberTestRenderEmailTemplateOutput_RenderedTemplate = smithy.Member{Name: "RenderedTemplate", Index: 0, Target: &schemaRenderedEmailTemplate, Required: true}
 
@@ -2931,7 +2931,7 @@ var memberThrottlingException_message = smithy.Member{Name: "message", Index: 0,
 
 var schemaTimestamp = smithy.Schema{ID: "com.amazonaws.sesv2#Timestamp", Type: smithy.TypeTimestamp}
 
-var schemaTimestampList = smithy.Schema{ID: "com.amazonaws.sesv2#TimestampList", Type: smithy.TypeList, Members: []*smithy.Member{&memberTimestampList_member}}
+var schemaTimestampList = smithy.Schema{ID: "com.amazonaws.sesv2#TimestampList", Type: smithy.TypeList}
 
 var memberTimestampList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaTimestamp}
 
@@ -2941,7 +2941,7 @@ var schemaTooManyRequestsException = smithy.Schema{ID: "com.amazonaws.sesv2#TooM
 
 var memberTooManyRequestsException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaErrorMessage}
 
-var schemaTopic = smithy.Schema{ID: "com.amazonaws.sesv2#Topic", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberTopic_TopicName, &memberTopic_DisplayName, &memberTopic_Description, &memberTopic_DefaultSubscriptionStatus}}
+var schemaTopic = smithy.Schema{ID: "com.amazonaws.sesv2#Topic", Type: smithy.TypeStructure}
 
 var memberTopic_TopicName = smithy.Member{Name: "TopicName", Index: 0, Target: &schemaTopicName, Required: true}
 
@@ -2951,7 +2951,7 @@ var memberTopic_Description = smithy.Member{Name: "Description", Index: 2, Targe
 
 var memberTopic_DefaultSubscriptionStatus = smithy.Member{Name: "DefaultSubscriptionStatus", Index: 3, Target: &schemaSubscriptionStatus, Required: true}
 
-var schemaTopicFilter = smithy.Schema{ID: "com.amazonaws.sesv2#TopicFilter", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberTopicFilter_TopicName, &memberTopicFilter_UseDefaultIfPreferenceUnavailable}}
+var schemaTopicFilter = smithy.Schema{ID: "com.amazonaws.sesv2#TopicFilter", Type: smithy.TypeStructure}
 
 var memberTopicFilter_TopicName = smithy.Member{Name: "TopicName", Index: 0, Target: &schemaTopicName}
 
@@ -2959,17 +2959,17 @@ var memberTopicFilter_UseDefaultIfPreferenceUnavailable = smithy.Member{Name: "U
 
 var schemaTopicName = smithy.Schema{ID: "com.amazonaws.sesv2#TopicName", Type: smithy.TypeString}
 
-var schemaTopicPreference = smithy.Schema{ID: "com.amazonaws.sesv2#TopicPreference", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberTopicPreference_TopicName, &memberTopicPreference_SubscriptionStatus}}
+var schemaTopicPreference = smithy.Schema{ID: "com.amazonaws.sesv2#TopicPreference", Type: smithy.TypeStructure}
 
 var memberTopicPreference_TopicName = smithy.Member{Name: "TopicName", Index: 0, Target: &schemaTopicName, Required: true}
 
 var memberTopicPreference_SubscriptionStatus = smithy.Member{Name: "SubscriptionStatus", Index: 1, Target: &schemaSubscriptionStatus, Required: true}
 
-var schemaTopicPreferenceList = smithy.Schema{ID: "com.amazonaws.sesv2#TopicPreferenceList", Type: smithy.TypeList, Members: []*smithy.Member{&memberTopicPreferenceList_member}}
+var schemaTopicPreferenceList = smithy.Schema{ID: "com.amazonaws.sesv2#TopicPreferenceList", Type: smithy.TypeList}
 
 var memberTopicPreferenceList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaTopicPreference}
 
-var schemaTopics = smithy.Schema{ID: "com.amazonaws.sesv2#Topics", Type: smithy.TypeList, Members: []*smithy.Member{&memberTopics_member}}
+var schemaTopics = smithy.Schema{ID: "com.amazonaws.sesv2#Topics", Type: smithy.TypeList}
 
 var memberTopics_member = smithy.Member{Name: "member", Index: 0, Target: &schemaTopic}
 
@@ -2979,7 +2979,7 @@ var memberTrackingConfigurationOverrides_OpenTrackingEnabled = smithy.Member{Nam
 
 var memberTrackingConfigurationOverrides_ClickTrackingEnabled = smithy.Member{Name: "ClickTrackingEnabled", Index: 1, Target: &schemaFeatureStatus}
 
-var schemaTrackingOptions = smithy.Schema{ID: "com.amazonaws.sesv2#TrackingOptions", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberTrackingOptions_CustomRedirectDomain, &memberTrackingOptions_HttpsPolicy}}
+var schemaTrackingOptions = smithy.Schema{ID: "com.amazonaws.sesv2#TrackingOptions", Type: smithy.TypeStructure}
 
 var memberTrackingOptions_CustomRedirectDomain = smithy.Member{Name: "CustomRedirectDomain", Index: 0, Target: &schemaCustomRedirectDomain, Required: true}
 
@@ -3003,7 +3003,7 @@ var memberUntagResourceInput_TagKeys = smithy.Member{Name: "TagKeys", Index: 1, 
 
 var schemaUntagResourceOutput = smithy.Schema{ID: "com.amazonaws.sesv2#UntagResourceResponse", Type: smithy.TypeStructure}
 
-var schemaUpdateConfigurationSetEventDestinationInput = smithy.Schema{ID: "com.amazonaws.sesv2#UpdateConfigurationSetEventDestinationRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateConfigurationSetEventDestinationInput_ConfigurationSetName, &memberUpdateConfigurationSetEventDestinationInput_EventDestinationName, &memberUpdateConfigurationSetEventDestinationInput_EventDestination}}
+var schemaUpdateConfigurationSetEventDestinationInput = smithy.Schema{ID: "com.amazonaws.sesv2#UpdateConfigurationSetEventDestinationRequest", Type: smithy.TypeStructure}
 
 var memberUpdateConfigurationSetEventDestinationInput_ConfigurationSetName = smithy.Member{Name: "ConfigurationSetName", Index: 0, Target: &schemaConfigurationSetName, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -3013,7 +3013,7 @@ var memberUpdateConfigurationSetEventDestinationInput_EventDestination = smithy.
 
 var schemaUpdateConfigurationSetEventDestinationOutput = smithy.Schema{ID: "com.amazonaws.sesv2#UpdateConfigurationSetEventDestinationResponse", Type: smithy.TypeStructure}
 
-var schemaUpdateConfigurationSetInput = smithy.Schema{ID: "com.amazonaws.sesv2#UpdateConfigurationSetRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateConfigurationSetInput_ConfigurationSetName, &memberUpdateConfigurationSetInput_MessageSecurityOptions}}
+var schemaUpdateConfigurationSetInput = smithy.Schema{ID: "com.amazonaws.sesv2#UpdateConfigurationSetRequest", Type: smithy.TypeStructure}
 
 var memberUpdateConfigurationSetInput_ConfigurationSetName = smithy.Member{Name: "ConfigurationSetName", Index: 0, Target: &schemaConfigurationSetName, Required: true}
 
@@ -3021,7 +3021,7 @@ var memberUpdateConfigurationSetInput_MessageSecurityOptions = smithy.Member{Nam
 
 var schemaUpdateConfigurationSetOutput = smithy.Schema{ID: "com.amazonaws.sesv2#UpdateConfigurationSetResponse", Type: smithy.TypeStructure}
 
-var schemaUpdateContactInput = smithy.Schema{ID: "com.amazonaws.sesv2#UpdateContactRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateContactInput_ContactListName, &memberUpdateContactInput_EmailAddress, &memberUpdateContactInput_TopicPreferences, &memberUpdateContactInput_UnsubscribeAll, &memberUpdateContactInput_AttributesData}}
+var schemaUpdateContactInput = smithy.Schema{ID: "com.amazonaws.sesv2#UpdateContactRequest", Type: smithy.TypeStructure}
 
 var memberUpdateContactInput_ContactListName = smithy.Member{Name: "ContactListName", Index: 0, Target: &schemaContactListName, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -3033,7 +3033,7 @@ var memberUpdateContactInput_UnsubscribeAll = smithy.Member{Name: "UnsubscribeAl
 
 var memberUpdateContactInput_AttributesData = smithy.Member{Name: "AttributesData", Index: 4, Target: &schemaAttributesData}
 
-var schemaUpdateContactListInput = smithy.Schema{ID: "com.amazonaws.sesv2#UpdateContactListRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateContactListInput_ContactListName, &memberUpdateContactListInput_Topics, &memberUpdateContactListInput_Description}}
+var schemaUpdateContactListInput = smithy.Schema{ID: "com.amazonaws.sesv2#UpdateContactListRequest", Type: smithy.TypeStructure}
 
 var memberUpdateContactListInput_ContactListName = smithy.Member{Name: "ContactListName", Index: 0, Target: &schemaContactListName, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -3045,7 +3045,7 @@ var schemaUpdateContactListOutput = smithy.Schema{ID: "com.amazonaws.sesv2#Updat
 
 var schemaUpdateContactOutput = smithy.Schema{ID: "com.amazonaws.sesv2#UpdateContactResponse", Type: smithy.TypeStructure}
 
-var schemaUpdateCustomVerificationEmailTemplateInput = smithy.Schema{ID: "com.amazonaws.sesv2#UpdateCustomVerificationEmailTemplateRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateCustomVerificationEmailTemplateInput_TemplateName, &memberUpdateCustomVerificationEmailTemplateInput_FromEmailAddress, &memberUpdateCustomVerificationEmailTemplateInput_TemplateSubject, &memberUpdateCustomVerificationEmailTemplateInput_TemplateContent, &memberUpdateCustomVerificationEmailTemplateInput_SuccessRedirectionURL, &memberUpdateCustomVerificationEmailTemplateInput_FailureRedirectionURL}}
+var schemaUpdateCustomVerificationEmailTemplateInput = smithy.Schema{ID: "com.amazonaws.sesv2#UpdateCustomVerificationEmailTemplateRequest", Type: smithy.TypeStructure}
 
 var memberUpdateCustomVerificationEmailTemplateInput_TemplateName = smithy.Member{Name: "TemplateName", Index: 0, Target: &schemaEmailTemplateName, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -3061,7 +3061,7 @@ var memberUpdateCustomVerificationEmailTemplateInput_FailureRedirectionURL = smi
 
 var schemaUpdateCustomVerificationEmailTemplateOutput = smithy.Schema{ID: "com.amazonaws.sesv2#UpdateCustomVerificationEmailTemplateResponse", Type: smithy.TypeStructure}
 
-var schemaUpdateEmailIdentityPolicyInput = smithy.Schema{ID: "com.amazonaws.sesv2#UpdateEmailIdentityPolicyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateEmailIdentityPolicyInput_EmailIdentity, &memberUpdateEmailIdentityPolicyInput_PolicyName, &memberUpdateEmailIdentityPolicyInput_Policy}}
+var schemaUpdateEmailIdentityPolicyInput = smithy.Schema{ID: "com.amazonaws.sesv2#UpdateEmailIdentityPolicyRequest", Type: smithy.TypeStructure}
 
 var memberUpdateEmailIdentityPolicyInput_EmailIdentity = smithy.Member{Name: "EmailIdentity", Index: 0, Target: &schemaIdentity, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -3079,7 +3079,7 @@ var memberUpdateEmailTemplateInput_TemplateContent = smithy.Member{Name: "Templa
 
 var schemaUpdateEmailTemplateOutput = smithy.Schema{ID: "com.amazonaws.sesv2#UpdateEmailTemplateResponse", Type: smithy.TypeStructure}
 
-var schemaUpdateReputationEntityCustomerManagedStatusInput = smithy.Schema{ID: "com.amazonaws.sesv2#UpdateReputationEntityCustomerManagedStatusRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateReputationEntityCustomerManagedStatusInput_ReputationEntityType, &memberUpdateReputationEntityCustomerManagedStatusInput_ReputationEntityReference, &memberUpdateReputationEntityCustomerManagedStatusInput_SendingStatus}}
+var schemaUpdateReputationEntityCustomerManagedStatusInput = smithy.Schema{ID: "com.amazonaws.sesv2#UpdateReputationEntityCustomerManagedStatusRequest", Type: smithy.TypeStructure}
 
 var memberUpdateReputationEntityCustomerManagedStatusInput_ReputationEntityType = smithy.Member{Name: "ReputationEntityType", Index: 0, Target: &schemaReputationEntityType, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -3089,7 +3089,7 @@ var memberUpdateReputationEntityCustomerManagedStatusInput_SendingStatus = smith
 
 var schemaUpdateReputationEntityCustomerManagedStatusOutput = smithy.Schema{ID: "com.amazonaws.sesv2#UpdateReputationEntityCustomerManagedStatusResponse", Type: smithy.TypeStructure}
 
-var schemaUpdateReputationEntityPolicyInput = smithy.Schema{ID: "com.amazonaws.sesv2#UpdateReputationEntityPolicyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateReputationEntityPolicyInput_ReputationEntityType, &memberUpdateReputationEntityPolicyInput_ReputationEntityReference, &memberUpdateReputationEntityPolicyInput_ReputationEntityPolicy}}
+var schemaUpdateReputationEntityPolicyInput = smithy.Schema{ID: "com.amazonaws.sesv2#UpdateReputationEntityPolicyRequest", Type: smithy.TypeStructure}
 
 var memberUpdateReputationEntityPolicyInput_ReputationEntityType = smithy.Member{Name: "ReputationEntityType", Index: 0, Target: &schemaReputationEntityType, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -3111,7 +3111,7 @@ var memberVdmAttributes_DashboardAttributes = smithy.Member{Name: "DashboardAttr
 
 var memberVdmAttributes_GuardianAttributes = smithy.Member{Name: "GuardianAttributes", Index: 2, Target: &schemaGuardianAttributes}
 
-var schemaVdmOptions = smithy.Schema{ID: "com.amazonaws.sesv2#VdmOptions", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberVdmOptions_DashboardOptions, &memberVdmOptions_GuardianOptions}}
+var schemaVdmOptions = smithy.Schema{ID: "com.amazonaws.sesv2#VdmOptions", Type: smithy.TypeStructure}
 
 var memberVdmOptions_DashboardOptions = smithy.Member{Name: "DashboardOptions", Index: 0, Target: &schemaDashboardOptions}
 
@@ -3133,7 +3133,7 @@ var schemaVerificationStatus = smithy.Schema{ID: "com.amazonaws.sesv2#Verificati
 
 var schemaVolume = smithy.Schema{ID: "com.amazonaws.sesv2#Volume", Type: smithy.TypeLong}
 
-var schemaVolumeStatistics = smithy.Schema{ID: "com.amazonaws.sesv2#VolumeStatistics", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberVolumeStatistics_InboxRawCount, &memberVolumeStatistics_SpamRawCount, &memberVolumeStatistics_ProjectedInbox, &memberVolumeStatistics_ProjectedSpam}}
+var schemaVolumeStatistics = smithy.Schema{ID: "com.amazonaws.sesv2#VolumeStatistics", Type: smithy.TypeStructure}
 
 var memberVolumeStatistics_InboxRawCount = smithy.Member{Name: "InboxRawCount", Index: 0, Target: &schemaVolume}
 
