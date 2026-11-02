@@ -158,6 +158,26 @@ jobs:
       - run: just image
       - run: go test -race -tags 'smoke docker' ./internal/smoke/...
 
+  # The release dry run (just release-check): goreleaser check, then a
+  # snapshot release with publishing skipped, so a change that breaks the
+  # release configuration fails here rather than on a tag. It builds the
+  # four binaries, archives, checksums, both image platforms and the
+  # Homebrew cask, and publishes nothing.
+  release-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # GoReleaser reads the version from the latest tag.
+          fetch-depth: 0
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.27.2"
+      - uses: extractions/setup-just@v4
+        with:
+          just-version: "1.58.0"
+      - run: just release-check
+
   # Runs every example the way its README does (examples/check.sh): each
   # demo.sh, and the github-actions workflow linted and its steps replayed
   # locally, against understudy built from this commit. The runner provides

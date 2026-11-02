@@ -1,8 +1,13 @@
 name: release
 
-# A dry run of the release: GoReleaser builds the archives, checksums and
-# multi-arch images in snapshot mode and nothing is published. The artifacts
-# are attached to this workflow run only.
+# Runs GoReleaser on a v* tag. It publishes only what .goreleaser.yaml
+# enables, and today that is nothing: the GitHub release is disabled, the
+# images are built only in snapshot mode, and the Homebrew cask is committed
+# only when the HOMEBREW_TAP_TOKEN secret exists. docs/release-runbook.md
+# says what the maintainer turns on before the first tag. The archives and
+# checksums are attached to this workflow run either way.
+#
+# The dry run on every pull request is ci.yml's release-check job.
 #
 # Every action is pinned to a commit, with its release in the trailing
 # comment, so a moved tag cannot change what a release run executes.
@@ -14,8 +19,13 @@ permissions:
   contents: read
 
 jobs:
-  snapshot:
+  release:
     runs-on: ubuntu-latest
+    # Write access exists only here, on the tag trigger: contents for the
+    # GitHub release, packages for the GHCR image.
+    permissions:
+      contents: write
+      packages: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -27,17 +37,30 @@ jobs:
         with:
           go-version: "1.27.2"
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      # Needed only once dockers_v2 is enabled outside snapshot; harmless
+      # before.
+      - name: Log in to GHCR
+        run: echo "$GITHUB_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
         with:
           distribution: goreleaser
-          # Pinned: the no-push guarantee rests on dockers_v2 semantics of
-          # this release; bump deliberately.
+          # Pinned: the publish gates rest on dockers_v2 and homebrew_casks
+          # semantics of this release; the justfile's goreleaser_version
+          # matches. Bump both deliberately.
           version: v2.18.3
-          args: release --snapshot --clean
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Empty until the maintainer adds the secret, which keeps the cask
+          # out of the tap.
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: release-snapshot
+          name: release
           path: |
             dist/*.tar.gz
             dist/checksums.txt
+            dist/homebrew/Casks/understudy.rb
           if-no-files-found: error
