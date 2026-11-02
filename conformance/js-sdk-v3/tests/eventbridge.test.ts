@@ -30,12 +30,21 @@ import {
 } from "@aws-sdk/client-eventbridge";
 import { CreateQueueCommand, DeleteMessageBatchCommand, ReceiveMessageCommand, SQSClient, type Message } from "@aws-sdk/client-sqs";
 import { CreateTopicCommand, SNSClient, SubscribeCommand } from "@aws-sdk/client-sns";
+import { CreateRoleCommand, DeleteRoleCommand, DeleteRolePolicyCommand, IAMClient, PutRolePolicyCommand } from "@aws-sdk/client-iam";
 import { clientConfig, defaultAccount, region } from "../support/env";
 import { awsFailure, expectFailure, uniq } from "../support/helpers";
 
 const events = new EventBridgeClient(clientConfig());
 const sqs = new SQSClient(clientConfig());
 const sns = new SNSClient(clientConfig());
+const iam = new IAMClient(clientConfig());
+
+// TRUST_EVENTS lets EventBridge assume a target's role
+// (iam-enforcement-surfaces.md 8.4).
+const TRUST_EVENTS = JSON.stringify({
+  Version: "2012-10-17",
+  Statement: [{ Effect: "Allow", Principal: { Service: "events.amazonaws.com" }, Action: "sts:AssumeRole" }],
+});
 
 const ruleName = () => uniq("rule");
 const ruleArn = (name: string) => `arn:aws:events:${region}:${defaultAccount}:rule/${name}`;
@@ -733,28 +742,43 @@ describe("EventBridge custom buses", () => {
   });
 
   // eventbridge-buses.md 6.2 (third-party-recorded) and 6.5 (aws-doc
-  // eb-cross-account.html: one hop only).
+  // eb-cross-account.html: one hop only). The targets' role trusts
+  // events.amazonaws.com and its inline policy allows events:PutEvents on the
+  // target buses (iam-enforcement-surfaces.md 8.4; eb-event-bus-perms.html).
   test("a bus target forwards the event once, keeping its source, account, region and detail", async () => {
     const [first, second, third] = [uniq("bus"), uniq("bus"), uniq("bus")];
     for (const bus of [first, second, third]) await events.send(new CreateEventBusCommand({ Name: bus }));
     const source = `conformance.${first}`;
     const pattern = JSON.stringify({ source: [source] });
-    const role = `arn:aws:iam::${defaultAccount}:role/conformance-events`;
-    const reached = await makeQueue();
-    const beyond = await makeQueue();
-    const rules: [string, { Id: string; Arn: string; RoleArn?: string }[]][] = [
-      [first, [{ Id: "bus", Arn: busArn(second), RoleArn: role }]],
-      [second, [{ Id: "q", Arn: reached.arn }, { Id: "onward", Arn: busArn(third), RoleArn: role }]],
-      [third, [{ Id: "q", Arn: beyond.arn }]],
-    ];
-    for (const [bus, targets] of rules) {
-      await events.send(new PutRuleCommand({ Name: "r", EventBusName: bus, EventPattern: pattern }));
-      expect((await events.send(new PutTargetsCommand({ Rule: "r", EventBusName: bus, Targets: targets }))).FailedEntryCount).toBe(0);
+    const roleName = uniq("events-role");
+    const created = await iam.send(new CreateRoleCommand({ RoleName: roleName, AssumeRolePolicyDocument: TRUST_EVENTS }));
+    const role = created.Role?.Arn;
+    if (role === undefined) throw new Error("CreateRole returned no Arn");
+    try {
+      const policy = JSON.stringify({
+        Version: "2012-10-17",
+        Statement: [{ Effect: "Allow", Action: "events:PutEvents", Resource: [busArn(second), busArn(third)] }],
+      });
+      await iam.send(new PutRolePolicyCommand({ RoleName: roleName, PolicyName: "put-events", PolicyDocument: policy }));
+      const reached = await makeQueue();
+      const beyond = await makeQueue();
+      const rules: [string, { Id: string; Arn: string; RoleArn?: string }[]][] = [
+        [first, [{ Id: "bus", Arn: busArn(second), RoleArn: role }]],
+        [second, [{ Id: "q", Arn: reached.arn }, { Id: "onward", Arn: busArn(third), RoleArn: role }]],
+        [third, [{ Id: "q", Arn: beyond.arn }]],
+      ];
+      for (const [bus, targets] of rules) {
+        await events.send(new PutRuleCommand({ Name: "r", EventBusName: bus, EventPattern: pattern }));
+        expect((await events.send(new PutTargetsCommand({ Rule: "r", EventBusName: bus, Targets: targets }))).FailedEntryCount).toBe(0);
+      }
+      await events.send(new PutEventsCommand({ Entries: [entry({ Source: source, EventBusName: first, Detail: JSON.stringify({ n: 1 }) })] }));
+      const [message] = await drain(reached.url, 1);
+      expect(JSON.parse(message?.Body ?? "null")).toMatchObject({ source, "detail-type": "Order Placed", account: defaultAccount, region, detail: { n: 1 } });
+      expect(await drain(beyond.url, 1, 5_000)).toHaveLength(0);
+    } finally {
+      await iam.send(new DeleteRolePolicyCommand({ RoleName: roleName, PolicyName: "put-events" })).catch(() => undefined);
+      await iam.send(new DeleteRoleCommand({ RoleName: roleName })).catch(() => undefined);
     }
-    await events.send(new PutEventsCommand({ Entries: [entry({ Source: source, EventBusName: first, Detail: JSON.stringify({ n: 1 }) })] }));
-    const [message] = await drain(reached.url, 1);
-    expect(JSON.parse(message?.Body ?? "null")).toMatchObject({ source, "detail-type": "Order Placed", account: defaultAccount, region, detail: { n: 1 } });
-    expect(await drain(beyond.url, 1, 5_000)).toHaveLength(0);
   });
 
   // eventbridge-buses.md 4.1-4.3 (third-party-recorded).

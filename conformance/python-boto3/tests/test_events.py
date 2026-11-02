@@ -12,6 +12,14 @@ import pytest
 
 from support import REGION, Admin, eventually, raises, status_of, uniq
 
+# EVENTS_TRUST lets EventBridge assume a target's role (iam-enforcement-surfaces.md 8.4).
+EVENTS_TRUST = json.dumps(
+    {
+        "Version": "2012-10-17",
+        "Statement": [{"Effect": "Allow", "Principal": {"Service": "events.amazonaws.com"}, "Action": "sts:AssumeRole"}],
+    }
+)
+
 
 @pytest.fixture(scope="module")
 def events(make_client: Callable[..., Any]) -> Any:
@@ -191,15 +199,25 @@ def test_schedule_is_refused_on_a_custom_bus(events: Any) -> None:
 
 
 def test_bus_target_forwards_the_event_one_hop(
-    events: Any, sqs: Any, admin: Admin, account: str, make_bus: Callable[..., str], make_queue: Callable[..., str],
-    queue_arn: Callable[[str], str], make_rule: Callable[..., str],
+    events: Any, sqs: Any, iam: Any, admin: Admin, account: str, make_bus: Callable[..., str],
+    make_queue: Callable[..., str], queue_arn: Callable[[str], str], make_rule: Callable[..., str], cleanup: Any,
 ) -> None:
     # eventbridge-buses.md 6.2 (third-party-recorded: the forwarded event keeps source, detail-type,
-    # account, region and detail) and 6.5 (aws-doc eb-cross-account.html: no second hop).
+    # account, region and detail) and 6.5 (aws-doc eb-cross-account.html: no second hop). The
+    # targets' role trusts events.amazonaws.com and its inline policy allows events:PutEvents on
+    # the target buses (iam-enforcement-surfaces.md 8.4; aws-doc eb-event-bus-perms.html).
     first, second, third = make_bus(), make_bus(), make_bus()
     reached, beyond = make_queue("conf-reached"), make_queue("conf-beyond")
     source = "conformance." + first
-    role = f"arn:aws:iam::{account}:role/conformance-events"
+    role_name = uniq("events-role")
+    role = iam.create_role(RoleName=role_name, AssumeRolePolicyDocument=EVENTS_TRUST)["Role"]["Arn"]
+    cleanup.add(iam.delete_role, RoleName=role_name)
+    policy = {
+        "Version": "2012-10-17",
+        "Statement": [{"Effect": "Allow", "Action": "events:PutEvents", "Resource": [bus_arn(account, second), bus_arn(account, third)]}],
+    }
+    iam.put_role_policy(RoleName=role_name, PolicyName="put-events", PolicyDocument=json.dumps(policy))
+    cleanup.add(iam.delete_role_policy, RoleName=role_name, PolicyName="put-events")
     make_rule(first, "fwd", {"source": [source]}, [{"Id": "bus", "Arn": bus_arn(account, second), "RoleArn": role}])
     make_rule(second, "in", {"source": [source]}, [
         {"Id": "q", "Arn": queue_arn(reached)},
