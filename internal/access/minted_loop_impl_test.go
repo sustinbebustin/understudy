@@ -9,10 +9,11 @@ import (
 
 // The resource types the iam-loop found minted beyond the contract's first
 // five (contract 1.1 rows added by ticket 8): a DynamoDB stream's label and
-// API Gateway's API, route, integration and deployment ids, also inside a
-// tags resource. Formats: the Service Authorization Reference DynamoDB
-// table (sarDynamo) and API Gateway's ARN reference (apigateway-http.md
-// 8.1, whose policy example allows UpdateApi on /apis/??????????).
+// API Gateway's API, route, integration, resource and deployment ids, also
+// inside a tags resource. Formats: the Service Authorization Reference
+// DynamoDB table (sarDynamo) and API Gateway's ARN reference
+// (apigateway-http.md 8.1, whose policy example allows UpdateApi on
+// /apis/??????????; apigateway-rest.md 3.10 for REST APIs).
 func TestMintedPatternRendersStreamLabelsAndAPIGatewayIDs(t *testing.T) {
 	const (
 		ddb  = "arn:aws:dynamodb:us-east-1:111111111111:"
@@ -42,6 +43,34 @@ func TestMintedPatternRendersStreamLabelsAndAPIGatewayIDs(t *testing.T) {
 		{"apis collection", apig + "/apis", ""},
 		{"id not of the API form", apig + "/apis/nope", ""},
 		{"tags of another region's api", apig + "/tags/arn%3Aaws%3Aapigateway%3Aeu-west-1%3A%3A%2Fapis%2Fr3pmxmplak", ""},
+
+		// REST APIs: the same ids under /restapis, with resource and
+		// deployment ids as children (apigateway-rest.md 3.10).
+		{"rest api", apig + "/restapis/fugvjdxtri", apig + "/restapis/??????????"},
+		{"rest resources collection", apig + "/restapis/fugvjdxtri/resources", apig + "/restapis/??????????/resources"},
+		{"rest root resource", apig + "/restapis/fugvjdxtri/resources/svzr2028x8", apig + "/restapis/??????????/resources/*"},
+		{"rest method", apig + "/restapis/fugvjdxtri/resources/6sxz2j/methods/GET", apig + "/restapis/??????????/resources/*/methods/GET"},
+		{
+			"rest integration response",
+			apig + "/restapis/fugvjdxtri/resources/6sxz2j/methods/POST/integration/responses/200",
+			apig + "/restapis/??????????/resources/*/methods/POST/integration/responses/200",
+		},
+		{"rest deployments collection", apig + "/restapis/fugvjdxtri/deployments", apig + "/restapis/??????????/deployments"},
+		{"rest deployment", apig + "/restapis/fugvjdxtri/deployments/vakw79", apig + "/restapis/??????????/deployments/*"},
+		{"rest stage keeps its name", apig + "/restapis/fugvjdxtri/stages/prod", apig + "/restapis/??????????/stages/prod"},
+		{
+			"rest api tags",
+			apig + "/tags/arn%3Aaws%3Aapigateway%3Aus-east-1%3A%3A%2Frestapis%2Ffugvjdxtri",
+			apig + "/tags/arn%3Aaws%3Aapigateway%3Aus-east-1%3A%3A%2Frestapis%2F??????????",
+		},
+		{
+			"rest stage tags",
+			apig + "/tags/arn%3Aaws%3Aapigateway%3Aus-east-1%3A%3A%2Frestapis%2Ffugvjdxtri%2Fstages%2Fprod",
+			apig + "/tags/arn%3Aaws%3Aapigateway%3Aus-east-1%3A%3A%2Frestapis%2F??????????%2Fstages%2Fprod",
+		},
+		{"restapis collection", apig + "/restapis", ""},
+		{"rest id not of the API form", apig + "/restapis/nope", ""},
+		{"routes are not rest children", apig + "/restapis/fugvjdxtri/routes/72jz1wk", apig + "/restapis/??????????/routes/72jz1wk"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
