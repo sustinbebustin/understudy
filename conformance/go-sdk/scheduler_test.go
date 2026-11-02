@@ -244,6 +244,8 @@ func TestSchedulerDefaultBusTarget(t *testing.T) {
 	putRule(t, &eventbridge.PutRuleInput{Name: aws.String(ruleName), EventPattern: aws.String(`{"source":["` + source + `"]}`)})
 	queueURL := createQueue(t, name(t, "sch-bus-q"), nil)
 	putTargets(t, ruleName, ebtypes.Target{Id: aws.String("q"), Arn: aws.String(queueArn(t, queueURL))})
+	// The queue's policy lets the rule deliver (iam-enforcement-surfaces.md 8.1, 8.4).
+	allowQueueDelivery(t, queueURL, "events.amazonaws.com", "arn:aws:events:"+region()+":"+account(t)+":rule/"+ruleName)
 	role := *createRole(t, name(t, "sch-role"), schedulerTrustPolicy).Arn
 	createScheduleT(t, &scheduler.CreateScheduleInput{
 		Name: aws.String(name(t, "sch")), ScheduleExpression: aws.String(atOf(emulatorNow(t).Add(10 * time.Minute))),
