@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/eventbridge"
 	"github.com/aws/aws-sdk-go-v2/service/eventbridge/types"
+	"github.com/aws/aws-sdk-go-v2/service/iam"
 )
 
 // Research: eventbridge-buses.md 6.1 and 6.3 for events sent from one
@@ -47,6 +48,30 @@ func receivingBus(t *testing.T, pattern string) (busARN, queueURL string) {
 	// 8.4), as for every rule target in these suites.
 	allowQueueDelivery(t, queueURL, "events.amazonaws.com", rule)
 	return aws.ToString(out.EventBusArn), queueURL
+}
+
+// senderTargetRole creates, as senderAccount's root, a role EventBridge may
+// assume whose inline policy allows events:PutEvents on busARN, as a
+// cross-account event bus target needs (iam-enforcement-surfaces.md 8.4;
+// aws-doc eb-event-bus-perms.html, eventbridge-buses.md 6.3), and deletes
+// it when the test ends. It returns the role's ARN. The IAM loop renders
+// policies only for roles of the suite's account, so this role carries its
+// own.
+func senderTargetRole(t *testing.T, busARN string) string {
+	t.Helper()
+	client := iam.NewFromConfig(senderConfig())
+	roleName := name(t, "events-role")
+	out, err := client.CreateRole(t.Context(), &iam.CreateRoleInput{RoleName: aws.String(roleName), AssumeRolePolicyDocument: aws.String(eventsTrustPolicy)})
+	ok(t, err, "CreateRole "+roleName+" in the sender account")
+	policy := `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"events:PutEvents","Resource":"` + busARN + `"}]}`
+	_, err = client.PutRolePolicy(t.Context(), &iam.PutRolePolicyInput{RoleName: aws.String(roleName), PolicyName: aws.String("put-events"), PolicyDocument: aws.String(policy)})
+	ok(t, err, "PutRolePolicy on "+roleName)
+	t.Cleanup(func() {
+		ctx := context.Background()
+		_, _ = client.DeleteRolePolicy(ctx, &iam.DeleteRolePolicyInput{RoleName: aws.String(roleName), PolicyName: aws.String("put-events")})
+		_, _ = client.DeleteRole(ctx, &iam.DeleteRoleInput{RoleName: aws.String(roleName)})
+	})
+	return aws.ToString(out.Role.Arn)
 }
 
 // receivedEvent waits for the one event the queue should get and decodes it.
@@ -107,9 +132,11 @@ func TestEventBridgeAcrossAccounts(t *testing.T) {
 			_, _ = sender.DeleteRule(ctx, &eventbridge.DeleteRuleInput{Name: aws.String(rule), EventBusName: aws.String(bus)})
 		})
 		// A cross-account event bus target takes a role (aws-doc
-		// eb-cross-account.html, eventbridge-buses.md 6.3).
+		// eb-cross-account.html, eventbridge-buses.md 6.3), which the
+		// sender creates.
+		role := senderTargetRole(t, busARN)
 		put, err := sender.PutTargets(ctx, &eventbridge.PutTargetsInput{Rule: aws.String(rule), EventBusName: aws.String(bus), Targets: []types.Target{
-			{Id: aws.String("bus"), Arn: aws.String(busARN), RoleArn: aws.String("arn:aws:iam::" + senderAccount + ":role/conformance-events")},
+			{Id: aws.String("bus"), Arn: aws.String(busARN), RoleArn: aws.String(role)},
 		}})
 		ok(t, err, "PutTargets with the other account's bus")
 		if put.FailedEntryCount != 0 {

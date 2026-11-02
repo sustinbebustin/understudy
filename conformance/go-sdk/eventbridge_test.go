@@ -19,6 +19,10 @@ import (
 // matching-engines.md, error-matrix.md 5.12, eventbridge-buses.md for
 // custom buses.
 
+// eventsTrustPolicy lets EventBridge assume a target's role
+// (iam-enforcement-surfaces.md 8.4).
+const eventsTrustPolicy = `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"events.amazonaws.com"},"Action":"sts:AssumeRole"}]}`
+
 // putRule creates or replaces a rule on the default bus and, when the test
 // ends, removes its targets and deletes it.
 func putRule(t *testing.T, in *eventbridge.PutRuleInput) string {
@@ -655,11 +659,17 @@ func TestEventBridgeCustomBus(t *testing.T) {
 		pattern := `{"source":["` + source + `"]}`
 		reached := createQueue(t, name(t, "eb-second"), nil)
 		beyond := createQueue(t, name(t, "eb-third"), nil)
-		role := aws.String("arn:aws:iam::" + acct + ":role/conformance-events")
+		// The targets' role trusts events.amazonaws.com; under the IAM
+		// loop's enforce run it is allowed events:PutEvents on the buses
+		// (iam-enforcement-surfaces.md 8.4; eb-event-bus-perms.html).
+		role := createRole(t, name(t, "events-role"), eventsTrustPolicy).Arn
 		putBusRule(t, first, name(t, "fwd"), pattern, types.Target{Id: aws.String("bus"), Arn: aws.String(busARN(second)), RoleArn: role})
-		putBusRule(t, second, name(t, "in"), pattern,
+		inRule := putBusRule(t, second, name(t, "in"), pattern,
 			types.Target{Id: aws.String("q"), Arn: aws.String(queueArn(t, reached))},
 			types.Target{Id: aws.String("onward"), Arn: aws.String(busARN(third)), RoleArn: role})
+		// The second bus's rule may deliver to its queue
+		// (iam-enforcement-surfaces.md 8.1, 8.4).
+		allowQueueDelivery(t, reached, "events.amazonaws.com", inRule)
 		putBusRule(t, third, name(t, "last"), pattern, types.Target{Id: aws.String("q"), Arn: aws.String(queueArn(t, beyond))})
 
 		_, err := client.PutEvents(ctx, &eventbridge.PutEventsInput{Entries: []types.PutEventsRequestEntry{
