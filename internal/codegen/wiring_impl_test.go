@@ -2,6 +2,7 @@ package codegen_test
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -55,20 +56,11 @@ func TestServiceConfigBoundOperations(t *testing.T) {
 // signature verification reads them before the 501, but not its targets'.
 func TestWireBoundPrunesUnboundClosures(t *testing.T) {
 	in := goldenInputs(t)
-	model := string(in.Model.Content)
-	for _, e := range []struct{ old, new string }{
-		{
-			"\"NextToken\": {\"target\": \"com.example.golden#String\"}\n      }\n    },\n    \"com.example.golden#ListPartsResponse\": {",
-			"\"NextToken\": {\"target\": \"com.example.golden#String\"}, \"Upload\": {\"target\": \"com.example.golden#Upload\"}\n      }\n    },\n" +
-				"    \"com.example.golden#Upload\": {\"type\": \"blob\", \"traits\": {\"smithy.api#streaming\": {}}},\n    \"com.example.golden#ListPartsResponse\": {",
-		},
-	} {
-		if n := strings.Count(model, e.old); n != 1 {
-			t.Fatalf("the fixture model holds %s %d times, want once; update the anchor", e.old, n)
-		}
-		model = strings.Replace(model, e.old, e.new, 1)
-	}
-	in.Model.Content = []byte(model)
+	editModel(t, &in, modelEdit{
+		"\"NextToken\": {\"target\": \"com.example.golden#String\"}\n      }\n    },\n    \"com.example.golden#ListPartsResponse\": {",
+		"\"NextToken\": {\"target\": \"com.example.golden#String\"}, \"Upload\": {\"target\": \"com.example.golden#Upload\"}\n      }\n    },\n" +
+			"    \"com.example.golden#Upload\": {\"type\": \"blob\", \"traits\": {\"smithy.api#streaming\": {}}},\n    \"com.example.golden#ListPartsResponse\": {",
+	})
 	in.Config.Wiring = codegen.WireBound{Operations: []string{"GetThing"}}
 	files, err := codegen.Generate(in)
 	if err != nil {
@@ -92,6 +84,54 @@ func TestWireBoundPrunesUnboundClosures(t *testing.T) {
 		`var schemaNestedList = smithy.Schema{ID: "com.example.golden#NestedList", Type: smithy.TypeList}`,
 		`var schemaUpload = smithy.Schema{ID: "com.example.golden#Upload", Type: smithy.TypeBlob, Streaming: true}`,
 	)
+}
+
+// TestWireBoundWalksAStreamingInputABoundOperationReaches: a structure with
+// a @streaming member that is an unbound operation's input and is also
+// nested in a bound operation's input is wired through from the bound side,
+// although unbound ListParts sorts before bound PutKinds: the unbound use
+// is a copy of its own, which only the streaming exception marks.
+func TestWireBoundWalksAStreamingInputABoundOperationReaches(t *testing.T) {
+	in := goldenInputs(t)
+	editModel(t, &in,
+		modelEdit{
+			"\"NextToken\": {\"target\": \"com.example.golden#String\"}\n      }\n    },\n    \"com.example.golden#ListPartsResponse\": {",
+			"\"NextToken\": {\"target\": \"com.example.golden#String\"}, \"Upload\": {\"target\": \"com.example.golden#Upload\"}, \"Filter\": {\"target\": \"com.example.golden#PartFilter\"}\n      }\n    },\n" +
+				"    \"com.example.golden#Upload\": {\"type\": \"blob\", \"traits\": {\"smithy.api#streaming\": {}}},\n" +
+				"    \"com.example.golden#PartFilter\": {\"type\": \"structure\", \"members\": {\"Prefix\": {\"target\": \"com.example.golden#String\"}}},\n    \"com.example.golden#ListPartsResponse\": {",
+		},
+		modelEdit{
+			"\"Hints\": {\"target\": \"com.example.golden#SparseSecrets\"}\n      }",
+			"\"Hints\": {\"target\": \"com.example.golden#SparseSecrets\"}, \"Parts\": {\"target\": \"com.example.golden#ListPartsRequest\"}\n      }",
+		},
+	)
+	in.Config.Wiring = codegen.WireBound{Operations: []string{"PutKinds"}}
+	files, err := codegen.Generate(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const members = `&memberListParts%s_ThingId, &memberListParts%[1]s_NextToken, &memberListParts%[1]s_Upload, &memberListParts%[1]s_Filter}}`
+	mustContain(t, "schema_gen.go", files["schema_gen.go"],
+		`var memberPutKindsInput_Parts = smithy.Member{Name: "Parts", Index: 24, Target: &schemaListPartsRequest}`,
+		`var schemaListPartsRequest = smithy.Schema{ID: "com.example.golden#ListPartsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{`+fmt.Sprintf(members, "Request"),
+		`var schemaPartFilter = smithy.Schema{ID: "com.example.golden#PartFilter", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPartFilter_Prefix}}`,
+		`var schemaListPartsInput = smithy.Schema{ID: "com.example.golden#ListPartsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{`+fmt.Sprintf(members, "Input"),
+	)
+}
+
+// modelEdit replaces old, which the fixture model must hold once, with new.
+type modelEdit struct{ old, new string }
+
+func editModel(t *testing.T, in *codegen.Inputs, edits ...modelEdit) {
+	t.Helper()
+	model := string(in.Model.Content)
+	for _, e := range edits {
+		if n := strings.Count(model, e.old); n != 1 {
+			t.Fatalf("the fixture model holds %s %d times, want once; update the anchor", e.old, n)
+		}
+		model = strings.Replace(model, e.old, e.new, 1)
+	}
+	in.Model.Content = []byte(model)
 }
 
 // TestBoundOperationsNameTypedOperations: each bound operation is a modeled

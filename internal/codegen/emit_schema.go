@@ -94,14 +94,18 @@ func wiredShapes(ir *ServiceIR, shapes []*ShapeIR) map[*ShapeIR]bool {
 			walk(s)
 		}
 	}
-	streams := func(m *MemberIR) bool { return m.Target.Streaming }
+	isBound := func(o *OperationIR) bool { return slices.Contains(bound.Operations, o.Name) }
 	for _, o := range ir.Operations {
-		switch {
-		case !o.HasIO():
-		case slices.Contains(bound.Operations, o.Name):
+		if o.HasIO() && isBound(o) {
 			walk(o.Input)
 			walk(o.Output)
-		case slices.ContainsFunc(o.Input.Members, streams):
+		}
+	}
+	// After every walk: walk stops at a wired shape, so an input marked
+	// before a bound closure reached it would leave its targets unwired.
+	streams := func(m *MemberIR) bool { return m.Target.Streaming }
+	for _, o := range ir.Operations {
+		if o.HasIO() && !isBound(o) && slices.ContainsFunc(o.Input.Members, streams) {
 			wired[o.Input] = true
 		}
 	}
