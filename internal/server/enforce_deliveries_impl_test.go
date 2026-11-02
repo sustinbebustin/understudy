@@ -369,6 +369,66 @@ func TestEnforceFailsAnEventBridgeDeliveryToADeletedFunctionOrTopicAsMissing(t *
 	}
 }
 
+// Only a missing target is answered before authorization: an EventBridge
+// delivery to a function that exists but is Failed, whose policy does not
+// admit EventBridge, is still a denial, dead-lettered with NO_PERMISSIONS
+// and journaled (iam-enforcement-surfaces.md 8.4 grounds resolve-first for
+// "a target resource that no longer exists" alone). Docker is disabled
+// here, so the image function settles Failed.
+func TestEnforceDeniesAnEventBridgeDeliveryToAFailedFunction(t *testing.T) {
+	c, endpoint, _ := enforced(t, server.IAMEnforceEnforce)
+	const (
+		ruleARN = "arn:aws:events:us-east-1:000000000000:rule/nightly"
+		fn      = "arn:aws:lambda:us-east-1:000000000000:function:broken"
+	)
+	mustSQS(t, endpoint, "CreateQueue", `{"QueueName":"events-dlq"}`)
+	dlqPolicy := `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"events.amazonaws.com"},"Action":"sqs:SendMessage",` +
+		`"Resource":"arn:aws:sqs:us-east-1:000000000000:events-dlq","Condition":{"ArnEquals":{"aws:SourceArn":"` + ruleARN + `"}}}]}`
+	setQueuePolicy(t, endpoint, "events-dlq", dlqPolicy)
+	body := `{"FunctionName":"broken","PackageType":"Image","Role":"arn:aws:iam::000000000000:role/fn","Code":{"ImageUri":"local/fn:latest"}}`
+	req := newRequest(t, http.MethodPost, endpoint+"/2015-03-31/functions", body)
+	req.Header.Set("Content-Type", "application/json")
+	if w := signedCall(t, dummy, "lambda", req, body); w.status != http.StatusCreated {
+		t.Fatalf("CreateFunction = %d %s", w.status, w.body)
+	}
+	if _, err := c.Settle(t.Context(), 10*time.Second); err != nil {
+		t.Fatal(err)
+	}
+	if w := signedCall(t, dummy, "lambda", newRequest(t, http.MethodGet, endpoint+"/2015-03-31/functions/broken/configuration", ""), ""); !strings.Contains(w.body, `"State":"Failed"`) {
+		t.Fatalf("GetFunctionConfiguration = %d %s, want the function Failed", w.status, w.body)
+	}
+	events := func(target, body string) wire {
+		return jsonCall(t, dummy, endpoint, "events", "1.1", "AWSEvents."+target, body)
+	}
+	if w := events("PutRule", `{"Name":"nightly","EventPattern":"{\"source\":[\"app\"]}"}`); w.status != http.StatusOK {
+		t.Fatalf("PutRule = %d %s", w.status, w.body)
+	}
+	if w := events("PutTargets", `{"Rule":"nightly","Targets":[{"Id":"fn","Arn":"`+fn+`","DeadLetterConfig":{"Arn":"arn:aws:sqs:us-east-1:000000000000:events-dlq"}}]}`); w.status != http.StatusOK {
+		t.Fatalf("PutTargets = %d %s", w.status, w.body)
+	}
+	if w := events("PutEvents", `{"Entries":[{"Source":"app","DetailType":"tick","Detail":"{}"}]}`); w.status != http.StatusOK {
+		t.Fatalf("PutEvents = %d %s", w.status, w.body)
+	}
+	if _, err := c.Settle(t.Context(), 10*time.Second); err != nil {
+		t.Fatal(err)
+	}
+	letters := mustSQS(t, endpoint, "ReceiveMessage", `{"QueueUrl":"`+endpoint+`/000000000000/events-dlq","MaxNumberOfMessages":10,"MessageAttributeNames":["All"]}`)
+	var out struct {
+		Messages []struct {
+			MessageAttributes map[string]struct{ StringValue string }
+		}
+	}
+	if err := json.Unmarshal([]byte(letters), &out); err != nil {
+		t.Fatalf("ReceiveMessage = %s: %v", letters, err)
+	}
+	if len(out.Messages) != 1 || out.Messages[0].MessageAttributes["ERROR_CODE"].StringValue != "NO_PERMISSIONS" {
+		t.Errorf("dead letters = %s, want one with ERROR_CODE NO_PERMISSIONS", letters)
+	}
+	if denied := enforcementAdvisories(t, c, "access-denied"); !slices.ContainsFunc(denied, func(text string) bool { return strings.Contains(text, ":broken") }) {
+		t.Errorf("access-denied advisories = %q, want the Failed function's denial journaled", denied)
+	}
+}
+
 // An event bus target with a RoleArn is delivered as a session of the
 // role, which must trust events.amazonaws.com and allow events:PutEvents
 // on the target bus (iam-enforcement-surfaces.md 8.4;

@@ -339,6 +339,21 @@ type target struct {
 	async      asyncConfig
 }
 
+// find reports the function or qualifier ref names missing, with the
+// error resolve would return for it, and nothing else; nil when both are
+// there.
+func (x *Execution) find(r functionRef) *awserr.Error {
+	_, err := view(x.svc, r.scope, func(st *State) (struct{}, *awserr.Error) {
+		if r.qualifier == latestPublished {
+			_, err := st.function(r)
+			return struct{}{}, err
+		}
+		_, _, err := st.lookup(r)
+		return struct{}{}, err
+	})
+	return err
+}
+
 // resolve reads the version ref names, as it was before an update in
 // progress (Version.serving); a version that is not Active cannot be
 // invoked. $LATEST.PUBLISHED is NoPublishedVersionException for every
@@ -399,20 +414,29 @@ func (x *Execution) invoke(ctx context.Context, c *kernel.Call, in *lambdaapi.In
 	if err != nil {
 		return nil, err
 	}
-	t, err := x.resolve(r)
-	if err != nil {
-		// Invoke names a missing function by its $LATEST ARN, unlike the
-		// read operations (test_invoke_exceptions).
+	// Invoke names a missing function by its $LATEST ARN, unlike the read
+	// operations (test_invoke_exceptions).
+	missing := func(err *awserr.Error) *awserr.Error {
 		if r.qualifier == "" && err.ID.Status == http.StatusNotFound {
-			return nil, errFunctionNotFound(r.arn() + ":" + latest)
+			return errFunctionNotFound(r.arn() + ":" + latest)
 		}
-		return nil, err
+		return err
+	}
+	// A delivery is authorized once its function is found
+	// (AuthorizedAfterResolveForDeliveries) and before the function runs.
+	// Only a missing function or qualifier is answered first (8.4: a
+	// target that no longer exists); its state and stored role are checked
+	// after the authorization, as a direct call's are.
+	if err := x.find(r); err != nil {
+		return nil, missing(err)
 	}
 	touch(c, r.qualifiedARN())
-	// A delivery is authorized once its function is found
-	// (AuthorizedAfterResolveForDeliveries), and before the function runs.
 	if err := kernel.AuthorizeResolved(c); err != nil {
 		return nil, err
+	}
+	t, err := x.resolve(r)
+	if err != nil {
+		return nil, missing(err)
 	}
 	switch mode {
 	case lambdaapi.InvocationTypeDryRun:
