@@ -22,16 +22,14 @@ advance() {
 # although none was sent (tf-acc schedule_test.go:L199-L223; scheduler.md
 # 4.2), and is gone after its delete (scheduler.md 4.4).
 test_rate_schedule_to_sqs() {
-  local queue role name queue_arn role_arn
+  local queue name queue_arn role_arn
   queue=$(new_name sch-q)
   aws_ok sqs create-queue --queue-name "$queue"
   local queue_url
   queue_url=$(jqv '.QueueUrl')
   aws_ok sqs get-queue-attributes --queue-url "$queue_url" --attribute-names QueueArn
   queue_arn=$(jqv '.Attributes.QueueArn')
-  role=$(new_name sch-role)
-  aws_ok iam create-role --role-name "$role" --assume-role-policy-document "$SCHEDULER_TRUST"
-  role_arn=$(jqv '.Role.Arn')
+  role_arn=$(make_role "$(new_name sch-role)" "$SCHEDULER_TRUST")
   name=$(new_name sch)
 
   local target
@@ -66,8 +64,7 @@ sch_setup() {
   SCH_QUEUE_URL=$(jqv '.QueueUrl')
   aws_ok sqs get-queue-attributes --queue-url "$SCH_QUEUE_URL" --attribute-names QueueArn
   SCH_QUEUE_ARN=$(jqv '.Attributes.QueueArn')
-  aws_ok iam create-role --role-name "$(new_name sch-role)" --assume-role-policy-document "$SCHEDULER_TRUST"
-  SCH_ROLE_ARN=$(jqv '.Role.Arn')
+  SCH_ROLE_ARN=$(make_role "$(new_name sch-role)" "$SCHEDULER_TRUST")
 }
 
 # A rate schedule first fires at its StartDate (aws-doc schedule-types;
@@ -269,10 +266,10 @@ test_group_with_tags_and_members() {
 # scheduler.md 6.3, 6.4).
 test_state_machine_target() {
   sch_setup
-  local states_trust machine now at name target
+  local states_trust sfn_role machine now at name target
   states_trust='{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"states.amazonaws.com"},"Action":"sts:AssumeRole"}]}'
-  aws_ok iam create-role --role-name "$(new_name sfn-role)" --assume-role-policy-document "$states_trust"
-  aws_ok stepfunctions create-state-machine --name "$(new_name sch-flow)" --role-arn "$(jqv '.Role.Arn')" \
+  sfn_role=$(make_role "$(new_name sfn-role)" "$states_trust")
+  aws_ok stepfunctions create-state-machine --name "$(new_name sch-flow)" --role-arn "$sfn_role" \
     --definition '{"StartAt":"P","States":{"P":{"Type":"Pass","End":true}}}'
   machine=$(jqv '.stateMachineArn')
   now=$(curl -fsS "${UE_ADMIN_URL:?UE_ADMIN_URL unset}/clock" | jq -r '.now')
