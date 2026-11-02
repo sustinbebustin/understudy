@@ -932,7 +932,7 @@ Internal operations:
 | GetFunction | partial | inferred, 1 of 4 claims | Code.Location is a link understudy serves the package at, not a presigned S3 URL |
 | GetLayerVersion | partial | inferred, 1 of 3 claims | Content.Location is a link understudy serves the archive at, not a presigned S3 URL |
 | GetLayerVersionByArn | partial | inferred, 1 of 3 claims | Content.Location is a link understudy serves the archive at, not a presigned S3 URL |
-| Invoke | partial | inferred, 6 of 10 claims | an alias with weighted routing always runs its primary version; LoggingConfig reaches the function as AWS_LAMBDA_LOG_FORMAT and AWS_LAMBDA_LOG_LEVEL, but Lambda's own INIT_START, START, END and REPORT lines stay text and SystemLogLevel filters nothing |
+| Invoke | partial | inferred, 7 of 11 claims | an alias with weighted routing always runs its primary version; LoggingConfig reaches the function as AWS_LAMBDA_LOG_FORMAT and AWS_LAMBDA_LOG_LEVEL, but Lambda's own INIT_START, START, END and REPORT lines stay text and SystemLogLevel filters nothing |
 | PublishLayerVersion | partial | inferred, 1 of 3 claims | S3ObjectStorageMode REFERENCE is stored and the archive is copied as with COPY; the account code-storage quota is not enforced; layers are never signed |
 | PublishVersion | partial | inferred, 1 of 4 claims | PublishTo LATEST_PUBLISHED is refused: understudy does not implement Lambda Managed Instances |
 | PutFunctionEventInvokeConfig | partial | inferred, 3 of 5 claims | the execution role's permission to reach a destination, and the resource policy of a destination in another account, are evaluated only under iam.enforce=advise, which journals each denial, or enforce, which fails the delivery; a failed delivery is journaled and not retried |
@@ -1549,7 +1549,7 @@ Raw operations:
 | Unsubscribe | full | inferred, 4 of 6 claims |  |
 | UntagResource | full | inferred, 2 of 4 claims |  |
 | AddPermission | partial | inferred, 2 of 4 claims | statements are stored in the topic Policy, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; conditions on keys understudy cannot compute evaluate as absent and journal an advisory naming the key |
-| Publish | partial | inferred, 21 of 23 claims | fan-out to sqs and lambda subscriptions, and to http and https subscriptions whose host and port are in sns.httpDelivery.allow, after their filter policies, with raw or enveloped delivery, the DeliveryPolicy retry schedule and the RedrivePolicy dead-letter queue; every backoffFunction steps linearly from minDelayTarget to maxDelayTarget, without jitter; under iam.enforce=enforce an sqs or lambda delivery the endpoint's policy refuses is not retried and goes to the RedrivePolicy queue, else is dropped; other http and https endpoints, email and email-json receive nothing |
+| Publish | partial | inferred, 22 of 24 claims | fan-out to sqs and lambda subscriptions, and to http and https subscriptions whose host and port are in sns.httpDelivery.allow, after their filter policies, with raw or enveloped delivery, the DeliveryPolicy retry schedule and the RedrivePolicy dead-letter queue; every backoffFunction steps linearly from minDelayTarget to maxDelayTarget, without jitter; under iam.enforce=enforce an sqs or lambda delivery the endpoint's policy refuses is not retried and goes to the RedrivePolicy queue, else is dropped; other http and https endpoints, email and email-json receive nothing |
 | PublishBatch | partial | inferred, 20 of 22 claims | fan-out to sqs and lambda subscriptions, and to http and https subscriptions whose host and port are in sns.httpDelivery.allow, after their filter policies, with raw or enveloped delivery, the DeliveryPolicy retry schedule and the RedrivePolicy dead-letter queue; every backoffFunction steps linearly from minDelayTarget to maxDelayTarget, without jitter; under iam.enforce=enforce an sqs or lambda delivery the endpoint's policy refuses is not retried and goes to the RedrivePolicy queue, else is dropped; other http and https endpoints, email and email-json receive nothing |
 | RemovePermission | partial | inferred, 2 of 4 claims | statements are stored in the topic Policy, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; conditions on keys understudy cannot compute evaluate as absent and journal an advisory naming the key |
 | SetSubscriptionAttributes | partial | inferred, 11 of 13 claims | DeliveryPolicy healthyRetryPolicy, throttlePolicy and requestPolicy apply to http and https deliveries; sicklyRetryPolicy and guaranteed are stored and echoed, never applied; the quota of 10,000 filter policies per account is not enforced |
@@ -1801,7 +1801,7 @@ Internal operations:
 
 Behaviors chosen without AWS-recorded evidence, with the research they rest on and the parity scenario step that settles them, or why none does. The count and order follow the label the code states; the Label column shows the recording's verdict where a replayed step settles or contradicts the switch.
 
-229 switches: 1 aws-recorded, 5 third-party-recorded, 24 aws-doc, 199 inferred.
+231 switches: 1 aws-recorded, 5 third-party-recorded, 24 aws-doc, 201 inferred.
 
 | Switch | Value | Label | Reference | Settled by |
 |---|---|---|---|---|
@@ -1923,6 +1923,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `lambda.destination.delivery-retry` | `none` | inferred | docs/research/lambda-destinations-layers.md#46-when-delivery-fails | none: unrecorded: LDL-09 is queued in docs/research/lambda-destinations-layers.md 12 |
 | `lambda.destination.lambda-invocation-type` | `Event` | inferred | docs/research/lambda-destinations-layers.md#43-lambda | none: unrecorded: LDL-06 is queued in docs/research/lambda-destinations-layers.md 12 |
 | `lambda.destination.record-function-arn` | `invoked-qualifier` | inferred | docs/research/lambda-destinations-layers.md#32-fields | none: unrecorded: LDL-01 is queued in docs/research/lambda-destinations-layers.md 12 |
+| `lambda.enforce.missing-resource.delivery` | `resolve-first` | inferred | docs/research/iam-enforcement-surfaces.md#8.4 | none: unrecorded: IAM-ENF-22 waits in the recording queue (iam-enforcement-surfaces.md 13) |
 | `lambda.esm-filter.bare-number` | `numeric-or-text` | inferred | docs/research/matching-engines.md#10 | none: recorded in lambda/R03 (H7a-01-create, H7a-02-create); the replayer skips REST and Docker steps |
 | `lambda.esm-filter.empty-input` | `matchable` | inferred | docs/research/matching-engines.md#10 | none: unrecorded for Lambda: matching-engines.md H1 covers SNS and EventBridge only |
 | `lambda.esm-filter.exactly-operator` | `rejected` | inferred | docs/research/matching-engines.md#5.1 | none: recorded in lambda/R03 (H13-11-create); the replayer skips REST and Docker steps |
@@ -1987,6 +1988,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `sns.delete-topic.detached-retention` | `48h0m0s` | inferred | docs/research/sns.md#22-topic-attributes | none: sns/R16/06-list-subscriptions-after-delete.json shows the subscriptions 5 s after DeleteTopic; how long they stay is unrecorded |
 | `sns.delivery.source-account` | `present` | inferred | docs/research/iam-enforcement-surfaces.md#8.1 | none: unrecorded: IAM-ENF-18 waits in the recording queue (iam-enforcement-surfaces.md 13) |
 | `sns.denial.text` | `AuthorizationError 403 with the grammar of 4.1` | inferred | docs/research/iam-enforcement-surfaces.md#3.2 | none: unrecorded: IAM-ENF-03 waits in the recording queue (iam-enforcement-surfaces.md 13) |
+| `sns.enforce.missing-resource.delivery` | `resolve-first` | inferred | docs/research/iam-enforcement-surfaces.md#8.4 | none: unrecorded: IAM-ENF-22 waits in the recording queue (iam-enforcement-surfaces.md 13) |
 | `sns.fifo.duplicate` | `fresh-message-id-no-delivery` | inferred | docs/research/sns.md#43-fifo-publish | none: unrecorded: no recording shows what a FIFO publish inside the deduplication window answers |
 | `sns.fifo.sequence-number` | `20-digit-decimal-per-topic` | inferred | docs/research/sns.md#43-fifo-publish | none: sns/R16/04-publish-fifo.json holds one SequenceNumber, which does not show how the numbers count |
 | `sns.filter-policy.anything-but-arrays` | `any-element` | inferred | docs/research/matching-engines.md#4.3 | none: recorded in sns/R09 (T08, H4); no scenario replays sns/R09 yet |

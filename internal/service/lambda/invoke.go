@@ -230,7 +230,9 @@ func NewExecution(svc *Service, d kernel.ServiceDeps, o ExecutionOptions) (*Exec
 	}
 	x.async = d.Kernel.Timers().Handle(TimerAsync, x.onAsync)
 	svc.overlayDir = x.overlays.dirOf
-	lambdaapi.NewBinder(d.Binder).Invoke(x.invoke, partial(invokeNote), kernel.WithResources(invokedFunction))
+	// A delivery to a deleted function fails as the missing function
+	// (lambda.enforce.missing-resource.delivery; iam-enforcement-surfaces.md 8.4).
+	lambdaapi.NewBinder(d.Binder).Invoke(x.invoke, partial(invokeNote), kernel.WithResources(invokedFunction), kernel.AuthorizedAfterResolveForDeliveries())
 	return x, nil
 }
 
@@ -407,6 +409,11 @@ func (x *Execution) invoke(ctx context.Context, c *kernel.Call, in *lambdaapi.In
 		return nil, err
 	}
 	touch(c, r.qualifiedARN())
+	// A delivery is authorized once its function is found
+	// (AuthorizedAfterResolveForDeliveries), and before the function runs.
+	if err := kernel.AuthorizeResolved(c); err != nil {
+		return nil, err
+	}
 	switch mode {
 	case lambdaapi.InvocationTypeDryRun:
 		return &lambdaapi.InvokeOutput{StatusCode: http.StatusNoContent}, nil

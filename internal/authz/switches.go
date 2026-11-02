@@ -108,12 +108,15 @@ func ResolveFirstSwitch(service string, ops []string) fidelity.Entry {
 // ops: the operations that receive deliveries
 // (kernel.Bindings.DeliveryResolvedFirstOps), where a delivery to a target
 // that does not exist answers the target's not-found error before the
-// delivering service is authorized. AWS reports a delivery to a deleted
-// queue as NonExistentQueue (sns.md 7.1), which a queue with no policy
-// left could not show if SNS were authorized first; the order itself is
-// inferred (iam-enforcement-surfaces.md 8.2, 12.8).
-func DeliveryResolveFirstSwitch(service string, ops []string) fidelity.Entry {
-	return EnforcementSwitch(service+".enforce.missing-resource.delivery", "resolve-first", evidence.Inferred, "8.2", "IAM-ENF-18", ops)
+// delivering service is authorized, chosen in section of the note and
+// settled by record. AWS reports a delivery to a deleted queue as
+// NonExistentQueue (sns.md 7.1), and EventBridge one to a target that no
+// longer exists apart from a missing permission (8.4), which a target
+// with no policy left could not show if the delivering service were
+// authorized first; the order itself is inferred
+// (iam-enforcement-surfaces.md 8.2, 8.4, 12.8).
+func DeliveryResolveFirstSwitch(service, section, record string, ops []string) fidelity.Entry {
+	return EnforcementSwitch(service+".enforce.missing-resource.delivery", "resolve-first", evidence.Inferred, section, record, ops)
 }
 
 // grammarValue is switch iam.denial.grammar's value: the reason clauses of

@@ -152,6 +152,7 @@ func (s *Service) Switches() []fidelity.Entry {
 		authz.DenialSwitch("sns.denial.text", "AuthorizationError 403 with the grammar of 4.1", evidence.Inferred, "3.2", "IAM-ENF-03",
 			s.bindings.AuthorizedOps(snsapi.Service())),
 		deliverySourceAccount(), subscribePolicyCheck(), defaultPolicyDirectCalls(s.bindings.AuthorizedOps(snsapi.Service())),
+		authz.DeliveryResolveFirstSwitch("sns", "8.4", "IAM-ENF-22", s.bindings.DeliveryResolvedFirstOps(snsapi.Service())),
 	}
 	for _, sw := range httpSwitches() {
 		entries = append(entries, sw.Entry())

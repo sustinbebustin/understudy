@@ -46,7 +46,11 @@ func (s *Service) bindPublish(b snsapi.Binder) {
 		"with raw or enveloped delivery, the DeliveryPolicy retry schedule and the RedrivePolicy dead-letter queue; every backoffFunction steps linearly from minDelayTarget to maxDelayTarget, " +
 		"without jitter; under iam.enforce=enforce an sqs or lambda delivery the endpoint's policy refuses is not retried and goes to the RedrivePolicy queue, else is dropped; " +
 		"other http and https endpoints, email and email-json receive nothing"
+	// S3, EventBridge and CloudWatch deliver to Publish; one to a deleted
+	// topic fails as the missing topic, NO_RESOURCE to EventBridge
+	// (iam-enforcement-surfaces.md 8.4).
 	b.Publish(s.publish, registry.Partial{Note: note},
+		kernel.AuthorizedAfterResolveForDeliveries(),
 		kernel.WithResources(func(_ *kernel.Call, in *snsapi.PublishInput) []aws.ARN {
 			for _, target := range []*string{in.TopicArn, in.TargetArn} {
 				if target == nil {
@@ -193,6 +197,11 @@ func (s *Service) publish(_ context.Context, c *kernel.Call, in *snsapi.PublishI
 	if err != nil {
 		return nil, err
 	}
+	// A delivery is authorized only once its topic is found, at fanOut's
+	// first write (sns.enforce.missing-resource.delivery).
+	if !s.topicExists(ref) {
+		return nil, errTopicNotFound()
+	}
 	out, err := s.fanOut(c, ref, []message{m}, func(t *Topic) *awserr.Error {
 		if m.size() > t.maxMessageBytes() {
 			return errInvalidParameter("Message too long")
@@ -203,6 +212,16 @@ func (s *Service) publish(_ context.Context, c *kernel.Call, in *snsapi.PublishI
 		return nil, err
 	}
 	return &snsapi.PublishOutput{MessageId: new(out[0].messageID), SequenceNumber: out[0].sequence}, nil
+}
+
+// topicExists reports whether ref's topic exists, read without a write, so
+// that a delivery learns it before it is authorized.
+func (s *Service) topicExists(ref topicRef) bool {
+	exists, _ := read(s, ref.scope, func(st *State) bool {
+		_, ok := st.Topics[ref.name]
+		return ok
+	})
+	return exists
 }
 
 // publishTarget is the topic a Publish names: exactly one of TopicArn and

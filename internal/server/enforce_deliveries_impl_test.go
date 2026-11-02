@@ -1,6 +1,7 @@
 package server_test
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"maps"
 	"net/http"
@@ -290,6 +291,81 @@ func TestEnforceFailsADeliveryToADeletedQueueAsMissing(t *testing.T) {
 	}
 	if got := wiredSwitch(t, c, "sqs.enforce.missing-resource.delivery"); got != "resolve-first" {
 		t.Errorf("sqs.enforce.missing-resource.delivery = %q, want resolve-first", got)
+	}
+}
+
+// An EventBridge delivery to a deleted function or topic fails as the
+// missing target: AWS sends "a target resource that no longer exists"
+// straight to the dead-letter queue, apart from "missing permissions to a
+// target", and lists NO_RESOURCE beside NO_PERMISSIONS among the codes
+// (iam-enforcement-surfaces.md 8.4, aws-doc). A function or topic with no
+// policy left could not show that if EventBridge were authorized first, so
+// neither delivery journals a denial (switches
+// lambda.enforce.missing-resource.delivery and
+// sns.enforce.missing-resource.delivery).
+func TestEnforceFailsAnEventBridgeDeliveryToADeletedFunctionOrTopicAsMissing(t *testing.T) {
+	c, endpoint, _ := enforced(t, server.IAMEnforceEnforce)
+	const (
+		ruleARN = "arn:aws:events:us-east-1:000000000000:rule/nightly"
+		fn      = "arn:aws:lambda:us-east-1:000000000000:function:gone"
+	)
+	mustSQS(t, endpoint, "CreateQueue", `{"QueueName":"events-dlq"}`)
+	dlqPolicy := `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"events.amazonaws.com"},"Action":"sqs:SendMessage",` +
+		`"Resource":"arn:aws:sqs:us-east-1:000000000000:events-dlq","Condition":{"ArnEquals":{"aws:SourceArn":"` + ruleARN + `"}}}]}`
+	setQueuePolicy(t, endpoint, "events-dlq", dlqPolicy)
+	topic := element(t, mustSNS(t, endpoint, url.Values{"Action": {"CreateTopic"}, "Name": {"gone"}}), "TopicArn")
+	mustSNS(t, endpoint, url.Values{"Action": {"DeleteTopic"}, "TopicArn": {topic}})
+	pkg := base64.StdEncoding.EncodeToString(zipped(t, "unused"))
+	body := `{"FunctionName":"gone","Runtime":"provided.al2023","Handler":"bootstrap","Role":"arn:aws:iam::000000000000:role/fn","Code":{"ZipFile":"` + pkg + `"}}`
+	req := newRequest(t, http.MethodPost, endpoint+"/2015-03-31/functions", body)
+	req.Header.Set("Content-Type", "application/json")
+	if w := signedCall(t, dummy, "lambda", req, body); w.status != http.StatusCreated {
+		t.Fatalf("CreateFunction = %d %s", w.status, w.body)
+	}
+	if w := signedCall(t, dummy, "lambda", newRequest(t, http.MethodDelete, endpoint+"/2015-03-31/functions/gone", ""), ""); w.status != http.StatusNoContent {
+		t.Fatalf("DeleteFunction = %d %s", w.status, w.body)
+	}
+	events := func(target, body string) wire {
+		return jsonCall(t, dummy, endpoint, "events", "1.1", "AWSEvents."+target, body)
+	}
+	if w := events("PutRule", `{"Name":"nightly","EventPattern":"{\"source\":[\"app\"]}"}`); w.status != http.StatusOK {
+		t.Fatalf("PutRule = %d %s", w.status, w.body)
+	}
+	dlq := `"DeadLetterConfig":{"Arn":"arn:aws:sqs:us-east-1:000000000000:events-dlq"}`
+	if w := events("PutTargets", `{"Rule":"nightly","Targets":[{"Id":"fn","Arn":"`+fn+`",`+dlq+`},{"Id":"topic","Arn":"`+topic+`",`+dlq+`}]}`); w.status != http.StatusOK {
+		t.Fatalf("PutTargets = %d %s", w.status, w.body)
+	}
+	if w := events("PutEvents", `{"Entries":[{"Source":"app","DetailType":"tick","Detail":"{}"}]}`); w.status != http.StatusOK {
+		t.Fatalf("PutEvents = %d %s", w.status, w.body)
+	}
+	if _, err := c.Settle(t.Context(), 10*time.Second); err != nil {
+		t.Fatal(err)
+	}
+	letters := mustSQS(t, endpoint, "ReceiveMessage", `{"QueueUrl":"`+endpoint+`/000000000000/events-dlq","MaxNumberOfMessages":10,"MessageAttributeNames":["All"]}`)
+	var out struct {
+		Messages []struct {
+			MessageAttributes map[string]struct{ StringValue string }
+		}
+	}
+	if err := json.Unmarshal([]byte(letters), &out); err != nil {
+		t.Fatalf("ReceiveMessage = %s: %v", letters, err)
+	}
+	codes := map[string]string{}
+	for _, m := range out.Messages {
+		codes[m.MessageAttributes["TARGET_ARN"].StringValue] = m.MessageAttributes["ERROR_CODE"].StringValue
+	}
+	if want := map[string]string{fn: "NO_RESOURCE", topic: "NO_RESOURCE"}; !maps.Equal(codes, want) {
+		t.Errorf("dead letters by TARGET_ARN = %v, want %v", codes, want)
+	}
+	for _, denied := range enforcementAdvisories(t, c, "access-denied") {
+		if strings.Contains(denied, ":gone") {
+			t.Errorf("access-denied advisory %q names a deleted target, want the delivery to fail as the missing target", denied)
+		}
+	}
+	for _, name := range []string{"lambda.enforce.missing-resource.delivery", "sns.enforce.missing-resource.delivery"} {
+		if got := wiredSwitch(t, c, name); got != "resolve-first" {
+			t.Errorf("%s = %q, want resolve-first", name, got)
+		}
 	}
 }
 

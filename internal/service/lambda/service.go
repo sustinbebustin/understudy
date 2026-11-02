@@ -201,7 +201,11 @@ func (s *Service) Switches() []fidelity.Entry {
 		[]string{"lambda.CreateEventSourceMapping", "lambda.UpdateEventSourceMapping"})
 	permissionLoss := authz.EnforcementSwitch("lambda.esm.permission-loss", "stay-enabled", evidence.Inferred, "8.6", "IAM-ENF-25",
 		[]string{"lambda.CreateEventSourceMapping"})
-	entries := []fidelity.Entry{denial, roleDenied, permissionLoss, fidelity.Switch[string]{
+	// Invoke finds a delivery's function before it is authorized: a deleted
+	// function is a client error to SNS (sns.md 7.1) and NO_RESOURCE to
+	// EventBridge (iam-enforcement-surfaces.md 8.4).
+	missingDelivery := authz.DeliveryResolveFirstSwitch("lambda", "8.4", "IAM-ENF-22", s.k.Bindings().DeliveryResolvedFirstOps(lambdaapi.Service()))
+	entries := []fidelity.Entry{denial, roleDenied, permissionLoss, missingDelivery, fidelity.Switch[string]{
 		Name:  "lambda.stateTransitions",
 		Value: s.opts.StateTransitions.String(),
 		Label: evidence.AWSDoc,

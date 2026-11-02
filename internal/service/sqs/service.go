@@ -229,7 +229,7 @@ func (s *Service) Switches() []fidelity.Entry {
 		// inferred (iam-enforcement-surfaces.md 4.3).
 		authz.DenialSwitch("sqs.denial.query-text", "AccessDenied 403, Access to the resource <queue url> is denied., the URL on the endpoint the client addressed",
 			evidence.Inferred, "4.3", "IAM-ENF-02", authorized),
-		authz.DeliveryResolveFirstSwitch("sqs", s.k.Bindings().DeliveryResolvedFirstOps(sqsapi.Service())),
+		authz.DeliveryResolveFirstSwitch("sqs", "8.2", "IAM-ENF-18", s.k.Bindings().DeliveryResolvedFirstOps(sqsapi.Service())),
 	}
 }
 
