@@ -30,7 +30,11 @@
 //     AWS authorizes an event bus target through its RoleArn or the bus
 //     policy's grant to the sender account (eventbridge-buses.md 6.2, 6.3),
 //     not a grant to events.amazonaws.com. Nor is a Lambda delivery, which
-//     AWS authorizes as the function's execution role.
+//     AWS authorizes as the function's execution role. Before an
+//     events-to-events delivery that runs as its target's RoleArn, the
+//     role's trust in events.amazonaws.com is asked; a refusal is
+//     dead-lettered with FAILED_TO_ASSUME_ROLE (iam-enforcement-surfaces.md
+//     8.4).
 //  3. The target operation (SQS SendMessage, Lambda Invoke, SNS Publish,
 //     EventBridge PutEvents, S3 PutObject) runs through kernel.Invoke as
 //     the delivering service principal, with the mechanism's Via, admitted

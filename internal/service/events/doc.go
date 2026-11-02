@@ -105,8 +105,10 @@
 //     own account and region (events.bus-target.same-account-event-id). The
 //     bus need not exist when PutTargets adds it, and a delivery to a bus
 //     that does not exist is dropped as PutEvents drops one; both are
-//     inferred (events.bus-target.missing-bus). The RoleArn is stored, not
-//     assumed.
+//     inferred (events.bus-target.missing-bus). A bus target with a RoleArn
+//     is delivered as a session of that role, which under iam.enforce must
+//     trust events.amazonaws.com and be allowed events:PutEvents on the bus
+//     (iam-enforcement-surfaces.md 8.4).
 //   - An event that arrived through an event bus target matches the
 //     receiving bus's rules as usual and reaches their other targets, but
 //     no bus target: each is journaled as a dropped delivery and not

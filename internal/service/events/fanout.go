@@ -308,10 +308,17 @@ func (f *fanOut) resolve(r ruleRef, t *Target) (deliveryTarget, bool) {
 // target's parameters or ev already made its one hop.
 func (f *fanOut) send(r ruleRef, t *Target, dt deliveryTarget, ev envelope.Event, ingested clock.Instant) {
 	var receiver delivery.Target
+	var as delivery.Principal
 	var why string
 	switch dt := dt.(type) {
 	case busTarget:
 		receiver, why = f.forward(dt, t, ev)
+		if receiver != nil {
+			as, why = targetRole(t)
+			if why != "" {
+				receiver = nil
+			}
+		}
 	case payloadTarget:
 		receiver, why = shape(r, t, dt, ev, ingested)
 	default:
@@ -321,7 +328,7 @@ func (f *fanOut) send(r ruleRef, t *Target, dt deliveryTarget, ev envelope.Event
 		f.skipped = append(f.skipped, skip{rule: r.arn(), target: dt, reason: why})
 		return
 	}
-	req := delivery.Request{Source: r.arn(), Mechanism: dt.mechanism(), Policy: retryPolicy(t.Retry), Target: receiver}
+	req := delivery.Request{Source: r.arn(), Mechanism: dt.mechanism(), Policy: retryPolicy(t.Retry), Target: receiver, As: as}
 	if dt.sendsSourceAccount() {
 		req.SourceAccount = r.scope.Account
 	}
@@ -333,6 +340,27 @@ func (f *fanOut) send(r ruleRef, t *Target, dt deliveryTarget, ev envelope.Event
 		}
 	}
 	f.requests = append(f.requests, req)
+}
+
+// targetRole is whom an event bus target t is delivered as: a session of
+// its RoleArn, whose trust must allow events.amazonaws.com and whose policy
+// events:PutEvents on the bus (iam-enforcement-surfaces.md 8.4;
+// eb-event-bus-perms.html, eventbridge-buses.md 6.2), or nil, the service
+// principal, when it has none. A RoleArn that names no IAM role comes with
+// why the bus receives nothing: PutTargets checks only its length, and
+// understudy delivers as no principal it cannot name. The session name is
+// the kernel's (UNVERIFIED: the name EventBridge uses is unrecorded), and
+// no role id is needed, since only an SQS SenderId shows it.
+func targetRole(t *Target) (as delivery.Principal, why string) {
+	if t.RoleARN == nil {
+		return nil, ""
+	}
+	role, err := aws.ParseARN(*t.RoleARN)
+	name, isRole := strings.CutPrefix(role.Resource, "role/")
+	if _, acctErr := aws.ParseAccountID(role.Account); err != nil || acctErr != nil || role.Service != "iam" || !isRole || name == "" {
+		return nil, "RoleArn " + *t.RoleARN + " is not an IAM role, arn:<partition>:iam::<account>:role/<path><name>, so understudy cannot deliver as it"
+	}
+	return delivery.ExecutionRole{Role: role}, ""
 }
 
 // shape is the delivery of ev to target t of rule r, parsed as dt: the

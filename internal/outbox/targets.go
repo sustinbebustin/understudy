@@ -31,7 +31,7 @@ import (
 func (a *attempt) send(ctx context.Context, t delivery.Target) (journal.DeliveryOutcome, bool) {
 	switch t := t.(type) {
 	case delivery.SQSQueue:
-		return a.end(ctx, a.sendSQS(ctx, a.scope, sqsMessage{
+		return a.end(ctx, a.sendSQS(ctx, a.as(a.scope), sqsMessage{
 			queue: t.ARN, body: t.Body, attributes: t.Attributes, groupID: t.GroupID, dedupID: t.DedupID, traceHeader: t.TraceHeader,
 		}))
 	case delivery.LambdaFunction:
@@ -376,8 +376,8 @@ type sqsMessage struct {
 	traceHeader string
 }
 
-// sendSQS sends m to its queue in scope.
-func (a *attempt) sendSQS(ctx context.Context, scope aws.Scope, m sqsMessage) *awserr.Error {
+// sendSQS sends m to its queue, as and in the scope t names.
+func (a *attempt) sendSQS(ctx context.Context, t kernel.Target, m sqsMessage) *awserr.Error {
 	in := &sqsapi.SendMessageInput{QueueUrl: queueURL(m.queue), MessageBody: m.body}
 	if len(m.attributes) > 0 {
 		in.MessageAttributes = make(map[string]sqsapi.MessageAttributeValue, len(m.attributes))
@@ -397,7 +397,7 @@ func (a *attempt) sendSQS(ctx context.Context, scope aws.Scope, m sqsMessage) *a
 			sqsapi.MessageSystemAttributeNameForSendsAWSTraceHeader: {DataType: "String", StringValue: &m.traceHeader},
 		}
 	}
-	_, err := kernel.Invoke(ctx, a.e.k, a.c, sqsapi.OpSendMessage, a.as(scope), in)
+	_, err := kernel.Invoke(ctx, a.e.k, a.c, sqsapi.OpSendMessage, t, in)
 	return err
 }
 

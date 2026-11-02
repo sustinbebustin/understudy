@@ -195,6 +195,58 @@ func TestEventsToEventsAttemptCarriesTheEnvelope(t *testing.T) {
 	}, kerneltest.Services(eventbridgeapi.Service()))
 }
 
+// An event bus target with a RoleArn is delivered as a session of that role
+// (iam-enforcement-surfaces.md 8.4; eb-event-bus-perms.html): Enqueue takes
+// an events-to-events request with As, the PutEvents runs as the role's
+// session in the destination bus's scope, and a dead letter is still sent
+// as events.amazonaws.com, which the queue policy grants (8.1,
+// eb-rule-dlq.html). As stays refused on the other EventBridge mechanisms,
+// and an As naming no IAM role is refused.
+func TestEventsToEventsWithARoleRunsAsItsSession(t *testing.T) {
+	run(t, func(k *kerneltest.K, o *outbox.Outbox) {
+		q := stubQueues(k, func(int, *sqsapi.SendMessageInput) *awserr.Error { return nil })
+		calls := stubBus(k, func(n int) string {
+			if n > 0 {
+				return "InternalFailure"
+			}
+			return ""
+		})
+		role := aws.ARN{Partition: "aws", Service: "iam", Account: "000000000000", Resource: "role/forwarder"}
+		req := toBus(theirBus(), delivery.EventBridgeTarget{MaxAge: 24 * time.Hour, MaxAttempts: 0})
+		req.As = delivery.ExecutionRole{Role: role}
+		dlq := arn("sqs", "events-dlq")
+		req.DLQ = &dlq
+		cause := source(k)
+		enqueue(k, o, req, cause)
+		enqueue(k, o, req, cause)
+		settled(k)
+		advance(k, time.Hour)
+		got := calls.all()
+		if len(got) != 2 {
+			k.Fatalf("%d PutEvents calls, want 2", len(got))
+		}
+		r, ok := got[0].principal.(identity.AssumedRole)
+		if !ok || r.Account.String() != "000000000000" || r.Role.Name != "forwarder" || got[0].scope.Account.String() != "111111111111" {
+			k.Errorf("PutEvents by %#v in %v, want a session of role forwarder in the bus's scope 111111111111", got[0].principal, got[0].scope)
+		}
+		sent := q.sent()
+		if len(sent) != 1 || sent[0].principal != (identity.ServicePrincipal{Name: "events.amazonaws.com"}) {
+			k.Errorf("dead letters = %+v, want one sent as events.amazonaws.com", sent)
+		}
+		other := toQueue("q", delivery.EventBridgeTarget{MaxAge: time.Hour, MaxAttempts: 3})
+		other.Mechanism, other.Source = delivery.EventsToSQS, busRule()
+		other.As = req.As
+		if _, err := o.Enqueue(other, ref.Cause{}, k.Clock.Now()); err == nil {
+			k.Error("Enqueue of an events-to-SQS delivery with As accepted, want it refused")
+		}
+		notRole := req
+		notRole.As = delivery.ExecutionRole{Role: arn("sqs", "q")}
+		if _, err := o.Enqueue(notRole, ref.Cause{}, k.Clock.Now()); err == nil {
+			k.Error("Enqueue of an events-to-events delivery as a queue ARN accepted, want it refused")
+		}
+	}, kerneltest.Services(eventbridgeapi.Service()))
+}
+
 // The snapshot record of an event bus entry gained its envelope (version
 // 2), then a Lambda delivery's sender and a queue target's trace header
 // (version 3), then a request's aws:SourceAccount (version 4), so a section

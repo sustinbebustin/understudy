@@ -24,8 +24,10 @@ func (s *Service) bindTargets(b eventbridgeapi.Binder) {
 	b.PutTargets(s.putTargets,
 		registry.Partial{Note: "Lambda function, SQS queue and SNS topic targets in the rule's region, and event bus targets in any served account and region; " +
 			"RoleArn, RetryPolicy and DeadLetterConfig are stored, and the retry policy and dead-letter queue apply to deliveries; " +
-			"RoleArn is not assumed, so under iam.enforce=enforce every function, queue, topic and event bus delivery is decided for events.amazonaws.com against the target's policy, and one it refuses is not retried " +
-			"and goes to the dead-letter queue with ERROR_CODE NO_PERMISSIONS (events.delivery.denied-code), else is dropped; no topic policy is added (events.put-targets.sns-policy); " +
+			"an event bus target with a RoleArn is delivered as a session of that role, which under iam.enforce=enforce must trust events.amazonaws.com and be allowed events:PutEvents on the bus, " +
+			"and one events.amazonaws.com cannot assume is not retried and goes to the dead-letter queue with ERROR_CODE FAILED_TO_ASSUME_ROLE; the session name and the trust request's aws:SourceArn and aws:SourceAccount are inferred; " +
+			"a RoleArn that names no IAM role delivers nothing; the RoleArn of a function, queue or topic target is not assumed, so under iam.enforce=enforce those deliveries and a bus target without a RoleArn are decided for events.amazonaws.com against the target's policy; " +
+			"a delivery the target refuses is not retried and goes to the dead-letter queue with ERROR_CODE NO_PERMISSIONS (events.delivery.denied-code), else is dropped; no topic policy is added (events.put-targets.sns-policy); " +
 			"a target with HttpParameters, KinesisParameters, EcsParameters, BatchParameters, RunCommandParameters, RedshiftDataParameters, SageMakerPipelineParameters or AppSyncParameters, " +
 			"or an event bus target of the rule's account with Input, InputPath or InputTransformer, fails its entry with NotImplemented; " +
 			"a rule on another account's or region's bus answers NotImplemented"},
@@ -185,7 +187,7 @@ func checkCrossAccountBus(scope aws.Scope, dt busTarget, t *eventbridgeapi.Targe
 // eventbridge-buses.md 6.3, EBB-09), and a call without one keeps the role
 // of the target it replaces when the Arn is the same ("a PutTargets call
 // without a role on the same target (same Id and Arn) will not remove the
-// role", API_PutTargets). The role is stored, not assumed.
+// role", API_PutTargets). The fan-out delivers as the role (targetRole).
 func withCrossAccountRole(scope aws.Scope, t Target, replaced *Target) (Target, *awserr.Error) {
 	dt, _ := targetOf(scope, t.ARN)
 	if bus, isBus := dt.(busTarget); !isBus || !bus.crossAccount(scope) || t.RoleARN != nil {

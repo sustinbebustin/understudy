@@ -40,7 +40,8 @@ type endpointError struct{ reason string }
 
 // senderRefusal is a delivery its sender refused before calling the
 // target: a Scheduler invocation whose execution role could not be
-// assumed or whose role session may not decrypt with the schedule's key
+// assumed or whose role session may not decrypt with the schedule's key,
+// or an event bus target whose RoleArn could not be assumed
 // (invocation.go). code is the dead letter's ERROR_CODE and message the
 // Authorizer's denial.
 type senderRefusal struct{ code, message string }
@@ -156,14 +157,20 @@ func deadLetterOf(e *Entry, dlq aws.ARN, f failure, end ending) (sqsMessage, err
 // values and the error code vocabulary, not their data type or when the
 // condition is absent: understudy sends every one as a String and leaves
 // the condition out when the target refused the delivery outright, since
-// then no retry limit was reached. No EventBridge mechanism delivers to an
+// then no retry limit was reached. A delivery refused before its target
+// call, an event bus target whose RoleArn could not be assumed, carries
+// the refusal's code, FAILED_TO_ASSUME_ROLE. No EventBridge mechanism delivers to an
 // HTTP endpoint yet; its failure, a 429 included, is sent as
 // ERROR_FROM_TARGET with its reason as the message. That code choice is
 // UNVERIFIED: no research covers an EventBridge HTTP target's dead letter.
 func eventBridgeAttributes(e *Entry, f failure, end ending) []delivery.MessageAttribute {
 	code, message := "ERROR_FROM_TARGET", describeFailure(f)
-	if te, ok := f.(targetError); ok {
-		code, message = eventBridgeErrorCode(te.err), errorMessage(te.err)
+	switch f := f.(type) {
+	case targetError:
+		code, message = eventBridgeErrorCode(f.err), errorMessage(f.err)
+	case senderRefusal:
+		code, message = f.code, f.message
+	case endpointError:
 	}
 	attrs := []delivery.MessageAttribute{
 		stringAttribute("RULE_ARN", e.Request.Source.String()),

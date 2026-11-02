@@ -23,6 +23,15 @@ const schedulerPrincipal = "scheduler.amazonaws.com"
 // unrecorded.
 const roleUnassumableCode = "AccessDenied"
 
+// eventsPrincipal is the service principal that assumes an EventBridge
+// target's RoleArn (iam-enforcement-surfaces.md 8.4).
+const eventsPrincipal = "events.amazonaws.com"
+
+// targetRoleUnassumableCode is the ERROR_CODE of an EventBridge dead letter
+// whose target's RoleArn could not be assumed (eb-rule-dlq.html;
+// iam-enforcement-surfaces.md 8.4).
+const targetRoleUnassumableCode = "FAILED_TO_ASSUME_ROLE"
+
 // keyDeniedCode is the ERROR_CODE of a Scheduler dead letter whose role
 // session may not decrypt with the schedule's key: KMS's denial,
 // AccessDeniedException (iam-enforcement-surfaces.md 12.3). UNVERIFIED
@@ -44,6 +53,9 @@ func (a *attempt) authorizeInvocation(ctx context.Context) (outcome journal.Deli
 	inv := req.Invocation
 	role, isRole := req.As.(delivery.ExecutionRole)
 	op := operationOf(req.Target)
+	if req.Mechanism == delivery.EventsToEvents && isRole && op != nil {
+		return a.authorizeTargetRole(ctx, op, role)
+	}
 	if inv == nil || !isRole || op == nil {
 		return nil, true, false
 	}
@@ -61,6 +73,31 @@ func (a *attempt) authorizeInvocation(ctx context.Context) (outcome journal.Deli
 	decrypt := kernel.AuthzQuery{Pairs: []kernel.Pair{{Action: registry.IAMAction{Prefix: "kms", Name: "Decrypt"}, Resource: kernel.ResourceARN{ARN: *inv.Key}}}}
 	if err := kernel.AuthorizeBefore(ctx, a.e.k, a.c, op, session, decrypt); err != nil {
 		outcome, ok := a.refusedBefore(ctx, err, keyDeniedCode)
+		return outcome, ok, true
+	}
+	return nil, true, false
+}
+
+// authorizeTargetRole asks, before an event bus target's PutEvents, that
+// events.amazonaws.com may assume the target's RoleArn: the role's trust
+// must allow events.amazonaws.com (iam-enforcement-surfaces.md 8.4). The
+// question is asked in the rule's account and region, where the role is
+// passed. Under enforce a denial is a permanent failure, dead-lettered
+// with ERROR_CODE FAILED_TO_ASSUME_ROLE, a documented sample value
+// (eb-rule-dlq.html; 8.4), and the bus is never called. UNVERIFIED: that
+// the trust request carries aws:SourceArn the rule and aws:SourceAccount
+// its account is inferred from EventBridge's resource-policy deliveries
+// (8.1), as Scheduler's is for its group.
+func (a *attempt) authorizeTargetRole(ctx context.Context, op *registry.Operation, role delivery.ExecutionRole) (outcome journal.DeliveryOutcome, ok, done bool) {
+	rule := a.entry.Request.Source
+	trust := a.as(a.scope)
+	trust.As = kernel.AsService{Name: eventsPrincipal, Source: rule, SourceAccount: accountOf(rule)}
+	if scope, err := scopeOf(rule); err == nil {
+		trust.Scope = scope
+	}
+	assume := kernel.AuthzQuery{Pairs: []kernel.Pair{{Action: registry.IAMAction{Prefix: "sts", Name: "AssumeRole"}, Resource: kernel.ResourceARN{ARN: role.Role}}}}
+	if err := kernel.AuthorizeBefore(ctx, a.e.k, a.c, op, trust, assume); err != nil {
+		outcome, ok := a.refusedBefore(ctx, err, targetRoleUnassumableCode)
 		return outcome, ok, true
 	}
 	return nil, true, false

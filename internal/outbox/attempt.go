@@ -449,10 +449,10 @@ func (a *attempt) wait(ctx context.Context, d time.Duration) bool {
 // (iam-evaluation.md 2.4). A Scheduler delivery (req.As) runs as a session
 // of the schedule's execution role too, which needs no grant in the
 // target's resource policy (scheduler.md 1 item 1, 14.4.4). Under
-// iam.enforce the attempt's calls are decided as the principal as() names.
-// An event bus target is then decided as events.amazonaws.com against the
-// receiving bus's policy, not as its RoleArn: a deviation the PutTargets
-// coverage note states (docs/guide/differences.md).
+// iam.enforce the attempt's calls are decided as the principal as() names:
+// an event bus target with a RoleArn as a session of that role
+// (iam-enforcement-surfaces.md 8.4), one without as events.amazonaws.com
+// against the receiving bus's policy.
 func (a *attempt) advise(ctx context.Context) {
 	req := a.entry.Request
 	if a.e.policies == nil || req.Mechanism == delivery.EventsToEvents || req.Sender != nil || req.As != nil {
@@ -503,6 +503,20 @@ func (a *attempt) as(scope aws.Scope) kernel.Target {
 	}
 }
 
+// deadLetterAs is how the delivery's dead letter is sent: as every call of
+// the attempt (as), except that an event bus target's dead letter is sent
+// as events.amazonaws.com even when the delivery runs as its RoleArn: the
+// queue's policy grants EventBridge, not the role (eb-rule-dlq.html;
+// iam-enforcement-surfaces.md 8.1). A Scheduler dead letter is sent as the
+// execution role (scheduler.md 14.4.4).
+func (a *attempt) deadLetterAs(scope aws.Scope) kernel.Target {
+	t := a.as(scope)
+	if a.entry.Request.Mechanism == delivery.EventsToEvents {
+		t.As = kernel.AsService{Name: servicePrincipal(delivery.EventsToEvents), Source: a.entry.Request.Source, SourceAccount: a.entry.Request.SourceAccount}
+	}
+	return t
+}
+
 // deadLetter sends the delivery's dead letter to its dead-letter queue, or
 // drops it when it has none or the queue refuses it. f is how the last
 // attempt failed and end why it was not retried again.
@@ -520,7 +534,7 @@ func (a *attempt) deadLetter(ctx context.Context, f failure, end ending) (journa
 	if msgErr != nil {
 		return journal.Dropped{Reason: fmt.Sprintf("%s; its dead letter for %s could not be written: %v", why, dlq, msgErr)}, true
 	}
-	sendErr := a.sendSQS(ctx, scope, m)
+	sendErr := a.sendSQS(ctx, a.deadLetterAs(scope), m)
 	if ctx.Err() != nil {
 		return nil, false
 	}

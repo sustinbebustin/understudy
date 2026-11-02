@@ -168,7 +168,7 @@ Custom buses take rules, targets, tags and `PutEvents` as the default bus does, 
   }
   ```
 
-- A target's `RoleArn` is stored, not assumed: an event bus target forwards whether or not the role may call `events:PutEvents`.
+- An event bus target's `RoleArn` is assumed: under `--iam-enforce enforce` the role must trust `events.amazonaws.com` and allow `events:PutEvents` on the bus, and an event whose role cannot be assumed goes to the dead-letter queue with `ERROR_CODE` `FAILED_TO_ASSUME_ROLE`. The session name, and the `aws:SourceArn` and `aws:SourceAccount` of the trust check, are inferred. A `RoleArn` that names no IAM role delivers nothing. The `RoleArn` of a function, queue or topic target is stored, not assumed: those deliveries are decided for `events.amazonaws.com` against the target's policy.
 - `KmsKeyIdentifier`, `DeadLetterConfig` and `LogConfig` are stored and returned, never applied: events are not encrypted, dead-lettered or logged. Any key identifier the model's pattern allows is accepted; whether AWS checks that the key exists is unrecorded.
 - AWS lets a call that takes a bus name or ARN name another account's or Region's bus by its ARN; another account's bus must allow the call in its policy. understudy answers 501 `NotImplemented` for rule, target and `DescribeEventBus` calls on such a bus; call with the bus owner's credentials in its Region instead.
 - An event bus target in the rule's own account with `Input`, `InputPath` or `InputTransformer` fails its `PutTargets` entry with `NotImplemented`, since AWS's answer is unrecorded.

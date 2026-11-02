@@ -89,6 +89,43 @@ func TestBusTargetForwardsTheMatchedEvent(t *testing.T) {
 	})
 }
 
+// An event bus target with a RoleArn is delivered as a session of that
+// role: the role's policy must allow events:PutEvents on the bus
+// (eb-event-bus-perms.html, eventbridge-buses.md 6.2;
+// iam-enforcement-surfaces.md 8.4). One without a RoleArn is delivered as
+// events.amazonaws.com, and one whose RoleArn names no IAM role is not
+// delivered.
+func TestBusTargetIsDeliveredAsItsRole(t *testing.T) {
+	run(t, func(h *harness) {
+		h.createBus("source")
+		dest := h.createBus("dest")
+		h.putRuleOn("source", "fwd", `{"source": ["shop"]}`)
+		for _, c := range []struct {
+			name string
+			role *string
+			want delivery.Principal
+		}{
+			{"with a RoleArn", new(invokerRole), delivery.ExecutionRole{Role: h.mustARN(invokerRole)}},
+			{"without a RoleArn", nil, nil},
+		} {
+			h.targetOn("source", "fwd", eventbridgeapi.Target{Id: "bus", Arn: dest, RoleArn: c.role})
+			h.putEvents(toBus("source"))
+			got := h.sink.take()
+			if len(got) != 1 {
+				t.Fatalf("%s: %d deliveries, want 1", c.name, len(got))
+			}
+			if as := got[0].Request.As; as != c.want {
+				t.Errorf("%s: delivered as %#v, want %#v", c.name, as, c.want)
+			}
+		}
+		h.targetOn("source", "fwd", eventbridgeapi.Target{Id: "bus", Arn: dest, RoleArn: new("arn:aws:sqs:us-east-1:000000000000:not-a-role")})
+		h.putEvents(toBus("source"))
+		if got := h.sink.take(); len(got) != 0 {
+			t.Errorf("a RoleArn naming no IAM role: %d deliveries %+v, want none", len(got), got)
+		}
+	})
+}
+
 // Forwarded to another account's bus in the same region, the event keeps
 // its id and the sender's account and region (eventbridge-buses.md 6.3,
 // third-party-recorded

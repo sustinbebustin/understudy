@@ -16,7 +16,8 @@ import (
 type Principal interface{ isPrincipal() }
 
 // ExecutionRole is a session of an IAM role: the schedule's execution role
-// for the Scheduler mechanisms (scheduler.md 9, 14.4.4).
+// for the Scheduler mechanisms (scheduler.md 9, 14.4.4), the event bus
+// target's RoleArn for EventsToEvents (iam-enforcement-surfaces.md 8.4).
 type ExecutionRole struct {
 	// Role is arn:<partition>:iam::<account>:role/<path><name>.
 	Role aws.ARN

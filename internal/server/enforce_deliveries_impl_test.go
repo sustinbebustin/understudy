@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -289,6 +290,127 @@ func TestEnforceFailsADeliveryToADeletedQueueAsMissing(t *testing.T) {
 	}
 	if got := wiredSwitch(t, c, "sqs.enforce.missing-resource.delivery"); got != "resolve-first" {
 		t.Errorf("sqs.enforce.missing-resource.delivery = %q, want resolve-first", got)
+	}
+}
+
+// An event bus target with a RoleArn is delivered as a session of the
+// role, which must trust events.amazonaws.com and allow events:PutEvents
+// on the target bus (iam-enforcement-surfaces.md 8.4;
+// eb-event-bus-perms.html, eventbridge-buses.md 6.2). A role EventBridge
+// cannot assume sends the event to the dead-letter queue with ERROR_CODE
+// FAILED_TO_ASSUME_ROLE, and a role session the bus refuses with
+// NO_PERMISSIONS, neither retried (eb-rule-dlq.html, 8.4). The dead letter
+// is sent as events.amazonaws.com, which the queue policy grants (8.1).
+func TestEnforceDeliversABusTargetAsItsRole(t *testing.T) {
+	const (
+		second = "arn:aws:events:us-east-1:000000000000:event-bus/second"
+		role   = "arn:aws:iam::000000000000:role/fwd"
+		dlq    = "arn:aws:sqs:us-east-1:000000000000:dlq"
+	)
+	putEvents := `{"Effect":"Allow","Action":"events:PutEvents","Resource":"` + second + `"}`
+	for _, c := range []struct {
+		name, trust, policy string
+		delivered           bool
+		code                string
+	}{
+		{"a role that does not exist", "", "", false, "FAILED_TO_ASSUME_ROLE"},
+		{"a role trusting lambda.amazonaws.com", trustOf("lambda.amazonaws.com"), putEvents, false, "FAILED_TO_ASSUME_ROLE"},
+		{"a trusted role without events:PutEvents", trustOf("events.amazonaws.com"), "", false, "NO_PERMISSIONS"},
+		{"a trusted role allowed events:PutEvents", trustOf("events.amazonaws.com"), putEvents, true, ""},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			client, endpoint, _ := enforced(t, server.IAMEnforceEnforce)
+			events := func(target, body string) {
+				t.Helper()
+				if w := jsonCall(t, dummy, endpoint, "events", "1.1", "AWSEvents."+target, body); w.status != http.StatusOK {
+					t.Fatalf("%s = %d %s", target, w.status, w.body)
+				}
+			}
+			if c.trust != "" {
+				iamAsRoot(t, endpoint, url.Values{"Action": {"CreateRole"}, "RoleName": {"fwd"}, "AssumeRolePolicyDocument": {c.trust}})
+			}
+			if c.policy != "" {
+				iamAsRoot(t, endpoint, url.Values{
+					"Action": {"PutRolePolicy"}, "RoleName": {"fwd"}, "PolicyName": {"p"},
+					"PolicyDocument": {`{"Version":"2012-10-17","Statement":[` + c.policy + `]}`},
+				})
+			}
+			mustSQS(t, endpoint, "CreateQueue", `{"QueueName":"reached"}`)
+			setQueuePolicy(t, endpoint, "reached", accountPolicy("events.amazonaws.com", "reached", "000000000000"))
+			mustSQS(t, endpoint, "CreateQueue", `{"QueueName":"dlq"}`)
+			setQueuePolicy(t, endpoint, "dlq", `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"events.amazonaws.com"},"Action":"sqs:SendMessage","Resource":"`+dlq+`"}]}`)
+			events("CreateEventBus", `{"Name":"second"}`)
+			events("PutRule", `{"Name":"in","EventBusName":"second","EventPattern":"{\"source\":[\"app\"]}"}`)
+			events("PutTargets", `{"Rule":"in","EventBusName":"second","Targets":[{"Id":"q","Arn":"arn:aws:sqs:us-east-1:000000000000:reached"}]}`)
+			events("PutRule", `{"Name":"fwd","EventPattern":"{\"source\":[\"app\"]}"}`)
+			events("PutTargets", `{"Rule":"fwd","Targets":[{"Id":"bus","Arn":"`+second+`","RoleArn":"`+role+`","DeadLetterConfig":{"Arn":"`+dlq+`"}}]}`)
+			events("PutEvents", `{"Entries":[{"Source":"app","DetailType":"tick","Detail":"{}"}]}`)
+			if bodies := queueBodies(t, client, endpoint, "reached"); (len(bodies) == 1) != c.delivered {
+				t.Errorf("queue behind the second bus holds %q; want the event forwarded = %v", bodies, c.delivered)
+			}
+			letters := deadLetters(t, endpoint)
+			switch {
+			case c.delivered && len(letters) != 0:
+				t.Errorf("dead letters %q, want none", letters)
+			case !c.delivered && (len(letters) != 1 || !strings.HasPrefix(letters[0], c.code+": ")):
+				t.Errorf("dead letters %q, want one with ERROR_CODE %s", letters, c.code)
+			}
+			if got := outcomesTo(t, client, second); len(got) != 1 {
+				t.Errorf("delivery outcomes to the second bus = %q, want one attempt, not retried", got)
+			}
+		})
+	}
+}
+
+// Across accounts a bus target's role session needs both its own policy
+// and the receiving bus's grant to the sender account
+// (eb-cross-account.html, eventbridge-buses.md 6.3; iam-evaluation.md
+// 2.4): with the grant the event is delivered, without it the bus refuses
+// it with NO_PERMISSIONS.
+func TestEnforceDeliversABusTargetInAnotherAccountAsItsRole(t *testing.T) {
+	const (
+		inbox = "arn:aws:events:us-east-1:111122223333:event-bus/inbox"
+		dlq   = "arn:aws:sqs:us-east-1:000000000000:dlq"
+	)
+	theirs := signer{key: "111122223333", secret: "test"}
+	for _, granted := range []bool{true, false} {
+		t.Run("granted="+strconv.FormatBool(granted), func(t *testing.T) {
+			client, endpoint, _ := enforced(t, server.IAMEnforceEnforce)
+			events := func(s signer, target, body string) {
+				t.Helper()
+				if w := jsonCall(t, s, endpoint, "events", "1.1", "AWSEvents."+target, body); w.status != http.StatusOK {
+					t.Fatalf("%s = %d %s", target, w.status, w.body)
+				}
+			}
+			iamAsRoot(t, endpoint, url.Values{"Action": {"CreateRole"}, "RoleName": {"fwd"}, "AssumeRolePolicyDocument": {trustOf("events.amazonaws.com")}})
+			iamAsRoot(t, endpoint, url.Values{
+				"Action": {"PutRolePolicy"}, "RoleName": {"fwd"}, "PolicyName": {"p"},
+				"PolicyDocument": {`{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"events:PutEvents","Resource":"` + inbox + `"}]}`},
+			})
+			mustSQS(t, endpoint, "CreateQueue", `{"QueueName":"dlq"}`)
+			setQueuePolicy(t, endpoint, "dlq", `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"events.amazonaws.com"},"Action":"sqs:SendMessage","Resource":"`+dlq+`"}]}`)
+			events(theirs, "CreateEventBus", `{"Name":"inbox"}`)
+			if granted {
+				events(theirs, "PutPermission", `{"EventBusName":"inbox","Action":"events:PutEvents","Principal":"000000000000","StatementId":"sender"}`)
+			}
+			events(dummy, "PutRule", `{"Name":"fwd","EventPattern":"{\"source\":[\"app\"]}"}`)
+			events(dummy, "PutTargets", `{"Rule":"fwd","Targets":[{"Id":"bus","Arn":"`+inbox+`","RoleArn":"arn:aws:iam::000000000000:role/fwd","DeadLetterConfig":{"Arn":"`+dlq+`"}}]}`)
+			events(dummy, "PutEvents", `{"Entries":[{"Source":"app","DetailType":"tick","Detail":"{}"}]}`)
+			if _, err := client.Settle(t.Context(), 10*time.Second); err != nil {
+				t.Fatal(err)
+			}
+			want := []string{"delivered"}
+			if !granted {
+				want = []string{"dead-lettered"}
+			}
+			if got := outcomesTo(t, client, inbox); !slices.Equal(got, want) {
+				t.Errorf("delivery outcomes to the other account's bus = %q, want %q", got, want)
+			}
+			letters := deadLetters(t, endpoint)
+			if !granted && (len(letters) != 1 || !strings.HasPrefix(letters[0], "NO_PERMISSIONS: ")) {
+				t.Errorf("dead letters %q, want one with ERROR_CODE NO_PERMISSIONS", letters)
+			}
+		})
 	}
 }
 

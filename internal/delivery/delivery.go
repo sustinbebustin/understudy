@@ -34,9 +34,11 @@ type Request struct {
 	// function's execution role.
 	Sender *LambdaSender
 	// As is the principal the Scheduler* mechanisms deliver as, the
-	// schedule's execution role (scheduler.md 14.4.4); nil for every other
-	// mechanism, whose principal is its service principal, or, for the
-	// Lambda* and ESM* mechanisms, Sender's role.
+	// schedule's execution role (scheduler.md 14.4.4), and that
+	// EventsToEvents delivers as when the event bus target has a RoleArn
+	// (iam-enforcement-surfaces.md 8.4); nil for every other delivery, whose
+	// principal is its service principal, or, for the Lambda* and ESM*
+	// mechanisms, Sender's role.
 	As Principal
 	// Invocation is set for the Scheduler* mechanisms and nil for every
 	// other: the outbox renders the target's payload from it before each
