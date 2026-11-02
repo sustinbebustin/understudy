@@ -1601,7 +1601,7 @@ Raw operations:
 | ListQueueTags | full | inferred, 2 of 5 claims |  |
 | ListQueues | full | inferred, 2 of 4 claims |  |
 | PurgeQueue | full | inferred, 2 of 5 claims |  |
-| SendMessage | full | inferred, 6 of 19 claims |  |
+| SendMessage | full | inferred, 7 of 20 claims |  |
 | SendMessageBatch | full | inferred, 6 of 9 claims |  |
 | SetQueueAttributes | full | inferred, 2 of 6 claims |  |
 | StartMessageMoveTask | full | inferred, 2 of 5 claims |  |
@@ -1801,7 +1801,7 @@ Internal operations:
 
 Behaviors chosen without AWS-recorded evidence, with the research they rest on and the parity scenario step that settles them, or why none does. The count and order follow the label the code states; the Label column shows the recording's verdict where a replayed step settles or contradicts the switch.
 
-228 switches: 1 aws-recorded, 5 third-party-recorded, 24 aws-doc, 198 inferred.
+229 switches: 1 aws-recorded, 5 third-party-recorded, 24 aws-doc, 199 inferred.
 
 | Switch | Value | Label | Reference | Settled by |
 |---|---|---|---|---|
@@ -2021,6 +2021,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `sqs.batch.unset-visibility-timeout` | `zero` | inferred | docs/research/sqs.md#62-sendmessagebatch-and-the-other-batch-apis | none: unrecorded: sqs/R01#06-cmv-batch sets VisibilityTimeout on every entry |
 | `sqs.denial.json-identity` | `header AccessDenied;Sender, __type com.amazon.coral.service#AccessDeniedException, 403` | inferred | docs/research/iam-enforcement-surfaces.md#3.2 | none: unrecorded: IAM-ENF-01 waits in the recording queue (iam-enforcement-surfaces.md 13) |
 | `sqs.denial.query-text` | `AccessDenied 403, Access to the resource <queue url> is denied., the URL on the endpoint the client addressed` | inferred | docs/research/iam-enforcement-surfaces.md#4.3 | none: unrecorded: IAM-ENF-02 waits in the recording queue (iam-enforcement-surfaces.md 13) |
+| `sqs.enforce.missing-resource.delivery` | `resolve-first` | inferred | docs/research/iam-enforcement-surfaces.md#8.2 | none: unrecorded: IAM-ENF-18 waits in the recording queue (iam-enforcement-surfaces.md 13) |
 | `sqs.fifo.content-dedup-id` | `lowercase-hex-sha256` | inferred | docs/research/sqs.md#82-deduplication | none: sqs/R01#07-fifo-recv1 holds the value, but the step differs on JSON member order, so a claim there would read contradicted for another reason |
 | `sqs.fifo.duplicate` | `original-message-id-and-sequence` | inferred | docs/research/sqs.md#82-deduplication | none: unrecorded: no recording shows what a suppressed FIFO duplicate send answers |
 | `sqs.fifo.receipt-expiry` | `delete-and-change-visibility` | inferred | docs/research/sqs.md#72-receipt-handles-deletemessage-changemessagevisibility | none: sqs/R01#07-fifo-delete-expired records the DeleteMessage half only; ChangeMessageVisibility on an expired FIFO handle is unrecorded |

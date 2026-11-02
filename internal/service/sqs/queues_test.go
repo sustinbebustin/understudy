@@ -131,6 +131,9 @@ func TestSwitchesNameEveryUnrecordedChoice(t *testing.T) {
 			// (iam-enforcement-surfaces.md 12.8).
 			"sqs.denial.json-identity": "header AccessDenied;Sender, __type com.amazon.coral.service#AccessDeniedException, 403",
 			"sqs.denial.query-text":    "AccessDenied 403, Access to the resource <queue url> is denied., the URL on the endpoint the client addressed",
+			// A delivery to a deleted queue fails as the missing queue
+			// (iam-enforcement-surfaces.md 8.2, sns.md 7.1).
+			"sqs.enforce.missing-resource.delivery": "resolve-first",
 		}
 		if !maps.Equal(got, want) {
 			h.Errorf("switches = %v, want %v", got, want)

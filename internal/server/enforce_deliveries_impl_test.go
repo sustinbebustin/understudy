@@ -243,6 +243,55 @@ func TestEnforceDeliversSNSWithTheTopicsAccountAndDeadLettersARefusal(t *testing
 	}
 }
 
+// A delivery to a deleted queue fails as the missing queue, not as a
+// denial: AWS logs it as the client error
+// AWS.SimpleQueueService.NonExistentQueue and the message lands in the
+// subscription's dead-letter queue (sns.md 7.1, AWS-recorded), which a
+// queue with no policy left could not show if SNS were authorized first
+// (iam-enforcement-surfaces.md 8.2, 8.4 keep the missing target apart from
+// the missing permission). A deleted dead-letter queue is missing the same
+// way, while the refusal that sends to it stays a journaled denial (switch
+// sqs.enforce.missing-resource.delivery).
+func TestEnforceFailsADeliveryToADeletedQueueAsMissing(t *testing.T) {
+	c, endpoint, _ := enforced(t, server.IAMEnforceEnforce)
+	topic := element(t, mustSNS(t, endpoint, url.Values{"Action": {"CreateTopic"}, "Name": {"orders"}}), "TopicArn")
+	for _, q := range []string{"gone", "letters", "refuses", "lost"} {
+		mustSQS(t, endpoint, "CreateQueue", `{"QueueName":"`+q+`"}`)
+	}
+	setQueuePolicy(t, endpoint, "gone", accountPolicy("sns.amazonaws.com", "gone", "000000000000"))
+	setQueuePolicy(t, endpoint, "letters", accountPolicy("sns.amazonaws.com", "letters", "000000000000"))
+	setQueuePolicy(t, endpoint, "lost", accountPolicy("sns.amazonaws.com", "lost", "000000000000"))
+	for queue, dlq := range map[string]string{"gone": "letters", "refuses": "lost"} {
+		mustSNS(t, endpoint, url.Values{
+			"Action": {"Subscribe"}, "TopicArn": {topic}, "Protocol": {"sqs"}, "Endpoint": {"arn:aws:sqs:us-east-1:000000000000:" + queue},
+			"Attributes.entry.1.key":   {"RedrivePolicy"},
+			"Attributes.entry.1.value": {`{"deadLetterTargetArn":"arn:aws:sqs:us-east-1:000000000000:` + dlq + `"}`},
+		})
+	}
+	for _, q := range []string{"gone", "lost"} {
+		mustSQS(t, endpoint, "DeleteQueue", `{"QueueUrl":"`+endpoint+`/000000000000/`+q+`"}`)
+	}
+	mustSNS(t, endpoint, url.Values{"Action": {"Publish"}, "TopicArn": {topic}, "Message": {"hello"}})
+	if got := queueBodies(t, c, endpoint, "letters"); len(got) != 1 || !strings.Contains(got[0], "hello") {
+		t.Errorf("dead-letter queue holds %q, want the notification to the deleted queue", got)
+	}
+	if got := outcomesTo(t, c, "arn:aws:sqs:us-east-1:000000000000:gone"); len(got) != 1 || got[0] != "dead-lettered" {
+		t.Errorf("delivery outcomes to the deleted queue = %q, want one dead-lettered attempt", got)
+	}
+	denied := enforcementAdvisories(t, c, "access-denied")
+	for _, missing := range []string{":gone", ":lost"} {
+		if i := slices.IndexFunc(denied, func(text string) bool { return strings.Contains(text, missing) }); i >= 0 {
+			t.Errorf("access-denied advisory %q names the deleted queue %s, want the delivery to fail as the missing queue", denied[i], missing)
+		}
+	}
+	if !slices.ContainsFunc(denied, func(text string) bool { return strings.Contains(text, ":refuses") }) {
+		t.Errorf("access-denied advisories = %q, want the refusing queue's denial still journaled", denied)
+	}
+	if got := wiredSwitch(t, c, "sqs.enforce.missing-resource.delivery"); got != "resolve-first" {
+		t.Errorf("sqs.enforce.missing-resource.delivery = %q, want resolve-first", got)
+	}
+}
+
 // Under off the outbox's advisory supplies the aws:SourceAccount the
 // delivery sends: S3 sends the bucket owner's, which its bucket ARN does
 // not name, so a queue policy on the owner's account draws no advisory

@@ -133,6 +133,10 @@ const (
 	// afterResolve asks about every pair the binding declares once the
 	// handler resolved its resources (AuthorizedAfterResolve).
 	afterResolve
+	// afterResolveForDeliveries asks an AsService call as afterResolve
+	// does and every other call as atStep8 does
+	// (AuthorizedAfterResolveForDeliveries).
+	afterResolveForDeliveries
 )
 
 // authorizationOption is the option AuthorizedInHandler, NeverAuthorized
@@ -205,7 +209,8 @@ func NeverAuthorized() BindOption { return authorizationOption(never) }
 // platform call (which no policy grants, so recordAccess leaves it out
 // too), for a NeverAuthorized binding and for a call with no pair. An
 // AuthorizedInHandler binding is not asked about its primary action; an
-// AuthorizedAfterResolve binding is asked later (authorizeDeferred). keys
+// AuthorizedAfterResolve binding is asked later (authorizeDeferred), and so
+// is an AuthorizedAfterResolveForDeliveries binding's AsService call. keys
 // are the binding's WithConditionKeys for the input.
 //
 // Whether or not an Authorizer runs, the resources the call touched when
@@ -229,6 +234,11 @@ func (k *Kernel) authorize(ctx context.Context, c *Call, bnd *binding, used seco
 	case afterResolve:
 		c.deferred = &deferred{ctx: ctx, used: used, keys: keys, refused: bnd.refused}
 		return nil
+	case afterResolveForDeliveries:
+		if _, delivery := c.mode.(AsService); delivery {
+			c.deferred = &deferred{ctx: ctx, used: used, keys: keys, refused: bnd.refused}
+			return nil
+		}
 	}
 	pairs := pairsOf(actions, c.op.Service.IAMPrefix, c.fixPairing(), c.scoped)
 	if k.authorizer == nil || len(pairs) == 0 {
@@ -483,6 +493,22 @@ func (b *Bindings) ResolvedFirstOps(svc *registry.Service) []string {
 	for _, op := range svc.Operations {
 		bnd, ok := b.lookup(op)
 		if !ok || op.Kind != registry.Modeled || bnd.raw || bnd.authorization != afterResolve {
+			continue
+		}
+		out = append(out, op.ID.String())
+	}
+	return out
+}
+
+// DeliveryResolvedFirstOps lists, as AuthorizedOps does, the operations of
+// svc bound AuthorizedAfterResolveForDeliveries: a delivery to a target
+// that does not exist answers the target's not-found error before it is
+// authorized (sns.md 7.1; iam-enforcement-surfaces.md 8.2, 12.8).
+func (b *Bindings) DeliveryResolvedFirstOps(svc *registry.Service) []string {
+	var out []string
+	for _, op := range svc.Operations {
+		bnd, ok := b.lookup(op)
+		if !ok || op.Kind != registry.Modeled || bnd.raw || bnd.authorization != afterResolveForDeliveries {
 			continue
 		}
 		out = append(out, op.ID.String())

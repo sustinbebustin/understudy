@@ -94,6 +94,20 @@ func scope(scoped []scopedResources, c *Call, in any) (scoping, []aws.ARN) {
 // awserr.Denial through unchanged.
 func AuthorizedAfterResolve() BindOption { return authorizationOption(afterResolve) }
 
+// AuthorizedAfterResolveForDeliveries asks a delivery (an AsService call)
+// as AuthorizedAfterResolve does, existence first, and every other call at
+// step 8, deny-first. It is for an operation that receives deliveries to a
+// target named by name or URL, such as SQS SendMessage: AWS fails a
+// delivery to a deleted target as the missing target, which has no policy
+// left to deny it (sns.md 7.1; iam-enforcement-surfaces.md 8.4 keeps the
+// missing target apart from the missing permission), while for a direct
+// caller the order stays unrecorded (iam-enforcement-surfaces.md 5.3).
+// With several of AuthorizedInHandler, NeverAuthorized,
+// AuthorizedAfterResolve and this, the last applies.
+func AuthorizedAfterResolveForDeliveries() BindOption {
+	return authorizationOption(afterResolveForDeliveries)
+}
+
 // WithConditionKeys supplies, from a call's valid input, request condition
 // keys AWS sends with the call, such as sts:ExternalId, aws:RequestTag/<key>
 // and aws:TagKeys. Step 8, and an AuthorizedAfterResolve binding's

@@ -2,6 +2,7 @@ package kernel_test
 
 import (
 	"context"
+	"net/http"
 	"reflect"
 	"testing"
 
@@ -158,5 +159,69 @@ func TestAuthorizedAfterResolveWithoutAnAuthorizer(t *testing.T) {
 		if got := callEvent(k, call).Resources; !reflect.DeepEqual(got, []aws.ARN{guardThing1}) {
 			k.Errorf("journaled resources = %v, want the resolved thing", got)
 		}
+	})
+}
+
+// AuthorizedAfterResolveForDeliveries asks a delivery existence first: a
+// delivery to a missing target answers the target's not-found error
+// unasked (sns.md 7.1), and one to an existing target is still asked
+// before its first Write. Every other call is asked at step 8, deny-first
+// (iam-enforcement-surfaces.md 5.3, iam.enforce.missing-resource).
+func TestAuthorizedAfterResolveForDeliveriesDefersDeliveriesOnly(t *testing.T) {
+	g := newGuard(guardDenial())
+	a := &fakeAuthorizer{decide: denyAction(guardProbe, "probe denied")}
+	missing := &awserr.Error{ID: awserr.Identity{Shape: "dev.understudy.test#NoSuchThing", QueryCode: "NoSuchThing", JSONType: "NoSuchThing", Status: http.StatusNotFound, Fault: awserr.Sender}, Message: "no such thing"}
+	runGuard(t, g, a, func(k *kerneltest.K) {
+		p := cells(k)
+		ran, wrote := 0, 0
+		bindGuard(k, g.probe, func(_ context.Context, c *kernel.Call, in *guardInput) (*guardOutput, *awserr.Error) {
+			ran++
+			if in.Invalid {
+				return nil, missing
+			}
+			c.Touch(guardThing1)
+			if _, err := kernel.Write(c, p, c.Scope(), func(*int, clock.Instant, *kernel.Tx) (int, *awserr.Error) {
+				wrote++
+				return 0, nil
+			}); err != nil {
+				return nil, err
+			}
+			return &guardOutput{}, nil
+		}, kernel.AuthorizedAfterResolveForDeliveries())
+		results := map[string]*awserr.Error{}
+		bindGuard(k, g.run, func(ctx context.Context, c *kernel.Call, _ *guardInput) (*guardOutput, *awserr.Error) {
+			modes := map[string]kernel.PrincipalMode{
+				"service": kernel.AsService{Name: "guard.amazonaws.com", Source: guardThing2},
+				"caller":  kernel.AsCaller{},
+			}
+			for name, as := range modes {
+				for _, invalid := range []bool{true, false} {
+					key := name + map[bool]string{true: " missing", false: " existing"}[invalid]
+					_, results[key] = kernel.Invoke(ctx, k.Kernel, c, g.probe, kernel.Target{Scope: c.Scope(), As: as, Via: ref.SNSDelivery}, &guardInput{Invalid: invalid})
+				}
+			}
+			return &guardOutput{}, nil
+		})
+		if _, err := k.Invoke(k.Context(), g.run, &guardInput{}); err != nil {
+			k.Fatalf("call = %s", err.Message)
+		}
+		if err := results["service missing"]; err == nil || err.ID != missing.ID {
+			k.Errorf("a delivery to a missing target = %+v, want the handler's not-found error", err)
+		}
+		for _, key := range []string{"service existing", "caller missing", "caller existing"} {
+			wantDenial(k, results[key], "probe denied")
+		}
+		if ran != 2 {
+			k.Errorf("the probe handler ran %d times, want twice (the deliveries only)", ran)
+		}
+		if wrote != 0 {
+			k.Errorf("a denied Write ran its closure %d times, want none", wrote)
+		}
+		if got := len(a.about(g.probeDesc)); got != 3 {
+			k.Errorf("the Authorizer was asked about the probe %d times, want 3 (not for the missing delivery target)", got)
+		}
+
+		_, err := k.Invoke(k.Context(), g.probe, &guardInput{Invalid: true})
+		wantDenial(k, err, "probe denied")
 	})
 }

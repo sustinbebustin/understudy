@@ -281,6 +281,7 @@ These match understudy's principal modes (`AsService`, `AsExecutionRole`, `AsCal
 - Metrics: `NumberOfNotificationsFailed`: "For Amazon SQS, email, SMS, or mobile push endpoints, the metric increments by 1 when Amazon SNS stops attempting message deliveries"; `NumberOfNotificationsRedrivenToDlq`, `NumberOfNotificationsFailedToRedriveToDlq`; dimension `TopicName` ([SNS metrics](https://docs.aws.amazon.com/sns/latest/dg/sns-monitoring-using-cloudwatch.html), aws-doc).
 - The DLQ must be in the subscription's account and Region and must itself allow `sns.amazonaws.com` (same DLQ page; [sns.md](sns.md) 7.4).
 - That a refused SQS delivery lands in the DLQ with no retry is documented only through the "policy changed" sentence; the end-to-end behavior is UNVERIFIED (IAM-ENF-18). Whether `Subscribe` itself checks the queue policy is UNVERIFIED (IAM-ENF-19); the plausible answer is that it does not.
+- A delivery to a deleted queue fails as `AWS.SimpleQueueService.NonExistentQueue`, 400, and lands in the subscription DLQ ([sns.md](sns.md) 7.1, AWS blog and AWS-recorded). A deleted queue has no policy left, so had SNS been authorized first the failure would be a denial: for a delivery, existence comes before authorization (inferred). understudy asks SQS `SendMessage` from a delivery existence first and every other caller deny-first (5.3), under switch `sqs.enforce.missing-resource.delivery` = `resolve-first` (12.8) until IAM-ENF-18. Lambda `Invoke` from a delivery (a missing function is a client error, [sns.md](sns.md) 7.1) and SNS `Publish` from S3, EventBridge or CloudWatch still ask first: UNVERIFIED in understudy's order, plausible: the same.
 
 ### 8.3 S3 notifications: refused at configuration, and later
 
@@ -543,6 +544,7 @@ Leave unbound (501): EventBridge `PutPermission`/`RemovePermission`, Logs `PutRe
 | `iam.enforce.order` | `validate-first` | inferred | 5.3 | IAM-ENF-13 |
 | `iam.enforce.missing-resource` | `deny-first` (S3 object reads: `list-bucket-decides`, aws-doc) | inferred | 5.1, 5.3 | IAM-ENF-14 |
 | `iam.enforce.missing-resource.by-name`, `kms.enforce.missing-resource.by-name`, `secretsmanager.enforce.missing-resource.by-name` | `resolve-first` (amended 2026-10-27: the operations that find their resource by name) | inferred | 5.3 | IAM-ENF-14 |
+| `sqs.enforce.missing-resource.delivery` | `resolve-first` for a delivery to SQS `SendMessage`; every other caller `deny-first` | inferred (from the AWS-recorded NonExistentQueue failure, [sns.md](sns.md) 7.1) | 8.2 | IAM-ENF-18 |
 | `iam.context.secure-transport` | `true` | inferred | 9.1 | none needed: AWS's own value is always true for its HTTPS endpoints; the choice is understudy's |
 | `iam.denial.grammar` | the 4.1 table, one reason, `on resource:` on explicit denials only | aws-doc (phrases, one reason); inferred (`on resource:` placement) | 4.1 | IAM-ENF-15 |
 | `sqs.denial.json-identity` | header `AccessDenied;Sender`, `__type` `com.amazon.coral.service#AccessDeniedException`, 403 | inferred | 3.2 | IAM-ENF-01 |
@@ -950,7 +952,7 @@ Expected under the default: both role calls answer `AuthorizationError`. Cost un
 
 ### 13.20 IAM-ENF-18. SNS delivery refused by the target policy
 
-Settles `sns.delivery.source-account` (8.1) and the client-side-error path (8.2): a refused SQS delivery lands in the subscription DLQ with no retry and counts in `NumberOfNotificationsFailed`; then whether a policy conditioned only on `aws:SourceAccount` admits SNS, for SQS and for Lambda.
+Settles `sns.delivery.source-account` (8.1) and the client-side-error path (8.2): a refused SQS delivery lands in the subscription DLQ with no retry and counts in `NumberOfNotificationsFailed`; then whether a policy conditioned only on `aws:SourceAccount` admits SNS, for SQS and for Lambda. Its sns.md 7.1 counterpart, a delivery to a deleted queue that answers NonExistentQueue and not a denial, settles `sqs.enforce.missing-resource.delivery` (8.2).
 
 ```sh
 aws sqs create-queue --queue-name "$P-enf-sq"; SQ="$Q/$P-enf-sq"; SQA="arn:aws:sqs:$R:$A:$P-enf-sq"

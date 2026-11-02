@@ -22,10 +22,13 @@ import (
 	"github.com/sustinbebustin/understudy/internal/registry"
 )
 
-// bindSends binds SendMessage and SendMessageBatch.
+// bindSends binds SendMessage and SendMessageBatch. SendMessage receives
+// the deliveries of SNS, S3, EventBridge and CloudWatch, and a delivery to
+// a deleted queue fails as QueueDoesNotExist, not as a denial (sns.md 7.1).
 func (s *Service) bindSends(b sqsapi.Binder) {
 	b.SendMessage(s.sendMessage, registry.Full{},
 		kernel.WithCheck(checkSendMessage),
+		kernel.AuthorizedAfterResolveForDeliveries(),
 		queueByURL(func(in *sqsapi.SendMessageInput) string { return in.QueueUrl }))
 	b.SendMessageBatch(s.sendMessageBatch, registry.Full{},
 		kernel.WithCheck(checkSendMessageBatch),
