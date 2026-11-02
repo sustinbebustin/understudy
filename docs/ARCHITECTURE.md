@@ -1278,7 +1278,7 @@ type Request struct {
 	Policy    RetryPolicy // SNSManaged | EventBridgeTarget{MaxAge, MaxAttempts} | S3Notification | SNSHTTP{phase counts, delay targets, BackoffFunction, MaxReceivesPerSecond} | None
 	DLQ       *aws.ARN
 	Sender    *LambdaSender // {Role, Carries: DestinationRecord | DeadLetter}; set for the Lambda and ESM mechanisms alone, which run as the execution role
-	As         Principal            // ExecutionRole{Role, RoleID, Session}; the Scheduler mechanisms alone, which run as a session of the schedule's execution role
+	As         Principal            // ExecutionRole{Role, RoleID, Session}; the Scheduler mechanisms, which run as a session of the schedule's execution role, and EventsToEvents when the event bus target has a RoleArn (iam-enforcement-surfaces.md 8.4)
 	Invocation *SchedulerInvocation // {ScheduleARN, TargetARN, Scheduled, ExecutionID, Template, OnPermanent}; the Scheduler mechanisms alone: each attempt's payload is rendered from it
 }
 ```
