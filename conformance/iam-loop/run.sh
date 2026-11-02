@@ -216,12 +216,19 @@ printf '%s\n' '{"lambda": {"stateTransitions": "clock"}, "sqs": {"queueDeletedRe
 # Groups: aws-cli one per tests/<stem>.sh, go-sdk one per <stem>_test.go
 # declaring a test the binary lists. group_arg holds the aws-cli stem or the
 # go-sdk -test.run alternation.
-declare -A group_arg=()
+#
+# The emulator clock is one per server, and a reset with "clock" rewinds it
+# to wall time. A group whose file moves or reads it (/clock, frozenClock(,
+# advanceClock() is exclusive: it runs with no other group beside it, as its
+# tests run serially within one suite run.
+declare -A group_arg=() exclusive=()
+clock_pattern='/clock|frozenClock\(|advanceClock\('
 all_groups=()
 for file in "$repo"/conformance/aws-cli/tests/*.sh; do
 	stem="$(basename -- "$file" .sh)"
 	all_groups+=("aws-cli-$stem")
 	group_arg["aws-cli-$stem"]="$stem"
+	! grep -qE -- "$clock_pattern" "$file" || exclusive["aws-cli-$stem"]=1
 done
 declare -A test_file=()
 while IFS= read -r line; do
@@ -246,6 +253,7 @@ while IFS= read -r g; do
 	[ -n "$g" ] || continue
 	all_groups+=("$g")
 	group_arg["$g"]="${gosdk_tests[$g]}"
+	! grep -qE -- "$clock_pattern" "$repo/conformance/go-sdk/${g#go-sdk-}_test.go" || exclusive["$g"]=1
 done < <(printf '%s\n' "${!gosdk_tests[@]}" | sort)
 
 groups=()
@@ -257,6 +265,9 @@ for g in "${all_groups[@]}"; do
 	fi
 done
 note "groups selected: ${#groups[@]} of ${#all_groups[@]} (IAM_LOOP_GROUPS='${IAM_LOOP_GROUPS-}', IAM_LOOP_JOBS=$jobs, seed $seed)"
+for g in "${groups[@]}"; do
+	[ -z "${exclusive[$g]-}" ] || note "$g moves or reads the emulator clock; it runs alone"
+done
 
 # start_server MODE: serve on a fresh data directory with --iam-enforce MODE.
 # SNS delivers http subscriptions to loopback ports only, where the SNS HTTP
@@ -407,11 +418,21 @@ run_group() {
 # run_groups PHASE: run PHASE_group for each selected group, at most $jobs at
 # a time. When $jobs run, the oldest is waited for before the next starts;
 # the server is a background job too, so only the groups' own are waited
-# for. A phase function that stops before writing its done marker (an
+# for. An exclusive group waits for every running group, then runs alone.
+# A phase function that stops before writing its done marker (an
 # unexpected error under set -e) fails the group's (b).
 run_groups() {
-	local phase=$1 g active=()
+	local phase=$1 g pid active=()
 	for g in "${groups[@]}"; do
+		if [ -n "${exclusive[$g]-}" ]; then
+			for pid in "${active[@]}"; do
+				wait "$pid" || true
+			done
+			active=()
+			"${phase}_group" "$g" &
+			wait "$!" || true
+			continue
+		fi
 		if [ "${#active[@]}" -ge "$jobs" ]; then
 			wait "${active[0]}" || true
 			active=("${active[@]:1}")

@@ -15,7 +15,7 @@ It needs everything the aws-cli and go-sdk suites need (the AWS CLI, Go, jq, cur
 | Variable | Default | Meaning |
 |---|---|---|
 | `IAM_LOOP_GROUPS` | unset: every group | Extended regex (`grep -E`, unanchored) over group names. `'^$'` selects none. An invalid regex exits 2. |
-| `IAM_LOOP_JOBS` | `1` | Groups run at most this many at a time, in the advise phase and in the enforce phase; a positive integer, else exit 2. |
+| `IAM_LOOP_JOBS` | `1` | Groups run at most this many at a time, in the advise phase and in the enforce phase; a positive integer, else exit 2. A group whose file moves or reads the emulator clock (`/clock`, `frozenClock(`, `advanceClock(`) runs alone: the clock is one per server, and a reset rewinds it. |
 | `IAM_LOOP_ROOT_SUITES` | `1` | `0` leaves step 6 out; its line reads `SKIP root-suites`. |
 | `CONFORMANCE_NAME_SEED` | `iam-loop-<8 hex>` | One seed for every group; resource names already include the test. |
 | `CONFORMANCE_DYNAMODB`, `CONFORMANCE_PORT` | | As in the other suites. |
