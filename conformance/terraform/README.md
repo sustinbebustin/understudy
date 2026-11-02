@@ -54,7 +54,7 @@ Requirements: Go, Terraform 1.16 or later, Docker (for Lambda), `uv` (for `scrip
 
 The `step` variable selects the scenario: `create` is the initial configuration and `update` the changed one. Each file's header says what the update changes.
 
-Resource names start with `tfc-<service>`. Each service signs with a 12-digit access key from which understudy derives a separate account (`100000000001` to `100000000018`, in the order of `all_services` in `run.sh`). So one service never sees another's resources, and the leftover check can ask understudy for exactly one account.
+Resource names start with `tfc-<service>`. Each service signs with a 12-digit access key from which understudy derives a separate account (`100000000001` to `100000000019`, in the order of `all_services` in `run.sh`). So one service never sees another's resources, and the leftover check can ask understudy for exactly one account.
 
 The provider is configured as the research documents for a custom endpoint (`tf-messaging.md` 1.2): the endpoint comes from `AWS_ENDPOINT_URL`, set by `scripts/sealed`, and the provider block sets `skip_credentials_validation`, `skip_requesting_account_id`, `skip_metadata_api_check` and `s3_use_path_style`. The endpoint is an IP literal, so S3 must use path style.
 
