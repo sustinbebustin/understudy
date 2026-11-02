@@ -641,17 +641,20 @@ test_custom_bus_schedule_refused() {
 # An event bus target forwards the matched event, which keeps its source,
 # detail-type, account, region and detail (eventbridge-buses.md 6.2,
 # third-party-recorded), and goes no further than one hop (6.5, aws-doc).
-# The targets' role trusts events.amazonaws.com and, under the IAM loop's
-# enforce run, is allowed events:PutEvents on the buses
-# (iam-enforcement-surfaces.md 8.4; eb-event-bus-perms.html).
+# The targets' role trusts events.amazonaws.com and its inline policy allows
+# events:PutEvents on the target buses (iam-enforcement-surfaces.md 8.4;
+# eb-event-bus-perms.html).
 test_bus_target_forwards_one_hop() {
-  local first first_arn second second_arn third_arn reached beyond source pattern acct role
+  local first first_arn second second_arn third_arn reached beyond source pattern acct role role_name
   new_bus; first=$BUS; first_arn=$BUS_ARN
   new_bus; second=$BUS; second_arn=$BUS_ARN
   new_bus; third_arn=$BUS_ARN
   local third=$BUS
   acct=$(cut -d: -f5 <<<"$first_arn")
-  role=$(make_role "$(new_name events-role)" "$EVENTS_TRUST")
+  role_name=$(new_name events-role)
+  role=$(make_role "$role_name" "$EVENTS_TRUST")
+  aws_ok iam put-role-policy --role-name "$role_name" --policy-name put-events \
+    --policy-document "$(jq -nc --arg a "$second_arn" --arg b "$third_arn" '{Version:"2012-10-17",Statement:[{Effect:"Allow",Action:"events:PutEvents",Resource:[$a,$b]}]}')"
   source="conformance.$first"
   pattern=$(jq -nc --arg s "$source" '{source:[$s]}')
   new_target_queue; reached=$QUEUE_URL

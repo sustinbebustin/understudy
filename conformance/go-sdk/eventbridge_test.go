@@ -3,6 +3,7 @@ package gosdk_test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strconv"
 	"strings"
 	"testing"
@@ -11,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/eventbridge"
 	"github.com/aws/aws-sdk-go-v2/service/eventbridge/types"
+	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/aws/aws-sdk-go-v2/service/lambda"
 	sqstypes "github.com/aws/aws-sdk-go-v2/service/sqs/types"
 )
@@ -659,10 +661,18 @@ func TestEventBridgeCustomBus(t *testing.T) {
 		pattern := `{"source":["` + source + `"]}`
 		reached := createQueue(t, name(t, "eb-second"), nil)
 		beyond := createQueue(t, name(t, "eb-third"), nil)
-		// The targets' role trusts events.amazonaws.com; under the IAM
-		// loop's enforce run it is allowed events:PutEvents on the buses
+		// The targets' role trusts events.amazonaws.com and its inline
+		// policy allows events:PutEvents on the target buses
 		// (iam-enforcement-surfaces.md 8.4; eb-event-bus-perms.html).
-		role := createRole(t, name(t, "events-role"), eventsTrustPolicy).Arn
+		roleName := name(t, "events-role")
+		role := createRole(t, roleName, eventsTrustPolicy).Arn
+		iamClient := iam.NewFromConfig(awsCfg)
+		policy := fmt.Sprintf(`{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"events:PutEvents","Resource":[%q,%q]}]}`, busARN(second), busARN(third))
+		_, err := iamClient.PutRolePolicy(ctx, &iam.PutRolePolicyInput{RoleName: aws.String(roleName), PolicyName: aws.String("put-events"), PolicyDocument: aws.String(policy)})
+		ok(t, err, "PutRolePolicy on "+roleName)
+		t.Cleanup(func() {
+			_, _ = iamClient.DeleteRolePolicy(context.Background(), &iam.DeleteRolePolicyInput{RoleName: aws.String(roleName), PolicyName: aws.String("put-events")})
+		})
 		putBusRule(t, first, name(t, "fwd"), pattern, types.Target{Id: aws.String("bus"), Arn: aws.String(busARN(second)), RoleArn: role})
 		inRule := putBusRule(t, second, name(t, "in"), pattern,
 			types.Target{Id: aws.String("q"), Arn: aws.String(queueArn(t, reached))},
@@ -672,7 +682,7 @@ func TestEventBridgeCustomBus(t *testing.T) {
 		allowQueueDelivery(t, reached, "events.amazonaws.com", inRule)
 		putBusRule(t, third, name(t, "last"), pattern, types.Target{Id: aws.String("q"), Arn: aws.String(queueArn(t, beyond))})
 
-		_, err := client.PutEvents(ctx, &eventbridge.PutEventsInput{Entries: []types.PutEventsRequestEntry{
+		_, err = client.PutEvents(ctx, &eventbridge.PutEventsInput{Entries: []types.PutEventsRequestEntry{
 			{Source: aws.String(source), DetailType: aws.String("Order Placed"), Detail: aws.String(`{"n":1}`), EventBusName: aws.String(first)},
 		}})
 		ok(t, err, "PutEvents to the first bus")
