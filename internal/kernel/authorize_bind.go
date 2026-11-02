@@ -81,13 +81,14 @@ func scope(scoped []scopedResources, c *Call, in any) (scoping, []aws.ARN) {
 // AuthorizedAfterResolve moves step 8 for the operation into its handler,
 // for an operation whose resource is named indirectly (an alias, a secret
 // name): the kernel asks about the binding's pairs over the resources the
-// call touched, at the first of the call's Write, its first Invoke or the
-// handler's successful return, and once only. Those resources are what the
+// call touched, at the first of the call's Write, its first Invoke, its
+// AuthorizeResolved or the handler's successful return, and once only. Those resources are what the
 // binding's WithResources resolved at step 7, before the handler ran, not
 // what the handler resolves again under its own read or write: a change
 // that lands between the two, such as an UpdateAlias retargeting the alias,
-// leaves the call asked about the resource step 7 resolved. A denial is what that Write or Invoke returns, before it takes a lock
-// or calls; at the return it replaces the handler's output. A handler error
+// leaves the call asked about the resource step 7 resolved. A denial is
+// what that Write, Invoke or AuthorizeResolved returns, before it takes a
+// lock or calls; at the return it replaces the handler's output. A handler error
 // before any of those is answered unauthorized, existence first. With several
 // of AuthorizedInHandler, NeverAuthorized and AuthorizedAfterResolve, the
 // last applies. A handler that maps errors from Invoke passes an
@@ -134,7 +135,8 @@ func conditionKeys(keys []func(*Call, any) ConditionKeys, c *Call, in any) Condi
 
 // deferred is the authorization an AuthorizedAfterResolve binding's call
 // owes: step 8 leaves it on the call, and the call's first Write, its first
-// Invoke or the handler's successful return asks it, once.
+// Invoke, its AuthorizeResolved or the handler's successful return asks it,
+// once.
 type deferred struct {
 	// ctx is the pipeline's context, since Write takes none.
 	ctx     context.Context //nolint:containedctx // Write has no context to pass; the call lives within the pipeline's.
