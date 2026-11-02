@@ -38,6 +38,8 @@ Two dependency groups in `pyproject.toml`, resolved into one `uv.lock`:
 
 1.34.89 is the last botocore that speaks the Query protocol to SQS (`sqs.md` 2.2). It installs and runs on Python 3.14. The pytest header prints the protocol in use.
 
+The Query protocol is SQS's alone, and botocore 1.34.89 predates members that other files send (Lambda's `InvokedViaFunctionUrl`, for one), so `legacy-query` never runs another file. A test path given to `run.sh` reaches it only when the path is in `tests/test_sqs.py`; when paths are given and none is, `run.sh` skips the environment and says so.
+
 ## Layout
 
 One file per service, so a fixer can own one service at a time.
