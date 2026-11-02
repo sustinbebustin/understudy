@@ -480,7 +480,7 @@ Without `version` it calls `ListLayerVersions` (with the compatible-runtime or a
 | GetLayerVersionPolicy | Full | |
 | CreateFunction | Partial | `a layer version is found only if it was published to understudy, which never fetches layers from AWS; PublishTo is refused; code signing and VPC networking are stored only` |
 | UpdateFunctionConfiguration | Partial | `a layer version is found only if it was published to understudy, which never fetches layers from AWS; code signing and VPC networking are stored only` |
-| PutFunctionEventInvokeConfig, UpdateFunctionEventInvokeConfig | Partial | `the execution role's permission to reach a destination is recorded, not checked; a failed delivery is journaled and not retried` (the last clause follows `lambda.destination.delivery-retry`) |
+| PutFunctionEventInvokeConfig, UpdateFunctionEventInvokeConfig | Partial | `the execution role's permission to reach a destination, and the resource policy of a destination in another account, are evaluated only under iam.enforce=advise, which journals each denial, or enforce, which fails the delivery; a failed delivery is journaled and not retried` (the last clause follows `lambda.destination.delivery-retry`) |
 | Invoke | Partial | drop `asynchronous invocations retry but do not deliver to destinations or dead-letter queues`; keep the other clauses |
 
 Nothing in scope stays unbound once layers land. Until the layer store exists, the current refusal is the honest answer and should stay (it is AWS's text for a version that does not exist).

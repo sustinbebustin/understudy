@@ -236,7 +236,7 @@ func TestDestinationAndLayerCoverageMarks(t *testing.T) {
 	const (
 		layerFound  = "a layer version is found only if it was published to understudy, which never fetches layers from AWS; "
 		location    = "Content.Location is a link understudy serves the archive at, not a presigned S3 URL"
-		eventInvoke = "the execution role's permission to reach a destination is recorded, not checked; a failed delivery is journaled and not retried"
+		eventInvoke = "the execution role's permission to reach a destination, and the resource policy of a destination in another account, are evaluated only under iam.enforce=advise, which journals each denial, or enforce, which fails the delivery; a failed delivery is journaled and not retried"
 	)
 	want := map[string]registry.BindCoverage{
 		"PublishLayerVersion":             registry.Partial{Note: "S3ObjectStorageMode REFERENCE is stored and the archive is copied as with COPY; the account code-storage quota is not enforced; layers are never signed"},

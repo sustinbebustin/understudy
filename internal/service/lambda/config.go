@@ -434,7 +434,7 @@ func (s *Service) bindEventInvokeConfigs(b lambdaapi.Binder) {
 	// Asynchronous invocations apply MaximumRetryAttempts,
 	// MaximumEventAgeInSeconds and DestinationConfig (async.go); the gaps
 	// are lambda-destinations-layers.md 11.1's.
-	const note = "the execution role's permission to reach a destination is recorded, not checked; a failed delivery is journaled and not retried"
+	const note = "the execution role's permission to reach a destination, and the resource policy of a destination in another account, are evaluated only under iam.enforce=advise, which journals each denial, or enforce, which fails the delivery; a failed delivery is journaled and not retried"
 	b.PutFunctionEventInvokeConfig(s.putEventInvokeConfig, partial(note))
 	b.UpdateFunctionEventInvokeConfig(s.updateEventInvokeConfig, partial(note))
 	b.GetFunctionEventInvokeConfig(s.getEventInvokeConfig, full())

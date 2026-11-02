@@ -334,7 +334,7 @@ On a Linux host functions reach only the AWS API and the read-only health and cl
 
 ## Limitations
 
-- An asynchronous invocation's record or dead letter that cannot be delivered is journaled and not retried; the execution role's permission to reach a destination is recorded, not checked.
+- An asynchronous invocation's record or dead letter that cannot be delivered is journaled and not retried. The execution role's permission to reach a destination, and the resource policy of a destination in another account, are evaluated only under `--iam-enforce advise`, which journals each denial, or `enforce`, which fails the delivery.
 - `EphemeralStorage` is validated but not enforced. Reserved concurrency is enforced; the provisioned concurrency operations answer 501.
 - AWS-published layers, such as Powertools, exist only once you publish their content to understudy.
 - The LocalStack convention of creating a function from the `hot-reload` bucket is not supported; use `understudy lambda hot-reload` or the configuration file.
