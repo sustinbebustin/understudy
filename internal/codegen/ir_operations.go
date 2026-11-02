@@ -57,6 +57,27 @@ func (b *builder) operations() error {
 	return b.nameShapes()
 }
 
+// wiring copies the config's Wiring after checking that each bound
+// operation is a modeled or internal operation of the service: a raw one has
+// no schemas to wire.
+func (b *builder) wiring() error {
+	b.ir.Wiring = b.cfg.Wiring
+	bound, ok := b.cfg.Wiring.(WireBound)
+	if !ok {
+		return nil
+	}
+	for _, name := range bound.Operations {
+		i := slices.IndexFunc(b.ir.Operations, func(o *OperationIR) bool { return o.Name == name })
+		switch {
+		case i < 0:
+			return failf(StageIR, b.configName(), "boundOperations names %s, which the model has no operation for; correct the name or remove it", name)
+		case !b.ir.Operations[i].HasIO():
+			return failf(StageIR, b.configName(), "boundOperations names %s, a raw operation, which has no schemas to wire; remove it", name)
+		}
+	}
+	return nil
+}
+
 // iamActions fills each modeled operation's IAM actions from the Service
 // Reference table, primary first. Internal operations are never
 // access-recorded and get none; raw ones state theirs in codegen/services.

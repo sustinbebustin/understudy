@@ -58,6 +58,7 @@ func Build(m *Model, cfg ServiceConfig, iam *iamTable, h Header) (*ServiceIR, er
 		b.service,
 		b.dataShapes,
 		b.operations,
+		b.wiring,
 		b.members,
 		b.checksums,
 		b.roles,

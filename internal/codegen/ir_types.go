@@ -43,6 +43,9 @@ type ServiceIR struct {
 	Routes []RouteIR
 	// RawBinding adds a <Op>Raw binder method per modeled operation.
 	RawBinding bool
+	// Wiring is the config's, its bound operations checked against
+	// Operations.
+	Wiring Wiring
 	// SerdeBoth emits both serde directions for every shape: a rawBinding
 	// service encodes inputs and decodes outputs for its passthrough, and
 	// the protocol compliance harness drives a corpus service both ways.

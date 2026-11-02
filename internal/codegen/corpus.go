@@ -37,7 +37,7 @@ const corpusOrigin = "smithy-protocol-tests@1.74.0"
 // generated API Gateway service meets (protocoltest.UngeneratedCases).
 func CorpusServices() []ServiceConfig {
 	svc := func(id smithy.ShapeID, pkg string) ServiceConfig {
-		return ServiceConfig{ID: ref.ServiceID(pkg), Service: id, Package: pkg, Destination: CorpusPackage{}}
+		return ServiceConfig{ID: ref.ServiceID(pkg), Service: id, Package: pkg, Destination: CorpusPackage{}, Wiring: WireAll{}}
 	}
 	return []ServiceConfig{
 		svc("aws.protocoltests.json10#JsonRpc10", "jsonrpc10"),
