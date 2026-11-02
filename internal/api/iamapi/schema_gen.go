@@ -7,139 +7,139 @@ import (
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy/document"
 )
 
-var schemaAcceptDelegationRequestInput = smithy.Schema{ID: "com.amazonaws.iam#AcceptDelegationRequestRequest", Type: smithy.TypeStructure}
+var schemaAcceptDelegationRequestInput = smithy.Schema{ID: "com.amazonaws.iam#AcceptDelegationRequestRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAcceptDelegationRequestInput_DelegationRequestId}}
 
-var memberAcceptDelegationRequestInput_DelegationRequestId = smithy.Member{Name: "DelegationRequestId", Index: 0, Required: true}
+var memberAcceptDelegationRequestInput_DelegationRequestId = smithy.Member{Name: "DelegationRequestId", Index: 0, Target: &schemaDelegationRequestIdType, Required: true}
 
 var schemaAccessAdvisorUsageGranularityType = smithy.Schema{ID: "com.amazonaws.iam#AccessAdvisorUsageGranularityType", Type: smithy.TypeEnum}
 
-var schemaAccessDenied = smithy.Schema{ID: "com.amazon.coral.service#AccessDenied", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+var schemaAccessDenied = smithy.Schema{ID: "com.amazon.coral.service#AccessDenied", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAccessDenied_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
 
-var memberAccessDenied_message = smithy.Member{Name: "message", Index: 0}
+var memberAccessDenied_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaAccessDeniedException = smithy.Schema{ID: "com.amazon.coral.service#AccessDeniedException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+var schemaAccessDeniedException = smithy.Schema{ID: "com.amazon.coral.service#AccessDeniedException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAccessDeniedException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
 
-var memberAccessDeniedException_message = smithy.Member{Name: "message", Index: 0}
+var memberAccessDeniedException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaAccessDetail = smithy.Schema{ID: "com.amazonaws.iam#AccessDetail", Type: smithy.TypeStructure}
+var schemaAccessDetail = smithy.Schema{ID: "com.amazonaws.iam#AccessDetail", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAccessDetail_ServiceName, &memberAccessDetail_ServiceNamespace, &memberAccessDetail_Region, &memberAccessDetail_EntityPath, &memberAccessDetail_LastAuthenticatedTime, &memberAccessDetail_TotalAuthenticatedEntities}}
 
-var memberAccessDetail_ServiceName = smithy.Member{Name: "ServiceName", Index: 0, Required: true}
+var memberAccessDetail_ServiceName = smithy.Member{Name: "ServiceName", Index: 0, Target: &schemaServiceNameType, Required: true}
 
-var memberAccessDetail_ServiceNamespace = smithy.Member{Name: "ServiceNamespace", Index: 1, Required: true}
+var memberAccessDetail_ServiceNamespace = smithy.Member{Name: "ServiceNamespace", Index: 1, Target: &schemaServiceNamespaceType, Required: true}
 
-var memberAccessDetail_Region = smithy.Member{Name: "Region", Index: 2}
+var memberAccessDetail_Region = smithy.Member{Name: "Region", Index: 2, Target: &schemaStringType}
 
-var memberAccessDetail_EntityPath = smithy.Member{Name: "EntityPath", Index: 3}
+var memberAccessDetail_EntityPath = smithy.Member{Name: "EntityPath", Index: 3, Target: &schemaOrganizationsEntityPathType}
 
-var memberAccessDetail_LastAuthenticatedTime = smithy.Member{Name: "LastAuthenticatedTime", Index: 4}
+var memberAccessDetail_LastAuthenticatedTime = smithy.Member{Name: "LastAuthenticatedTime", Index: 4, Target: &schemaDateType}
 
-var memberAccessDetail_TotalAuthenticatedEntities = smithy.Member{Name: "TotalAuthenticatedEntities", Index: 5}
+var memberAccessDetail_TotalAuthenticatedEntities = smithy.Member{Name: "TotalAuthenticatedEntities", Index: 5, Target: &schemaIntegerType}
 
-var schemaAccessDetails = smithy.Schema{ID: "com.amazonaws.iam#AccessDetails", Type: smithy.TypeList}
+var schemaAccessDetails = smithy.Schema{ID: "com.amazonaws.iam#AccessDetails", Type: smithy.TypeList, Members: []*smithy.Member{&memberAccessDetails_member}}
 
-var memberAccessDetails_member = smithy.Member{Name: "member", Index: 0}
+var memberAccessDetails_member = smithy.Member{Name: "member", Index: 0, Target: &schemaAccessDetail}
 
-var schemaAccessKey = smithy.Schema{ID: "com.amazonaws.iam#AccessKey", Type: smithy.TypeStructure}
+var schemaAccessKey = smithy.Schema{ID: "com.amazonaws.iam#AccessKey", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAccessKey_UserName, &memberAccessKey_AccessKeyId, &memberAccessKey_Status, &memberAccessKey_SecretAccessKey, &memberAccessKey_CreateDate}}
 
-var memberAccessKey_UserName = smithy.Member{Name: "UserName", Index: 0, Required: true}
+var memberAccessKey_UserName = smithy.Member{Name: "UserName", Index: 0, Target: &schemaUserNameType, Required: true}
 
-var memberAccessKey_AccessKeyId = smithy.Member{Name: "AccessKeyId", Index: 1, Required: true}
+var memberAccessKey_AccessKeyId = smithy.Member{Name: "AccessKeyId", Index: 1, Target: &schemaAccessKeyIdType, Required: true}
 
-var memberAccessKey_Status = smithy.Member{Name: "Status", Index: 2, Required: true}
+var memberAccessKey_Status = smithy.Member{Name: "Status", Index: 2, Target: &schemaStatusType, Required: true}
 
-var memberAccessKey_SecretAccessKey = smithy.Member{Name: "SecretAccessKey", Index: 3, Required: true, Sensitive: true}
+var memberAccessKey_SecretAccessKey = smithy.Member{Name: "SecretAccessKey", Index: 3, Target: &schemaAccessKeySecretType, Required: true, Sensitive: true}
 
-var memberAccessKey_CreateDate = smithy.Member{Name: "CreateDate", Index: 4}
+var memberAccessKey_CreateDate = smithy.Member{Name: "CreateDate", Index: 4, Target: &schemaDateType}
 
 var schemaAccessKeyIdType = smithy.Schema{ID: "com.amazonaws.iam#accessKeyIdType", Type: smithy.TypeString}
 
-var schemaAccessKeyLastUsed = smithy.Schema{ID: "com.amazonaws.iam#AccessKeyLastUsed", Type: smithy.TypeStructure}
+var schemaAccessKeyLastUsed = smithy.Schema{ID: "com.amazonaws.iam#AccessKeyLastUsed", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAccessKeyLastUsed_LastUsedDate, &memberAccessKeyLastUsed_ServiceName, &memberAccessKeyLastUsed_Region}}
 
-var memberAccessKeyLastUsed_LastUsedDate = smithy.Member{Name: "LastUsedDate", Index: 0}
+var memberAccessKeyLastUsed_LastUsedDate = smithy.Member{Name: "LastUsedDate", Index: 0, Target: &schemaDateType}
 
-var memberAccessKeyLastUsed_ServiceName = smithy.Member{Name: "ServiceName", Index: 1, Required: true}
+var memberAccessKeyLastUsed_ServiceName = smithy.Member{Name: "ServiceName", Index: 1, Target: &schemaStringType, Required: true}
 
-var memberAccessKeyLastUsed_Region = smithy.Member{Name: "Region", Index: 2, Required: true}
+var memberAccessKeyLastUsed_Region = smithy.Member{Name: "Region", Index: 2, Target: &schemaStringType, Required: true}
 
-var schemaAccessKeyMetadata = smithy.Schema{ID: "com.amazonaws.iam#AccessKeyMetadata", Type: smithy.TypeStructure}
+var schemaAccessKeyMetadata = smithy.Schema{ID: "com.amazonaws.iam#AccessKeyMetadata", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAccessKeyMetadata_UserName, &memberAccessKeyMetadata_AccessKeyId, &memberAccessKeyMetadata_Status, &memberAccessKeyMetadata_CreateDate}}
 
-var memberAccessKeyMetadata_UserName = smithy.Member{Name: "UserName", Index: 0}
+var memberAccessKeyMetadata_UserName = smithy.Member{Name: "UserName", Index: 0, Target: &schemaUserNameType}
 
-var memberAccessKeyMetadata_AccessKeyId = smithy.Member{Name: "AccessKeyId", Index: 1}
+var memberAccessKeyMetadata_AccessKeyId = smithy.Member{Name: "AccessKeyId", Index: 1, Target: &schemaAccessKeyIdType}
 
-var memberAccessKeyMetadata_Status = smithy.Member{Name: "Status", Index: 2}
+var memberAccessKeyMetadata_Status = smithy.Member{Name: "Status", Index: 2, Target: &schemaStatusType}
 
-var memberAccessKeyMetadata_CreateDate = smithy.Member{Name: "CreateDate", Index: 3}
+var memberAccessKeyMetadata_CreateDate = smithy.Member{Name: "CreateDate", Index: 3, Target: &schemaDateType}
 
-var schemaAccessKeyMetadataListType = smithy.Schema{ID: "com.amazonaws.iam#accessKeyMetadataListType", Type: smithy.TypeList}
+var schemaAccessKeyMetadataListType = smithy.Schema{ID: "com.amazonaws.iam#accessKeyMetadataListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberAccessKeyMetadataListType_member}}
 
-var memberAccessKeyMetadataListType_member = smithy.Member{Name: "member", Index: 0}
+var memberAccessKeyMetadataListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaAccessKeyMetadata}
 
 var schemaAccessKeySecretType = smithy.Schema{ID: "com.amazonaws.iam#accessKeySecretType", Type: smithy.TypeString, Sensitive: true}
 
-var schemaAccountAliasListType = smithy.Schema{ID: "com.amazonaws.iam#accountAliasListType", Type: smithy.TypeList}
+var schemaAccountAliasListType = smithy.Schema{ID: "com.amazonaws.iam#accountAliasListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberAccountAliasListType_member}}
 
-var memberAccountAliasListType_member = smithy.Member{Name: "member", Index: 0}
+var memberAccountAliasListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaAccountAliasType}
 
 var schemaAccountAliasType = smithy.Schema{ID: "com.amazonaws.iam#accountAliasType", Type: smithy.TypeString}
 
 var schemaAccountIdType = smithy.Schema{ID: "com.amazonaws.iam#accountIdType", Type: smithy.TypeString}
 
-var schemaAccountNotManagementOrDelegatedAdministratorException = smithy.Schema{ID: "com.amazonaws.iam#AccountNotManagementOrDelegatedAdministratorException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaAccountNotManagementOrDelegatedAdministratorException = smithy.Schema{ID: "com.amazonaws.iam#AccountNotManagementOrDelegatedAdministratorException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAccountNotManagementOrDelegatedAdministratorException_Message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberAccountNotManagementOrDelegatedAdministratorException_Message = smithy.Member{Name: "Message", Index: 0}
+var memberAccountNotManagementOrDelegatedAdministratorException_Message = smithy.Member{Name: "Message", Index: 0, Target: &schemaExceptionMessage}
 
-var schemaAccountPropertiesMapType = smithy.Schema{ID: "com.amazonaws.iam#accountPropertiesMapType", Type: smithy.TypeMap}
+var schemaAccountPropertiesMapType = smithy.Schema{ID: "com.amazonaws.iam#accountPropertiesMapType", Type: smithy.TypeMap, Members: []*smithy.Member{&memberAccountPropertiesMapType_key, &memberAccountPropertiesMapType_value}}
 
-var memberAccountPropertiesMapType_key = smithy.Member{Name: "key", Index: 0}
+var memberAccountPropertiesMapType_key = smithy.Member{Name: "key", Index: 0, Target: &schemaAccountPropertyKeyType}
 
-var memberAccountPropertiesMapType_value = smithy.Member{Name: "value", Index: 1}
+var memberAccountPropertiesMapType_value = smithy.Member{Name: "value", Index: 1, Target: &schemaAccountPropertyValueType}
 
 var schemaAccountPropertyKeyType = smithy.Schema{ID: "com.amazonaws.iam#accountPropertyKeyType", Type: smithy.TypeString}
 
 var schemaAccountPropertyValueType = smithy.Schema{ID: "com.amazonaws.iam#accountPropertyValueType", Type: smithy.TypeString}
 
-var schemaAcquireRoleInput = smithy.Schema{ID: "com.amazonaws.iam#AcquireRoleRequest", Type: smithy.TypeStructure}
+var schemaAcquireRoleInput = smithy.Schema{ID: "com.amazonaws.iam#AcquireRoleRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAcquireRoleInput_TemplateArn, &memberAcquireRoleInput_TemplateMinorVersion, &memberAcquireRoleInput_ReplacementValues}}
 
-var memberAcquireRoleInput_TemplateArn = smithy.Member{Name: "TemplateArn", Index: 0, Required: true}
+var memberAcquireRoleInput_TemplateArn = smithy.Member{Name: "TemplateArn", Index: 0, Target: &schemaArnType, Required: true}
 
-var memberAcquireRoleInput_TemplateMinorVersion = smithy.Member{Name: "TemplateMinorVersion", Index: 1}
+var memberAcquireRoleInput_TemplateMinorVersion = smithy.Member{Name: "TemplateMinorVersion", Index: 1, Target: &schemaIntegerType}
 
-var memberAcquireRoleInput_ReplacementValues = smithy.Member{Name: "ReplacementValues", Index: 2}
+var memberAcquireRoleInput_ReplacementValues = smithy.Member{Name: "ReplacementValues", Index: 2, Target: &schemaMapStringReplacementValueEntry}
 
-var schemaAcquireRoleOutput = smithy.Schema{ID: "com.amazonaws.iam#AcquireRoleResponse", Type: smithy.TypeStructure}
+var schemaAcquireRoleOutput = smithy.Schema{ID: "com.amazonaws.iam#AcquireRoleResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAcquireRoleOutput_Role}}
 
-var memberAcquireRoleOutput_Role = smithy.Member{Name: "Role", Index: 0, Required: true}
+var memberAcquireRoleOutput_Role = smithy.Member{Name: "Role", Index: 0, Target: &schemaRole, Required: true}
 
-var schemaActionNameListType = smithy.Schema{ID: "com.amazonaws.iam#ActionNameListType", Type: smithy.TypeList}
+var schemaActionNameListType = smithy.Schema{ID: "com.amazonaws.iam#ActionNameListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberActionNameListType_member}}
 
-var memberActionNameListType_member = smithy.Member{Name: "member", Index: 0}
+var memberActionNameListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaActionNameType}
 
 var schemaActionNameType = smithy.Schema{ID: "com.amazonaws.iam#ActionNameType", Type: smithy.TypeString}
 
-var schemaAddClientIDToOpenIDConnectProviderInput = smithy.Schema{ID: "com.amazonaws.iam#AddClientIDToOpenIDConnectProviderRequest", Type: smithy.TypeStructure}
+var schemaAddClientIDToOpenIDConnectProviderInput = smithy.Schema{ID: "com.amazonaws.iam#AddClientIDToOpenIDConnectProviderRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAddClientIDToOpenIDConnectProviderInput_OpenIDConnectProviderArn, &memberAddClientIDToOpenIDConnectProviderInput_ClientID}}
 
-var memberAddClientIDToOpenIDConnectProviderInput_OpenIDConnectProviderArn = smithy.Member{Name: "OpenIDConnectProviderArn", Index: 0, Required: true}
+var memberAddClientIDToOpenIDConnectProviderInput_OpenIDConnectProviderArn = smithy.Member{Name: "OpenIDConnectProviderArn", Index: 0, Target: &schemaArnType, Required: true}
 
-var memberAddClientIDToOpenIDConnectProviderInput_ClientID = smithy.Member{Name: "ClientID", Index: 1, Required: true}
+var memberAddClientIDToOpenIDConnectProviderInput_ClientID = smithy.Member{Name: "ClientID", Index: 1, Target: &schemaClientIDType, Required: true}
 
-var schemaAddRoleToInstanceProfileInput = smithy.Schema{ID: "com.amazonaws.iam#AddRoleToInstanceProfileRequest", Type: smithy.TypeStructure}
+var schemaAddRoleToInstanceProfileInput = smithy.Schema{ID: "com.amazonaws.iam#AddRoleToInstanceProfileRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAddRoleToInstanceProfileInput_InstanceProfileName, &memberAddRoleToInstanceProfileInput_RoleName}}
 
-var memberAddRoleToInstanceProfileInput_InstanceProfileName = smithy.Member{Name: "InstanceProfileName", Index: 0, Required: true}
+var memberAddRoleToInstanceProfileInput_InstanceProfileName = smithy.Member{Name: "InstanceProfileName", Index: 0, Target: &schemaInstanceProfileNameType, Required: true}
 
-var memberAddRoleToInstanceProfileInput_RoleName = smithy.Member{Name: "RoleName", Index: 1, Required: true}
+var memberAddRoleToInstanceProfileInput_RoleName = smithy.Member{Name: "RoleName", Index: 1, Target: &schemaRoleNameType, Required: true}
 
-var schemaAddUserToGroupInput = smithy.Schema{ID: "com.amazonaws.iam#AddUserToGroupRequest", Type: smithy.TypeStructure}
+var schemaAddUserToGroupInput = smithy.Schema{ID: "com.amazonaws.iam#AddUserToGroupRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAddUserToGroupInput_GroupName, &memberAddUserToGroupInput_UserName}}
 
-var memberAddUserToGroupInput_GroupName = smithy.Member{Name: "GroupName", Index: 0, Required: true}
+var memberAddUserToGroupInput_GroupName = smithy.Member{Name: "GroupName", Index: 0, Target: &schemaGroupNameType, Required: true}
 
-var memberAddUserToGroupInput_UserName = smithy.Member{Name: "UserName", Index: 1, Required: true}
+var memberAddUserToGroupInput_UserName = smithy.Member{Name: "UserName", Index: 1, Target: &schemaExistingUserNameType, Required: true}
 
 var schemaAllUsers = smithy.Schema{ID: "com.amazonaws.iam#allUsers", Type: smithy.TypeBoolean}
 
-var schemaArnListType = smithy.Schema{ID: "com.amazonaws.iam#ArnListType", Type: smithy.TypeList}
+var schemaArnListType = smithy.Schema{ID: "com.amazonaws.iam#ArnListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberArnListType_member}}
 
-var memberArnListType_member = smithy.Member{Name: "member", Index: 0}
+var memberArnListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaArnType}
 
 var schemaArnType = smithy.Schema{ID: "com.amazonaws.iam#arnType", Type: smithy.TypeString}
 
@@ -147,43 +147,43 @@ var schemaAssertionEncryptionModeType = smithy.Schema{ID: "com.amazonaws.iam#ass
 
 var schemaAssignmentStatusType = smithy.Schema{ID: "com.amazonaws.iam#assignmentStatusType", Type: smithy.TypeEnum}
 
-var schemaAssociateDelegationRequestInput = smithy.Schema{ID: "com.amazonaws.iam#AssociateDelegationRequestRequest", Type: smithy.TypeStructure}
+var schemaAssociateDelegationRequestInput = smithy.Schema{ID: "com.amazonaws.iam#AssociateDelegationRequestRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAssociateDelegationRequestInput_DelegationRequestId}}
 
-var memberAssociateDelegationRequestInput_DelegationRequestId = smithy.Member{Name: "DelegationRequestId", Index: 0, Required: true}
+var memberAssociateDelegationRequestInput_DelegationRequestId = smithy.Member{Name: "DelegationRequestId", Index: 0, Target: &schemaDelegationRequestIdType, Required: true}
 
-var schemaAttachGroupPolicyInput = smithy.Schema{ID: "com.amazonaws.iam#AttachGroupPolicyRequest", Type: smithy.TypeStructure}
+var schemaAttachGroupPolicyInput = smithy.Schema{ID: "com.amazonaws.iam#AttachGroupPolicyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAttachGroupPolicyInput_GroupName, &memberAttachGroupPolicyInput_PolicyArn}}
 
-var memberAttachGroupPolicyInput_GroupName = smithy.Member{Name: "GroupName", Index: 0, Required: true}
+var memberAttachGroupPolicyInput_GroupName = smithy.Member{Name: "GroupName", Index: 0, Target: &schemaGroupNameType, Required: true}
 
-var memberAttachGroupPolicyInput_PolicyArn = smithy.Member{Name: "PolicyArn", Index: 1, Required: true}
+var memberAttachGroupPolicyInput_PolicyArn = smithy.Member{Name: "PolicyArn", Index: 1, Target: &schemaArnType, Required: true}
 
-var schemaAttachRolePolicyInput = smithy.Schema{ID: "com.amazonaws.iam#AttachRolePolicyRequest", Type: smithy.TypeStructure}
+var schemaAttachRolePolicyInput = smithy.Schema{ID: "com.amazonaws.iam#AttachRolePolicyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAttachRolePolicyInput_RoleName, &memberAttachRolePolicyInput_PolicyArn}}
 
-var memberAttachRolePolicyInput_RoleName = smithy.Member{Name: "RoleName", Index: 0, Required: true}
+var memberAttachRolePolicyInput_RoleName = smithy.Member{Name: "RoleName", Index: 0, Target: &schemaRoleNameType, Required: true}
 
-var memberAttachRolePolicyInput_PolicyArn = smithy.Member{Name: "PolicyArn", Index: 1, Required: true}
+var memberAttachRolePolicyInput_PolicyArn = smithy.Member{Name: "PolicyArn", Index: 1, Target: &schemaArnType, Required: true}
 
-var schemaAttachUserPolicyInput = smithy.Schema{ID: "com.amazonaws.iam#AttachUserPolicyRequest", Type: smithy.TypeStructure}
+var schemaAttachUserPolicyInput = smithy.Schema{ID: "com.amazonaws.iam#AttachUserPolicyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAttachUserPolicyInput_UserName, &memberAttachUserPolicyInput_PolicyArn}}
 
-var memberAttachUserPolicyInput_UserName = smithy.Member{Name: "UserName", Index: 0, Required: true}
+var memberAttachUserPolicyInput_UserName = smithy.Member{Name: "UserName", Index: 0, Target: &schemaUserNameType, Required: true}
 
-var memberAttachUserPolicyInput_PolicyArn = smithy.Member{Name: "PolicyArn", Index: 1, Required: true}
+var memberAttachUserPolicyInput_PolicyArn = smithy.Member{Name: "PolicyArn", Index: 1, Target: &schemaArnType, Required: true}
 
-var schemaAttachedPermissionsBoundary = smithy.Schema{ID: "com.amazonaws.iam#AttachedPermissionsBoundary", Type: smithy.TypeStructure}
+var schemaAttachedPermissionsBoundary = smithy.Schema{ID: "com.amazonaws.iam#AttachedPermissionsBoundary", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAttachedPermissionsBoundary_PermissionsBoundaryType, &memberAttachedPermissionsBoundary_PermissionsBoundaryArn}}
 
-var memberAttachedPermissionsBoundary_PermissionsBoundaryType = smithy.Member{Name: "PermissionsBoundaryType", Index: 0}
+var memberAttachedPermissionsBoundary_PermissionsBoundaryType = smithy.Member{Name: "PermissionsBoundaryType", Index: 0, Target: &schemaPermissionsBoundaryAttachmentType}
 
-var memberAttachedPermissionsBoundary_PermissionsBoundaryArn = smithy.Member{Name: "PermissionsBoundaryArn", Index: 1}
+var memberAttachedPermissionsBoundary_PermissionsBoundaryArn = smithy.Member{Name: "PermissionsBoundaryArn", Index: 1, Target: &schemaArnType}
 
-var schemaAttachedPoliciesListType = smithy.Schema{ID: "com.amazonaws.iam#attachedPoliciesListType", Type: smithy.TypeList}
+var schemaAttachedPoliciesListType = smithy.Schema{ID: "com.amazonaws.iam#attachedPoliciesListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberAttachedPoliciesListType_member}}
 
-var memberAttachedPoliciesListType_member = smithy.Member{Name: "member", Index: 0}
+var memberAttachedPoliciesListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaAttachedPolicy}
 
-var schemaAttachedPolicy = smithy.Schema{ID: "com.amazonaws.iam#AttachedPolicy", Type: smithy.TypeStructure}
+var schemaAttachedPolicy = smithy.Schema{ID: "com.amazonaws.iam#AttachedPolicy", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAttachedPolicy_PolicyName, &memberAttachedPolicy_PolicyArn}}
 
-var memberAttachedPolicy_PolicyName = smithy.Member{Name: "PolicyName", Index: 0}
+var memberAttachedPolicy_PolicyName = smithy.Member{Name: "PolicyName", Index: 0, Target: &schemaPolicyNameType}
 
-var memberAttachedPolicy_PolicyArn = smithy.Member{Name: "PolicyArn", Index: 1}
+var memberAttachedPolicy_PolicyArn = smithy.Member{Name: "PolicyArn", Index: 1, Target: &schemaArnType}
 
 var schemaAttachmentCountType = smithy.Schema{ID: "com.amazonaws.iam#attachmentCountType", Type: smithy.TypeInteger}
 
@@ -199,9 +199,9 @@ var schemaBooleanType = smithy.Schema{ID: "com.amazonaws.iam#booleanType", Type:
 
 var schemaBootstrapDatum = smithy.Schema{ID: "com.amazonaws.iam#BootstrapDatum", Type: smithy.TypeBlob, Sensitive: true}
 
-var schemaCallerIsNotManagementAccountException = smithy.Schema{ID: "com.amazonaws.iam#CallerIsNotManagementAccountException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaCallerIsNotManagementAccountException = smithy.Schema{ID: "com.amazonaws.iam#CallerIsNotManagementAccountException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCallerIsNotManagementAccountException_Message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberCallerIsNotManagementAccountException_Message = smithy.Member{Name: "Message", Index: 0}
+var memberCallerIsNotManagementAccountException_Message = smithy.Member{Name: "Message", Index: 0, Target: &schemaExceptionMessage}
 
 var schemaCertificateBodyType = smithy.Schema{ID: "com.amazonaws.iam#certificateBodyType", Type: smithy.TypeString}
 
@@ -209,289 +209,289 @@ var schemaCertificateChainType = smithy.Schema{ID: "com.amazonaws.iam#certificat
 
 var schemaCertificateIdType = smithy.Schema{ID: "com.amazonaws.iam#certificateIdType", Type: smithy.TypeString}
 
-var schemaCertificateListType = smithy.Schema{ID: "com.amazonaws.iam#certificateListType", Type: smithy.TypeList}
+var schemaCertificateListType = smithy.Schema{ID: "com.amazonaws.iam#certificateListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberCertificateListType_member}}
 
-var memberCertificateListType_member = smithy.Member{Name: "member", Index: 0}
+var memberCertificateListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaSigningCertificate}
 
 var schemaCertificationKeyType = smithy.Schema{ID: "com.amazonaws.iam#CertificationKeyType", Type: smithy.TypeString}
 
-var schemaCertificationMapType = smithy.Schema{ID: "com.amazonaws.iam#CertificationMapType", Type: smithy.TypeMap}
+var schemaCertificationMapType = smithy.Schema{ID: "com.amazonaws.iam#CertificationMapType", Type: smithy.TypeMap, Members: []*smithy.Member{&memberCertificationMapType_key, &memberCertificationMapType_value}}
 
-var memberCertificationMapType_key = smithy.Member{Name: "key", Index: 0}
+var memberCertificationMapType_key = smithy.Member{Name: "key", Index: 0, Target: &schemaCertificationKeyType}
 
-var memberCertificationMapType_value = smithy.Member{Name: "value", Index: 1}
+var memberCertificationMapType_value = smithy.Member{Name: "value", Index: 1, Target: &schemaCertificationValueType}
 
 var schemaCertificationValueType = smithy.Schema{ID: "com.amazonaws.iam#CertificationValueType", Type: smithy.TypeString}
 
-var schemaChangePasswordInput = smithy.Schema{ID: "com.amazonaws.iam#ChangePasswordRequest", Type: smithy.TypeStructure}
+var schemaChangePasswordInput = smithy.Schema{ID: "com.amazonaws.iam#ChangePasswordRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberChangePasswordInput_OldPassword, &memberChangePasswordInput_NewPassword}}
 
-var memberChangePasswordInput_OldPassword = smithy.Member{Name: "OldPassword", Index: 0, Required: true, Sensitive: true}
+var memberChangePasswordInput_OldPassword = smithy.Member{Name: "OldPassword", Index: 0, Target: &schemaPasswordType, Required: true, Sensitive: true}
 
-var memberChangePasswordInput_NewPassword = smithy.Member{Name: "NewPassword", Index: 1, Required: true, Sensitive: true}
+var memberChangePasswordInput_NewPassword = smithy.Member{Name: "NewPassword", Index: 1, Target: &schemaPasswordType, Required: true, Sensitive: true}
 
-var schemaClientIDListType = smithy.Schema{ID: "com.amazonaws.iam#clientIDListType", Type: smithy.TypeList}
+var schemaClientIDListType = smithy.Schema{ID: "com.amazonaws.iam#clientIDListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberClientIDListType_member}}
 
-var memberClientIDListType_member = smithy.Member{Name: "member", Index: 0}
+var memberClientIDListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaClientIDType}
 
 var schemaClientIDType = smithy.Schema{ID: "com.amazonaws.iam#clientIDType", Type: smithy.TypeString}
 
 var schemaColumnNumber = smithy.Schema{ID: "com.amazonaws.iam#ColumnNumber", Type: smithy.TypeInteger}
 
-var schemaConcurrentModificationException = smithy.Schema{ID: "com.amazonaws.iam#ConcurrentModificationException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 409}}
+var schemaConcurrentModificationException = smithy.Schema{ID: "com.amazonaws.iam#ConcurrentModificationException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberConcurrentModificationException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 409}}
 
-var memberConcurrentModificationException_message = smithy.Member{Name: "message", Index: 0}
+var memberConcurrentModificationException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaConcurrentModificationMessage}
 
 var schemaConcurrentModificationMessage = smithy.Schema{ID: "com.amazonaws.iam#ConcurrentModificationMessage", Type: smithy.TypeString}
 
 var schemaConsoleDeepLinkType = smithy.Schema{ID: "com.amazonaws.iam#consoleDeepLinkType", Type: smithy.TypeString}
 
-var schemaContextEntry = smithy.Schema{ID: "com.amazonaws.iam#ContextEntry", Type: smithy.TypeStructure}
+var schemaContextEntry = smithy.Schema{ID: "com.amazonaws.iam#ContextEntry", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberContextEntry_ContextKeyName, &memberContextEntry_ContextKeyValues, &memberContextEntry_ContextKeyType}}
 
-var memberContextEntry_ContextKeyName = smithy.Member{Name: "ContextKeyName", Index: 0}
+var memberContextEntry_ContextKeyName = smithy.Member{Name: "ContextKeyName", Index: 0, Target: &schemaContextKeyNameType}
 
-var memberContextEntry_ContextKeyValues = smithy.Member{Name: "ContextKeyValues", Index: 1}
+var memberContextEntry_ContextKeyValues = smithy.Member{Name: "ContextKeyValues", Index: 1, Target: &schemaContextKeyValueListType}
 
-var memberContextEntry_ContextKeyType = smithy.Member{Name: "ContextKeyType", Index: 2}
+var memberContextEntry_ContextKeyType = smithy.Member{Name: "ContextKeyType", Index: 2, Target: &schemaContextKeyTypeEnum}
 
-var schemaContextEntryListType = smithy.Schema{ID: "com.amazonaws.iam#ContextEntryListType", Type: smithy.TypeList}
+var schemaContextEntryListType = smithy.Schema{ID: "com.amazonaws.iam#ContextEntryListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberContextEntryListType_member}}
 
-var memberContextEntryListType_member = smithy.Member{Name: "member", Index: 0}
+var memberContextEntryListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaContextEntry}
 
 var schemaContextKeyNameType = smithy.Schema{ID: "com.amazonaws.iam#ContextKeyNameType", Type: smithy.TypeString}
 
-var schemaContextKeyNamesResultListType = smithy.Schema{ID: "com.amazonaws.iam#ContextKeyNamesResultListType", Type: smithy.TypeList}
+var schemaContextKeyNamesResultListType = smithy.Schema{ID: "com.amazonaws.iam#ContextKeyNamesResultListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberContextKeyNamesResultListType_member}}
 
-var memberContextKeyNamesResultListType_member = smithy.Member{Name: "member", Index: 0}
+var memberContextKeyNamesResultListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaContextKeyNameType}
 
 var schemaContextKeyTypeEnum = smithy.Schema{ID: "com.amazonaws.iam#ContextKeyTypeEnum", Type: smithy.TypeEnum}
 
-var schemaContextKeyValueListType = smithy.Schema{ID: "com.amazonaws.iam#ContextKeyValueListType", Type: smithy.TypeList}
+var schemaContextKeyValueListType = smithy.Schema{ID: "com.amazonaws.iam#ContextKeyValueListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberContextKeyValueListType_member}}
 
-var memberContextKeyValueListType_member = smithy.Member{Name: "member", Index: 0}
+var memberContextKeyValueListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaContextKeyValueType}
 
 var schemaContextKeyValueType = smithy.Schema{ID: "com.amazonaws.iam#ContextKeyValueType", Type: smithy.TypeString}
 
-var schemaCreateAccessKeyInput = smithy.Schema{ID: "com.amazonaws.iam#CreateAccessKeyRequest", Type: smithy.TypeStructure}
+var schemaCreateAccessKeyInput = smithy.Schema{ID: "com.amazonaws.iam#CreateAccessKeyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateAccessKeyInput_UserName}}
 
-var memberCreateAccessKeyInput_UserName = smithy.Member{Name: "UserName", Index: 0}
+var memberCreateAccessKeyInput_UserName = smithy.Member{Name: "UserName", Index: 0, Target: &schemaExistingUserNameType}
 
-var schemaCreateAccessKeyOutput = smithy.Schema{ID: "com.amazonaws.iam#CreateAccessKeyResponse", Type: smithy.TypeStructure}
+var schemaCreateAccessKeyOutput = smithy.Schema{ID: "com.amazonaws.iam#CreateAccessKeyResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateAccessKeyOutput_AccessKey}}
 
-var memberCreateAccessKeyOutput_AccessKey = smithy.Member{Name: "AccessKey", Index: 0, Required: true}
+var memberCreateAccessKeyOutput_AccessKey = smithy.Member{Name: "AccessKey", Index: 0, Target: &schemaAccessKey, Required: true}
 
-var schemaCreateAccountAliasInput = smithy.Schema{ID: "com.amazonaws.iam#CreateAccountAliasRequest", Type: smithy.TypeStructure}
+var schemaCreateAccountAliasInput = smithy.Schema{ID: "com.amazonaws.iam#CreateAccountAliasRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateAccountAliasInput_AccountAlias}}
 
-var memberCreateAccountAliasInput_AccountAlias = smithy.Member{Name: "AccountAlias", Index: 0, Required: true}
+var memberCreateAccountAliasInput_AccountAlias = smithy.Member{Name: "AccountAlias", Index: 0, Target: &schemaAccountAliasType, Required: true}
 
-var schemaCreateDelegationRequestInput = smithy.Schema{ID: "com.amazonaws.iam#CreateDelegationRequestRequest", Type: smithy.TypeStructure}
+var schemaCreateDelegationRequestInput = smithy.Schema{ID: "com.amazonaws.iam#CreateDelegationRequestRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateDelegationRequestInput_OwnerAccountId, &memberCreateDelegationRequestInput_Description, &memberCreateDelegationRequestInput_Permissions, &memberCreateDelegationRequestInput_RequestMessage, &memberCreateDelegationRequestInput_RequestorWorkflowId, &memberCreateDelegationRequestInput_RedirectUrl, &memberCreateDelegationRequestInput_NotificationChannel, &memberCreateDelegationRequestInput_SessionDuration, &memberCreateDelegationRequestInput_OnlySendByOwner}}
 
-var memberCreateDelegationRequestInput_OwnerAccountId = smithy.Member{Name: "OwnerAccountId", Index: 0}
+var memberCreateDelegationRequestInput_OwnerAccountId = smithy.Member{Name: "OwnerAccountId", Index: 0, Target: &schemaAccountIdType}
 
-var memberCreateDelegationRequestInput_Description = smithy.Member{Name: "Description", Index: 1, Required: true}
+var memberCreateDelegationRequestInput_Description = smithy.Member{Name: "Description", Index: 1, Target: &schemaDelegationRequestDescriptionType, Required: true}
 
-var memberCreateDelegationRequestInput_Permissions = smithy.Member{Name: "Permissions", Index: 2, Required: true}
+var memberCreateDelegationRequestInput_Permissions = smithy.Member{Name: "Permissions", Index: 2, Target: &schemaDelegationPermission, Required: true}
 
-var memberCreateDelegationRequestInput_RequestMessage = smithy.Member{Name: "RequestMessage", Index: 3}
+var memberCreateDelegationRequestInput_RequestMessage = smithy.Member{Name: "RequestMessage", Index: 3, Target: &schemaRequestMessageType}
 
-var memberCreateDelegationRequestInput_RequestorWorkflowId = smithy.Member{Name: "RequestorWorkflowId", Index: 4, Required: true}
+var memberCreateDelegationRequestInput_RequestorWorkflowId = smithy.Member{Name: "RequestorWorkflowId", Index: 4, Target: &schemaRequestorWorkflowIdType, Required: true}
 
-var memberCreateDelegationRequestInput_RedirectUrl = smithy.Member{Name: "RedirectUrl", Index: 5}
+var memberCreateDelegationRequestInput_RedirectUrl = smithy.Member{Name: "RedirectUrl", Index: 5, Target: &schemaRedirectUrlType}
 
-var memberCreateDelegationRequestInput_NotificationChannel = smithy.Member{Name: "NotificationChannel", Index: 6, Required: true}
+var memberCreateDelegationRequestInput_NotificationChannel = smithy.Member{Name: "NotificationChannel", Index: 6, Target: &schemaNotificationChannelType, Required: true}
 
-var memberCreateDelegationRequestInput_SessionDuration = smithy.Member{Name: "SessionDuration", Index: 7, Required: true}
+var memberCreateDelegationRequestInput_SessionDuration = smithy.Member{Name: "SessionDuration", Index: 7, Target: &schemaSessionDurationType, Required: true}
 
-var memberCreateDelegationRequestInput_OnlySendByOwner = smithy.Member{Name: "OnlySendByOwner", Index: 8, Default: document.Bool(false)}
+var memberCreateDelegationRequestInput_OnlySendByOwner = smithy.Member{Name: "OnlySendByOwner", Index: 8, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var schemaCreateDelegationRequestOutput = smithy.Schema{ID: "com.amazonaws.iam#CreateDelegationRequestResponse", Type: smithy.TypeStructure}
+var schemaCreateDelegationRequestOutput = smithy.Schema{ID: "com.amazonaws.iam#CreateDelegationRequestResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateDelegationRequestOutput_ConsoleDeepLink, &memberCreateDelegationRequestOutput_DelegationRequestId}}
 
-var memberCreateDelegationRequestOutput_ConsoleDeepLink = smithy.Member{Name: "ConsoleDeepLink", Index: 0}
+var memberCreateDelegationRequestOutput_ConsoleDeepLink = smithy.Member{Name: "ConsoleDeepLink", Index: 0, Target: &schemaConsoleDeepLinkType}
 
-var memberCreateDelegationRequestOutput_DelegationRequestId = smithy.Member{Name: "DelegationRequestId", Index: 1}
+var memberCreateDelegationRequestOutput_DelegationRequestId = smithy.Member{Name: "DelegationRequestId", Index: 1, Target: &schemaDelegationRequestIdType}
 
-var schemaCreateGroupInput = smithy.Schema{ID: "com.amazonaws.iam#CreateGroupRequest", Type: smithy.TypeStructure}
+var schemaCreateGroupInput = smithy.Schema{ID: "com.amazonaws.iam#CreateGroupRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateGroupInput_Path, &memberCreateGroupInput_GroupName}}
 
-var memberCreateGroupInput_Path = smithy.Member{Name: "Path", Index: 0}
+var memberCreateGroupInput_Path = smithy.Member{Name: "Path", Index: 0, Target: &schemaPathType}
 
-var memberCreateGroupInput_GroupName = smithy.Member{Name: "GroupName", Index: 1, Required: true}
+var memberCreateGroupInput_GroupName = smithy.Member{Name: "GroupName", Index: 1, Target: &schemaGroupNameType, Required: true}
 
-var schemaCreateGroupOutput = smithy.Schema{ID: "com.amazonaws.iam#CreateGroupResponse", Type: smithy.TypeStructure}
+var schemaCreateGroupOutput = smithy.Schema{ID: "com.amazonaws.iam#CreateGroupResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateGroupOutput_Group}}
 
-var memberCreateGroupOutput_Group = smithy.Member{Name: "Group", Index: 0, Required: true}
+var memberCreateGroupOutput_Group = smithy.Member{Name: "Group", Index: 0, Target: &schemaGroup, Required: true}
 
-var schemaCreateInstanceProfileInput = smithy.Schema{ID: "com.amazonaws.iam#CreateInstanceProfileRequest", Type: smithy.TypeStructure}
+var schemaCreateInstanceProfileInput = smithy.Schema{ID: "com.amazonaws.iam#CreateInstanceProfileRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateInstanceProfileInput_InstanceProfileName, &memberCreateInstanceProfileInput_Path, &memberCreateInstanceProfileInput_Tags}}
 
-var memberCreateInstanceProfileInput_InstanceProfileName = smithy.Member{Name: "InstanceProfileName", Index: 0, Required: true}
+var memberCreateInstanceProfileInput_InstanceProfileName = smithy.Member{Name: "InstanceProfileName", Index: 0, Target: &schemaInstanceProfileNameType, Required: true}
 
-var memberCreateInstanceProfileInput_Path = smithy.Member{Name: "Path", Index: 1}
+var memberCreateInstanceProfileInput_Path = smithy.Member{Name: "Path", Index: 1, Target: &schemaPathType}
 
-var memberCreateInstanceProfileInput_Tags = smithy.Member{Name: "Tags", Index: 2}
+var memberCreateInstanceProfileInput_Tags = smithy.Member{Name: "Tags", Index: 2, Target: &schemaTagListType}
 
-var schemaCreateInstanceProfileOutput = smithy.Schema{ID: "com.amazonaws.iam#CreateInstanceProfileResponse", Type: smithy.TypeStructure}
+var schemaCreateInstanceProfileOutput = smithy.Schema{ID: "com.amazonaws.iam#CreateInstanceProfileResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateInstanceProfileOutput_InstanceProfile}}
 
-var memberCreateInstanceProfileOutput_InstanceProfile = smithy.Member{Name: "InstanceProfile", Index: 0, Required: true}
+var memberCreateInstanceProfileOutput_InstanceProfile = smithy.Member{Name: "InstanceProfile", Index: 0, Target: &schemaInstanceProfile, Required: true}
 
-var schemaCreateLoginProfileInput = smithy.Schema{ID: "com.amazonaws.iam#CreateLoginProfileRequest", Type: smithy.TypeStructure}
+var schemaCreateLoginProfileInput = smithy.Schema{ID: "com.amazonaws.iam#CreateLoginProfileRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateLoginProfileInput_UserName, &memberCreateLoginProfileInput_Password, &memberCreateLoginProfileInput_PasswordResetRequired}}
 
-var memberCreateLoginProfileInput_UserName = smithy.Member{Name: "UserName", Index: 0}
+var memberCreateLoginProfileInput_UserName = smithy.Member{Name: "UserName", Index: 0, Target: &schemaUserNameType}
 
-var memberCreateLoginProfileInput_Password = smithy.Member{Name: "Password", Index: 1, Sensitive: true}
+var memberCreateLoginProfileInput_Password = smithy.Member{Name: "Password", Index: 1, Target: &schemaPasswordType, Sensitive: true}
 
-var memberCreateLoginProfileInput_PasswordResetRequired = smithy.Member{Name: "PasswordResetRequired", Index: 2, Default: document.Bool(false)}
+var memberCreateLoginProfileInput_PasswordResetRequired = smithy.Member{Name: "PasswordResetRequired", Index: 2, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var schemaCreateLoginProfileOutput = smithy.Schema{ID: "com.amazonaws.iam#CreateLoginProfileResponse", Type: smithy.TypeStructure}
+var schemaCreateLoginProfileOutput = smithy.Schema{ID: "com.amazonaws.iam#CreateLoginProfileResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateLoginProfileOutput_LoginProfile}}
 
-var memberCreateLoginProfileOutput_LoginProfile = smithy.Member{Name: "LoginProfile", Index: 0, Required: true}
+var memberCreateLoginProfileOutput_LoginProfile = smithy.Member{Name: "LoginProfile", Index: 0, Target: &schemaLoginProfile, Required: true}
 
-var schemaCreateOpenIDConnectProviderInput = smithy.Schema{ID: "com.amazonaws.iam#CreateOpenIDConnectProviderRequest", Type: smithy.TypeStructure}
+var schemaCreateOpenIDConnectProviderInput = smithy.Schema{ID: "com.amazonaws.iam#CreateOpenIDConnectProviderRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateOpenIDConnectProviderInput_Url, &memberCreateOpenIDConnectProviderInput_ClientIDList, &memberCreateOpenIDConnectProviderInput_ThumbprintList, &memberCreateOpenIDConnectProviderInput_Tags}}
 
-var memberCreateOpenIDConnectProviderInput_Url = smithy.Member{Name: "Url", Index: 0, Required: true}
+var memberCreateOpenIDConnectProviderInput_Url = smithy.Member{Name: "Url", Index: 0, Target: &schemaOpenIDConnectProviderUrlType, Required: true}
 
-var memberCreateOpenIDConnectProviderInput_ClientIDList = smithy.Member{Name: "ClientIDList", Index: 1}
+var memberCreateOpenIDConnectProviderInput_ClientIDList = smithy.Member{Name: "ClientIDList", Index: 1, Target: &schemaClientIDListType}
 
-var memberCreateOpenIDConnectProviderInput_ThumbprintList = smithy.Member{Name: "ThumbprintList", Index: 2}
+var memberCreateOpenIDConnectProviderInput_ThumbprintList = smithy.Member{Name: "ThumbprintList", Index: 2, Target: &schemaThumbprintListType}
 
-var memberCreateOpenIDConnectProviderInput_Tags = smithy.Member{Name: "Tags", Index: 3}
+var memberCreateOpenIDConnectProviderInput_Tags = smithy.Member{Name: "Tags", Index: 3, Target: &schemaTagListType}
 
-var schemaCreateOpenIDConnectProviderOutput = smithy.Schema{ID: "com.amazonaws.iam#CreateOpenIDConnectProviderResponse", Type: smithy.TypeStructure}
+var schemaCreateOpenIDConnectProviderOutput = smithy.Schema{ID: "com.amazonaws.iam#CreateOpenIDConnectProviderResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateOpenIDConnectProviderOutput_OpenIDConnectProviderArn, &memberCreateOpenIDConnectProviderOutput_Tags}}
 
-var memberCreateOpenIDConnectProviderOutput_OpenIDConnectProviderArn = smithy.Member{Name: "OpenIDConnectProviderArn", Index: 0}
+var memberCreateOpenIDConnectProviderOutput_OpenIDConnectProviderArn = smithy.Member{Name: "OpenIDConnectProviderArn", Index: 0, Target: &schemaArnType}
 
-var memberCreateOpenIDConnectProviderOutput_Tags = smithy.Member{Name: "Tags", Index: 1}
+var memberCreateOpenIDConnectProviderOutput_Tags = smithy.Member{Name: "Tags", Index: 1, Target: &schemaTagListType}
 
-var schemaCreatePolicyInput = smithy.Schema{ID: "com.amazonaws.iam#CreatePolicyRequest", Type: smithy.TypeStructure}
+var schemaCreatePolicyInput = smithy.Schema{ID: "com.amazonaws.iam#CreatePolicyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreatePolicyInput_PolicyName, &memberCreatePolicyInput_Path, &memberCreatePolicyInput_PolicyDocument, &memberCreatePolicyInput_Description, &memberCreatePolicyInput_Tags}}
 
-var memberCreatePolicyInput_PolicyName = smithy.Member{Name: "PolicyName", Index: 0, Required: true}
+var memberCreatePolicyInput_PolicyName = smithy.Member{Name: "PolicyName", Index: 0, Target: &schemaPolicyNameType, Required: true}
 
-var memberCreatePolicyInput_Path = smithy.Member{Name: "Path", Index: 1}
+var memberCreatePolicyInput_Path = smithy.Member{Name: "Path", Index: 1, Target: &schemaPolicyPathType}
 
-var memberCreatePolicyInput_PolicyDocument = smithy.Member{Name: "PolicyDocument", Index: 2, Required: true}
+var memberCreatePolicyInput_PolicyDocument = smithy.Member{Name: "PolicyDocument", Index: 2, Target: &schemaPolicyDocumentType, Required: true}
 
-var memberCreatePolicyInput_Description = smithy.Member{Name: "Description", Index: 3}
+var memberCreatePolicyInput_Description = smithy.Member{Name: "Description", Index: 3, Target: &schemaPolicyDescriptionType}
 
-var memberCreatePolicyInput_Tags = smithy.Member{Name: "Tags", Index: 4}
+var memberCreatePolicyInput_Tags = smithy.Member{Name: "Tags", Index: 4, Target: &schemaTagListType}
 
-var schemaCreatePolicyOutput = smithy.Schema{ID: "com.amazonaws.iam#CreatePolicyResponse", Type: smithy.TypeStructure}
+var schemaCreatePolicyOutput = smithy.Schema{ID: "com.amazonaws.iam#CreatePolicyResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreatePolicyOutput_Policy}}
 
-var memberCreatePolicyOutput_Policy = smithy.Member{Name: "Policy", Index: 0}
+var memberCreatePolicyOutput_Policy = smithy.Member{Name: "Policy", Index: 0, Target: &schemaPolicy}
 
-var schemaCreatePolicyVersionInput = smithy.Schema{ID: "com.amazonaws.iam#CreatePolicyVersionRequest", Type: smithy.TypeStructure}
+var schemaCreatePolicyVersionInput = smithy.Schema{ID: "com.amazonaws.iam#CreatePolicyVersionRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreatePolicyVersionInput_PolicyArn, &memberCreatePolicyVersionInput_PolicyDocument, &memberCreatePolicyVersionInput_SetAsDefault}}
 
-var memberCreatePolicyVersionInput_PolicyArn = smithy.Member{Name: "PolicyArn", Index: 0, Required: true}
+var memberCreatePolicyVersionInput_PolicyArn = smithy.Member{Name: "PolicyArn", Index: 0, Target: &schemaArnType, Required: true}
 
-var memberCreatePolicyVersionInput_PolicyDocument = smithy.Member{Name: "PolicyDocument", Index: 1, Required: true}
+var memberCreatePolicyVersionInput_PolicyDocument = smithy.Member{Name: "PolicyDocument", Index: 1, Target: &schemaPolicyDocumentType, Required: true}
 
-var memberCreatePolicyVersionInput_SetAsDefault = smithy.Member{Name: "SetAsDefault", Index: 2, Default: document.Bool(false)}
+var memberCreatePolicyVersionInput_SetAsDefault = smithy.Member{Name: "SetAsDefault", Index: 2, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var schemaCreatePolicyVersionOutput = smithy.Schema{ID: "com.amazonaws.iam#CreatePolicyVersionResponse", Type: smithy.TypeStructure}
+var schemaCreatePolicyVersionOutput = smithy.Schema{ID: "com.amazonaws.iam#CreatePolicyVersionResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreatePolicyVersionOutput_PolicyVersion}}
 
-var memberCreatePolicyVersionOutput_PolicyVersion = smithy.Member{Name: "PolicyVersion", Index: 0}
+var memberCreatePolicyVersionOutput_PolicyVersion = smithy.Member{Name: "PolicyVersion", Index: 0, Target: &schemaPolicyVersion}
 
-var schemaCreateRoleInput = smithy.Schema{ID: "com.amazonaws.iam#CreateRoleRequest", Type: smithy.TypeStructure}
+var schemaCreateRoleInput = smithy.Schema{ID: "com.amazonaws.iam#CreateRoleRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateRoleInput_Path, &memberCreateRoleInput_RoleName, &memberCreateRoleInput_AssumeRolePolicyDocument, &memberCreateRoleInput_Description, &memberCreateRoleInput_MaxSessionDuration, &memberCreateRoleInput_PermissionsBoundary, &memberCreateRoleInput_Tags}}
 
-var memberCreateRoleInput_Path = smithy.Member{Name: "Path", Index: 0}
+var memberCreateRoleInput_Path = smithy.Member{Name: "Path", Index: 0, Target: &schemaPathType}
 
-var memberCreateRoleInput_RoleName = smithy.Member{Name: "RoleName", Index: 1, Required: true}
+var memberCreateRoleInput_RoleName = smithy.Member{Name: "RoleName", Index: 1, Target: &schemaRoleNameType, Required: true}
 
-var memberCreateRoleInput_AssumeRolePolicyDocument = smithy.Member{Name: "AssumeRolePolicyDocument", Index: 2, Required: true}
+var memberCreateRoleInput_AssumeRolePolicyDocument = smithy.Member{Name: "AssumeRolePolicyDocument", Index: 2, Target: &schemaPolicyDocumentType, Required: true}
 
-var memberCreateRoleInput_Description = smithy.Member{Name: "Description", Index: 3}
+var memberCreateRoleInput_Description = smithy.Member{Name: "Description", Index: 3, Target: &schemaRoleDescriptionType}
 
-var memberCreateRoleInput_MaxSessionDuration = smithy.Member{Name: "MaxSessionDuration", Index: 4}
+var memberCreateRoleInput_MaxSessionDuration = smithy.Member{Name: "MaxSessionDuration", Index: 4, Target: &schemaRoleMaxSessionDurationType}
 
-var memberCreateRoleInput_PermissionsBoundary = smithy.Member{Name: "PermissionsBoundary", Index: 5}
+var memberCreateRoleInput_PermissionsBoundary = smithy.Member{Name: "PermissionsBoundary", Index: 5, Target: &schemaArnType}
 
-var memberCreateRoleInput_Tags = smithy.Member{Name: "Tags", Index: 6}
+var memberCreateRoleInput_Tags = smithy.Member{Name: "Tags", Index: 6, Target: &schemaTagListType}
 
-var schemaCreateRoleOutput = smithy.Schema{ID: "com.amazonaws.iam#CreateRoleResponse", Type: smithy.TypeStructure}
+var schemaCreateRoleOutput = smithy.Schema{ID: "com.amazonaws.iam#CreateRoleResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateRoleOutput_Role}}
 
-var memberCreateRoleOutput_Role = smithy.Member{Name: "Role", Index: 0, Required: true}
+var memberCreateRoleOutput_Role = smithy.Member{Name: "Role", Index: 0, Target: &schemaRole, Required: true}
 
-var schemaCreateSAMLProviderInput = smithy.Schema{ID: "com.amazonaws.iam#CreateSAMLProviderRequest", Type: smithy.TypeStructure}
+var schemaCreateSAMLProviderInput = smithy.Schema{ID: "com.amazonaws.iam#CreateSAMLProviderRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateSAMLProviderInput_SAMLMetadataDocument, &memberCreateSAMLProviderInput_Name, &memberCreateSAMLProviderInput_Tags, &memberCreateSAMLProviderInput_AssertionEncryptionMode, &memberCreateSAMLProviderInput_AddPrivateKey}}
 
-var memberCreateSAMLProviderInput_SAMLMetadataDocument = smithy.Member{Name: "SAMLMetadataDocument", Index: 0, Required: true}
+var memberCreateSAMLProviderInput_SAMLMetadataDocument = smithy.Member{Name: "SAMLMetadataDocument", Index: 0, Target: &schemaSAMLMetadataDocumentType, Required: true}
 
-var memberCreateSAMLProviderInput_Name = smithy.Member{Name: "Name", Index: 1, Required: true}
+var memberCreateSAMLProviderInput_Name = smithy.Member{Name: "Name", Index: 1, Target: &schemaSAMLProviderNameType, Required: true}
 
-var memberCreateSAMLProviderInput_Tags = smithy.Member{Name: "Tags", Index: 2}
+var memberCreateSAMLProviderInput_Tags = smithy.Member{Name: "Tags", Index: 2, Target: &schemaTagListType}
 
-var memberCreateSAMLProviderInput_AssertionEncryptionMode = smithy.Member{Name: "AssertionEncryptionMode", Index: 3}
+var memberCreateSAMLProviderInput_AssertionEncryptionMode = smithy.Member{Name: "AssertionEncryptionMode", Index: 3, Target: &schemaAssertionEncryptionModeType}
 
-var memberCreateSAMLProviderInput_AddPrivateKey = smithy.Member{Name: "AddPrivateKey", Index: 4, Sensitive: true}
+var memberCreateSAMLProviderInput_AddPrivateKey = smithy.Member{Name: "AddPrivateKey", Index: 4, Target: &schemaPrivateKeyType, Sensitive: true}
 
-var schemaCreateSAMLProviderOutput = smithy.Schema{ID: "com.amazonaws.iam#CreateSAMLProviderResponse", Type: smithy.TypeStructure}
+var schemaCreateSAMLProviderOutput = smithy.Schema{ID: "com.amazonaws.iam#CreateSAMLProviderResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateSAMLProviderOutput_SAMLProviderArn, &memberCreateSAMLProviderOutput_Tags}}
 
-var memberCreateSAMLProviderOutput_SAMLProviderArn = smithy.Member{Name: "SAMLProviderArn", Index: 0}
+var memberCreateSAMLProviderOutput_SAMLProviderArn = smithy.Member{Name: "SAMLProviderArn", Index: 0, Target: &schemaArnType}
 
-var memberCreateSAMLProviderOutput_Tags = smithy.Member{Name: "Tags", Index: 1}
+var memberCreateSAMLProviderOutput_Tags = smithy.Member{Name: "Tags", Index: 1, Target: &schemaTagListType}
 
-var schemaCreateServiceLinkedRoleInput = smithy.Schema{ID: "com.amazonaws.iam#CreateServiceLinkedRoleRequest", Type: smithy.TypeStructure}
+var schemaCreateServiceLinkedRoleInput = smithy.Schema{ID: "com.amazonaws.iam#CreateServiceLinkedRoleRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateServiceLinkedRoleInput_AWSServiceName, &memberCreateServiceLinkedRoleInput_Description, &memberCreateServiceLinkedRoleInput_CustomSuffix}}
 
-var memberCreateServiceLinkedRoleInput_AWSServiceName = smithy.Member{Name: "AWSServiceName", Index: 0, Required: true}
+var memberCreateServiceLinkedRoleInput_AWSServiceName = smithy.Member{Name: "AWSServiceName", Index: 0, Target: &schemaGroupNameType, Required: true}
 
-var memberCreateServiceLinkedRoleInput_Description = smithy.Member{Name: "Description", Index: 1}
+var memberCreateServiceLinkedRoleInput_Description = smithy.Member{Name: "Description", Index: 1, Target: &schemaRoleDescriptionType}
 
-var memberCreateServiceLinkedRoleInput_CustomSuffix = smithy.Member{Name: "CustomSuffix", Index: 2}
+var memberCreateServiceLinkedRoleInput_CustomSuffix = smithy.Member{Name: "CustomSuffix", Index: 2, Target: &schemaCustomSuffixType}
 
-var schemaCreateServiceLinkedRoleOutput = smithy.Schema{ID: "com.amazonaws.iam#CreateServiceLinkedRoleResponse", Type: smithy.TypeStructure}
+var schemaCreateServiceLinkedRoleOutput = smithy.Schema{ID: "com.amazonaws.iam#CreateServiceLinkedRoleResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateServiceLinkedRoleOutput_Role}}
 
-var memberCreateServiceLinkedRoleOutput_Role = smithy.Member{Name: "Role", Index: 0}
+var memberCreateServiceLinkedRoleOutput_Role = smithy.Member{Name: "Role", Index: 0, Target: &schemaRole}
 
-var schemaCreateServiceSpecificCredentialInput = smithy.Schema{ID: "com.amazonaws.iam#CreateServiceSpecificCredentialRequest", Type: smithy.TypeStructure}
+var schemaCreateServiceSpecificCredentialInput = smithy.Schema{ID: "com.amazonaws.iam#CreateServiceSpecificCredentialRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateServiceSpecificCredentialInput_UserName, &memberCreateServiceSpecificCredentialInput_ServiceName, &memberCreateServiceSpecificCredentialInput_CredentialAgeDays}}
 
-var memberCreateServiceSpecificCredentialInput_UserName = smithy.Member{Name: "UserName", Index: 0, Required: true}
+var memberCreateServiceSpecificCredentialInput_UserName = smithy.Member{Name: "UserName", Index: 0, Target: &schemaUserNameType, Required: true}
 
-var memberCreateServiceSpecificCredentialInput_ServiceName = smithy.Member{Name: "ServiceName", Index: 1, Required: true}
+var memberCreateServiceSpecificCredentialInput_ServiceName = smithy.Member{Name: "ServiceName", Index: 1, Target: &schemaServiceName, Required: true}
 
-var memberCreateServiceSpecificCredentialInput_CredentialAgeDays = smithy.Member{Name: "CredentialAgeDays", Index: 2}
+var memberCreateServiceSpecificCredentialInput_CredentialAgeDays = smithy.Member{Name: "CredentialAgeDays", Index: 2, Target: &schemaCredentialAgeDays}
 
-var schemaCreateServiceSpecificCredentialOutput = smithy.Schema{ID: "com.amazonaws.iam#CreateServiceSpecificCredentialResponse", Type: smithy.TypeStructure}
+var schemaCreateServiceSpecificCredentialOutput = smithy.Schema{ID: "com.amazonaws.iam#CreateServiceSpecificCredentialResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateServiceSpecificCredentialOutput_ServiceSpecificCredential}}
 
-var memberCreateServiceSpecificCredentialOutput_ServiceSpecificCredential = smithy.Member{Name: "ServiceSpecificCredential", Index: 0}
+var memberCreateServiceSpecificCredentialOutput_ServiceSpecificCredential = smithy.Member{Name: "ServiceSpecificCredential", Index: 0, Target: &schemaServiceSpecificCredential}
 
-var schemaCreateUserInput = smithy.Schema{ID: "com.amazonaws.iam#CreateUserRequest", Type: smithy.TypeStructure}
+var schemaCreateUserInput = smithy.Schema{ID: "com.amazonaws.iam#CreateUserRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateUserInput_Path, &memberCreateUserInput_UserName, &memberCreateUserInput_PermissionsBoundary, &memberCreateUserInput_Tags}}
 
-var memberCreateUserInput_Path = smithy.Member{Name: "Path", Index: 0}
+var memberCreateUserInput_Path = smithy.Member{Name: "Path", Index: 0, Target: &schemaPathType}
 
-var memberCreateUserInput_UserName = smithy.Member{Name: "UserName", Index: 1, Required: true}
+var memberCreateUserInput_UserName = smithy.Member{Name: "UserName", Index: 1, Target: &schemaUserNameType, Required: true}
 
-var memberCreateUserInput_PermissionsBoundary = smithy.Member{Name: "PermissionsBoundary", Index: 2}
+var memberCreateUserInput_PermissionsBoundary = smithy.Member{Name: "PermissionsBoundary", Index: 2, Target: &schemaArnType}
 
-var memberCreateUserInput_Tags = smithy.Member{Name: "Tags", Index: 3}
+var memberCreateUserInput_Tags = smithy.Member{Name: "Tags", Index: 3, Target: &schemaTagListType}
 
-var schemaCreateUserOutput = smithy.Schema{ID: "com.amazonaws.iam#CreateUserResponse", Type: smithy.TypeStructure}
+var schemaCreateUserOutput = smithy.Schema{ID: "com.amazonaws.iam#CreateUserResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateUserOutput_User}}
 
-var memberCreateUserOutput_User = smithy.Member{Name: "User", Index: 0}
+var memberCreateUserOutput_User = smithy.Member{Name: "User", Index: 0, Target: &schemaUser}
 
-var schemaCreateVirtualMFADeviceInput = smithy.Schema{ID: "com.amazonaws.iam#CreateVirtualMFADeviceRequest", Type: smithy.TypeStructure}
+var schemaCreateVirtualMFADeviceInput = smithy.Schema{ID: "com.amazonaws.iam#CreateVirtualMFADeviceRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateVirtualMFADeviceInput_Path, &memberCreateVirtualMFADeviceInput_VirtualMFADeviceName, &memberCreateVirtualMFADeviceInput_Tags}}
 
-var memberCreateVirtualMFADeviceInput_Path = smithy.Member{Name: "Path", Index: 0}
+var memberCreateVirtualMFADeviceInput_Path = smithy.Member{Name: "Path", Index: 0, Target: &schemaPathType}
 
-var memberCreateVirtualMFADeviceInput_VirtualMFADeviceName = smithy.Member{Name: "VirtualMFADeviceName", Index: 1, Required: true}
+var memberCreateVirtualMFADeviceInput_VirtualMFADeviceName = smithy.Member{Name: "VirtualMFADeviceName", Index: 1, Target: &schemaVirtualMFADeviceName, Required: true}
 
-var memberCreateVirtualMFADeviceInput_Tags = smithy.Member{Name: "Tags", Index: 2}
+var memberCreateVirtualMFADeviceInput_Tags = smithy.Member{Name: "Tags", Index: 2, Target: &schemaTagListType}
 
-var schemaCreateVirtualMFADeviceOutput = smithy.Schema{ID: "com.amazonaws.iam#CreateVirtualMFADeviceResponse", Type: smithy.TypeStructure}
+var schemaCreateVirtualMFADeviceOutput = smithy.Schema{ID: "com.amazonaws.iam#CreateVirtualMFADeviceResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateVirtualMFADeviceOutput_VirtualMFADevice}}
 
-var memberCreateVirtualMFADeviceOutput_VirtualMFADevice = smithy.Member{Name: "VirtualMFADevice", Index: 0, Required: true}
+var memberCreateVirtualMFADeviceOutput_VirtualMFADevice = smithy.Member{Name: "VirtualMFADevice", Index: 0, Target: &schemaVirtualMFADevice, Required: true}
 
 var schemaCredentialAgeDays = smithy.Schema{ID: "com.amazonaws.iam#credentialAgeDays", Type: smithy.TypeInteger}
 
-var schemaCredentialReportExpiredException = smithy.Schema{ID: "com.amazonaws.iam#CredentialReportExpiredException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 410}}
+var schemaCredentialReportExpiredException = smithy.Schema{ID: "com.amazonaws.iam#CredentialReportExpiredException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCredentialReportExpiredException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 410}}
 
-var memberCredentialReportExpiredException_message = smithy.Member{Name: "message", Index: 0}
+var memberCredentialReportExpiredException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaCredentialReportExpiredExceptionMessage}
 
 var schemaCredentialReportExpiredExceptionMessage = smithy.Schema{ID: "com.amazonaws.iam#credentialReportExpiredExceptionMessage", Type: smithy.TypeString}
 
-var schemaCredentialReportNotPresentException = smithy.Schema{ID: "com.amazonaws.iam#CredentialReportNotPresentException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 410}}
+var schemaCredentialReportNotPresentException = smithy.Schema{ID: "com.amazonaws.iam#CredentialReportNotPresentException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCredentialReportNotPresentException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 410}}
 
-var memberCredentialReportNotPresentException_message = smithy.Member{Name: "message", Index: 0}
+var memberCredentialReportNotPresentException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaCredentialReportNotPresentExceptionMessage}
 
 var schemaCredentialReportNotPresentExceptionMessage = smithy.Schema{ID: "com.amazonaws.iam#credentialReportNotPresentExceptionMessage", Type: smithy.TypeString}
 
-var schemaCredentialReportNotReadyException = smithy.Schema{ID: "com.amazonaws.iam#CredentialReportNotReadyException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 404}}
+var schemaCredentialReportNotReadyException = smithy.Schema{ID: "com.amazonaws.iam#CredentialReportNotReadyException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCredentialReportNotReadyException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 404}}
 
-var memberCredentialReportNotReadyException_message = smithy.Member{Name: "message", Index: 0}
+var memberCredentialReportNotReadyException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaCredentialReportNotReadyExceptionMessage}
 
 var schemaCredentialReportNotReadyExceptionMessage = smithy.Schema{ID: "com.amazonaws.iam#credentialReportNotReadyExceptionMessage", Type: smithy.TypeString}
 
@@ -499,919 +499,919 @@ var schemaCustomSuffixType = smithy.Schema{ID: "com.amazonaws.iam#customSuffixTy
 
 var schemaDateType = smithy.Schema{ID: "com.amazonaws.iam#dateType", Type: smithy.TypeTimestamp}
 
-var schemaDeactivateMFADeviceInput = smithy.Schema{ID: "com.amazonaws.iam#DeactivateMFADeviceRequest", Type: smithy.TypeStructure}
+var schemaDeactivateMFADeviceInput = smithy.Schema{ID: "com.amazonaws.iam#DeactivateMFADeviceRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeactivateMFADeviceInput_UserName, &memberDeactivateMFADeviceInput_SerialNumber}}
 
-var memberDeactivateMFADeviceInput_UserName = smithy.Member{Name: "UserName", Index: 0}
+var memberDeactivateMFADeviceInput_UserName = smithy.Member{Name: "UserName", Index: 0, Target: &schemaExistingUserNameType}
 
-var memberDeactivateMFADeviceInput_SerialNumber = smithy.Member{Name: "SerialNumber", Index: 1, Required: true}
+var memberDeactivateMFADeviceInput_SerialNumber = smithy.Member{Name: "SerialNumber", Index: 1, Target: &schemaSerialNumberType, Required: true}
 
-var schemaDelegationPermission = smithy.Schema{ID: "com.amazonaws.iam#DelegationPermission", Type: smithy.TypeStructure}
+var schemaDelegationPermission = smithy.Schema{ID: "com.amazonaws.iam#DelegationPermission", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDelegationPermission_PolicyTemplateArn, &memberDelegationPermission_Parameters}}
 
-var memberDelegationPermission_PolicyTemplateArn = smithy.Member{Name: "PolicyTemplateArn", Index: 0}
+var memberDelegationPermission_PolicyTemplateArn = smithy.Member{Name: "PolicyTemplateArn", Index: 0, Target: &schemaArnType}
 
-var memberDelegationPermission_Parameters = smithy.Member{Name: "Parameters", Index: 1}
+var memberDelegationPermission_Parameters = smithy.Member{Name: "Parameters", Index: 1, Target: &schemaPolicyParameterListType}
 
-var schemaDelegationRequest = smithy.Schema{ID: "com.amazonaws.iam#DelegationRequest", Type: smithy.TypeStructure}
+var schemaDelegationRequest = smithy.Schema{ID: "com.amazonaws.iam#DelegationRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDelegationRequest_DelegationRequestId, &memberDelegationRequest_OwnerAccountId, &memberDelegationRequest_Description, &memberDelegationRequest_RequestMessage, &memberDelegationRequest_Permissions, &memberDelegationRequest_PermissionPolicy, &memberDelegationRequest_RolePermissionRestrictionArns, &memberDelegationRequest_OwnerId, &memberDelegationRequest_ApproverId, &memberDelegationRequest_State, &memberDelegationRequest_ExpirationTime, &memberDelegationRequest_RequestorId, &memberDelegationRequest_RequestorName, &memberDelegationRequest_CreateDate, &memberDelegationRequest_SessionDuration, &memberDelegationRequest_RedirectUrl, &memberDelegationRequest_Notes, &memberDelegationRequest_RejectionReason, &memberDelegationRequest_OnlySendByOwner, &memberDelegationRequest_UpdatedTime}}
 
-var memberDelegationRequest_DelegationRequestId = smithy.Member{Name: "DelegationRequestId", Index: 0}
+var memberDelegationRequest_DelegationRequestId = smithy.Member{Name: "DelegationRequestId", Index: 0, Target: &schemaDelegationRequestIdType}
 
-var memberDelegationRequest_OwnerAccountId = smithy.Member{Name: "OwnerAccountId", Index: 1}
+var memberDelegationRequest_OwnerAccountId = smithy.Member{Name: "OwnerAccountId", Index: 1, Target: &schemaAccountIdType}
 
-var memberDelegationRequest_Description = smithy.Member{Name: "Description", Index: 2}
+var memberDelegationRequest_Description = smithy.Member{Name: "Description", Index: 2, Target: &schemaDelegationRequestDescriptionType}
 
-var memberDelegationRequest_RequestMessage = smithy.Member{Name: "RequestMessage", Index: 3}
+var memberDelegationRequest_RequestMessage = smithy.Member{Name: "RequestMessage", Index: 3, Target: &schemaRequestMessageType}
 
-var memberDelegationRequest_Permissions = smithy.Member{Name: "Permissions", Index: 4}
+var memberDelegationRequest_Permissions = smithy.Member{Name: "Permissions", Index: 4, Target: &schemaDelegationPermission}
 
-var memberDelegationRequest_PermissionPolicy = smithy.Member{Name: "PermissionPolicy", Index: 5}
+var memberDelegationRequest_PermissionPolicy = smithy.Member{Name: "PermissionPolicy", Index: 5, Target: &schemaPermissionType}
 
-var memberDelegationRequest_RolePermissionRestrictionArns = smithy.Member{Name: "RolePermissionRestrictionArns", Index: 6}
+var memberDelegationRequest_RolePermissionRestrictionArns = smithy.Member{Name: "RolePermissionRestrictionArns", Index: 6, Target: &schemaRolePermissionRestrictionArnListType}
 
-var memberDelegationRequest_OwnerId = smithy.Member{Name: "OwnerId", Index: 7}
+var memberDelegationRequest_OwnerId = smithy.Member{Name: "OwnerId", Index: 7, Target: &schemaOwnerIdType}
 
-var memberDelegationRequest_ApproverId = smithy.Member{Name: "ApproverId", Index: 8}
+var memberDelegationRequest_ApproverId = smithy.Member{Name: "ApproverId", Index: 8, Target: &schemaArnType}
 
-var memberDelegationRequest_State = smithy.Member{Name: "State", Index: 9}
+var memberDelegationRequest_State = smithy.Member{Name: "State", Index: 9, Target: &schemaStateType}
 
-var memberDelegationRequest_ExpirationTime = smithy.Member{Name: "ExpirationTime", Index: 10}
+var memberDelegationRequest_ExpirationTime = smithy.Member{Name: "ExpirationTime", Index: 10, Target: &schemaDateType}
 
-var memberDelegationRequest_RequestorId = smithy.Member{Name: "RequestorId", Index: 11}
+var memberDelegationRequest_RequestorId = smithy.Member{Name: "RequestorId", Index: 11, Target: &schemaAccountIdType}
 
-var memberDelegationRequest_RequestorName = smithy.Member{Name: "RequestorName", Index: 12}
+var memberDelegationRequest_RequestorName = smithy.Member{Name: "RequestorName", Index: 12, Target: &schemaRequestorNameType}
 
-var memberDelegationRequest_CreateDate = smithy.Member{Name: "CreateDate", Index: 13}
+var memberDelegationRequest_CreateDate = smithy.Member{Name: "CreateDate", Index: 13, Target: &schemaDateType}
 
-var memberDelegationRequest_SessionDuration = smithy.Member{Name: "SessionDuration", Index: 14}
+var memberDelegationRequest_SessionDuration = smithy.Member{Name: "SessionDuration", Index: 14, Target: &schemaSessionDurationType}
 
-var memberDelegationRequest_RedirectUrl = smithy.Member{Name: "RedirectUrl", Index: 15}
+var memberDelegationRequest_RedirectUrl = smithy.Member{Name: "RedirectUrl", Index: 15, Target: &schemaRedirectUrlType}
 
-var memberDelegationRequest_Notes = smithy.Member{Name: "Notes", Index: 16}
+var memberDelegationRequest_Notes = smithy.Member{Name: "Notes", Index: 16, Target: &schemaNotesType}
 
-var memberDelegationRequest_RejectionReason = smithy.Member{Name: "RejectionReason", Index: 17}
+var memberDelegationRequest_RejectionReason = smithy.Member{Name: "RejectionReason", Index: 17, Target: &schemaNotesType}
 
-var memberDelegationRequest_OnlySendByOwner = smithy.Member{Name: "OnlySendByOwner", Index: 18, Default: document.Bool(false)}
+var memberDelegationRequest_OnlySendByOwner = smithy.Member{Name: "OnlySendByOwner", Index: 18, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberDelegationRequest_UpdatedTime = smithy.Member{Name: "UpdatedTime", Index: 19}
+var memberDelegationRequest_UpdatedTime = smithy.Member{Name: "UpdatedTime", Index: 19, Target: &schemaDateType}
 
 var schemaDelegationRequestDescriptionType = smithy.Schema{ID: "com.amazonaws.iam#delegationRequestDescriptionType", Type: smithy.TypeString}
 
 var schemaDelegationRequestIdType = smithy.Schema{ID: "com.amazonaws.iam#delegationRequestIdType", Type: smithy.TypeString}
 
-var schemaDelegationRequestsListType = smithy.Schema{ID: "com.amazonaws.iam#delegationRequestsListType", Type: smithy.TypeList}
+var schemaDelegationRequestsListType = smithy.Schema{ID: "com.amazonaws.iam#delegationRequestsListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberDelegationRequestsListType_member}}
 
-var memberDelegationRequestsListType_member = smithy.Member{Name: "member", Index: 0}
+var memberDelegationRequestsListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaDelegationRequest}
 
-var schemaDeleteAccessKeyInput = smithy.Schema{ID: "com.amazonaws.iam#DeleteAccessKeyRequest", Type: smithy.TypeStructure}
+var schemaDeleteAccessKeyInput = smithy.Schema{ID: "com.amazonaws.iam#DeleteAccessKeyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteAccessKeyInput_UserName, &memberDeleteAccessKeyInput_AccessKeyId}}
 
-var memberDeleteAccessKeyInput_UserName = smithy.Member{Name: "UserName", Index: 0}
+var memberDeleteAccessKeyInput_UserName = smithy.Member{Name: "UserName", Index: 0, Target: &schemaExistingUserNameType}
 
-var memberDeleteAccessKeyInput_AccessKeyId = smithy.Member{Name: "AccessKeyId", Index: 1, Required: true}
+var memberDeleteAccessKeyInput_AccessKeyId = smithy.Member{Name: "AccessKeyId", Index: 1, Target: &schemaAccessKeyIdType, Required: true}
 
-var schemaDeleteAccountAliasInput = smithy.Schema{ID: "com.amazonaws.iam#DeleteAccountAliasRequest", Type: smithy.TypeStructure}
+var schemaDeleteAccountAliasInput = smithy.Schema{ID: "com.amazonaws.iam#DeleteAccountAliasRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteAccountAliasInput_AccountAlias}}
 
-var memberDeleteAccountAliasInput_AccountAlias = smithy.Member{Name: "AccountAlias", Index: 0, Required: true}
+var memberDeleteAccountAliasInput_AccountAlias = smithy.Member{Name: "AccountAlias", Index: 0, Target: &schemaAccountAliasType, Required: true}
 
-var schemaDeleteConflictException = smithy.Schema{ID: "com.amazonaws.iam#DeleteConflictException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 409}}
+var schemaDeleteConflictException = smithy.Schema{ID: "com.amazonaws.iam#DeleteConflictException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteConflictException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 409}}
 
-var memberDeleteConflictException_message = smithy.Member{Name: "message", Index: 0}
+var memberDeleteConflictException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaDeleteConflictMessage}
 
 var schemaDeleteConflictMessage = smithy.Schema{ID: "com.amazonaws.iam#deleteConflictMessage", Type: smithy.TypeString}
 
-var schemaDeleteGroupInput = smithy.Schema{ID: "com.amazonaws.iam#DeleteGroupRequest", Type: smithy.TypeStructure}
+var schemaDeleteGroupInput = smithy.Schema{ID: "com.amazonaws.iam#DeleteGroupRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteGroupInput_GroupName}}
 
-var memberDeleteGroupInput_GroupName = smithy.Member{Name: "GroupName", Index: 0, Required: true}
+var memberDeleteGroupInput_GroupName = smithy.Member{Name: "GroupName", Index: 0, Target: &schemaGroupNameType, Required: true}
 
-var schemaDeleteGroupPolicyInput = smithy.Schema{ID: "com.amazonaws.iam#DeleteGroupPolicyRequest", Type: smithy.TypeStructure}
+var schemaDeleteGroupPolicyInput = smithy.Schema{ID: "com.amazonaws.iam#DeleteGroupPolicyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteGroupPolicyInput_GroupName, &memberDeleteGroupPolicyInput_PolicyName}}
 
-var memberDeleteGroupPolicyInput_GroupName = smithy.Member{Name: "GroupName", Index: 0, Required: true}
+var memberDeleteGroupPolicyInput_GroupName = smithy.Member{Name: "GroupName", Index: 0, Target: &schemaGroupNameType, Required: true}
 
-var memberDeleteGroupPolicyInput_PolicyName = smithy.Member{Name: "PolicyName", Index: 1, Required: true}
+var memberDeleteGroupPolicyInput_PolicyName = smithy.Member{Name: "PolicyName", Index: 1, Target: &schemaPolicyNameType, Required: true}
 
-var schemaDeleteInstanceProfileInput = smithy.Schema{ID: "com.amazonaws.iam#DeleteInstanceProfileRequest", Type: smithy.TypeStructure}
+var schemaDeleteInstanceProfileInput = smithy.Schema{ID: "com.amazonaws.iam#DeleteInstanceProfileRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteInstanceProfileInput_InstanceProfileName}}
 
-var memberDeleteInstanceProfileInput_InstanceProfileName = smithy.Member{Name: "InstanceProfileName", Index: 0, Required: true}
+var memberDeleteInstanceProfileInput_InstanceProfileName = smithy.Member{Name: "InstanceProfileName", Index: 0, Target: &schemaInstanceProfileNameType, Required: true}
 
-var schemaDeleteLoginProfileInput = smithy.Schema{ID: "com.amazonaws.iam#DeleteLoginProfileRequest", Type: smithy.TypeStructure}
+var schemaDeleteLoginProfileInput = smithy.Schema{ID: "com.amazonaws.iam#DeleteLoginProfileRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteLoginProfileInput_UserName}}
 
-var memberDeleteLoginProfileInput_UserName = smithy.Member{Name: "UserName", Index: 0}
+var memberDeleteLoginProfileInput_UserName = smithy.Member{Name: "UserName", Index: 0, Target: &schemaUserNameType}
 
-var schemaDeleteOpenIDConnectProviderInput = smithy.Schema{ID: "com.amazonaws.iam#DeleteOpenIDConnectProviderRequest", Type: smithy.TypeStructure}
+var schemaDeleteOpenIDConnectProviderInput = smithy.Schema{ID: "com.amazonaws.iam#DeleteOpenIDConnectProviderRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteOpenIDConnectProviderInput_OpenIDConnectProviderArn}}
 
-var memberDeleteOpenIDConnectProviderInput_OpenIDConnectProviderArn = smithy.Member{Name: "OpenIDConnectProviderArn", Index: 0, Required: true}
+var memberDeleteOpenIDConnectProviderInput_OpenIDConnectProviderArn = smithy.Member{Name: "OpenIDConnectProviderArn", Index: 0, Target: &schemaArnType, Required: true}
 
-var schemaDeletePolicyInput = smithy.Schema{ID: "com.amazonaws.iam#DeletePolicyRequest", Type: smithy.TypeStructure}
+var schemaDeletePolicyInput = smithy.Schema{ID: "com.amazonaws.iam#DeletePolicyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeletePolicyInput_PolicyArn}}
 
-var memberDeletePolicyInput_PolicyArn = smithy.Member{Name: "PolicyArn", Index: 0, Required: true}
+var memberDeletePolicyInput_PolicyArn = smithy.Member{Name: "PolicyArn", Index: 0, Target: &schemaArnType, Required: true}
 
-var schemaDeletePolicyVersionInput = smithy.Schema{ID: "com.amazonaws.iam#DeletePolicyVersionRequest", Type: smithy.TypeStructure}
+var schemaDeletePolicyVersionInput = smithy.Schema{ID: "com.amazonaws.iam#DeletePolicyVersionRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeletePolicyVersionInput_PolicyArn, &memberDeletePolicyVersionInput_VersionId}}
 
-var memberDeletePolicyVersionInput_PolicyArn = smithy.Member{Name: "PolicyArn", Index: 0, Required: true}
+var memberDeletePolicyVersionInput_PolicyArn = smithy.Member{Name: "PolicyArn", Index: 0, Target: &schemaArnType, Required: true}
 
-var memberDeletePolicyVersionInput_VersionId = smithy.Member{Name: "VersionId", Index: 1, Required: true}
+var memberDeletePolicyVersionInput_VersionId = smithy.Member{Name: "VersionId", Index: 1, Target: &schemaPolicyVersionIdType, Required: true}
 
-var schemaDeleteRoleInput = smithy.Schema{ID: "com.amazonaws.iam#DeleteRoleRequest", Type: smithy.TypeStructure}
+var schemaDeleteRoleInput = smithy.Schema{ID: "com.amazonaws.iam#DeleteRoleRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteRoleInput_RoleName}}
 
-var memberDeleteRoleInput_RoleName = smithy.Member{Name: "RoleName", Index: 0, Required: true}
+var memberDeleteRoleInput_RoleName = smithy.Member{Name: "RoleName", Index: 0, Target: &schemaRoleNameType, Required: true}
 
-var schemaDeleteRolePermissionsBoundaryInput = smithy.Schema{ID: "com.amazonaws.iam#DeleteRolePermissionsBoundaryRequest", Type: smithy.TypeStructure}
+var schemaDeleteRolePermissionsBoundaryInput = smithy.Schema{ID: "com.amazonaws.iam#DeleteRolePermissionsBoundaryRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteRolePermissionsBoundaryInput_RoleName}}
 
-var memberDeleteRolePermissionsBoundaryInput_RoleName = smithy.Member{Name: "RoleName", Index: 0, Required: true}
+var memberDeleteRolePermissionsBoundaryInput_RoleName = smithy.Member{Name: "RoleName", Index: 0, Target: &schemaRoleNameType, Required: true}
 
-var schemaDeleteRolePolicyInput = smithy.Schema{ID: "com.amazonaws.iam#DeleteRolePolicyRequest", Type: smithy.TypeStructure}
+var schemaDeleteRolePolicyInput = smithy.Schema{ID: "com.amazonaws.iam#DeleteRolePolicyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteRolePolicyInput_RoleName, &memberDeleteRolePolicyInput_PolicyName}}
 
-var memberDeleteRolePolicyInput_RoleName = smithy.Member{Name: "RoleName", Index: 0, Required: true}
+var memberDeleteRolePolicyInput_RoleName = smithy.Member{Name: "RoleName", Index: 0, Target: &schemaRoleNameType, Required: true}
 
-var memberDeleteRolePolicyInput_PolicyName = smithy.Member{Name: "PolicyName", Index: 1, Required: true}
+var memberDeleteRolePolicyInput_PolicyName = smithy.Member{Name: "PolicyName", Index: 1, Target: &schemaPolicyNameType, Required: true}
 
-var schemaDeleteSAMLProviderInput = smithy.Schema{ID: "com.amazonaws.iam#DeleteSAMLProviderRequest", Type: smithy.TypeStructure}
+var schemaDeleteSAMLProviderInput = smithy.Schema{ID: "com.amazonaws.iam#DeleteSAMLProviderRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteSAMLProviderInput_SAMLProviderArn}}
 
-var memberDeleteSAMLProviderInput_SAMLProviderArn = smithy.Member{Name: "SAMLProviderArn", Index: 0, Required: true}
+var memberDeleteSAMLProviderInput_SAMLProviderArn = smithy.Member{Name: "SAMLProviderArn", Index: 0, Target: &schemaArnType, Required: true}
 
-var schemaDeleteSSHPublicKeyInput = smithy.Schema{ID: "com.amazonaws.iam#DeleteSSHPublicKeyRequest", Type: smithy.TypeStructure}
+var schemaDeleteSSHPublicKeyInput = smithy.Schema{ID: "com.amazonaws.iam#DeleteSSHPublicKeyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteSSHPublicKeyInput_UserName, &memberDeleteSSHPublicKeyInput_SSHPublicKeyId}}
 
-var memberDeleteSSHPublicKeyInput_UserName = smithy.Member{Name: "UserName", Index: 0, Required: true}
+var memberDeleteSSHPublicKeyInput_UserName = smithy.Member{Name: "UserName", Index: 0, Target: &schemaUserNameType, Required: true}
 
-var memberDeleteSSHPublicKeyInput_SSHPublicKeyId = smithy.Member{Name: "SSHPublicKeyId", Index: 1, Required: true}
+var memberDeleteSSHPublicKeyInput_SSHPublicKeyId = smithy.Member{Name: "SSHPublicKeyId", Index: 1, Target: &schemaPublicKeyIdType, Required: true}
 
-var schemaDeleteServerCertificateInput = smithy.Schema{ID: "com.amazonaws.iam#DeleteServerCertificateRequest", Type: smithy.TypeStructure}
+var schemaDeleteServerCertificateInput = smithy.Schema{ID: "com.amazonaws.iam#DeleteServerCertificateRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteServerCertificateInput_ServerCertificateName}}
 
-var memberDeleteServerCertificateInput_ServerCertificateName = smithy.Member{Name: "ServerCertificateName", Index: 0, Required: true}
+var memberDeleteServerCertificateInput_ServerCertificateName = smithy.Member{Name: "ServerCertificateName", Index: 0, Target: &schemaServerCertificateNameType, Required: true}
 
-var schemaDeleteServiceLinkedRoleInput = smithy.Schema{ID: "com.amazonaws.iam#DeleteServiceLinkedRoleRequest", Type: smithy.TypeStructure}
+var schemaDeleteServiceLinkedRoleInput = smithy.Schema{ID: "com.amazonaws.iam#DeleteServiceLinkedRoleRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteServiceLinkedRoleInput_RoleName}}
 
-var memberDeleteServiceLinkedRoleInput_RoleName = smithy.Member{Name: "RoleName", Index: 0, Required: true}
+var memberDeleteServiceLinkedRoleInput_RoleName = smithy.Member{Name: "RoleName", Index: 0, Target: &schemaRoleNameType, Required: true}
 
-var schemaDeleteServiceLinkedRoleOutput = smithy.Schema{ID: "com.amazonaws.iam#DeleteServiceLinkedRoleResponse", Type: smithy.TypeStructure}
+var schemaDeleteServiceLinkedRoleOutput = smithy.Schema{ID: "com.amazonaws.iam#DeleteServiceLinkedRoleResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteServiceLinkedRoleOutput_DeletionTaskId}}
 
-var memberDeleteServiceLinkedRoleOutput_DeletionTaskId = smithy.Member{Name: "DeletionTaskId", Index: 0, Required: true}
+var memberDeleteServiceLinkedRoleOutput_DeletionTaskId = smithy.Member{Name: "DeletionTaskId", Index: 0, Target: &schemaDeletionTaskIdType, Required: true}
 
-var schemaDeleteServiceSpecificCredentialInput = smithy.Schema{ID: "com.amazonaws.iam#DeleteServiceSpecificCredentialRequest", Type: smithy.TypeStructure}
+var schemaDeleteServiceSpecificCredentialInput = smithy.Schema{ID: "com.amazonaws.iam#DeleteServiceSpecificCredentialRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteServiceSpecificCredentialInput_UserName, &memberDeleteServiceSpecificCredentialInput_ServiceSpecificCredentialId}}
 
-var memberDeleteServiceSpecificCredentialInput_UserName = smithy.Member{Name: "UserName", Index: 0}
+var memberDeleteServiceSpecificCredentialInput_UserName = smithy.Member{Name: "UserName", Index: 0, Target: &schemaUserNameType}
 
-var memberDeleteServiceSpecificCredentialInput_ServiceSpecificCredentialId = smithy.Member{Name: "ServiceSpecificCredentialId", Index: 1, Required: true}
+var memberDeleteServiceSpecificCredentialInput_ServiceSpecificCredentialId = smithy.Member{Name: "ServiceSpecificCredentialId", Index: 1, Target: &schemaServiceSpecificCredentialId, Required: true}
 
-var schemaDeleteSigningCertificateInput = smithy.Schema{ID: "com.amazonaws.iam#DeleteSigningCertificateRequest", Type: smithy.TypeStructure}
+var schemaDeleteSigningCertificateInput = smithy.Schema{ID: "com.amazonaws.iam#DeleteSigningCertificateRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteSigningCertificateInput_UserName, &memberDeleteSigningCertificateInput_CertificateId}}
 
-var memberDeleteSigningCertificateInput_UserName = smithy.Member{Name: "UserName", Index: 0}
+var memberDeleteSigningCertificateInput_UserName = smithy.Member{Name: "UserName", Index: 0, Target: &schemaExistingUserNameType}
 
-var memberDeleteSigningCertificateInput_CertificateId = smithy.Member{Name: "CertificateId", Index: 1, Required: true}
+var memberDeleteSigningCertificateInput_CertificateId = smithy.Member{Name: "CertificateId", Index: 1, Target: &schemaCertificateIdType, Required: true}
 
-var schemaDeleteUserInput = smithy.Schema{ID: "com.amazonaws.iam#DeleteUserRequest", Type: smithy.TypeStructure}
+var schemaDeleteUserInput = smithy.Schema{ID: "com.amazonaws.iam#DeleteUserRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteUserInput_UserName}}
 
-var memberDeleteUserInput_UserName = smithy.Member{Name: "UserName", Index: 0, Required: true}
+var memberDeleteUserInput_UserName = smithy.Member{Name: "UserName", Index: 0, Target: &schemaExistingUserNameType, Required: true}
 
-var schemaDeleteUserPermissionsBoundaryInput = smithy.Schema{ID: "com.amazonaws.iam#DeleteUserPermissionsBoundaryRequest", Type: smithy.TypeStructure}
+var schemaDeleteUserPermissionsBoundaryInput = smithy.Schema{ID: "com.amazonaws.iam#DeleteUserPermissionsBoundaryRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteUserPermissionsBoundaryInput_UserName}}
 
-var memberDeleteUserPermissionsBoundaryInput_UserName = smithy.Member{Name: "UserName", Index: 0, Required: true}
+var memberDeleteUserPermissionsBoundaryInput_UserName = smithy.Member{Name: "UserName", Index: 0, Target: &schemaUserNameType, Required: true}
 
-var schemaDeleteUserPolicyInput = smithy.Schema{ID: "com.amazonaws.iam#DeleteUserPolicyRequest", Type: smithy.TypeStructure}
+var schemaDeleteUserPolicyInput = smithy.Schema{ID: "com.amazonaws.iam#DeleteUserPolicyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteUserPolicyInput_UserName, &memberDeleteUserPolicyInput_PolicyName}}
 
-var memberDeleteUserPolicyInput_UserName = smithy.Member{Name: "UserName", Index: 0, Required: true}
+var memberDeleteUserPolicyInput_UserName = smithy.Member{Name: "UserName", Index: 0, Target: &schemaExistingUserNameType, Required: true}
 
-var memberDeleteUserPolicyInput_PolicyName = smithy.Member{Name: "PolicyName", Index: 1, Required: true}
+var memberDeleteUserPolicyInput_PolicyName = smithy.Member{Name: "PolicyName", Index: 1, Target: &schemaPolicyNameType, Required: true}
 
-var schemaDeleteVirtualMFADeviceInput = smithy.Schema{ID: "com.amazonaws.iam#DeleteVirtualMFADeviceRequest", Type: smithy.TypeStructure}
+var schemaDeleteVirtualMFADeviceInput = smithy.Schema{ID: "com.amazonaws.iam#DeleteVirtualMFADeviceRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteVirtualMFADeviceInput_SerialNumber}}
 
-var memberDeleteVirtualMFADeviceInput_SerialNumber = smithy.Member{Name: "SerialNumber", Index: 0, Required: true}
+var memberDeleteVirtualMFADeviceInput_SerialNumber = smithy.Member{Name: "SerialNumber", Index: 0, Target: &schemaSerialNumberType, Required: true}
 
-var schemaDeletionTaskFailureReasonType = smithy.Schema{ID: "com.amazonaws.iam#DeletionTaskFailureReasonType", Type: smithy.TypeStructure}
+var schemaDeletionTaskFailureReasonType = smithy.Schema{ID: "com.amazonaws.iam#DeletionTaskFailureReasonType", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeletionTaskFailureReasonType_Reason, &memberDeletionTaskFailureReasonType_RoleUsageList}}
 
-var memberDeletionTaskFailureReasonType_Reason = smithy.Member{Name: "Reason", Index: 0}
+var memberDeletionTaskFailureReasonType_Reason = smithy.Member{Name: "Reason", Index: 0, Target: &schemaReasonType}
 
-var memberDeletionTaskFailureReasonType_RoleUsageList = smithy.Member{Name: "RoleUsageList", Index: 1}
+var memberDeletionTaskFailureReasonType_RoleUsageList = smithy.Member{Name: "RoleUsageList", Index: 1, Target: &schemaRoleUsageListType}
 
 var schemaDeletionTaskIdType = smithy.Schema{ID: "com.amazonaws.iam#DeletionTaskIdType", Type: smithy.TypeString}
 
 var schemaDeletionTaskStatusType = smithy.Schema{ID: "com.amazonaws.iam#DeletionTaskStatusType", Type: smithy.TypeEnum}
 
-var schemaDetachGroupPolicyInput = smithy.Schema{ID: "com.amazonaws.iam#DetachGroupPolicyRequest", Type: smithy.TypeStructure}
+var schemaDetachGroupPolicyInput = smithy.Schema{ID: "com.amazonaws.iam#DetachGroupPolicyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDetachGroupPolicyInput_GroupName, &memberDetachGroupPolicyInput_PolicyArn}}
 
-var memberDetachGroupPolicyInput_GroupName = smithy.Member{Name: "GroupName", Index: 0, Required: true}
+var memberDetachGroupPolicyInput_GroupName = smithy.Member{Name: "GroupName", Index: 0, Target: &schemaGroupNameType, Required: true}
 
-var memberDetachGroupPolicyInput_PolicyArn = smithy.Member{Name: "PolicyArn", Index: 1, Required: true}
+var memberDetachGroupPolicyInput_PolicyArn = smithy.Member{Name: "PolicyArn", Index: 1, Target: &schemaArnType, Required: true}
 
-var schemaDetachRolePolicyInput = smithy.Schema{ID: "com.amazonaws.iam#DetachRolePolicyRequest", Type: smithy.TypeStructure}
+var schemaDetachRolePolicyInput = smithy.Schema{ID: "com.amazonaws.iam#DetachRolePolicyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDetachRolePolicyInput_RoleName, &memberDetachRolePolicyInput_PolicyArn}}
 
-var memberDetachRolePolicyInput_RoleName = smithy.Member{Name: "RoleName", Index: 0, Required: true}
+var memberDetachRolePolicyInput_RoleName = smithy.Member{Name: "RoleName", Index: 0, Target: &schemaRoleNameType, Required: true}
 
-var memberDetachRolePolicyInput_PolicyArn = smithy.Member{Name: "PolicyArn", Index: 1, Required: true}
+var memberDetachRolePolicyInput_PolicyArn = smithy.Member{Name: "PolicyArn", Index: 1, Target: &schemaArnType, Required: true}
 
-var schemaDetachUserPolicyInput = smithy.Schema{ID: "com.amazonaws.iam#DetachUserPolicyRequest", Type: smithy.TypeStructure}
+var schemaDetachUserPolicyInput = smithy.Schema{ID: "com.amazonaws.iam#DetachUserPolicyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDetachUserPolicyInput_UserName, &memberDetachUserPolicyInput_PolicyArn}}
 
-var memberDetachUserPolicyInput_UserName = smithy.Member{Name: "UserName", Index: 0, Required: true}
+var memberDetachUserPolicyInput_UserName = smithy.Member{Name: "UserName", Index: 0, Target: &schemaUserNameType, Required: true}
 
-var memberDetachUserPolicyInput_PolicyArn = smithy.Member{Name: "PolicyArn", Index: 1, Required: true}
+var memberDetachUserPolicyInput_PolicyArn = smithy.Member{Name: "PolicyArn", Index: 1, Target: &schemaArnType, Required: true}
 
 var schemaDisableOrganizationsRootCredentialsManagementInput = smithy.Schema{ID: "com.amazonaws.iam#DisableOrganizationsRootCredentialsManagementRequest", Type: smithy.TypeStructure}
 
-var schemaDisableOrganizationsRootCredentialsManagementOutput = smithy.Schema{ID: "com.amazonaws.iam#DisableOrganizationsRootCredentialsManagementResponse", Type: smithy.TypeStructure}
+var schemaDisableOrganizationsRootCredentialsManagementOutput = smithy.Schema{ID: "com.amazonaws.iam#DisableOrganizationsRootCredentialsManagementResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDisableOrganizationsRootCredentialsManagementOutput_OrganizationId, &memberDisableOrganizationsRootCredentialsManagementOutput_EnabledFeatures}}
 
-var memberDisableOrganizationsRootCredentialsManagementOutput_OrganizationId = smithy.Member{Name: "OrganizationId", Index: 0}
+var memberDisableOrganizationsRootCredentialsManagementOutput_OrganizationId = smithy.Member{Name: "OrganizationId", Index: 0, Target: &schemaOrganizationIdType}
 
-var memberDisableOrganizationsRootCredentialsManagementOutput_EnabledFeatures = smithy.Member{Name: "EnabledFeatures", Index: 1}
+var memberDisableOrganizationsRootCredentialsManagementOutput_EnabledFeatures = smithy.Member{Name: "EnabledFeatures", Index: 1, Target: &schemaFeaturesListType}
 
 var schemaDisableOrganizationsRootSessionsInput = smithy.Schema{ID: "com.amazonaws.iam#DisableOrganizationsRootSessionsRequest", Type: smithy.TypeStructure}
 
-var schemaDisableOrganizationsRootSessionsOutput = smithy.Schema{ID: "com.amazonaws.iam#DisableOrganizationsRootSessionsResponse", Type: smithy.TypeStructure}
+var schemaDisableOrganizationsRootSessionsOutput = smithy.Schema{ID: "com.amazonaws.iam#DisableOrganizationsRootSessionsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDisableOrganizationsRootSessionsOutput_OrganizationId, &memberDisableOrganizationsRootSessionsOutput_EnabledFeatures}}
 
-var memberDisableOrganizationsRootSessionsOutput_OrganizationId = smithy.Member{Name: "OrganizationId", Index: 0}
+var memberDisableOrganizationsRootSessionsOutput_OrganizationId = smithy.Member{Name: "OrganizationId", Index: 0, Target: &schemaOrganizationIdType}
 
-var memberDisableOrganizationsRootSessionsOutput_EnabledFeatures = smithy.Member{Name: "EnabledFeatures", Index: 1}
+var memberDisableOrganizationsRootSessionsOutput_EnabledFeatures = smithy.Member{Name: "EnabledFeatures", Index: 1, Target: &schemaFeaturesListType}
 
-var schemaDuplicateCertificateException = smithy.Schema{ID: "com.amazonaws.iam#DuplicateCertificateException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 409}}
+var schemaDuplicateCertificateException = smithy.Schema{ID: "com.amazonaws.iam#DuplicateCertificateException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDuplicateCertificateException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 409}}
 
-var memberDuplicateCertificateException_message = smithy.Member{Name: "message", Index: 0}
+var memberDuplicateCertificateException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaDuplicateCertificateMessage}
 
 var schemaDuplicateCertificateMessage = smithy.Schema{ID: "com.amazonaws.iam#duplicateCertificateMessage", Type: smithy.TypeString}
 
-var schemaDuplicateSSHPublicKeyException = smithy.Schema{ID: "com.amazonaws.iam#DuplicateSSHPublicKeyException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaDuplicateSSHPublicKeyException = smithy.Schema{ID: "com.amazonaws.iam#DuplicateSSHPublicKeyException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDuplicateSSHPublicKeyException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberDuplicateSSHPublicKeyException_message = smithy.Member{Name: "message", Index: 0}
+var memberDuplicateSSHPublicKeyException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaDuplicateSSHPublicKeyMessage}
 
 var schemaDuplicateSSHPublicKeyMessage = smithy.Schema{ID: "com.amazonaws.iam#duplicateSSHPublicKeyMessage", Type: smithy.TypeString}
 
-var schemaEnableMFADeviceInput = smithy.Schema{ID: "com.amazonaws.iam#EnableMFADeviceRequest", Type: smithy.TypeStructure}
+var schemaEnableMFADeviceInput = smithy.Schema{ID: "com.amazonaws.iam#EnableMFADeviceRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberEnableMFADeviceInput_UserName, &memberEnableMFADeviceInput_SerialNumber, &memberEnableMFADeviceInput_AuthenticationCode1, &memberEnableMFADeviceInput_AuthenticationCode2}}
 
-var memberEnableMFADeviceInput_UserName = smithy.Member{Name: "UserName", Index: 0, Required: true}
+var memberEnableMFADeviceInput_UserName = smithy.Member{Name: "UserName", Index: 0, Target: &schemaExistingUserNameType, Required: true}
 
-var memberEnableMFADeviceInput_SerialNumber = smithy.Member{Name: "SerialNumber", Index: 1, Required: true}
+var memberEnableMFADeviceInput_SerialNumber = smithy.Member{Name: "SerialNumber", Index: 1, Target: &schemaSerialNumberType, Required: true}
 
-var memberEnableMFADeviceInput_AuthenticationCode1 = smithy.Member{Name: "AuthenticationCode1", Index: 2, Required: true}
+var memberEnableMFADeviceInput_AuthenticationCode1 = smithy.Member{Name: "AuthenticationCode1", Index: 2, Target: &schemaAuthenticationCodeType, Required: true}
 
-var memberEnableMFADeviceInput_AuthenticationCode2 = smithy.Member{Name: "AuthenticationCode2", Index: 3, Required: true}
+var memberEnableMFADeviceInput_AuthenticationCode2 = smithy.Member{Name: "AuthenticationCode2", Index: 3, Target: &schemaAuthenticationCodeType, Required: true}
 
 var schemaEnableOrganizationsRootCredentialsManagementInput = smithy.Schema{ID: "com.amazonaws.iam#EnableOrganizationsRootCredentialsManagementRequest", Type: smithy.TypeStructure}
 
-var schemaEnableOrganizationsRootCredentialsManagementOutput = smithy.Schema{ID: "com.amazonaws.iam#EnableOrganizationsRootCredentialsManagementResponse", Type: smithy.TypeStructure}
+var schemaEnableOrganizationsRootCredentialsManagementOutput = smithy.Schema{ID: "com.amazonaws.iam#EnableOrganizationsRootCredentialsManagementResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberEnableOrganizationsRootCredentialsManagementOutput_OrganizationId, &memberEnableOrganizationsRootCredentialsManagementOutput_EnabledFeatures}}
 
-var memberEnableOrganizationsRootCredentialsManagementOutput_OrganizationId = smithy.Member{Name: "OrganizationId", Index: 0}
+var memberEnableOrganizationsRootCredentialsManagementOutput_OrganizationId = smithy.Member{Name: "OrganizationId", Index: 0, Target: &schemaOrganizationIdType}
 
-var memberEnableOrganizationsRootCredentialsManagementOutput_EnabledFeatures = smithy.Member{Name: "EnabledFeatures", Index: 1}
+var memberEnableOrganizationsRootCredentialsManagementOutput_EnabledFeatures = smithy.Member{Name: "EnabledFeatures", Index: 1, Target: &schemaFeaturesListType}
 
 var schemaEnableOrganizationsRootSessionsInput = smithy.Schema{ID: "com.amazonaws.iam#EnableOrganizationsRootSessionsRequest", Type: smithy.TypeStructure}
 
-var schemaEnableOrganizationsRootSessionsOutput = smithy.Schema{ID: "com.amazonaws.iam#EnableOrganizationsRootSessionsResponse", Type: smithy.TypeStructure}
+var schemaEnableOrganizationsRootSessionsOutput = smithy.Schema{ID: "com.amazonaws.iam#EnableOrganizationsRootSessionsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberEnableOrganizationsRootSessionsOutput_OrganizationId, &memberEnableOrganizationsRootSessionsOutput_EnabledFeatures}}
 
-var memberEnableOrganizationsRootSessionsOutput_OrganizationId = smithy.Member{Name: "OrganizationId", Index: 0}
+var memberEnableOrganizationsRootSessionsOutput_OrganizationId = smithy.Member{Name: "OrganizationId", Index: 0, Target: &schemaOrganizationIdType}
 
-var memberEnableOrganizationsRootSessionsOutput_EnabledFeatures = smithy.Member{Name: "EnabledFeatures", Index: 1}
+var memberEnableOrganizationsRootSessionsOutput_EnabledFeatures = smithy.Member{Name: "EnabledFeatures", Index: 1, Target: &schemaFeaturesListType}
 
-var schemaEnableOutboundWebIdentityFederationOutput = smithy.Schema{ID: "com.amazonaws.iam#EnableOutboundWebIdentityFederationResponse", Type: smithy.TypeStructure}
+var schemaEnableOutboundWebIdentityFederationOutput = smithy.Schema{ID: "com.amazonaws.iam#EnableOutboundWebIdentityFederationResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberEnableOutboundWebIdentityFederationOutput_IssuerIdentifier}}
 
-var memberEnableOutboundWebIdentityFederationOutput_IssuerIdentifier = smithy.Member{Name: "IssuerIdentifier", Index: 0}
+var memberEnableOutboundWebIdentityFederationOutput_IssuerIdentifier = smithy.Member{Name: "IssuerIdentifier", Index: 0, Target: &schemaStringType}
 
 var schemaEncodingType = smithy.Schema{ID: "com.amazonaws.iam#encodingType", Type: smithy.TypeEnum}
 
-var schemaEntityAlreadyExistsException = smithy.Schema{ID: "com.amazonaws.iam#EntityAlreadyExistsException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 409}}
+var schemaEntityAlreadyExistsException = smithy.Schema{ID: "com.amazonaws.iam#EntityAlreadyExistsException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberEntityAlreadyExistsException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 409}}
 
-var memberEntityAlreadyExistsException_message = smithy.Member{Name: "message", Index: 0}
+var memberEntityAlreadyExistsException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaEntityAlreadyExistsMessage}
 
 var schemaEntityAlreadyExistsMessage = smithy.Schema{ID: "com.amazonaws.iam#entityAlreadyExistsMessage", Type: smithy.TypeString}
 
-var schemaEntityDetails = smithy.Schema{ID: "com.amazonaws.iam#EntityDetails", Type: smithy.TypeStructure}
+var schemaEntityDetails = smithy.Schema{ID: "com.amazonaws.iam#EntityDetails", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberEntityDetails_EntityInfo, &memberEntityDetails_LastAuthenticated}}
 
-var memberEntityDetails_EntityInfo = smithy.Member{Name: "EntityInfo", Index: 0, Required: true}
+var memberEntityDetails_EntityInfo = smithy.Member{Name: "EntityInfo", Index: 0, Target: &schemaEntityInfo, Required: true}
 
-var memberEntityDetails_LastAuthenticated = smithy.Member{Name: "LastAuthenticated", Index: 1}
+var memberEntityDetails_LastAuthenticated = smithy.Member{Name: "LastAuthenticated", Index: 1, Target: &schemaDateType}
 
-var schemaEntityDetailsListType = smithy.Schema{ID: "com.amazonaws.iam#entityDetailsListType", Type: smithy.TypeList}
+var schemaEntityDetailsListType = smithy.Schema{ID: "com.amazonaws.iam#entityDetailsListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberEntityDetailsListType_member}}
 
-var memberEntityDetailsListType_member = smithy.Member{Name: "member", Index: 0}
+var memberEntityDetailsListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaEntityDetails}
 
-var schemaEntityInfo = smithy.Schema{ID: "com.amazonaws.iam#EntityInfo", Type: smithy.TypeStructure}
+var schemaEntityInfo = smithy.Schema{ID: "com.amazonaws.iam#EntityInfo", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberEntityInfo_Arn, &memberEntityInfo_Name, &memberEntityInfo_Type, &memberEntityInfo_Id, &memberEntityInfo_Path}}
 
-var memberEntityInfo_Arn = smithy.Member{Name: "Arn", Index: 0, Required: true}
+var memberEntityInfo_Arn = smithy.Member{Name: "Arn", Index: 0, Target: &schemaArnType, Required: true}
 
-var memberEntityInfo_Name = smithy.Member{Name: "Name", Index: 1, Required: true}
+var memberEntityInfo_Name = smithy.Member{Name: "Name", Index: 1, Target: &schemaUserNameType, Required: true}
 
-var memberEntityInfo_Type = smithy.Member{Name: "Type", Index: 2, Required: true}
+var memberEntityInfo_Type = smithy.Member{Name: "Type", Index: 2, Target: &schemaPolicyOwnerEntityType, Required: true}
 
-var memberEntityInfo_Id = smithy.Member{Name: "Id", Index: 3, Required: true}
+var memberEntityInfo_Id = smithy.Member{Name: "Id", Index: 3, Target: &schemaIdType, Required: true}
 
-var memberEntityInfo_Path = smithy.Member{Name: "Path", Index: 4}
+var memberEntityInfo_Path = smithy.Member{Name: "Path", Index: 4, Target: &schemaPathType}
 
-var schemaEntityListType = smithy.Schema{ID: "com.amazonaws.iam#entityListType", Type: smithy.TypeList}
+var schemaEntityListType = smithy.Schema{ID: "com.amazonaws.iam#entityListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberEntityListType_member}}
 
-var memberEntityListType_member = smithy.Member{Name: "member", Index: 0}
+var memberEntityListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaEntityType}
 
 var schemaEntityNameType = smithy.Schema{ID: "com.amazonaws.iam#entityNameType", Type: smithy.TypeString}
 
-var schemaEntityTemporarilyUnmodifiableException = smithy.Schema{ID: "com.amazonaws.iam#EntityTemporarilyUnmodifiableException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 409}}
+var schemaEntityTemporarilyUnmodifiableException = smithy.Schema{ID: "com.amazonaws.iam#EntityTemporarilyUnmodifiableException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberEntityTemporarilyUnmodifiableException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 409}}
 
-var memberEntityTemporarilyUnmodifiableException_message = smithy.Member{Name: "message", Index: 0}
+var memberEntityTemporarilyUnmodifiableException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaEntityTemporarilyUnmodifiableMessage}
 
 var schemaEntityTemporarilyUnmodifiableMessage = smithy.Schema{ID: "com.amazonaws.iam#entityTemporarilyUnmodifiableMessage", Type: smithy.TypeString}
 
 var schemaEntityType = smithy.Schema{ID: "com.amazonaws.iam#EntityType", Type: smithy.TypeEnum}
 
-var schemaErrorDetails = smithy.Schema{ID: "com.amazonaws.iam#ErrorDetails", Type: smithy.TypeStructure}
+var schemaErrorDetails = smithy.Schema{ID: "com.amazonaws.iam#ErrorDetails", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberErrorDetails_Message, &memberErrorDetails_Code}}
 
-var memberErrorDetails_Message = smithy.Member{Name: "Message", Index: 0, Required: true}
+var memberErrorDetails_Message = smithy.Member{Name: "Message", Index: 0, Target: &schemaStringType, Required: true}
 
-var memberErrorDetails_Code = smithy.Member{Name: "Code", Index: 1, Required: true}
+var memberErrorDetails_Code = smithy.Member{Name: "Code", Index: 1, Target: &schemaStringType, Required: true}
 
-var schemaEvalDecisionDetailsType = smithy.Schema{ID: "com.amazonaws.iam#EvalDecisionDetailsType", Type: smithy.TypeMap}
+var schemaEvalDecisionDetailsType = smithy.Schema{ID: "com.amazonaws.iam#EvalDecisionDetailsType", Type: smithy.TypeMap, Members: []*smithy.Member{&memberEvalDecisionDetailsType_key, &memberEvalDecisionDetailsType_value}}
 
-var memberEvalDecisionDetailsType_key = smithy.Member{Name: "key", Index: 0}
+var memberEvalDecisionDetailsType_key = smithy.Member{Name: "key", Index: 0, Target: &schemaEvalDecisionSourceType}
 
-var memberEvalDecisionDetailsType_value = smithy.Member{Name: "value", Index: 1}
+var memberEvalDecisionDetailsType_value = smithy.Member{Name: "value", Index: 1, Target: &schemaPolicyEvaluationDecisionType}
 
 var schemaEvalDecisionSourceType = smithy.Schema{ID: "com.amazonaws.iam#EvalDecisionSourceType", Type: smithy.TypeString}
 
-var schemaEvaluationResult = smithy.Schema{ID: "com.amazonaws.iam#EvaluationResult", Type: smithy.TypeStructure}
+var schemaEvaluationResult = smithy.Schema{ID: "com.amazonaws.iam#EvaluationResult", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberEvaluationResult_EvalActionName, &memberEvaluationResult_EvalResourceName, &memberEvaluationResult_EvalDecision, &memberEvaluationResult_MatchedStatements, &memberEvaluationResult_MissingContextValues, &memberEvaluationResult_OrganizationsDecisionDetail, &memberEvaluationResult_PermissionsBoundaryDecisionDetail, &memberEvaluationResult_EvalDecisionDetails, &memberEvaluationResult_ResourceSpecificResults}}
 
-var memberEvaluationResult_EvalActionName = smithy.Member{Name: "EvalActionName", Index: 0, Required: true}
+var memberEvaluationResult_EvalActionName = smithy.Member{Name: "EvalActionName", Index: 0, Target: &schemaActionNameType, Required: true}
 
-var memberEvaluationResult_EvalResourceName = smithy.Member{Name: "EvalResourceName", Index: 1}
+var memberEvaluationResult_EvalResourceName = smithy.Member{Name: "EvalResourceName", Index: 1, Target: &schemaResourceNameType}
 
-var memberEvaluationResult_EvalDecision = smithy.Member{Name: "EvalDecision", Index: 2, Required: true}
+var memberEvaluationResult_EvalDecision = smithy.Member{Name: "EvalDecision", Index: 2, Target: &schemaPolicyEvaluationDecisionType, Required: true}
 
-var memberEvaluationResult_MatchedStatements = smithy.Member{Name: "MatchedStatements", Index: 3}
+var memberEvaluationResult_MatchedStatements = smithy.Member{Name: "MatchedStatements", Index: 3, Target: &schemaStatementListType}
 
-var memberEvaluationResult_MissingContextValues = smithy.Member{Name: "MissingContextValues", Index: 4}
+var memberEvaluationResult_MissingContextValues = smithy.Member{Name: "MissingContextValues", Index: 4, Target: &schemaContextKeyNamesResultListType}
 
-var memberEvaluationResult_OrganizationsDecisionDetail = smithy.Member{Name: "OrganizationsDecisionDetail", Index: 5}
+var memberEvaluationResult_OrganizationsDecisionDetail = smithy.Member{Name: "OrganizationsDecisionDetail", Index: 5, Target: &schemaOrganizationsDecisionDetail}
 
-var memberEvaluationResult_PermissionsBoundaryDecisionDetail = smithy.Member{Name: "PermissionsBoundaryDecisionDetail", Index: 6}
+var memberEvaluationResult_PermissionsBoundaryDecisionDetail = smithy.Member{Name: "PermissionsBoundaryDecisionDetail", Index: 6, Target: &schemaPermissionsBoundaryDecisionDetail}
 
-var memberEvaluationResult_EvalDecisionDetails = smithy.Member{Name: "EvalDecisionDetails", Index: 7}
+var memberEvaluationResult_EvalDecisionDetails = smithy.Member{Name: "EvalDecisionDetails", Index: 7, Target: &schemaEvalDecisionDetailsType}
 
-var memberEvaluationResult_ResourceSpecificResults = smithy.Member{Name: "ResourceSpecificResults", Index: 8}
+var memberEvaluationResult_ResourceSpecificResults = smithy.Member{Name: "ResourceSpecificResults", Index: 8, Target: &schemaResourceSpecificResultListType}
 
-var schemaEvaluationResultsListType = smithy.Schema{ID: "com.amazonaws.iam#EvaluationResultsListType", Type: smithy.TypeList}
+var schemaEvaluationResultsListType = smithy.Schema{ID: "com.amazonaws.iam#EvaluationResultsListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberEvaluationResultsListType_member}}
 
-var memberEvaluationResultsListType_member = smithy.Member{Name: "member", Index: 0}
+var memberEvaluationResultsListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaEvaluationResult}
 
 var schemaExceptionMessage = smithy.Schema{ID: "com.amazonaws.iam#ExceptionMessage", Type: smithy.TypeString}
 
 var schemaExistingUserNameType = smithy.Schema{ID: "com.amazonaws.iam#existingUserNameType", Type: smithy.TypeString}
 
-var schemaExpiredToken = smithy.Schema{ID: "com.amazon.coral.service#ExpiredToken", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+var schemaExpiredToken = smithy.Schema{ID: "com.amazon.coral.service#ExpiredToken", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberExpiredToken_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
 
-var memberExpiredToken_message = smithy.Member{Name: "message", Index: 0}
+var memberExpiredToken_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaFeatureDisabledException = smithy.Schema{ID: "com.amazonaws.iam#FeatureDisabledException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 404}}
+var schemaFeatureDisabledException = smithy.Schema{ID: "com.amazonaws.iam#FeatureDisabledException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberFeatureDisabledException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 404}}
 
-var memberFeatureDisabledException_message = smithy.Member{Name: "message", Index: 0}
+var memberFeatureDisabledException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaFeatureDisabledMessage}
 
 var schemaFeatureDisabledMessage = smithy.Schema{ID: "com.amazonaws.iam#FeatureDisabledMessage", Type: smithy.TypeString}
 
-var schemaFeatureEnabledException = smithy.Schema{ID: "com.amazonaws.iam#FeatureEnabledException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 409}}
+var schemaFeatureEnabledException = smithy.Schema{ID: "com.amazonaws.iam#FeatureEnabledException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberFeatureEnabledException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 409}}
 
-var memberFeatureEnabledException_message = smithy.Member{Name: "message", Index: 0}
+var memberFeatureEnabledException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaFeatureEnabledMessage}
 
 var schemaFeatureEnabledMessage = smithy.Schema{ID: "com.amazonaws.iam#FeatureEnabledMessage", Type: smithy.TypeString}
 
 var schemaFeatureType = smithy.Schema{ID: "com.amazonaws.iam#FeatureType", Type: smithy.TypeEnum}
 
-var schemaFeaturesListType = smithy.Schema{ID: "com.amazonaws.iam#FeaturesListType", Type: smithy.TypeList}
+var schemaFeaturesListType = smithy.Schema{ID: "com.amazonaws.iam#FeaturesListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberFeaturesListType_member}}
 
-var memberFeaturesListType_member = smithy.Member{Name: "member", Index: 0}
+var memberFeaturesListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaFeatureType}
 
-var schemaGenerateCredentialReportOutput = smithy.Schema{ID: "com.amazonaws.iam#GenerateCredentialReportResponse", Type: smithy.TypeStructure}
+var schemaGenerateCredentialReportOutput = smithy.Schema{ID: "com.amazonaws.iam#GenerateCredentialReportResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGenerateCredentialReportOutput_State, &memberGenerateCredentialReportOutput_Description}}
 
-var memberGenerateCredentialReportOutput_State = smithy.Member{Name: "State", Index: 0}
+var memberGenerateCredentialReportOutput_State = smithy.Member{Name: "State", Index: 0, Target: &schemaReportStateType}
 
-var memberGenerateCredentialReportOutput_Description = smithy.Member{Name: "Description", Index: 1}
+var memberGenerateCredentialReportOutput_Description = smithy.Member{Name: "Description", Index: 1, Target: &schemaReportStateDescriptionType}
 
-var schemaGenerateOrganizationsAccessReportInput = smithy.Schema{ID: "com.amazonaws.iam#GenerateOrganizationsAccessReportRequest", Type: smithy.TypeStructure}
+var schemaGenerateOrganizationsAccessReportInput = smithy.Schema{ID: "com.amazonaws.iam#GenerateOrganizationsAccessReportRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGenerateOrganizationsAccessReportInput_EntityPath, &memberGenerateOrganizationsAccessReportInput_OrganizationsPolicyId}}
 
-var memberGenerateOrganizationsAccessReportInput_EntityPath = smithy.Member{Name: "EntityPath", Index: 0, Required: true}
+var memberGenerateOrganizationsAccessReportInput_EntityPath = smithy.Member{Name: "EntityPath", Index: 0, Target: &schemaOrganizationsEntityPathType, Required: true}
 
-var memberGenerateOrganizationsAccessReportInput_OrganizationsPolicyId = smithy.Member{Name: "OrganizationsPolicyId", Index: 1}
+var memberGenerateOrganizationsAccessReportInput_OrganizationsPolicyId = smithy.Member{Name: "OrganizationsPolicyId", Index: 1, Target: &schemaOrganizationsPolicyIdType}
 
-var schemaGenerateOrganizationsAccessReportOutput = smithy.Schema{ID: "com.amazonaws.iam#GenerateOrganizationsAccessReportResponse", Type: smithy.TypeStructure}
+var schemaGenerateOrganizationsAccessReportOutput = smithy.Schema{ID: "com.amazonaws.iam#GenerateOrganizationsAccessReportResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGenerateOrganizationsAccessReportOutput_JobId}}
 
-var memberGenerateOrganizationsAccessReportOutput_JobId = smithy.Member{Name: "JobId", Index: 0}
+var memberGenerateOrganizationsAccessReportOutput_JobId = smithy.Member{Name: "JobId", Index: 0, Target: &schemaJobIDType}
 
-var schemaGenerateServiceLastAccessedDetailsInput = smithy.Schema{ID: "com.amazonaws.iam#GenerateServiceLastAccessedDetailsRequest", Type: smithy.TypeStructure}
+var schemaGenerateServiceLastAccessedDetailsInput = smithy.Schema{ID: "com.amazonaws.iam#GenerateServiceLastAccessedDetailsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGenerateServiceLastAccessedDetailsInput_Arn, &memberGenerateServiceLastAccessedDetailsInput_Granularity}}
 
-var memberGenerateServiceLastAccessedDetailsInput_Arn = smithy.Member{Name: "Arn", Index: 0, Required: true}
+var memberGenerateServiceLastAccessedDetailsInput_Arn = smithy.Member{Name: "Arn", Index: 0, Target: &schemaArnType, Required: true}
 
-var memberGenerateServiceLastAccessedDetailsInput_Granularity = smithy.Member{Name: "Granularity", Index: 1}
+var memberGenerateServiceLastAccessedDetailsInput_Granularity = smithy.Member{Name: "Granularity", Index: 1, Target: &schemaAccessAdvisorUsageGranularityType}
 
-var schemaGenerateServiceLastAccessedDetailsOutput = smithy.Schema{ID: "com.amazonaws.iam#GenerateServiceLastAccessedDetailsResponse", Type: smithy.TypeStructure}
+var schemaGenerateServiceLastAccessedDetailsOutput = smithy.Schema{ID: "com.amazonaws.iam#GenerateServiceLastAccessedDetailsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGenerateServiceLastAccessedDetailsOutput_JobId}}
 
-var memberGenerateServiceLastAccessedDetailsOutput_JobId = smithy.Member{Name: "JobId", Index: 0}
+var memberGenerateServiceLastAccessedDetailsOutput_JobId = smithy.Member{Name: "JobId", Index: 0, Target: &schemaJobIDType}
 
-var schemaGetAccessKeyLastUsedInput = smithy.Schema{ID: "com.amazonaws.iam#GetAccessKeyLastUsedRequest", Type: smithy.TypeStructure}
+var schemaGetAccessKeyLastUsedInput = smithy.Schema{ID: "com.amazonaws.iam#GetAccessKeyLastUsedRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetAccessKeyLastUsedInput_AccessKeyId}}
 
-var memberGetAccessKeyLastUsedInput_AccessKeyId = smithy.Member{Name: "AccessKeyId", Index: 0, Required: true}
+var memberGetAccessKeyLastUsedInput_AccessKeyId = smithy.Member{Name: "AccessKeyId", Index: 0, Target: &schemaAccessKeyIdType, Required: true}
 
-var schemaGetAccessKeyLastUsedOutput = smithy.Schema{ID: "com.amazonaws.iam#GetAccessKeyLastUsedResponse", Type: smithy.TypeStructure}
+var schemaGetAccessKeyLastUsedOutput = smithy.Schema{ID: "com.amazonaws.iam#GetAccessKeyLastUsedResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetAccessKeyLastUsedOutput_UserName, &memberGetAccessKeyLastUsedOutput_AccessKeyLastUsed}}
 
-var memberGetAccessKeyLastUsedOutput_UserName = smithy.Member{Name: "UserName", Index: 0}
+var memberGetAccessKeyLastUsedOutput_UserName = smithy.Member{Name: "UserName", Index: 0, Target: &schemaExistingUserNameType}
 
-var memberGetAccessKeyLastUsedOutput_AccessKeyLastUsed = smithy.Member{Name: "AccessKeyLastUsed", Index: 1}
+var memberGetAccessKeyLastUsedOutput_AccessKeyLastUsed = smithy.Member{Name: "AccessKeyLastUsed", Index: 1, Target: &schemaAccessKeyLastUsed}
 
-var schemaGetAccountAuthorizationDetailsInput = smithy.Schema{ID: "com.amazonaws.iam#GetAccountAuthorizationDetailsRequest", Type: smithy.TypeStructure}
+var schemaGetAccountAuthorizationDetailsInput = smithy.Schema{ID: "com.amazonaws.iam#GetAccountAuthorizationDetailsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetAccountAuthorizationDetailsInput_Filter, &memberGetAccountAuthorizationDetailsInput_MaxItems, &memberGetAccountAuthorizationDetailsInput_Marker}}
 
-var memberGetAccountAuthorizationDetailsInput_Filter = smithy.Member{Name: "Filter", Index: 0}
+var memberGetAccountAuthorizationDetailsInput_Filter = smithy.Member{Name: "Filter", Index: 0, Target: &schemaEntityListType}
 
-var memberGetAccountAuthorizationDetailsInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 1}
+var memberGetAccountAuthorizationDetailsInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 1, Target: &schemaMaxItemsType}
 
-var memberGetAccountAuthorizationDetailsInput_Marker = smithy.Member{Name: "Marker", Index: 2}
+var memberGetAccountAuthorizationDetailsInput_Marker = smithy.Member{Name: "Marker", Index: 2, Target: &schemaMarkerType}
 
-var schemaGetAccountAuthorizationDetailsOutput = smithy.Schema{ID: "com.amazonaws.iam#GetAccountAuthorizationDetailsResponse", Type: smithy.TypeStructure}
+var schemaGetAccountAuthorizationDetailsOutput = smithy.Schema{ID: "com.amazonaws.iam#GetAccountAuthorizationDetailsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetAccountAuthorizationDetailsOutput_UserDetailList, &memberGetAccountAuthorizationDetailsOutput_GroupDetailList, &memberGetAccountAuthorizationDetailsOutput_RoleDetailList, &memberGetAccountAuthorizationDetailsOutput_Policies, &memberGetAccountAuthorizationDetailsOutput_IsTruncated, &memberGetAccountAuthorizationDetailsOutput_Marker}}
 
-var memberGetAccountAuthorizationDetailsOutput_UserDetailList = smithy.Member{Name: "UserDetailList", Index: 0}
+var memberGetAccountAuthorizationDetailsOutput_UserDetailList = smithy.Member{Name: "UserDetailList", Index: 0, Target: &schemaUserDetailListType}
 
-var memberGetAccountAuthorizationDetailsOutput_GroupDetailList = smithy.Member{Name: "GroupDetailList", Index: 1}
+var memberGetAccountAuthorizationDetailsOutput_GroupDetailList = smithy.Member{Name: "GroupDetailList", Index: 1, Target: &schemaGroupDetailListType}
 
-var memberGetAccountAuthorizationDetailsOutput_RoleDetailList = smithy.Member{Name: "RoleDetailList", Index: 2}
+var memberGetAccountAuthorizationDetailsOutput_RoleDetailList = smithy.Member{Name: "RoleDetailList", Index: 2, Target: &schemaRoleDetailListType}
 
-var memberGetAccountAuthorizationDetailsOutput_Policies = smithy.Member{Name: "Policies", Index: 3}
+var memberGetAccountAuthorizationDetailsOutput_Policies = smithy.Member{Name: "Policies", Index: 3, Target: &schemaManagedPolicyDetailListType}
 
-var memberGetAccountAuthorizationDetailsOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 4, Default: document.Bool(false)}
+var memberGetAccountAuthorizationDetailsOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 4, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberGetAccountAuthorizationDetailsOutput_Marker = smithy.Member{Name: "Marker", Index: 5}
+var memberGetAccountAuthorizationDetailsOutput_Marker = smithy.Member{Name: "Marker", Index: 5, Target: &schemaResponseMarkerType}
 
-var schemaGetAccountPasswordPolicyOutput = smithy.Schema{ID: "com.amazonaws.iam#GetAccountPasswordPolicyResponse", Type: smithy.TypeStructure}
+var schemaGetAccountPasswordPolicyOutput = smithy.Schema{ID: "com.amazonaws.iam#GetAccountPasswordPolicyResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetAccountPasswordPolicyOutput_PasswordPolicy}}
 
-var memberGetAccountPasswordPolicyOutput_PasswordPolicy = smithy.Member{Name: "PasswordPolicy", Index: 0, Required: true}
+var memberGetAccountPasswordPolicyOutput_PasswordPolicy = smithy.Member{Name: "PasswordPolicy", Index: 0, Target: &schemaPasswordPolicy, Required: true}
 
 var schemaGetAccountPropertiesInput = smithy.Schema{ID: "com.amazonaws.iam#GetAccountPropertiesRequest", Type: smithy.TypeStructure}
 
-var schemaGetAccountPropertiesOutput = smithy.Schema{ID: "com.amazonaws.iam#GetAccountPropertiesResponse", Type: smithy.TypeStructure}
+var schemaGetAccountPropertiesOutput = smithy.Schema{ID: "com.amazonaws.iam#GetAccountPropertiesResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetAccountPropertiesOutput_Properties}}
 
-var memberGetAccountPropertiesOutput_Properties = smithy.Member{Name: "Properties", Index: 0}
+var memberGetAccountPropertiesOutput_Properties = smithy.Member{Name: "Properties", Index: 0, Target: &schemaAccountPropertiesMapType}
 
-var schemaGetAccountSummaryOutput = smithy.Schema{ID: "com.amazonaws.iam#GetAccountSummaryResponse", Type: smithy.TypeStructure}
+var schemaGetAccountSummaryOutput = smithy.Schema{ID: "com.amazonaws.iam#GetAccountSummaryResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetAccountSummaryOutput_SummaryMap}}
 
-var memberGetAccountSummaryOutput_SummaryMap = smithy.Member{Name: "SummaryMap", Index: 0}
+var memberGetAccountSummaryOutput_SummaryMap = smithy.Member{Name: "SummaryMap", Index: 0, Target: &schemaSummaryMapType}
 
-var schemaGetContextKeysForCustomPolicyInput = smithy.Schema{ID: "com.amazonaws.iam#GetContextKeysForCustomPolicyRequest", Type: smithy.TypeStructure}
+var schemaGetContextKeysForCustomPolicyInput = smithy.Schema{ID: "com.amazonaws.iam#GetContextKeysForCustomPolicyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetContextKeysForCustomPolicyInput_PolicyInputList}}
 
-var memberGetContextKeysForCustomPolicyInput_PolicyInputList = smithy.Member{Name: "PolicyInputList", Index: 0, Required: true}
+var memberGetContextKeysForCustomPolicyInput_PolicyInputList = smithy.Member{Name: "PolicyInputList", Index: 0, Target: &schemaSimulationPolicyListType, Required: true}
 
-var schemaGetContextKeysForPolicyResponse = smithy.Schema{ID: "com.amazonaws.iam#GetContextKeysForPolicyResponse", Type: smithy.TypeStructure}
+var schemaGetContextKeysForPolicyResponse = smithy.Schema{ID: "com.amazonaws.iam#GetContextKeysForPolicyResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetContextKeysForPolicyResponse_ContextKeyNames}}
 
-var memberGetContextKeysForPolicyResponse_ContextKeyNames = smithy.Member{Name: "ContextKeyNames", Index: 0}
+var memberGetContextKeysForPolicyResponse_ContextKeyNames = smithy.Member{Name: "ContextKeyNames", Index: 0, Target: &schemaContextKeyNamesResultListType}
 
-var schemaGetContextKeysForPrincipalPolicyInput = smithy.Schema{ID: "com.amazonaws.iam#GetContextKeysForPrincipalPolicyRequest", Type: smithy.TypeStructure}
+var schemaGetContextKeysForPrincipalPolicyInput = smithy.Schema{ID: "com.amazonaws.iam#GetContextKeysForPrincipalPolicyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetContextKeysForPrincipalPolicyInput_PolicySourceArn, &memberGetContextKeysForPrincipalPolicyInput_PolicyInputList}}
 
-var memberGetContextKeysForPrincipalPolicyInput_PolicySourceArn = smithy.Member{Name: "PolicySourceArn", Index: 0, Required: true}
+var memberGetContextKeysForPrincipalPolicyInput_PolicySourceArn = smithy.Member{Name: "PolicySourceArn", Index: 0, Target: &schemaArnType, Required: true}
 
-var memberGetContextKeysForPrincipalPolicyInput_PolicyInputList = smithy.Member{Name: "PolicyInputList", Index: 1}
+var memberGetContextKeysForPrincipalPolicyInput_PolicyInputList = smithy.Member{Name: "PolicyInputList", Index: 1, Target: &schemaSimulationPolicyListType}
 
-var schemaGetCredentialReportOutput = smithy.Schema{ID: "com.amazonaws.iam#GetCredentialReportResponse", Type: smithy.TypeStructure}
+var schemaGetCredentialReportOutput = smithy.Schema{ID: "com.amazonaws.iam#GetCredentialReportResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetCredentialReportOutput_Content, &memberGetCredentialReportOutput_ReportFormat, &memberGetCredentialReportOutput_GeneratedTime}}
 
-var memberGetCredentialReportOutput_Content = smithy.Member{Name: "Content", Index: 0}
+var memberGetCredentialReportOutput_Content = smithy.Member{Name: "Content", Index: 0, Target: &schemaReportContentType}
 
-var memberGetCredentialReportOutput_ReportFormat = smithy.Member{Name: "ReportFormat", Index: 1}
+var memberGetCredentialReportOutput_ReportFormat = smithy.Member{Name: "ReportFormat", Index: 1, Target: &schemaReportFormatType}
 
-var memberGetCredentialReportOutput_GeneratedTime = smithy.Member{Name: "GeneratedTime", Index: 2}
+var memberGetCredentialReportOutput_GeneratedTime = smithy.Member{Name: "GeneratedTime", Index: 2, Target: &schemaDateType}
 
-var schemaGetDelegationRequestInput = smithy.Schema{ID: "com.amazonaws.iam#GetDelegationRequestRequest", Type: smithy.TypeStructure}
+var schemaGetDelegationRequestInput = smithy.Schema{ID: "com.amazonaws.iam#GetDelegationRequestRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetDelegationRequestInput_DelegationRequestId, &memberGetDelegationRequestInput_DelegationPermissionCheck}}
 
-var memberGetDelegationRequestInput_DelegationRequestId = smithy.Member{Name: "DelegationRequestId", Index: 0, Required: true}
+var memberGetDelegationRequestInput_DelegationRequestId = smithy.Member{Name: "DelegationRequestId", Index: 0, Target: &schemaDelegationRequestIdType, Required: true}
 
-var memberGetDelegationRequestInput_DelegationPermissionCheck = smithy.Member{Name: "DelegationPermissionCheck", Index: 1, Default: document.Bool(false)}
+var memberGetDelegationRequestInput_DelegationPermissionCheck = smithy.Member{Name: "DelegationPermissionCheck", Index: 1, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var schemaGetDelegationRequestOutput = smithy.Schema{ID: "com.amazonaws.iam#GetDelegationRequestResponse", Type: smithy.TypeStructure}
+var schemaGetDelegationRequestOutput = smithy.Schema{ID: "com.amazonaws.iam#GetDelegationRequestResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetDelegationRequestOutput_DelegationRequest, &memberGetDelegationRequestOutput_PermissionCheckStatus, &memberGetDelegationRequestOutput_PermissionCheckResult}}
 
-var memberGetDelegationRequestOutput_DelegationRequest = smithy.Member{Name: "DelegationRequest", Index: 0}
+var memberGetDelegationRequestOutput_DelegationRequest = smithy.Member{Name: "DelegationRequest", Index: 0, Target: &schemaDelegationRequest}
 
-var memberGetDelegationRequestOutput_PermissionCheckStatus = smithy.Member{Name: "PermissionCheckStatus", Index: 1}
+var memberGetDelegationRequestOutput_PermissionCheckStatus = smithy.Member{Name: "PermissionCheckStatus", Index: 1, Target: &schemaPermissionCheckStatusType}
 
-var memberGetDelegationRequestOutput_PermissionCheckResult = smithy.Member{Name: "PermissionCheckResult", Index: 2}
+var memberGetDelegationRequestOutput_PermissionCheckResult = smithy.Member{Name: "PermissionCheckResult", Index: 2, Target: &schemaPermissionCheckResultType}
 
-var schemaGetGroupInput = smithy.Schema{ID: "com.amazonaws.iam#GetGroupRequest", Type: smithy.TypeStructure}
+var schemaGetGroupInput = smithy.Schema{ID: "com.amazonaws.iam#GetGroupRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetGroupInput_GroupName, &memberGetGroupInput_Marker, &memberGetGroupInput_MaxItems}}
 
-var memberGetGroupInput_GroupName = smithy.Member{Name: "GroupName", Index: 0, Required: true}
+var memberGetGroupInput_GroupName = smithy.Member{Name: "GroupName", Index: 0, Target: &schemaGroupNameType, Required: true}
 
-var memberGetGroupInput_Marker = smithy.Member{Name: "Marker", Index: 1}
+var memberGetGroupInput_Marker = smithy.Member{Name: "Marker", Index: 1, Target: &schemaMarkerType}
 
-var memberGetGroupInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2}
+var memberGetGroupInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2, Target: &schemaMaxItemsType}
 
-var schemaGetGroupOutput = smithy.Schema{ID: "com.amazonaws.iam#GetGroupResponse", Type: smithy.TypeStructure}
+var schemaGetGroupOutput = smithy.Schema{ID: "com.amazonaws.iam#GetGroupResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetGroupOutput_Group, &memberGetGroupOutput_Users, &memberGetGroupOutput_IsTruncated, &memberGetGroupOutput_Marker}}
 
-var memberGetGroupOutput_Group = smithy.Member{Name: "Group", Index: 0, Required: true}
+var memberGetGroupOutput_Group = smithy.Member{Name: "Group", Index: 0, Target: &schemaGroup, Required: true}
 
-var memberGetGroupOutput_Users = smithy.Member{Name: "Users", Index: 1, Required: true}
+var memberGetGroupOutput_Users = smithy.Member{Name: "Users", Index: 1, Target: &schemaUserListType, Required: true}
 
-var memberGetGroupOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 2, Default: document.Bool(false)}
+var memberGetGroupOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 2, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberGetGroupOutput_Marker = smithy.Member{Name: "Marker", Index: 3}
+var memberGetGroupOutput_Marker = smithy.Member{Name: "Marker", Index: 3, Target: &schemaResponseMarkerType}
 
-var schemaGetGroupPolicyInput = smithy.Schema{ID: "com.amazonaws.iam#GetGroupPolicyRequest", Type: smithy.TypeStructure}
+var schemaGetGroupPolicyInput = smithy.Schema{ID: "com.amazonaws.iam#GetGroupPolicyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetGroupPolicyInput_GroupName, &memberGetGroupPolicyInput_PolicyName}}
 
-var memberGetGroupPolicyInput_GroupName = smithy.Member{Name: "GroupName", Index: 0, Required: true}
+var memberGetGroupPolicyInput_GroupName = smithy.Member{Name: "GroupName", Index: 0, Target: &schemaGroupNameType, Required: true}
 
-var memberGetGroupPolicyInput_PolicyName = smithy.Member{Name: "PolicyName", Index: 1, Required: true}
+var memberGetGroupPolicyInput_PolicyName = smithy.Member{Name: "PolicyName", Index: 1, Target: &schemaPolicyNameType, Required: true}
 
-var schemaGetGroupPolicyOutput = smithy.Schema{ID: "com.amazonaws.iam#GetGroupPolicyResponse", Type: smithy.TypeStructure}
+var schemaGetGroupPolicyOutput = smithy.Schema{ID: "com.amazonaws.iam#GetGroupPolicyResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetGroupPolicyOutput_GroupName, &memberGetGroupPolicyOutput_PolicyName, &memberGetGroupPolicyOutput_PolicyDocument}}
 
-var memberGetGroupPolicyOutput_GroupName = smithy.Member{Name: "GroupName", Index: 0, Required: true}
+var memberGetGroupPolicyOutput_GroupName = smithy.Member{Name: "GroupName", Index: 0, Target: &schemaGroupNameType, Required: true}
 
-var memberGetGroupPolicyOutput_PolicyName = smithy.Member{Name: "PolicyName", Index: 1, Required: true}
+var memberGetGroupPolicyOutput_PolicyName = smithy.Member{Name: "PolicyName", Index: 1, Target: &schemaPolicyNameType, Required: true}
 
-var memberGetGroupPolicyOutput_PolicyDocument = smithy.Member{Name: "PolicyDocument", Index: 2, Required: true}
+var memberGetGroupPolicyOutput_PolicyDocument = smithy.Member{Name: "PolicyDocument", Index: 2, Target: &schemaPolicyDocumentType, Required: true}
 
-var schemaGetHumanReadableSummaryInput = smithy.Schema{ID: "com.amazonaws.iam#GetHumanReadableSummaryRequest", Type: smithy.TypeStructure}
+var schemaGetHumanReadableSummaryInput = smithy.Schema{ID: "com.amazonaws.iam#GetHumanReadableSummaryRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetHumanReadableSummaryInput_EntityArn, &memberGetHumanReadableSummaryInput_Locale}}
 
-var memberGetHumanReadableSummaryInput_EntityArn = smithy.Member{Name: "EntityArn", Index: 0, Required: true}
+var memberGetHumanReadableSummaryInput_EntityArn = smithy.Member{Name: "EntityArn", Index: 0, Target: &schemaArnType, Required: true}
 
-var memberGetHumanReadableSummaryInput_Locale = smithy.Member{Name: "Locale", Index: 1}
+var memberGetHumanReadableSummaryInput_Locale = smithy.Member{Name: "Locale", Index: 1, Target: &schemaLocaleType}
 
-var schemaGetHumanReadableSummaryOutput = smithy.Schema{ID: "com.amazonaws.iam#GetHumanReadableSummaryResponse", Type: smithy.TypeStructure}
+var schemaGetHumanReadableSummaryOutput = smithy.Schema{ID: "com.amazonaws.iam#GetHumanReadableSummaryResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetHumanReadableSummaryOutput_SummaryContent, &memberGetHumanReadableSummaryOutput_Locale, &memberGetHumanReadableSummaryOutput_SummaryState}}
 
-var memberGetHumanReadableSummaryOutput_SummaryContent = smithy.Member{Name: "SummaryContent", Index: 0}
+var memberGetHumanReadableSummaryOutput_SummaryContent = smithy.Member{Name: "SummaryContent", Index: 0, Target: &schemaSummaryContentType}
 
-var memberGetHumanReadableSummaryOutput_Locale = smithy.Member{Name: "Locale", Index: 1}
+var memberGetHumanReadableSummaryOutput_Locale = smithy.Member{Name: "Locale", Index: 1, Target: &schemaLocaleType}
 
-var memberGetHumanReadableSummaryOutput_SummaryState = smithy.Member{Name: "SummaryState", Index: 2}
+var memberGetHumanReadableSummaryOutput_SummaryState = smithy.Member{Name: "SummaryState", Index: 2, Target: &schemaSummaryStateType}
 
-var schemaGetInstanceProfileInput = smithy.Schema{ID: "com.amazonaws.iam#GetInstanceProfileRequest", Type: smithy.TypeStructure}
+var schemaGetInstanceProfileInput = smithy.Schema{ID: "com.amazonaws.iam#GetInstanceProfileRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetInstanceProfileInput_InstanceProfileName}}
 
-var memberGetInstanceProfileInput_InstanceProfileName = smithy.Member{Name: "InstanceProfileName", Index: 0, Required: true}
+var memberGetInstanceProfileInput_InstanceProfileName = smithy.Member{Name: "InstanceProfileName", Index: 0, Target: &schemaInstanceProfileNameType, Required: true}
 
-var schemaGetInstanceProfileOutput = smithy.Schema{ID: "com.amazonaws.iam#GetInstanceProfileResponse", Type: smithy.TypeStructure}
+var schemaGetInstanceProfileOutput = smithy.Schema{ID: "com.amazonaws.iam#GetInstanceProfileResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetInstanceProfileOutput_InstanceProfile}}
 
-var memberGetInstanceProfileOutput_InstanceProfile = smithy.Member{Name: "InstanceProfile", Index: 0, Required: true}
+var memberGetInstanceProfileOutput_InstanceProfile = smithy.Member{Name: "InstanceProfile", Index: 0, Target: &schemaInstanceProfile, Required: true}
 
-var schemaGetLoginProfileInput = smithy.Schema{ID: "com.amazonaws.iam#GetLoginProfileRequest", Type: smithy.TypeStructure}
+var schemaGetLoginProfileInput = smithy.Schema{ID: "com.amazonaws.iam#GetLoginProfileRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetLoginProfileInput_UserName}}
 
-var memberGetLoginProfileInput_UserName = smithy.Member{Name: "UserName", Index: 0}
+var memberGetLoginProfileInput_UserName = smithy.Member{Name: "UserName", Index: 0, Target: &schemaUserNameType}
 
-var schemaGetLoginProfileOutput = smithy.Schema{ID: "com.amazonaws.iam#GetLoginProfileResponse", Type: smithy.TypeStructure}
+var schemaGetLoginProfileOutput = smithy.Schema{ID: "com.amazonaws.iam#GetLoginProfileResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetLoginProfileOutput_LoginProfile}}
 
-var memberGetLoginProfileOutput_LoginProfile = smithy.Member{Name: "LoginProfile", Index: 0, Required: true}
+var memberGetLoginProfileOutput_LoginProfile = smithy.Member{Name: "LoginProfile", Index: 0, Target: &schemaLoginProfile, Required: true}
 
-var schemaGetMFADeviceInput = smithy.Schema{ID: "com.amazonaws.iam#GetMFADeviceRequest", Type: smithy.TypeStructure}
+var schemaGetMFADeviceInput = smithy.Schema{ID: "com.amazonaws.iam#GetMFADeviceRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetMFADeviceInput_SerialNumber, &memberGetMFADeviceInput_UserName}}
 
-var memberGetMFADeviceInput_SerialNumber = smithy.Member{Name: "SerialNumber", Index: 0, Required: true}
+var memberGetMFADeviceInput_SerialNumber = smithy.Member{Name: "SerialNumber", Index: 0, Target: &schemaSerialNumberType, Required: true}
 
-var memberGetMFADeviceInput_UserName = smithy.Member{Name: "UserName", Index: 1}
+var memberGetMFADeviceInput_UserName = smithy.Member{Name: "UserName", Index: 1, Target: &schemaUserNameType}
 
-var schemaGetMFADeviceOutput = smithy.Schema{ID: "com.amazonaws.iam#GetMFADeviceResponse", Type: smithy.TypeStructure}
+var schemaGetMFADeviceOutput = smithy.Schema{ID: "com.amazonaws.iam#GetMFADeviceResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetMFADeviceOutput_UserName, &memberGetMFADeviceOutput_SerialNumber, &memberGetMFADeviceOutput_EnableDate, &memberGetMFADeviceOutput_Certifications}}
 
-var memberGetMFADeviceOutput_UserName = smithy.Member{Name: "UserName", Index: 0}
+var memberGetMFADeviceOutput_UserName = smithy.Member{Name: "UserName", Index: 0, Target: &schemaUserNameType}
 
-var memberGetMFADeviceOutput_SerialNumber = smithy.Member{Name: "SerialNumber", Index: 1, Required: true}
+var memberGetMFADeviceOutput_SerialNumber = smithy.Member{Name: "SerialNumber", Index: 1, Target: &schemaSerialNumberType, Required: true}
 
-var memberGetMFADeviceOutput_EnableDate = smithy.Member{Name: "EnableDate", Index: 2}
+var memberGetMFADeviceOutput_EnableDate = smithy.Member{Name: "EnableDate", Index: 2, Target: &schemaDateType}
 
-var memberGetMFADeviceOutput_Certifications = smithy.Member{Name: "Certifications", Index: 3}
+var memberGetMFADeviceOutput_Certifications = smithy.Member{Name: "Certifications", Index: 3, Target: &schemaCertificationMapType}
 
-var schemaGetOpenIDConnectProviderInput = smithy.Schema{ID: "com.amazonaws.iam#GetOpenIDConnectProviderRequest", Type: smithy.TypeStructure}
+var schemaGetOpenIDConnectProviderInput = smithy.Schema{ID: "com.amazonaws.iam#GetOpenIDConnectProviderRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetOpenIDConnectProviderInput_OpenIDConnectProviderArn}}
 
-var memberGetOpenIDConnectProviderInput_OpenIDConnectProviderArn = smithy.Member{Name: "OpenIDConnectProviderArn", Index: 0, Required: true}
+var memberGetOpenIDConnectProviderInput_OpenIDConnectProviderArn = smithy.Member{Name: "OpenIDConnectProviderArn", Index: 0, Target: &schemaArnType, Required: true}
 
-var schemaGetOpenIDConnectProviderOutput = smithy.Schema{ID: "com.amazonaws.iam#GetOpenIDConnectProviderResponse", Type: smithy.TypeStructure}
+var schemaGetOpenIDConnectProviderOutput = smithy.Schema{ID: "com.amazonaws.iam#GetOpenIDConnectProviderResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetOpenIDConnectProviderOutput_Url, &memberGetOpenIDConnectProviderOutput_ClientIDList, &memberGetOpenIDConnectProviderOutput_ThumbprintList, &memberGetOpenIDConnectProviderOutput_CreateDate, &memberGetOpenIDConnectProviderOutput_Tags}}
 
-var memberGetOpenIDConnectProviderOutput_Url = smithy.Member{Name: "Url", Index: 0}
+var memberGetOpenIDConnectProviderOutput_Url = smithy.Member{Name: "Url", Index: 0, Target: &schemaOpenIDConnectProviderUrlType}
 
-var memberGetOpenIDConnectProviderOutput_ClientIDList = smithy.Member{Name: "ClientIDList", Index: 1}
+var memberGetOpenIDConnectProviderOutput_ClientIDList = smithy.Member{Name: "ClientIDList", Index: 1, Target: &schemaClientIDListType}
 
-var memberGetOpenIDConnectProviderOutput_ThumbprintList = smithy.Member{Name: "ThumbprintList", Index: 2}
+var memberGetOpenIDConnectProviderOutput_ThumbprintList = smithy.Member{Name: "ThumbprintList", Index: 2, Target: &schemaThumbprintListType}
 
-var memberGetOpenIDConnectProviderOutput_CreateDate = smithy.Member{Name: "CreateDate", Index: 3}
+var memberGetOpenIDConnectProviderOutput_CreateDate = smithy.Member{Name: "CreateDate", Index: 3, Target: &schemaDateType}
 
-var memberGetOpenIDConnectProviderOutput_Tags = smithy.Member{Name: "Tags", Index: 4}
+var memberGetOpenIDConnectProviderOutput_Tags = smithy.Member{Name: "Tags", Index: 4, Target: &schemaTagListType}
 
-var schemaGetOrganizationsAccessReportInput = smithy.Schema{ID: "com.amazonaws.iam#GetOrganizationsAccessReportRequest", Type: smithy.TypeStructure}
+var schemaGetOrganizationsAccessReportInput = smithy.Schema{ID: "com.amazonaws.iam#GetOrganizationsAccessReportRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetOrganizationsAccessReportInput_JobId, &memberGetOrganizationsAccessReportInput_MaxItems, &memberGetOrganizationsAccessReportInput_Marker, &memberGetOrganizationsAccessReportInput_SortKey}}
 
-var memberGetOrganizationsAccessReportInput_JobId = smithy.Member{Name: "JobId", Index: 0, Required: true}
+var memberGetOrganizationsAccessReportInput_JobId = smithy.Member{Name: "JobId", Index: 0, Target: &schemaJobIDType, Required: true}
 
-var memberGetOrganizationsAccessReportInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 1}
+var memberGetOrganizationsAccessReportInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 1, Target: &schemaMaxItemsType}
 
-var memberGetOrganizationsAccessReportInput_Marker = smithy.Member{Name: "Marker", Index: 2}
+var memberGetOrganizationsAccessReportInput_Marker = smithy.Member{Name: "Marker", Index: 2, Target: &schemaMarkerType}
 
-var memberGetOrganizationsAccessReportInput_SortKey = smithy.Member{Name: "SortKey", Index: 3}
+var memberGetOrganizationsAccessReportInput_SortKey = smithy.Member{Name: "SortKey", Index: 3, Target: &schemaSortKeyType}
 
-var schemaGetOrganizationsAccessReportOutput = smithy.Schema{ID: "com.amazonaws.iam#GetOrganizationsAccessReportResponse", Type: smithy.TypeStructure}
+var schemaGetOrganizationsAccessReportOutput = smithy.Schema{ID: "com.amazonaws.iam#GetOrganizationsAccessReportResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetOrganizationsAccessReportOutput_JobStatus, &memberGetOrganizationsAccessReportOutput_JobCreationDate, &memberGetOrganizationsAccessReportOutput_JobCompletionDate, &memberGetOrganizationsAccessReportOutput_NumberOfServicesAccessible, &memberGetOrganizationsAccessReportOutput_NumberOfServicesNotAccessed, &memberGetOrganizationsAccessReportOutput_AccessDetails, &memberGetOrganizationsAccessReportOutput_IsTruncated, &memberGetOrganizationsAccessReportOutput_Marker, &memberGetOrganizationsAccessReportOutput_ErrorDetails}}
 
-var memberGetOrganizationsAccessReportOutput_JobStatus = smithy.Member{Name: "JobStatus", Index: 0, Required: true}
+var memberGetOrganizationsAccessReportOutput_JobStatus = smithy.Member{Name: "JobStatus", Index: 0, Target: &schemaJobStatusType, Required: true}
 
-var memberGetOrganizationsAccessReportOutput_JobCreationDate = smithy.Member{Name: "JobCreationDate", Index: 1, Required: true}
+var memberGetOrganizationsAccessReportOutput_JobCreationDate = smithy.Member{Name: "JobCreationDate", Index: 1, Target: &schemaDateType, Required: true}
 
-var memberGetOrganizationsAccessReportOutput_JobCompletionDate = smithy.Member{Name: "JobCompletionDate", Index: 2}
+var memberGetOrganizationsAccessReportOutput_JobCompletionDate = smithy.Member{Name: "JobCompletionDate", Index: 2, Target: &schemaDateType}
 
-var memberGetOrganizationsAccessReportOutput_NumberOfServicesAccessible = smithy.Member{Name: "NumberOfServicesAccessible", Index: 3}
+var memberGetOrganizationsAccessReportOutput_NumberOfServicesAccessible = smithy.Member{Name: "NumberOfServicesAccessible", Index: 3, Target: &schemaIntegerType}
 
-var memberGetOrganizationsAccessReportOutput_NumberOfServicesNotAccessed = smithy.Member{Name: "NumberOfServicesNotAccessed", Index: 4}
+var memberGetOrganizationsAccessReportOutput_NumberOfServicesNotAccessed = smithy.Member{Name: "NumberOfServicesNotAccessed", Index: 4, Target: &schemaIntegerType}
 
-var memberGetOrganizationsAccessReportOutput_AccessDetails = smithy.Member{Name: "AccessDetails", Index: 5}
+var memberGetOrganizationsAccessReportOutput_AccessDetails = smithy.Member{Name: "AccessDetails", Index: 5, Target: &schemaAccessDetails}
 
-var memberGetOrganizationsAccessReportOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 6, Default: document.Bool(false)}
+var memberGetOrganizationsAccessReportOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 6, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberGetOrganizationsAccessReportOutput_Marker = smithy.Member{Name: "Marker", Index: 7}
+var memberGetOrganizationsAccessReportOutput_Marker = smithy.Member{Name: "Marker", Index: 7, Target: &schemaMarkerType}
 
-var memberGetOrganizationsAccessReportOutput_ErrorDetails = smithy.Member{Name: "ErrorDetails", Index: 8}
+var memberGetOrganizationsAccessReportOutput_ErrorDetails = smithy.Member{Name: "ErrorDetails", Index: 8, Target: &schemaErrorDetails}
 
-var schemaGetOutboundWebIdentityFederationInfoOutput = smithy.Schema{ID: "com.amazonaws.iam#GetOutboundWebIdentityFederationInfoResponse", Type: smithy.TypeStructure}
+var schemaGetOutboundWebIdentityFederationInfoOutput = smithy.Schema{ID: "com.amazonaws.iam#GetOutboundWebIdentityFederationInfoResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetOutboundWebIdentityFederationInfoOutput_IssuerIdentifier, &memberGetOutboundWebIdentityFederationInfoOutput_JwtVendingEnabled}}
 
-var memberGetOutboundWebIdentityFederationInfoOutput_IssuerIdentifier = smithy.Member{Name: "IssuerIdentifier", Index: 0}
+var memberGetOutboundWebIdentityFederationInfoOutput_IssuerIdentifier = smithy.Member{Name: "IssuerIdentifier", Index: 0, Target: &schemaStringType}
 
-var memberGetOutboundWebIdentityFederationInfoOutput_JwtVendingEnabled = smithy.Member{Name: "JwtVendingEnabled", Index: 1, Default: document.Bool(false)}
+var memberGetOutboundWebIdentityFederationInfoOutput_JwtVendingEnabled = smithy.Member{Name: "JwtVendingEnabled", Index: 1, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var schemaGetPolicyInput = smithy.Schema{ID: "com.amazonaws.iam#GetPolicyRequest", Type: smithy.TypeStructure}
+var schemaGetPolicyInput = smithy.Schema{ID: "com.amazonaws.iam#GetPolicyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetPolicyInput_PolicyArn}}
 
-var memberGetPolicyInput_PolicyArn = smithy.Member{Name: "PolicyArn", Index: 0, Required: true}
+var memberGetPolicyInput_PolicyArn = smithy.Member{Name: "PolicyArn", Index: 0, Target: &schemaArnType, Required: true}
 
-var schemaGetPolicyOutput = smithy.Schema{ID: "com.amazonaws.iam#GetPolicyResponse", Type: smithy.TypeStructure}
+var schemaGetPolicyOutput = smithy.Schema{ID: "com.amazonaws.iam#GetPolicyResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetPolicyOutput_Policy}}
 
-var memberGetPolicyOutput_Policy = smithy.Member{Name: "Policy", Index: 0}
+var memberGetPolicyOutput_Policy = smithy.Member{Name: "Policy", Index: 0, Target: &schemaPolicy}
 
-var schemaGetPolicyVersionInput = smithy.Schema{ID: "com.amazonaws.iam#GetPolicyVersionRequest", Type: smithy.TypeStructure}
+var schemaGetPolicyVersionInput = smithy.Schema{ID: "com.amazonaws.iam#GetPolicyVersionRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetPolicyVersionInput_PolicyArn, &memberGetPolicyVersionInput_VersionId}}
 
-var memberGetPolicyVersionInput_PolicyArn = smithy.Member{Name: "PolicyArn", Index: 0, Required: true}
+var memberGetPolicyVersionInput_PolicyArn = smithy.Member{Name: "PolicyArn", Index: 0, Target: &schemaArnType, Required: true}
 
-var memberGetPolicyVersionInput_VersionId = smithy.Member{Name: "VersionId", Index: 1, Required: true}
+var memberGetPolicyVersionInput_VersionId = smithy.Member{Name: "VersionId", Index: 1, Target: &schemaPolicyVersionIdType, Required: true}
 
-var schemaGetPolicyVersionOutput = smithy.Schema{ID: "com.amazonaws.iam#GetPolicyVersionResponse", Type: smithy.TypeStructure}
+var schemaGetPolicyVersionOutput = smithy.Schema{ID: "com.amazonaws.iam#GetPolicyVersionResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetPolicyVersionOutput_PolicyVersion}}
 
-var memberGetPolicyVersionOutput_PolicyVersion = smithy.Member{Name: "PolicyVersion", Index: 0}
+var memberGetPolicyVersionOutput_PolicyVersion = smithy.Member{Name: "PolicyVersion", Index: 0, Target: &schemaPolicyVersion}
 
-var schemaGetRoleInput = smithy.Schema{ID: "com.amazonaws.iam#GetRoleRequest", Type: smithy.TypeStructure}
+var schemaGetRoleInput = smithy.Schema{ID: "com.amazonaws.iam#GetRoleRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetRoleInput_RoleName}}
 
-var memberGetRoleInput_RoleName = smithy.Member{Name: "RoleName", Index: 0, Required: true}
+var memberGetRoleInput_RoleName = smithy.Member{Name: "RoleName", Index: 0, Target: &schemaRoleNameType, Required: true}
 
-var schemaGetRoleOutput = smithy.Schema{ID: "com.amazonaws.iam#GetRoleResponse", Type: smithy.TypeStructure}
+var schemaGetRoleOutput = smithy.Schema{ID: "com.amazonaws.iam#GetRoleResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetRoleOutput_Role}}
 
-var memberGetRoleOutput_Role = smithy.Member{Name: "Role", Index: 0, Required: true}
+var memberGetRoleOutput_Role = smithy.Member{Name: "Role", Index: 0, Target: &schemaRole, Required: true}
 
-var schemaGetRolePolicyInput = smithy.Schema{ID: "com.amazonaws.iam#GetRolePolicyRequest", Type: smithy.TypeStructure}
+var schemaGetRolePolicyInput = smithy.Schema{ID: "com.amazonaws.iam#GetRolePolicyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetRolePolicyInput_RoleName, &memberGetRolePolicyInput_PolicyName}}
 
-var memberGetRolePolicyInput_RoleName = smithy.Member{Name: "RoleName", Index: 0, Required: true}
+var memberGetRolePolicyInput_RoleName = smithy.Member{Name: "RoleName", Index: 0, Target: &schemaRoleNameType, Required: true}
 
-var memberGetRolePolicyInput_PolicyName = smithy.Member{Name: "PolicyName", Index: 1, Required: true}
+var memberGetRolePolicyInput_PolicyName = smithy.Member{Name: "PolicyName", Index: 1, Target: &schemaPolicyNameType, Required: true}
 
-var schemaGetRolePolicyOutput = smithy.Schema{ID: "com.amazonaws.iam#GetRolePolicyResponse", Type: smithy.TypeStructure}
+var schemaGetRolePolicyOutput = smithy.Schema{ID: "com.amazonaws.iam#GetRolePolicyResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetRolePolicyOutput_RoleName, &memberGetRolePolicyOutput_PolicyName, &memberGetRolePolicyOutput_PolicyDocument}}
 
-var memberGetRolePolicyOutput_RoleName = smithy.Member{Name: "RoleName", Index: 0, Required: true}
+var memberGetRolePolicyOutput_RoleName = smithy.Member{Name: "RoleName", Index: 0, Target: &schemaRoleNameType, Required: true}
 
-var memberGetRolePolicyOutput_PolicyName = smithy.Member{Name: "PolicyName", Index: 1, Required: true}
+var memberGetRolePolicyOutput_PolicyName = smithy.Member{Name: "PolicyName", Index: 1, Target: &schemaPolicyNameType, Required: true}
 
-var memberGetRolePolicyOutput_PolicyDocument = smithy.Member{Name: "PolicyDocument", Index: 2, Required: true}
+var memberGetRolePolicyOutput_PolicyDocument = smithy.Member{Name: "PolicyDocument", Index: 2, Target: &schemaPolicyDocumentType, Required: true}
 
-var schemaGetRoleTemplateVersionInput = smithy.Schema{ID: "com.amazonaws.iam#GetRoleTemplateVersionRequest", Type: smithy.TypeStructure}
+var schemaGetRoleTemplateVersionInput = smithy.Schema{ID: "com.amazonaws.iam#GetRoleTemplateVersionRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetRoleTemplateVersionInput_TemplateArn, &memberGetRoleTemplateVersionInput_MinorVersion}}
 
-var memberGetRoleTemplateVersionInput_TemplateArn = smithy.Member{Name: "TemplateArn", Index: 0, Required: true}
+var memberGetRoleTemplateVersionInput_TemplateArn = smithy.Member{Name: "TemplateArn", Index: 0, Target: &schemaArnType, Required: true}
 
-var memberGetRoleTemplateVersionInput_MinorVersion = smithy.Member{Name: "MinorVersion", Index: 1}
+var memberGetRoleTemplateVersionInput_MinorVersion = smithy.Member{Name: "MinorVersion", Index: 1, Target: &schemaMinorVersionType}
 
-var schemaGetRoleTemplateVersionOutput = smithy.Schema{ID: "com.amazonaws.iam#GetRoleTemplateVersionResponse", Type: smithy.TypeStructure}
+var schemaGetRoleTemplateVersionOutput = smithy.Schema{ID: "com.amazonaws.iam#GetRoleTemplateVersionResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetRoleTemplateVersionOutput_RoleTemplateVersion}}
 
-var memberGetRoleTemplateVersionOutput_RoleTemplateVersion = smithy.Member{Name: "RoleTemplateVersion", Index: 0, Required: true}
+var memberGetRoleTemplateVersionOutput_RoleTemplateVersion = smithy.Member{Name: "RoleTemplateVersion", Index: 0, Target: &schemaRoleTemplateVersion, Required: true}
 
-var schemaGetSAMLProviderInput = smithy.Schema{ID: "com.amazonaws.iam#GetSAMLProviderRequest", Type: smithy.TypeStructure}
+var schemaGetSAMLProviderInput = smithy.Schema{ID: "com.amazonaws.iam#GetSAMLProviderRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetSAMLProviderInput_SAMLProviderArn}}
 
-var memberGetSAMLProviderInput_SAMLProviderArn = smithy.Member{Name: "SAMLProviderArn", Index: 0, Required: true}
+var memberGetSAMLProviderInput_SAMLProviderArn = smithy.Member{Name: "SAMLProviderArn", Index: 0, Target: &schemaArnType, Required: true}
 
-var schemaGetSAMLProviderOutput = smithy.Schema{ID: "com.amazonaws.iam#GetSAMLProviderResponse", Type: smithy.TypeStructure}
+var schemaGetSAMLProviderOutput = smithy.Schema{ID: "com.amazonaws.iam#GetSAMLProviderResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetSAMLProviderOutput_SAMLProviderUUID, &memberGetSAMLProviderOutput_SAMLMetadataDocument, &memberGetSAMLProviderOutput_CreateDate, &memberGetSAMLProviderOutput_ValidUntil, &memberGetSAMLProviderOutput_Tags, &memberGetSAMLProviderOutput_AssertionEncryptionMode, &memberGetSAMLProviderOutput_PrivateKeyList}}
 
-var memberGetSAMLProviderOutput_SAMLProviderUUID = smithy.Member{Name: "SAMLProviderUUID", Index: 0}
+var memberGetSAMLProviderOutput_SAMLProviderUUID = smithy.Member{Name: "SAMLProviderUUID", Index: 0, Target: &schemaPrivateKeyIdType}
 
-var memberGetSAMLProviderOutput_SAMLMetadataDocument = smithy.Member{Name: "SAMLMetadataDocument", Index: 1}
+var memberGetSAMLProviderOutput_SAMLMetadataDocument = smithy.Member{Name: "SAMLMetadataDocument", Index: 1, Target: &schemaSAMLMetadataDocumentType}
 
-var memberGetSAMLProviderOutput_CreateDate = smithy.Member{Name: "CreateDate", Index: 2}
+var memberGetSAMLProviderOutput_CreateDate = smithy.Member{Name: "CreateDate", Index: 2, Target: &schemaDateType}
 
-var memberGetSAMLProviderOutput_ValidUntil = smithy.Member{Name: "ValidUntil", Index: 3}
+var memberGetSAMLProviderOutput_ValidUntil = smithy.Member{Name: "ValidUntil", Index: 3, Target: &schemaDateType}
 
-var memberGetSAMLProviderOutput_Tags = smithy.Member{Name: "Tags", Index: 4}
+var memberGetSAMLProviderOutput_Tags = smithy.Member{Name: "Tags", Index: 4, Target: &schemaTagListType}
 
-var memberGetSAMLProviderOutput_AssertionEncryptionMode = smithy.Member{Name: "AssertionEncryptionMode", Index: 5}
+var memberGetSAMLProviderOutput_AssertionEncryptionMode = smithy.Member{Name: "AssertionEncryptionMode", Index: 5, Target: &schemaAssertionEncryptionModeType}
 
-var memberGetSAMLProviderOutput_PrivateKeyList = smithy.Member{Name: "PrivateKeyList", Index: 6}
+var memberGetSAMLProviderOutput_PrivateKeyList = smithy.Member{Name: "PrivateKeyList", Index: 6, Target: &schemaPrivateKeyList}
 
-var schemaGetSSHPublicKeyInput = smithy.Schema{ID: "com.amazonaws.iam#GetSSHPublicKeyRequest", Type: smithy.TypeStructure}
+var schemaGetSSHPublicKeyInput = smithy.Schema{ID: "com.amazonaws.iam#GetSSHPublicKeyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetSSHPublicKeyInput_UserName, &memberGetSSHPublicKeyInput_SSHPublicKeyId, &memberGetSSHPublicKeyInput_Encoding}}
 
-var memberGetSSHPublicKeyInput_UserName = smithy.Member{Name: "UserName", Index: 0, Required: true}
+var memberGetSSHPublicKeyInput_UserName = smithy.Member{Name: "UserName", Index: 0, Target: &schemaUserNameType, Required: true}
 
-var memberGetSSHPublicKeyInput_SSHPublicKeyId = smithy.Member{Name: "SSHPublicKeyId", Index: 1, Required: true}
+var memberGetSSHPublicKeyInput_SSHPublicKeyId = smithy.Member{Name: "SSHPublicKeyId", Index: 1, Target: &schemaPublicKeyIdType, Required: true}
 
-var memberGetSSHPublicKeyInput_Encoding = smithy.Member{Name: "Encoding", Index: 2, Required: true}
+var memberGetSSHPublicKeyInput_Encoding = smithy.Member{Name: "Encoding", Index: 2, Target: &schemaEncodingType, Required: true}
 
-var schemaGetSSHPublicKeyOutput = smithy.Schema{ID: "com.amazonaws.iam#GetSSHPublicKeyResponse", Type: smithy.TypeStructure}
+var schemaGetSSHPublicKeyOutput = smithy.Schema{ID: "com.amazonaws.iam#GetSSHPublicKeyResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetSSHPublicKeyOutput_SSHPublicKey}}
 
-var memberGetSSHPublicKeyOutput_SSHPublicKey = smithy.Member{Name: "SSHPublicKey", Index: 0}
+var memberGetSSHPublicKeyOutput_SSHPublicKey = smithy.Member{Name: "SSHPublicKey", Index: 0, Target: &schemaSSHPublicKey}
 
-var schemaGetServerCertificateInput = smithy.Schema{ID: "com.amazonaws.iam#GetServerCertificateRequest", Type: smithy.TypeStructure}
+var schemaGetServerCertificateInput = smithy.Schema{ID: "com.amazonaws.iam#GetServerCertificateRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetServerCertificateInput_ServerCertificateName}}
 
-var memberGetServerCertificateInput_ServerCertificateName = smithy.Member{Name: "ServerCertificateName", Index: 0, Required: true}
+var memberGetServerCertificateInput_ServerCertificateName = smithy.Member{Name: "ServerCertificateName", Index: 0, Target: &schemaServerCertificateNameType, Required: true}
 
-var schemaGetServerCertificateOutput = smithy.Schema{ID: "com.amazonaws.iam#GetServerCertificateResponse", Type: smithy.TypeStructure}
+var schemaGetServerCertificateOutput = smithy.Schema{ID: "com.amazonaws.iam#GetServerCertificateResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetServerCertificateOutput_ServerCertificate}}
 
-var memberGetServerCertificateOutput_ServerCertificate = smithy.Member{Name: "ServerCertificate", Index: 0, Required: true}
+var memberGetServerCertificateOutput_ServerCertificate = smithy.Member{Name: "ServerCertificate", Index: 0, Target: &schemaServerCertificate, Required: true}
 
-var schemaGetServiceLastAccessedDetailsInput = smithy.Schema{ID: "com.amazonaws.iam#GetServiceLastAccessedDetailsRequest", Type: smithy.TypeStructure}
+var schemaGetServiceLastAccessedDetailsInput = smithy.Schema{ID: "com.amazonaws.iam#GetServiceLastAccessedDetailsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetServiceLastAccessedDetailsInput_JobId, &memberGetServiceLastAccessedDetailsInput_MaxItems, &memberGetServiceLastAccessedDetailsInput_Marker}}
 
-var memberGetServiceLastAccessedDetailsInput_JobId = smithy.Member{Name: "JobId", Index: 0, Required: true}
+var memberGetServiceLastAccessedDetailsInput_JobId = smithy.Member{Name: "JobId", Index: 0, Target: &schemaJobIDType, Required: true}
 
-var memberGetServiceLastAccessedDetailsInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 1}
+var memberGetServiceLastAccessedDetailsInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 1, Target: &schemaMaxItemsType}
 
-var memberGetServiceLastAccessedDetailsInput_Marker = smithy.Member{Name: "Marker", Index: 2}
+var memberGetServiceLastAccessedDetailsInput_Marker = smithy.Member{Name: "Marker", Index: 2, Target: &schemaMarkerType}
 
-var schemaGetServiceLastAccessedDetailsOutput = smithy.Schema{ID: "com.amazonaws.iam#GetServiceLastAccessedDetailsResponse", Type: smithy.TypeStructure}
+var schemaGetServiceLastAccessedDetailsOutput = smithy.Schema{ID: "com.amazonaws.iam#GetServiceLastAccessedDetailsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetServiceLastAccessedDetailsOutput_JobStatus, &memberGetServiceLastAccessedDetailsOutput_JobType, &memberGetServiceLastAccessedDetailsOutput_JobCreationDate, &memberGetServiceLastAccessedDetailsOutput_ServicesLastAccessed, &memberGetServiceLastAccessedDetailsOutput_JobCompletionDate, &memberGetServiceLastAccessedDetailsOutput_IsTruncated, &memberGetServiceLastAccessedDetailsOutput_Marker, &memberGetServiceLastAccessedDetailsOutput_Error}}
 
-var memberGetServiceLastAccessedDetailsOutput_JobStatus = smithy.Member{Name: "JobStatus", Index: 0, Required: true}
+var memberGetServiceLastAccessedDetailsOutput_JobStatus = smithy.Member{Name: "JobStatus", Index: 0, Target: &schemaJobStatusType, Required: true}
 
-var memberGetServiceLastAccessedDetailsOutput_JobType = smithy.Member{Name: "JobType", Index: 1}
+var memberGetServiceLastAccessedDetailsOutput_JobType = smithy.Member{Name: "JobType", Index: 1, Target: &schemaAccessAdvisorUsageGranularityType}
 
-var memberGetServiceLastAccessedDetailsOutput_JobCreationDate = smithy.Member{Name: "JobCreationDate", Index: 2, Required: true}
+var memberGetServiceLastAccessedDetailsOutput_JobCreationDate = smithy.Member{Name: "JobCreationDate", Index: 2, Target: &schemaDateType, Required: true}
 
-var memberGetServiceLastAccessedDetailsOutput_ServicesLastAccessed = smithy.Member{Name: "ServicesLastAccessed", Index: 3, Required: true}
+var memberGetServiceLastAccessedDetailsOutput_ServicesLastAccessed = smithy.Member{Name: "ServicesLastAccessed", Index: 3, Target: &schemaServicesLastAccessed, Required: true}
 
-var memberGetServiceLastAccessedDetailsOutput_JobCompletionDate = smithy.Member{Name: "JobCompletionDate", Index: 4, Required: true}
+var memberGetServiceLastAccessedDetailsOutput_JobCompletionDate = smithy.Member{Name: "JobCompletionDate", Index: 4, Target: &schemaDateType, Required: true}
 
-var memberGetServiceLastAccessedDetailsOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 5, Default: document.Bool(false)}
+var memberGetServiceLastAccessedDetailsOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 5, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberGetServiceLastAccessedDetailsOutput_Marker = smithy.Member{Name: "Marker", Index: 6}
+var memberGetServiceLastAccessedDetailsOutput_Marker = smithy.Member{Name: "Marker", Index: 6, Target: &schemaResponseMarkerType}
 
-var memberGetServiceLastAccessedDetailsOutput_Error = smithy.Member{Name: "Error", Index: 7}
+var memberGetServiceLastAccessedDetailsOutput_Error = smithy.Member{Name: "Error", Index: 7, Target: &schemaErrorDetails}
 
-var schemaGetServiceLastAccessedDetailsWithEntitiesInput = smithy.Schema{ID: "com.amazonaws.iam#GetServiceLastAccessedDetailsWithEntitiesRequest", Type: smithy.TypeStructure}
+var schemaGetServiceLastAccessedDetailsWithEntitiesInput = smithy.Schema{ID: "com.amazonaws.iam#GetServiceLastAccessedDetailsWithEntitiesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetServiceLastAccessedDetailsWithEntitiesInput_JobId, &memberGetServiceLastAccessedDetailsWithEntitiesInput_ServiceNamespace, &memberGetServiceLastAccessedDetailsWithEntitiesInput_MaxItems, &memberGetServiceLastAccessedDetailsWithEntitiesInput_Marker}}
 
-var memberGetServiceLastAccessedDetailsWithEntitiesInput_JobId = smithy.Member{Name: "JobId", Index: 0, Required: true}
+var memberGetServiceLastAccessedDetailsWithEntitiesInput_JobId = smithy.Member{Name: "JobId", Index: 0, Target: &schemaJobIDType, Required: true}
 
-var memberGetServiceLastAccessedDetailsWithEntitiesInput_ServiceNamespace = smithy.Member{Name: "ServiceNamespace", Index: 1, Required: true}
+var memberGetServiceLastAccessedDetailsWithEntitiesInput_ServiceNamespace = smithy.Member{Name: "ServiceNamespace", Index: 1, Target: &schemaServiceNamespaceType, Required: true}
 
-var memberGetServiceLastAccessedDetailsWithEntitiesInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2}
+var memberGetServiceLastAccessedDetailsWithEntitiesInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2, Target: &schemaMaxItemsType}
 
-var memberGetServiceLastAccessedDetailsWithEntitiesInput_Marker = smithy.Member{Name: "Marker", Index: 3}
+var memberGetServiceLastAccessedDetailsWithEntitiesInput_Marker = smithy.Member{Name: "Marker", Index: 3, Target: &schemaMarkerType}
 
-var schemaGetServiceLastAccessedDetailsWithEntitiesOutput = smithy.Schema{ID: "com.amazonaws.iam#GetServiceLastAccessedDetailsWithEntitiesResponse", Type: smithy.TypeStructure}
+var schemaGetServiceLastAccessedDetailsWithEntitiesOutput = smithy.Schema{ID: "com.amazonaws.iam#GetServiceLastAccessedDetailsWithEntitiesResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetServiceLastAccessedDetailsWithEntitiesOutput_JobStatus, &memberGetServiceLastAccessedDetailsWithEntitiesOutput_JobCreationDate, &memberGetServiceLastAccessedDetailsWithEntitiesOutput_JobCompletionDate, &memberGetServiceLastAccessedDetailsWithEntitiesOutput_EntityDetailsList, &memberGetServiceLastAccessedDetailsWithEntitiesOutput_IsTruncated, &memberGetServiceLastAccessedDetailsWithEntitiesOutput_Marker, &memberGetServiceLastAccessedDetailsWithEntitiesOutput_Error}}
 
-var memberGetServiceLastAccessedDetailsWithEntitiesOutput_JobStatus = smithy.Member{Name: "JobStatus", Index: 0, Required: true}
+var memberGetServiceLastAccessedDetailsWithEntitiesOutput_JobStatus = smithy.Member{Name: "JobStatus", Index: 0, Target: &schemaJobStatusType, Required: true}
 
-var memberGetServiceLastAccessedDetailsWithEntitiesOutput_JobCreationDate = smithy.Member{Name: "JobCreationDate", Index: 1, Required: true}
+var memberGetServiceLastAccessedDetailsWithEntitiesOutput_JobCreationDate = smithy.Member{Name: "JobCreationDate", Index: 1, Target: &schemaDateType, Required: true}
 
-var memberGetServiceLastAccessedDetailsWithEntitiesOutput_JobCompletionDate = smithy.Member{Name: "JobCompletionDate", Index: 2, Required: true}
+var memberGetServiceLastAccessedDetailsWithEntitiesOutput_JobCompletionDate = smithy.Member{Name: "JobCompletionDate", Index: 2, Target: &schemaDateType, Required: true}
 
-var memberGetServiceLastAccessedDetailsWithEntitiesOutput_EntityDetailsList = smithy.Member{Name: "EntityDetailsList", Index: 3, Required: true}
+var memberGetServiceLastAccessedDetailsWithEntitiesOutput_EntityDetailsList = smithy.Member{Name: "EntityDetailsList", Index: 3, Target: &schemaEntityDetailsListType, Required: true}
 
-var memberGetServiceLastAccessedDetailsWithEntitiesOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 4, Default: document.Bool(false)}
+var memberGetServiceLastAccessedDetailsWithEntitiesOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 4, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberGetServiceLastAccessedDetailsWithEntitiesOutput_Marker = smithy.Member{Name: "Marker", Index: 5}
+var memberGetServiceLastAccessedDetailsWithEntitiesOutput_Marker = smithy.Member{Name: "Marker", Index: 5, Target: &schemaResponseMarkerType}
 
-var memberGetServiceLastAccessedDetailsWithEntitiesOutput_Error = smithy.Member{Name: "Error", Index: 6}
+var memberGetServiceLastAccessedDetailsWithEntitiesOutput_Error = smithy.Member{Name: "Error", Index: 6, Target: &schemaErrorDetails}
 
-var schemaGetServiceLinkedRoleDeletionStatusInput = smithy.Schema{ID: "com.amazonaws.iam#GetServiceLinkedRoleDeletionStatusRequest", Type: smithy.TypeStructure}
+var schemaGetServiceLinkedRoleDeletionStatusInput = smithy.Schema{ID: "com.amazonaws.iam#GetServiceLinkedRoleDeletionStatusRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetServiceLinkedRoleDeletionStatusInput_DeletionTaskId}}
 
-var memberGetServiceLinkedRoleDeletionStatusInput_DeletionTaskId = smithy.Member{Name: "DeletionTaskId", Index: 0, Required: true}
+var memberGetServiceLinkedRoleDeletionStatusInput_DeletionTaskId = smithy.Member{Name: "DeletionTaskId", Index: 0, Target: &schemaDeletionTaskIdType, Required: true}
 
-var schemaGetServiceLinkedRoleDeletionStatusOutput = smithy.Schema{ID: "com.amazonaws.iam#GetServiceLinkedRoleDeletionStatusResponse", Type: smithy.TypeStructure}
+var schemaGetServiceLinkedRoleDeletionStatusOutput = smithy.Schema{ID: "com.amazonaws.iam#GetServiceLinkedRoleDeletionStatusResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetServiceLinkedRoleDeletionStatusOutput_Status, &memberGetServiceLinkedRoleDeletionStatusOutput_Reason}}
 
-var memberGetServiceLinkedRoleDeletionStatusOutput_Status = smithy.Member{Name: "Status", Index: 0, Required: true}
+var memberGetServiceLinkedRoleDeletionStatusOutput_Status = smithy.Member{Name: "Status", Index: 0, Target: &schemaDeletionTaskStatusType, Required: true}
 
-var memberGetServiceLinkedRoleDeletionStatusOutput_Reason = smithy.Member{Name: "Reason", Index: 1}
+var memberGetServiceLinkedRoleDeletionStatusOutput_Reason = smithy.Member{Name: "Reason", Index: 1, Target: &schemaDeletionTaskFailureReasonType}
 
-var schemaGetUserInput = smithy.Schema{ID: "com.amazonaws.iam#GetUserRequest", Type: smithy.TypeStructure}
+var schemaGetUserInput = smithy.Schema{ID: "com.amazonaws.iam#GetUserRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetUserInput_UserName}}
 
-var memberGetUserInput_UserName = smithy.Member{Name: "UserName", Index: 0}
+var memberGetUserInput_UserName = smithy.Member{Name: "UserName", Index: 0, Target: &schemaExistingUserNameType}
 
-var schemaGetUserOutput = smithy.Schema{ID: "com.amazonaws.iam#GetUserResponse", Type: smithy.TypeStructure}
+var schemaGetUserOutput = smithy.Schema{ID: "com.amazonaws.iam#GetUserResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetUserOutput_User}}
 
-var memberGetUserOutput_User = smithy.Member{Name: "User", Index: 0, Required: true}
+var memberGetUserOutput_User = smithy.Member{Name: "User", Index: 0, Target: &schemaUser, Required: true}
 
-var schemaGetUserPolicyInput = smithy.Schema{ID: "com.amazonaws.iam#GetUserPolicyRequest", Type: smithy.TypeStructure}
+var schemaGetUserPolicyInput = smithy.Schema{ID: "com.amazonaws.iam#GetUserPolicyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetUserPolicyInput_UserName, &memberGetUserPolicyInput_PolicyName}}
 
-var memberGetUserPolicyInput_UserName = smithy.Member{Name: "UserName", Index: 0, Required: true}
+var memberGetUserPolicyInput_UserName = smithy.Member{Name: "UserName", Index: 0, Target: &schemaExistingUserNameType, Required: true}
 
-var memberGetUserPolicyInput_PolicyName = smithy.Member{Name: "PolicyName", Index: 1, Required: true}
+var memberGetUserPolicyInput_PolicyName = smithy.Member{Name: "PolicyName", Index: 1, Target: &schemaPolicyNameType, Required: true}
 
-var schemaGetUserPolicyOutput = smithy.Schema{ID: "com.amazonaws.iam#GetUserPolicyResponse", Type: smithy.TypeStructure}
+var schemaGetUserPolicyOutput = smithy.Schema{ID: "com.amazonaws.iam#GetUserPolicyResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetUserPolicyOutput_UserName, &memberGetUserPolicyOutput_PolicyName, &memberGetUserPolicyOutput_PolicyDocument}}
 
-var memberGetUserPolicyOutput_UserName = smithy.Member{Name: "UserName", Index: 0, Required: true}
+var memberGetUserPolicyOutput_UserName = smithy.Member{Name: "UserName", Index: 0, Target: &schemaExistingUserNameType, Required: true}
 
-var memberGetUserPolicyOutput_PolicyName = smithy.Member{Name: "PolicyName", Index: 1, Required: true}
+var memberGetUserPolicyOutput_PolicyName = smithy.Member{Name: "PolicyName", Index: 1, Target: &schemaPolicyNameType, Required: true}
 
-var memberGetUserPolicyOutput_PolicyDocument = smithy.Member{Name: "PolicyDocument", Index: 2, Required: true}
+var memberGetUserPolicyOutput_PolicyDocument = smithy.Member{Name: "PolicyDocument", Index: 2, Target: &schemaPolicyDocumentType, Required: true}
 
 var schemaGlobalEndpointTokenVersion = smithy.Schema{ID: "com.amazonaws.iam#globalEndpointTokenVersion", Type: smithy.TypeEnum}
 
-var schemaGroup = smithy.Schema{ID: "com.amazonaws.iam#Group", Type: smithy.TypeStructure}
+var schemaGroup = smithy.Schema{ID: "com.amazonaws.iam#Group", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGroup_Path, &memberGroup_GroupName, &memberGroup_GroupId, &memberGroup_Arn, &memberGroup_CreateDate}}
 
-var memberGroup_Path = smithy.Member{Name: "Path", Index: 0, Required: true}
+var memberGroup_Path = smithy.Member{Name: "Path", Index: 0, Target: &schemaPathType, Required: true}
 
-var memberGroup_GroupName = smithy.Member{Name: "GroupName", Index: 1, Required: true}
+var memberGroup_GroupName = smithy.Member{Name: "GroupName", Index: 1, Target: &schemaGroupNameType, Required: true}
 
-var memberGroup_GroupId = smithy.Member{Name: "GroupId", Index: 2, Required: true}
+var memberGroup_GroupId = smithy.Member{Name: "GroupId", Index: 2, Target: &schemaIdType, Required: true}
 
-var memberGroup_Arn = smithy.Member{Name: "Arn", Index: 3, Required: true}
+var memberGroup_Arn = smithy.Member{Name: "Arn", Index: 3, Target: &schemaArnType, Required: true}
 
-var memberGroup_CreateDate = smithy.Member{Name: "CreateDate", Index: 4, Required: true}
+var memberGroup_CreateDate = smithy.Member{Name: "CreateDate", Index: 4, Target: &schemaDateType, Required: true}
 
-var schemaGroupDetail = smithy.Schema{ID: "com.amazonaws.iam#GroupDetail", Type: smithy.TypeStructure}
+var schemaGroupDetail = smithy.Schema{ID: "com.amazonaws.iam#GroupDetail", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGroupDetail_Path, &memberGroupDetail_GroupName, &memberGroupDetail_GroupId, &memberGroupDetail_Arn, &memberGroupDetail_CreateDate, &memberGroupDetail_GroupPolicyList, &memberGroupDetail_AttachedManagedPolicies}}
 
-var memberGroupDetail_Path = smithy.Member{Name: "Path", Index: 0}
+var memberGroupDetail_Path = smithy.Member{Name: "Path", Index: 0, Target: &schemaPathType}
 
-var memberGroupDetail_GroupName = smithy.Member{Name: "GroupName", Index: 1}
+var memberGroupDetail_GroupName = smithy.Member{Name: "GroupName", Index: 1, Target: &schemaGroupNameType}
 
-var memberGroupDetail_GroupId = smithy.Member{Name: "GroupId", Index: 2}
+var memberGroupDetail_GroupId = smithy.Member{Name: "GroupId", Index: 2, Target: &schemaIdType}
 
-var memberGroupDetail_Arn = smithy.Member{Name: "Arn", Index: 3}
+var memberGroupDetail_Arn = smithy.Member{Name: "Arn", Index: 3, Target: &schemaArnType}
 
-var memberGroupDetail_CreateDate = smithy.Member{Name: "CreateDate", Index: 4}
+var memberGroupDetail_CreateDate = smithy.Member{Name: "CreateDate", Index: 4, Target: &schemaDateType}
 
-var memberGroupDetail_GroupPolicyList = smithy.Member{Name: "GroupPolicyList", Index: 5}
+var memberGroupDetail_GroupPolicyList = smithy.Member{Name: "GroupPolicyList", Index: 5, Target: &schemaPolicyDetailListType}
 
-var memberGroupDetail_AttachedManagedPolicies = smithy.Member{Name: "AttachedManagedPolicies", Index: 6}
+var memberGroupDetail_AttachedManagedPolicies = smithy.Member{Name: "AttachedManagedPolicies", Index: 6, Target: &schemaAttachedPoliciesListType}
 
-var schemaGroupDetailListType = smithy.Schema{ID: "com.amazonaws.iam#groupDetailListType", Type: smithy.TypeList}
+var schemaGroupDetailListType = smithy.Schema{ID: "com.amazonaws.iam#groupDetailListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberGroupDetailListType_member}}
 
-var memberGroupDetailListType_member = smithy.Member{Name: "member", Index: 0}
+var memberGroupDetailListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaGroupDetail}
 
-var schemaGroupListType = smithy.Schema{ID: "com.amazonaws.iam#groupListType", Type: smithy.TypeList}
+var schemaGroupListType = smithy.Schema{ID: "com.amazonaws.iam#groupListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberGroupListType_member}}
 
-var memberGroupListType_member = smithy.Member{Name: "member", Index: 0}
+var memberGroupListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaGroup}
 
-var schemaGroupNameListType = smithy.Schema{ID: "com.amazonaws.iam#groupNameListType", Type: smithy.TypeList}
+var schemaGroupNameListType = smithy.Schema{ID: "com.amazonaws.iam#groupNameListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberGroupNameListType_member}}
 
-var memberGroupNameListType_member = smithy.Member{Name: "member", Index: 0}
+var memberGroupNameListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaGroupNameType}
 
 var schemaGroupNameType = smithy.Schema{ID: "com.amazonaws.iam#groupNameType", Type: smithy.TypeString}
 
 var schemaIdType = smithy.Schema{ID: "com.amazonaws.iam#idType", Type: smithy.TypeString}
 
-var schemaIncompleteSignature = smithy.Schema{ID: "com.amazon.coral.service#IncompleteSignature", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaIncompleteSignature = smithy.Schema{ID: "com.amazon.coral.service#IncompleteSignature", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberIncompleteSignature_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberIncompleteSignature_message = smithy.Member{Name: "message", Index: 0}
+var memberIncompleteSignature_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaInlinePolicy = smithy.Schema{ID: "com.amazonaws.iam#InlinePolicy", Type: smithy.TypeStructure}
+var schemaInlinePolicy = smithy.Schema{ID: "com.amazonaws.iam#InlinePolicy", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberInlinePolicy_PolicyName, &memberInlinePolicy_PolicyDocument}}
 
-var memberInlinePolicy_PolicyName = smithy.Member{Name: "PolicyName", Index: 0, Required: true}
+var memberInlinePolicy_PolicyName = smithy.Member{Name: "PolicyName", Index: 0, Target: &schemaPolicyNameType, Required: true}
 
-var memberInlinePolicy_PolicyDocument = smithy.Member{Name: "PolicyDocument", Index: 1, Required: true}
+var memberInlinePolicy_PolicyDocument = smithy.Member{Name: "PolicyDocument", Index: 1, Target: &schemaPolicyDocumentType, Required: true}
 
-var schemaInlinePolicyIdentifierType = smithy.Schema{ID: "com.amazonaws.iam#InlinePolicyIdentifierType", Type: smithy.TypeStructure}
+var schemaInlinePolicyIdentifierType = smithy.Schema{ID: "com.amazonaws.iam#InlinePolicyIdentifierType", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberInlinePolicyIdentifierType_PolicyName, &memberInlinePolicyIdentifierType_AttachmentType, &memberInlinePolicyIdentifierType_AttachmentName}}
 
-var memberInlinePolicyIdentifierType_PolicyName = smithy.Member{Name: "PolicyName", Index: 0, Required: true}
+var memberInlinePolicyIdentifierType_PolicyName = smithy.Member{Name: "PolicyName", Index: 0, Target: &schemaPolicyNameType, Required: true}
 
-var memberInlinePolicyIdentifierType_AttachmentType = smithy.Member{Name: "AttachmentType", Index: 1, Required: true}
+var memberInlinePolicyIdentifierType_AttachmentType = smithy.Member{Name: "AttachmentType", Index: 1, Target: &schemaAttachmentType, Required: true}
 
-var memberInlinePolicyIdentifierType_AttachmentName = smithy.Member{Name: "AttachmentName", Index: 2, Required: true}
+var memberInlinePolicyIdentifierType_AttachmentName = smithy.Member{Name: "AttachmentName", Index: 2, Target: &schemaAttachmentName, Required: true}
 
-var schemaInlinePolicyTemplateListType = smithy.Schema{ID: "com.amazonaws.iam#inlinePolicyTemplateListType", Type: smithy.TypeList}
+var schemaInlinePolicyTemplateListType = smithy.Schema{ID: "com.amazonaws.iam#inlinePolicyTemplateListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberInlinePolicyTemplateListType_member}}
 
-var memberInlinePolicyTemplateListType_member = smithy.Member{Name: "member", Index: 0}
+var memberInlinePolicyTemplateListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaInlinePolicy}
 
-var schemaInstanceProfile = smithy.Schema{ID: "com.amazonaws.iam#InstanceProfile", Type: smithy.TypeStructure}
+var schemaInstanceProfile = smithy.Schema{ID: "com.amazonaws.iam#InstanceProfile", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberInstanceProfile_Path, &memberInstanceProfile_InstanceProfileName, &memberInstanceProfile_InstanceProfileId, &memberInstanceProfile_Arn, &memberInstanceProfile_CreateDate, &memberInstanceProfile_Roles, &memberInstanceProfile_Tags}}
 
-var memberInstanceProfile_Path = smithy.Member{Name: "Path", Index: 0, Required: true}
+var memberInstanceProfile_Path = smithy.Member{Name: "Path", Index: 0, Target: &schemaPathType, Required: true}
 
-var memberInstanceProfile_InstanceProfileName = smithy.Member{Name: "InstanceProfileName", Index: 1, Required: true}
+var memberInstanceProfile_InstanceProfileName = smithy.Member{Name: "InstanceProfileName", Index: 1, Target: &schemaInstanceProfileNameType, Required: true}
 
-var memberInstanceProfile_InstanceProfileId = smithy.Member{Name: "InstanceProfileId", Index: 2, Required: true}
+var memberInstanceProfile_InstanceProfileId = smithy.Member{Name: "InstanceProfileId", Index: 2, Target: &schemaIdType, Required: true}
 
-var memberInstanceProfile_Arn = smithy.Member{Name: "Arn", Index: 3, Required: true}
+var memberInstanceProfile_Arn = smithy.Member{Name: "Arn", Index: 3, Target: &schemaArnType, Required: true}
 
-var memberInstanceProfile_CreateDate = smithy.Member{Name: "CreateDate", Index: 4, Required: true}
+var memberInstanceProfile_CreateDate = smithy.Member{Name: "CreateDate", Index: 4, Target: &schemaDateType, Required: true}
 
-var memberInstanceProfile_Roles = smithy.Member{Name: "Roles", Index: 5, Required: true}
+var memberInstanceProfile_Roles = smithy.Member{Name: "Roles", Index: 5, Target: &schemaRoleListType, Required: true}
 
-var memberInstanceProfile_Tags = smithy.Member{Name: "Tags", Index: 6}
+var memberInstanceProfile_Tags = smithy.Member{Name: "Tags", Index: 6, Target: &schemaTagListType}
 
-var schemaInstanceProfileListType = smithy.Schema{ID: "com.amazonaws.iam#instanceProfileListType", Type: smithy.TypeList}
+var schemaInstanceProfileListType = smithy.Schema{ID: "com.amazonaws.iam#instanceProfileListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberInstanceProfileListType_member}}
 
-var memberInstanceProfileListType_member = smithy.Member{Name: "member", Index: 0}
+var memberInstanceProfileListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaInstanceProfile}
 
 var schemaInstanceProfileNameType = smithy.Schema{ID: "com.amazonaws.iam#instanceProfileNameType", Type: smithy.TypeString}
 
 var schemaIntegerType = smithy.Schema{ID: "com.amazonaws.iam#integerType", Type: smithy.TypeInteger}
 
-var schemaInternalFailure = smithy.Schema{ID: "com.amazon.coral.service#InternalFailure", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ServerFault, HTTPError: 500}}
+var schemaInternalFailure = smithy.Schema{ID: "com.amazon.coral.service#InternalFailure", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberInternalFailure_message}, Error: &smithy.ErrorTrait{Fault: smithy.ServerFault, HTTPError: 500}}
 
-var memberInternalFailure_message = smithy.Member{Name: "message", Index: 0}
+var memberInternalFailure_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaInvalidAction = smithy.Schema{ID: "com.amazon.coral.service#InvalidAction", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaInvalidAction = smithy.Schema{ID: "com.amazon.coral.service#InvalidAction", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberInvalidAction_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberInvalidAction_message = smithy.Member{Name: "message", Index: 0}
+var memberInvalidAction_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaInvalidAuthenticationCodeException = smithy.Schema{ID: "com.amazonaws.iam#InvalidAuthenticationCodeException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+var schemaInvalidAuthenticationCodeException = smithy.Schema{ID: "com.amazonaws.iam#InvalidAuthenticationCodeException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberInvalidAuthenticationCodeException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
 
-var memberInvalidAuthenticationCodeException_message = smithy.Member{Name: "message", Index: 0}
+var memberInvalidAuthenticationCodeException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaInvalidAuthenticationCodeMessage}
 
 var schemaInvalidAuthenticationCodeMessage = smithy.Schema{ID: "com.amazonaws.iam#invalidAuthenticationCodeMessage", Type: smithy.TypeString}
 
-var schemaInvalidCertificateException = smithy.Schema{ID: "com.amazonaws.iam#InvalidCertificateException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaInvalidCertificateException = smithy.Schema{ID: "com.amazonaws.iam#InvalidCertificateException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberInvalidCertificateException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberInvalidCertificateException_message = smithy.Member{Name: "message", Index: 0}
+var memberInvalidCertificateException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaInvalidCertificateMessage}
 
 var schemaInvalidCertificateMessage = smithy.Schema{ID: "com.amazonaws.iam#invalidCertificateMessage", Type: smithy.TypeString}
 
-var schemaInvalidClientTokenId = smithy.Schema{ID: "com.amazon.coral.service#InvalidClientTokenId", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+var schemaInvalidClientTokenId = smithy.Schema{ID: "com.amazon.coral.service#InvalidClientTokenId", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberInvalidClientTokenId_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
 
-var memberInvalidClientTokenId_message = smithy.Member{Name: "message", Index: 0}
+var memberInvalidClientTokenId_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaInvalidInputException = smithy.Schema{ID: "com.amazonaws.iam#InvalidInputException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaInvalidInputException = smithy.Schema{ID: "com.amazonaws.iam#InvalidInputException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberInvalidInputException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberInvalidInputException_message = smithy.Member{Name: "message", Index: 0}
+var memberInvalidInputException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaInvalidInputMessage}
 
 var schemaInvalidInputMessage = smithy.Schema{ID: "com.amazonaws.iam#invalidInputMessage", Type: smithy.TypeString}
 
-var schemaInvalidPublicKeyException = smithy.Schema{ID: "com.amazonaws.iam#InvalidPublicKeyException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaInvalidPublicKeyException = smithy.Schema{ID: "com.amazonaws.iam#InvalidPublicKeyException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberInvalidPublicKeyException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberInvalidPublicKeyException_message = smithy.Member{Name: "message", Index: 0}
+var memberInvalidPublicKeyException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaInvalidPublicKeyMessage}
 
 var schemaInvalidPublicKeyMessage = smithy.Schema{ID: "com.amazonaws.iam#invalidPublicKeyMessage", Type: smithy.TypeString}
 
-var schemaInvalidUserTypeException = smithy.Schema{ID: "com.amazonaws.iam#InvalidUserTypeException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaInvalidUserTypeException = smithy.Schema{ID: "com.amazonaws.iam#InvalidUserTypeException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberInvalidUserTypeException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberInvalidUserTypeException_message = smithy.Member{Name: "message", Index: 0}
+var memberInvalidUserTypeException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaInvalidUserTypeMessage}
 
 var schemaInvalidUserTypeMessage = smithy.Schema{ID: "com.amazonaws.iam#invalidUserTypeMessage", Type: smithy.TypeString}
 
@@ -1419,629 +1419,629 @@ var schemaJobIDType = smithy.Schema{ID: "com.amazonaws.iam#jobIDType", Type: smi
 
 var schemaJobStatusType = smithy.Schema{ID: "com.amazonaws.iam#jobStatusType", Type: smithy.TypeEnum}
 
-var schemaKeyPairMismatchException = smithy.Schema{ID: "com.amazonaws.iam#KeyPairMismatchException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaKeyPairMismatchException = smithy.Schema{ID: "com.amazonaws.iam#KeyPairMismatchException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberKeyPairMismatchException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberKeyPairMismatchException_message = smithy.Member{Name: "message", Index: 0}
+var memberKeyPairMismatchException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaKeyPairMismatchMessage}
 
 var schemaKeyPairMismatchMessage = smithy.Schema{ID: "com.amazonaws.iam#keyPairMismatchMessage", Type: smithy.TypeString}
 
-var schemaLimitExceededException = smithy.Schema{ID: "com.amazonaws.iam#LimitExceededException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 409}}
+var schemaLimitExceededException = smithy.Schema{ID: "com.amazonaws.iam#LimitExceededException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberLimitExceededException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 409}}
 
-var memberLimitExceededException_message = smithy.Member{Name: "message", Index: 0}
+var memberLimitExceededException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaLimitExceededMessage}
 
 var schemaLimitExceededMessage = smithy.Schema{ID: "com.amazonaws.iam#limitExceededMessage", Type: smithy.TypeString}
 
 var schemaLineNumber = smithy.Schema{ID: "com.amazonaws.iam#LineNumber", Type: smithy.TypeInteger}
 
-var schemaListAccessKeysInput = smithy.Schema{ID: "com.amazonaws.iam#ListAccessKeysRequest", Type: smithy.TypeStructure}
+var schemaListAccessKeysInput = smithy.Schema{ID: "com.amazonaws.iam#ListAccessKeysRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListAccessKeysInput_UserName, &memberListAccessKeysInput_Marker, &memberListAccessKeysInput_MaxItems}}
 
-var memberListAccessKeysInput_UserName = smithy.Member{Name: "UserName", Index: 0}
+var memberListAccessKeysInput_UserName = smithy.Member{Name: "UserName", Index: 0, Target: &schemaExistingUserNameType}
 
-var memberListAccessKeysInput_Marker = smithy.Member{Name: "Marker", Index: 1}
+var memberListAccessKeysInput_Marker = smithy.Member{Name: "Marker", Index: 1, Target: &schemaMarkerType}
 
-var memberListAccessKeysInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2}
+var memberListAccessKeysInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2, Target: &schemaMaxItemsType}
 
-var schemaListAccessKeysOutput = smithy.Schema{ID: "com.amazonaws.iam#ListAccessKeysResponse", Type: smithy.TypeStructure}
+var schemaListAccessKeysOutput = smithy.Schema{ID: "com.amazonaws.iam#ListAccessKeysResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListAccessKeysOutput_AccessKeyMetadata, &memberListAccessKeysOutput_IsTruncated, &memberListAccessKeysOutput_Marker}}
 
-var memberListAccessKeysOutput_AccessKeyMetadata = smithy.Member{Name: "AccessKeyMetadata", Index: 0, Required: true}
+var memberListAccessKeysOutput_AccessKeyMetadata = smithy.Member{Name: "AccessKeyMetadata", Index: 0, Target: &schemaAccessKeyMetadataListType, Required: true}
 
-var memberListAccessKeysOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Default: document.Bool(false)}
+var memberListAccessKeysOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberListAccessKeysOutput_Marker = smithy.Member{Name: "Marker", Index: 2}
+var memberListAccessKeysOutput_Marker = smithy.Member{Name: "Marker", Index: 2, Target: &schemaResponseMarkerType}
 
-var schemaListAccountAliasesInput = smithy.Schema{ID: "com.amazonaws.iam#ListAccountAliasesRequest", Type: smithy.TypeStructure}
+var schemaListAccountAliasesInput = smithy.Schema{ID: "com.amazonaws.iam#ListAccountAliasesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListAccountAliasesInput_Marker, &memberListAccountAliasesInput_MaxItems}}
 
-var memberListAccountAliasesInput_Marker = smithy.Member{Name: "Marker", Index: 0}
+var memberListAccountAliasesInput_Marker = smithy.Member{Name: "Marker", Index: 0, Target: &schemaMarkerType}
 
-var memberListAccountAliasesInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 1}
+var memberListAccountAliasesInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 1, Target: &schemaMaxItemsType}
 
-var schemaListAccountAliasesOutput = smithy.Schema{ID: "com.amazonaws.iam#ListAccountAliasesResponse", Type: smithy.TypeStructure}
+var schemaListAccountAliasesOutput = smithy.Schema{ID: "com.amazonaws.iam#ListAccountAliasesResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListAccountAliasesOutput_AccountAliases, &memberListAccountAliasesOutput_IsTruncated, &memberListAccountAliasesOutput_Marker}}
 
-var memberListAccountAliasesOutput_AccountAliases = smithy.Member{Name: "AccountAliases", Index: 0, Required: true}
+var memberListAccountAliasesOutput_AccountAliases = smithy.Member{Name: "AccountAliases", Index: 0, Target: &schemaAccountAliasListType, Required: true}
 
-var memberListAccountAliasesOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Default: document.Bool(false)}
+var memberListAccountAliasesOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberListAccountAliasesOutput_Marker = smithy.Member{Name: "Marker", Index: 2}
+var memberListAccountAliasesOutput_Marker = smithy.Member{Name: "Marker", Index: 2, Target: &schemaResponseMarkerType}
 
-var schemaListAttachedGroupPoliciesInput = smithy.Schema{ID: "com.amazonaws.iam#ListAttachedGroupPoliciesRequest", Type: smithy.TypeStructure}
+var schemaListAttachedGroupPoliciesInput = smithy.Schema{ID: "com.amazonaws.iam#ListAttachedGroupPoliciesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListAttachedGroupPoliciesInput_GroupName, &memberListAttachedGroupPoliciesInput_PathPrefix, &memberListAttachedGroupPoliciesInput_Marker, &memberListAttachedGroupPoliciesInput_MaxItems}}
 
-var memberListAttachedGroupPoliciesInput_GroupName = smithy.Member{Name: "GroupName", Index: 0, Required: true}
+var memberListAttachedGroupPoliciesInput_GroupName = smithy.Member{Name: "GroupName", Index: 0, Target: &schemaGroupNameType, Required: true}
 
-var memberListAttachedGroupPoliciesInput_PathPrefix = smithy.Member{Name: "PathPrefix", Index: 1}
+var memberListAttachedGroupPoliciesInput_PathPrefix = smithy.Member{Name: "PathPrefix", Index: 1, Target: &schemaPolicyPathType}
 
-var memberListAttachedGroupPoliciesInput_Marker = smithy.Member{Name: "Marker", Index: 2}
+var memberListAttachedGroupPoliciesInput_Marker = smithy.Member{Name: "Marker", Index: 2, Target: &schemaMarkerType}
 
-var memberListAttachedGroupPoliciesInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 3}
+var memberListAttachedGroupPoliciesInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 3, Target: &schemaMaxItemsType}
 
-var schemaListAttachedGroupPoliciesOutput = smithy.Schema{ID: "com.amazonaws.iam#ListAttachedGroupPoliciesResponse", Type: smithy.TypeStructure}
+var schemaListAttachedGroupPoliciesOutput = smithy.Schema{ID: "com.amazonaws.iam#ListAttachedGroupPoliciesResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListAttachedGroupPoliciesOutput_AttachedPolicies, &memberListAttachedGroupPoliciesOutput_IsTruncated, &memberListAttachedGroupPoliciesOutput_Marker}}
 
-var memberListAttachedGroupPoliciesOutput_AttachedPolicies = smithy.Member{Name: "AttachedPolicies", Index: 0}
+var memberListAttachedGroupPoliciesOutput_AttachedPolicies = smithy.Member{Name: "AttachedPolicies", Index: 0, Target: &schemaAttachedPoliciesListType}
 
-var memberListAttachedGroupPoliciesOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Default: document.Bool(false)}
+var memberListAttachedGroupPoliciesOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberListAttachedGroupPoliciesOutput_Marker = smithy.Member{Name: "Marker", Index: 2}
+var memberListAttachedGroupPoliciesOutput_Marker = smithy.Member{Name: "Marker", Index: 2, Target: &schemaResponseMarkerType}
 
-var schemaListAttachedRolePoliciesInput = smithy.Schema{ID: "com.amazonaws.iam#ListAttachedRolePoliciesRequest", Type: smithy.TypeStructure}
+var schemaListAttachedRolePoliciesInput = smithy.Schema{ID: "com.amazonaws.iam#ListAttachedRolePoliciesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListAttachedRolePoliciesInput_RoleName, &memberListAttachedRolePoliciesInput_PathPrefix, &memberListAttachedRolePoliciesInput_Marker, &memberListAttachedRolePoliciesInput_MaxItems}}
 
-var memberListAttachedRolePoliciesInput_RoleName = smithy.Member{Name: "RoleName", Index: 0, Required: true}
+var memberListAttachedRolePoliciesInput_RoleName = smithy.Member{Name: "RoleName", Index: 0, Target: &schemaRoleNameType, Required: true}
 
-var memberListAttachedRolePoliciesInput_PathPrefix = smithy.Member{Name: "PathPrefix", Index: 1}
+var memberListAttachedRolePoliciesInput_PathPrefix = smithy.Member{Name: "PathPrefix", Index: 1, Target: &schemaPolicyPathType}
 
-var memberListAttachedRolePoliciesInput_Marker = smithy.Member{Name: "Marker", Index: 2}
+var memberListAttachedRolePoliciesInput_Marker = smithy.Member{Name: "Marker", Index: 2, Target: &schemaMarkerType}
 
-var memberListAttachedRolePoliciesInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 3}
+var memberListAttachedRolePoliciesInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 3, Target: &schemaMaxItemsType}
 
-var schemaListAttachedRolePoliciesOutput = smithy.Schema{ID: "com.amazonaws.iam#ListAttachedRolePoliciesResponse", Type: smithy.TypeStructure}
+var schemaListAttachedRolePoliciesOutput = smithy.Schema{ID: "com.amazonaws.iam#ListAttachedRolePoliciesResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListAttachedRolePoliciesOutput_AttachedPolicies, &memberListAttachedRolePoliciesOutput_IsTruncated, &memberListAttachedRolePoliciesOutput_Marker}}
 
-var memberListAttachedRolePoliciesOutput_AttachedPolicies = smithy.Member{Name: "AttachedPolicies", Index: 0}
+var memberListAttachedRolePoliciesOutput_AttachedPolicies = smithy.Member{Name: "AttachedPolicies", Index: 0, Target: &schemaAttachedPoliciesListType}
 
-var memberListAttachedRolePoliciesOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Default: document.Bool(false)}
+var memberListAttachedRolePoliciesOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberListAttachedRolePoliciesOutput_Marker = smithy.Member{Name: "Marker", Index: 2}
+var memberListAttachedRolePoliciesOutput_Marker = smithy.Member{Name: "Marker", Index: 2, Target: &schemaResponseMarkerType}
 
-var schemaListAttachedUserPoliciesInput = smithy.Schema{ID: "com.amazonaws.iam#ListAttachedUserPoliciesRequest", Type: smithy.TypeStructure}
+var schemaListAttachedUserPoliciesInput = smithy.Schema{ID: "com.amazonaws.iam#ListAttachedUserPoliciesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListAttachedUserPoliciesInput_UserName, &memberListAttachedUserPoliciesInput_PathPrefix, &memberListAttachedUserPoliciesInput_Marker, &memberListAttachedUserPoliciesInput_MaxItems}}
 
-var memberListAttachedUserPoliciesInput_UserName = smithy.Member{Name: "UserName", Index: 0, Required: true}
+var memberListAttachedUserPoliciesInput_UserName = smithy.Member{Name: "UserName", Index: 0, Target: &schemaUserNameType, Required: true}
 
-var memberListAttachedUserPoliciesInput_PathPrefix = smithy.Member{Name: "PathPrefix", Index: 1}
+var memberListAttachedUserPoliciesInput_PathPrefix = smithy.Member{Name: "PathPrefix", Index: 1, Target: &schemaPolicyPathType}
 
-var memberListAttachedUserPoliciesInput_Marker = smithy.Member{Name: "Marker", Index: 2}
+var memberListAttachedUserPoliciesInput_Marker = smithy.Member{Name: "Marker", Index: 2, Target: &schemaMarkerType}
 
-var memberListAttachedUserPoliciesInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 3}
+var memberListAttachedUserPoliciesInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 3, Target: &schemaMaxItemsType}
 
-var schemaListAttachedUserPoliciesOutput = smithy.Schema{ID: "com.amazonaws.iam#ListAttachedUserPoliciesResponse", Type: smithy.TypeStructure}
+var schemaListAttachedUserPoliciesOutput = smithy.Schema{ID: "com.amazonaws.iam#ListAttachedUserPoliciesResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListAttachedUserPoliciesOutput_AttachedPolicies, &memberListAttachedUserPoliciesOutput_IsTruncated, &memberListAttachedUserPoliciesOutput_Marker}}
 
-var memberListAttachedUserPoliciesOutput_AttachedPolicies = smithy.Member{Name: "AttachedPolicies", Index: 0}
+var memberListAttachedUserPoliciesOutput_AttachedPolicies = smithy.Member{Name: "AttachedPolicies", Index: 0, Target: &schemaAttachedPoliciesListType}
 
-var memberListAttachedUserPoliciesOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Default: document.Bool(false)}
+var memberListAttachedUserPoliciesOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberListAttachedUserPoliciesOutput_Marker = smithy.Member{Name: "Marker", Index: 2}
+var memberListAttachedUserPoliciesOutput_Marker = smithy.Member{Name: "Marker", Index: 2, Target: &schemaResponseMarkerType}
 
-var schemaListDelegationRequestsInput = smithy.Schema{ID: "com.amazonaws.iam#ListDelegationRequestsRequest", Type: smithy.TypeStructure}
+var schemaListDelegationRequestsInput = smithy.Schema{ID: "com.amazonaws.iam#ListDelegationRequestsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListDelegationRequestsInput_OwnerId, &memberListDelegationRequestsInput_Marker, &memberListDelegationRequestsInput_MaxItems}}
 
-var memberListDelegationRequestsInput_OwnerId = smithy.Member{Name: "OwnerId", Index: 0}
+var memberListDelegationRequestsInput_OwnerId = smithy.Member{Name: "OwnerId", Index: 0, Target: &schemaOwnerIdType}
 
-var memberListDelegationRequestsInput_Marker = smithy.Member{Name: "Marker", Index: 1}
+var memberListDelegationRequestsInput_Marker = smithy.Member{Name: "Marker", Index: 1, Target: &schemaMarkerType}
 
-var memberListDelegationRequestsInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2}
+var memberListDelegationRequestsInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2, Target: &schemaMaxItemsType}
 
-var schemaListDelegationRequestsOutput = smithy.Schema{ID: "com.amazonaws.iam#ListDelegationRequestsResponse", Type: smithy.TypeStructure}
+var schemaListDelegationRequestsOutput = smithy.Schema{ID: "com.amazonaws.iam#ListDelegationRequestsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListDelegationRequestsOutput_DelegationRequests, &memberListDelegationRequestsOutput_Marker, &memberListDelegationRequestsOutput_isTruncated}}
 
-var memberListDelegationRequestsOutput_DelegationRequests = smithy.Member{Name: "DelegationRequests", Index: 0}
+var memberListDelegationRequestsOutput_DelegationRequests = smithy.Member{Name: "DelegationRequests", Index: 0, Target: &schemaDelegationRequestsListType}
 
-var memberListDelegationRequestsOutput_Marker = smithy.Member{Name: "Marker", Index: 1}
+var memberListDelegationRequestsOutput_Marker = smithy.Member{Name: "Marker", Index: 1, Target: &schemaMarkerType}
 
-var memberListDelegationRequestsOutput_isTruncated = smithy.Member{Name: "isTruncated", Index: 2, Default: document.Bool(false)}
+var memberListDelegationRequestsOutput_isTruncated = smithy.Member{Name: "isTruncated", Index: 2, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var schemaListEntitiesForPolicyInput = smithy.Schema{ID: "com.amazonaws.iam#ListEntitiesForPolicyRequest", Type: smithy.TypeStructure}
+var schemaListEntitiesForPolicyInput = smithy.Schema{ID: "com.amazonaws.iam#ListEntitiesForPolicyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListEntitiesForPolicyInput_PolicyArn, &memberListEntitiesForPolicyInput_EntityFilter, &memberListEntitiesForPolicyInput_PathPrefix, &memberListEntitiesForPolicyInput_PolicyUsageFilter, &memberListEntitiesForPolicyInput_Marker, &memberListEntitiesForPolicyInput_MaxItems}}
 
-var memberListEntitiesForPolicyInput_PolicyArn = smithy.Member{Name: "PolicyArn", Index: 0, Required: true}
+var memberListEntitiesForPolicyInput_PolicyArn = smithy.Member{Name: "PolicyArn", Index: 0, Target: &schemaArnType, Required: true}
 
-var memberListEntitiesForPolicyInput_EntityFilter = smithy.Member{Name: "EntityFilter", Index: 1}
+var memberListEntitiesForPolicyInput_EntityFilter = smithy.Member{Name: "EntityFilter", Index: 1, Target: &schemaEntityType}
 
-var memberListEntitiesForPolicyInput_PathPrefix = smithy.Member{Name: "PathPrefix", Index: 2}
+var memberListEntitiesForPolicyInput_PathPrefix = smithy.Member{Name: "PathPrefix", Index: 2, Target: &schemaPathType}
 
-var memberListEntitiesForPolicyInput_PolicyUsageFilter = smithy.Member{Name: "PolicyUsageFilter", Index: 3}
+var memberListEntitiesForPolicyInput_PolicyUsageFilter = smithy.Member{Name: "PolicyUsageFilter", Index: 3, Target: &schemaPolicyUsageType}
 
-var memberListEntitiesForPolicyInput_Marker = smithy.Member{Name: "Marker", Index: 4}
+var memberListEntitiesForPolicyInput_Marker = smithy.Member{Name: "Marker", Index: 4, Target: &schemaMarkerType}
 
-var memberListEntitiesForPolicyInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 5}
+var memberListEntitiesForPolicyInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 5, Target: &schemaMaxItemsType}
 
-var schemaListEntitiesForPolicyOutput = smithy.Schema{ID: "com.amazonaws.iam#ListEntitiesForPolicyResponse", Type: smithy.TypeStructure}
+var schemaListEntitiesForPolicyOutput = smithy.Schema{ID: "com.amazonaws.iam#ListEntitiesForPolicyResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListEntitiesForPolicyOutput_PolicyGroups, &memberListEntitiesForPolicyOutput_PolicyUsers, &memberListEntitiesForPolicyOutput_PolicyRoles, &memberListEntitiesForPolicyOutput_IsTruncated, &memberListEntitiesForPolicyOutput_Marker}}
 
-var memberListEntitiesForPolicyOutput_PolicyGroups = smithy.Member{Name: "PolicyGroups", Index: 0}
+var memberListEntitiesForPolicyOutput_PolicyGroups = smithy.Member{Name: "PolicyGroups", Index: 0, Target: &schemaPolicyGroupListType}
 
-var memberListEntitiesForPolicyOutput_PolicyUsers = smithy.Member{Name: "PolicyUsers", Index: 1}
+var memberListEntitiesForPolicyOutput_PolicyUsers = smithy.Member{Name: "PolicyUsers", Index: 1, Target: &schemaPolicyUserListType}
 
-var memberListEntitiesForPolicyOutput_PolicyRoles = smithy.Member{Name: "PolicyRoles", Index: 2}
+var memberListEntitiesForPolicyOutput_PolicyRoles = smithy.Member{Name: "PolicyRoles", Index: 2, Target: &schemaPolicyRoleListType}
 
-var memberListEntitiesForPolicyOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 3, Default: document.Bool(false)}
+var memberListEntitiesForPolicyOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 3, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberListEntitiesForPolicyOutput_Marker = smithy.Member{Name: "Marker", Index: 4}
+var memberListEntitiesForPolicyOutput_Marker = smithy.Member{Name: "Marker", Index: 4, Target: &schemaResponseMarkerType}
 
-var schemaListGroupPoliciesInput = smithy.Schema{ID: "com.amazonaws.iam#ListGroupPoliciesRequest", Type: smithy.TypeStructure}
+var schemaListGroupPoliciesInput = smithy.Schema{ID: "com.amazonaws.iam#ListGroupPoliciesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListGroupPoliciesInput_GroupName, &memberListGroupPoliciesInput_Marker, &memberListGroupPoliciesInput_MaxItems}}
 
-var memberListGroupPoliciesInput_GroupName = smithy.Member{Name: "GroupName", Index: 0, Required: true}
+var memberListGroupPoliciesInput_GroupName = smithy.Member{Name: "GroupName", Index: 0, Target: &schemaGroupNameType, Required: true}
 
-var memberListGroupPoliciesInput_Marker = smithy.Member{Name: "Marker", Index: 1}
+var memberListGroupPoliciesInput_Marker = smithy.Member{Name: "Marker", Index: 1, Target: &schemaMarkerType}
 
-var memberListGroupPoliciesInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2}
+var memberListGroupPoliciesInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2, Target: &schemaMaxItemsType}
 
-var schemaListGroupPoliciesOutput = smithy.Schema{ID: "com.amazonaws.iam#ListGroupPoliciesResponse", Type: smithy.TypeStructure}
+var schemaListGroupPoliciesOutput = smithy.Schema{ID: "com.amazonaws.iam#ListGroupPoliciesResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListGroupPoliciesOutput_PolicyNames, &memberListGroupPoliciesOutput_IsTruncated, &memberListGroupPoliciesOutput_Marker}}
 
-var memberListGroupPoliciesOutput_PolicyNames = smithy.Member{Name: "PolicyNames", Index: 0, Required: true}
+var memberListGroupPoliciesOutput_PolicyNames = smithy.Member{Name: "PolicyNames", Index: 0, Target: &schemaPolicyNameListType, Required: true}
 
-var memberListGroupPoliciesOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Default: document.Bool(false)}
+var memberListGroupPoliciesOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberListGroupPoliciesOutput_Marker = smithy.Member{Name: "Marker", Index: 2}
+var memberListGroupPoliciesOutput_Marker = smithy.Member{Name: "Marker", Index: 2, Target: &schemaResponseMarkerType}
 
-var schemaListGroupsForUserInput = smithy.Schema{ID: "com.amazonaws.iam#ListGroupsForUserRequest", Type: smithy.TypeStructure}
+var schemaListGroupsForUserInput = smithy.Schema{ID: "com.amazonaws.iam#ListGroupsForUserRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListGroupsForUserInput_UserName, &memberListGroupsForUserInput_Marker, &memberListGroupsForUserInput_MaxItems}}
 
-var memberListGroupsForUserInput_UserName = smithy.Member{Name: "UserName", Index: 0, Required: true}
+var memberListGroupsForUserInput_UserName = smithy.Member{Name: "UserName", Index: 0, Target: &schemaExistingUserNameType, Required: true}
 
-var memberListGroupsForUserInput_Marker = smithy.Member{Name: "Marker", Index: 1}
+var memberListGroupsForUserInput_Marker = smithy.Member{Name: "Marker", Index: 1, Target: &schemaMarkerType}
 
-var memberListGroupsForUserInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2}
+var memberListGroupsForUserInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2, Target: &schemaMaxItemsType}
 
-var schemaListGroupsForUserOutput = smithy.Schema{ID: "com.amazonaws.iam#ListGroupsForUserResponse", Type: smithy.TypeStructure}
+var schemaListGroupsForUserOutput = smithy.Schema{ID: "com.amazonaws.iam#ListGroupsForUserResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListGroupsForUserOutput_Groups, &memberListGroupsForUserOutput_IsTruncated, &memberListGroupsForUserOutput_Marker}}
 
-var memberListGroupsForUserOutput_Groups = smithy.Member{Name: "Groups", Index: 0, Required: true}
+var memberListGroupsForUserOutput_Groups = smithy.Member{Name: "Groups", Index: 0, Target: &schemaGroupListType, Required: true}
 
-var memberListGroupsForUserOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Default: document.Bool(false)}
+var memberListGroupsForUserOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberListGroupsForUserOutput_Marker = smithy.Member{Name: "Marker", Index: 2}
+var memberListGroupsForUserOutput_Marker = smithy.Member{Name: "Marker", Index: 2, Target: &schemaResponseMarkerType}
 
-var schemaListGroupsInput = smithy.Schema{ID: "com.amazonaws.iam#ListGroupsRequest", Type: smithy.TypeStructure}
+var schemaListGroupsInput = smithy.Schema{ID: "com.amazonaws.iam#ListGroupsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListGroupsInput_PathPrefix, &memberListGroupsInput_Marker, &memberListGroupsInput_MaxItems}}
 
-var memberListGroupsInput_PathPrefix = smithy.Member{Name: "PathPrefix", Index: 0}
+var memberListGroupsInput_PathPrefix = smithy.Member{Name: "PathPrefix", Index: 0, Target: &schemaPathPrefixType}
 
-var memberListGroupsInput_Marker = smithy.Member{Name: "Marker", Index: 1}
+var memberListGroupsInput_Marker = smithy.Member{Name: "Marker", Index: 1, Target: &schemaMarkerType}
 
-var memberListGroupsInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2}
+var memberListGroupsInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2, Target: &schemaMaxItemsType}
 
-var schemaListGroupsOutput = smithy.Schema{ID: "com.amazonaws.iam#ListGroupsResponse", Type: smithy.TypeStructure}
+var schemaListGroupsOutput = smithy.Schema{ID: "com.amazonaws.iam#ListGroupsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListGroupsOutput_Groups, &memberListGroupsOutput_IsTruncated, &memberListGroupsOutput_Marker}}
 
-var memberListGroupsOutput_Groups = smithy.Member{Name: "Groups", Index: 0, Required: true}
+var memberListGroupsOutput_Groups = smithy.Member{Name: "Groups", Index: 0, Target: &schemaGroupListType, Required: true}
 
-var memberListGroupsOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Default: document.Bool(false)}
+var memberListGroupsOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberListGroupsOutput_Marker = smithy.Member{Name: "Marker", Index: 2}
+var memberListGroupsOutput_Marker = smithy.Member{Name: "Marker", Index: 2, Target: &schemaResponseMarkerType}
 
-var schemaListInstanceProfileTagsInput = smithy.Schema{ID: "com.amazonaws.iam#ListInstanceProfileTagsRequest", Type: smithy.TypeStructure}
+var schemaListInstanceProfileTagsInput = smithy.Schema{ID: "com.amazonaws.iam#ListInstanceProfileTagsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListInstanceProfileTagsInput_InstanceProfileName, &memberListInstanceProfileTagsInput_Marker, &memberListInstanceProfileTagsInput_MaxItems}}
 
-var memberListInstanceProfileTagsInput_InstanceProfileName = smithy.Member{Name: "InstanceProfileName", Index: 0, Required: true}
+var memberListInstanceProfileTagsInput_InstanceProfileName = smithy.Member{Name: "InstanceProfileName", Index: 0, Target: &schemaInstanceProfileNameType, Required: true}
 
-var memberListInstanceProfileTagsInput_Marker = smithy.Member{Name: "Marker", Index: 1}
+var memberListInstanceProfileTagsInput_Marker = smithy.Member{Name: "Marker", Index: 1, Target: &schemaMarkerType}
 
-var memberListInstanceProfileTagsInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2}
+var memberListInstanceProfileTagsInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2, Target: &schemaMaxItemsType}
 
-var schemaListInstanceProfileTagsOutput = smithy.Schema{ID: "com.amazonaws.iam#ListInstanceProfileTagsResponse", Type: smithy.TypeStructure}
+var schemaListInstanceProfileTagsOutput = smithy.Schema{ID: "com.amazonaws.iam#ListInstanceProfileTagsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListInstanceProfileTagsOutput_Tags, &memberListInstanceProfileTagsOutput_IsTruncated, &memberListInstanceProfileTagsOutput_Marker}}
 
-var memberListInstanceProfileTagsOutput_Tags = smithy.Member{Name: "Tags", Index: 0, Required: true}
+var memberListInstanceProfileTagsOutput_Tags = smithy.Member{Name: "Tags", Index: 0, Target: &schemaTagListType, Required: true}
 
-var memberListInstanceProfileTagsOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Default: document.Bool(false)}
+var memberListInstanceProfileTagsOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberListInstanceProfileTagsOutput_Marker = smithy.Member{Name: "Marker", Index: 2}
+var memberListInstanceProfileTagsOutput_Marker = smithy.Member{Name: "Marker", Index: 2, Target: &schemaResponseMarkerType}
 
-var schemaListInstanceProfilesForRoleInput = smithy.Schema{ID: "com.amazonaws.iam#ListInstanceProfilesForRoleRequest", Type: smithy.TypeStructure}
+var schemaListInstanceProfilesForRoleInput = smithy.Schema{ID: "com.amazonaws.iam#ListInstanceProfilesForRoleRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListInstanceProfilesForRoleInput_RoleName, &memberListInstanceProfilesForRoleInput_Marker, &memberListInstanceProfilesForRoleInput_MaxItems}}
 
-var memberListInstanceProfilesForRoleInput_RoleName = smithy.Member{Name: "RoleName", Index: 0, Required: true}
+var memberListInstanceProfilesForRoleInput_RoleName = smithy.Member{Name: "RoleName", Index: 0, Target: &schemaRoleNameType, Required: true}
 
-var memberListInstanceProfilesForRoleInput_Marker = smithy.Member{Name: "Marker", Index: 1}
+var memberListInstanceProfilesForRoleInput_Marker = smithy.Member{Name: "Marker", Index: 1, Target: &schemaMarkerType}
 
-var memberListInstanceProfilesForRoleInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2}
+var memberListInstanceProfilesForRoleInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2, Target: &schemaMaxItemsType}
 
-var schemaListInstanceProfilesForRoleOutput = smithy.Schema{ID: "com.amazonaws.iam#ListInstanceProfilesForRoleResponse", Type: smithy.TypeStructure}
+var schemaListInstanceProfilesForRoleOutput = smithy.Schema{ID: "com.amazonaws.iam#ListInstanceProfilesForRoleResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListInstanceProfilesForRoleOutput_InstanceProfiles, &memberListInstanceProfilesForRoleOutput_IsTruncated, &memberListInstanceProfilesForRoleOutput_Marker}}
 
-var memberListInstanceProfilesForRoleOutput_InstanceProfiles = smithy.Member{Name: "InstanceProfiles", Index: 0, Required: true}
+var memberListInstanceProfilesForRoleOutput_InstanceProfiles = smithy.Member{Name: "InstanceProfiles", Index: 0, Target: &schemaInstanceProfileListType, Required: true}
 
-var memberListInstanceProfilesForRoleOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Default: document.Bool(false)}
+var memberListInstanceProfilesForRoleOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberListInstanceProfilesForRoleOutput_Marker = smithy.Member{Name: "Marker", Index: 2}
+var memberListInstanceProfilesForRoleOutput_Marker = smithy.Member{Name: "Marker", Index: 2, Target: &schemaResponseMarkerType}
 
-var schemaListInstanceProfilesInput = smithy.Schema{ID: "com.amazonaws.iam#ListInstanceProfilesRequest", Type: smithy.TypeStructure}
+var schemaListInstanceProfilesInput = smithy.Schema{ID: "com.amazonaws.iam#ListInstanceProfilesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListInstanceProfilesInput_PathPrefix, &memberListInstanceProfilesInput_Marker, &memberListInstanceProfilesInput_MaxItems}}
 
-var memberListInstanceProfilesInput_PathPrefix = smithy.Member{Name: "PathPrefix", Index: 0}
+var memberListInstanceProfilesInput_PathPrefix = smithy.Member{Name: "PathPrefix", Index: 0, Target: &schemaPathPrefixType}
 
-var memberListInstanceProfilesInput_Marker = smithy.Member{Name: "Marker", Index: 1}
+var memberListInstanceProfilesInput_Marker = smithy.Member{Name: "Marker", Index: 1, Target: &schemaMarkerType}
 
-var memberListInstanceProfilesInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2}
+var memberListInstanceProfilesInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2, Target: &schemaMaxItemsType}
 
-var schemaListInstanceProfilesOutput = smithy.Schema{ID: "com.amazonaws.iam#ListInstanceProfilesResponse", Type: smithy.TypeStructure}
+var schemaListInstanceProfilesOutput = smithy.Schema{ID: "com.amazonaws.iam#ListInstanceProfilesResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListInstanceProfilesOutput_InstanceProfiles, &memberListInstanceProfilesOutput_IsTruncated, &memberListInstanceProfilesOutput_Marker}}
 
-var memberListInstanceProfilesOutput_InstanceProfiles = smithy.Member{Name: "InstanceProfiles", Index: 0, Required: true}
+var memberListInstanceProfilesOutput_InstanceProfiles = smithy.Member{Name: "InstanceProfiles", Index: 0, Target: &schemaInstanceProfileListType, Required: true}
 
-var memberListInstanceProfilesOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Default: document.Bool(false)}
+var memberListInstanceProfilesOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberListInstanceProfilesOutput_Marker = smithy.Member{Name: "Marker", Index: 2}
+var memberListInstanceProfilesOutput_Marker = smithy.Member{Name: "Marker", Index: 2, Target: &schemaResponseMarkerType}
 
-var schemaListMFADeviceTagsInput = smithy.Schema{ID: "com.amazonaws.iam#ListMFADeviceTagsRequest", Type: smithy.TypeStructure}
+var schemaListMFADeviceTagsInput = smithy.Schema{ID: "com.amazonaws.iam#ListMFADeviceTagsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListMFADeviceTagsInput_SerialNumber, &memberListMFADeviceTagsInput_Marker, &memberListMFADeviceTagsInput_MaxItems}}
 
-var memberListMFADeviceTagsInput_SerialNumber = smithy.Member{Name: "SerialNumber", Index: 0, Required: true}
+var memberListMFADeviceTagsInput_SerialNumber = smithy.Member{Name: "SerialNumber", Index: 0, Target: &schemaSerialNumberType, Required: true}
 
-var memberListMFADeviceTagsInput_Marker = smithy.Member{Name: "Marker", Index: 1}
+var memberListMFADeviceTagsInput_Marker = smithy.Member{Name: "Marker", Index: 1, Target: &schemaMarkerType}
 
-var memberListMFADeviceTagsInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2}
+var memberListMFADeviceTagsInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2, Target: &schemaMaxItemsType}
 
-var schemaListMFADeviceTagsOutput = smithy.Schema{ID: "com.amazonaws.iam#ListMFADeviceTagsResponse", Type: smithy.TypeStructure}
+var schemaListMFADeviceTagsOutput = smithy.Schema{ID: "com.amazonaws.iam#ListMFADeviceTagsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListMFADeviceTagsOutput_Tags, &memberListMFADeviceTagsOutput_IsTruncated, &memberListMFADeviceTagsOutput_Marker}}
 
-var memberListMFADeviceTagsOutput_Tags = smithy.Member{Name: "Tags", Index: 0, Required: true}
+var memberListMFADeviceTagsOutput_Tags = smithy.Member{Name: "Tags", Index: 0, Target: &schemaTagListType, Required: true}
 
-var memberListMFADeviceTagsOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Default: document.Bool(false)}
+var memberListMFADeviceTagsOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberListMFADeviceTagsOutput_Marker = smithy.Member{Name: "Marker", Index: 2}
+var memberListMFADeviceTagsOutput_Marker = smithy.Member{Name: "Marker", Index: 2, Target: &schemaResponseMarkerType}
 
-var schemaListMFADevicesInput = smithy.Schema{ID: "com.amazonaws.iam#ListMFADevicesRequest", Type: smithy.TypeStructure}
+var schemaListMFADevicesInput = smithy.Schema{ID: "com.amazonaws.iam#ListMFADevicesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListMFADevicesInput_UserName, &memberListMFADevicesInput_Marker, &memberListMFADevicesInput_MaxItems}}
 
-var memberListMFADevicesInput_UserName = smithy.Member{Name: "UserName", Index: 0}
+var memberListMFADevicesInput_UserName = smithy.Member{Name: "UserName", Index: 0, Target: &schemaExistingUserNameType}
 
-var memberListMFADevicesInput_Marker = smithy.Member{Name: "Marker", Index: 1}
+var memberListMFADevicesInput_Marker = smithy.Member{Name: "Marker", Index: 1, Target: &schemaMarkerType}
 
-var memberListMFADevicesInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2}
+var memberListMFADevicesInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2, Target: &schemaMaxItemsType}
 
-var schemaListMFADevicesOutput = smithy.Schema{ID: "com.amazonaws.iam#ListMFADevicesResponse", Type: smithy.TypeStructure}
+var schemaListMFADevicesOutput = smithy.Schema{ID: "com.amazonaws.iam#ListMFADevicesResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListMFADevicesOutput_MFADevices, &memberListMFADevicesOutput_IsTruncated, &memberListMFADevicesOutput_Marker}}
 
-var memberListMFADevicesOutput_MFADevices = smithy.Member{Name: "MFADevices", Index: 0, Required: true}
+var memberListMFADevicesOutput_MFADevices = smithy.Member{Name: "MFADevices", Index: 0, Target: &schemaMfaDeviceListType, Required: true}
 
-var memberListMFADevicesOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Default: document.Bool(false)}
+var memberListMFADevicesOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberListMFADevicesOutput_Marker = smithy.Member{Name: "Marker", Index: 2}
+var memberListMFADevicesOutput_Marker = smithy.Member{Name: "Marker", Index: 2, Target: &schemaResponseMarkerType}
 
-var schemaListOpenIDConnectProviderTagsInput = smithy.Schema{ID: "com.amazonaws.iam#ListOpenIDConnectProviderTagsRequest", Type: smithy.TypeStructure}
+var schemaListOpenIDConnectProviderTagsInput = smithy.Schema{ID: "com.amazonaws.iam#ListOpenIDConnectProviderTagsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListOpenIDConnectProviderTagsInput_OpenIDConnectProviderArn, &memberListOpenIDConnectProviderTagsInput_Marker, &memberListOpenIDConnectProviderTagsInput_MaxItems}}
 
-var memberListOpenIDConnectProviderTagsInput_OpenIDConnectProviderArn = smithy.Member{Name: "OpenIDConnectProviderArn", Index: 0, Required: true}
+var memberListOpenIDConnectProviderTagsInput_OpenIDConnectProviderArn = smithy.Member{Name: "OpenIDConnectProviderArn", Index: 0, Target: &schemaArnType, Required: true}
 
-var memberListOpenIDConnectProviderTagsInput_Marker = smithy.Member{Name: "Marker", Index: 1}
+var memberListOpenIDConnectProviderTagsInput_Marker = smithy.Member{Name: "Marker", Index: 1, Target: &schemaMarkerType}
 
-var memberListOpenIDConnectProviderTagsInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2}
+var memberListOpenIDConnectProviderTagsInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2, Target: &schemaMaxItemsType}
 
-var schemaListOpenIDConnectProviderTagsOutput = smithy.Schema{ID: "com.amazonaws.iam#ListOpenIDConnectProviderTagsResponse", Type: smithy.TypeStructure}
+var schemaListOpenIDConnectProviderTagsOutput = smithy.Schema{ID: "com.amazonaws.iam#ListOpenIDConnectProviderTagsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListOpenIDConnectProviderTagsOutput_Tags, &memberListOpenIDConnectProviderTagsOutput_IsTruncated, &memberListOpenIDConnectProviderTagsOutput_Marker}}
 
-var memberListOpenIDConnectProviderTagsOutput_Tags = smithy.Member{Name: "Tags", Index: 0, Required: true}
+var memberListOpenIDConnectProviderTagsOutput_Tags = smithy.Member{Name: "Tags", Index: 0, Target: &schemaTagListType, Required: true}
 
-var memberListOpenIDConnectProviderTagsOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Default: document.Bool(false)}
+var memberListOpenIDConnectProviderTagsOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberListOpenIDConnectProviderTagsOutput_Marker = smithy.Member{Name: "Marker", Index: 2}
+var memberListOpenIDConnectProviderTagsOutput_Marker = smithy.Member{Name: "Marker", Index: 2, Target: &schemaResponseMarkerType}
 
 var schemaListOpenIDConnectProvidersInput = smithy.Schema{ID: "com.amazonaws.iam#ListOpenIDConnectProvidersRequest", Type: smithy.TypeStructure}
 
-var schemaListOpenIDConnectProvidersOutput = smithy.Schema{ID: "com.amazonaws.iam#ListOpenIDConnectProvidersResponse", Type: smithy.TypeStructure}
+var schemaListOpenIDConnectProvidersOutput = smithy.Schema{ID: "com.amazonaws.iam#ListOpenIDConnectProvidersResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListOpenIDConnectProvidersOutput_OpenIDConnectProviderList}}
 
-var memberListOpenIDConnectProvidersOutput_OpenIDConnectProviderList = smithy.Member{Name: "OpenIDConnectProviderList", Index: 0}
+var memberListOpenIDConnectProvidersOutput_OpenIDConnectProviderList = smithy.Member{Name: "OpenIDConnectProviderList", Index: 0, Target: &schemaOpenIDConnectProviderListType}
 
 var schemaListOrganizationsFeaturesInput = smithy.Schema{ID: "com.amazonaws.iam#ListOrganizationsFeaturesRequest", Type: smithy.TypeStructure}
 
-var schemaListOrganizationsFeaturesOutput = smithy.Schema{ID: "com.amazonaws.iam#ListOrganizationsFeaturesResponse", Type: smithy.TypeStructure}
+var schemaListOrganizationsFeaturesOutput = smithy.Schema{ID: "com.amazonaws.iam#ListOrganizationsFeaturesResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListOrganizationsFeaturesOutput_OrganizationId, &memberListOrganizationsFeaturesOutput_EnabledFeatures}}
 
-var memberListOrganizationsFeaturesOutput_OrganizationId = smithy.Member{Name: "OrganizationId", Index: 0}
+var memberListOrganizationsFeaturesOutput_OrganizationId = smithy.Member{Name: "OrganizationId", Index: 0, Target: &schemaOrganizationIdType}
 
-var memberListOrganizationsFeaturesOutput_EnabledFeatures = smithy.Member{Name: "EnabledFeatures", Index: 1}
+var memberListOrganizationsFeaturesOutput_EnabledFeatures = smithy.Member{Name: "EnabledFeatures", Index: 1, Target: &schemaFeaturesListType}
 
-var schemaListPoliciesGrantingServiceAccessEntry = smithy.Schema{ID: "com.amazonaws.iam#ListPoliciesGrantingServiceAccessEntry", Type: smithy.TypeStructure}
+var schemaListPoliciesGrantingServiceAccessEntry = smithy.Schema{ID: "com.amazonaws.iam#ListPoliciesGrantingServiceAccessEntry", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListPoliciesGrantingServiceAccessEntry_ServiceNamespace, &memberListPoliciesGrantingServiceAccessEntry_Policies}}
 
-var memberListPoliciesGrantingServiceAccessEntry_ServiceNamespace = smithy.Member{Name: "ServiceNamespace", Index: 0}
+var memberListPoliciesGrantingServiceAccessEntry_ServiceNamespace = smithy.Member{Name: "ServiceNamespace", Index: 0, Target: &schemaServiceNamespaceType}
 
-var memberListPoliciesGrantingServiceAccessEntry_Policies = smithy.Member{Name: "Policies", Index: 1}
+var memberListPoliciesGrantingServiceAccessEntry_Policies = smithy.Member{Name: "Policies", Index: 1, Target: &schemaPolicyGrantingServiceAccessListType}
 
-var schemaListPoliciesGrantingServiceAccessInput = smithy.Schema{ID: "com.amazonaws.iam#ListPoliciesGrantingServiceAccessRequest", Type: smithy.TypeStructure}
+var schemaListPoliciesGrantingServiceAccessInput = smithy.Schema{ID: "com.amazonaws.iam#ListPoliciesGrantingServiceAccessRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListPoliciesGrantingServiceAccessInput_Marker, &memberListPoliciesGrantingServiceAccessInput_Arn, &memberListPoliciesGrantingServiceAccessInput_ServiceNamespaces}}
 
-var memberListPoliciesGrantingServiceAccessInput_Marker = smithy.Member{Name: "Marker", Index: 0}
+var memberListPoliciesGrantingServiceAccessInput_Marker = smithy.Member{Name: "Marker", Index: 0, Target: &schemaMarkerType}
 
-var memberListPoliciesGrantingServiceAccessInput_Arn = smithy.Member{Name: "Arn", Index: 1, Required: true}
+var memberListPoliciesGrantingServiceAccessInput_Arn = smithy.Member{Name: "Arn", Index: 1, Target: &schemaArnType, Required: true}
 
-var memberListPoliciesGrantingServiceAccessInput_ServiceNamespaces = smithy.Member{Name: "ServiceNamespaces", Index: 2, Required: true}
+var memberListPoliciesGrantingServiceAccessInput_ServiceNamespaces = smithy.Member{Name: "ServiceNamespaces", Index: 2, Target: &schemaServiceNamespaceListType, Required: true}
 
-var schemaListPoliciesGrantingServiceAccessOutput = smithy.Schema{ID: "com.amazonaws.iam#ListPoliciesGrantingServiceAccessResponse", Type: smithy.TypeStructure}
+var schemaListPoliciesGrantingServiceAccessOutput = smithy.Schema{ID: "com.amazonaws.iam#ListPoliciesGrantingServiceAccessResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListPoliciesGrantingServiceAccessOutput_PoliciesGrantingServiceAccess, &memberListPoliciesGrantingServiceAccessOutput_IsTruncated, &memberListPoliciesGrantingServiceAccessOutput_Marker}}
 
-var memberListPoliciesGrantingServiceAccessOutput_PoliciesGrantingServiceAccess = smithy.Member{Name: "PoliciesGrantingServiceAccess", Index: 0, Required: true}
+var memberListPoliciesGrantingServiceAccessOutput_PoliciesGrantingServiceAccess = smithy.Member{Name: "PoliciesGrantingServiceAccess", Index: 0, Target: &schemaListPolicyGrantingServiceAccessResponseListType, Required: true}
 
-var memberListPoliciesGrantingServiceAccessOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Default: document.Bool(false)}
+var memberListPoliciesGrantingServiceAccessOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberListPoliciesGrantingServiceAccessOutput_Marker = smithy.Member{Name: "Marker", Index: 2}
+var memberListPoliciesGrantingServiceAccessOutput_Marker = smithy.Member{Name: "Marker", Index: 2, Target: &schemaResponseMarkerType}
 
-var schemaListPoliciesInput = smithy.Schema{ID: "com.amazonaws.iam#ListPoliciesRequest", Type: smithy.TypeStructure}
+var schemaListPoliciesInput = smithy.Schema{ID: "com.amazonaws.iam#ListPoliciesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListPoliciesInput_Scope, &memberListPoliciesInput_OnlyAttached, &memberListPoliciesInput_PathPrefix, &memberListPoliciesInput_PolicyUsageFilter, &memberListPoliciesInput_Marker, &memberListPoliciesInput_MaxItems}}
 
-var memberListPoliciesInput_Scope = smithy.Member{Name: "Scope", Index: 0}
+var memberListPoliciesInput_Scope = smithy.Member{Name: "Scope", Index: 0, Target: &schemaPolicyScopeType}
 
-var memberListPoliciesInput_OnlyAttached = smithy.Member{Name: "OnlyAttached", Index: 1, Default: document.Bool(false)}
+var memberListPoliciesInput_OnlyAttached = smithy.Member{Name: "OnlyAttached", Index: 1, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberListPoliciesInput_PathPrefix = smithy.Member{Name: "PathPrefix", Index: 2}
+var memberListPoliciesInput_PathPrefix = smithy.Member{Name: "PathPrefix", Index: 2, Target: &schemaPolicyPathType}
 
-var memberListPoliciesInput_PolicyUsageFilter = smithy.Member{Name: "PolicyUsageFilter", Index: 3}
+var memberListPoliciesInput_PolicyUsageFilter = smithy.Member{Name: "PolicyUsageFilter", Index: 3, Target: &schemaPolicyUsageType}
 
-var memberListPoliciesInput_Marker = smithy.Member{Name: "Marker", Index: 4}
+var memberListPoliciesInput_Marker = smithy.Member{Name: "Marker", Index: 4, Target: &schemaMarkerType}
 
-var memberListPoliciesInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 5}
+var memberListPoliciesInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 5, Target: &schemaMaxItemsType}
 
-var schemaListPoliciesOutput = smithy.Schema{ID: "com.amazonaws.iam#ListPoliciesResponse", Type: smithy.TypeStructure}
+var schemaListPoliciesOutput = smithy.Schema{ID: "com.amazonaws.iam#ListPoliciesResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListPoliciesOutput_Policies, &memberListPoliciesOutput_IsTruncated, &memberListPoliciesOutput_Marker}}
 
-var memberListPoliciesOutput_Policies = smithy.Member{Name: "Policies", Index: 0}
+var memberListPoliciesOutput_Policies = smithy.Member{Name: "Policies", Index: 0, Target: &schemaPolicyListType}
 
-var memberListPoliciesOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Default: document.Bool(false)}
+var memberListPoliciesOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberListPoliciesOutput_Marker = smithy.Member{Name: "Marker", Index: 2}
+var memberListPoliciesOutput_Marker = smithy.Member{Name: "Marker", Index: 2, Target: &schemaResponseMarkerType}
 
-var schemaListPolicyGrantingServiceAccessResponseListType = smithy.Schema{ID: "com.amazonaws.iam#listPolicyGrantingServiceAccessResponseListType", Type: smithy.TypeList}
+var schemaListPolicyGrantingServiceAccessResponseListType = smithy.Schema{ID: "com.amazonaws.iam#listPolicyGrantingServiceAccessResponseListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberListPolicyGrantingServiceAccessResponseListType_member}}
 
-var memberListPolicyGrantingServiceAccessResponseListType_member = smithy.Member{Name: "member", Index: 0}
+var memberListPolicyGrantingServiceAccessResponseListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaListPoliciesGrantingServiceAccessEntry}
 
-var schemaListPolicyTagsInput = smithy.Schema{ID: "com.amazonaws.iam#ListPolicyTagsRequest", Type: smithy.TypeStructure}
+var schemaListPolicyTagsInput = smithy.Schema{ID: "com.amazonaws.iam#ListPolicyTagsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListPolicyTagsInput_PolicyArn, &memberListPolicyTagsInput_Marker, &memberListPolicyTagsInput_MaxItems}}
 
-var memberListPolicyTagsInput_PolicyArn = smithy.Member{Name: "PolicyArn", Index: 0, Required: true}
+var memberListPolicyTagsInput_PolicyArn = smithy.Member{Name: "PolicyArn", Index: 0, Target: &schemaArnType, Required: true}
 
-var memberListPolicyTagsInput_Marker = smithy.Member{Name: "Marker", Index: 1}
+var memberListPolicyTagsInput_Marker = smithy.Member{Name: "Marker", Index: 1, Target: &schemaMarkerType}
 
-var memberListPolicyTagsInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2}
+var memberListPolicyTagsInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2, Target: &schemaMaxItemsType}
 
-var schemaListPolicyTagsOutput = smithy.Schema{ID: "com.amazonaws.iam#ListPolicyTagsResponse", Type: smithy.TypeStructure}
+var schemaListPolicyTagsOutput = smithy.Schema{ID: "com.amazonaws.iam#ListPolicyTagsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListPolicyTagsOutput_Tags, &memberListPolicyTagsOutput_IsTruncated, &memberListPolicyTagsOutput_Marker}}
 
-var memberListPolicyTagsOutput_Tags = smithy.Member{Name: "Tags", Index: 0, Required: true}
+var memberListPolicyTagsOutput_Tags = smithy.Member{Name: "Tags", Index: 0, Target: &schemaTagListType, Required: true}
 
-var memberListPolicyTagsOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Default: document.Bool(false)}
+var memberListPolicyTagsOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberListPolicyTagsOutput_Marker = smithy.Member{Name: "Marker", Index: 2}
+var memberListPolicyTagsOutput_Marker = smithy.Member{Name: "Marker", Index: 2, Target: &schemaResponseMarkerType}
 
-var schemaListPolicyVersionsInput = smithy.Schema{ID: "com.amazonaws.iam#ListPolicyVersionsRequest", Type: smithy.TypeStructure}
+var schemaListPolicyVersionsInput = smithy.Schema{ID: "com.amazonaws.iam#ListPolicyVersionsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListPolicyVersionsInput_PolicyArn, &memberListPolicyVersionsInput_Marker, &memberListPolicyVersionsInput_MaxItems}}
 
-var memberListPolicyVersionsInput_PolicyArn = smithy.Member{Name: "PolicyArn", Index: 0, Required: true}
+var memberListPolicyVersionsInput_PolicyArn = smithy.Member{Name: "PolicyArn", Index: 0, Target: &schemaArnType, Required: true}
 
-var memberListPolicyVersionsInput_Marker = smithy.Member{Name: "Marker", Index: 1}
+var memberListPolicyVersionsInput_Marker = smithy.Member{Name: "Marker", Index: 1, Target: &schemaMarkerType}
 
-var memberListPolicyVersionsInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2}
+var memberListPolicyVersionsInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2, Target: &schemaMaxItemsType}
 
-var schemaListPolicyVersionsOutput = smithy.Schema{ID: "com.amazonaws.iam#ListPolicyVersionsResponse", Type: smithy.TypeStructure}
+var schemaListPolicyVersionsOutput = smithy.Schema{ID: "com.amazonaws.iam#ListPolicyVersionsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListPolicyVersionsOutput_Versions, &memberListPolicyVersionsOutput_IsTruncated, &memberListPolicyVersionsOutput_Marker}}
 
-var memberListPolicyVersionsOutput_Versions = smithy.Member{Name: "Versions", Index: 0}
+var memberListPolicyVersionsOutput_Versions = smithy.Member{Name: "Versions", Index: 0, Target: &schemaPolicyDocumentVersionListType}
 
-var memberListPolicyVersionsOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Default: document.Bool(false)}
+var memberListPolicyVersionsOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberListPolicyVersionsOutput_Marker = smithy.Member{Name: "Marker", Index: 2}
+var memberListPolicyVersionsOutput_Marker = smithy.Member{Name: "Marker", Index: 2, Target: &schemaResponseMarkerType}
 
-var schemaListRolePoliciesInput = smithy.Schema{ID: "com.amazonaws.iam#ListRolePoliciesRequest", Type: smithy.TypeStructure}
+var schemaListRolePoliciesInput = smithy.Schema{ID: "com.amazonaws.iam#ListRolePoliciesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListRolePoliciesInput_RoleName, &memberListRolePoliciesInput_Marker, &memberListRolePoliciesInput_MaxItems}}
 
-var memberListRolePoliciesInput_RoleName = smithy.Member{Name: "RoleName", Index: 0, Required: true}
+var memberListRolePoliciesInput_RoleName = smithy.Member{Name: "RoleName", Index: 0, Target: &schemaRoleNameType, Required: true}
 
-var memberListRolePoliciesInput_Marker = smithy.Member{Name: "Marker", Index: 1}
+var memberListRolePoliciesInput_Marker = smithy.Member{Name: "Marker", Index: 1, Target: &schemaMarkerType}
 
-var memberListRolePoliciesInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2}
+var memberListRolePoliciesInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2, Target: &schemaMaxItemsType}
 
-var schemaListRolePoliciesOutput = smithy.Schema{ID: "com.amazonaws.iam#ListRolePoliciesResponse", Type: smithy.TypeStructure}
+var schemaListRolePoliciesOutput = smithy.Schema{ID: "com.amazonaws.iam#ListRolePoliciesResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListRolePoliciesOutput_PolicyNames, &memberListRolePoliciesOutput_IsTruncated, &memberListRolePoliciesOutput_Marker}}
 
-var memberListRolePoliciesOutput_PolicyNames = smithy.Member{Name: "PolicyNames", Index: 0, Required: true}
+var memberListRolePoliciesOutput_PolicyNames = smithy.Member{Name: "PolicyNames", Index: 0, Target: &schemaPolicyNameListType, Required: true}
 
-var memberListRolePoliciesOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Default: document.Bool(false)}
+var memberListRolePoliciesOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberListRolePoliciesOutput_Marker = smithy.Member{Name: "Marker", Index: 2}
+var memberListRolePoliciesOutput_Marker = smithy.Member{Name: "Marker", Index: 2, Target: &schemaResponseMarkerType}
 
-var schemaListRoleTagsInput = smithy.Schema{ID: "com.amazonaws.iam#ListRoleTagsRequest", Type: smithy.TypeStructure}
+var schemaListRoleTagsInput = smithy.Schema{ID: "com.amazonaws.iam#ListRoleTagsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListRoleTagsInput_RoleName, &memberListRoleTagsInput_Marker, &memberListRoleTagsInput_MaxItems}}
 
-var memberListRoleTagsInput_RoleName = smithy.Member{Name: "RoleName", Index: 0, Required: true}
+var memberListRoleTagsInput_RoleName = smithy.Member{Name: "RoleName", Index: 0, Target: &schemaRoleNameType, Required: true}
 
-var memberListRoleTagsInput_Marker = smithy.Member{Name: "Marker", Index: 1}
+var memberListRoleTagsInput_Marker = smithy.Member{Name: "Marker", Index: 1, Target: &schemaMarkerType}
 
-var memberListRoleTagsInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2}
+var memberListRoleTagsInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2, Target: &schemaMaxItemsType}
 
-var schemaListRoleTagsOutput = smithy.Schema{ID: "com.amazonaws.iam#ListRoleTagsResponse", Type: smithy.TypeStructure}
+var schemaListRoleTagsOutput = smithy.Schema{ID: "com.amazonaws.iam#ListRoleTagsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListRoleTagsOutput_Tags, &memberListRoleTagsOutput_IsTruncated, &memberListRoleTagsOutput_Marker}}
 
-var memberListRoleTagsOutput_Tags = smithy.Member{Name: "Tags", Index: 0, Required: true}
+var memberListRoleTagsOutput_Tags = smithy.Member{Name: "Tags", Index: 0, Target: &schemaTagListType, Required: true}
 
-var memberListRoleTagsOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Default: document.Bool(false)}
+var memberListRoleTagsOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberListRoleTagsOutput_Marker = smithy.Member{Name: "Marker", Index: 2}
+var memberListRoleTagsOutput_Marker = smithy.Member{Name: "Marker", Index: 2, Target: &schemaResponseMarkerType}
 
-var schemaListRolesInput = smithy.Schema{ID: "com.amazonaws.iam#ListRolesRequest", Type: smithy.TypeStructure}
+var schemaListRolesInput = smithy.Schema{ID: "com.amazonaws.iam#ListRolesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListRolesInput_PathPrefix, &memberListRolesInput_Marker, &memberListRolesInput_MaxItems}}
 
-var memberListRolesInput_PathPrefix = smithy.Member{Name: "PathPrefix", Index: 0}
+var memberListRolesInput_PathPrefix = smithy.Member{Name: "PathPrefix", Index: 0, Target: &schemaPathPrefixType}
 
-var memberListRolesInput_Marker = smithy.Member{Name: "Marker", Index: 1}
+var memberListRolesInput_Marker = smithy.Member{Name: "Marker", Index: 1, Target: &schemaMarkerType}
 
-var memberListRolesInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2}
+var memberListRolesInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2, Target: &schemaMaxItemsType}
 
-var schemaListRolesOutput = smithy.Schema{ID: "com.amazonaws.iam#ListRolesResponse", Type: smithy.TypeStructure}
+var schemaListRolesOutput = smithy.Schema{ID: "com.amazonaws.iam#ListRolesResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListRolesOutput_Roles, &memberListRolesOutput_IsTruncated, &memberListRolesOutput_Marker}}
 
-var memberListRolesOutput_Roles = smithy.Member{Name: "Roles", Index: 0, Required: true}
+var memberListRolesOutput_Roles = smithy.Member{Name: "Roles", Index: 0, Target: &schemaRoleListType, Required: true}
 
-var memberListRolesOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Default: document.Bool(false)}
+var memberListRolesOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberListRolesOutput_Marker = smithy.Member{Name: "Marker", Index: 2}
+var memberListRolesOutput_Marker = smithy.Member{Name: "Marker", Index: 2, Target: &schemaResponseMarkerType}
 
-var schemaListSAMLProviderTagsInput = smithy.Schema{ID: "com.amazonaws.iam#ListSAMLProviderTagsRequest", Type: smithy.TypeStructure}
+var schemaListSAMLProviderTagsInput = smithy.Schema{ID: "com.amazonaws.iam#ListSAMLProviderTagsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListSAMLProviderTagsInput_SAMLProviderArn, &memberListSAMLProviderTagsInput_Marker, &memberListSAMLProviderTagsInput_MaxItems}}
 
-var memberListSAMLProviderTagsInput_SAMLProviderArn = smithy.Member{Name: "SAMLProviderArn", Index: 0, Required: true}
+var memberListSAMLProviderTagsInput_SAMLProviderArn = smithy.Member{Name: "SAMLProviderArn", Index: 0, Target: &schemaArnType, Required: true}
 
-var memberListSAMLProviderTagsInput_Marker = smithy.Member{Name: "Marker", Index: 1}
+var memberListSAMLProviderTagsInput_Marker = smithy.Member{Name: "Marker", Index: 1, Target: &schemaMarkerType}
 
-var memberListSAMLProviderTagsInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2}
+var memberListSAMLProviderTagsInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2, Target: &schemaMaxItemsType}
 
-var schemaListSAMLProviderTagsOutput = smithy.Schema{ID: "com.amazonaws.iam#ListSAMLProviderTagsResponse", Type: smithy.TypeStructure}
+var schemaListSAMLProviderTagsOutput = smithy.Schema{ID: "com.amazonaws.iam#ListSAMLProviderTagsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListSAMLProviderTagsOutput_Tags, &memberListSAMLProviderTagsOutput_IsTruncated, &memberListSAMLProviderTagsOutput_Marker}}
 
-var memberListSAMLProviderTagsOutput_Tags = smithy.Member{Name: "Tags", Index: 0, Required: true}
+var memberListSAMLProviderTagsOutput_Tags = smithy.Member{Name: "Tags", Index: 0, Target: &schemaTagListType, Required: true}
 
-var memberListSAMLProviderTagsOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Default: document.Bool(false)}
+var memberListSAMLProviderTagsOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberListSAMLProviderTagsOutput_Marker = smithy.Member{Name: "Marker", Index: 2}
+var memberListSAMLProviderTagsOutput_Marker = smithy.Member{Name: "Marker", Index: 2, Target: &schemaResponseMarkerType}
 
 var schemaListSAMLProvidersInput = smithy.Schema{ID: "com.amazonaws.iam#ListSAMLProvidersRequest", Type: smithy.TypeStructure}
 
-var schemaListSAMLProvidersOutput = smithy.Schema{ID: "com.amazonaws.iam#ListSAMLProvidersResponse", Type: smithy.TypeStructure}
+var schemaListSAMLProvidersOutput = smithy.Schema{ID: "com.amazonaws.iam#ListSAMLProvidersResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListSAMLProvidersOutput_SAMLProviderList}}
 
-var memberListSAMLProvidersOutput_SAMLProviderList = smithy.Member{Name: "SAMLProviderList", Index: 0}
+var memberListSAMLProvidersOutput_SAMLProviderList = smithy.Member{Name: "SAMLProviderList", Index: 0, Target: &schemaSAMLProviderListType}
 
-var schemaListSSHPublicKeysInput = smithy.Schema{ID: "com.amazonaws.iam#ListSSHPublicKeysRequest", Type: smithy.TypeStructure}
+var schemaListSSHPublicKeysInput = smithy.Schema{ID: "com.amazonaws.iam#ListSSHPublicKeysRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListSSHPublicKeysInput_UserName, &memberListSSHPublicKeysInput_Marker, &memberListSSHPublicKeysInput_MaxItems}}
 
-var memberListSSHPublicKeysInput_UserName = smithy.Member{Name: "UserName", Index: 0}
+var memberListSSHPublicKeysInput_UserName = smithy.Member{Name: "UserName", Index: 0, Target: &schemaUserNameType}
 
-var memberListSSHPublicKeysInput_Marker = smithy.Member{Name: "Marker", Index: 1}
+var memberListSSHPublicKeysInput_Marker = smithy.Member{Name: "Marker", Index: 1, Target: &schemaMarkerType}
 
-var memberListSSHPublicKeysInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2}
+var memberListSSHPublicKeysInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2, Target: &schemaMaxItemsType}
 
-var schemaListSSHPublicKeysOutput = smithy.Schema{ID: "com.amazonaws.iam#ListSSHPublicKeysResponse", Type: smithy.TypeStructure}
+var schemaListSSHPublicKeysOutput = smithy.Schema{ID: "com.amazonaws.iam#ListSSHPublicKeysResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListSSHPublicKeysOutput_SSHPublicKeys, &memberListSSHPublicKeysOutput_IsTruncated, &memberListSSHPublicKeysOutput_Marker}}
 
-var memberListSSHPublicKeysOutput_SSHPublicKeys = smithy.Member{Name: "SSHPublicKeys", Index: 0}
+var memberListSSHPublicKeysOutput_SSHPublicKeys = smithy.Member{Name: "SSHPublicKeys", Index: 0, Target: &schemaSSHPublicKeyListType}
 
-var memberListSSHPublicKeysOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Default: document.Bool(false)}
+var memberListSSHPublicKeysOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberListSSHPublicKeysOutput_Marker = smithy.Member{Name: "Marker", Index: 2}
+var memberListSSHPublicKeysOutput_Marker = smithy.Member{Name: "Marker", Index: 2, Target: &schemaResponseMarkerType}
 
-var schemaListServerCertificateTagsInput = smithy.Schema{ID: "com.amazonaws.iam#ListServerCertificateTagsRequest", Type: smithy.TypeStructure}
+var schemaListServerCertificateTagsInput = smithy.Schema{ID: "com.amazonaws.iam#ListServerCertificateTagsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListServerCertificateTagsInput_ServerCertificateName, &memberListServerCertificateTagsInput_Marker, &memberListServerCertificateTagsInput_MaxItems}}
 
-var memberListServerCertificateTagsInput_ServerCertificateName = smithy.Member{Name: "ServerCertificateName", Index: 0, Required: true}
+var memberListServerCertificateTagsInput_ServerCertificateName = smithy.Member{Name: "ServerCertificateName", Index: 0, Target: &schemaServerCertificateNameType, Required: true}
 
-var memberListServerCertificateTagsInput_Marker = smithy.Member{Name: "Marker", Index: 1}
+var memberListServerCertificateTagsInput_Marker = smithy.Member{Name: "Marker", Index: 1, Target: &schemaMarkerType}
 
-var memberListServerCertificateTagsInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2}
+var memberListServerCertificateTagsInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2, Target: &schemaMaxItemsType}
 
-var schemaListServerCertificateTagsOutput = smithy.Schema{ID: "com.amazonaws.iam#ListServerCertificateTagsResponse", Type: smithy.TypeStructure}
+var schemaListServerCertificateTagsOutput = smithy.Schema{ID: "com.amazonaws.iam#ListServerCertificateTagsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListServerCertificateTagsOutput_Tags, &memberListServerCertificateTagsOutput_IsTruncated, &memberListServerCertificateTagsOutput_Marker}}
 
-var memberListServerCertificateTagsOutput_Tags = smithy.Member{Name: "Tags", Index: 0, Required: true}
+var memberListServerCertificateTagsOutput_Tags = smithy.Member{Name: "Tags", Index: 0, Target: &schemaTagListType, Required: true}
 
-var memberListServerCertificateTagsOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Default: document.Bool(false)}
+var memberListServerCertificateTagsOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberListServerCertificateTagsOutput_Marker = smithy.Member{Name: "Marker", Index: 2}
+var memberListServerCertificateTagsOutput_Marker = smithy.Member{Name: "Marker", Index: 2, Target: &schemaResponseMarkerType}
 
-var schemaListServerCertificatesInput = smithy.Schema{ID: "com.amazonaws.iam#ListServerCertificatesRequest", Type: smithy.TypeStructure}
+var schemaListServerCertificatesInput = smithy.Schema{ID: "com.amazonaws.iam#ListServerCertificatesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListServerCertificatesInput_PathPrefix, &memberListServerCertificatesInput_Marker, &memberListServerCertificatesInput_MaxItems}}
 
-var memberListServerCertificatesInput_PathPrefix = smithy.Member{Name: "PathPrefix", Index: 0}
+var memberListServerCertificatesInput_PathPrefix = smithy.Member{Name: "PathPrefix", Index: 0, Target: &schemaPathPrefixType}
 
-var memberListServerCertificatesInput_Marker = smithy.Member{Name: "Marker", Index: 1}
+var memberListServerCertificatesInput_Marker = smithy.Member{Name: "Marker", Index: 1, Target: &schemaMarkerType}
 
-var memberListServerCertificatesInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2}
+var memberListServerCertificatesInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2, Target: &schemaMaxItemsType}
 
-var schemaListServerCertificatesOutput = smithy.Schema{ID: "com.amazonaws.iam#ListServerCertificatesResponse", Type: smithy.TypeStructure}
+var schemaListServerCertificatesOutput = smithy.Schema{ID: "com.amazonaws.iam#ListServerCertificatesResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListServerCertificatesOutput_ServerCertificateMetadataList, &memberListServerCertificatesOutput_IsTruncated, &memberListServerCertificatesOutput_Marker}}
 
-var memberListServerCertificatesOutput_ServerCertificateMetadataList = smithy.Member{Name: "ServerCertificateMetadataList", Index: 0, Required: true}
+var memberListServerCertificatesOutput_ServerCertificateMetadataList = smithy.Member{Name: "ServerCertificateMetadataList", Index: 0, Target: &schemaServerCertificateMetadataListType, Required: true}
 
-var memberListServerCertificatesOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Default: document.Bool(false)}
+var memberListServerCertificatesOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberListServerCertificatesOutput_Marker = smithy.Member{Name: "Marker", Index: 2}
+var memberListServerCertificatesOutput_Marker = smithy.Member{Name: "Marker", Index: 2, Target: &schemaResponseMarkerType}
 
-var schemaListServiceSpecificCredentialsInput = smithy.Schema{ID: "com.amazonaws.iam#ListServiceSpecificCredentialsRequest", Type: smithy.TypeStructure}
+var schemaListServiceSpecificCredentialsInput = smithy.Schema{ID: "com.amazonaws.iam#ListServiceSpecificCredentialsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListServiceSpecificCredentialsInput_UserName, &memberListServiceSpecificCredentialsInput_ServiceName, &memberListServiceSpecificCredentialsInput_AllUsers, &memberListServiceSpecificCredentialsInput_Marker, &memberListServiceSpecificCredentialsInput_MaxItems}}
 
-var memberListServiceSpecificCredentialsInput_UserName = smithy.Member{Name: "UserName", Index: 0}
+var memberListServiceSpecificCredentialsInput_UserName = smithy.Member{Name: "UserName", Index: 0, Target: &schemaUserNameType}
 
-var memberListServiceSpecificCredentialsInput_ServiceName = smithy.Member{Name: "ServiceName", Index: 1}
+var memberListServiceSpecificCredentialsInput_ServiceName = smithy.Member{Name: "ServiceName", Index: 1, Target: &schemaServiceName}
 
-var memberListServiceSpecificCredentialsInput_AllUsers = smithy.Member{Name: "AllUsers", Index: 2}
+var memberListServiceSpecificCredentialsInput_AllUsers = smithy.Member{Name: "AllUsers", Index: 2, Target: &schemaAllUsers}
 
-var memberListServiceSpecificCredentialsInput_Marker = smithy.Member{Name: "Marker", Index: 3}
+var memberListServiceSpecificCredentialsInput_Marker = smithy.Member{Name: "Marker", Index: 3, Target: &schemaMarkerType}
 
-var memberListServiceSpecificCredentialsInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 4}
+var memberListServiceSpecificCredentialsInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 4, Target: &schemaMaxItemsType}
 
-var schemaListServiceSpecificCredentialsOutput = smithy.Schema{ID: "com.amazonaws.iam#ListServiceSpecificCredentialsResponse", Type: smithy.TypeStructure}
+var schemaListServiceSpecificCredentialsOutput = smithy.Schema{ID: "com.amazonaws.iam#ListServiceSpecificCredentialsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListServiceSpecificCredentialsOutput_ServiceSpecificCredentials, &memberListServiceSpecificCredentialsOutput_Marker, &memberListServiceSpecificCredentialsOutput_IsTruncated}}
 
-var memberListServiceSpecificCredentialsOutput_ServiceSpecificCredentials = smithy.Member{Name: "ServiceSpecificCredentials", Index: 0}
+var memberListServiceSpecificCredentialsOutput_ServiceSpecificCredentials = smithy.Member{Name: "ServiceSpecificCredentials", Index: 0, Target: &schemaServiceSpecificCredentialsListType}
 
-var memberListServiceSpecificCredentialsOutput_Marker = smithy.Member{Name: "Marker", Index: 1}
+var memberListServiceSpecificCredentialsOutput_Marker = smithy.Member{Name: "Marker", Index: 1, Target: &schemaResponseMarkerType}
 
-var memberListServiceSpecificCredentialsOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 2, Default: document.Bool(false)}
+var memberListServiceSpecificCredentialsOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 2, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var schemaListSigningCertificatesInput = smithy.Schema{ID: "com.amazonaws.iam#ListSigningCertificatesRequest", Type: smithy.TypeStructure}
+var schemaListSigningCertificatesInput = smithy.Schema{ID: "com.amazonaws.iam#ListSigningCertificatesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListSigningCertificatesInput_UserName, &memberListSigningCertificatesInput_Marker, &memberListSigningCertificatesInput_MaxItems}}
 
-var memberListSigningCertificatesInput_UserName = smithy.Member{Name: "UserName", Index: 0}
+var memberListSigningCertificatesInput_UserName = smithy.Member{Name: "UserName", Index: 0, Target: &schemaExistingUserNameType}
 
-var memberListSigningCertificatesInput_Marker = smithy.Member{Name: "Marker", Index: 1}
+var memberListSigningCertificatesInput_Marker = smithy.Member{Name: "Marker", Index: 1, Target: &schemaMarkerType}
 
-var memberListSigningCertificatesInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2}
+var memberListSigningCertificatesInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2, Target: &schemaMaxItemsType}
 
-var schemaListSigningCertificatesOutput = smithy.Schema{ID: "com.amazonaws.iam#ListSigningCertificatesResponse", Type: smithy.TypeStructure}
+var schemaListSigningCertificatesOutput = smithy.Schema{ID: "com.amazonaws.iam#ListSigningCertificatesResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListSigningCertificatesOutput_Certificates, &memberListSigningCertificatesOutput_IsTruncated, &memberListSigningCertificatesOutput_Marker}}
 
-var memberListSigningCertificatesOutput_Certificates = smithy.Member{Name: "Certificates", Index: 0, Required: true}
+var memberListSigningCertificatesOutput_Certificates = smithy.Member{Name: "Certificates", Index: 0, Target: &schemaCertificateListType, Required: true}
 
-var memberListSigningCertificatesOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Default: document.Bool(false)}
+var memberListSigningCertificatesOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberListSigningCertificatesOutput_Marker = smithy.Member{Name: "Marker", Index: 2}
+var memberListSigningCertificatesOutput_Marker = smithy.Member{Name: "Marker", Index: 2, Target: &schemaResponseMarkerType}
 
-var schemaListUserPoliciesInput = smithy.Schema{ID: "com.amazonaws.iam#ListUserPoliciesRequest", Type: smithy.TypeStructure}
+var schemaListUserPoliciesInput = smithy.Schema{ID: "com.amazonaws.iam#ListUserPoliciesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListUserPoliciesInput_UserName, &memberListUserPoliciesInput_Marker, &memberListUserPoliciesInput_MaxItems}}
 
-var memberListUserPoliciesInput_UserName = smithy.Member{Name: "UserName", Index: 0, Required: true}
+var memberListUserPoliciesInput_UserName = smithy.Member{Name: "UserName", Index: 0, Target: &schemaExistingUserNameType, Required: true}
 
-var memberListUserPoliciesInput_Marker = smithy.Member{Name: "Marker", Index: 1}
+var memberListUserPoliciesInput_Marker = smithy.Member{Name: "Marker", Index: 1, Target: &schemaMarkerType}
 
-var memberListUserPoliciesInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2}
+var memberListUserPoliciesInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2, Target: &schemaMaxItemsType}
 
-var schemaListUserPoliciesOutput = smithy.Schema{ID: "com.amazonaws.iam#ListUserPoliciesResponse", Type: smithy.TypeStructure}
+var schemaListUserPoliciesOutput = smithy.Schema{ID: "com.amazonaws.iam#ListUserPoliciesResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListUserPoliciesOutput_PolicyNames, &memberListUserPoliciesOutput_IsTruncated, &memberListUserPoliciesOutput_Marker}}
 
-var memberListUserPoliciesOutput_PolicyNames = smithy.Member{Name: "PolicyNames", Index: 0, Required: true}
+var memberListUserPoliciesOutput_PolicyNames = smithy.Member{Name: "PolicyNames", Index: 0, Target: &schemaPolicyNameListType, Required: true}
 
-var memberListUserPoliciesOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Default: document.Bool(false)}
+var memberListUserPoliciesOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberListUserPoliciesOutput_Marker = smithy.Member{Name: "Marker", Index: 2}
+var memberListUserPoliciesOutput_Marker = smithy.Member{Name: "Marker", Index: 2, Target: &schemaResponseMarkerType}
 
-var schemaListUserTagsInput = smithy.Schema{ID: "com.amazonaws.iam#ListUserTagsRequest", Type: smithy.TypeStructure}
+var schemaListUserTagsInput = smithy.Schema{ID: "com.amazonaws.iam#ListUserTagsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListUserTagsInput_UserName, &memberListUserTagsInput_Marker, &memberListUserTagsInput_MaxItems}}
 
-var memberListUserTagsInput_UserName = smithy.Member{Name: "UserName", Index: 0, Required: true}
+var memberListUserTagsInput_UserName = smithy.Member{Name: "UserName", Index: 0, Target: &schemaExistingUserNameType, Required: true}
 
-var memberListUserTagsInput_Marker = smithy.Member{Name: "Marker", Index: 1}
+var memberListUserTagsInput_Marker = smithy.Member{Name: "Marker", Index: 1, Target: &schemaMarkerType}
 
-var memberListUserTagsInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2}
+var memberListUserTagsInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2, Target: &schemaMaxItemsType}
 
-var schemaListUserTagsOutput = smithy.Schema{ID: "com.amazonaws.iam#ListUserTagsResponse", Type: smithy.TypeStructure}
+var schemaListUserTagsOutput = smithy.Schema{ID: "com.amazonaws.iam#ListUserTagsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListUserTagsOutput_Tags, &memberListUserTagsOutput_IsTruncated, &memberListUserTagsOutput_Marker}}
 
-var memberListUserTagsOutput_Tags = smithy.Member{Name: "Tags", Index: 0, Required: true}
+var memberListUserTagsOutput_Tags = smithy.Member{Name: "Tags", Index: 0, Target: &schemaTagListType, Required: true}
 
-var memberListUserTagsOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Default: document.Bool(false)}
+var memberListUserTagsOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberListUserTagsOutput_Marker = smithy.Member{Name: "Marker", Index: 2}
+var memberListUserTagsOutput_Marker = smithy.Member{Name: "Marker", Index: 2, Target: &schemaResponseMarkerType}
 
-var schemaListUsersInput = smithy.Schema{ID: "com.amazonaws.iam#ListUsersRequest", Type: smithy.TypeStructure}
+var schemaListUsersInput = smithy.Schema{ID: "com.amazonaws.iam#ListUsersRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListUsersInput_PathPrefix, &memberListUsersInput_Marker, &memberListUsersInput_MaxItems}}
 
-var memberListUsersInput_PathPrefix = smithy.Member{Name: "PathPrefix", Index: 0}
+var memberListUsersInput_PathPrefix = smithy.Member{Name: "PathPrefix", Index: 0, Target: &schemaPathPrefixType}
 
-var memberListUsersInput_Marker = smithy.Member{Name: "Marker", Index: 1}
+var memberListUsersInput_Marker = smithy.Member{Name: "Marker", Index: 1, Target: &schemaMarkerType}
 
-var memberListUsersInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2}
+var memberListUsersInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2, Target: &schemaMaxItemsType}
 
-var schemaListUsersOutput = smithy.Schema{ID: "com.amazonaws.iam#ListUsersResponse", Type: smithy.TypeStructure}
+var schemaListUsersOutput = smithy.Schema{ID: "com.amazonaws.iam#ListUsersResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListUsersOutput_Users, &memberListUsersOutput_IsTruncated, &memberListUsersOutput_Marker}}
 
-var memberListUsersOutput_Users = smithy.Member{Name: "Users", Index: 0, Required: true}
+var memberListUsersOutput_Users = smithy.Member{Name: "Users", Index: 0, Target: &schemaUserListType, Required: true}
 
-var memberListUsersOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Default: document.Bool(false)}
+var memberListUsersOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberListUsersOutput_Marker = smithy.Member{Name: "Marker", Index: 2}
+var memberListUsersOutput_Marker = smithy.Member{Name: "Marker", Index: 2, Target: &schemaResponseMarkerType}
 
-var schemaListVirtualMFADevicesInput = smithy.Schema{ID: "com.amazonaws.iam#ListVirtualMFADevicesRequest", Type: smithy.TypeStructure}
+var schemaListVirtualMFADevicesInput = smithy.Schema{ID: "com.amazonaws.iam#ListVirtualMFADevicesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListVirtualMFADevicesInput_AssignmentStatus, &memberListVirtualMFADevicesInput_Marker, &memberListVirtualMFADevicesInput_MaxItems}}
 
-var memberListVirtualMFADevicesInput_AssignmentStatus = smithy.Member{Name: "AssignmentStatus", Index: 0}
+var memberListVirtualMFADevicesInput_AssignmentStatus = smithy.Member{Name: "AssignmentStatus", Index: 0, Target: &schemaAssignmentStatusType}
 
-var memberListVirtualMFADevicesInput_Marker = smithy.Member{Name: "Marker", Index: 1}
+var memberListVirtualMFADevicesInput_Marker = smithy.Member{Name: "Marker", Index: 1, Target: &schemaMarkerType}
 
-var memberListVirtualMFADevicesInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2}
+var memberListVirtualMFADevicesInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 2, Target: &schemaMaxItemsType}
 
-var schemaListVirtualMFADevicesOutput = smithy.Schema{ID: "com.amazonaws.iam#ListVirtualMFADevicesResponse", Type: smithy.TypeStructure}
+var schemaListVirtualMFADevicesOutput = smithy.Schema{ID: "com.amazonaws.iam#ListVirtualMFADevicesResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListVirtualMFADevicesOutput_VirtualMFADevices, &memberListVirtualMFADevicesOutput_IsTruncated, &memberListVirtualMFADevicesOutput_Marker}}
 
-var memberListVirtualMFADevicesOutput_VirtualMFADevices = smithy.Member{Name: "VirtualMFADevices", Index: 0, Required: true}
+var memberListVirtualMFADevicesOutput_VirtualMFADevices = smithy.Member{Name: "VirtualMFADevices", Index: 0, Target: &schemaVirtualMFADeviceListType, Required: true}
 
-var memberListVirtualMFADevicesOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Default: document.Bool(false)}
+var memberListVirtualMFADevicesOutput_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberListVirtualMFADevicesOutput_Marker = smithy.Member{Name: "Marker", Index: 2}
+var memberListVirtualMFADevicesOutput_Marker = smithy.Member{Name: "Marker", Index: 2, Target: &schemaResponseMarkerType}
 
 var schemaLocaleType = smithy.Schema{ID: "com.amazonaws.iam#localeType", Type: smithy.TypeString}
 
-var schemaLoginProfile = smithy.Schema{ID: "com.amazonaws.iam#LoginProfile", Type: smithy.TypeStructure}
+var schemaLoginProfile = smithy.Schema{ID: "com.amazonaws.iam#LoginProfile", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberLoginProfile_UserName, &memberLoginProfile_CreateDate, &memberLoginProfile_PasswordResetRequired}}
 
-var memberLoginProfile_UserName = smithy.Member{Name: "UserName", Index: 0, Required: true}
+var memberLoginProfile_UserName = smithy.Member{Name: "UserName", Index: 0, Target: &schemaUserNameType, Required: true}
 
-var memberLoginProfile_CreateDate = smithy.Member{Name: "CreateDate", Index: 1, Required: true}
+var memberLoginProfile_CreateDate = smithy.Member{Name: "CreateDate", Index: 1, Target: &schemaDateType, Required: true}
 
-var memberLoginProfile_PasswordResetRequired = smithy.Member{Name: "PasswordResetRequired", Index: 2, Default: document.Bool(false)}
+var memberLoginProfile_PasswordResetRequired = smithy.Member{Name: "PasswordResetRequired", Index: 2, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var schemaMFADevice = smithy.Schema{ID: "com.amazonaws.iam#MFADevice", Type: smithy.TypeStructure}
+var schemaMFADevice = smithy.Schema{ID: "com.amazonaws.iam#MFADevice", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberMFADevice_UserName, &memberMFADevice_SerialNumber, &memberMFADevice_EnableDate}}
 
-var memberMFADevice_UserName = smithy.Member{Name: "UserName", Index: 0, Required: true}
+var memberMFADevice_UserName = smithy.Member{Name: "UserName", Index: 0, Target: &schemaUserNameType, Required: true}
 
-var memberMFADevice_SerialNumber = smithy.Member{Name: "SerialNumber", Index: 1, Required: true}
+var memberMFADevice_SerialNumber = smithy.Member{Name: "SerialNumber", Index: 1, Target: &schemaSerialNumberType, Required: true}
 
-var memberMFADevice_EnableDate = smithy.Member{Name: "EnableDate", Index: 2, Required: true}
+var memberMFADevice_EnableDate = smithy.Member{Name: "EnableDate", Index: 2, Target: &schemaDateType, Required: true}
 
-var schemaMalformedCertificateException = smithy.Schema{ID: "com.amazonaws.iam#MalformedCertificateException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaMalformedCertificateException = smithy.Schema{ID: "com.amazonaws.iam#MalformedCertificateException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberMalformedCertificateException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberMalformedCertificateException_message = smithy.Member{Name: "message", Index: 0}
+var memberMalformedCertificateException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaMalformedCertificateMessage}
 
 var schemaMalformedCertificateMessage = smithy.Schema{ID: "com.amazonaws.iam#malformedCertificateMessage", Type: smithy.TypeString}
 
-var schemaMalformedPolicyDocumentException = smithy.Schema{ID: "com.amazonaws.iam#MalformedPolicyDocumentException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaMalformedPolicyDocumentException = smithy.Schema{ID: "com.amazonaws.iam#MalformedPolicyDocumentException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberMalformedPolicyDocumentException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberMalformedPolicyDocumentException_message = smithy.Member{Name: "message", Index: 0}
+var memberMalformedPolicyDocumentException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaMalformedPolicyDocumentMessage}
 
 var schemaMalformedPolicyDocumentMessage = smithy.Schema{ID: "com.amazonaws.iam#malformedPolicyDocumentMessage", Type: smithy.TypeString}
 
@@ -2049,45 +2049,45 @@ var schemaManagedByTypeType = smithy.Schema{ID: "com.amazonaws.iam#managedByType
 
 var schemaManagedByValueType = smithy.Schema{ID: "com.amazonaws.iam#managedByValueType", Type: smithy.TypeString}
 
-var schemaManagedPolicyArnListType = smithy.Schema{ID: "com.amazonaws.iam#managedPolicyArnListType", Type: smithy.TypeList}
+var schemaManagedPolicyArnListType = smithy.Schema{ID: "com.amazonaws.iam#managedPolicyArnListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberManagedPolicyArnListType_member}}
 
-var memberManagedPolicyArnListType_member = smithy.Member{Name: "member", Index: 0}
+var memberManagedPolicyArnListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaArnType}
 
-var schemaManagedPolicyDetail = smithy.Schema{ID: "com.amazonaws.iam#ManagedPolicyDetail", Type: smithy.TypeStructure}
+var schemaManagedPolicyDetail = smithy.Schema{ID: "com.amazonaws.iam#ManagedPolicyDetail", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberManagedPolicyDetail_PolicyName, &memberManagedPolicyDetail_PolicyId, &memberManagedPolicyDetail_Arn, &memberManagedPolicyDetail_Path, &memberManagedPolicyDetail_DefaultVersionId, &memberManagedPolicyDetail_AttachmentCount, &memberManagedPolicyDetail_PermissionsBoundaryUsageCount, &memberManagedPolicyDetail_IsAttachable, &memberManagedPolicyDetail_Description, &memberManagedPolicyDetail_CreateDate, &memberManagedPolicyDetail_UpdateDate, &memberManagedPolicyDetail_PolicyVersionList}}
 
-var memberManagedPolicyDetail_PolicyName = smithy.Member{Name: "PolicyName", Index: 0}
+var memberManagedPolicyDetail_PolicyName = smithy.Member{Name: "PolicyName", Index: 0, Target: &schemaPolicyNameType}
 
-var memberManagedPolicyDetail_PolicyId = smithy.Member{Name: "PolicyId", Index: 1}
+var memberManagedPolicyDetail_PolicyId = smithy.Member{Name: "PolicyId", Index: 1, Target: &schemaIdType}
 
-var memberManagedPolicyDetail_Arn = smithy.Member{Name: "Arn", Index: 2}
+var memberManagedPolicyDetail_Arn = smithy.Member{Name: "Arn", Index: 2, Target: &schemaArnType}
 
-var memberManagedPolicyDetail_Path = smithy.Member{Name: "Path", Index: 3}
+var memberManagedPolicyDetail_Path = smithy.Member{Name: "Path", Index: 3, Target: &schemaPolicyPathType}
 
-var memberManagedPolicyDetail_DefaultVersionId = smithy.Member{Name: "DefaultVersionId", Index: 4}
+var memberManagedPolicyDetail_DefaultVersionId = smithy.Member{Name: "DefaultVersionId", Index: 4, Target: &schemaPolicyVersionIdType}
 
-var memberManagedPolicyDetail_AttachmentCount = smithy.Member{Name: "AttachmentCount", Index: 5}
+var memberManagedPolicyDetail_AttachmentCount = smithy.Member{Name: "AttachmentCount", Index: 5, Target: &schemaAttachmentCountType}
 
-var memberManagedPolicyDetail_PermissionsBoundaryUsageCount = smithy.Member{Name: "PermissionsBoundaryUsageCount", Index: 6}
+var memberManagedPolicyDetail_PermissionsBoundaryUsageCount = smithy.Member{Name: "PermissionsBoundaryUsageCount", Index: 6, Target: &schemaAttachmentCountType}
 
-var memberManagedPolicyDetail_IsAttachable = smithy.Member{Name: "IsAttachable", Index: 7, Default: document.Bool(false)}
+var memberManagedPolicyDetail_IsAttachable = smithy.Member{Name: "IsAttachable", Index: 7, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberManagedPolicyDetail_Description = smithy.Member{Name: "Description", Index: 8}
+var memberManagedPolicyDetail_Description = smithy.Member{Name: "Description", Index: 8, Target: &schemaPolicyDescriptionType}
 
-var memberManagedPolicyDetail_CreateDate = smithy.Member{Name: "CreateDate", Index: 9}
+var memberManagedPolicyDetail_CreateDate = smithy.Member{Name: "CreateDate", Index: 9, Target: &schemaDateType}
 
-var memberManagedPolicyDetail_UpdateDate = smithy.Member{Name: "UpdateDate", Index: 10}
+var memberManagedPolicyDetail_UpdateDate = smithy.Member{Name: "UpdateDate", Index: 10, Target: &schemaDateType}
 
-var memberManagedPolicyDetail_PolicyVersionList = smithy.Member{Name: "PolicyVersionList", Index: 11}
+var memberManagedPolicyDetail_PolicyVersionList = smithy.Member{Name: "PolicyVersionList", Index: 11, Target: &schemaPolicyDocumentVersionListType}
 
-var schemaManagedPolicyDetailListType = smithy.Schema{ID: "com.amazonaws.iam#ManagedPolicyDetailListType", Type: smithy.TypeList}
+var schemaManagedPolicyDetailListType = smithy.Schema{ID: "com.amazonaws.iam#ManagedPolicyDetailListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberManagedPolicyDetailListType_member}}
 
-var memberManagedPolicyDetailListType_member = smithy.Member{Name: "member", Index: 0}
+var memberManagedPolicyDetailListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaManagedPolicyDetail}
 
-var schemaMapStringReplacementValueEntry = smithy.Schema{ID: "com.amazonaws.iam#mapStringReplacementValueEntry", Type: smithy.TypeMap}
+var schemaMapStringReplacementValueEntry = smithy.Schema{ID: "com.amazonaws.iam#mapStringReplacementValueEntry", Type: smithy.TypeMap, Members: []*smithy.Member{&memberMapStringReplacementValueEntry_key, &memberMapStringReplacementValueEntry_value}}
 
-var memberMapStringReplacementValueEntry_key = smithy.Member{Name: "key", Index: 0}
+var memberMapStringReplacementValueEntry_key = smithy.Member{Name: "key", Index: 0, Target: &schemaStringType}
 
-var memberMapStringReplacementValueEntry_value = smithy.Member{Name: "value", Index: 1}
+var memberMapStringReplacementValueEntry_value = smithy.Member{Name: "value", Index: 1, Target: &schemaReplacementValueEntry}
 
 var schemaMarkerType = smithy.Schema{ID: "com.amazonaws.iam#markerType", Type: smithy.TypeString}
 
@@ -2095,75 +2095,75 @@ var schemaMaxItemsType = smithy.Schema{ID: "com.amazonaws.iam#maxItemsType", Typ
 
 var schemaMaxPasswordAgeType = smithy.Schema{ID: "com.amazonaws.iam#maxPasswordAgeType", Type: smithy.TypeInteger}
 
-var schemaMfaDeviceListType = smithy.Schema{ID: "com.amazonaws.iam#mfaDeviceListType", Type: smithy.TypeList}
+var schemaMfaDeviceListType = smithy.Schema{ID: "com.amazonaws.iam#mfaDeviceListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberMfaDeviceListType_member}}
 
-var memberMfaDeviceListType_member = smithy.Member{Name: "member", Index: 0}
+var memberMfaDeviceListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaMFADevice}
 
 var schemaMinimumPasswordLengthType = smithy.Schema{ID: "com.amazonaws.iam#minimumPasswordLengthType", Type: smithy.TypeInteger}
 
 var schemaMinorVersionType = smithy.Schema{ID: "com.amazonaws.iam#minorVersionType", Type: smithy.TypeInteger}
 
-var schemaMissingAuthenticationToken = smithy.Schema{ID: "com.amazon.coral.service#MissingAuthenticationToken", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+var schemaMissingAuthenticationToken = smithy.Schema{ID: "com.amazon.coral.service#MissingAuthenticationToken", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberMissingAuthenticationToken_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
 
-var memberMissingAuthenticationToken_message = smithy.Member{Name: "message", Index: 0}
+var memberMissingAuthenticationToken_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaNameConflictException = smithy.Schema{ID: "com.amazonaws.iam#NameConflictException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 409}}
+var schemaNameConflictException = smithy.Schema{ID: "com.amazonaws.iam#NameConflictException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberNameConflictException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 409}}
 
-var memberNameConflictException_message = smithy.Member{Name: "message", Index: 0}
+var memberNameConflictException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaNameConflictMessage}
 
 var schemaNameConflictMessage = smithy.Schema{ID: "com.amazonaws.iam#nameConflictMessage", Type: smithy.TypeString}
 
-var schemaNoSuchEntityException = smithy.Schema{ID: "com.amazonaws.iam#NoSuchEntityException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 404}}
+var schemaNoSuchEntityException = smithy.Schema{ID: "com.amazonaws.iam#NoSuchEntityException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberNoSuchEntityException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 404}}
 
-var memberNoSuchEntityException_message = smithy.Member{Name: "message", Index: 0}
+var memberNoSuchEntityException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaNoSuchEntityMessage}
 
 var schemaNoSuchEntityMessage = smithy.Schema{ID: "com.amazonaws.iam#noSuchEntityMessage", Type: smithy.TypeString}
 
-var schemaNotImplemented = smithy.Schema{ID: "dev.understudy#NotImplemented", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ServerFault, HTTPError: 501}}
+var schemaNotImplemented = smithy.Schema{ID: "dev.understudy#NotImplemented", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberNotImplemented_message}, Error: &smithy.ErrorTrait{Fault: smithy.ServerFault, HTTPError: 501}}
 
-var memberNotImplemented_message = smithy.Member{Name: "message", Index: 0}
+var memberNotImplemented_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
 var schemaNotesType = smithy.Schema{ID: "com.amazonaws.iam#notesType", Type: smithy.TypeString}
 
 var schemaNotificationChannelType = smithy.Schema{ID: "com.amazonaws.iam#notificationChannelType", Type: smithy.TypeString}
 
-var schemaOpenIDConnectProviderListEntry = smithy.Schema{ID: "com.amazonaws.iam#OpenIDConnectProviderListEntry", Type: smithy.TypeStructure}
+var schemaOpenIDConnectProviderListEntry = smithy.Schema{ID: "com.amazonaws.iam#OpenIDConnectProviderListEntry", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberOpenIDConnectProviderListEntry_Arn}}
 
-var memberOpenIDConnectProviderListEntry_Arn = smithy.Member{Name: "Arn", Index: 0}
+var memberOpenIDConnectProviderListEntry_Arn = smithy.Member{Name: "Arn", Index: 0, Target: &schemaArnType}
 
-var schemaOpenIDConnectProviderListType = smithy.Schema{ID: "com.amazonaws.iam#OpenIDConnectProviderListType", Type: smithy.TypeList}
+var schemaOpenIDConnectProviderListType = smithy.Schema{ID: "com.amazonaws.iam#OpenIDConnectProviderListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberOpenIDConnectProviderListType_member}}
 
-var memberOpenIDConnectProviderListType_member = smithy.Member{Name: "member", Index: 0}
+var memberOpenIDConnectProviderListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaOpenIDConnectProviderListEntry}
 
 var schemaOpenIDConnectProviderUrlType = smithy.Schema{ID: "com.amazonaws.iam#OpenIDConnectProviderUrlType", Type: smithy.TypeString}
 
-var schemaOpenIdIdpCommunicationErrorException = smithy.Schema{ID: "com.amazonaws.iam#OpenIdIdpCommunicationErrorException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaOpenIdIdpCommunicationErrorException = smithy.Schema{ID: "com.amazonaws.iam#OpenIdIdpCommunicationErrorException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberOpenIdIdpCommunicationErrorException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberOpenIdIdpCommunicationErrorException_message = smithy.Member{Name: "message", Index: 0}
+var memberOpenIdIdpCommunicationErrorException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaOpenIdIdpCommunicationErrorExceptionMessage}
 
 var schemaOpenIdIdpCommunicationErrorExceptionMessage = smithy.Schema{ID: "com.amazonaws.iam#openIdIdpCommunicationErrorExceptionMessage", Type: smithy.TypeString}
 
-var schemaOrderedOrganizationPolicyType = smithy.Schema{ID: "com.amazonaws.iam#OrderedOrganizationPolicyType", Type: smithy.TypeStructure}
+var schemaOrderedOrganizationPolicyType = smithy.Schema{ID: "com.amazonaws.iam#OrderedOrganizationPolicyType", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberOrderedOrganizationPolicyType_ServiceControlPolicyInputList}}
 
-var memberOrderedOrganizationPolicyType_ServiceControlPolicyInputList = smithy.Member{Name: "ServiceControlPolicyInputList", Index: 0}
+var memberOrderedOrganizationPolicyType_ServiceControlPolicyInputList = smithy.Member{Name: "ServiceControlPolicyInputList", Index: 0, Target: &schemaSimulationPolicyListType}
 
 var schemaOrganizationIdType = smithy.Schema{ID: "com.amazonaws.iam#OrganizationIdType", Type: smithy.TypeString}
 
-var schemaOrganizationNotFoundException = smithy.Schema{ID: "com.amazonaws.iam#OrganizationNotFoundException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaOrganizationNotFoundException = smithy.Schema{ID: "com.amazonaws.iam#OrganizationNotFoundException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberOrganizationNotFoundException_Message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberOrganizationNotFoundException_Message = smithy.Member{Name: "Message", Index: 0}
+var memberOrganizationNotFoundException_Message = smithy.Member{Name: "Message", Index: 0, Target: &schemaExceptionMessage}
 
-var schemaOrganizationNotInAllFeaturesModeException = smithy.Schema{ID: "com.amazonaws.iam#OrganizationNotInAllFeaturesModeException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaOrganizationNotInAllFeaturesModeException = smithy.Schema{ID: "com.amazonaws.iam#OrganizationNotInAllFeaturesModeException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberOrganizationNotInAllFeaturesModeException_Message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberOrganizationNotInAllFeaturesModeException_Message = smithy.Member{Name: "Message", Index: 0}
+var memberOrganizationNotInAllFeaturesModeException_Message = smithy.Member{Name: "Message", Index: 0, Target: &schemaExceptionMessage}
 
-var schemaOrganizationPolicyListType = smithy.Schema{ID: "com.amazonaws.iam#OrganizationPolicyListType", Type: smithy.TypeList}
+var schemaOrganizationPolicyListType = smithy.Schema{ID: "com.amazonaws.iam#OrganizationPolicyListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberOrganizationPolicyListType_member}}
 
-var memberOrganizationPolicyListType_member = smithy.Member{Name: "member", Index: 0}
+var memberOrganizationPolicyListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaOrderedOrganizationPolicyType}
 
-var schemaOrganizationsDecisionDetail = smithy.Schema{ID: "com.amazonaws.iam#OrganizationsDecisionDetail", Type: smithy.TypeStructure}
+var schemaOrganizationsDecisionDetail = smithy.Schema{ID: "com.amazonaws.iam#OrganizationsDecisionDetail", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberOrganizationsDecisionDetail_AllowedByOrganizations}}
 
-var memberOrganizationsDecisionDetail_AllowedByOrganizations = smithy.Member{Name: "AllowedByOrganizations", Index: 0, Default: document.Bool(false)}
+var memberOrganizationsDecisionDetail_AllowedByOrganizations = smithy.Member{Name: "AllowedByOrganizations", Index: 0, Target: &schemaBooleanType, Default: document.Bool(false)}
 
 var schemaOrganizationsEntityPathType = smithy.Schema{ID: "com.amazonaws.iam#organizationsEntityPathType", Type: smithy.TypeString}
 
@@ -2173,21 +2173,21 @@ var schemaOwnerIdType = smithy.Schema{ID: "com.amazonaws.iam#ownerIdType", Type:
 
 var schemaParameterDefaultValueType = smithy.Schema{ID: "com.amazonaws.iam#parameterDefaultValueType", Type: smithy.TypeString}
 
-var schemaParameterDefinition = smithy.Schema{ID: "com.amazonaws.iam#ParameterDefinition", Type: smithy.TypeStructure}
+var schemaParameterDefinition = smithy.Schema{ID: "com.amazonaws.iam#ParameterDefinition", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberParameterDefinition_Name, &memberParameterDefinition_Type, &memberParameterDefinition_SubType, &memberParameterDefinition_Description, &memberParameterDefinition_IsRequired, &memberParameterDefinition_DefaultValue, &memberParameterDefinition_Immutable}}
 
-var memberParameterDefinition_Name = smithy.Member{Name: "Name", Index: 0, Required: true}
+var memberParameterDefinition_Name = smithy.Member{Name: "Name", Index: 0, Target: &schemaParameterNameType, Required: true}
 
-var memberParameterDefinition_Type = smithy.Member{Name: "Type", Index: 1, Required: true}
+var memberParameterDefinition_Type = smithy.Member{Name: "Type", Index: 1, Target: &schemaParameterTypeType, Required: true}
 
-var memberParameterDefinition_SubType = smithy.Member{Name: "SubType", Index: 2}
+var memberParameterDefinition_SubType = smithy.Member{Name: "SubType", Index: 2, Target: &schemaParameterSubTypeType}
 
-var memberParameterDefinition_Description = smithy.Member{Name: "Description", Index: 3}
+var memberParameterDefinition_Description = smithy.Member{Name: "Description", Index: 3, Target: &schemaParameterDescriptionType}
 
-var memberParameterDefinition_IsRequired = smithy.Member{Name: "IsRequired", Index: 4, Default: document.Bool(false)}
+var memberParameterDefinition_IsRequired = smithy.Member{Name: "IsRequired", Index: 4, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberParameterDefinition_DefaultValue = smithy.Member{Name: "DefaultValue", Index: 5}
+var memberParameterDefinition_DefaultValue = smithy.Member{Name: "DefaultValue", Index: 5, Target: &schemaParameterDefaultValueType}
 
-var memberParameterDefinition_Immutable = smithy.Member{Name: "Immutable", Index: 6, Default: document.Bool(false)}
+var memberParameterDefinition_Immutable = smithy.Member{Name: "Immutable", Index: 6, Target: &schemaBooleanType, Default: document.Bool(false)}
 
 var schemaParameterDescriptionType = smithy.Schema{ID: "com.amazonaws.iam#parameterDescriptionType", Type: smithy.TypeString}
 
@@ -2197,35 +2197,35 @@ var schemaParameterSubTypeType = smithy.Schema{ID: "com.amazonaws.iam#parameterS
 
 var schemaParameterTypeType = smithy.Schema{ID: "com.amazonaws.iam#parameterTypeType", Type: smithy.TypeEnum}
 
-var schemaParametersDefinitionListType = smithy.Schema{ID: "com.amazonaws.iam#parametersDefinitionListType", Type: smithy.TypeList}
+var schemaParametersDefinitionListType = smithy.Schema{ID: "com.amazonaws.iam#parametersDefinitionListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberParametersDefinitionListType_member}}
 
-var memberParametersDefinitionListType_member = smithy.Member{Name: "member", Index: 0}
+var memberParametersDefinitionListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaParameterDefinition}
 
-var schemaPasswordPolicy = smithy.Schema{ID: "com.amazonaws.iam#PasswordPolicy", Type: smithy.TypeStructure}
+var schemaPasswordPolicy = smithy.Schema{ID: "com.amazonaws.iam#PasswordPolicy", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPasswordPolicy_MinimumPasswordLength, &memberPasswordPolicy_RequireSymbols, &memberPasswordPolicy_RequireNumbers, &memberPasswordPolicy_RequireUppercaseCharacters, &memberPasswordPolicy_RequireLowercaseCharacters, &memberPasswordPolicy_AllowUsersToChangePassword, &memberPasswordPolicy_ExpirePasswords, &memberPasswordPolicy_MaxPasswordAge, &memberPasswordPolicy_PasswordReusePrevention, &memberPasswordPolicy_HardExpiry}}
 
-var memberPasswordPolicy_MinimumPasswordLength = smithy.Member{Name: "MinimumPasswordLength", Index: 0}
+var memberPasswordPolicy_MinimumPasswordLength = smithy.Member{Name: "MinimumPasswordLength", Index: 0, Target: &schemaMinimumPasswordLengthType}
 
-var memberPasswordPolicy_RequireSymbols = smithy.Member{Name: "RequireSymbols", Index: 1, Default: document.Bool(false)}
+var memberPasswordPolicy_RequireSymbols = smithy.Member{Name: "RequireSymbols", Index: 1, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberPasswordPolicy_RequireNumbers = smithy.Member{Name: "RequireNumbers", Index: 2, Default: document.Bool(false)}
+var memberPasswordPolicy_RequireNumbers = smithy.Member{Name: "RequireNumbers", Index: 2, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberPasswordPolicy_RequireUppercaseCharacters = smithy.Member{Name: "RequireUppercaseCharacters", Index: 3, Default: document.Bool(false)}
+var memberPasswordPolicy_RequireUppercaseCharacters = smithy.Member{Name: "RequireUppercaseCharacters", Index: 3, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberPasswordPolicy_RequireLowercaseCharacters = smithy.Member{Name: "RequireLowercaseCharacters", Index: 4, Default: document.Bool(false)}
+var memberPasswordPolicy_RequireLowercaseCharacters = smithy.Member{Name: "RequireLowercaseCharacters", Index: 4, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberPasswordPolicy_AllowUsersToChangePassword = smithy.Member{Name: "AllowUsersToChangePassword", Index: 5, Default: document.Bool(false)}
+var memberPasswordPolicy_AllowUsersToChangePassword = smithy.Member{Name: "AllowUsersToChangePassword", Index: 5, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberPasswordPolicy_ExpirePasswords = smithy.Member{Name: "ExpirePasswords", Index: 6, Default: document.Bool(false)}
+var memberPasswordPolicy_ExpirePasswords = smithy.Member{Name: "ExpirePasswords", Index: 6, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberPasswordPolicy_MaxPasswordAge = smithy.Member{Name: "MaxPasswordAge", Index: 7}
+var memberPasswordPolicy_MaxPasswordAge = smithy.Member{Name: "MaxPasswordAge", Index: 7, Target: &schemaMaxPasswordAgeType}
 
-var memberPasswordPolicy_PasswordReusePrevention = smithy.Member{Name: "PasswordReusePrevention", Index: 8}
+var memberPasswordPolicy_PasswordReusePrevention = smithy.Member{Name: "PasswordReusePrevention", Index: 8, Target: &schemaPasswordReusePreventionType}
 
-var memberPasswordPolicy_HardExpiry = smithy.Member{Name: "HardExpiry", Index: 9}
+var memberPasswordPolicy_HardExpiry = smithy.Member{Name: "HardExpiry", Index: 9, Target: &schemaBooleanObjectType}
 
-var schemaPasswordPolicyViolationException = smithy.Schema{ID: "com.amazonaws.iam#PasswordPolicyViolationException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaPasswordPolicyViolationException = smithy.Schema{ID: "com.amazonaws.iam#PasswordPolicyViolationException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPasswordPolicyViolationException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberPasswordPolicyViolationException_message = smithy.Member{Name: "message", Index: 0}
+var memberPasswordPolicyViolationException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaPasswordPolicyViolationMessage}
 
 var schemaPasswordPolicyViolationMessage = smithy.Schema{ID: "com.amazonaws.iam#passwordPolicyViolationMessage", Type: smithy.TypeString}
 
@@ -2245,133 +2245,133 @@ var schemaPermissionType = smithy.Schema{ID: "com.amazonaws.iam#permissionType",
 
 var schemaPermissionsBoundaryAttachmentType = smithy.Schema{ID: "com.amazonaws.iam#PermissionsBoundaryAttachmentType", Type: smithy.TypeEnum}
 
-var schemaPermissionsBoundaryDecisionDetail = smithy.Schema{ID: "com.amazonaws.iam#PermissionsBoundaryDecisionDetail", Type: smithy.TypeStructure}
+var schemaPermissionsBoundaryDecisionDetail = smithy.Schema{ID: "com.amazonaws.iam#PermissionsBoundaryDecisionDetail", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPermissionsBoundaryDecisionDetail_AllowedByPermissionsBoundary}}
 
-var memberPermissionsBoundaryDecisionDetail_AllowedByPermissionsBoundary = smithy.Member{Name: "AllowedByPermissionsBoundary", Index: 0, Default: document.Bool(false)}
+var memberPermissionsBoundaryDecisionDetail_AllowedByPermissionsBoundary = smithy.Member{Name: "AllowedByPermissionsBoundary", Index: 0, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var schemaPolicy = smithy.Schema{ID: "com.amazonaws.iam#Policy", Type: smithy.TypeStructure}
+var schemaPolicy = smithy.Schema{ID: "com.amazonaws.iam#Policy", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPolicy_PolicyName, &memberPolicy_PolicyId, &memberPolicy_Arn, &memberPolicy_Path, &memberPolicy_DefaultVersionId, &memberPolicy_AttachmentCount, &memberPolicy_PermissionsBoundaryUsageCount, &memberPolicy_IsAttachable, &memberPolicy_Description, &memberPolicy_CreateDate, &memberPolicy_UpdateDate, &memberPolicy_Tags}}
 
-var memberPolicy_PolicyName = smithy.Member{Name: "PolicyName", Index: 0}
+var memberPolicy_PolicyName = smithy.Member{Name: "PolicyName", Index: 0, Target: &schemaPolicyNameType}
 
-var memberPolicy_PolicyId = smithy.Member{Name: "PolicyId", Index: 1}
+var memberPolicy_PolicyId = smithy.Member{Name: "PolicyId", Index: 1, Target: &schemaIdType}
 
-var memberPolicy_Arn = smithy.Member{Name: "Arn", Index: 2}
+var memberPolicy_Arn = smithy.Member{Name: "Arn", Index: 2, Target: &schemaArnType}
 
-var memberPolicy_Path = smithy.Member{Name: "Path", Index: 3}
+var memberPolicy_Path = smithy.Member{Name: "Path", Index: 3, Target: &schemaPolicyPathType}
 
-var memberPolicy_DefaultVersionId = smithy.Member{Name: "DefaultVersionId", Index: 4}
+var memberPolicy_DefaultVersionId = smithy.Member{Name: "DefaultVersionId", Index: 4, Target: &schemaPolicyVersionIdType}
 
-var memberPolicy_AttachmentCount = smithy.Member{Name: "AttachmentCount", Index: 5}
+var memberPolicy_AttachmentCount = smithy.Member{Name: "AttachmentCount", Index: 5, Target: &schemaAttachmentCountType}
 
-var memberPolicy_PermissionsBoundaryUsageCount = smithy.Member{Name: "PermissionsBoundaryUsageCount", Index: 6}
+var memberPolicy_PermissionsBoundaryUsageCount = smithy.Member{Name: "PermissionsBoundaryUsageCount", Index: 6, Target: &schemaAttachmentCountType}
 
-var memberPolicy_IsAttachable = smithy.Member{Name: "IsAttachable", Index: 7, Default: document.Bool(false)}
+var memberPolicy_IsAttachable = smithy.Member{Name: "IsAttachable", Index: 7, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberPolicy_Description = smithy.Member{Name: "Description", Index: 8}
+var memberPolicy_Description = smithy.Member{Name: "Description", Index: 8, Target: &schemaPolicyDescriptionType}
 
-var memberPolicy_CreateDate = smithy.Member{Name: "CreateDate", Index: 9}
+var memberPolicy_CreateDate = smithy.Member{Name: "CreateDate", Index: 9, Target: &schemaDateType}
 
-var memberPolicy_UpdateDate = smithy.Member{Name: "UpdateDate", Index: 10}
+var memberPolicy_UpdateDate = smithy.Member{Name: "UpdateDate", Index: 10, Target: &schemaDateType}
 
-var memberPolicy_Tags = smithy.Member{Name: "Tags", Index: 11}
+var memberPolicy_Tags = smithy.Member{Name: "Tags", Index: 11, Target: &schemaTagListType}
 
 var schemaPolicyDescriptionType = smithy.Schema{ID: "com.amazonaws.iam#policyDescriptionType", Type: smithy.TypeString}
 
-var schemaPolicyDetail = smithy.Schema{ID: "com.amazonaws.iam#PolicyDetail", Type: smithy.TypeStructure}
+var schemaPolicyDetail = smithy.Schema{ID: "com.amazonaws.iam#PolicyDetail", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPolicyDetail_PolicyName, &memberPolicyDetail_PolicyDocument}}
 
-var memberPolicyDetail_PolicyName = smithy.Member{Name: "PolicyName", Index: 0}
+var memberPolicyDetail_PolicyName = smithy.Member{Name: "PolicyName", Index: 0, Target: &schemaPolicyNameType}
 
-var memberPolicyDetail_PolicyDocument = smithy.Member{Name: "PolicyDocument", Index: 1}
+var memberPolicyDetail_PolicyDocument = smithy.Member{Name: "PolicyDocument", Index: 1, Target: &schemaPolicyDocumentType}
 
-var schemaPolicyDetailListType = smithy.Schema{ID: "com.amazonaws.iam#policyDetailListType", Type: smithy.TypeList}
+var schemaPolicyDetailListType = smithy.Schema{ID: "com.amazonaws.iam#policyDetailListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberPolicyDetailListType_member}}
 
-var memberPolicyDetailListType_member = smithy.Member{Name: "member", Index: 0}
+var memberPolicyDetailListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaPolicyDetail}
 
 var schemaPolicyDocumentType = smithy.Schema{ID: "com.amazonaws.iam#policyDocumentType", Type: smithy.TypeString}
 
-var schemaPolicyDocumentVersionListType = smithy.Schema{ID: "com.amazonaws.iam#policyDocumentVersionListType", Type: smithy.TypeList}
+var schemaPolicyDocumentVersionListType = smithy.Schema{ID: "com.amazonaws.iam#policyDocumentVersionListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberPolicyDocumentVersionListType_member}}
 
-var memberPolicyDocumentVersionListType_member = smithy.Member{Name: "member", Index: 0}
+var memberPolicyDocumentVersionListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaPolicyVersion}
 
 var schemaPolicyEvaluationDecisionType = smithy.Schema{ID: "com.amazonaws.iam#PolicyEvaluationDecisionType", Type: smithy.TypeEnum}
 
 var schemaPolicyEvaluationErrorMessage = smithy.Schema{ID: "com.amazonaws.iam#policyEvaluationErrorMessage", Type: smithy.TypeString}
 
-var schemaPolicyEvaluationException = smithy.Schema{ID: "com.amazonaws.iam#PolicyEvaluationException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ServerFault, HTTPError: 500}}
+var schemaPolicyEvaluationException = smithy.Schema{ID: "com.amazonaws.iam#PolicyEvaluationException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPolicyEvaluationException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ServerFault, HTTPError: 500}}
 
-var memberPolicyEvaluationException_message = smithy.Member{Name: "message", Index: 0}
+var memberPolicyEvaluationException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaPolicyEvaluationErrorMessage}
 
-var schemaPolicyExclusionsListType = smithy.Schema{ID: "com.amazonaws.iam#PolicyExclusionsListType", Type: smithy.TypeList}
+var schemaPolicyExclusionsListType = smithy.Schema{ID: "com.amazonaws.iam#PolicyExclusionsListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberPolicyExclusionsListType_member}}
 
-var memberPolicyExclusionsListType_member = smithy.Member{Name: "member", Index: 0}
+var memberPolicyExclusionsListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaPolicyIdentifier}
 
-var schemaPolicyGrantingServiceAccess = smithy.Schema{ID: "com.amazonaws.iam#PolicyGrantingServiceAccess", Type: smithy.TypeStructure}
+var schemaPolicyGrantingServiceAccess = smithy.Schema{ID: "com.amazonaws.iam#PolicyGrantingServiceAccess", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPolicyGrantingServiceAccess_PolicyName, &memberPolicyGrantingServiceAccess_PolicyType, &memberPolicyGrantingServiceAccess_PolicyArn, &memberPolicyGrantingServiceAccess_EntityType, &memberPolicyGrantingServiceAccess_EntityName}}
 
-var memberPolicyGrantingServiceAccess_PolicyName = smithy.Member{Name: "PolicyName", Index: 0, Required: true}
+var memberPolicyGrantingServiceAccess_PolicyName = smithy.Member{Name: "PolicyName", Index: 0, Target: &schemaPolicyNameType, Required: true}
 
-var memberPolicyGrantingServiceAccess_PolicyType = smithy.Member{Name: "PolicyType", Index: 1, Required: true}
+var memberPolicyGrantingServiceAccess_PolicyType = smithy.Member{Name: "PolicyType", Index: 1, Target: &schemaPolicyType, Required: true}
 
-var memberPolicyGrantingServiceAccess_PolicyArn = smithy.Member{Name: "PolicyArn", Index: 2}
+var memberPolicyGrantingServiceAccess_PolicyArn = smithy.Member{Name: "PolicyArn", Index: 2, Target: &schemaArnType}
 
-var memberPolicyGrantingServiceAccess_EntityType = smithy.Member{Name: "EntityType", Index: 3}
+var memberPolicyGrantingServiceAccess_EntityType = smithy.Member{Name: "EntityType", Index: 3, Target: &schemaPolicyOwnerEntityType}
 
-var memberPolicyGrantingServiceAccess_EntityName = smithy.Member{Name: "EntityName", Index: 4}
+var memberPolicyGrantingServiceAccess_EntityName = smithy.Member{Name: "EntityName", Index: 4, Target: &schemaEntityNameType}
 
-var schemaPolicyGrantingServiceAccessListType = smithy.Schema{ID: "com.amazonaws.iam#policyGrantingServiceAccessListType", Type: smithy.TypeList}
+var schemaPolicyGrantingServiceAccessListType = smithy.Schema{ID: "com.amazonaws.iam#policyGrantingServiceAccessListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberPolicyGrantingServiceAccessListType_member}}
 
-var memberPolicyGrantingServiceAccessListType_member = smithy.Member{Name: "member", Index: 0}
+var memberPolicyGrantingServiceAccessListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaPolicyGrantingServiceAccess}
 
-var schemaPolicyGroup = smithy.Schema{ID: "com.amazonaws.iam#PolicyGroup", Type: smithy.TypeStructure}
+var schemaPolicyGroup = smithy.Schema{ID: "com.amazonaws.iam#PolicyGroup", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPolicyGroup_GroupName, &memberPolicyGroup_GroupId}}
 
-var memberPolicyGroup_GroupName = smithy.Member{Name: "GroupName", Index: 0}
+var memberPolicyGroup_GroupName = smithy.Member{Name: "GroupName", Index: 0, Target: &schemaGroupNameType}
 
-var memberPolicyGroup_GroupId = smithy.Member{Name: "GroupId", Index: 1}
+var memberPolicyGroup_GroupId = smithy.Member{Name: "GroupId", Index: 1, Target: &schemaIdType}
 
-var schemaPolicyGroupListType = smithy.Schema{ID: "com.amazonaws.iam#PolicyGroupListType", Type: smithy.TypeList}
+var schemaPolicyGroupListType = smithy.Schema{ID: "com.amazonaws.iam#PolicyGroupListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberPolicyGroupListType_member}}
 
-var memberPolicyGroupListType_member = smithy.Member{Name: "member", Index: 0}
+var memberPolicyGroupListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaPolicyGroup}
 
-var schemaPolicyIdentifier = smithy.Schema{ID: "com.amazonaws.iam#PolicyIdentifier", Type: smithy.TypeUnion}
+var schemaPolicyIdentifier = smithy.Schema{ID: "com.amazonaws.iam#PolicyIdentifier", Type: smithy.TypeUnion, Members: []*smithy.Member{&memberPolicyIdentifier_PolicyType, &memberPolicyIdentifier_PolicyArn, &memberPolicyIdentifier_InlinePolicyIdentifier}}
 
-var memberPolicyIdentifier_PolicyType = smithy.Member{Name: "PolicyType", Index: 0}
+var memberPolicyIdentifier_PolicyType = smithy.Member{Name: "PolicyType", Index: 0, Target: &schemaPolicyIdentifierPolicyType}
 
-var memberPolicyIdentifier_PolicyArn = smithy.Member{Name: "PolicyArn", Index: 1}
+var memberPolicyIdentifier_PolicyArn = smithy.Member{Name: "PolicyArn", Index: 1, Target: &schemaArnType}
 
-var memberPolicyIdentifier_InlinePolicyIdentifier = smithy.Member{Name: "InlinePolicyIdentifier", Index: 2}
+var memberPolicyIdentifier_InlinePolicyIdentifier = smithy.Member{Name: "InlinePolicyIdentifier", Index: 2, Target: &schemaInlinePolicyIdentifierType}
 
 var schemaPolicyIdentifierPolicyType = smithy.Schema{ID: "com.amazonaws.iam#PolicyIdentifierPolicyType", Type: smithy.TypeEnum}
 
 var schemaPolicyIdentifierType = smithy.Schema{ID: "com.amazonaws.iam#PolicyIdentifierType", Type: smithy.TypeString}
 
-var schemaPolicyListType = smithy.Schema{ID: "com.amazonaws.iam#policyListType", Type: smithy.TypeList}
+var schemaPolicyListType = smithy.Schema{ID: "com.amazonaws.iam#policyListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberPolicyListType_member}}
 
-var memberPolicyListType_member = smithy.Member{Name: "member", Index: 0}
+var memberPolicyListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaPolicy}
 
-var schemaPolicyNameListType = smithy.Schema{ID: "com.amazonaws.iam#policyNameListType", Type: smithy.TypeList}
+var schemaPolicyNameListType = smithy.Schema{ID: "com.amazonaws.iam#policyNameListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberPolicyNameListType_member}}
 
-var memberPolicyNameListType_member = smithy.Member{Name: "member", Index: 0}
+var memberPolicyNameListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaPolicyNameType}
 
 var schemaPolicyNameType = smithy.Schema{ID: "com.amazonaws.iam#policyNameType", Type: smithy.TypeString}
 
-var schemaPolicyNotAttachableException = smithy.Schema{ID: "com.amazonaws.iam#PolicyNotAttachableException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaPolicyNotAttachableException = smithy.Schema{ID: "com.amazonaws.iam#PolicyNotAttachableException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPolicyNotAttachableException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberPolicyNotAttachableException_message = smithy.Member{Name: "message", Index: 0}
+var memberPolicyNotAttachableException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaPolicyNotAttachableMessage}
 
 var schemaPolicyNotAttachableMessage = smithy.Schema{ID: "com.amazonaws.iam#policyNotAttachableMessage", Type: smithy.TypeString}
 
 var schemaPolicyOwnerEntityType = smithy.Schema{ID: "com.amazonaws.iam#policyOwnerEntityType", Type: smithy.TypeEnum}
 
-var schemaPolicyParameter = smithy.Schema{ID: "com.amazonaws.iam#PolicyParameter", Type: smithy.TypeStructure}
+var schemaPolicyParameter = smithy.Schema{ID: "com.amazonaws.iam#PolicyParameter", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPolicyParameter_Name, &memberPolicyParameter_Values, &memberPolicyParameter_Type}}
 
-var memberPolicyParameter_Name = smithy.Member{Name: "Name", Index: 0}
+var memberPolicyParameter_Name = smithy.Member{Name: "Name", Index: 0, Target: &schemaPolicyParameterNameType}
 
-var memberPolicyParameter_Values = smithy.Member{Name: "Values", Index: 1}
+var memberPolicyParameter_Values = smithy.Member{Name: "Values", Index: 1, Target: &schemaPolicyParameterValuesListType}
 
-var memberPolicyParameter_Type = smithy.Member{Name: "Type", Index: 2}
+var memberPolicyParameter_Type = smithy.Member{Name: "Type", Index: 2, Target: &schemaPolicyParameterTypeEnum}
 
-var schemaPolicyParameterListType = smithy.Schema{ID: "com.amazonaws.iam#policyParameterListType", Type: smithy.TypeList}
+var schemaPolicyParameterListType = smithy.Schema{ID: "com.amazonaws.iam#policyParameterListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberPolicyParameterListType_member}}
 
-var memberPolicyParameterListType_member = smithy.Member{Name: "member", Index: 0}
+var memberPolicyParameterListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaPolicyParameter}
 
 var schemaPolicyParameterNameType = smithy.Schema{ID: "com.amazonaws.iam#policyParameterNameType", Type: smithy.TypeString}
 
@@ -2379,21 +2379,21 @@ var schemaPolicyParameterTypeEnum = smithy.Schema{ID: "com.amazonaws.iam#PolicyP
 
 var schemaPolicyParameterValueType = smithy.Schema{ID: "com.amazonaws.iam#policyParameterValueType", Type: smithy.TypeString}
 
-var schemaPolicyParameterValuesListType = smithy.Schema{ID: "com.amazonaws.iam#policyParameterValuesListType", Type: smithy.TypeList}
+var schemaPolicyParameterValuesListType = smithy.Schema{ID: "com.amazonaws.iam#policyParameterValuesListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberPolicyParameterValuesListType_member}}
 
-var memberPolicyParameterValuesListType_member = smithy.Member{Name: "member", Index: 0}
+var memberPolicyParameterValuesListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaPolicyParameterValueType}
 
 var schemaPolicyPathType = smithy.Schema{ID: "com.amazonaws.iam#policyPathType", Type: smithy.TypeString}
 
-var schemaPolicyRole = smithy.Schema{ID: "com.amazonaws.iam#PolicyRole", Type: smithy.TypeStructure}
+var schemaPolicyRole = smithy.Schema{ID: "com.amazonaws.iam#PolicyRole", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPolicyRole_RoleName, &memberPolicyRole_RoleId}}
 
-var memberPolicyRole_RoleName = smithy.Member{Name: "RoleName", Index: 0}
+var memberPolicyRole_RoleName = smithy.Member{Name: "RoleName", Index: 0, Target: &schemaRoleNameType}
 
-var memberPolicyRole_RoleId = smithy.Member{Name: "RoleId", Index: 1}
+var memberPolicyRole_RoleId = smithy.Member{Name: "RoleId", Index: 1, Target: &schemaIdType}
 
-var schemaPolicyRoleListType = smithy.Schema{ID: "com.amazonaws.iam#PolicyRoleListType", Type: smithy.TypeList}
+var schemaPolicyRoleListType = smithy.Schema{ID: "com.amazonaws.iam#PolicyRoleListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberPolicyRoleListType_member}}
 
-var memberPolicyRoleListType_member = smithy.Member{Name: "member", Index: 0}
+var memberPolicyRoleListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaPolicyRole}
 
 var schemaPolicyScopeType = smithy.Schema{ID: "com.amazonaws.iam#policyScopeType", Type: smithy.TypeEnum}
 
@@ -2403,39 +2403,39 @@ var schemaPolicyType = smithy.Schema{ID: "com.amazonaws.iam#policyType", Type: s
 
 var schemaPolicyUsageType = smithy.Schema{ID: "com.amazonaws.iam#PolicyUsageType", Type: smithy.TypeEnum}
 
-var schemaPolicyUser = smithy.Schema{ID: "com.amazonaws.iam#PolicyUser", Type: smithy.TypeStructure}
+var schemaPolicyUser = smithy.Schema{ID: "com.amazonaws.iam#PolicyUser", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPolicyUser_UserName, &memberPolicyUser_UserId}}
 
-var memberPolicyUser_UserName = smithy.Member{Name: "UserName", Index: 0}
+var memberPolicyUser_UserName = smithy.Member{Name: "UserName", Index: 0, Target: &schemaUserNameType}
 
-var memberPolicyUser_UserId = smithy.Member{Name: "UserId", Index: 1}
+var memberPolicyUser_UserId = smithy.Member{Name: "UserId", Index: 1, Target: &schemaIdType}
 
-var schemaPolicyUserListType = smithy.Schema{ID: "com.amazonaws.iam#PolicyUserListType", Type: smithy.TypeList}
+var schemaPolicyUserListType = smithy.Schema{ID: "com.amazonaws.iam#PolicyUserListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberPolicyUserListType_member}}
 
-var memberPolicyUserListType_member = smithy.Member{Name: "member", Index: 0}
+var memberPolicyUserListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaPolicyUser}
 
-var schemaPolicyVersion = smithy.Schema{ID: "com.amazonaws.iam#PolicyVersion", Type: smithy.TypeStructure}
+var schemaPolicyVersion = smithy.Schema{ID: "com.amazonaws.iam#PolicyVersion", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPolicyVersion_Document, &memberPolicyVersion_VersionId, &memberPolicyVersion_IsDefaultVersion, &memberPolicyVersion_CreateDate}}
 
-var memberPolicyVersion_Document = smithy.Member{Name: "Document", Index: 0}
+var memberPolicyVersion_Document = smithy.Member{Name: "Document", Index: 0, Target: &schemaPolicyDocumentType}
 
-var memberPolicyVersion_VersionId = smithy.Member{Name: "VersionId", Index: 1}
+var memberPolicyVersion_VersionId = smithy.Member{Name: "VersionId", Index: 1, Target: &schemaPolicyVersionIdType}
 
-var memberPolicyVersion_IsDefaultVersion = smithy.Member{Name: "IsDefaultVersion", Index: 2, Default: document.Bool(false)}
+var memberPolicyVersion_IsDefaultVersion = smithy.Member{Name: "IsDefaultVersion", Index: 2, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberPolicyVersion_CreateDate = smithy.Member{Name: "CreateDate", Index: 3}
+var memberPolicyVersion_CreateDate = smithy.Member{Name: "CreateDate", Index: 3, Target: &schemaDateType}
 
 var schemaPolicyVersionIdType = smithy.Schema{ID: "com.amazonaws.iam#policyVersionIdType", Type: smithy.TypeString}
 
-var schemaPosition = smithy.Schema{ID: "com.amazonaws.iam#Position", Type: smithy.TypeStructure}
+var schemaPosition = smithy.Schema{ID: "com.amazonaws.iam#Position", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPosition_Line, &memberPosition_Column}}
 
-var memberPosition_Line = smithy.Member{Name: "Line", Index: 0, Default: document.Number("0")}
+var memberPosition_Line = smithy.Member{Name: "Line", Index: 0, Target: &schemaLineNumber, Default: document.Number("0")}
 
-var memberPosition_Column = smithy.Member{Name: "Column", Index: 1, Default: document.Number("0")}
+var memberPosition_Column = smithy.Member{Name: "Column", Index: 1, Target: &schemaColumnNumber, Default: document.Number("0")}
 
 var schemaPrivateKeyIdType = smithy.Schema{ID: "com.amazonaws.iam#privateKeyIdType", Type: smithy.TypeString}
 
-var schemaPrivateKeyList = smithy.Schema{ID: "com.amazonaws.iam#privateKeyList", Type: smithy.TypeList}
+var schemaPrivateKeyList = smithy.Schema{ID: "com.amazonaws.iam#privateKeyList", Type: smithy.TypeList, Members: []*smithy.Member{&memberPrivateKeyList_member}}
 
-var memberPrivateKeyList_member = smithy.Member{Name: "member", Index: 0}
+var memberPrivateKeyList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaSAMLPrivateKey}
 
 var schemaPrivateKeyType = smithy.Schema{ID: "com.amazonaws.iam#privateKeyType", Type: smithy.TypeString, Sensitive: true}
 
@@ -2445,47 +2445,47 @@ var schemaPublicKeyIdType = smithy.Schema{ID: "com.amazonaws.iam#publicKeyIdType
 
 var schemaPublicKeyMaterialType = smithy.Schema{ID: "com.amazonaws.iam#publicKeyMaterialType", Type: smithy.TypeString}
 
-var schemaPutAccountPropertiesInput = smithy.Schema{ID: "com.amazonaws.iam#PutAccountPropertiesRequest", Type: smithy.TypeStructure}
+var schemaPutAccountPropertiesInput = smithy.Schema{ID: "com.amazonaws.iam#PutAccountPropertiesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutAccountPropertiesInput_Properties}}
 
-var memberPutAccountPropertiesInput_Properties = smithy.Member{Name: "Properties", Index: 0, Required: true}
+var memberPutAccountPropertiesInput_Properties = smithy.Member{Name: "Properties", Index: 0, Target: &schemaAccountPropertiesMapType, Required: true}
 
 var schemaPutAccountPropertiesOutput = smithy.Schema{ID: "com.amazonaws.iam#PutAccountPropertiesResponse", Type: smithy.TypeStructure}
 
-var schemaPutGroupPolicyInput = smithy.Schema{ID: "com.amazonaws.iam#PutGroupPolicyRequest", Type: smithy.TypeStructure}
+var schemaPutGroupPolicyInput = smithy.Schema{ID: "com.amazonaws.iam#PutGroupPolicyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutGroupPolicyInput_GroupName, &memberPutGroupPolicyInput_PolicyName, &memberPutGroupPolicyInput_PolicyDocument}}
 
-var memberPutGroupPolicyInput_GroupName = smithy.Member{Name: "GroupName", Index: 0, Required: true}
+var memberPutGroupPolicyInput_GroupName = smithy.Member{Name: "GroupName", Index: 0, Target: &schemaGroupNameType, Required: true}
 
-var memberPutGroupPolicyInput_PolicyName = smithy.Member{Name: "PolicyName", Index: 1, Required: true}
+var memberPutGroupPolicyInput_PolicyName = smithy.Member{Name: "PolicyName", Index: 1, Target: &schemaPolicyNameType, Required: true}
 
-var memberPutGroupPolicyInput_PolicyDocument = smithy.Member{Name: "PolicyDocument", Index: 2, Required: true}
+var memberPutGroupPolicyInput_PolicyDocument = smithy.Member{Name: "PolicyDocument", Index: 2, Target: &schemaPolicyDocumentType, Required: true}
 
-var schemaPutRolePermissionsBoundaryInput = smithy.Schema{ID: "com.amazonaws.iam#PutRolePermissionsBoundaryRequest", Type: smithy.TypeStructure}
+var schemaPutRolePermissionsBoundaryInput = smithy.Schema{ID: "com.amazonaws.iam#PutRolePermissionsBoundaryRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutRolePermissionsBoundaryInput_RoleName, &memberPutRolePermissionsBoundaryInput_PermissionsBoundary}}
 
-var memberPutRolePermissionsBoundaryInput_RoleName = smithy.Member{Name: "RoleName", Index: 0, Required: true}
+var memberPutRolePermissionsBoundaryInput_RoleName = smithy.Member{Name: "RoleName", Index: 0, Target: &schemaRoleNameType, Required: true}
 
-var memberPutRolePermissionsBoundaryInput_PermissionsBoundary = smithy.Member{Name: "PermissionsBoundary", Index: 1, Required: true}
+var memberPutRolePermissionsBoundaryInput_PermissionsBoundary = smithy.Member{Name: "PermissionsBoundary", Index: 1, Target: &schemaArnType, Required: true}
 
-var schemaPutRolePolicyInput = smithy.Schema{ID: "com.amazonaws.iam#PutRolePolicyRequest", Type: smithy.TypeStructure}
+var schemaPutRolePolicyInput = smithy.Schema{ID: "com.amazonaws.iam#PutRolePolicyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutRolePolicyInput_RoleName, &memberPutRolePolicyInput_PolicyName, &memberPutRolePolicyInput_PolicyDocument}}
 
-var memberPutRolePolicyInput_RoleName = smithy.Member{Name: "RoleName", Index: 0, Required: true}
+var memberPutRolePolicyInput_RoleName = smithy.Member{Name: "RoleName", Index: 0, Target: &schemaRoleNameType, Required: true}
 
-var memberPutRolePolicyInput_PolicyName = smithy.Member{Name: "PolicyName", Index: 1, Required: true}
+var memberPutRolePolicyInput_PolicyName = smithy.Member{Name: "PolicyName", Index: 1, Target: &schemaPolicyNameType, Required: true}
 
-var memberPutRolePolicyInput_PolicyDocument = smithy.Member{Name: "PolicyDocument", Index: 2, Required: true}
+var memberPutRolePolicyInput_PolicyDocument = smithy.Member{Name: "PolicyDocument", Index: 2, Target: &schemaPolicyDocumentType, Required: true}
 
-var schemaPutUserPermissionsBoundaryInput = smithy.Schema{ID: "com.amazonaws.iam#PutUserPermissionsBoundaryRequest", Type: smithy.TypeStructure}
+var schemaPutUserPermissionsBoundaryInput = smithy.Schema{ID: "com.amazonaws.iam#PutUserPermissionsBoundaryRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutUserPermissionsBoundaryInput_UserName, &memberPutUserPermissionsBoundaryInput_PermissionsBoundary}}
 
-var memberPutUserPermissionsBoundaryInput_UserName = smithy.Member{Name: "UserName", Index: 0, Required: true}
+var memberPutUserPermissionsBoundaryInput_UserName = smithy.Member{Name: "UserName", Index: 0, Target: &schemaUserNameType, Required: true}
 
-var memberPutUserPermissionsBoundaryInput_PermissionsBoundary = smithy.Member{Name: "PermissionsBoundary", Index: 1, Required: true}
+var memberPutUserPermissionsBoundaryInput_PermissionsBoundary = smithy.Member{Name: "PermissionsBoundary", Index: 1, Target: &schemaArnType, Required: true}
 
-var schemaPutUserPolicyInput = smithy.Schema{ID: "com.amazonaws.iam#PutUserPolicyRequest", Type: smithy.TypeStructure}
+var schemaPutUserPolicyInput = smithy.Schema{ID: "com.amazonaws.iam#PutUserPolicyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutUserPolicyInput_UserName, &memberPutUserPolicyInput_PolicyName, &memberPutUserPolicyInput_PolicyDocument}}
 
-var memberPutUserPolicyInput_UserName = smithy.Member{Name: "UserName", Index: 0, Required: true}
+var memberPutUserPolicyInput_UserName = smithy.Member{Name: "UserName", Index: 0, Target: &schemaExistingUserNameType, Required: true}
 
-var memberPutUserPolicyInput_PolicyName = smithy.Member{Name: "PolicyName", Index: 1, Required: true}
+var memberPutUserPolicyInput_PolicyName = smithy.Member{Name: "PolicyName", Index: 1, Target: &schemaPolicyNameType, Required: true}
 
-var memberPutUserPolicyInput_PolicyDocument = smithy.Member{Name: "PolicyDocument", Index: 2, Required: true}
+var memberPutUserPolicyInput_PolicyDocument = smithy.Member{Name: "PolicyDocument", Index: 2, Target: &schemaPolicyDocumentType, Required: true}
 
 var schemaReasonType = smithy.Schema{ID: "com.amazonaws.iam#ReasonType", Type: smithy.TypeString}
 
@@ -2493,45 +2493,45 @@ var schemaRedirectUrlType = smithy.Schema{ID: "com.amazonaws.iam#redirectUrlType
 
 var schemaRegionNameType = smithy.Schema{ID: "com.amazonaws.iam#RegionNameType", Type: smithy.TypeString}
 
-var schemaRejectDelegationRequestInput = smithy.Schema{ID: "com.amazonaws.iam#RejectDelegationRequestRequest", Type: smithy.TypeStructure}
+var schemaRejectDelegationRequestInput = smithy.Schema{ID: "com.amazonaws.iam#RejectDelegationRequestRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRejectDelegationRequestInput_DelegationRequestId, &memberRejectDelegationRequestInput_Notes}}
 
-var memberRejectDelegationRequestInput_DelegationRequestId = smithy.Member{Name: "DelegationRequestId", Index: 0, Required: true}
+var memberRejectDelegationRequestInput_DelegationRequestId = smithy.Member{Name: "DelegationRequestId", Index: 0, Target: &schemaDelegationRequestIdType, Required: true}
 
-var memberRejectDelegationRequestInput_Notes = smithy.Member{Name: "Notes", Index: 1}
+var memberRejectDelegationRequestInput_Notes = smithy.Member{Name: "Notes", Index: 1, Target: &schemaNotesType}
 
-var schemaRemoveClientIDFromOpenIDConnectProviderInput = smithy.Schema{ID: "com.amazonaws.iam#RemoveClientIDFromOpenIDConnectProviderRequest", Type: smithy.TypeStructure}
+var schemaRemoveClientIDFromOpenIDConnectProviderInput = smithy.Schema{ID: "com.amazonaws.iam#RemoveClientIDFromOpenIDConnectProviderRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRemoveClientIDFromOpenIDConnectProviderInput_OpenIDConnectProviderArn, &memberRemoveClientIDFromOpenIDConnectProviderInput_ClientID}}
 
-var memberRemoveClientIDFromOpenIDConnectProviderInput_OpenIDConnectProviderArn = smithy.Member{Name: "OpenIDConnectProviderArn", Index: 0, Required: true}
+var memberRemoveClientIDFromOpenIDConnectProviderInput_OpenIDConnectProviderArn = smithy.Member{Name: "OpenIDConnectProviderArn", Index: 0, Target: &schemaArnType, Required: true}
 
-var memberRemoveClientIDFromOpenIDConnectProviderInput_ClientID = smithy.Member{Name: "ClientID", Index: 1, Required: true}
+var memberRemoveClientIDFromOpenIDConnectProviderInput_ClientID = smithy.Member{Name: "ClientID", Index: 1, Target: &schemaClientIDType, Required: true}
 
-var schemaRemoveRoleFromInstanceProfileInput = smithy.Schema{ID: "com.amazonaws.iam#RemoveRoleFromInstanceProfileRequest", Type: smithy.TypeStructure}
+var schemaRemoveRoleFromInstanceProfileInput = smithy.Schema{ID: "com.amazonaws.iam#RemoveRoleFromInstanceProfileRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRemoveRoleFromInstanceProfileInput_InstanceProfileName, &memberRemoveRoleFromInstanceProfileInput_RoleName}}
 
-var memberRemoveRoleFromInstanceProfileInput_InstanceProfileName = smithy.Member{Name: "InstanceProfileName", Index: 0, Required: true}
+var memberRemoveRoleFromInstanceProfileInput_InstanceProfileName = smithy.Member{Name: "InstanceProfileName", Index: 0, Target: &schemaInstanceProfileNameType, Required: true}
 
-var memberRemoveRoleFromInstanceProfileInput_RoleName = smithy.Member{Name: "RoleName", Index: 1, Required: true}
+var memberRemoveRoleFromInstanceProfileInput_RoleName = smithy.Member{Name: "RoleName", Index: 1, Target: &schemaRoleNameType, Required: true}
 
-var schemaRemoveUserFromGroupInput = smithy.Schema{ID: "com.amazonaws.iam#RemoveUserFromGroupRequest", Type: smithy.TypeStructure}
+var schemaRemoveUserFromGroupInput = smithy.Schema{ID: "com.amazonaws.iam#RemoveUserFromGroupRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRemoveUserFromGroupInput_GroupName, &memberRemoveUserFromGroupInput_UserName}}
 
-var memberRemoveUserFromGroupInput_GroupName = smithy.Member{Name: "GroupName", Index: 0, Required: true}
+var memberRemoveUserFromGroupInput_GroupName = smithy.Member{Name: "GroupName", Index: 0, Target: &schemaGroupNameType, Required: true}
 
-var memberRemoveUserFromGroupInput_UserName = smithy.Member{Name: "UserName", Index: 1, Required: true}
+var memberRemoveUserFromGroupInput_UserName = smithy.Member{Name: "UserName", Index: 1, Target: &schemaExistingUserNameType, Required: true}
 
-var schemaReplacementValueEntry = smithy.Schema{ID: "com.amazonaws.iam#ReplacementValueEntry", Type: smithy.TypeStructure}
+var schemaReplacementValueEntry = smithy.Schema{ID: "com.amazonaws.iam#ReplacementValueEntry", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberReplacementValueEntry_Values}}
 
-var memberReplacementValueEntry_Values = smithy.Member{Name: "Values", Index: 0, Required: true}
+var memberReplacementValueEntry_Values = smithy.Member{Name: "Values", Index: 0, Target: &schemaReplacementValueListType, Required: true}
 
-var schemaReplacementValueListType = smithy.Schema{ID: "com.amazonaws.iam#replacementValueListType", Type: smithy.TypeList}
+var schemaReplacementValueListType = smithy.Schema{ID: "com.amazonaws.iam#replacementValueListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberReplacementValueListType_member}}
 
-var memberReplacementValueListType_member = smithy.Member{Name: "member", Index: 0}
+var memberReplacementValueListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaStringType}
 
 var schemaReportContentType = smithy.Schema{ID: "com.amazonaws.iam#ReportContentType", Type: smithy.TypeBlob}
 
 var schemaReportFormatType = smithy.Schema{ID: "com.amazonaws.iam#ReportFormatType", Type: smithy.TypeEnum}
 
-var schemaReportGenerationLimitExceededException = smithy.Schema{ID: "com.amazonaws.iam#ReportGenerationLimitExceededException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 409}}
+var schemaReportGenerationLimitExceededException = smithy.Schema{ID: "com.amazonaws.iam#ReportGenerationLimitExceededException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberReportGenerationLimitExceededException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 409}}
 
-var memberReportGenerationLimitExceededException_message = smithy.Member{Name: "message", Index: 0}
+var memberReportGenerationLimitExceededException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaReportGenerationLimitExceededMessage}
 
 var schemaReportGenerationLimitExceededMessage = smithy.Schema{ID: "com.amazonaws.iam#reportGenerationLimitExceededMessage", Type: smithy.TypeString}
 
@@ -2539,9 +2539,9 @@ var schemaReportStateDescriptionType = smithy.Schema{ID: "com.amazonaws.iam#Repo
 
 var schemaReportStateType = smithy.Schema{ID: "com.amazonaws.iam#ReportStateType", Type: smithy.TypeEnum}
 
-var schemaRequestEntityTooLargeException = smithy.Schema{ID: "com.amazon.coral.service#RequestEntityTooLargeException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 413}}
+var schemaRequestEntityTooLargeException = smithy.Schema{ID: "com.amazon.coral.service#RequestEntityTooLargeException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRequestEntityTooLargeException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 413}}
 
-var memberRequestEntityTooLargeException_message = smithy.Member{Name: "message", Index: 0}
+var memberRequestEntityTooLargeException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
 var schemaRequestMessageType = smithy.Schema{ID: "com.amazonaws.iam#requestMessageType", Type: smithy.TypeString}
 
@@ -2549,137 +2549,137 @@ var schemaRequestorNameType = smithy.Schema{ID: "com.amazonaws.iam#requestorName
 
 var schemaRequestorWorkflowIdType = smithy.Schema{ID: "com.amazonaws.iam#requestorWorkflowIdType", Type: smithy.TypeString}
 
-var schemaResetServiceSpecificCredentialInput = smithy.Schema{ID: "com.amazonaws.iam#ResetServiceSpecificCredentialRequest", Type: smithy.TypeStructure}
+var schemaResetServiceSpecificCredentialInput = smithy.Schema{ID: "com.amazonaws.iam#ResetServiceSpecificCredentialRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberResetServiceSpecificCredentialInput_UserName, &memberResetServiceSpecificCredentialInput_ServiceSpecificCredentialId}}
 
-var memberResetServiceSpecificCredentialInput_UserName = smithy.Member{Name: "UserName", Index: 0}
+var memberResetServiceSpecificCredentialInput_UserName = smithy.Member{Name: "UserName", Index: 0, Target: &schemaUserNameType}
 
-var memberResetServiceSpecificCredentialInput_ServiceSpecificCredentialId = smithy.Member{Name: "ServiceSpecificCredentialId", Index: 1, Required: true}
+var memberResetServiceSpecificCredentialInput_ServiceSpecificCredentialId = smithy.Member{Name: "ServiceSpecificCredentialId", Index: 1, Target: &schemaServiceSpecificCredentialId, Required: true}
 
-var schemaResetServiceSpecificCredentialOutput = smithy.Schema{ID: "com.amazonaws.iam#ResetServiceSpecificCredentialResponse", Type: smithy.TypeStructure}
+var schemaResetServiceSpecificCredentialOutput = smithy.Schema{ID: "com.amazonaws.iam#ResetServiceSpecificCredentialResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberResetServiceSpecificCredentialOutput_ServiceSpecificCredential}}
 
-var memberResetServiceSpecificCredentialOutput_ServiceSpecificCredential = smithy.Member{Name: "ServiceSpecificCredential", Index: 0}
+var memberResetServiceSpecificCredentialOutput_ServiceSpecificCredential = smithy.Member{Name: "ServiceSpecificCredential", Index: 0, Target: &schemaServiceSpecificCredential}
 
-var schemaResolveRoleInput = smithy.Schema{ID: "com.amazonaws.iam#ResolveRoleRequest", Type: smithy.TypeStructure}
+var schemaResolveRoleInput = smithy.Schema{ID: "com.amazonaws.iam#ResolveRoleRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberResolveRoleInput_RoleArn}}
 
-var memberResolveRoleInput_RoleArn = smithy.Member{Name: "RoleArn", Index: 0, Required: true}
+var memberResolveRoleInput_RoleArn = smithy.Member{Name: "RoleArn", Index: 0, Target: &schemaArnType, Required: true}
 
-var schemaResolveRoleOutput = smithy.Schema{ID: "com.amazonaws.iam#ResolveRoleResponse", Type: smithy.TypeStructure}
+var schemaResolveRoleOutput = smithy.Schema{ID: "com.amazonaws.iam#ResolveRoleResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberResolveRoleOutput_Role}}
 
-var memberResolveRoleOutput_Role = smithy.Member{Name: "Role", Index: 0, Required: true}
+var memberResolveRoleOutput_Role = smithy.Member{Name: "Role", Index: 0, Target: &schemaRole, Required: true}
 
 var schemaResourceHandlingOptionType = smithy.Schema{ID: "com.amazonaws.iam#ResourceHandlingOptionType", Type: smithy.TypeString}
 
-var schemaResourceNameListType = smithy.Schema{ID: "com.amazonaws.iam#ResourceNameListType", Type: smithy.TypeList}
+var schemaResourceNameListType = smithy.Schema{ID: "com.amazonaws.iam#ResourceNameListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberResourceNameListType_member}}
 
-var memberResourceNameListType_member = smithy.Member{Name: "member", Index: 0}
+var memberResourceNameListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaResourceNameType}
 
 var schemaResourceNameType = smithy.Schema{ID: "com.amazonaws.iam#ResourceNameType", Type: smithy.TypeString}
 
-var schemaResourceSpecificResult = smithy.Schema{ID: "com.amazonaws.iam#ResourceSpecificResult", Type: smithy.TypeStructure}
+var schemaResourceSpecificResult = smithy.Schema{ID: "com.amazonaws.iam#ResourceSpecificResult", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberResourceSpecificResult_EvalResourceName, &memberResourceSpecificResult_EvalResourceDecision, &memberResourceSpecificResult_MatchedStatements, &memberResourceSpecificResult_MissingContextValues, &memberResourceSpecificResult_EvalDecisionDetails, &memberResourceSpecificResult_PermissionsBoundaryDecisionDetail}}
 
-var memberResourceSpecificResult_EvalResourceName = smithy.Member{Name: "EvalResourceName", Index: 0, Required: true}
+var memberResourceSpecificResult_EvalResourceName = smithy.Member{Name: "EvalResourceName", Index: 0, Target: &schemaResourceNameType, Required: true}
 
-var memberResourceSpecificResult_EvalResourceDecision = smithy.Member{Name: "EvalResourceDecision", Index: 1, Required: true}
+var memberResourceSpecificResult_EvalResourceDecision = smithy.Member{Name: "EvalResourceDecision", Index: 1, Target: &schemaPolicyEvaluationDecisionType, Required: true}
 
-var memberResourceSpecificResult_MatchedStatements = smithy.Member{Name: "MatchedStatements", Index: 2}
+var memberResourceSpecificResult_MatchedStatements = smithy.Member{Name: "MatchedStatements", Index: 2, Target: &schemaStatementListType}
 
-var memberResourceSpecificResult_MissingContextValues = smithy.Member{Name: "MissingContextValues", Index: 3}
+var memberResourceSpecificResult_MissingContextValues = smithy.Member{Name: "MissingContextValues", Index: 3, Target: &schemaContextKeyNamesResultListType}
 
-var memberResourceSpecificResult_EvalDecisionDetails = smithy.Member{Name: "EvalDecisionDetails", Index: 4}
+var memberResourceSpecificResult_EvalDecisionDetails = smithy.Member{Name: "EvalDecisionDetails", Index: 4, Target: &schemaEvalDecisionDetailsType}
 
-var memberResourceSpecificResult_PermissionsBoundaryDecisionDetail = smithy.Member{Name: "PermissionsBoundaryDecisionDetail", Index: 5}
+var memberResourceSpecificResult_PermissionsBoundaryDecisionDetail = smithy.Member{Name: "PermissionsBoundaryDecisionDetail", Index: 5, Target: &schemaPermissionsBoundaryDecisionDetail}
 
-var schemaResourceSpecificResultListType = smithy.Schema{ID: "com.amazonaws.iam#ResourceSpecificResultListType", Type: smithy.TypeList}
+var schemaResourceSpecificResultListType = smithy.Schema{ID: "com.amazonaws.iam#ResourceSpecificResultListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberResourceSpecificResultListType_member}}
 
-var memberResourceSpecificResultListType_member = smithy.Member{Name: "member", Index: 0}
+var memberResourceSpecificResultListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaResourceSpecificResult}
 
 var schemaResponseMarkerType = smithy.Schema{ID: "com.amazonaws.iam#responseMarkerType", Type: smithy.TypeString}
 
-var schemaResyncMFADeviceInput = smithy.Schema{ID: "com.amazonaws.iam#ResyncMFADeviceRequest", Type: smithy.TypeStructure}
+var schemaResyncMFADeviceInput = smithy.Schema{ID: "com.amazonaws.iam#ResyncMFADeviceRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberResyncMFADeviceInput_UserName, &memberResyncMFADeviceInput_SerialNumber, &memberResyncMFADeviceInput_AuthenticationCode1, &memberResyncMFADeviceInput_AuthenticationCode2}}
 
-var memberResyncMFADeviceInput_UserName = smithy.Member{Name: "UserName", Index: 0, Required: true}
+var memberResyncMFADeviceInput_UserName = smithy.Member{Name: "UserName", Index: 0, Target: &schemaExistingUserNameType, Required: true}
 
-var memberResyncMFADeviceInput_SerialNumber = smithy.Member{Name: "SerialNumber", Index: 1, Required: true}
+var memberResyncMFADeviceInput_SerialNumber = smithy.Member{Name: "SerialNumber", Index: 1, Target: &schemaSerialNumberType, Required: true}
 
-var memberResyncMFADeviceInput_AuthenticationCode1 = smithy.Member{Name: "AuthenticationCode1", Index: 2, Required: true}
+var memberResyncMFADeviceInput_AuthenticationCode1 = smithy.Member{Name: "AuthenticationCode1", Index: 2, Target: &schemaAuthenticationCodeType, Required: true}
 
-var memberResyncMFADeviceInput_AuthenticationCode2 = smithy.Member{Name: "AuthenticationCode2", Index: 3, Required: true}
+var memberResyncMFADeviceInput_AuthenticationCode2 = smithy.Member{Name: "AuthenticationCode2", Index: 3, Target: &schemaAuthenticationCodeType, Required: true}
 
-var schemaRole = smithy.Schema{ID: "com.amazonaws.iam#Role", Type: smithy.TypeStructure}
+var schemaRole = smithy.Schema{ID: "com.amazonaws.iam#Role", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRole_Path, &memberRole_RoleName, &memberRole_RoleId, &memberRole_Arn, &memberRole_CreateDate, &memberRole_AssumeRolePolicyDocument, &memberRole_Description, &memberRole_MaxSessionDuration, &memberRole_PermissionsBoundary, &memberRole_Tags, &memberRole_RoleLastUsed, &memberRole_SourceRoleTemplate}}
 
-var memberRole_Path = smithy.Member{Name: "Path", Index: 0, Required: true}
+var memberRole_Path = smithy.Member{Name: "Path", Index: 0, Target: &schemaPathType, Required: true}
 
-var memberRole_RoleName = smithy.Member{Name: "RoleName", Index: 1, Required: true}
+var memberRole_RoleName = smithy.Member{Name: "RoleName", Index: 1, Target: &schemaRoleNameType, Required: true}
 
-var memberRole_RoleId = smithy.Member{Name: "RoleId", Index: 2, Required: true}
+var memberRole_RoleId = smithy.Member{Name: "RoleId", Index: 2, Target: &schemaIdType, Required: true}
 
-var memberRole_Arn = smithy.Member{Name: "Arn", Index: 3, Required: true}
+var memberRole_Arn = smithy.Member{Name: "Arn", Index: 3, Target: &schemaArnType, Required: true}
 
-var memberRole_CreateDate = smithy.Member{Name: "CreateDate", Index: 4, Required: true}
+var memberRole_CreateDate = smithy.Member{Name: "CreateDate", Index: 4, Target: &schemaDateType, Required: true}
 
-var memberRole_AssumeRolePolicyDocument = smithy.Member{Name: "AssumeRolePolicyDocument", Index: 5}
+var memberRole_AssumeRolePolicyDocument = smithy.Member{Name: "AssumeRolePolicyDocument", Index: 5, Target: &schemaPolicyDocumentType}
 
-var memberRole_Description = smithy.Member{Name: "Description", Index: 6}
+var memberRole_Description = smithy.Member{Name: "Description", Index: 6, Target: &schemaRoleDescriptionType}
 
-var memberRole_MaxSessionDuration = smithy.Member{Name: "MaxSessionDuration", Index: 7}
+var memberRole_MaxSessionDuration = smithy.Member{Name: "MaxSessionDuration", Index: 7, Target: &schemaRoleMaxSessionDurationType}
 
-var memberRole_PermissionsBoundary = smithy.Member{Name: "PermissionsBoundary", Index: 8}
+var memberRole_PermissionsBoundary = smithy.Member{Name: "PermissionsBoundary", Index: 8, Target: &schemaAttachedPermissionsBoundary}
 
-var memberRole_Tags = smithy.Member{Name: "Tags", Index: 9}
+var memberRole_Tags = smithy.Member{Name: "Tags", Index: 9, Target: &schemaTagListType}
 
-var memberRole_RoleLastUsed = smithy.Member{Name: "RoleLastUsed", Index: 10}
+var memberRole_RoleLastUsed = smithy.Member{Name: "RoleLastUsed", Index: 10, Target: &schemaRoleLastUsed}
 
-var memberRole_SourceRoleTemplate = smithy.Member{Name: "SourceRoleTemplate", Index: 11}
+var memberRole_SourceRoleTemplate = smithy.Member{Name: "SourceRoleTemplate", Index: 11, Target: &schemaSourceRoleTemplate}
 
 var schemaRoleDescriptionPatternType = smithy.Schema{ID: "com.amazonaws.iam#roleDescriptionPatternType", Type: smithy.TypeString}
 
 var schemaRoleDescriptionType = smithy.Schema{ID: "com.amazonaws.iam#roleDescriptionType", Type: smithy.TypeString}
 
-var schemaRoleDetail = smithy.Schema{ID: "com.amazonaws.iam#RoleDetail", Type: smithy.TypeStructure}
+var schemaRoleDetail = smithy.Schema{ID: "com.amazonaws.iam#RoleDetail", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRoleDetail_Path, &memberRoleDetail_RoleName, &memberRoleDetail_RoleId, &memberRoleDetail_Arn, &memberRoleDetail_CreateDate, &memberRoleDetail_AssumeRolePolicyDocument, &memberRoleDetail_InstanceProfileList, &memberRoleDetail_RolePolicyList, &memberRoleDetail_AttachedManagedPolicies, &memberRoleDetail_PermissionsBoundary, &memberRoleDetail_Tags, &memberRoleDetail_RoleLastUsed}}
 
-var memberRoleDetail_Path = smithy.Member{Name: "Path", Index: 0}
+var memberRoleDetail_Path = smithy.Member{Name: "Path", Index: 0, Target: &schemaPathType}
 
-var memberRoleDetail_RoleName = smithy.Member{Name: "RoleName", Index: 1}
+var memberRoleDetail_RoleName = smithy.Member{Name: "RoleName", Index: 1, Target: &schemaRoleNameType}
 
-var memberRoleDetail_RoleId = smithy.Member{Name: "RoleId", Index: 2}
+var memberRoleDetail_RoleId = smithy.Member{Name: "RoleId", Index: 2, Target: &schemaIdType}
 
-var memberRoleDetail_Arn = smithy.Member{Name: "Arn", Index: 3}
+var memberRoleDetail_Arn = smithy.Member{Name: "Arn", Index: 3, Target: &schemaArnType}
 
-var memberRoleDetail_CreateDate = smithy.Member{Name: "CreateDate", Index: 4}
+var memberRoleDetail_CreateDate = smithy.Member{Name: "CreateDate", Index: 4, Target: &schemaDateType}
 
-var memberRoleDetail_AssumeRolePolicyDocument = smithy.Member{Name: "AssumeRolePolicyDocument", Index: 5}
+var memberRoleDetail_AssumeRolePolicyDocument = smithy.Member{Name: "AssumeRolePolicyDocument", Index: 5, Target: &schemaPolicyDocumentType}
 
-var memberRoleDetail_InstanceProfileList = smithy.Member{Name: "InstanceProfileList", Index: 6}
+var memberRoleDetail_InstanceProfileList = smithy.Member{Name: "InstanceProfileList", Index: 6, Target: &schemaInstanceProfileListType}
 
-var memberRoleDetail_RolePolicyList = smithy.Member{Name: "RolePolicyList", Index: 7}
+var memberRoleDetail_RolePolicyList = smithy.Member{Name: "RolePolicyList", Index: 7, Target: &schemaPolicyDetailListType}
 
-var memberRoleDetail_AttachedManagedPolicies = smithy.Member{Name: "AttachedManagedPolicies", Index: 8}
+var memberRoleDetail_AttachedManagedPolicies = smithy.Member{Name: "AttachedManagedPolicies", Index: 8, Target: &schemaAttachedPoliciesListType}
 
-var memberRoleDetail_PermissionsBoundary = smithy.Member{Name: "PermissionsBoundary", Index: 9}
+var memberRoleDetail_PermissionsBoundary = smithy.Member{Name: "PermissionsBoundary", Index: 9, Target: &schemaAttachedPermissionsBoundary}
 
-var memberRoleDetail_Tags = smithy.Member{Name: "Tags", Index: 10}
+var memberRoleDetail_Tags = smithy.Member{Name: "Tags", Index: 10, Target: &schemaTagListType}
 
-var memberRoleDetail_RoleLastUsed = smithy.Member{Name: "RoleLastUsed", Index: 11}
+var memberRoleDetail_RoleLastUsed = smithy.Member{Name: "RoleLastUsed", Index: 11, Target: &schemaRoleLastUsed}
 
-var schemaRoleDetailListType = smithy.Schema{ID: "com.amazonaws.iam#roleDetailListType", Type: smithy.TypeList}
+var schemaRoleDetailListType = smithy.Schema{ID: "com.amazonaws.iam#roleDetailListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberRoleDetailListType_member}}
 
-var memberRoleDetailListType_member = smithy.Member{Name: "member", Index: 0}
+var memberRoleDetailListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaRoleDetail}
 
-var schemaRoleLastUsed = smithy.Schema{ID: "com.amazonaws.iam#RoleLastUsed", Type: smithy.TypeStructure}
+var schemaRoleLastUsed = smithy.Schema{ID: "com.amazonaws.iam#RoleLastUsed", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRoleLastUsed_LastUsedDate, &memberRoleLastUsed_Region}}
 
-var memberRoleLastUsed_LastUsedDate = smithy.Member{Name: "LastUsedDate", Index: 0}
+var memberRoleLastUsed_LastUsedDate = smithy.Member{Name: "LastUsedDate", Index: 0, Target: &schemaDateType}
 
-var memberRoleLastUsed_Region = smithy.Member{Name: "Region", Index: 1}
+var memberRoleLastUsed_Region = smithy.Member{Name: "Region", Index: 1, Target: &schemaStringType}
 
-var schemaRoleListType = smithy.Schema{ID: "com.amazonaws.iam#roleListType", Type: smithy.TypeList}
+var schemaRoleListType = smithy.Schema{ID: "com.amazonaws.iam#roleListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberRoleListType_member}}
 
-var memberRoleListType_member = smithy.Member{Name: "member", Index: 0}
+var memberRoleListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaRole}
 
 var schemaRoleMaxSessionDurationType = smithy.Schema{ID: "com.amazonaws.iam#roleMaxSessionDurationType", Type: smithy.TypeInteger}
 
-var schemaRoleModifiedException = smithy.Schema{ID: "com.amazonaws.iam#RoleModifiedException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 409}}
+var schemaRoleModifiedException = smithy.Schema{ID: "com.amazonaws.iam#RoleModifiedException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRoleModifiedException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 409}}
 
-var memberRoleModifiedException_message = smithy.Member{Name: "message", Index: 0}
+var memberRoleModifiedException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaRoleModifiedMessage}
 
 var schemaRoleModifiedMessage = smithy.Schema{ID: "com.amazonaws.iam#roleModifiedMessage", Type: smithy.TypeString}
 
@@ -2689,357 +2689,357 @@ var schemaRoleNameType = smithy.Schema{ID: "com.amazonaws.iam#roleNameType", Typ
 
 var schemaRolePathPatternType = smithy.Schema{ID: "com.amazonaws.iam#rolePathPatternType", Type: smithy.TypeString}
 
-var schemaRolePermissionRestrictionArnListType = smithy.Schema{ID: "com.amazonaws.iam#rolePermissionRestrictionArnListType", Type: smithy.TypeList}
+var schemaRolePermissionRestrictionArnListType = smithy.Schema{ID: "com.amazonaws.iam#rolePermissionRestrictionArnListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberRolePermissionRestrictionArnListType_member}}
 
-var memberRolePermissionRestrictionArnListType_member = smithy.Member{Name: "member", Index: 0}
+var memberRolePermissionRestrictionArnListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaArnType}
 
 var schemaRoleTemplateDescriptionType = smithy.Schema{ID: "com.amazonaws.iam#roleTemplateDescriptionType", Type: smithy.TypeString}
 
-var schemaRoleTemplateDisabledException = smithy.Schema{ID: "com.amazonaws.iam#RoleTemplateDisabledException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaRoleTemplateDisabledException = smithy.Schema{ID: "com.amazonaws.iam#RoleTemplateDisabledException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRoleTemplateDisabledException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberRoleTemplateDisabledException_message = smithy.Member{Name: "message", Index: 0}
+var memberRoleTemplateDisabledException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaRoleTemplateDisabledMessage}
 
 var schemaRoleTemplateDisabledMessage = smithy.Schema{ID: "com.amazonaws.iam#roleTemplateDisabledMessage", Type: smithy.TypeString}
 
 var schemaRoleTemplateNameType = smithy.Schema{ID: "com.amazonaws.iam#roleTemplateNameType", Type: smithy.TypeString}
 
-var schemaRoleTemplateVersion = smithy.Schema{ID: "com.amazonaws.iam#RoleTemplateVersion", Type: smithy.TypeStructure}
+var schemaRoleTemplateVersion = smithy.Schema{ID: "com.amazonaws.iam#RoleTemplateVersion", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRoleTemplateVersion_TemplateArn, &memberRoleTemplateVersion_TemplateName, &memberRoleTemplateVersion_TemplateVersionId, &memberRoleTemplateVersion_Description, &memberRoleTemplateVersion_MajorVersion, &memberRoleTemplateVersion_DefaultMinorVersion, &memberRoleTemplateVersion_ManagedByType, &memberRoleTemplateVersion_ManagedByValue, &memberRoleTemplateVersion_Enabled, &memberRoleTemplateVersion_MinorVersion, &memberRoleTemplateVersion_RoleNamePattern, &memberRoleTemplateVersion_RolePathPattern, &memberRoleTemplateVersion_RoleDescriptionPattern, &memberRoleTemplateVersion_AssumeRolePolicyDocumentTemplate, &memberRoleTemplateVersion_InlinePolicyTemplates, &memberRoleTemplateVersion_ManagedPolicyArns, &memberRoleTemplateVersion_PermissionBoundaryArn, &memberRoleTemplateVersion_ParametersDefinition, &memberRoleTemplateVersion_RoleTagsTemplate, &memberRoleTemplateVersion_MaxSessionDuration, &memberRoleTemplateVersion_VersionEnabled, &memberRoleTemplateVersion_CreateTimestamp, &memberRoleTemplateVersion_UpdateTimestamp}}
 
-var memberRoleTemplateVersion_TemplateArn = smithy.Member{Name: "TemplateArn", Index: 0}
+var memberRoleTemplateVersion_TemplateArn = smithy.Member{Name: "TemplateArn", Index: 0, Target: &schemaArnType}
 
-var memberRoleTemplateVersion_TemplateName = smithy.Member{Name: "TemplateName", Index: 1}
+var memberRoleTemplateVersion_TemplateName = smithy.Member{Name: "TemplateName", Index: 1, Target: &schemaRoleTemplateNameType}
 
-var memberRoleTemplateVersion_TemplateVersionId = smithy.Member{Name: "TemplateVersionId", Index: 2}
+var memberRoleTemplateVersion_TemplateVersionId = smithy.Member{Name: "TemplateVersionId", Index: 2, Target: &schemaIdType}
 
-var memberRoleTemplateVersion_Description = smithy.Member{Name: "Description", Index: 3}
+var memberRoleTemplateVersion_Description = smithy.Member{Name: "Description", Index: 3, Target: &schemaRoleTemplateDescriptionType}
 
-var memberRoleTemplateVersion_MajorVersion = smithy.Member{Name: "MajorVersion", Index: 4}
+var memberRoleTemplateVersion_MajorVersion = smithy.Member{Name: "MajorVersion", Index: 4, Target: &schemaIntegerType}
 
-var memberRoleTemplateVersion_DefaultMinorVersion = smithy.Member{Name: "DefaultMinorVersion", Index: 5}
+var memberRoleTemplateVersion_DefaultMinorVersion = smithy.Member{Name: "DefaultMinorVersion", Index: 5, Target: &schemaMinorVersionType}
 
-var memberRoleTemplateVersion_ManagedByType = smithy.Member{Name: "ManagedByType", Index: 6}
+var memberRoleTemplateVersion_ManagedByType = smithy.Member{Name: "ManagedByType", Index: 6, Target: &schemaManagedByTypeType}
 
-var memberRoleTemplateVersion_ManagedByValue = smithy.Member{Name: "ManagedByValue", Index: 7}
+var memberRoleTemplateVersion_ManagedByValue = smithy.Member{Name: "ManagedByValue", Index: 7, Target: &schemaManagedByValueType}
 
-var memberRoleTemplateVersion_Enabled = smithy.Member{Name: "Enabled", Index: 8, Default: document.Bool(false)}
+var memberRoleTemplateVersion_Enabled = smithy.Member{Name: "Enabled", Index: 8, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberRoleTemplateVersion_MinorVersion = smithy.Member{Name: "MinorVersion", Index: 9}
+var memberRoleTemplateVersion_MinorVersion = smithy.Member{Name: "MinorVersion", Index: 9, Target: &schemaMinorVersionType}
 
-var memberRoleTemplateVersion_RoleNamePattern = smithy.Member{Name: "RoleNamePattern", Index: 10}
+var memberRoleTemplateVersion_RoleNamePattern = smithy.Member{Name: "RoleNamePattern", Index: 10, Target: &schemaRoleNamePatternType}
 
-var memberRoleTemplateVersion_RolePathPattern = smithy.Member{Name: "RolePathPattern", Index: 11}
+var memberRoleTemplateVersion_RolePathPattern = smithy.Member{Name: "RolePathPattern", Index: 11, Target: &schemaRolePathPatternType}
 
-var memberRoleTemplateVersion_RoleDescriptionPattern = smithy.Member{Name: "RoleDescriptionPattern", Index: 12}
+var memberRoleTemplateVersion_RoleDescriptionPattern = smithy.Member{Name: "RoleDescriptionPattern", Index: 12, Target: &schemaRoleDescriptionPatternType}
 
-var memberRoleTemplateVersion_AssumeRolePolicyDocumentTemplate = smithy.Member{Name: "AssumeRolePolicyDocumentTemplate", Index: 13}
+var memberRoleTemplateVersion_AssumeRolePolicyDocumentTemplate = smithy.Member{Name: "AssumeRolePolicyDocumentTemplate", Index: 13, Target: &schemaPolicyDocumentType}
 
-var memberRoleTemplateVersion_InlinePolicyTemplates = smithy.Member{Name: "InlinePolicyTemplates", Index: 14}
+var memberRoleTemplateVersion_InlinePolicyTemplates = smithy.Member{Name: "InlinePolicyTemplates", Index: 14, Target: &schemaInlinePolicyTemplateListType}
 
-var memberRoleTemplateVersion_ManagedPolicyArns = smithy.Member{Name: "ManagedPolicyArns", Index: 15}
+var memberRoleTemplateVersion_ManagedPolicyArns = smithy.Member{Name: "ManagedPolicyArns", Index: 15, Target: &schemaManagedPolicyArnListType}
 
-var memberRoleTemplateVersion_PermissionBoundaryArn = smithy.Member{Name: "PermissionBoundaryArn", Index: 16}
+var memberRoleTemplateVersion_PermissionBoundaryArn = smithy.Member{Name: "PermissionBoundaryArn", Index: 16, Target: &schemaArnType}
 
-var memberRoleTemplateVersion_ParametersDefinition = smithy.Member{Name: "ParametersDefinition", Index: 17}
+var memberRoleTemplateVersion_ParametersDefinition = smithy.Member{Name: "ParametersDefinition", Index: 17, Target: &schemaParametersDefinitionListType}
 
-var memberRoleTemplateVersion_RoleTagsTemplate = smithy.Member{Name: "RoleTagsTemplate", Index: 18}
+var memberRoleTemplateVersion_RoleTagsTemplate = smithy.Member{Name: "RoleTagsTemplate", Index: 18, Target: &schemaTagTemplateListType}
 
-var memberRoleTemplateVersion_MaxSessionDuration = smithy.Member{Name: "MaxSessionDuration", Index: 19}
+var memberRoleTemplateVersion_MaxSessionDuration = smithy.Member{Name: "MaxSessionDuration", Index: 19, Target: &schemaRoleMaxSessionDurationType}
 
-var memberRoleTemplateVersion_VersionEnabled = smithy.Member{Name: "VersionEnabled", Index: 20, Default: document.Bool(false)}
+var memberRoleTemplateVersion_VersionEnabled = smithy.Member{Name: "VersionEnabled", Index: 20, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberRoleTemplateVersion_CreateTimestamp = smithy.Member{Name: "CreateTimestamp", Index: 21}
+var memberRoleTemplateVersion_CreateTimestamp = smithy.Member{Name: "CreateTimestamp", Index: 21, Target: &schemaDateType}
 
-var memberRoleTemplateVersion_UpdateTimestamp = smithy.Member{Name: "UpdateTimestamp", Index: 22}
+var memberRoleTemplateVersion_UpdateTimestamp = smithy.Member{Name: "UpdateTimestamp", Index: 22, Target: &schemaDateType}
 
-var schemaRoleUsageListType = smithy.Schema{ID: "com.amazonaws.iam#RoleUsageListType", Type: smithy.TypeList}
+var schemaRoleUsageListType = smithy.Schema{ID: "com.amazonaws.iam#RoleUsageListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberRoleUsageListType_member}}
 
-var memberRoleUsageListType_member = smithy.Member{Name: "member", Index: 0}
+var memberRoleUsageListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaRoleUsageType}
 
-var schemaRoleUsageType = smithy.Schema{ID: "com.amazonaws.iam#RoleUsageType", Type: smithy.TypeStructure}
+var schemaRoleUsageType = smithy.Schema{ID: "com.amazonaws.iam#RoleUsageType", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRoleUsageType_Region, &memberRoleUsageType_Resources}}
 
-var memberRoleUsageType_Region = smithy.Member{Name: "Region", Index: 0}
+var memberRoleUsageType_Region = smithy.Member{Name: "Region", Index: 0, Target: &schemaRegionNameType}
 
-var memberRoleUsageType_Resources = smithy.Member{Name: "Resources", Index: 1}
+var memberRoleUsageType_Resources = smithy.Member{Name: "Resources", Index: 1, Target: &schemaArnListType}
 
 var schemaSAMLMetadataDocumentType = smithy.Schema{ID: "com.amazonaws.iam#SAMLMetadataDocumentType", Type: smithy.TypeString}
 
-var schemaSAMLPrivateKey = smithy.Schema{ID: "com.amazonaws.iam#SAMLPrivateKey", Type: smithy.TypeStructure}
+var schemaSAMLPrivateKey = smithy.Schema{ID: "com.amazonaws.iam#SAMLPrivateKey", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSAMLPrivateKey_KeyId, &memberSAMLPrivateKey_Timestamp}}
 
-var memberSAMLPrivateKey_KeyId = smithy.Member{Name: "KeyId", Index: 0}
+var memberSAMLPrivateKey_KeyId = smithy.Member{Name: "KeyId", Index: 0, Target: &schemaPrivateKeyIdType}
 
-var memberSAMLPrivateKey_Timestamp = smithy.Member{Name: "Timestamp", Index: 1}
+var memberSAMLPrivateKey_Timestamp = smithy.Member{Name: "Timestamp", Index: 1, Target: &schemaDateType}
 
-var schemaSAMLProviderListEntry = smithy.Schema{ID: "com.amazonaws.iam#SAMLProviderListEntry", Type: smithy.TypeStructure}
+var schemaSAMLProviderListEntry = smithy.Schema{ID: "com.amazonaws.iam#SAMLProviderListEntry", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSAMLProviderListEntry_Arn, &memberSAMLProviderListEntry_ValidUntil, &memberSAMLProviderListEntry_CreateDate}}
 
-var memberSAMLProviderListEntry_Arn = smithy.Member{Name: "Arn", Index: 0}
+var memberSAMLProviderListEntry_Arn = smithy.Member{Name: "Arn", Index: 0, Target: &schemaArnType}
 
-var memberSAMLProviderListEntry_ValidUntil = smithy.Member{Name: "ValidUntil", Index: 1}
+var memberSAMLProviderListEntry_ValidUntil = smithy.Member{Name: "ValidUntil", Index: 1, Target: &schemaDateType}
 
-var memberSAMLProviderListEntry_CreateDate = smithy.Member{Name: "CreateDate", Index: 2}
+var memberSAMLProviderListEntry_CreateDate = smithy.Member{Name: "CreateDate", Index: 2, Target: &schemaDateType}
 
-var schemaSAMLProviderListType = smithy.Schema{ID: "com.amazonaws.iam#SAMLProviderListType", Type: smithy.TypeList}
+var schemaSAMLProviderListType = smithy.Schema{ID: "com.amazonaws.iam#SAMLProviderListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberSAMLProviderListType_member}}
 
-var memberSAMLProviderListType_member = smithy.Member{Name: "member", Index: 0}
+var memberSAMLProviderListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaSAMLProviderListEntry}
 
 var schemaSAMLProviderNameType = smithy.Schema{ID: "com.amazonaws.iam#SAMLProviderNameType", Type: smithy.TypeString}
 
-var schemaSSHPublicKey = smithy.Schema{ID: "com.amazonaws.iam#SSHPublicKey", Type: smithy.TypeStructure}
+var schemaSSHPublicKey = smithy.Schema{ID: "com.amazonaws.iam#SSHPublicKey", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSSHPublicKey_UserName, &memberSSHPublicKey_SSHPublicKeyId, &memberSSHPublicKey_Fingerprint, &memberSSHPublicKey_SSHPublicKeyBody, &memberSSHPublicKey_Status, &memberSSHPublicKey_UploadDate}}
 
-var memberSSHPublicKey_UserName = smithy.Member{Name: "UserName", Index: 0, Required: true}
+var memberSSHPublicKey_UserName = smithy.Member{Name: "UserName", Index: 0, Target: &schemaUserNameType, Required: true}
 
-var memberSSHPublicKey_SSHPublicKeyId = smithy.Member{Name: "SSHPublicKeyId", Index: 1, Required: true}
+var memberSSHPublicKey_SSHPublicKeyId = smithy.Member{Name: "SSHPublicKeyId", Index: 1, Target: &schemaPublicKeyIdType, Required: true}
 
-var memberSSHPublicKey_Fingerprint = smithy.Member{Name: "Fingerprint", Index: 2, Required: true}
+var memberSSHPublicKey_Fingerprint = smithy.Member{Name: "Fingerprint", Index: 2, Target: &schemaPublicKeyFingerprintType, Required: true}
 
-var memberSSHPublicKey_SSHPublicKeyBody = smithy.Member{Name: "SSHPublicKeyBody", Index: 3, Required: true}
+var memberSSHPublicKey_SSHPublicKeyBody = smithy.Member{Name: "SSHPublicKeyBody", Index: 3, Target: &schemaPublicKeyMaterialType, Required: true}
 
-var memberSSHPublicKey_Status = smithy.Member{Name: "Status", Index: 4, Required: true}
+var memberSSHPublicKey_Status = smithy.Member{Name: "Status", Index: 4, Target: &schemaStatusType, Required: true}
 
-var memberSSHPublicKey_UploadDate = smithy.Member{Name: "UploadDate", Index: 5}
+var memberSSHPublicKey_UploadDate = smithy.Member{Name: "UploadDate", Index: 5, Target: &schemaDateType}
 
-var schemaSSHPublicKeyListType = smithy.Schema{ID: "com.amazonaws.iam#SSHPublicKeyListType", Type: smithy.TypeList}
+var schemaSSHPublicKeyListType = smithy.Schema{ID: "com.amazonaws.iam#SSHPublicKeyListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberSSHPublicKeyListType_member}}
 
-var memberSSHPublicKeyListType_member = smithy.Member{Name: "member", Index: 0}
+var memberSSHPublicKeyListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaSSHPublicKeyMetadata}
 
-var schemaSSHPublicKeyMetadata = smithy.Schema{ID: "com.amazonaws.iam#SSHPublicKeyMetadata", Type: smithy.TypeStructure}
+var schemaSSHPublicKeyMetadata = smithy.Schema{ID: "com.amazonaws.iam#SSHPublicKeyMetadata", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSSHPublicKeyMetadata_UserName, &memberSSHPublicKeyMetadata_SSHPublicKeyId, &memberSSHPublicKeyMetadata_Status, &memberSSHPublicKeyMetadata_UploadDate}}
 
-var memberSSHPublicKeyMetadata_UserName = smithy.Member{Name: "UserName", Index: 0, Required: true}
+var memberSSHPublicKeyMetadata_UserName = smithy.Member{Name: "UserName", Index: 0, Target: &schemaUserNameType, Required: true}
 
-var memberSSHPublicKeyMetadata_SSHPublicKeyId = smithy.Member{Name: "SSHPublicKeyId", Index: 1, Required: true}
+var memberSSHPublicKeyMetadata_SSHPublicKeyId = smithy.Member{Name: "SSHPublicKeyId", Index: 1, Target: &schemaPublicKeyIdType, Required: true}
 
-var memberSSHPublicKeyMetadata_Status = smithy.Member{Name: "Status", Index: 2, Required: true}
+var memberSSHPublicKeyMetadata_Status = smithy.Member{Name: "Status", Index: 2, Target: &schemaStatusType, Required: true}
 
-var memberSSHPublicKeyMetadata_UploadDate = smithy.Member{Name: "UploadDate", Index: 3, Required: true}
+var memberSSHPublicKeyMetadata_UploadDate = smithy.Member{Name: "UploadDate", Index: 3, Target: &schemaDateType, Required: true}
 
-var schemaSendDelegationTokenInput = smithy.Schema{ID: "com.amazonaws.iam#SendDelegationTokenRequest", Type: smithy.TypeStructure}
+var schemaSendDelegationTokenInput = smithy.Schema{ID: "com.amazonaws.iam#SendDelegationTokenRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSendDelegationTokenInput_DelegationRequestId}}
 
-var memberSendDelegationTokenInput_DelegationRequestId = smithy.Member{Name: "DelegationRequestId", Index: 0, Required: true}
+var memberSendDelegationTokenInput_DelegationRequestId = smithy.Member{Name: "DelegationRequestId", Index: 0, Target: &schemaDelegationRequestIdType, Required: true}
 
 var schemaSerialNumberType = smithy.Schema{ID: "com.amazonaws.iam#serialNumberType", Type: smithy.TypeString}
 
-var schemaServerCertificate = smithy.Schema{ID: "com.amazonaws.iam#ServerCertificate", Type: smithy.TypeStructure}
+var schemaServerCertificate = smithy.Schema{ID: "com.amazonaws.iam#ServerCertificate", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberServerCertificate_ServerCertificateMetadata, &memberServerCertificate_CertificateBody, &memberServerCertificate_CertificateChain, &memberServerCertificate_Tags}}
 
-var memberServerCertificate_ServerCertificateMetadata = smithy.Member{Name: "ServerCertificateMetadata", Index: 0, Required: true}
+var memberServerCertificate_ServerCertificateMetadata = smithy.Member{Name: "ServerCertificateMetadata", Index: 0, Target: &schemaServerCertificateMetadata, Required: true}
 
-var memberServerCertificate_CertificateBody = smithy.Member{Name: "CertificateBody", Index: 1, Required: true}
+var memberServerCertificate_CertificateBody = smithy.Member{Name: "CertificateBody", Index: 1, Target: &schemaCertificateBodyType, Required: true}
 
-var memberServerCertificate_CertificateChain = smithy.Member{Name: "CertificateChain", Index: 2}
+var memberServerCertificate_CertificateChain = smithy.Member{Name: "CertificateChain", Index: 2, Target: &schemaCertificateChainType}
 
-var memberServerCertificate_Tags = smithy.Member{Name: "Tags", Index: 3}
+var memberServerCertificate_Tags = smithy.Member{Name: "Tags", Index: 3, Target: &schemaTagListType}
 
-var schemaServerCertificateMetadata = smithy.Schema{ID: "com.amazonaws.iam#ServerCertificateMetadata", Type: smithy.TypeStructure}
+var schemaServerCertificateMetadata = smithy.Schema{ID: "com.amazonaws.iam#ServerCertificateMetadata", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberServerCertificateMetadata_Path, &memberServerCertificateMetadata_ServerCertificateName, &memberServerCertificateMetadata_ServerCertificateId, &memberServerCertificateMetadata_Arn, &memberServerCertificateMetadata_UploadDate, &memberServerCertificateMetadata_Expiration}}
 
-var memberServerCertificateMetadata_Path = smithy.Member{Name: "Path", Index: 0, Required: true}
+var memberServerCertificateMetadata_Path = smithy.Member{Name: "Path", Index: 0, Target: &schemaPathType, Required: true}
 
-var memberServerCertificateMetadata_ServerCertificateName = smithy.Member{Name: "ServerCertificateName", Index: 1, Required: true}
+var memberServerCertificateMetadata_ServerCertificateName = smithy.Member{Name: "ServerCertificateName", Index: 1, Target: &schemaServerCertificateNameType, Required: true}
 
-var memberServerCertificateMetadata_ServerCertificateId = smithy.Member{Name: "ServerCertificateId", Index: 2, Required: true}
+var memberServerCertificateMetadata_ServerCertificateId = smithy.Member{Name: "ServerCertificateId", Index: 2, Target: &schemaIdType, Required: true}
 
-var memberServerCertificateMetadata_Arn = smithy.Member{Name: "Arn", Index: 3, Required: true}
+var memberServerCertificateMetadata_Arn = smithy.Member{Name: "Arn", Index: 3, Target: &schemaArnType, Required: true}
 
-var memberServerCertificateMetadata_UploadDate = smithy.Member{Name: "UploadDate", Index: 4}
+var memberServerCertificateMetadata_UploadDate = smithy.Member{Name: "UploadDate", Index: 4, Target: &schemaDateType}
 
-var memberServerCertificateMetadata_Expiration = smithy.Member{Name: "Expiration", Index: 5}
+var memberServerCertificateMetadata_Expiration = smithy.Member{Name: "Expiration", Index: 5, Target: &schemaDateType}
 
-var schemaServerCertificateMetadataListType = smithy.Schema{ID: "com.amazonaws.iam#serverCertificateMetadataListType", Type: smithy.TypeList}
+var schemaServerCertificateMetadataListType = smithy.Schema{ID: "com.amazonaws.iam#serverCertificateMetadataListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberServerCertificateMetadataListType_member}}
 
-var memberServerCertificateMetadataListType_member = smithy.Member{Name: "member", Index: 0}
+var memberServerCertificateMetadataListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaServerCertificateMetadata}
 
 var schemaServerCertificateNameType = smithy.Schema{ID: "com.amazonaws.iam#serverCertificateNameType", Type: smithy.TypeString}
 
-var schemaServiceAccessNotEnabledException = smithy.Schema{ID: "com.amazonaws.iam#ServiceAccessNotEnabledException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaServiceAccessNotEnabledException = smithy.Schema{ID: "com.amazonaws.iam#ServiceAccessNotEnabledException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberServiceAccessNotEnabledException_Message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberServiceAccessNotEnabledException_Message = smithy.Member{Name: "Message", Index: 0}
+var memberServiceAccessNotEnabledException_Message = smithy.Member{Name: "Message", Index: 0, Target: &schemaExceptionMessage}
 
 var schemaServiceCredentialAlias = smithy.Schema{ID: "com.amazonaws.iam#serviceCredentialAlias", Type: smithy.TypeString}
 
 var schemaServiceCredentialSecret = smithy.Schema{ID: "com.amazonaws.iam#serviceCredentialSecret", Type: smithy.TypeString, Sensitive: true}
 
-var schemaServiceFailureException = smithy.Schema{ID: "com.amazonaws.iam#ServiceFailureException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ServerFault, HTTPError: 500}}
+var schemaServiceFailureException = smithy.Schema{ID: "com.amazonaws.iam#ServiceFailureException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberServiceFailureException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ServerFault, HTTPError: 500}}
 
-var memberServiceFailureException_message = smithy.Member{Name: "message", Index: 0}
+var memberServiceFailureException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaServiceFailureExceptionMessage}
 
 var schemaServiceFailureExceptionMessage = smithy.Schema{ID: "com.amazonaws.iam#serviceFailureExceptionMessage", Type: smithy.TypeString}
 
-var schemaServiceLastAccessed = smithy.Schema{ID: "com.amazonaws.iam#ServiceLastAccessed", Type: smithy.TypeStructure}
+var schemaServiceLastAccessed = smithy.Schema{ID: "com.amazonaws.iam#ServiceLastAccessed", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberServiceLastAccessed_ServiceName, &memberServiceLastAccessed_LastAuthenticated, &memberServiceLastAccessed_ServiceNamespace, &memberServiceLastAccessed_LastAuthenticatedEntity, &memberServiceLastAccessed_LastAuthenticatedRegion, &memberServiceLastAccessed_TotalAuthenticatedEntities, &memberServiceLastAccessed_TrackedActionsLastAccessed}}
 
-var memberServiceLastAccessed_ServiceName = smithy.Member{Name: "ServiceName", Index: 0, Required: true}
+var memberServiceLastAccessed_ServiceName = smithy.Member{Name: "ServiceName", Index: 0, Target: &schemaServiceNameType, Required: true}
 
-var memberServiceLastAccessed_LastAuthenticated = smithy.Member{Name: "LastAuthenticated", Index: 1}
+var memberServiceLastAccessed_LastAuthenticated = smithy.Member{Name: "LastAuthenticated", Index: 1, Target: &schemaDateType}
 
-var memberServiceLastAccessed_ServiceNamespace = smithy.Member{Name: "ServiceNamespace", Index: 2, Required: true}
+var memberServiceLastAccessed_ServiceNamespace = smithy.Member{Name: "ServiceNamespace", Index: 2, Target: &schemaServiceNamespaceType, Required: true}
 
-var memberServiceLastAccessed_LastAuthenticatedEntity = smithy.Member{Name: "LastAuthenticatedEntity", Index: 3}
+var memberServiceLastAccessed_LastAuthenticatedEntity = smithy.Member{Name: "LastAuthenticatedEntity", Index: 3, Target: &schemaArnType}
 
-var memberServiceLastAccessed_LastAuthenticatedRegion = smithy.Member{Name: "LastAuthenticatedRegion", Index: 4}
+var memberServiceLastAccessed_LastAuthenticatedRegion = smithy.Member{Name: "LastAuthenticatedRegion", Index: 4, Target: &schemaStringType}
 
-var memberServiceLastAccessed_TotalAuthenticatedEntities = smithy.Member{Name: "TotalAuthenticatedEntities", Index: 5}
+var memberServiceLastAccessed_TotalAuthenticatedEntities = smithy.Member{Name: "TotalAuthenticatedEntities", Index: 5, Target: &schemaIntegerType}
 
-var memberServiceLastAccessed_TrackedActionsLastAccessed = smithy.Member{Name: "TrackedActionsLastAccessed", Index: 6}
+var memberServiceLastAccessed_TrackedActionsLastAccessed = smithy.Member{Name: "TrackedActionsLastAccessed", Index: 6, Target: &schemaTrackedActionsLastAccessed}
 
 var schemaServiceName = smithy.Schema{ID: "com.amazonaws.iam#serviceName", Type: smithy.TypeString}
 
 var schemaServiceNameType = smithy.Schema{ID: "com.amazonaws.iam#serviceNameType", Type: smithy.TypeString}
 
-var schemaServiceNamespaceListType = smithy.Schema{ID: "com.amazonaws.iam#serviceNamespaceListType", Type: smithy.TypeList}
+var schemaServiceNamespaceListType = smithy.Schema{ID: "com.amazonaws.iam#serviceNamespaceListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberServiceNamespaceListType_member}}
 
-var memberServiceNamespaceListType_member = smithy.Member{Name: "member", Index: 0}
+var memberServiceNamespaceListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaServiceNamespaceType}
 
 var schemaServiceNamespaceType = smithy.Schema{ID: "com.amazonaws.iam#serviceNamespaceType", Type: smithy.TypeString}
 
-var schemaServiceNotSupportedException = smithy.Schema{ID: "com.amazonaws.iam#ServiceNotSupportedException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 404}}
+var schemaServiceNotSupportedException = smithy.Schema{ID: "com.amazonaws.iam#ServiceNotSupportedException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberServiceNotSupportedException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 404}}
 
-var memberServiceNotSupportedException_message = smithy.Member{Name: "message", Index: 0}
+var memberServiceNotSupportedException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaServiceNotSupportedMessage}
 
 var schemaServiceNotSupportedMessage = smithy.Schema{ID: "com.amazonaws.iam#serviceNotSupportedMessage", Type: smithy.TypeString}
 
 var schemaServicePassword = smithy.Schema{ID: "com.amazonaws.iam#servicePassword", Type: smithy.TypeString, Sensitive: true}
 
-var schemaServiceSpecificCredential = smithy.Schema{ID: "com.amazonaws.iam#ServiceSpecificCredential", Type: smithy.TypeStructure}
+var schemaServiceSpecificCredential = smithy.Schema{ID: "com.amazonaws.iam#ServiceSpecificCredential", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberServiceSpecificCredential_CreateDate, &memberServiceSpecificCredential_ExpirationDate, &memberServiceSpecificCredential_ServiceName, &memberServiceSpecificCredential_ServiceUserName, &memberServiceSpecificCredential_ServicePassword, &memberServiceSpecificCredential_ServiceCredentialAlias, &memberServiceSpecificCredential_ServiceCredentialSecret, &memberServiceSpecificCredential_ServiceSpecificCredentialId, &memberServiceSpecificCredential_UserName, &memberServiceSpecificCredential_Status}}
 
-var memberServiceSpecificCredential_CreateDate = smithy.Member{Name: "CreateDate", Index: 0, Required: true}
+var memberServiceSpecificCredential_CreateDate = smithy.Member{Name: "CreateDate", Index: 0, Target: &schemaDateType, Required: true}
 
-var memberServiceSpecificCredential_ExpirationDate = smithy.Member{Name: "ExpirationDate", Index: 1}
+var memberServiceSpecificCredential_ExpirationDate = smithy.Member{Name: "ExpirationDate", Index: 1, Target: &schemaDateType}
 
-var memberServiceSpecificCredential_ServiceName = smithy.Member{Name: "ServiceName", Index: 2, Required: true}
+var memberServiceSpecificCredential_ServiceName = smithy.Member{Name: "ServiceName", Index: 2, Target: &schemaServiceName, Required: true}
 
-var memberServiceSpecificCredential_ServiceUserName = smithy.Member{Name: "ServiceUserName", Index: 3, Default: document.String("")}
+var memberServiceSpecificCredential_ServiceUserName = smithy.Member{Name: "ServiceUserName", Index: 3, Target: &schemaServiceUserName, Default: document.String("")}
 
-var memberServiceSpecificCredential_ServicePassword = smithy.Member{Name: "ServicePassword", Index: 4, Default: document.String(""), Sensitive: true}
+var memberServiceSpecificCredential_ServicePassword = smithy.Member{Name: "ServicePassword", Index: 4, Target: &schemaServicePassword, Default: document.String(""), Sensitive: true}
 
-var memberServiceSpecificCredential_ServiceCredentialAlias = smithy.Member{Name: "ServiceCredentialAlias", Index: 5}
+var memberServiceSpecificCredential_ServiceCredentialAlias = smithy.Member{Name: "ServiceCredentialAlias", Index: 5, Target: &schemaServiceCredentialAlias}
 
-var memberServiceSpecificCredential_ServiceCredentialSecret = smithy.Member{Name: "ServiceCredentialSecret", Index: 6, Sensitive: true}
+var memberServiceSpecificCredential_ServiceCredentialSecret = smithy.Member{Name: "ServiceCredentialSecret", Index: 6, Target: &schemaServiceCredentialSecret, Sensitive: true}
 
-var memberServiceSpecificCredential_ServiceSpecificCredentialId = smithy.Member{Name: "ServiceSpecificCredentialId", Index: 7, Required: true}
+var memberServiceSpecificCredential_ServiceSpecificCredentialId = smithy.Member{Name: "ServiceSpecificCredentialId", Index: 7, Target: &schemaServiceSpecificCredentialId, Required: true}
 
-var memberServiceSpecificCredential_UserName = smithy.Member{Name: "UserName", Index: 8, Required: true}
+var memberServiceSpecificCredential_UserName = smithy.Member{Name: "UserName", Index: 8, Target: &schemaUserNameType, Required: true}
 
-var memberServiceSpecificCredential_Status = smithy.Member{Name: "Status", Index: 9, Required: true}
+var memberServiceSpecificCredential_Status = smithy.Member{Name: "Status", Index: 9, Target: &schemaStatusType, Required: true}
 
 var schemaServiceSpecificCredentialId = smithy.Schema{ID: "com.amazonaws.iam#serviceSpecificCredentialId", Type: smithy.TypeString}
 
-var schemaServiceSpecificCredentialMetadata = smithy.Schema{ID: "com.amazonaws.iam#ServiceSpecificCredentialMetadata", Type: smithy.TypeStructure}
+var schemaServiceSpecificCredentialMetadata = smithy.Schema{ID: "com.amazonaws.iam#ServiceSpecificCredentialMetadata", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberServiceSpecificCredentialMetadata_UserName, &memberServiceSpecificCredentialMetadata_Status, &memberServiceSpecificCredentialMetadata_ServiceUserName, &memberServiceSpecificCredentialMetadata_ServiceCredentialAlias, &memberServiceSpecificCredentialMetadata_CreateDate, &memberServiceSpecificCredentialMetadata_ExpirationDate, &memberServiceSpecificCredentialMetadata_ServiceSpecificCredentialId, &memberServiceSpecificCredentialMetadata_ServiceName}}
 
-var memberServiceSpecificCredentialMetadata_UserName = smithy.Member{Name: "UserName", Index: 0, Required: true}
+var memberServiceSpecificCredentialMetadata_UserName = smithy.Member{Name: "UserName", Index: 0, Target: &schemaUserNameType, Required: true}
 
-var memberServiceSpecificCredentialMetadata_Status = smithy.Member{Name: "Status", Index: 1, Required: true}
+var memberServiceSpecificCredentialMetadata_Status = smithy.Member{Name: "Status", Index: 1, Target: &schemaStatusType, Required: true}
 
-var memberServiceSpecificCredentialMetadata_ServiceUserName = smithy.Member{Name: "ServiceUserName", Index: 2, Default: document.String("")}
+var memberServiceSpecificCredentialMetadata_ServiceUserName = smithy.Member{Name: "ServiceUserName", Index: 2, Target: &schemaServiceUserName, Default: document.String("")}
 
-var memberServiceSpecificCredentialMetadata_ServiceCredentialAlias = smithy.Member{Name: "ServiceCredentialAlias", Index: 3}
+var memberServiceSpecificCredentialMetadata_ServiceCredentialAlias = smithy.Member{Name: "ServiceCredentialAlias", Index: 3, Target: &schemaServiceCredentialAlias}
 
-var memberServiceSpecificCredentialMetadata_CreateDate = smithy.Member{Name: "CreateDate", Index: 4, Required: true}
+var memberServiceSpecificCredentialMetadata_CreateDate = smithy.Member{Name: "CreateDate", Index: 4, Target: &schemaDateType, Required: true}
 
-var memberServiceSpecificCredentialMetadata_ExpirationDate = smithy.Member{Name: "ExpirationDate", Index: 5}
+var memberServiceSpecificCredentialMetadata_ExpirationDate = smithy.Member{Name: "ExpirationDate", Index: 5, Target: &schemaDateType}
 
-var memberServiceSpecificCredentialMetadata_ServiceSpecificCredentialId = smithy.Member{Name: "ServiceSpecificCredentialId", Index: 6, Required: true}
+var memberServiceSpecificCredentialMetadata_ServiceSpecificCredentialId = smithy.Member{Name: "ServiceSpecificCredentialId", Index: 6, Target: &schemaServiceSpecificCredentialId, Required: true}
 
-var memberServiceSpecificCredentialMetadata_ServiceName = smithy.Member{Name: "ServiceName", Index: 7, Required: true}
+var memberServiceSpecificCredentialMetadata_ServiceName = smithy.Member{Name: "ServiceName", Index: 7, Target: &schemaServiceName, Required: true}
 
-var schemaServiceSpecificCredentialsListType = smithy.Schema{ID: "com.amazonaws.iam#ServiceSpecificCredentialsListType", Type: smithy.TypeList}
+var schemaServiceSpecificCredentialsListType = smithy.Schema{ID: "com.amazonaws.iam#ServiceSpecificCredentialsListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberServiceSpecificCredentialsListType_member}}
 
-var memberServiceSpecificCredentialsListType_member = smithy.Member{Name: "member", Index: 0}
+var memberServiceSpecificCredentialsListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaServiceSpecificCredentialMetadata}
 
 var schemaServiceUserName = smithy.Schema{ID: "com.amazonaws.iam#serviceUserName", Type: smithy.TypeString}
 
-var schemaServicesLastAccessed = smithy.Schema{ID: "com.amazonaws.iam#ServicesLastAccessed", Type: smithy.TypeList}
+var schemaServicesLastAccessed = smithy.Schema{ID: "com.amazonaws.iam#ServicesLastAccessed", Type: smithy.TypeList, Members: []*smithy.Member{&memberServicesLastAccessed_member}}
 
-var memberServicesLastAccessed_member = smithy.Member{Name: "member", Index: 0}
+var memberServicesLastAccessed_member = smithy.Member{Name: "member", Index: 0, Target: &schemaServiceLastAccessed}
 
 var schemaSessionDurationType = smithy.Schema{ID: "com.amazonaws.iam#sessionDurationType", Type: smithy.TypeInteger}
 
-var schemaSetDefaultPolicyVersionInput = smithy.Schema{ID: "com.amazonaws.iam#SetDefaultPolicyVersionRequest", Type: smithy.TypeStructure}
+var schemaSetDefaultPolicyVersionInput = smithy.Schema{ID: "com.amazonaws.iam#SetDefaultPolicyVersionRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSetDefaultPolicyVersionInput_PolicyArn, &memberSetDefaultPolicyVersionInput_VersionId}}
 
-var memberSetDefaultPolicyVersionInput_PolicyArn = smithy.Member{Name: "PolicyArn", Index: 0, Required: true}
+var memberSetDefaultPolicyVersionInput_PolicyArn = smithy.Member{Name: "PolicyArn", Index: 0, Target: &schemaArnType, Required: true}
 
-var memberSetDefaultPolicyVersionInput_VersionId = smithy.Member{Name: "VersionId", Index: 1, Required: true}
+var memberSetDefaultPolicyVersionInput_VersionId = smithy.Member{Name: "VersionId", Index: 1, Target: &schemaPolicyVersionIdType, Required: true}
 
-var schemaSetSecurityTokenServicePreferencesInput = smithy.Schema{ID: "com.amazonaws.iam#SetSecurityTokenServicePreferencesRequest", Type: smithy.TypeStructure}
+var schemaSetSecurityTokenServicePreferencesInput = smithy.Schema{ID: "com.amazonaws.iam#SetSecurityTokenServicePreferencesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSetSecurityTokenServicePreferencesInput_GlobalEndpointTokenVersion}}
 
-var memberSetSecurityTokenServicePreferencesInput_GlobalEndpointTokenVersion = smithy.Member{Name: "GlobalEndpointTokenVersion", Index: 0, Required: true}
+var memberSetSecurityTokenServicePreferencesInput_GlobalEndpointTokenVersion = smithy.Member{Name: "GlobalEndpointTokenVersion", Index: 0, Target: &schemaGlobalEndpointTokenVersion, Required: true}
 
-var schemaSignatureDoesNotMatch = smithy.Schema{ID: "com.amazon.coral.service#SignatureDoesNotMatch", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+var schemaSignatureDoesNotMatch = smithy.Schema{ID: "com.amazon.coral.service#SignatureDoesNotMatch", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSignatureDoesNotMatch_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
 
-var memberSignatureDoesNotMatch_message = smithy.Member{Name: "message", Index: 0}
+var memberSignatureDoesNotMatch_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaSigningCertificate = smithy.Schema{ID: "com.amazonaws.iam#SigningCertificate", Type: smithy.TypeStructure}
+var schemaSigningCertificate = smithy.Schema{ID: "com.amazonaws.iam#SigningCertificate", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSigningCertificate_UserName, &memberSigningCertificate_CertificateId, &memberSigningCertificate_CertificateBody, &memberSigningCertificate_Status, &memberSigningCertificate_UploadDate}}
 
-var memberSigningCertificate_UserName = smithy.Member{Name: "UserName", Index: 0, Required: true}
+var memberSigningCertificate_UserName = smithy.Member{Name: "UserName", Index: 0, Target: &schemaUserNameType, Required: true}
 
-var memberSigningCertificate_CertificateId = smithy.Member{Name: "CertificateId", Index: 1, Required: true}
+var memberSigningCertificate_CertificateId = smithy.Member{Name: "CertificateId", Index: 1, Target: &schemaCertificateIdType, Required: true}
 
-var memberSigningCertificate_CertificateBody = smithy.Member{Name: "CertificateBody", Index: 2, Required: true}
+var memberSigningCertificate_CertificateBody = smithy.Member{Name: "CertificateBody", Index: 2, Target: &schemaCertificateBodyType, Required: true}
 
-var memberSigningCertificate_Status = smithy.Member{Name: "Status", Index: 3, Required: true}
+var memberSigningCertificate_Status = smithy.Member{Name: "Status", Index: 3, Target: &schemaStatusType, Required: true}
 
-var memberSigningCertificate_UploadDate = smithy.Member{Name: "UploadDate", Index: 4}
+var memberSigningCertificate_UploadDate = smithy.Member{Name: "UploadDate", Index: 4, Target: &schemaDateType}
 
-var schemaSimulateCustomPolicyInput = smithy.Schema{ID: "com.amazonaws.iam#SimulateCustomPolicyRequest", Type: smithy.TypeStructure}
+var schemaSimulateCustomPolicyInput = smithy.Schema{ID: "com.amazonaws.iam#SimulateCustomPolicyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSimulateCustomPolicyInput_PolicyInputList, &memberSimulateCustomPolicyInput_PermissionsBoundaryPolicyInputList, &memberSimulateCustomPolicyInput_OrderedOrganizationPolicyInputList, &memberSimulateCustomPolicyInput_ActionNames, &memberSimulateCustomPolicyInput_ResourceArns, &memberSimulateCustomPolicyInput_ResourcePolicy, &memberSimulateCustomPolicyInput_ResourceOwner, &memberSimulateCustomPolicyInput_CallerArn, &memberSimulateCustomPolicyInput_ContextEntries, &memberSimulateCustomPolicyInput_ResourceHandlingOption, &memberSimulateCustomPolicyInput_MaxItems, &memberSimulateCustomPolicyInput_Marker}}
 
-var memberSimulateCustomPolicyInput_PolicyInputList = smithy.Member{Name: "PolicyInputList", Index: 0, Required: true}
+var memberSimulateCustomPolicyInput_PolicyInputList = smithy.Member{Name: "PolicyInputList", Index: 0, Target: &schemaSimulationPolicyListType, Required: true}
 
-var memberSimulateCustomPolicyInput_PermissionsBoundaryPolicyInputList = smithy.Member{Name: "PermissionsBoundaryPolicyInputList", Index: 1}
+var memberSimulateCustomPolicyInput_PermissionsBoundaryPolicyInputList = smithy.Member{Name: "PermissionsBoundaryPolicyInputList", Index: 1, Target: &schemaSimulationPolicyListType}
 
-var memberSimulateCustomPolicyInput_OrderedOrganizationPolicyInputList = smithy.Member{Name: "OrderedOrganizationPolicyInputList", Index: 2}
+var memberSimulateCustomPolicyInput_OrderedOrganizationPolicyInputList = smithy.Member{Name: "OrderedOrganizationPolicyInputList", Index: 2, Target: &schemaOrganizationPolicyListType}
 
-var memberSimulateCustomPolicyInput_ActionNames = smithy.Member{Name: "ActionNames", Index: 3, Required: true}
+var memberSimulateCustomPolicyInput_ActionNames = smithy.Member{Name: "ActionNames", Index: 3, Target: &schemaActionNameListType, Required: true}
 
-var memberSimulateCustomPolicyInput_ResourceArns = smithy.Member{Name: "ResourceArns", Index: 4}
+var memberSimulateCustomPolicyInput_ResourceArns = smithy.Member{Name: "ResourceArns", Index: 4, Target: &schemaResourceNameListType}
 
-var memberSimulateCustomPolicyInput_ResourcePolicy = smithy.Member{Name: "ResourcePolicy", Index: 5}
+var memberSimulateCustomPolicyInput_ResourcePolicy = smithy.Member{Name: "ResourcePolicy", Index: 5, Target: &schemaPolicyDocumentType}
 
-var memberSimulateCustomPolicyInput_ResourceOwner = smithy.Member{Name: "ResourceOwner", Index: 6}
+var memberSimulateCustomPolicyInput_ResourceOwner = smithy.Member{Name: "ResourceOwner", Index: 6, Target: &schemaResourceNameType}
 
-var memberSimulateCustomPolicyInput_CallerArn = smithy.Member{Name: "CallerArn", Index: 7}
+var memberSimulateCustomPolicyInput_CallerArn = smithy.Member{Name: "CallerArn", Index: 7, Target: &schemaResourceNameType}
 
-var memberSimulateCustomPolicyInput_ContextEntries = smithy.Member{Name: "ContextEntries", Index: 8}
+var memberSimulateCustomPolicyInput_ContextEntries = smithy.Member{Name: "ContextEntries", Index: 8, Target: &schemaContextEntryListType}
 
-var memberSimulateCustomPolicyInput_ResourceHandlingOption = smithy.Member{Name: "ResourceHandlingOption", Index: 9}
+var memberSimulateCustomPolicyInput_ResourceHandlingOption = smithy.Member{Name: "ResourceHandlingOption", Index: 9, Target: &schemaResourceHandlingOptionType}
 
-var memberSimulateCustomPolicyInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 10}
+var memberSimulateCustomPolicyInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 10, Target: &schemaMaxItemsType}
 
-var memberSimulateCustomPolicyInput_Marker = smithy.Member{Name: "Marker", Index: 11}
+var memberSimulateCustomPolicyInput_Marker = smithy.Member{Name: "Marker", Index: 11, Target: &schemaMarkerType}
 
-var schemaSimulatePolicyResponse = smithy.Schema{ID: "com.amazonaws.iam#SimulatePolicyResponse", Type: smithy.TypeStructure}
+var schemaSimulatePolicyResponse = smithy.Schema{ID: "com.amazonaws.iam#SimulatePolicyResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSimulatePolicyResponse_EvaluationResults, &memberSimulatePolicyResponse_IsTruncated, &memberSimulatePolicyResponse_Marker}}
 
-var memberSimulatePolicyResponse_EvaluationResults = smithy.Member{Name: "EvaluationResults", Index: 0}
+var memberSimulatePolicyResponse_EvaluationResults = smithy.Member{Name: "EvaluationResults", Index: 0, Target: &schemaEvaluationResultsListType}
 
-var memberSimulatePolicyResponse_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Default: document.Bool(false)}
+var memberSimulatePolicyResponse_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 1, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberSimulatePolicyResponse_Marker = smithy.Member{Name: "Marker", Index: 2}
+var memberSimulatePolicyResponse_Marker = smithy.Member{Name: "Marker", Index: 2, Target: &schemaResponseMarkerType}
 
-var schemaSimulatePrincipalPolicyInput = smithy.Schema{ID: "com.amazonaws.iam#SimulatePrincipalPolicyRequest", Type: smithy.TypeStructure}
+var schemaSimulatePrincipalPolicyInput = smithy.Schema{ID: "com.amazonaws.iam#SimulatePrincipalPolicyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSimulatePrincipalPolicyInput_PolicySourceArn, &memberSimulatePrincipalPolicyInput_PolicyInputList, &memberSimulatePrincipalPolicyInput_PermissionsBoundaryPolicyInputList, &memberSimulatePrincipalPolicyInput_PolicyExclusionList, &memberSimulatePrincipalPolicyInput_ActionNames, &memberSimulatePrincipalPolicyInput_ResourceArns, &memberSimulatePrincipalPolicyInput_ResourcePolicy, &memberSimulatePrincipalPolicyInput_ResourceOwner, &memberSimulatePrincipalPolicyInput_CallerArn, &memberSimulatePrincipalPolicyInput_ContextEntries, &memberSimulatePrincipalPolicyInput_ResourceHandlingOption, &memberSimulatePrincipalPolicyInput_MaxItems, &memberSimulatePrincipalPolicyInput_Marker}}
 
-var memberSimulatePrincipalPolicyInput_PolicySourceArn = smithy.Member{Name: "PolicySourceArn", Index: 0, Required: true}
+var memberSimulatePrincipalPolicyInput_PolicySourceArn = smithy.Member{Name: "PolicySourceArn", Index: 0, Target: &schemaArnType, Required: true}
 
-var memberSimulatePrincipalPolicyInput_PolicyInputList = smithy.Member{Name: "PolicyInputList", Index: 1}
+var memberSimulatePrincipalPolicyInput_PolicyInputList = smithy.Member{Name: "PolicyInputList", Index: 1, Target: &schemaSimulationPolicyListType}
 
-var memberSimulatePrincipalPolicyInput_PermissionsBoundaryPolicyInputList = smithy.Member{Name: "PermissionsBoundaryPolicyInputList", Index: 2}
+var memberSimulatePrincipalPolicyInput_PermissionsBoundaryPolicyInputList = smithy.Member{Name: "PermissionsBoundaryPolicyInputList", Index: 2, Target: &schemaSimulationPolicyListType}
 
-var memberSimulatePrincipalPolicyInput_PolicyExclusionList = smithy.Member{Name: "PolicyExclusionList", Index: 3}
+var memberSimulatePrincipalPolicyInput_PolicyExclusionList = smithy.Member{Name: "PolicyExclusionList", Index: 3, Target: &schemaPolicyExclusionsListType}
 
-var memberSimulatePrincipalPolicyInput_ActionNames = smithy.Member{Name: "ActionNames", Index: 4, Required: true}
+var memberSimulatePrincipalPolicyInput_ActionNames = smithy.Member{Name: "ActionNames", Index: 4, Target: &schemaActionNameListType, Required: true}
 
-var memberSimulatePrincipalPolicyInput_ResourceArns = smithy.Member{Name: "ResourceArns", Index: 5}
+var memberSimulatePrincipalPolicyInput_ResourceArns = smithy.Member{Name: "ResourceArns", Index: 5, Target: &schemaResourceNameListType}
 
-var memberSimulatePrincipalPolicyInput_ResourcePolicy = smithy.Member{Name: "ResourcePolicy", Index: 6}
+var memberSimulatePrincipalPolicyInput_ResourcePolicy = smithy.Member{Name: "ResourcePolicy", Index: 6, Target: &schemaPolicyDocumentType}
 
-var memberSimulatePrincipalPolicyInput_ResourceOwner = smithy.Member{Name: "ResourceOwner", Index: 7}
+var memberSimulatePrincipalPolicyInput_ResourceOwner = smithy.Member{Name: "ResourceOwner", Index: 7, Target: &schemaResourceNameType}
 
-var memberSimulatePrincipalPolicyInput_CallerArn = smithy.Member{Name: "CallerArn", Index: 8}
+var memberSimulatePrincipalPolicyInput_CallerArn = smithy.Member{Name: "CallerArn", Index: 8, Target: &schemaResourceNameType}
 
-var memberSimulatePrincipalPolicyInput_ContextEntries = smithy.Member{Name: "ContextEntries", Index: 9}
+var memberSimulatePrincipalPolicyInput_ContextEntries = smithy.Member{Name: "ContextEntries", Index: 9, Target: &schemaContextEntryListType}
 
-var memberSimulatePrincipalPolicyInput_ResourceHandlingOption = smithy.Member{Name: "ResourceHandlingOption", Index: 10}
+var memberSimulatePrincipalPolicyInput_ResourceHandlingOption = smithy.Member{Name: "ResourceHandlingOption", Index: 10, Target: &schemaResourceHandlingOptionType}
 
-var memberSimulatePrincipalPolicyInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 11}
+var memberSimulatePrincipalPolicyInput_MaxItems = smithy.Member{Name: "MaxItems", Index: 11, Target: &schemaMaxItemsType}
 
-var memberSimulatePrincipalPolicyInput_Marker = smithy.Member{Name: "Marker", Index: 12}
+var memberSimulatePrincipalPolicyInput_Marker = smithy.Member{Name: "Marker", Index: 12, Target: &schemaMarkerType}
 
-var schemaSimulationPolicyListType = smithy.Schema{ID: "com.amazonaws.iam#SimulationPolicyListType", Type: smithy.TypeList}
+var schemaSimulationPolicyListType = smithy.Schema{ID: "com.amazonaws.iam#SimulationPolicyListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberSimulationPolicyListType_member}}
 
-var memberSimulationPolicyListType_member = smithy.Member{Name: "member", Index: 0}
+var memberSimulationPolicyListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaPolicyDocumentType}
 
 var schemaSmithyString = smithy.Schema{ID: "smithy.api#String", Type: smithy.TypeString}
 
@@ -3047,27 +3047,27 @@ var schemaSmithyUnit = smithy.Schema{ID: "smithy.api#Unit", Type: smithy.TypeUni
 
 var schemaSortKeyType = smithy.Schema{ID: "com.amazonaws.iam#sortKeyType", Type: smithy.TypeEnum}
 
-var schemaSourceRoleTemplate = smithy.Schema{ID: "com.amazonaws.iam#SourceRoleTemplate", Type: smithy.TypeStructure}
+var schemaSourceRoleTemplate = smithy.Schema{ID: "com.amazonaws.iam#SourceRoleTemplate", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSourceRoleTemplate_TemplateArn, &memberSourceRoleTemplate_TemplateMinorVersion}}
 
-var memberSourceRoleTemplate_TemplateArn = smithy.Member{Name: "TemplateArn", Index: 0, Required: true}
+var memberSourceRoleTemplate_TemplateArn = smithy.Member{Name: "TemplateArn", Index: 0, Target: &schemaArnType, Required: true}
 
-var memberSourceRoleTemplate_TemplateMinorVersion = smithy.Member{Name: "TemplateMinorVersion", Index: 1, Required: true}
+var memberSourceRoleTemplate_TemplateMinorVersion = smithy.Member{Name: "TemplateMinorVersion", Index: 1, Target: &schemaIntegerType, Required: true}
 
 var schemaStateType = smithy.Schema{ID: "com.amazonaws.iam#stateType", Type: smithy.TypeEnum}
 
-var schemaStatement = smithy.Schema{ID: "com.amazonaws.iam#Statement", Type: smithy.TypeStructure}
+var schemaStatement = smithy.Schema{ID: "com.amazonaws.iam#Statement", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberStatement_SourcePolicyId, &memberStatement_SourcePolicyType, &memberStatement_StartPosition, &memberStatement_EndPosition}}
 
-var memberStatement_SourcePolicyId = smithy.Member{Name: "SourcePolicyId", Index: 0}
+var memberStatement_SourcePolicyId = smithy.Member{Name: "SourcePolicyId", Index: 0, Target: &schemaPolicyIdentifierType}
 
-var memberStatement_SourcePolicyType = smithy.Member{Name: "SourcePolicyType", Index: 1}
+var memberStatement_SourcePolicyType = smithy.Member{Name: "SourcePolicyType", Index: 1, Target: &schemaPolicySourceType}
 
-var memberStatement_StartPosition = smithy.Member{Name: "StartPosition", Index: 2}
+var memberStatement_StartPosition = smithy.Member{Name: "StartPosition", Index: 2, Target: &schemaPosition}
 
-var memberStatement_EndPosition = smithy.Member{Name: "EndPosition", Index: 3}
+var memberStatement_EndPosition = smithy.Member{Name: "EndPosition", Index: 3, Target: &schemaPosition}
 
-var schemaStatementListType = smithy.Schema{ID: "com.amazonaws.iam#StatementListType", Type: smithy.TypeList}
+var schemaStatementListType = smithy.Schema{ID: "com.amazonaws.iam#StatementListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberStatementListType_member}}
 
-var memberStatementListType_member = smithy.Member{Name: "member", Index: 0}
+var memberStatementListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaStatement}
 
 var schemaStatusType = smithy.Schema{ID: "com.amazonaws.iam#statusType", Type: smithy.TypeEnum}
 
@@ -3077,1984 +3077,428 @@ var schemaSummaryContentType = smithy.Schema{ID: "com.amazonaws.iam#summaryConte
 
 var schemaSummaryKeyType = smithy.Schema{ID: "com.amazonaws.iam#summaryKeyType", Type: smithy.TypeEnum}
 
-var schemaSummaryMapType = smithy.Schema{ID: "com.amazonaws.iam#summaryMapType", Type: smithy.TypeMap}
+var schemaSummaryMapType = smithy.Schema{ID: "com.amazonaws.iam#summaryMapType", Type: smithy.TypeMap, Members: []*smithy.Member{&memberSummaryMapType_key, &memberSummaryMapType_value}}
 
-var memberSummaryMapType_key = smithy.Member{Name: "key", Index: 0}
+var memberSummaryMapType_key = smithy.Member{Name: "key", Index: 0, Target: &schemaSummaryKeyType}
 
-var memberSummaryMapType_value = smithy.Member{Name: "value", Index: 1}
+var memberSummaryMapType_value = smithy.Member{Name: "value", Index: 1, Target: &schemaSummaryValueType}
 
 var schemaSummaryStateType = smithy.Schema{ID: "com.amazonaws.iam#summaryStateType", Type: smithy.TypeEnum}
 
 var schemaSummaryValueType = smithy.Schema{ID: "com.amazonaws.iam#summaryValueType", Type: smithy.TypeInteger}
 
-var schemaTag = smithy.Schema{ID: "com.amazonaws.iam#Tag", Type: smithy.TypeStructure}
+var schemaTag = smithy.Schema{ID: "com.amazonaws.iam#Tag", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberTag_Key, &memberTag_Value}}
 
-var memberTag_Key = smithy.Member{Name: "Key", Index: 0, Required: true}
+var memberTag_Key = smithy.Member{Name: "Key", Index: 0, Target: &schemaTagKeyType, Required: true}
 
-var memberTag_Value = smithy.Member{Name: "Value", Index: 1, Required: true}
+var memberTag_Value = smithy.Member{Name: "Value", Index: 1, Target: &schemaTagValueType, Required: true}
 
-var schemaTagInstanceProfileInput = smithy.Schema{ID: "com.amazonaws.iam#TagInstanceProfileRequest", Type: smithy.TypeStructure}
+var schemaTagInstanceProfileInput = smithy.Schema{ID: "com.amazonaws.iam#TagInstanceProfileRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberTagInstanceProfileInput_InstanceProfileName, &memberTagInstanceProfileInput_Tags}}
 
-var memberTagInstanceProfileInput_InstanceProfileName = smithy.Member{Name: "InstanceProfileName", Index: 0, Required: true}
+var memberTagInstanceProfileInput_InstanceProfileName = smithy.Member{Name: "InstanceProfileName", Index: 0, Target: &schemaInstanceProfileNameType, Required: true}
 
-var memberTagInstanceProfileInput_Tags = smithy.Member{Name: "Tags", Index: 1, Required: true}
+var memberTagInstanceProfileInput_Tags = smithy.Member{Name: "Tags", Index: 1, Target: &schemaTagListType, Required: true}
 
-var schemaTagKeyListType = smithy.Schema{ID: "com.amazonaws.iam#tagKeyListType", Type: smithy.TypeList}
+var schemaTagKeyListType = smithy.Schema{ID: "com.amazonaws.iam#tagKeyListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberTagKeyListType_member}}
 
-var memberTagKeyListType_member = smithy.Member{Name: "member", Index: 0}
+var memberTagKeyListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaTagKeyType}
 
 var schemaTagKeyType = smithy.Schema{ID: "com.amazonaws.iam#tagKeyType", Type: smithy.TypeString}
 
-var schemaTagListType = smithy.Schema{ID: "com.amazonaws.iam#tagListType", Type: smithy.TypeList}
+var schemaTagListType = smithy.Schema{ID: "com.amazonaws.iam#tagListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberTagListType_member}}
 
-var memberTagListType_member = smithy.Member{Name: "member", Index: 0}
+var memberTagListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaTag}
 
-var schemaTagMFADeviceInput = smithy.Schema{ID: "com.amazonaws.iam#TagMFADeviceRequest", Type: smithy.TypeStructure}
+var schemaTagMFADeviceInput = smithy.Schema{ID: "com.amazonaws.iam#TagMFADeviceRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberTagMFADeviceInput_SerialNumber, &memberTagMFADeviceInput_Tags}}
 
-var memberTagMFADeviceInput_SerialNumber = smithy.Member{Name: "SerialNumber", Index: 0, Required: true}
+var memberTagMFADeviceInput_SerialNumber = smithy.Member{Name: "SerialNumber", Index: 0, Target: &schemaSerialNumberType, Required: true}
 
-var memberTagMFADeviceInput_Tags = smithy.Member{Name: "Tags", Index: 1, Required: true}
+var memberTagMFADeviceInput_Tags = smithy.Member{Name: "Tags", Index: 1, Target: &schemaTagListType, Required: true}
 
-var schemaTagOpenIDConnectProviderInput = smithy.Schema{ID: "com.amazonaws.iam#TagOpenIDConnectProviderRequest", Type: smithy.TypeStructure}
+var schemaTagOpenIDConnectProviderInput = smithy.Schema{ID: "com.amazonaws.iam#TagOpenIDConnectProviderRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberTagOpenIDConnectProviderInput_OpenIDConnectProviderArn, &memberTagOpenIDConnectProviderInput_Tags}}
 
-var memberTagOpenIDConnectProviderInput_OpenIDConnectProviderArn = smithy.Member{Name: "OpenIDConnectProviderArn", Index: 0, Required: true}
+var memberTagOpenIDConnectProviderInput_OpenIDConnectProviderArn = smithy.Member{Name: "OpenIDConnectProviderArn", Index: 0, Target: &schemaArnType, Required: true}
 
-var memberTagOpenIDConnectProviderInput_Tags = smithy.Member{Name: "Tags", Index: 1, Required: true}
+var memberTagOpenIDConnectProviderInput_Tags = smithy.Member{Name: "Tags", Index: 1, Target: &schemaTagListType, Required: true}
 
-var schemaTagPolicyInput = smithy.Schema{ID: "com.amazonaws.iam#TagPolicyRequest", Type: smithy.TypeStructure}
+var schemaTagPolicyInput = smithy.Schema{ID: "com.amazonaws.iam#TagPolicyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberTagPolicyInput_PolicyArn, &memberTagPolicyInput_Tags}}
 
-var memberTagPolicyInput_PolicyArn = smithy.Member{Name: "PolicyArn", Index: 0, Required: true}
+var memberTagPolicyInput_PolicyArn = smithy.Member{Name: "PolicyArn", Index: 0, Target: &schemaArnType, Required: true}
 
-var memberTagPolicyInput_Tags = smithy.Member{Name: "Tags", Index: 1, Required: true}
+var memberTagPolicyInput_Tags = smithy.Member{Name: "Tags", Index: 1, Target: &schemaTagListType, Required: true}
 
-var schemaTagRoleInput = smithy.Schema{ID: "com.amazonaws.iam#TagRoleRequest", Type: smithy.TypeStructure}
+var schemaTagRoleInput = smithy.Schema{ID: "com.amazonaws.iam#TagRoleRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberTagRoleInput_RoleName, &memberTagRoleInput_Tags}}
 
-var memberTagRoleInput_RoleName = smithy.Member{Name: "RoleName", Index: 0, Required: true}
+var memberTagRoleInput_RoleName = smithy.Member{Name: "RoleName", Index: 0, Target: &schemaRoleNameType, Required: true}
 
-var memberTagRoleInput_Tags = smithy.Member{Name: "Tags", Index: 1, Required: true}
+var memberTagRoleInput_Tags = smithy.Member{Name: "Tags", Index: 1, Target: &schemaTagListType, Required: true}
 
-var schemaTagSAMLProviderInput = smithy.Schema{ID: "com.amazonaws.iam#TagSAMLProviderRequest", Type: smithy.TypeStructure}
+var schemaTagSAMLProviderInput = smithy.Schema{ID: "com.amazonaws.iam#TagSAMLProviderRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberTagSAMLProviderInput_SAMLProviderArn, &memberTagSAMLProviderInput_Tags}}
 
-var memberTagSAMLProviderInput_SAMLProviderArn = smithy.Member{Name: "SAMLProviderArn", Index: 0, Required: true}
+var memberTagSAMLProviderInput_SAMLProviderArn = smithy.Member{Name: "SAMLProviderArn", Index: 0, Target: &schemaArnType, Required: true}
 
-var memberTagSAMLProviderInput_Tags = smithy.Member{Name: "Tags", Index: 1, Required: true}
+var memberTagSAMLProviderInput_Tags = smithy.Member{Name: "Tags", Index: 1, Target: &schemaTagListType, Required: true}
 
-var schemaTagServerCertificateInput = smithy.Schema{ID: "com.amazonaws.iam#TagServerCertificateRequest", Type: smithy.TypeStructure}
+var schemaTagServerCertificateInput = smithy.Schema{ID: "com.amazonaws.iam#TagServerCertificateRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberTagServerCertificateInput_ServerCertificateName, &memberTagServerCertificateInput_Tags}}
 
-var memberTagServerCertificateInput_ServerCertificateName = smithy.Member{Name: "ServerCertificateName", Index: 0, Required: true}
+var memberTagServerCertificateInput_ServerCertificateName = smithy.Member{Name: "ServerCertificateName", Index: 0, Target: &schemaServerCertificateNameType, Required: true}
 
-var memberTagServerCertificateInput_Tags = smithy.Member{Name: "Tags", Index: 1, Required: true}
+var memberTagServerCertificateInput_Tags = smithy.Member{Name: "Tags", Index: 1, Target: &schemaTagListType, Required: true}
 
-var schemaTagTemplate = smithy.Schema{ID: "com.amazonaws.iam#TagTemplate", Type: smithy.TypeStructure}
+var schemaTagTemplate = smithy.Schema{ID: "com.amazonaws.iam#TagTemplate", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberTagTemplate_Key, &memberTagTemplate_Value}}
 
-var memberTagTemplate_Key = smithy.Member{Name: "Key", Index: 0, Required: true}
+var memberTagTemplate_Key = smithy.Member{Name: "Key", Index: 0, Target: &schemaTagTemplateKeyType, Required: true}
 
-var memberTagTemplate_Value = smithy.Member{Name: "Value", Index: 1, Required: true}
+var memberTagTemplate_Value = smithy.Member{Name: "Value", Index: 1, Target: &schemaTagTemplateValueType, Required: true}
 
 var schemaTagTemplateKeyType = smithy.Schema{ID: "com.amazonaws.iam#tagTemplateKeyType", Type: smithy.TypeString}
 
-var schemaTagTemplateListType = smithy.Schema{ID: "com.amazonaws.iam#tagTemplateListType", Type: smithy.TypeList}
+var schemaTagTemplateListType = smithy.Schema{ID: "com.amazonaws.iam#tagTemplateListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberTagTemplateListType_member}}
 
-var memberTagTemplateListType_member = smithy.Member{Name: "member", Index: 0}
+var memberTagTemplateListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaTagTemplate}
 
 var schemaTagTemplateValueType = smithy.Schema{ID: "com.amazonaws.iam#tagTemplateValueType", Type: smithy.TypeString}
 
-var schemaTagUserInput = smithy.Schema{ID: "com.amazonaws.iam#TagUserRequest", Type: smithy.TypeStructure}
+var schemaTagUserInput = smithy.Schema{ID: "com.amazonaws.iam#TagUserRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberTagUserInput_UserName, &memberTagUserInput_Tags}}
 
-var memberTagUserInput_UserName = smithy.Member{Name: "UserName", Index: 0, Required: true}
+var memberTagUserInput_UserName = smithy.Member{Name: "UserName", Index: 0, Target: &schemaExistingUserNameType, Required: true}
 
-var memberTagUserInput_Tags = smithy.Member{Name: "Tags", Index: 1, Required: true}
+var memberTagUserInput_Tags = smithy.Member{Name: "Tags", Index: 1, Target: &schemaTagListType, Required: true}
 
 var schemaTagValueType = smithy.Schema{ID: "com.amazonaws.iam#tagValueType", Type: smithy.TypeString}
 
-var schemaThrottlingException = smithy.Schema{ID: "com.amazon.coral.service#ThrottlingException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaThrottlingException = smithy.Schema{ID: "com.amazon.coral.service#ThrottlingException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberThrottlingException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberThrottlingException_message = smithy.Member{Name: "message", Index: 0}
+var memberThrottlingException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaThumbprintListType = smithy.Schema{ID: "com.amazonaws.iam#thumbprintListType", Type: smithy.TypeList}
+var schemaThumbprintListType = smithy.Schema{ID: "com.amazonaws.iam#thumbprintListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberThumbprintListType_member}}
 
-var memberThumbprintListType_member = smithy.Member{Name: "member", Index: 0}
+var memberThumbprintListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaThumbprintType}
 
 var schemaThumbprintType = smithy.Schema{ID: "com.amazonaws.iam#thumbprintType", Type: smithy.TypeString}
 
-var schemaTrackedActionLastAccessed = smithy.Schema{ID: "com.amazonaws.iam#TrackedActionLastAccessed", Type: smithy.TypeStructure}
+var schemaTrackedActionLastAccessed = smithy.Schema{ID: "com.amazonaws.iam#TrackedActionLastAccessed", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberTrackedActionLastAccessed_ActionName, &memberTrackedActionLastAccessed_LastAccessedEntity, &memberTrackedActionLastAccessed_LastAccessedTime, &memberTrackedActionLastAccessed_LastAccessedRegion}}
 
-var memberTrackedActionLastAccessed_ActionName = smithy.Member{Name: "ActionName", Index: 0}
+var memberTrackedActionLastAccessed_ActionName = smithy.Member{Name: "ActionName", Index: 0, Target: &schemaStringType}
 
-var memberTrackedActionLastAccessed_LastAccessedEntity = smithy.Member{Name: "LastAccessedEntity", Index: 1}
+var memberTrackedActionLastAccessed_LastAccessedEntity = smithy.Member{Name: "LastAccessedEntity", Index: 1, Target: &schemaArnType}
 
-var memberTrackedActionLastAccessed_LastAccessedTime = smithy.Member{Name: "LastAccessedTime", Index: 2}
+var memberTrackedActionLastAccessed_LastAccessedTime = smithy.Member{Name: "LastAccessedTime", Index: 2, Target: &schemaDateType}
 
-var memberTrackedActionLastAccessed_LastAccessedRegion = smithy.Member{Name: "LastAccessedRegion", Index: 3}
+var memberTrackedActionLastAccessed_LastAccessedRegion = smithy.Member{Name: "LastAccessedRegion", Index: 3, Target: &schemaStringType}
 
-var schemaTrackedActionsLastAccessed = smithy.Schema{ID: "com.amazonaws.iam#TrackedActionsLastAccessed", Type: smithy.TypeList}
+var schemaTrackedActionsLastAccessed = smithy.Schema{ID: "com.amazonaws.iam#TrackedActionsLastAccessed", Type: smithy.TypeList, Members: []*smithy.Member{&memberTrackedActionsLastAccessed_member}}
 
-var memberTrackedActionsLastAccessed_member = smithy.Member{Name: "member", Index: 0}
+var memberTrackedActionsLastAccessed_member = smithy.Member{Name: "member", Index: 0, Target: &schemaTrackedActionLastAccessed}
 
-var schemaUnmodifiableEntityException = smithy.Schema{ID: "com.amazonaws.iam#UnmodifiableEntityException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaUnmodifiableEntityException = smithy.Schema{ID: "com.amazonaws.iam#UnmodifiableEntityException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUnmodifiableEntityException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberUnmodifiableEntityException_message = smithy.Member{Name: "message", Index: 0}
+var memberUnmodifiableEntityException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaUnmodifiableEntityMessage}
 
 var schemaUnmodifiableEntityMessage = smithy.Schema{ID: "com.amazonaws.iam#unmodifiableEntityMessage", Type: smithy.TypeString}
 
-var schemaUnrecognizedPublicKeyEncodingException = smithy.Schema{ID: "com.amazonaws.iam#UnrecognizedPublicKeyEncodingException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaUnrecognizedPublicKeyEncodingException = smithy.Schema{ID: "com.amazonaws.iam#UnrecognizedPublicKeyEncodingException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUnrecognizedPublicKeyEncodingException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberUnrecognizedPublicKeyEncodingException_message = smithy.Member{Name: "message", Index: 0}
+var memberUnrecognizedPublicKeyEncodingException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaUnrecognizedPublicKeyEncodingMessage}
 
 var schemaUnrecognizedPublicKeyEncodingMessage = smithy.Schema{ID: "com.amazonaws.iam#unrecognizedPublicKeyEncodingMessage", Type: smithy.TypeString}
 
-var schemaUntagInstanceProfileInput = smithy.Schema{ID: "com.amazonaws.iam#UntagInstanceProfileRequest", Type: smithy.TypeStructure}
+var schemaUntagInstanceProfileInput = smithy.Schema{ID: "com.amazonaws.iam#UntagInstanceProfileRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUntagInstanceProfileInput_InstanceProfileName, &memberUntagInstanceProfileInput_TagKeys}}
 
-var memberUntagInstanceProfileInput_InstanceProfileName = smithy.Member{Name: "InstanceProfileName", Index: 0, Required: true}
+var memberUntagInstanceProfileInput_InstanceProfileName = smithy.Member{Name: "InstanceProfileName", Index: 0, Target: &schemaInstanceProfileNameType, Required: true}
 
-var memberUntagInstanceProfileInput_TagKeys = smithy.Member{Name: "TagKeys", Index: 1, Required: true}
+var memberUntagInstanceProfileInput_TagKeys = smithy.Member{Name: "TagKeys", Index: 1, Target: &schemaTagKeyListType, Required: true}
 
-var schemaUntagMFADeviceInput = smithy.Schema{ID: "com.amazonaws.iam#UntagMFADeviceRequest", Type: smithy.TypeStructure}
+var schemaUntagMFADeviceInput = smithy.Schema{ID: "com.amazonaws.iam#UntagMFADeviceRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUntagMFADeviceInput_SerialNumber, &memberUntagMFADeviceInput_TagKeys}}
 
-var memberUntagMFADeviceInput_SerialNumber = smithy.Member{Name: "SerialNumber", Index: 0, Required: true}
+var memberUntagMFADeviceInput_SerialNumber = smithy.Member{Name: "SerialNumber", Index: 0, Target: &schemaSerialNumberType, Required: true}
 
-var memberUntagMFADeviceInput_TagKeys = smithy.Member{Name: "TagKeys", Index: 1, Required: true}
+var memberUntagMFADeviceInput_TagKeys = smithy.Member{Name: "TagKeys", Index: 1, Target: &schemaTagKeyListType, Required: true}
 
-var schemaUntagOpenIDConnectProviderInput = smithy.Schema{ID: "com.amazonaws.iam#UntagOpenIDConnectProviderRequest", Type: smithy.TypeStructure}
+var schemaUntagOpenIDConnectProviderInput = smithy.Schema{ID: "com.amazonaws.iam#UntagOpenIDConnectProviderRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUntagOpenIDConnectProviderInput_OpenIDConnectProviderArn, &memberUntagOpenIDConnectProviderInput_TagKeys}}
 
-var memberUntagOpenIDConnectProviderInput_OpenIDConnectProviderArn = smithy.Member{Name: "OpenIDConnectProviderArn", Index: 0, Required: true}
+var memberUntagOpenIDConnectProviderInput_OpenIDConnectProviderArn = smithy.Member{Name: "OpenIDConnectProviderArn", Index: 0, Target: &schemaArnType, Required: true}
 
-var memberUntagOpenIDConnectProviderInput_TagKeys = smithy.Member{Name: "TagKeys", Index: 1, Required: true}
+var memberUntagOpenIDConnectProviderInput_TagKeys = smithy.Member{Name: "TagKeys", Index: 1, Target: &schemaTagKeyListType, Required: true}
 
-var schemaUntagPolicyInput = smithy.Schema{ID: "com.amazonaws.iam#UntagPolicyRequest", Type: smithy.TypeStructure}
+var schemaUntagPolicyInput = smithy.Schema{ID: "com.amazonaws.iam#UntagPolicyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUntagPolicyInput_PolicyArn, &memberUntagPolicyInput_TagKeys}}
 
-var memberUntagPolicyInput_PolicyArn = smithy.Member{Name: "PolicyArn", Index: 0, Required: true}
+var memberUntagPolicyInput_PolicyArn = smithy.Member{Name: "PolicyArn", Index: 0, Target: &schemaArnType, Required: true}
 
-var memberUntagPolicyInput_TagKeys = smithy.Member{Name: "TagKeys", Index: 1, Required: true}
+var memberUntagPolicyInput_TagKeys = smithy.Member{Name: "TagKeys", Index: 1, Target: &schemaTagKeyListType, Required: true}
 
-var schemaUntagRoleInput = smithy.Schema{ID: "com.amazonaws.iam#UntagRoleRequest", Type: smithy.TypeStructure}
+var schemaUntagRoleInput = smithy.Schema{ID: "com.amazonaws.iam#UntagRoleRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUntagRoleInput_RoleName, &memberUntagRoleInput_TagKeys}}
 
-var memberUntagRoleInput_RoleName = smithy.Member{Name: "RoleName", Index: 0, Required: true}
+var memberUntagRoleInput_RoleName = smithy.Member{Name: "RoleName", Index: 0, Target: &schemaRoleNameType, Required: true}
 
-var memberUntagRoleInput_TagKeys = smithy.Member{Name: "TagKeys", Index: 1, Required: true}
+var memberUntagRoleInput_TagKeys = smithy.Member{Name: "TagKeys", Index: 1, Target: &schemaTagKeyListType, Required: true}
 
-var schemaUntagSAMLProviderInput = smithy.Schema{ID: "com.amazonaws.iam#UntagSAMLProviderRequest", Type: smithy.TypeStructure}
+var schemaUntagSAMLProviderInput = smithy.Schema{ID: "com.amazonaws.iam#UntagSAMLProviderRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUntagSAMLProviderInput_SAMLProviderArn, &memberUntagSAMLProviderInput_TagKeys}}
 
-var memberUntagSAMLProviderInput_SAMLProviderArn = smithy.Member{Name: "SAMLProviderArn", Index: 0, Required: true}
+var memberUntagSAMLProviderInput_SAMLProviderArn = smithy.Member{Name: "SAMLProviderArn", Index: 0, Target: &schemaArnType, Required: true}
 
-var memberUntagSAMLProviderInput_TagKeys = smithy.Member{Name: "TagKeys", Index: 1, Required: true}
+var memberUntagSAMLProviderInput_TagKeys = smithy.Member{Name: "TagKeys", Index: 1, Target: &schemaTagKeyListType, Required: true}
 
-var schemaUntagServerCertificateInput = smithy.Schema{ID: "com.amazonaws.iam#UntagServerCertificateRequest", Type: smithy.TypeStructure}
+var schemaUntagServerCertificateInput = smithy.Schema{ID: "com.amazonaws.iam#UntagServerCertificateRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUntagServerCertificateInput_ServerCertificateName, &memberUntagServerCertificateInput_TagKeys}}
 
-var memberUntagServerCertificateInput_ServerCertificateName = smithy.Member{Name: "ServerCertificateName", Index: 0, Required: true}
+var memberUntagServerCertificateInput_ServerCertificateName = smithy.Member{Name: "ServerCertificateName", Index: 0, Target: &schemaServerCertificateNameType, Required: true}
 
-var memberUntagServerCertificateInput_TagKeys = smithy.Member{Name: "TagKeys", Index: 1, Required: true}
+var memberUntagServerCertificateInput_TagKeys = smithy.Member{Name: "TagKeys", Index: 1, Target: &schemaTagKeyListType, Required: true}
 
-var schemaUntagUserInput = smithy.Schema{ID: "com.amazonaws.iam#UntagUserRequest", Type: smithy.TypeStructure}
+var schemaUntagUserInput = smithy.Schema{ID: "com.amazonaws.iam#UntagUserRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUntagUserInput_UserName, &memberUntagUserInput_TagKeys}}
 
-var memberUntagUserInput_UserName = smithy.Member{Name: "UserName", Index: 0, Required: true}
+var memberUntagUserInput_UserName = smithy.Member{Name: "UserName", Index: 0, Target: &schemaExistingUserNameType, Required: true}
 
-var memberUntagUserInput_TagKeys = smithy.Member{Name: "TagKeys", Index: 1, Required: true}
+var memberUntagUserInput_TagKeys = smithy.Member{Name: "TagKeys", Index: 1, Target: &schemaTagKeyListType, Required: true}
 
-var schemaUpdateAccessKeyInput = smithy.Schema{ID: "com.amazonaws.iam#UpdateAccessKeyRequest", Type: smithy.TypeStructure}
+var schemaUpdateAccessKeyInput = smithy.Schema{ID: "com.amazonaws.iam#UpdateAccessKeyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateAccessKeyInput_UserName, &memberUpdateAccessKeyInput_AccessKeyId, &memberUpdateAccessKeyInput_Status}}
 
-var memberUpdateAccessKeyInput_UserName = smithy.Member{Name: "UserName", Index: 0}
+var memberUpdateAccessKeyInput_UserName = smithy.Member{Name: "UserName", Index: 0, Target: &schemaExistingUserNameType}
 
-var memberUpdateAccessKeyInput_AccessKeyId = smithy.Member{Name: "AccessKeyId", Index: 1, Required: true}
+var memberUpdateAccessKeyInput_AccessKeyId = smithy.Member{Name: "AccessKeyId", Index: 1, Target: &schemaAccessKeyIdType, Required: true}
 
-var memberUpdateAccessKeyInput_Status = smithy.Member{Name: "Status", Index: 2, Required: true}
+var memberUpdateAccessKeyInput_Status = smithy.Member{Name: "Status", Index: 2, Target: &schemaStatusType, Required: true}
 
-var schemaUpdateAccountPasswordPolicyInput = smithy.Schema{ID: "com.amazonaws.iam#UpdateAccountPasswordPolicyRequest", Type: smithy.TypeStructure}
+var schemaUpdateAccountPasswordPolicyInput = smithy.Schema{ID: "com.amazonaws.iam#UpdateAccountPasswordPolicyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateAccountPasswordPolicyInput_MinimumPasswordLength, &memberUpdateAccountPasswordPolicyInput_RequireSymbols, &memberUpdateAccountPasswordPolicyInput_RequireNumbers, &memberUpdateAccountPasswordPolicyInput_RequireUppercaseCharacters, &memberUpdateAccountPasswordPolicyInput_RequireLowercaseCharacters, &memberUpdateAccountPasswordPolicyInput_AllowUsersToChangePassword, &memberUpdateAccountPasswordPolicyInput_MaxPasswordAge, &memberUpdateAccountPasswordPolicyInput_PasswordReusePrevention, &memberUpdateAccountPasswordPolicyInput_HardExpiry}}
 
-var memberUpdateAccountPasswordPolicyInput_MinimumPasswordLength = smithy.Member{Name: "MinimumPasswordLength", Index: 0}
+var memberUpdateAccountPasswordPolicyInput_MinimumPasswordLength = smithy.Member{Name: "MinimumPasswordLength", Index: 0, Target: &schemaMinimumPasswordLengthType}
 
-var memberUpdateAccountPasswordPolicyInput_RequireSymbols = smithy.Member{Name: "RequireSymbols", Index: 1, Default: document.Bool(false)}
+var memberUpdateAccountPasswordPolicyInput_RequireSymbols = smithy.Member{Name: "RequireSymbols", Index: 1, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberUpdateAccountPasswordPolicyInput_RequireNumbers = smithy.Member{Name: "RequireNumbers", Index: 2, Default: document.Bool(false)}
+var memberUpdateAccountPasswordPolicyInput_RequireNumbers = smithy.Member{Name: "RequireNumbers", Index: 2, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberUpdateAccountPasswordPolicyInput_RequireUppercaseCharacters = smithy.Member{Name: "RequireUppercaseCharacters", Index: 3, Default: document.Bool(false)}
+var memberUpdateAccountPasswordPolicyInput_RequireUppercaseCharacters = smithy.Member{Name: "RequireUppercaseCharacters", Index: 3, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberUpdateAccountPasswordPolicyInput_RequireLowercaseCharacters = smithy.Member{Name: "RequireLowercaseCharacters", Index: 4, Default: document.Bool(false)}
+var memberUpdateAccountPasswordPolicyInput_RequireLowercaseCharacters = smithy.Member{Name: "RequireLowercaseCharacters", Index: 4, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberUpdateAccountPasswordPolicyInput_AllowUsersToChangePassword = smithy.Member{Name: "AllowUsersToChangePassword", Index: 5, Default: document.Bool(false)}
+var memberUpdateAccountPasswordPolicyInput_AllowUsersToChangePassword = smithy.Member{Name: "AllowUsersToChangePassword", Index: 5, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberUpdateAccountPasswordPolicyInput_MaxPasswordAge = smithy.Member{Name: "MaxPasswordAge", Index: 6}
+var memberUpdateAccountPasswordPolicyInput_MaxPasswordAge = smithy.Member{Name: "MaxPasswordAge", Index: 6, Target: &schemaMaxPasswordAgeType}
 
-var memberUpdateAccountPasswordPolicyInput_PasswordReusePrevention = smithy.Member{Name: "PasswordReusePrevention", Index: 7}
+var memberUpdateAccountPasswordPolicyInput_PasswordReusePrevention = smithy.Member{Name: "PasswordReusePrevention", Index: 7, Target: &schemaPasswordReusePreventionType}
 
-var memberUpdateAccountPasswordPolicyInput_HardExpiry = smithy.Member{Name: "HardExpiry", Index: 8}
+var memberUpdateAccountPasswordPolicyInput_HardExpiry = smithy.Member{Name: "HardExpiry", Index: 8, Target: &schemaBooleanObjectType}
 
-var schemaUpdateAssumeRolePolicyInput = smithy.Schema{ID: "com.amazonaws.iam#UpdateAssumeRolePolicyRequest", Type: smithy.TypeStructure}
+var schemaUpdateAssumeRolePolicyInput = smithy.Schema{ID: "com.amazonaws.iam#UpdateAssumeRolePolicyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateAssumeRolePolicyInput_RoleName, &memberUpdateAssumeRolePolicyInput_PolicyDocument}}
 
-var memberUpdateAssumeRolePolicyInput_RoleName = smithy.Member{Name: "RoleName", Index: 0, Required: true}
+var memberUpdateAssumeRolePolicyInput_RoleName = smithy.Member{Name: "RoleName", Index: 0, Target: &schemaRoleNameType, Required: true}
 
-var memberUpdateAssumeRolePolicyInput_PolicyDocument = smithy.Member{Name: "PolicyDocument", Index: 1, Required: true}
+var memberUpdateAssumeRolePolicyInput_PolicyDocument = smithy.Member{Name: "PolicyDocument", Index: 1, Target: &schemaPolicyDocumentType, Required: true}
 
-var schemaUpdateDelegationRequestInput = smithy.Schema{ID: "com.amazonaws.iam#UpdateDelegationRequestRequest", Type: smithy.TypeStructure}
+var schemaUpdateDelegationRequestInput = smithy.Schema{ID: "com.amazonaws.iam#UpdateDelegationRequestRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateDelegationRequestInput_DelegationRequestId, &memberUpdateDelegationRequestInput_Notes}}
 
-var memberUpdateDelegationRequestInput_DelegationRequestId = smithy.Member{Name: "DelegationRequestId", Index: 0, Required: true}
+var memberUpdateDelegationRequestInput_DelegationRequestId = smithy.Member{Name: "DelegationRequestId", Index: 0, Target: &schemaDelegationRequestIdType, Required: true}
 
-var memberUpdateDelegationRequestInput_Notes = smithy.Member{Name: "Notes", Index: 1}
+var memberUpdateDelegationRequestInput_Notes = smithy.Member{Name: "Notes", Index: 1, Target: &schemaNotesType}
 
-var schemaUpdateGroupInput = smithy.Schema{ID: "com.amazonaws.iam#UpdateGroupRequest", Type: smithy.TypeStructure}
+var schemaUpdateGroupInput = smithy.Schema{ID: "com.amazonaws.iam#UpdateGroupRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateGroupInput_GroupName, &memberUpdateGroupInput_NewPath, &memberUpdateGroupInput_NewGroupName}}
 
-var memberUpdateGroupInput_GroupName = smithy.Member{Name: "GroupName", Index: 0, Required: true}
+var memberUpdateGroupInput_GroupName = smithy.Member{Name: "GroupName", Index: 0, Target: &schemaGroupNameType, Required: true}
 
-var memberUpdateGroupInput_NewPath = smithy.Member{Name: "NewPath", Index: 1}
+var memberUpdateGroupInput_NewPath = smithy.Member{Name: "NewPath", Index: 1, Target: &schemaPathType}
 
-var memberUpdateGroupInput_NewGroupName = smithy.Member{Name: "NewGroupName", Index: 2}
+var memberUpdateGroupInput_NewGroupName = smithy.Member{Name: "NewGroupName", Index: 2, Target: &schemaGroupNameType}
 
-var schemaUpdateLoginProfileInput = smithy.Schema{ID: "com.amazonaws.iam#UpdateLoginProfileRequest", Type: smithy.TypeStructure}
+var schemaUpdateLoginProfileInput = smithy.Schema{ID: "com.amazonaws.iam#UpdateLoginProfileRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateLoginProfileInput_UserName, &memberUpdateLoginProfileInput_Password, &memberUpdateLoginProfileInput_PasswordResetRequired}}
 
-var memberUpdateLoginProfileInput_UserName = smithy.Member{Name: "UserName", Index: 0, Required: true}
+var memberUpdateLoginProfileInput_UserName = smithy.Member{Name: "UserName", Index: 0, Target: &schemaUserNameType, Required: true}
 
-var memberUpdateLoginProfileInput_Password = smithy.Member{Name: "Password", Index: 1, Sensitive: true}
+var memberUpdateLoginProfileInput_Password = smithy.Member{Name: "Password", Index: 1, Target: &schemaPasswordType, Sensitive: true}
 
-var memberUpdateLoginProfileInput_PasswordResetRequired = smithy.Member{Name: "PasswordResetRequired", Index: 2}
+var memberUpdateLoginProfileInput_PasswordResetRequired = smithy.Member{Name: "PasswordResetRequired", Index: 2, Target: &schemaBooleanObjectType}
 
-var schemaUpdateOpenIDConnectProviderThumbprintInput = smithy.Schema{ID: "com.amazonaws.iam#UpdateOpenIDConnectProviderThumbprintRequest", Type: smithy.TypeStructure}
+var schemaUpdateOpenIDConnectProviderThumbprintInput = smithy.Schema{ID: "com.amazonaws.iam#UpdateOpenIDConnectProviderThumbprintRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateOpenIDConnectProviderThumbprintInput_OpenIDConnectProviderArn, &memberUpdateOpenIDConnectProviderThumbprintInput_ThumbprintList}}
 
-var memberUpdateOpenIDConnectProviderThumbprintInput_OpenIDConnectProviderArn = smithy.Member{Name: "OpenIDConnectProviderArn", Index: 0, Required: true}
+var memberUpdateOpenIDConnectProviderThumbprintInput_OpenIDConnectProviderArn = smithy.Member{Name: "OpenIDConnectProviderArn", Index: 0, Target: &schemaArnType, Required: true}
 
-var memberUpdateOpenIDConnectProviderThumbprintInput_ThumbprintList = smithy.Member{Name: "ThumbprintList", Index: 1, Required: true}
+var memberUpdateOpenIDConnectProviderThumbprintInput_ThumbprintList = smithy.Member{Name: "ThumbprintList", Index: 1, Target: &schemaThumbprintListType, Required: true}
 
-var schemaUpdateRoleDescriptionInput = smithy.Schema{ID: "com.amazonaws.iam#UpdateRoleDescriptionRequest", Type: smithy.TypeStructure}
+var schemaUpdateRoleDescriptionInput = smithy.Schema{ID: "com.amazonaws.iam#UpdateRoleDescriptionRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateRoleDescriptionInput_RoleName, &memberUpdateRoleDescriptionInput_Description}}
 
-var memberUpdateRoleDescriptionInput_RoleName = smithy.Member{Name: "RoleName", Index: 0, Required: true}
+var memberUpdateRoleDescriptionInput_RoleName = smithy.Member{Name: "RoleName", Index: 0, Target: &schemaRoleNameType, Required: true}
 
-var memberUpdateRoleDescriptionInput_Description = smithy.Member{Name: "Description", Index: 1, Required: true}
+var memberUpdateRoleDescriptionInput_Description = smithy.Member{Name: "Description", Index: 1, Target: &schemaRoleDescriptionType, Required: true}
 
-var schemaUpdateRoleDescriptionOutput = smithy.Schema{ID: "com.amazonaws.iam#UpdateRoleDescriptionResponse", Type: smithy.TypeStructure}
+var schemaUpdateRoleDescriptionOutput = smithy.Schema{ID: "com.amazonaws.iam#UpdateRoleDescriptionResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateRoleDescriptionOutput_Role}}
 
-var memberUpdateRoleDescriptionOutput_Role = smithy.Member{Name: "Role", Index: 0}
+var memberUpdateRoleDescriptionOutput_Role = smithy.Member{Name: "Role", Index: 0, Target: &schemaRole}
 
-var schemaUpdateRoleInput = smithy.Schema{ID: "com.amazonaws.iam#UpdateRoleRequest", Type: smithy.TypeStructure}
+var schemaUpdateRoleInput = smithy.Schema{ID: "com.amazonaws.iam#UpdateRoleRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateRoleInput_RoleName, &memberUpdateRoleInput_Description, &memberUpdateRoleInput_MaxSessionDuration}}
 
-var memberUpdateRoleInput_RoleName = smithy.Member{Name: "RoleName", Index: 0, Required: true}
+var memberUpdateRoleInput_RoleName = smithy.Member{Name: "RoleName", Index: 0, Target: &schemaRoleNameType, Required: true}
 
-var memberUpdateRoleInput_Description = smithy.Member{Name: "Description", Index: 1}
+var memberUpdateRoleInput_Description = smithy.Member{Name: "Description", Index: 1, Target: &schemaRoleDescriptionType}
 
-var memberUpdateRoleInput_MaxSessionDuration = smithy.Member{Name: "MaxSessionDuration", Index: 2}
+var memberUpdateRoleInput_MaxSessionDuration = smithy.Member{Name: "MaxSessionDuration", Index: 2, Target: &schemaRoleMaxSessionDurationType}
 
 var schemaUpdateRoleOutput = smithy.Schema{ID: "com.amazonaws.iam#UpdateRoleResponse", Type: smithy.TypeStructure}
 
-var schemaUpdateSAMLProviderInput = smithy.Schema{ID: "com.amazonaws.iam#UpdateSAMLProviderRequest", Type: smithy.TypeStructure}
+var schemaUpdateSAMLProviderInput = smithy.Schema{ID: "com.amazonaws.iam#UpdateSAMLProviderRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateSAMLProviderInput_SAMLMetadataDocument, &memberUpdateSAMLProviderInput_SAMLProviderArn, &memberUpdateSAMLProviderInput_AssertionEncryptionMode, &memberUpdateSAMLProviderInput_AddPrivateKey, &memberUpdateSAMLProviderInput_RemovePrivateKey}}
 
-var memberUpdateSAMLProviderInput_SAMLMetadataDocument = smithy.Member{Name: "SAMLMetadataDocument", Index: 0}
+var memberUpdateSAMLProviderInput_SAMLMetadataDocument = smithy.Member{Name: "SAMLMetadataDocument", Index: 0, Target: &schemaSAMLMetadataDocumentType}
 
-var memberUpdateSAMLProviderInput_SAMLProviderArn = smithy.Member{Name: "SAMLProviderArn", Index: 1, Required: true}
+var memberUpdateSAMLProviderInput_SAMLProviderArn = smithy.Member{Name: "SAMLProviderArn", Index: 1, Target: &schemaArnType, Required: true}
 
-var memberUpdateSAMLProviderInput_AssertionEncryptionMode = smithy.Member{Name: "AssertionEncryptionMode", Index: 2}
+var memberUpdateSAMLProviderInput_AssertionEncryptionMode = smithy.Member{Name: "AssertionEncryptionMode", Index: 2, Target: &schemaAssertionEncryptionModeType}
 
-var memberUpdateSAMLProviderInput_AddPrivateKey = smithy.Member{Name: "AddPrivateKey", Index: 3, Sensitive: true}
+var memberUpdateSAMLProviderInput_AddPrivateKey = smithy.Member{Name: "AddPrivateKey", Index: 3, Target: &schemaPrivateKeyType, Sensitive: true}
 
-var memberUpdateSAMLProviderInput_RemovePrivateKey = smithy.Member{Name: "RemovePrivateKey", Index: 4}
+var memberUpdateSAMLProviderInput_RemovePrivateKey = smithy.Member{Name: "RemovePrivateKey", Index: 4, Target: &schemaPrivateKeyIdType}
 
-var schemaUpdateSAMLProviderOutput = smithy.Schema{ID: "com.amazonaws.iam#UpdateSAMLProviderResponse", Type: smithy.TypeStructure}
+var schemaUpdateSAMLProviderOutput = smithy.Schema{ID: "com.amazonaws.iam#UpdateSAMLProviderResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateSAMLProviderOutput_SAMLProviderArn}}
 
-var memberUpdateSAMLProviderOutput_SAMLProviderArn = smithy.Member{Name: "SAMLProviderArn", Index: 0}
+var memberUpdateSAMLProviderOutput_SAMLProviderArn = smithy.Member{Name: "SAMLProviderArn", Index: 0, Target: &schemaArnType}
 
-var schemaUpdateSSHPublicKeyInput = smithy.Schema{ID: "com.amazonaws.iam#UpdateSSHPublicKeyRequest", Type: smithy.TypeStructure}
+var schemaUpdateSSHPublicKeyInput = smithy.Schema{ID: "com.amazonaws.iam#UpdateSSHPublicKeyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateSSHPublicKeyInput_UserName, &memberUpdateSSHPublicKeyInput_SSHPublicKeyId, &memberUpdateSSHPublicKeyInput_Status}}
 
-var memberUpdateSSHPublicKeyInput_UserName = smithy.Member{Name: "UserName", Index: 0, Required: true}
+var memberUpdateSSHPublicKeyInput_UserName = smithy.Member{Name: "UserName", Index: 0, Target: &schemaUserNameType, Required: true}
 
-var memberUpdateSSHPublicKeyInput_SSHPublicKeyId = smithy.Member{Name: "SSHPublicKeyId", Index: 1, Required: true}
+var memberUpdateSSHPublicKeyInput_SSHPublicKeyId = smithy.Member{Name: "SSHPublicKeyId", Index: 1, Target: &schemaPublicKeyIdType, Required: true}
 
-var memberUpdateSSHPublicKeyInput_Status = smithy.Member{Name: "Status", Index: 2, Required: true}
+var memberUpdateSSHPublicKeyInput_Status = smithy.Member{Name: "Status", Index: 2, Target: &schemaStatusType, Required: true}
 
-var schemaUpdateServerCertificateInput = smithy.Schema{ID: "com.amazonaws.iam#UpdateServerCertificateRequest", Type: smithy.TypeStructure}
+var schemaUpdateServerCertificateInput = smithy.Schema{ID: "com.amazonaws.iam#UpdateServerCertificateRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateServerCertificateInput_ServerCertificateName, &memberUpdateServerCertificateInput_NewPath, &memberUpdateServerCertificateInput_NewServerCertificateName}}
 
-var memberUpdateServerCertificateInput_ServerCertificateName = smithy.Member{Name: "ServerCertificateName", Index: 0, Required: true}
+var memberUpdateServerCertificateInput_ServerCertificateName = smithy.Member{Name: "ServerCertificateName", Index: 0, Target: &schemaServerCertificateNameType, Required: true}
 
-var memberUpdateServerCertificateInput_NewPath = smithy.Member{Name: "NewPath", Index: 1}
+var memberUpdateServerCertificateInput_NewPath = smithy.Member{Name: "NewPath", Index: 1, Target: &schemaPathType}
 
-var memberUpdateServerCertificateInput_NewServerCertificateName = smithy.Member{Name: "NewServerCertificateName", Index: 2}
+var memberUpdateServerCertificateInput_NewServerCertificateName = smithy.Member{Name: "NewServerCertificateName", Index: 2, Target: &schemaServerCertificateNameType}
 
-var schemaUpdateServiceSpecificCredentialInput = smithy.Schema{ID: "com.amazonaws.iam#UpdateServiceSpecificCredentialRequest", Type: smithy.TypeStructure}
+var schemaUpdateServiceSpecificCredentialInput = smithy.Schema{ID: "com.amazonaws.iam#UpdateServiceSpecificCredentialRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateServiceSpecificCredentialInput_UserName, &memberUpdateServiceSpecificCredentialInput_ServiceSpecificCredentialId, &memberUpdateServiceSpecificCredentialInput_Status}}
 
-var memberUpdateServiceSpecificCredentialInput_UserName = smithy.Member{Name: "UserName", Index: 0}
+var memberUpdateServiceSpecificCredentialInput_UserName = smithy.Member{Name: "UserName", Index: 0, Target: &schemaUserNameType}
 
-var memberUpdateServiceSpecificCredentialInput_ServiceSpecificCredentialId = smithy.Member{Name: "ServiceSpecificCredentialId", Index: 1, Required: true}
+var memberUpdateServiceSpecificCredentialInput_ServiceSpecificCredentialId = smithy.Member{Name: "ServiceSpecificCredentialId", Index: 1, Target: &schemaServiceSpecificCredentialId, Required: true}
 
-var memberUpdateServiceSpecificCredentialInput_Status = smithy.Member{Name: "Status", Index: 2, Required: true}
+var memberUpdateServiceSpecificCredentialInput_Status = smithy.Member{Name: "Status", Index: 2, Target: &schemaStatusType, Required: true}
 
-var schemaUpdateSigningCertificateInput = smithy.Schema{ID: "com.amazonaws.iam#UpdateSigningCertificateRequest", Type: smithy.TypeStructure}
+var schemaUpdateSigningCertificateInput = smithy.Schema{ID: "com.amazonaws.iam#UpdateSigningCertificateRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateSigningCertificateInput_UserName, &memberUpdateSigningCertificateInput_CertificateId, &memberUpdateSigningCertificateInput_Status}}
 
-var memberUpdateSigningCertificateInput_UserName = smithy.Member{Name: "UserName", Index: 0}
+var memberUpdateSigningCertificateInput_UserName = smithy.Member{Name: "UserName", Index: 0, Target: &schemaExistingUserNameType}
 
-var memberUpdateSigningCertificateInput_CertificateId = smithy.Member{Name: "CertificateId", Index: 1, Required: true}
+var memberUpdateSigningCertificateInput_CertificateId = smithy.Member{Name: "CertificateId", Index: 1, Target: &schemaCertificateIdType, Required: true}
 
-var memberUpdateSigningCertificateInput_Status = smithy.Member{Name: "Status", Index: 2, Required: true}
+var memberUpdateSigningCertificateInput_Status = smithy.Member{Name: "Status", Index: 2, Target: &schemaStatusType, Required: true}
 
-var schemaUpdateUserInput = smithy.Schema{ID: "com.amazonaws.iam#UpdateUserRequest", Type: smithy.TypeStructure}
+var schemaUpdateUserInput = smithy.Schema{ID: "com.amazonaws.iam#UpdateUserRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateUserInput_UserName, &memberUpdateUserInput_NewPath, &memberUpdateUserInput_NewUserName}}
 
-var memberUpdateUserInput_UserName = smithy.Member{Name: "UserName", Index: 0, Required: true}
+var memberUpdateUserInput_UserName = smithy.Member{Name: "UserName", Index: 0, Target: &schemaExistingUserNameType, Required: true}
 
-var memberUpdateUserInput_NewPath = smithy.Member{Name: "NewPath", Index: 1}
+var memberUpdateUserInput_NewPath = smithy.Member{Name: "NewPath", Index: 1, Target: &schemaPathType}
 
-var memberUpdateUserInput_NewUserName = smithy.Member{Name: "NewUserName", Index: 2}
+var memberUpdateUserInput_NewUserName = smithy.Member{Name: "NewUserName", Index: 2, Target: &schemaUserNameType}
 
-var schemaUploadSSHPublicKeyInput = smithy.Schema{ID: "com.amazonaws.iam#UploadSSHPublicKeyRequest", Type: smithy.TypeStructure}
+var schemaUploadSSHPublicKeyInput = smithy.Schema{ID: "com.amazonaws.iam#UploadSSHPublicKeyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUploadSSHPublicKeyInput_UserName, &memberUploadSSHPublicKeyInput_SSHPublicKeyBody}}
 
-var memberUploadSSHPublicKeyInput_UserName = smithy.Member{Name: "UserName", Index: 0, Required: true}
+var memberUploadSSHPublicKeyInput_UserName = smithy.Member{Name: "UserName", Index: 0, Target: &schemaUserNameType, Required: true}
 
-var memberUploadSSHPublicKeyInput_SSHPublicKeyBody = smithy.Member{Name: "SSHPublicKeyBody", Index: 1, Required: true}
+var memberUploadSSHPublicKeyInput_SSHPublicKeyBody = smithy.Member{Name: "SSHPublicKeyBody", Index: 1, Target: &schemaPublicKeyMaterialType, Required: true}
 
-var schemaUploadSSHPublicKeyOutput = smithy.Schema{ID: "com.amazonaws.iam#UploadSSHPublicKeyResponse", Type: smithy.TypeStructure}
+var schemaUploadSSHPublicKeyOutput = smithy.Schema{ID: "com.amazonaws.iam#UploadSSHPublicKeyResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUploadSSHPublicKeyOutput_SSHPublicKey}}
 
-var memberUploadSSHPublicKeyOutput_SSHPublicKey = smithy.Member{Name: "SSHPublicKey", Index: 0}
+var memberUploadSSHPublicKeyOutput_SSHPublicKey = smithy.Member{Name: "SSHPublicKey", Index: 0, Target: &schemaSSHPublicKey}
 
-var schemaUploadServerCertificateInput = smithy.Schema{ID: "com.amazonaws.iam#UploadServerCertificateRequest", Type: smithy.TypeStructure}
+var schemaUploadServerCertificateInput = smithy.Schema{ID: "com.amazonaws.iam#UploadServerCertificateRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUploadServerCertificateInput_Path, &memberUploadServerCertificateInput_ServerCertificateName, &memberUploadServerCertificateInput_CertificateBody, &memberUploadServerCertificateInput_PrivateKey, &memberUploadServerCertificateInput_CertificateChain, &memberUploadServerCertificateInput_Tags}}
 
-var memberUploadServerCertificateInput_Path = smithy.Member{Name: "Path", Index: 0}
+var memberUploadServerCertificateInput_Path = smithy.Member{Name: "Path", Index: 0, Target: &schemaPathType}
 
-var memberUploadServerCertificateInput_ServerCertificateName = smithy.Member{Name: "ServerCertificateName", Index: 1, Required: true}
+var memberUploadServerCertificateInput_ServerCertificateName = smithy.Member{Name: "ServerCertificateName", Index: 1, Target: &schemaServerCertificateNameType, Required: true}
 
-var memberUploadServerCertificateInput_CertificateBody = smithy.Member{Name: "CertificateBody", Index: 2, Required: true}
+var memberUploadServerCertificateInput_CertificateBody = smithy.Member{Name: "CertificateBody", Index: 2, Target: &schemaCertificateBodyType, Required: true}
 
-var memberUploadServerCertificateInput_PrivateKey = smithy.Member{Name: "PrivateKey", Index: 3, Required: true, Sensitive: true}
+var memberUploadServerCertificateInput_PrivateKey = smithy.Member{Name: "PrivateKey", Index: 3, Target: &schemaPrivateKeyType, Required: true, Sensitive: true}
 
-var memberUploadServerCertificateInput_CertificateChain = smithy.Member{Name: "CertificateChain", Index: 4}
+var memberUploadServerCertificateInput_CertificateChain = smithy.Member{Name: "CertificateChain", Index: 4, Target: &schemaCertificateChainType}
 
-var memberUploadServerCertificateInput_Tags = smithy.Member{Name: "Tags", Index: 5}
+var memberUploadServerCertificateInput_Tags = smithy.Member{Name: "Tags", Index: 5, Target: &schemaTagListType}
 
-var schemaUploadServerCertificateOutput = smithy.Schema{ID: "com.amazonaws.iam#UploadServerCertificateResponse", Type: smithy.TypeStructure}
+var schemaUploadServerCertificateOutput = smithy.Schema{ID: "com.amazonaws.iam#UploadServerCertificateResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUploadServerCertificateOutput_ServerCertificateMetadata, &memberUploadServerCertificateOutput_Tags}}
 
-var memberUploadServerCertificateOutput_ServerCertificateMetadata = smithy.Member{Name: "ServerCertificateMetadata", Index: 0}
+var memberUploadServerCertificateOutput_ServerCertificateMetadata = smithy.Member{Name: "ServerCertificateMetadata", Index: 0, Target: &schemaServerCertificateMetadata}
 
-var memberUploadServerCertificateOutput_Tags = smithy.Member{Name: "Tags", Index: 1}
+var memberUploadServerCertificateOutput_Tags = smithy.Member{Name: "Tags", Index: 1, Target: &schemaTagListType}
 
-var schemaUploadSigningCertificateInput = smithy.Schema{ID: "com.amazonaws.iam#UploadSigningCertificateRequest", Type: smithy.TypeStructure}
+var schemaUploadSigningCertificateInput = smithy.Schema{ID: "com.amazonaws.iam#UploadSigningCertificateRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUploadSigningCertificateInput_UserName, &memberUploadSigningCertificateInput_CertificateBody}}
 
-var memberUploadSigningCertificateInput_UserName = smithy.Member{Name: "UserName", Index: 0}
+var memberUploadSigningCertificateInput_UserName = smithy.Member{Name: "UserName", Index: 0, Target: &schemaExistingUserNameType}
 
-var memberUploadSigningCertificateInput_CertificateBody = smithy.Member{Name: "CertificateBody", Index: 1, Required: true}
+var memberUploadSigningCertificateInput_CertificateBody = smithy.Member{Name: "CertificateBody", Index: 1, Target: &schemaCertificateBodyType, Required: true}
 
-var schemaUploadSigningCertificateOutput = smithy.Schema{ID: "com.amazonaws.iam#UploadSigningCertificateResponse", Type: smithy.TypeStructure}
+var schemaUploadSigningCertificateOutput = smithy.Schema{ID: "com.amazonaws.iam#UploadSigningCertificateResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUploadSigningCertificateOutput_Certificate}}
 
-var memberUploadSigningCertificateOutput_Certificate = smithy.Member{Name: "Certificate", Index: 0, Required: true}
+var memberUploadSigningCertificateOutput_Certificate = smithy.Member{Name: "Certificate", Index: 0, Target: &schemaSigningCertificate, Required: true}
 
-var schemaUser = smithy.Schema{ID: "com.amazonaws.iam#User", Type: smithy.TypeStructure}
+var schemaUser = smithy.Schema{ID: "com.amazonaws.iam#User", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUser_Path, &memberUser_UserName, &memberUser_UserId, &memberUser_Arn, &memberUser_CreateDate, &memberUser_PasswordLastUsed, &memberUser_PermissionsBoundary, &memberUser_Tags}}
 
-var memberUser_Path = smithy.Member{Name: "Path", Index: 0, Required: true}
+var memberUser_Path = smithy.Member{Name: "Path", Index: 0, Target: &schemaPathType, Required: true}
 
-var memberUser_UserName = smithy.Member{Name: "UserName", Index: 1, Required: true}
+var memberUser_UserName = smithy.Member{Name: "UserName", Index: 1, Target: &schemaUserNameType, Required: true}
 
-var memberUser_UserId = smithy.Member{Name: "UserId", Index: 2, Required: true}
+var memberUser_UserId = smithy.Member{Name: "UserId", Index: 2, Target: &schemaIdType, Required: true}
 
-var memberUser_Arn = smithy.Member{Name: "Arn", Index: 3, Required: true}
+var memberUser_Arn = smithy.Member{Name: "Arn", Index: 3, Target: &schemaArnType, Required: true}
 
-var memberUser_CreateDate = smithy.Member{Name: "CreateDate", Index: 4, Required: true}
+var memberUser_CreateDate = smithy.Member{Name: "CreateDate", Index: 4, Target: &schemaDateType, Required: true}
 
-var memberUser_PasswordLastUsed = smithy.Member{Name: "PasswordLastUsed", Index: 5}
+var memberUser_PasswordLastUsed = smithy.Member{Name: "PasswordLastUsed", Index: 5, Target: &schemaDateType}
 
-var memberUser_PermissionsBoundary = smithy.Member{Name: "PermissionsBoundary", Index: 6}
+var memberUser_PermissionsBoundary = smithy.Member{Name: "PermissionsBoundary", Index: 6, Target: &schemaAttachedPermissionsBoundary}
 
-var memberUser_Tags = smithy.Member{Name: "Tags", Index: 7}
+var memberUser_Tags = smithy.Member{Name: "Tags", Index: 7, Target: &schemaTagListType}
 
-var schemaUserDetail = smithy.Schema{ID: "com.amazonaws.iam#UserDetail", Type: smithy.TypeStructure}
+var schemaUserDetail = smithy.Schema{ID: "com.amazonaws.iam#UserDetail", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUserDetail_Path, &memberUserDetail_UserName, &memberUserDetail_UserId, &memberUserDetail_Arn, &memberUserDetail_CreateDate, &memberUserDetail_UserPolicyList, &memberUserDetail_GroupList, &memberUserDetail_AttachedManagedPolicies, &memberUserDetail_PermissionsBoundary, &memberUserDetail_Tags}}
 
-var memberUserDetail_Path = smithy.Member{Name: "Path", Index: 0}
+var memberUserDetail_Path = smithy.Member{Name: "Path", Index: 0, Target: &schemaPathType}
 
-var memberUserDetail_UserName = smithy.Member{Name: "UserName", Index: 1}
+var memberUserDetail_UserName = smithy.Member{Name: "UserName", Index: 1, Target: &schemaUserNameType}
 
-var memberUserDetail_UserId = smithy.Member{Name: "UserId", Index: 2}
+var memberUserDetail_UserId = smithy.Member{Name: "UserId", Index: 2, Target: &schemaIdType}
 
-var memberUserDetail_Arn = smithy.Member{Name: "Arn", Index: 3}
+var memberUserDetail_Arn = smithy.Member{Name: "Arn", Index: 3, Target: &schemaArnType}
 
-var memberUserDetail_CreateDate = smithy.Member{Name: "CreateDate", Index: 4}
+var memberUserDetail_CreateDate = smithy.Member{Name: "CreateDate", Index: 4, Target: &schemaDateType}
 
-var memberUserDetail_UserPolicyList = smithy.Member{Name: "UserPolicyList", Index: 5}
+var memberUserDetail_UserPolicyList = smithy.Member{Name: "UserPolicyList", Index: 5, Target: &schemaPolicyDetailListType}
 
-var memberUserDetail_GroupList = smithy.Member{Name: "GroupList", Index: 6}
+var memberUserDetail_GroupList = smithy.Member{Name: "GroupList", Index: 6, Target: &schemaGroupNameListType}
 
-var memberUserDetail_AttachedManagedPolicies = smithy.Member{Name: "AttachedManagedPolicies", Index: 7}
+var memberUserDetail_AttachedManagedPolicies = smithy.Member{Name: "AttachedManagedPolicies", Index: 7, Target: &schemaAttachedPoliciesListType}
 
-var memberUserDetail_PermissionsBoundary = smithy.Member{Name: "PermissionsBoundary", Index: 8}
+var memberUserDetail_PermissionsBoundary = smithy.Member{Name: "PermissionsBoundary", Index: 8, Target: &schemaAttachedPermissionsBoundary}
 
-var memberUserDetail_Tags = smithy.Member{Name: "Tags", Index: 9}
+var memberUserDetail_Tags = smithy.Member{Name: "Tags", Index: 9, Target: &schemaTagListType}
 
-var schemaUserDetailListType = smithy.Schema{ID: "com.amazonaws.iam#userDetailListType", Type: smithy.TypeList}
+var schemaUserDetailListType = smithy.Schema{ID: "com.amazonaws.iam#userDetailListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberUserDetailListType_member}}
 
-var memberUserDetailListType_member = smithy.Member{Name: "member", Index: 0}
+var memberUserDetailListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaUserDetail}
 
-var schemaUserListType = smithy.Schema{ID: "com.amazonaws.iam#userListType", Type: smithy.TypeList}
+var schemaUserListType = smithy.Schema{ID: "com.amazonaws.iam#userListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberUserListType_member}}
 
-var memberUserListType_member = smithy.Member{Name: "member", Index: 0}
+var memberUserListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaUser}
 
 var schemaUserNameType = smithy.Schema{ID: "com.amazonaws.iam#userNameType", Type: smithy.TypeString}
 
-var schemaValidationException = smithy.Schema{ID: "com.amazon.coral.validate#ValidationException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaValidationException = smithy.Schema{ID: "com.amazon.coral.validate#ValidationException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberValidationException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberValidationException_message = smithy.Member{Name: "message", Index: 0}
+var memberValidationException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaVirtualMFADevice = smithy.Schema{ID: "com.amazonaws.iam#VirtualMFADevice", Type: smithy.TypeStructure}
+var schemaVirtualMFADevice = smithy.Schema{ID: "com.amazonaws.iam#VirtualMFADevice", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberVirtualMFADevice_SerialNumber, &memberVirtualMFADevice_Base32StringSeed, &memberVirtualMFADevice_QRCodePNG, &memberVirtualMFADevice_User, &memberVirtualMFADevice_EnableDate, &memberVirtualMFADevice_Tags}}
 
-var memberVirtualMFADevice_SerialNumber = smithy.Member{Name: "SerialNumber", Index: 0, Required: true}
+var memberVirtualMFADevice_SerialNumber = smithy.Member{Name: "SerialNumber", Index: 0, Target: &schemaSerialNumberType, Required: true}
 
-var memberVirtualMFADevice_Base32StringSeed = smithy.Member{Name: "Base32StringSeed", Index: 1, Sensitive: true}
+var memberVirtualMFADevice_Base32StringSeed = smithy.Member{Name: "Base32StringSeed", Index: 1, Target: &schemaBootstrapDatum, Sensitive: true}
 
-var memberVirtualMFADevice_QRCodePNG = smithy.Member{Name: "QRCodePNG", Index: 2, Sensitive: true}
+var memberVirtualMFADevice_QRCodePNG = smithy.Member{Name: "QRCodePNG", Index: 2, Target: &schemaBootstrapDatum, Sensitive: true}
 
-var memberVirtualMFADevice_User = smithy.Member{Name: "User", Index: 3}
+var memberVirtualMFADevice_User = smithy.Member{Name: "User", Index: 3, Target: &schemaUser}
 
-var memberVirtualMFADevice_EnableDate = smithy.Member{Name: "EnableDate", Index: 4}
+var memberVirtualMFADevice_EnableDate = smithy.Member{Name: "EnableDate", Index: 4, Target: &schemaDateType}
 
-var memberVirtualMFADevice_Tags = smithy.Member{Name: "Tags", Index: 5}
+var memberVirtualMFADevice_Tags = smithy.Member{Name: "Tags", Index: 5, Target: &schemaTagListType}
 
-var schemaVirtualMFADeviceListType = smithy.Schema{ID: "com.amazonaws.iam#virtualMFADeviceListType", Type: smithy.TypeList}
+var schemaVirtualMFADeviceListType = smithy.Schema{ID: "com.amazonaws.iam#virtualMFADeviceListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberVirtualMFADeviceListType_member}}
 
-var memberVirtualMFADeviceListType_member = smithy.Member{Name: "member", Index: 0}
+var memberVirtualMFADeviceListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaVirtualMFADevice}
 
 var schemaVirtualMFADeviceName = smithy.Schema{ID: "com.amazonaws.iam#virtualMFADeviceName", Type: smithy.TypeString}
-
-func init() {
-	memberAcceptDelegationRequestInput_DelegationRequestId.Target = &schemaDelegationRequestIdType
-	schemaAcceptDelegationRequestInput.Members = []*smithy.Member{&memberAcceptDelegationRequestInput_DelegationRequestId}
-	memberAccessDenied_message.Target = &schemaSmithyString
-	schemaAccessDenied.Members = []*smithy.Member{&memberAccessDenied_message}
-	memberAccessDeniedException_message.Target = &schemaSmithyString
-	schemaAccessDeniedException.Members = []*smithy.Member{&memberAccessDeniedException_message}
-	memberAccessDetail_ServiceName.Target = &schemaServiceNameType
-	memberAccessDetail_ServiceNamespace.Target = &schemaServiceNamespaceType
-	memberAccessDetail_Region.Target = &schemaStringType
-	memberAccessDetail_EntityPath.Target = &schemaOrganizationsEntityPathType
-	memberAccessDetail_LastAuthenticatedTime.Target = &schemaDateType
-	memberAccessDetail_TotalAuthenticatedEntities.Target = &schemaIntegerType
-	schemaAccessDetail.Members = []*smithy.Member{&memberAccessDetail_ServiceName, &memberAccessDetail_ServiceNamespace, &memberAccessDetail_Region, &memberAccessDetail_EntityPath, &memberAccessDetail_LastAuthenticatedTime, &memberAccessDetail_TotalAuthenticatedEntities}
-	memberAccessDetails_member.Target = &schemaAccessDetail
-	schemaAccessDetails.Members = []*smithy.Member{&memberAccessDetails_member}
-	memberAccessKey_UserName.Target = &schemaUserNameType
-	memberAccessKey_AccessKeyId.Target = &schemaAccessKeyIdType
-	memberAccessKey_Status.Target = &schemaStatusType
-	memberAccessKey_SecretAccessKey.Target = &schemaAccessKeySecretType
-	memberAccessKey_CreateDate.Target = &schemaDateType
-	schemaAccessKey.Members = []*smithy.Member{&memberAccessKey_UserName, &memberAccessKey_AccessKeyId, &memberAccessKey_Status, &memberAccessKey_SecretAccessKey, &memberAccessKey_CreateDate}
-	memberAccessKeyLastUsed_LastUsedDate.Target = &schemaDateType
-	memberAccessKeyLastUsed_ServiceName.Target = &schemaStringType
-	memberAccessKeyLastUsed_Region.Target = &schemaStringType
-	schemaAccessKeyLastUsed.Members = []*smithy.Member{&memberAccessKeyLastUsed_LastUsedDate, &memberAccessKeyLastUsed_ServiceName, &memberAccessKeyLastUsed_Region}
-	memberAccessKeyMetadata_UserName.Target = &schemaUserNameType
-	memberAccessKeyMetadata_AccessKeyId.Target = &schemaAccessKeyIdType
-	memberAccessKeyMetadata_Status.Target = &schemaStatusType
-	memberAccessKeyMetadata_CreateDate.Target = &schemaDateType
-	schemaAccessKeyMetadata.Members = []*smithy.Member{&memberAccessKeyMetadata_UserName, &memberAccessKeyMetadata_AccessKeyId, &memberAccessKeyMetadata_Status, &memberAccessKeyMetadata_CreateDate}
-	memberAccessKeyMetadataListType_member.Target = &schemaAccessKeyMetadata
-	schemaAccessKeyMetadataListType.Members = []*smithy.Member{&memberAccessKeyMetadataListType_member}
-	memberAccountAliasListType_member.Target = &schemaAccountAliasType
-	schemaAccountAliasListType.Members = []*smithy.Member{&memberAccountAliasListType_member}
-	memberAccountNotManagementOrDelegatedAdministratorException_Message.Target = &schemaExceptionMessage
-	schemaAccountNotManagementOrDelegatedAdministratorException.Members = []*smithy.Member{&memberAccountNotManagementOrDelegatedAdministratorException_Message}
-	memberAccountPropertiesMapType_key.Target = &schemaAccountPropertyKeyType
-	memberAccountPropertiesMapType_value.Target = &schemaAccountPropertyValueType
-	schemaAccountPropertiesMapType.Members = []*smithy.Member{&memberAccountPropertiesMapType_key, &memberAccountPropertiesMapType_value}
-	memberAcquireRoleInput_TemplateArn.Target = &schemaArnType
-	memberAcquireRoleInput_TemplateMinorVersion.Target = &schemaIntegerType
-	memberAcquireRoleInput_ReplacementValues.Target = &schemaMapStringReplacementValueEntry
-	schemaAcquireRoleInput.Members = []*smithy.Member{&memberAcquireRoleInput_TemplateArn, &memberAcquireRoleInput_TemplateMinorVersion, &memberAcquireRoleInput_ReplacementValues}
-	memberAcquireRoleOutput_Role.Target = &schemaRole
-	schemaAcquireRoleOutput.Members = []*smithy.Member{&memberAcquireRoleOutput_Role}
-	memberActionNameListType_member.Target = &schemaActionNameType
-	schemaActionNameListType.Members = []*smithy.Member{&memberActionNameListType_member}
-	memberAddClientIDToOpenIDConnectProviderInput_OpenIDConnectProviderArn.Target = &schemaArnType
-	memberAddClientIDToOpenIDConnectProviderInput_ClientID.Target = &schemaClientIDType
-	schemaAddClientIDToOpenIDConnectProviderInput.Members = []*smithy.Member{&memberAddClientIDToOpenIDConnectProviderInput_OpenIDConnectProviderArn, &memberAddClientIDToOpenIDConnectProviderInput_ClientID}
-	memberAddRoleToInstanceProfileInput_InstanceProfileName.Target = &schemaInstanceProfileNameType
-	memberAddRoleToInstanceProfileInput_RoleName.Target = &schemaRoleNameType
-	schemaAddRoleToInstanceProfileInput.Members = []*smithy.Member{&memberAddRoleToInstanceProfileInput_InstanceProfileName, &memberAddRoleToInstanceProfileInput_RoleName}
-	memberAddUserToGroupInput_GroupName.Target = &schemaGroupNameType
-	memberAddUserToGroupInput_UserName.Target = &schemaExistingUserNameType
-	schemaAddUserToGroupInput.Members = []*smithy.Member{&memberAddUserToGroupInput_GroupName, &memberAddUserToGroupInput_UserName}
-	memberArnListType_member.Target = &schemaArnType
-	schemaArnListType.Members = []*smithy.Member{&memberArnListType_member}
-	memberAssociateDelegationRequestInput_DelegationRequestId.Target = &schemaDelegationRequestIdType
-	schemaAssociateDelegationRequestInput.Members = []*smithy.Member{&memberAssociateDelegationRequestInput_DelegationRequestId}
-	memberAttachGroupPolicyInput_GroupName.Target = &schemaGroupNameType
-	memberAttachGroupPolicyInput_PolicyArn.Target = &schemaArnType
-	schemaAttachGroupPolicyInput.Members = []*smithy.Member{&memberAttachGroupPolicyInput_GroupName, &memberAttachGroupPolicyInput_PolicyArn}
-	memberAttachRolePolicyInput_RoleName.Target = &schemaRoleNameType
-	memberAttachRolePolicyInput_PolicyArn.Target = &schemaArnType
-	schemaAttachRolePolicyInput.Members = []*smithy.Member{&memberAttachRolePolicyInput_RoleName, &memberAttachRolePolicyInput_PolicyArn}
-	memberAttachUserPolicyInput_UserName.Target = &schemaUserNameType
-	memberAttachUserPolicyInput_PolicyArn.Target = &schemaArnType
-	schemaAttachUserPolicyInput.Members = []*smithy.Member{&memberAttachUserPolicyInput_UserName, &memberAttachUserPolicyInput_PolicyArn}
-	memberAttachedPermissionsBoundary_PermissionsBoundaryType.Target = &schemaPermissionsBoundaryAttachmentType
-	memberAttachedPermissionsBoundary_PermissionsBoundaryArn.Target = &schemaArnType
-	schemaAttachedPermissionsBoundary.Members = []*smithy.Member{&memberAttachedPermissionsBoundary_PermissionsBoundaryType, &memberAttachedPermissionsBoundary_PermissionsBoundaryArn}
-	memberAttachedPoliciesListType_member.Target = &schemaAttachedPolicy
-	schemaAttachedPoliciesListType.Members = []*smithy.Member{&memberAttachedPoliciesListType_member}
-	memberAttachedPolicy_PolicyName.Target = &schemaPolicyNameType
-	memberAttachedPolicy_PolicyArn.Target = &schemaArnType
-	schemaAttachedPolicy.Members = []*smithy.Member{&memberAttachedPolicy_PolicyName, &memberAttachedPolicy_PolicyArn}
-	memberCallerIsNotManagementAccountException_Message.Target = &schemaExceptionMessage
-	schemaCallerIsNotManagementAccountException.Members = []*smithy.Member{&memberCallerIsNotManagementAccountException_Message}
-	memberCertificateListType_member.Target = &schemaSigningCertificate
-	schemaCertificateListType.Members = []*smithy.Member{&memberCertificateListType_member}
-	memberCertificationMapType_key.Target = &schemaCertificationKeyType
-	memberCertificationMapType_value.Target = &schemaCertificationValueType
-	schemaCertificationMapType.Members = []*smithy.Member{&memberCertificationMapType_key, &memberCertificationMapType_value}
-	memberChangePasswordInput_OldPassword.Target = &schemaPasswordType
-	memberChangePasswordInput_NewPassword.Target = &schemaPasswordType
-	schemaChangePasswordInput.Members = []*smithy.Member{&memberChangePasswordInput_OldPassword, &memberChangePasswordInput_NewPassword}
-	memberClientIDListType_member.Target = &schemaClientIDType
-	schemaClientIDListType.Members = []*smithy.Member{&memberClientIDListType_member}
-	memberConcurrentModificationException_message.Target = &schemaConcurrentModificationMessage
-	schemaConcurrentModificationException.Members = []*smithy.Member{&memberConcurrentModificationException_message}
-	memberContextEntry_ContextKeyName.Target = &schemaContextKeyNameType
-	memberContextEntry_ContextKeyValues.Target = &schemaContextKeyValueListType
-	memberContextEntry_ContextKeyType.Target = &schemaContextKeyTypeEnum
-	schemaContextEntry.Members = []*smithy.Member{&memberContextEntry_ContextKeyName, &memberContextEntry_ContextKeyValues, &memberContextEntry_ContextKeyType}
-	memberContextEntryListType_member.Target = &schemaContextEntry
-	schemaContextEntryListType.Members = []*smithy.Member{&memberContextEntryListType_member}
-	memberContextKeyNamesResultListType_member.Target = &schemaContextKeyNameType
-	schemaContextKeyNamesResultListType.Members = []*smithy.Member{&memberContextKeyNamesResultListType_member}
-	memberContextKeyValueListType_member.Target = &schemaContextKeyValueType
-	schemaContextKeyValueListType.Members = []*smithy.Member{&memberContextKeyValueListType_member}
-	memberCreateAccessKeyInput_UserName.Target = &schemaExistingUserNameType
-	schemaCreateAccessKeyInput.Members = []*smithy.Member{&memberCreateAccessKeyInput_UserName}
-	memberCreateAccessKeyOutput_AccessKey.Target = &schemaAccessKey
-	schemaCreateAccessKeyOutput.Members = []*smithy.Member{&memberCreateAccessKeyOutput_AccessKey}
-	memberCreateAccountAliasInput_AccountAlias.Target = &schemaAccountAliasType
-	schemaCreateAccountAliasInput.Members = []*smithy.Member{&memberCreateAccountAliasInput_AccountAlias}
-	memberCreateDelegationRequestInput_OwnerAccountId.Target = &schemaAccountIdType
-	memberCreateDelegationRequestInput_Description.Target = &schemaDelegationRequestDescriptionType
-	memberCreateDelegationRequestInput_Permissions.Target = &schemaDelegationPermission
-	memberCreateDelegationRequestInput_RequestMessage.Target = &schemaRequestMessageType
-	memberCreateDelegationRequestInput_RequestorWorkflowId.Target = &schemaRequestorWorkflowIdType
-	memberCreateDelegationRequestInput_RedirectUrl.Target = &schemaRedirectUrlType
-	memberCreateDelegationRequestInput_NotificationChannel.Target = &schemaNotificationChannelType
-	memberCreateDelegationRequestInput_SessionDuration.Target = &schemaSessionDurationType
-	memberCreateDelegationRequestInput_OnlySendByOwner.Target = &schemaBooleanType
-	schemaCreateDelegationRequestInput.Members = []*smithy.Member{&memberCreateDelegationRequestInput_OwnerAccountId, &memberCreateDelegationRequestInput_Description, &memberCreateDelegationRequestInput_Permissions, &memberCreateDelegationRequestInput_RequestMessage, &memberCreateDelegationRequestInput_RequestorWorkflowId, &memberCreateDelegationRequestInput_RedirectUrl, &memberCreateDelegationRequestInput_NotificationChannel, &memberCreateDelegationRequestInput_SessionDuration, &memberCreateDelegationRequestInput_OnlySendByOwner}
-	memberCreateDelegationRequestOutput_ConsoleDeepLink.Target = &schemaConsoleDeepLinkType
-	memberCreateDelegationRequestOutput_DelegationRequestId.Target = &schemaDelegationRequestIdType
-	schemaCreateDelegationRequestOutput.Members = []*smithy.Member{&memberCreateDelegationRequestOutput_ConsoleDeepLink, &memberCreateDelegationRequestOutput_DelegationRequestId}
-	memberCreateGroupInput_Path.Target = &schemaPathType
-	memberCreateGroupInput_GroupName.Target = &schemaGroupNameType
-	schemaCreateGroupInput.Members = []*smithy.Member{&memberCreateGroupInput_Path, &memberCreateGroupInput_GroupName}
-	memberCreateGroupOutput_Group.Target = &schemaGroup
-	schemaCreateGroupOutput.Members = []*smithy.Member{&memberCreateGroupOutput_Group}
-	memberCreateInstanceProfileInput_InstanceProfileName.Target = &schemaInstanceProfileNameType
-	memberCreateInstanceProfileInput_Path.Target = &schemaPathType
-	memberCreateInstanceProfileInput_Tags.Target = &schemaTagListType
-	schemaCreateInstanceProfileInput.Members = []*smithy.Member{&memberCreateInstanceProfileInput_InstanceProfileName, &memberCreateInstanceProfileInput_Path, &memberCreateInstanceProfileInput_Tags}
-	memberCreateInstanceProfileOutput_InstanceProfile.Target = &schemaInstanceProfile
-	schemaCreateInstanceProfileOutput.Members = []*smithy.Member{&memberCreateInstanceProfileOutput_InstanceProfile}
-	memberCreateLoginProfileInput_UserName.Target = &schemaUserNameType
-	memberCreateLoginProfileInput_Password.Target = &schemaPasswordType
-	memberCreateLoginProfileInput_PasswordResetRequired.Target = &schemaBooleanType
-	schemaCreateLoginProfileInput.Members = []*smithy.Member{&memberCreateLoginProfileInput_UserName, &memberCreateLoginProfileInput_Password, &memberCreateLoginProfileInput_PasswordResetRequired}
-	memberCreateLoginProfileOutput_LoginProfile.Target = &schemaLoginProfile
-	schemaCreateLoginProfileOutput.Members = []*smithy.Member{&memberCreateLoginProfileOutput_LoginProfile}
-	memberCreateOpenIDConnectProviderInput_Url.Target = &schemaOpenIDConnectProviderUrlType
-	memberCreateOpenIDConnectProviderInput_ClientIDList.Target = &schemaClientIDListType
-	memberCreateOpenIDConnectProviderInput_ThumbprintList.Target = &schemaThumbprintListType
-	memberCreateOpenIDConnectProviderInput_Tags.Target = &schemaTagListType
-	schemaCreateOpenIDConnectProviderInput.Members = []*smithy.Member{&memberCreateOpenIDConnectProviderInput_Url, &memberCreateOpenIDConnectProviderInput_ClientIDList, &memberCreateOpenIDConnectProviderInput_ThumbprintList, &memberCreateOpenIDConnectProviderInput_Tags}
-	memberCreateOpenIDConnectProviderOutput_OpenIDConnectProviderArn.Target = &schemaArnType
-	memberCreateOpenIDConnectProviderOutput_Tags.Target = &schemaTagListType
-	schemaCreateOpenIDConnectProviderOutput.Members = []*smithy.Member{&memberCreateOpenIDConnectProviderOutput_OpenIDConnectProviderArn, &memberCreateOpenIDConnectProviderOutput_Tags}
-	memberCreatePolicyInput_PolicyName.Target = &schemaPolicyNameType
-	memberCreatePolicyInput_Path.Target = &schemaPolicyPathType
-	memberCreatePolicyInput_PolicyDocument.Target = &schemaPolicyDocumentType
-	memberCreatePolicyInput_Description.Target = &schemaPolicyDescriptionType
-	memberCreatePolicyInput_Tags.Target = &schemaTagListType
-	schemaCreatePolicyInput.Members = []*smithy.Member{&memberCreatePolicyInput_PolicyName, &memberCreatePolicyInput_Path, &memberCreatePolicyInput_PolicyDocument, &memberCreatePolicyInput_Description, &memberCreatePolicyInput_Tags}
-	memberCreatePolicyOutput_Policy.Target = &schemaPolicy
-	schemaCreatePolicyOutput.Members = []*smithy.Member{&memberCreatePolicyOutput_Policy}
-	memberCreatePolicyVersionInput_PolicyArn.Target = &schemaArnType
-	memberCreatePolicyVersionInput_PolicyDocument.Target = &schemaPolicyDocumentType
-	memberCreatePolicyVersionInput_SetAsDefault.Target = &schemaBooleanType
-	schemaCreatePolicyVersionInput.Members = []*smithy.Member{&memberCreatePolicyVersionInput_PolicyArn, &memberCreatePolicyVersionInput_PolicyDocument, &memberCreatePolicyVersionInput_SetAsDefault}
-	memberCreatePolicyVersionOutput_PolicyVersion.Target = &schemaPolicyVersion
-	schemaCreatePolicyVersionOutput.Members = []*smithy.Member{&memberCreatePolicyVersionOutput_PolicyVersion}
-	memberCreateRoleInput_Path.Target = &schemaPathType
-	memberCreateRoleInput_RoleName.Target = &schemaRoleNameType
-	memberCreateRoleInput_AssumeRolePolicyDocument.Target = &schemaPolicyDocumentType
-	memberCreateRoleInput_Description.Target = &schemaRoleDescriptionType
-	memberCreateRoleInput_MaxSessionDuration.Target = &schemaRoleMaxSessionDurationType
-	memberCreateRoleInput_PermissionsBoundary.Target = &schemaArnType
-	memberCreateRoleInput_Tags.Target = &schemaTagListType
-	schemaCreateRoleInput.Members = []*smithy.Member{&memberCreateRoleInput_Path, &memberCreateRoleInput_RoleName, &memberCreateRoleInput_AssumeRolePolicyDocument, &memberCreateRoleInput_Description, &memberCreateRoleInput_MaxSessionDuration, &memberCreateRoleInput_PermissionsBoundary, &memberCreateRoleInput_Tags}
-	memberCreateRoleOutput_Role.Target = &schemaRole
-	schemaCreateRoleOutput.Members = []*smithy.Member{&memberCreateRoleOutput_Role}
-	memberCreateSAMLProviderInput_SAMLMetadataDocument.Target = &schemaSAMLMetadataDocumentType
-	memberCreateSAMLProviderInput_Name.Target = &schemaSAMLProviderNameType
-	memberCreateSAMLProviderInput_Tags.Target = &schemaTagListType
-	memberCreateSAMLProviderInput_AssertionEncryptionMode.Target = &schemaAssertionEncryptionModeType
-	memberCreateSAMLProviderInput_AddPrivateKey.Target = &schemaPrivateKeyType
-	schemaCreateSAMLProviderInput.Members = []*smithy.Member{&memberCreateSAMLProviderInput_SAMLMetadataDocument, &memberCreateSAMLProviderInput_Name, &memberCreateSAMLProviderInput_Tags, &memberCreateSAMLProviderInput_AssertionEncryptionMode, &memberCreateSAMLProviderInput_AddPrivateKey}
-	memberCreateSAMLProviderOutput_SAMLProviderArn.Target = &schemaArnType
-	memberCreateSAMLProviderOutput_Tags.Target = &schemaTagListType
-	schemaCreateSAMLProviderOutput.Members = []*smithy.Member{&memberCreateSAMLProviderOutput_SAMLProviderArn, &memberCreateSAMLProviderOutput_Tags}
-	memberCreateServiceLinkedRoleInput_AWSServiceName.Target = &schemaGroupNameType
-	memberCreateServiceLinkedRoleInput_Description.Target = &schemaRoleDescriptionType
-	memberCreateServiceLinkedRoleInput_CustomSuffix.Target = &schemaCustomSuffixType
-	schemaCreateServiceLinkedRoleInput.Members = []*smithy.Member{&memberCreateServiceLinkedRoleInput_AWSServiceName, &memberCreateServiceLinkedRoleInput_Description, &memberCreateServiceLinkedRoleInput_CustomSuffix}
-	memberCreateServiceLinkedRoleOutput_Role.Target = &schemaRole
-	schemaCreateServiceLinkedRoleOutput.Members = []*smithy.Member{&memberCreateServiceLinkedRoleOutput_Role}
-	memberCreateServiceSpecificCredentialInput_UserName.Target = &schemaUserNameType
-	memberCreateServiceSpecificCredentialInput_ServiceName.Target = &schemaServiceName
-	memberCreateServiceSpecificCredentialInput_CredentialAgeDays.Target = &schemaCredentialAgeDays
-	schemaCreateServiceSpecificCredentialInput.Members = []*smithy.Member{&memberCreateServiceSpecificCredentialInput_UserName, &memberCreateServiceSpecificCredentialInput_ServiceName, &memberCreateServiceSpecificCredentialInput_CredentialAgeDays}
-	memberCreateServiceSpecificCredentialOutput_ServiceSpecificCredential.Target = &schemaServiceSpecificCredential
-	schemaCreateServiceSpecificCredentialOutput.Members = []*smithy.Member{&memberCreateServiceSpecificCredentialOutput_ServiceSpecificCredential}
-	memberCreateUserInput_Path.Target = &schemaPathType
-	memberCreateUserInput_UserName.Target = &schemaUserNameType
-	memberCreateUserInput_PermissionsBoundary.Target = &schemaArnType
-	memberCreateUserInput_Tags.Target = &schemaTagListType
-	schemaCreateUserInput.Members = []*smithy.Member{&memberCreateUserInput_Path, &memberCreateUserInput_UserName, &memberCreateUserInput_PermissionsBoundary, &memberCreateUserInput_Tags}
-	memberCreateUserOutput_User.Target = &schemaUser
-	schemaCreateUserOutput.Members = []*smithy.Member{&memberCreateUserOutput_User}
-	memberCreateVirtualMFADeviceInput_Path.Target = &schemaPathType
-	memberCreateVirtualMFADeviceInput_VirtualMFADeviceName.Target = &schemaVirtualMFADeviceName
-	memberCreateVirtualMFADeviceInput_Tags.Target = &schemaTagListType
-	schemaCreateVirtualMFADeviceInput.Members = []*smithy.Member{&memberCreateVirtualMFADeviceInput_Path, &memberCreateVirtualMFADeviceInput_VirtualMFADeviceName, &memberCreateVirtualMFADeviceInput_Tags}
-	memberCreateVirtualMFADeviceOutput_VirtualMFADevice.Target = &schemaVirtualMFADevice
-	schemaCreateVirtualMFADeviceOutput.Members = []*smithy.Member{&memberCreateVirtualMFADeviceOutput_VirtualMFADevice}
-	memberCredentialReportExpiredException_message.Target = &schemaCredentialReportExpiredExceptionMessage
-	schemaCredentialReportExpiredException.Members = []*smithy.Member{&memberCredentialReportExpiredException_message}
-	memberCredentialReportNotPresentException_message.Target = &schemaCredentialReportNotPresentExceptionMessage
-	schemaCredentialReportNotPresentException.Members = []*smithy.Member{&memberCredentialReportNotPresentException_message}
-	memberCredentialReportNotReadyException_message.Target = &schemaCredentialReportNotReadyExceptionMessage
-	schemaCredentialReportNotReadyException.Members = []*smithy.Member{&memberCredentialReportNotReadyException_message}
-	memberDeactivateMFADeviceInput_UserName.Target = &schemaExistingUserNameType
-	memberDeactivateMFADeviceInput_SerialNumber.Target = &schemaSerialNumberType
-	schemaDeactivateMFADeviceInput.Members = []*smithy.Member{&memberDeactivateMFADeviceInput_UserName, &memberDeactivateMFADeviceInput_SerialNumber}
-	memberDelegationPermission_PolicyTemplateArn.Target = &schemaArnType
-	memberDelegationPermission_Parameters.Target = &schemaPolicyParameterListType
-	schemaDelegationPermission.Members = []*smithy.Member{&memberDelegationPermission_PolicyTemplateArn, &memberDelegationPermission_Parameters}
-	memberDelegationRequest_DelegationRequestId.Target = &schemaDelegationRequestIdType
-	memberDelegationRequest_OwnerAccountId.Target = &schemaAccountIdType
-	memberDelegationRequest_Description.Target = &schemaDelegationRequestDescriptionType
-	memberDelegationRequest_RequestMessage.Target = &schemaRequestMessageType
-	memberDelegationRequest_Permissions.Target = &schemaDelegationPermission
-	memberDelegationRequest_PermissionPolicy.Target = &schemaPermissionType
-	memberDelegationRequest_RolePermissionRestrictionArns.Target = &schemaRolePermissionRestrictionArnListType
-	memberDelegationRequest_OwnerId.Target = &schemaOwnerIdType
-	memberDelegationRequest_ApproverId.Target = &schemaArnType
-	memberDelegationRequest_State.Target = &schemaStateType
-	memberDelegationRequest_ExpirationTime.Target = &schemaDateType
-	memberDelegationRequest_RequestorId.Target = &schemaAccountIdType
-	memberDelegationRequest_RequestorName.Target = &schemaRequestorNameType
-	memberDelegationRequest_CreateDate.Target = &schemaDateType
-	memberDelegationRequest_SessionDuration.Target = &schemaSessionDurationType
-	memberDelegationRequest_RedirectUrl.Target = &schemaRedirectUrlType
-	memberDelegationRequest_Notes.Target = &schemaNotesType
-	memberDelegationRequest_RejectionReason.Target = &schemaNotesType
-	memberDelegationRequest_OnlySendByOwner.Target = &schemaBooleanType
-	memberDelegationRequest_UpdatedTime.Target = &schemaDateType
-	schemaDelegationRequest.Members = []*smithy.Member{&memberDelegationRequest_DelegationRequestId, &memberDelegationRequest_OwnerAccountId, &memberDelegationRequest_Description, &memberDelegationRequest_RequestMessage, &memberDelegationRequest_Permissions, &memberDelegationRequest_PermissionPolicy, &memberDelegationRequest_RolePermissionRestrictionArns, &memberDelegationRequest_OwnerId, &memberDelegationRequest_ApproverId, &memberDelegationRequest_State, &memberDelegationRequest_ExpirationTime, &memberDelegationRequest_RequestorId, &memberDelegationRequest_RequestorName, &memberDelegationRequest_CreateDate, &memberDelegationRequest_SessionDuration, &memberDelegationRequest_RedirectUrl, &memberDelegationRequest_Notes, &memberDelegationRequest_RejectionReason, &memberDelegationRequest_OnlySendByOwner, &memberDelegationRequest_UpdatedTime}
-	memberDelegationRequestsListType_member.Target = &schemaDelegationRequest
-	schemaDelegationRequestsListType.Members = []*smithy.Member{&memberDelegationRequestsListType_member}
-	memberDeleteAccessKeyInput_UserName.Target = &schemaExistingUserNameType
-	memberDeleteAccessKeyInput_AccessKeyId.Target = &schemaAccessKeyIdType
-	schemaDeleteAccessKeyInput.Members = []*smithy.Member{&memberDeleteAccessKeyInput_UserName, &memberDeleteAccessKeyInput_AccessKeyId}
-	memberDeleteAccountAliasInput_AccountAlias.Target = &schemaAccountAliasType
-	schemaDeleteAccountAliasInput.Members = []*smithy.Member{&memberDeleteAccountAliasInput_AccountAlias}
-	memberDeleteConflictException_message.Target = &schemaDeleteConflictMessage
-	schemaDeleteConflictException.Members = []*smithy.Member{&memberDeleteConflictException_message}
-	memberDeleteGroupInput_GroupName.Target = &schemaGroupNameType
-	schemaDeleteGroupInput.Members = []*smithy.Member{&memberDeleteGroupInput_GroupName}
-	memberDeleteGroupPolicyInput_GroupName.Target = &schemaGroupNameType
-	memberDeleteGroupPolicyInput_PolicyName.Target = &schemaPolicyNameType
-	schemaDeleteGroupPolicyInput.Members = []*smithy.Member{&memberDeleteGroupPolicyInput_GroupName, &memberDeleteGroupPolicyInput_PolicyName}
-	memberDeleteInstanceProfileInput_InstanceProfileName.Target = &schemaInstanceProfileNameType
-	schemaDeleteInstanceProfileInput.Members = []*smithy.Member{&memberDeleteInstanceProfileInput_InstanceProfileName}
-	memberDeleteLoginProfileInput_UserName.Target = &schemaUserNameType
-	schemaDeleteLoginProfileInput.Members = []*smithy.Member{&memberDeleteLoginProfileInput_UserName}
-	memberDeleteOpenIDConnectProviderInput_OpenIDConnectProviderArn.Target = &schemaArnType
-	schemaDeleteOpenIDConnectProviderInput.Members = []*smithy.Member{&memberDeleteOpenIDConnectProviderInput_OpenIDConnectProviderArn}
-	memberDeletePolicyInput_PolicyArn.Target = &schemaArnType
-	schemaDeletePolicyInput.Members = []*smithy.Member{&memberDeletePolicyInput_PolicyArn}
-	memberDeletePolicyVersionInput_PolicyArn.Target = &schemaArnType
-	memberDeletePolicyVersionInput_VersionId.Target = &schemaPolicyVersionIdType
-	schemaDeletePolicyVersionInput.Members = []*smithy.Member{&memberDeletePolicyVersionInput_PolicyArn, &memberDeletePolicyVersionInput_VersionId}
-	memberDeleteRoleInput_RoleName.Target = &schemaRoleNameType
-	schemaDeleteRoleInput.Members = []*smithy.Member{&memberDeleteRoleInput_RoleName}
-	memberDeleteRolePermissionsBoundaryInput_RoleName.Target = &schemaRoleNameType
-	schemaDeleteRolePermissionsBoundaryInput.Members = []*smithy.Member{&memberDeleteRolePermissionsBoundaryInput_RoleName}
-	memberDeleteRolePolicyInput_RoleName.Target = &schemaRoleNameType
-	memberDeleteRolePolicyInput_PolicyName.Target = &schemaPolicyNameType
-	schemaDeleteRolePolicyInput.Members = []*smithy.Member{&memberDeleteRolePolicyInput_RoleName, &memberDeleteRolePolicyInput_PolicyName}
-	memberDeleteSAMLProviderInput_SAMLProviderArn.Target = &schemaArnType
-	schemaDeleteSAMLProviderInput.Members = []*smithy.Member{&memberDeleteSAMLProviderInput_SAMLProviderArn}
-	memberDeleteSSHPublicKeyInput_UserName.Target = &schemaUserNameType
-	memberDeleteSSHPublicKeyInput_SSHPublicKeyId.Target = &schemaPublicKeyIdType
-	schemaDeleteSSHPublicKeyInput.Members = []*smithy.Member{&memberDeleteSSHPublicKeyInput_UserName, &memberDeleteSSHPublicKeyInput_SSHPublicKeyId}
-	memberDeleteServerCertificateInput_ServerCertificateName.Target = &schemaServerCertificateNameType
-	schemaDeleteServerCertificateInput.Members = []*smithy.Member{&memberDeleteServerCertificateInput_ServerCertificateName}
-	memberDeleteServiceLinkedRoleInput_RoleName.Target = &schemaRoleNameType
-	schemaDeleteServiceLinkedRoleInput.Members = []*smithy.Member{&memberDeleteServiceLinkedRoleInput_RoleName}
-	memberDeleteServiceLinkedRoleOutput_DeletionTaskId.Target = &schemaDeletionTaskIdType
-	schemaDeleteServiceLinkedRoleOutput.Members = []*smithy.Member{&memberDeleteServiceLinkedRoleOutput_DeletionTaskId}
-	memberDeleteServiceSpecificCredentialInput_UserName.Target = &schemaUserNameType
-	memberDeleteServiceSpecificCredentialInput_ServiceSpecificCredentialId.Target = &schemaServiceSpecificCredentialId
-	schemaDeleteServiceSpecificCredentialInput.Members = []*smithy.Member{&memberDeleteServiceSpecificCredentialInput_UserName, &memberDeleteServiceSpecificCredentialInput_ServiceSpecificCredentialId}
-	memberDeleteSigningCertificateInput_UserName.Target = &schemaExistingUserNameType
-	memberDeleteSigningCertificateInput_CertificateId.Target = &schemaCertificateIdType
-	schemaDeleteSigningCertificateInput.Members = []*smithy.Member{&memberDeleteSigningCertificateInput_UserName, &memberDeleteSigningCertificateInput_CertificateId}
-	memberDeleteUserInput_UserName.Target = &schemaExistingUserNameType
-	schemaDeleteUserInput.Members = []*smithy.Member{&memberDeleteUserInput_UserName}
-	memberDeleteUserPermissionsBoundaryInput_UserName.Target = &schemaUserNameType
-	schemaDeleteUserPermissionsBoundaryInput.Members = []*smithy.Member{&memberDeleteUserPermissionsBoundaryInput_UserName}
-	memberDeleteUserPolicyInput_UserName.Target = &schemaExistingUserNameType
-	memberDeleteUserPolicyInput_PolicyName.Target = &schemaPolicyNameType
-	schemaDeleteUserPolicyInput.Members = []*smithy.Member{&memberDeleteUserPolicyInput_UserName, &memberDeleteUserPolicyInput_PolicyName}
-	memberDeleteVirtualMFADeviceInput_SerialNumber.Target = &schemaSerialNumberType
-	schemaDeleteVirtualMFADeviceInput.Members = []*smithy.Member{&memberDeleteVirtualMFADeviceInput_SerialNumber}
-	memberDeletionTaskFailureReasonType_Reason.Target = &schemaReasonType
-	memberDeletionTaskFailureReasonType_RoleUsageList.Target = &schemaRoleUsageListType
-	schemaDeletionTaskFailureReasonType.Members = []*smithy.Member{&memberDeletionTaskFailureReasonType_Reason, &memberDeletionTaskFailureReasonType_RoleUsageList}
-	memberDetachGroupPolicyInput_GroupName.Target = &schemaGroupNameType
-	memberDetachGroupPolicyInput_PolicyArn.Target = &schemaArnType
-	schemaDetachGroupPolicyInput.Members = []*smithy.Member{&memberDetachGroupPolicyInput_GroupName, &memberDetachGroupPolicyInput_PolicyArn}
-	memberDetachRolePolicyInput_RoleName.Target = &schemaRoleNameType
-	memberDetachRolePolicyInput_PolicyArn.Target = &schemaArnType
-	schemaDetachRolePolicyInput.Members = []*smithy.Member{&memberDetachRolePolicyInput_RoleName, &memberDetachRolePolicyInput_PolicyArn}
-	memberDetachUserPolicyInput_UserName.Target = &schemaUserNameType
-	memberDetachUserPolicyInput_PolicyArn.Target = &schemaArnType
-	schemaDetachUserPolicyInput.Members = []*smithy.Member{&memberDetachUserPolicyInput_UserName, &memberDetachUserPolicyInput_PolicyArn}
-	memberDisableOrganizationsRootCredentialsManagementOutput_OrganizationId.Target = &schemaOrganizationIdType
-	memberDisableOrganizationsRootCredentialsManagementOutput_EnabledFeatures.Target = &schemaFeaturesListType
-	schemaDisableOrganizationsRootCredentialsManagementOutput.Members = []*smithy.Member{&memberDisableOrganizationsRootCredentialsManagementOutput_OrganizationId, &memberDisableOrganizationsRootCredentialsManagementOutput_EnabledFeatures}
-	memberDisableOrganizationsRootSessionsOutput_OrganizationId.Target = &schemaOrganizationIdType
-	memberDisableOrganizationsRootSessionsOutput_EnabledFeatures.Target = &schemaFeaturesListType
-	schemaDisableOrganizationsRootSessionsOutput.Members = []*smithy.Member{&memberDisableOrganizationsRootSessionsOutput_OrganizationId, &memberDisableOrganizationsRootSessionsOutput_EnabledFeatures}
-	memberDuplicateCertificateException_message.Target = &schemaDuplicateCertificateMessage
-	schemaDuplicateCertificateException.Members = []*smithy.Member{&memberDuplicateCertificateException_message}
-	memberDuplicateSSHPublicKeyException_message.Target = &schemaDuplicateSSHPublicKeyMessage
-	schemaDuplicateSSHPublicKeyException.Members = []*smithy.Member{&memberDuplicateSSHPublicKeyException_message}
-	memberEnableMFADeviceInput_UserName.Target = &schemaExistingUserNameType
-	memberEnableMFADeviceInput_SerialNumber.Target = &schemaSerialNumberType
-	memberEnableMFADeviceInput_AuthenticationCode1.Target = &schemaAuthenticationCodeType
-	memberEnableMFADeviceInput_AuthenticationCode2.Target = &schemaAuthenticationCodeType
-	schemaEnableMFADeviceInput.Members = []*smithy.Member{&memberEnableMFADeviceInput_UserName, &memberEnableMFADeviceInput_SerialNumber, &memberEnableMFADeviceInput_AuthenticationCode1, &memberEnableMFADeviceInput_AuthenticationCode2}
-	memberEnableOrganizationsRootCredentialsManagementOutput_OrganizationId.Target = &schemaOrganizationIdType
-	memberEnableOrganizationsRootCredentialsManagementOutput_EnabledFeatures.Target = &schemaFeaturesListType
-	schemaEnableOrganizationsRootCredentialsManagementOutput.Members = []*smithy.Member{&memberEnableOrganizationsRootCredentialsManagementOutput_OrganizationId, &memberEnableOrganizationsRootCredentialsManagementOutput_EnabledFeatures}
-	memberEnableOrganizationsRootSessionsOutput_OrganizationId.Target = &schemaOrganizationIdType
-	memberEnableOrganizationsRootSessionsOutput_EnabledFeatures.Target = &schemaFeaturesListType
-	schemaEnableOrganizationsRootSessionsOutput.Members = []*smithy.Member{&memberEnableOrganizationsRootSessionsOutput_OrganizationId, &memberEnableOrganizationsRootSessionsOutput_EnabledFeatures}
-	memberEnableOutboundWebIdentityFederationOutput_IssuerIdentifier.Target = &schemaStringType
-	schemaEnableOutboundWebIdentityFederationOutput.Members = []*smithy.Member{&memberEnableOutboundWebIdentityFederationOutput_IssuerIdentifier}
-	memberEntityAlreadyExistsException_message.Target = &schemaEntityAlreadyExistsMessage
-	schemaEntityAlreadyExistsException.Members = []*smithy.Member{&memberEntityAlreadyExistsException_message}
-	memberEntityDetails_EntityInfo.Target = &schemaEntityInfo
-	memberEntityDetails_LastAuthenticated.Target = &schemaDateType
-	schemaEntityDetails.Members = []*smithy.Member{&memberEntityDetails_EntityInfo, &memberEntityDetails_LastAuthenticated}
-	memberEntityDetailsListType_member.Target = &schemaEntityDetails
-	schemaEntityDetailsListType.Members = []*smithy.Member{&memberEntityDetailsListType_member}
-	memberEntityInfo_Arn.Target = &schemaArnType
-	memberEntityInfo_Name.Target = &schemaUserNameType
-	memberEntityInfo_Type.Target = &schemaPolicyOwnerEntityType
-	memberEntityInfo_Id.Target = &schemaIdType
-	memberEntityInfo_Path.Target = &schemaPathType
-	schemaEntityInfo.Members = []*smithy.Member{&memberEntityInfo_Arn, &memberEntityInfo_Name, &memberEntityInfo_Type, &memberEntityInfo_Id, &memberEntityInfo_Path}
-	memberEntityListType_member.Target = &schemaEntityType
-	schemaEntityListType.Members = []*smithy.Member{&memberEntityListType_member}
-	memberEntityTemporarilyUnmodifiableException_message.Target = &schemaEntityTemporarilyUnmodifiableMessage
-	schemaEntityTemporarilyUnmodifiableException.Members = []*smithy.Member{&memberEntityTemporarilyUnmodifiableException_message}
-	memberErrorDetails_Message.Target = &schemaStringType
-	memberErrorDetails_Code.Target = &schemaStringType
-	schemaErrorDetails.Members = []*smithy.Member{&memberErrorDetails_Message, &memberErrorDetails_Code}
-	memberEvalDecisionDetailsType_key.Target = &schemaEvalDecisionSourceType
-	memberEvalDecisionDetailsType_value.Target = &schemaPolicyEvaluationDecisionType
-	schemaEvalDecisionDetailsType.Members = []*smithy.Member{&memberEvalDecisionDetailsType_key, &memberEvalDecisionDetailsType_value}
-	memberEvaluationResult_EvalActionName.Target = &schemaActionNameType
-	memberEvaluationResult_EvalResourceName.Target = &schemaResourceNameType
-	memberEvaluationResult_EvalDecision.Target = &schemaPolicyEvaluationDecisionType
-	memberEvaluationResult_MatchedStatements.Target = &schemaStatementListType
-	memberEvaluationResult_MissingContextValues.Target = &schemaContextKeyNamesResultListType
-	memberEvaluationResult_OrganizationsDecisionDetail.Target = &schemaOrganizationsDecisionDetail
-	memberEvaluationResult_PermissionsBoundaryDecisionDetail.Target = &schemaPermissionsBoundaryDecisionDetail
-	memberEvaluationResult_EvalDecisionDetails.Target = &schemaEvalDecisionDetailsType
-	memberEvaluationResult_ResourceSpecificResults.Target = &schemaResourceSpecificResultListType
-	schemaEvaluationResult.Members = []*smithy.Member{&memberEvaluationResult_EvalActionName, &memberEvaluationResult_EvalResourceName, &memberEvaluationResult_EvalDecision, &memberEvaluationResult_MatchedStatements, &memberEvaluationResult_MissingContextValues, &memberEvaluationResult_OrganizationsDecisionDetail, &memberEvaluationResult_PermissionsBoundaryDecisionDetail, &memberEvaluationResult_EvalDecisionDetails, &memberEvaluationResult_ResourceSpecificResults}
-	memberEvaluationResultsListType_member.Target = &schemaEvaluationResult
-	schemaEvaluationResultsListType.Members = []*smithy.Member{&memberEvaluationResultsListType_member}
-	memberExpiredToken_message.Target = &schemaSmithyString
-	schemaExpiredToken.Members = []*smithy.Member{&memberExpiredToken_message}
-	memberFeatureDisabledException_message.Target = &schemaFeatureDisabledMessage
-	schemaFeatureDisabledException.Members = []*smithy.Member{&memberFeatureDisabledException_message}
-	memberFeatureEnabledException_message.Target = &schemaFeatureEnabledMessage
-	schemaFeatureEnabledException.Members = []*smithy.Member{&memberFeatureEnabledException_message}
-	memberFeaturesListType_member.Target = &schemaFeatureType
-	schemaFeaturesListType.Members = []*smithy.Member{&memberFeaturesListType_member}
-	memberGenerateCredentialReportOutput_State.Target = &schemaReportStateType
-	memberGenerateCredentialReportOutput_Description.Target = &schemaReportStateDescriptionType
-	schemaGenerateCredentialReportOutput.Members = []*smithy.Member{&memberGenerateCredentialReportOutput_State, &memberGenerateCredentialReportOutput_Description}
-	memberGenerateOrganizationsAccessReportInput_EntityPath.Target = &schemaOrganizationsEntityPathType
-	memberGenerateOrganizationsAccessReportInput_OrganizationsPolicyId.Target = &schemaOrganizationsPolicyIdType
-	schemaGenerateOrganizationsAccessReportInput.Members = []*smithy.Member{&memberGenerateOrganizationsAccessReportInput_EntityPath, &memberGenerateOrganizationsAccessReportInput_OrganizationsPolicyId}
-	memberGenerateOrganizationsAccessReportOutput_JobId.Target = &schemaJobIDType
-	schemaGenerateOrganizationsAccessReportOutput.Members = []*smithy.Member{&memberGenerateOrganizationsAccessReportOutput_JobId}
-	memberGenerateServiceLastAccessedDetailsInput_Arn.Target = &schemaArnType
-	memberGenerateServiceLastAccessedDetailsInput_Granularity.Target = &schemaAccessAdvisorUsageGranularityType
-	schemaGenerateServiceLastAccessedDetailsInput.Members = []*smithy.Member{&memberGenerateServiceLastAccessedDetailsInput_Arn, &memberGenerateServiceLastAccessedDetailsInput_Granularity}
-	memberGenerateServiceLastAccessedDetailsOutput_JobId.Target = &schemaJobIDType
-	schemaGenerateServiceLastAccessedDetailsOutput.Members = []*smithy.Member{&memberGenerateServiceLastAccessedDetailsOutput_JobId}
-	memberGetAccessKeyLastUsedInput_AccessKeyId.Target = &schemaAccessKeyIdType
-	schemaGetAccessKeyLastUsedInput.Members = []*smithy.Member{&memberGetAccessKeyLastUsedInput_AccessKeyId}
-	memberGetAccessKeyLastUsedOutput_UserName.Target = &schemaExistingUserNameType
-	memberGetAccessKeyLastUsedOutput_AccessKeyLastUsed.Target = &schemaAccessKeyLastUsed
-	schemaGetAccessKeyLastUsedOutput.Members = []*smithy.Member{&memberGetAccessKeyLastUsedOutput_UserName, &memberGetAccessKeyLastUsedOutput_AccessKeyLastUsed}
-	memberGetAccountAuthorizationDetailsInput_Filter.Target = &schemaEntityListType
-	memberGetAccountAuthorizationDetailsInput_MaxItems.Target = &schemaMaxItemsType
-	memberGetAccountAuthorizationDetailsInput_Marker.Target = &schemaMarkerType
-	schemaGetAccountAuthorizationDetailsInput.Members = []*smithy.Member{&memberGetAccountAuthorizationDetailsInput_Filter, &memberGetAccountAuthorizationDetailsInput_MaxItems, &memberGetAccountAuthorizationDetailsInput_Marker}
-	memberGetAccountAuthorizationDetailsOutput_UserDetailList.Target = &schemaUserDetailListType
-	memberGetAccountAuthorizationDetailsOutput_GroupDetailList.Target = &schemaGroupDetailListType
-	memberGetAccountAuthorizationDetailsOutput_RoleDetailList.Target = &schemaRoleDetailListType
-	memberGetAccountAuthorizationDetailsOutput_Policies.Target = &schemaManagedPolicyDetailListType
-	memberGetAccountAuthorizationDetailsOutput_IsTruncated.Target = &schemaBooleanType
-	memberGetAccountAuthorizationDetailsOutput_Marker.Target = &schemaResponseMarkerType
-	schemaGetAccountAuthorizationDetailsOutput.Members = []*smithy.Member{&memberGetAccountAuthorizationDetailsOutput_UserDetailList, &memberGetAccountAuthorizationDetailsOutput_GroupDetailList, &memberGetAccountAuthorizationDetailsOutput_RoleDetailList, &memberGetAccountAuthorizationDetailsOutput_Policies, &memberGetAccountAuthorizationDetailsOutput_IsTruncated, &memberGetAccountAuthorizationDetailsOutput_Marker}
-	memberGetAccountPasswordPolicyOutput_PasswordPolicy.Target = &schemaPasswordPolicy
-	schemaGetAccountPasswordPolicyOutput.Members = []*smithy.Member{&memberGetAccountPasswordPolicyOutput_PasswordPolicy}
-	memberGetAccountPropertiesOutput_Properties.Target = &schemaAccountPropertiesMapType
-	schemaGetAccountPropertiesOutput.Members = []*smithy.Member{&memberGetAccountPropertiesOutput_Properties}
-	memberGetAccountSummaryOutput_SummaryMap.Target = &schemaSummaryMapType
-	schemaGetAccountSummaryOutput.Members = []*smithy.Member{&memberGetAccountSummaryOutput_SummaryMap}
-	memberGetContextKeysForCustomPolicyInput_PolicyInputList.Target = &schemaSimulationPolicyListType
-	schemaGetContextKeysForCustomPolicyInput.Members = []*smithy.Member{&memberGetContextKeysForCustomPolicyInput_PolicyInputList}
-	memberGetContextKeysForPolicyResponse_ContextKeyNames.Target = &schemaContextKeyNamesResultListType
-	schemaGetContextKeysForPolicyResponse.Members = []*smithy.Member{&memberGetContextKeysForPolicyResponse_ContextKeyNames}
-	memberGetContextKeysForPrincipalPolicyInput_PolicySourceArn.Target = &schemaArnType
-	memberGetContextKeysForPrincipalPolicyInput_PolicyInputList.Target = &schemaSimulationPolicyListType
-	schemaGetContextKeysForPrincipalPolicyInput.Members = []*smithy.Member{&memberGetContextKeysForPrincipalPolicyInput_PolicySourceArn, &memberGetContextKeysForPrincipalPolicyInput_PolicyInputList}
-	memberGetCredentialReportOutput_Content.Target = &schemaReportContentType
-	memberGetCredentialReportOutput_ReportFormat.Target = &schemaReportFormatType
-	memberGetCredentialReportOutput_GeneratedTime.Target = &schemaDateType
-	schemaGetCredentialReportOutput.Members = []*smithy.Member{&memberGetCredentialReportOutput_Content, &memberGetCredentialReportOutput_ReportFormat, &memberGetCredentialReportOutput_GeneratedTime}
-	memberGetDelegationRequestInput_DelegationRequestId.Target = &schemaDelegationRequestIdType
-	memberGetDelegationRequestInput_DelegationPermissionCheck.Target = &schemaBooleanType
-	schemaGetDelegationRequestInput.Members = []*smithy.Member{&memberGetDelegationRequestInput_DelegationRequestId, &memberGetDelegationRequestInput_DelegationPermissionCheck}
-	memberGetDelegationRequestOutput_DelegationRequest.Target = &schemaDelegationRequest
-	memberGetDelegationRequestOutput_PermissionCheckStatus.Target = &schemaPermissionCheckStatusType
-	memberGetDelegationRequestOutput_PermissionCheckResult.Target = &schemaPermissionCheckResultType
-	schemaGetDelegationRequestOutput.Members = []*smithy.Member{&memberGetDelegationRequestOutput_DelegationRequest, &memberGetDelegationRequestOutput_PermissionCheckStatus, &memberGetDelegationRequestOutput_PermissionCheckResult}
-	memberGetGroupInput_GroupName.Target = &schemaGroupNameType
-	memberGetGroupInput_Marker.Target = &schemaMarkerType
-	memberGetGroupInput_MaxItems.Target = &schemaMaxItemsType
-	schemaGetGroupInput.Members = []*smithy.Member{&memberGetGroupInput_GroupName, &memberGetGroupInput_Marker, &memberGetGroupInput_MaxItems}
-	memberGetGroupOutput_Group.Target = &schemaGroup
-	memberGetGroupOutput_Users.Target = &schemaUserListType
-	memberGetGroupOutput_IsTruncated.Target = &schemaBooleanType
-	memberGetGroupOutput_Marker.Target = &schemaResponseMarkerType
-	schemaGetGroupOutput.Members = []*smithy.Member{&memberGetGroupOutput_Group, &memberGetGroupOutput_Users, &memberGetGroupOutput_IsTruncated, &memberGetGroupOutput_Marker}
-	memberGetGroupPolicyInput_GroupName.Target = &schemaGroupNameType
-	memberGetGroupPolicyInput_PolicyName.Target = &schemaPolicyNameType
-	schemaGetGroupPolicyInput.Members = []*smithy.Member{&memberGetGroupPolicyInput_GroupName, &memberGetGroupPolicyInput_PolicyName}
-	memberGetGroupPolicyOutput_GroupName.Target = &schemaGroupNameType
-	memberGetGroupPolicyOutput_PolicyName.Target = &schemaPolicyNameType
-	memberGetGroupPolicyOutput_PolicyDocument.Target = &schemaPolicyDocumentType
-	schemaGetGroupPolicyOutput.Members = []*smithy.Member{&memberGetGroupPolicyOutput_GroupName, &memberGetGroupPolicyOutput_PolicyName, &memberGetGroupPolicyOutput_PolicyDocument}
-	memberGetHumanReadableSummaryInput_EntityArn.Target = &schemaArnType
-	memberGetHumanReadableSummaryInput_Locale.Target = &schemaLocaleType
-	schemaGetHumanReadableSummaryInput.Members = []*smithy.Member{&memberGetHumanReadableSummaryInput_EntityArn, &memberGetHumanReadableSummaryInput_Locale}
-	memberGetHumanReadableSummaryOutput_SummaryContent.Target = &schemaSummaryContentType
-	memberGetHumanReadableSummaryOutput_Locale.Target = &schemaLocaleType
-	memberGetHumanReadableSummaryOutput_SummaryState.Target = &schemaSummaryStateType
-	schemaGetHumanReadableSummaryOutput.Members = []*smithy.Member{&memberGetHumanReadableSummaryOutput_SummaryContent, &memberGetHumanReadableSummaryOutput_Locale, &memberGetHumanReadableSummaryOutput_SummaryState}
-	memberGetInstanceProfileInput_InstanceProfileName.Target = &schemaInstanceProfileNameType
-	schemaGetInstanceProfileInput.Members = []*smithy.Member{&memberGetInstanceProfileInput_InstanceProfileName}
-	memberGetInstanceProfileOutput_InstanceProfile.Target = &schemaInstanceProfile
-	schemaGetInstanceProfileOutput.Members = []*smithy.Member{&memberGetInstanceProfileOutput_InstanceProfile}
-	memberGetLoginProfileInput_UserName.Target = &schemaUserNameType
-	schemaGetLoginProfileInput.Members = []*smithy.Member{&memberGetLoginProfileInput_UserName}
-	memberGetLoginProfileOutput_LoginProfile.Target = &schemaLoginProfile
-	schemaGetLoginProfileOutput.Members = []*smithy.Member{&memberGetLoginProfileOutput_LoginProfile}
-	memberGetMFADeviceInput_SerialNumber.Target = &schemaSerialNumberType
-	memberGetMFADeviceInput_UserName.Target = &schemaUserNameType
-	schemaGetMFADeviceInput.Members = []*smithy.Member{&memberGetMFADeviceInput_SerialNumber, &memberGetMFADeviceInput_UserName}
-	memberGetMFADeviceOutput_UserName.Target = &schemaUserNameType
-	memberGetMFADeviceOutput_SerialNumber.Target = &schemaSerialNumberType
-	memberGetMFADeviceOutput_EnableDate.Target = &schemaDateType
-	memberGetMFADeviceOutput_Certifications.Target = &schemaCertificationMapType
-	schemaGetMFADeviceOutput.Members = []*smithy.Member{&memberGetMFADeviceOutput_UserName, &memberGetMFADeviceOutput_SerialNumber, &memberGetMFADeviceOutput_EnableDate, &memberGetMFADeviceOutput_Certifications}
-	memberGetOpenIDConnectProviderInput_OpenIDConnectProviderArn.Target = &schemaArnType
-	schemaGetOpenIDConnectProviderInput.Members = []*smithy.Member{&memberGetOpenIDConnectProviderInput_OpenIDConnectProviderArn}
-	memberGetOpenIDConnectProviderOutput_Url.Target = &schemaOpenIDConnectProviderUrlType
-	memberGetOpenIDConnectProviderOutput_ClientIDList.Target = &schemaClientIDListType
-	memberGetOpenIDConnectProviderOutput_ThumbprintList.Target = &schemaThumbprintListType
-	memberGetOpenIDConnectProviderOutput_CreateDate.Target = &schemaDateType
-	memberGetOpenIDConnectProviderOutput_Tags.Target = &schemaTagListType
-	schemaGetOpenIDConnectProviderOutput.Members = []*smithy.Member{&memberGetOpenIDConnectProviderOutput_Url, &memberGetOpenIDConnectProviderOutput_ClientIDList, &memberGetOpenIDConnectProviderOutput_ThumbprintList, &memberGetOpenIDConnectProviderOutput_CreateDate, &memberGetOpenIDConnectProviderOutput_Tags}
-	memberGetOrganizationsAccessReportInput_JobId.Target = &schemaJobIDType
-	memberGetOrganizationsAccessReportInput_MaxItems.Target = &schemaMaxItemsType
-	memberGetOrganizationsAccessReportInput_Marker.Target = &schemaMarkerType
-	memberGetOrganizationsAccessReportInput_SortKey.Target = &schemaSortKeyType
-	schemaGetOrganizationsAccessReportInput.Members = []*smithy.Member{&memberGetOrganizationsAccessReportInput_JobId, &memberGetOrganizationsAccessReportInput_MaxItems, &memberGetOrganizationsAccessReportInput_Marker, &memberGetOrganizationsAccessReportInput_SortKey}
-	memberGetOrganizationsAccessReportOutput_JobStatus.Target = &schemaJobStatusType
-	memberGetOrganizationsAccessReportOutput_JobCreationDate.Target = &schemaDateType
-	memberGetOrganizationsAccessReportOutput_JobCompletionDate.Target = &schemaDateType
-	memberGetOrganizationsAccessReportOutput_NumberOfServicesAccessible.Target = &schemaIntegerType
-	memberGetOrganizationsAccessReportOutput_NumberOfServicesNotAccessed.Target = &schemaIntegerType
-	memberGetOrganizationsAccessReportOutput_AccessDetails.Target = &schemaAccessDetails
-	memberGetOrganizationsAccessReportOutput_IsTruncated.Target = &schemaBooleanType
-	memberGetOrganizationsAccessReportOutput_Marker.Target = &schemaMarkerType
-	memberGetOrganizationsAccessReportOutput_ErrorDetails.Target = &schemaErrorDetails
-	schemaGetOrganizationsAccessReportOutput.Members = []*smithy.Member{&memberGetOrganizationsAccessReportOutput_JobStatus, &memberGetOrganizationsAccessReportOutput_JobCreationDate, &memberGetOrganizationsAccessReportOutput_JobCompletionDate, &memberGetOrganizationsAccessReportOutput_NumberOfServicesAccessible, &memberGetOrganizationsAccessReportOutput_NumberOfServicesNotAccessed, &memberGetOrganizationsAccessReportOutput_AccessDetails, &memberGetOrganizationsAccessReportOutput_IsTruncated, &memberGetOrganizationsAccessReportOutput_Marker, &memberGetOrganizationsAccessReportOutput_ErrorDetails}
-	memberGetOutboundWebIdentityFederationInfoOutput_IssuerIdentifier.Target = &schemaStringType
-	memberGetOutboundWebIdentityFederationInfoOutput_JwtVendingEnabled.Target = &schemaBooleanType
-	schemaGetOutboundWebIdentityFederationInfoOutput.Members = []*smithy.Member{&memberGetOutboundWebIdentityFederationInfoOutput_IssuerIdentifier, &memberGetOutboundWebIdentityFederationInfoOutput_JwtVendingEnabled}
-	memberGetPolicyInput_PolicyArn.Target = &schemaArnType
-	schemaGetPolicyInput.Members = []*smithy.Member{&memberGetPolicyInput_PolicyArn}
-	memberGetPolicyOutput_Policy.Target = &schemaPolicy
-	schemaGetPolicyOutput.Members = []*smithy.Member{&memberGetPolicyOutput_Policy}
-	memberGetPolicyVersionInput_PolicyArn.Target = &schemaArnType
-	memberGetPolicyVersionInput_VersionId.Target = &schemaPolicyVersionIdType
-	schemaGetPolicyVersionInput.Members = []*smithy.Member{&memberGetPolicyVersionInput_PolicyArn, &memberGetPolicyVersionInput_VersionId}
-	memberGetPolicyVersionOutput_PolicyVersion.Target = &schemaPolicyVersion
-	schemaGetPolicyVersionOutput.Members = []*smithy.Member{&memberGetPolicyVersionOutput_PolicyVersion}
-	memberGetRoleInput_RoleName.Target = &schemaRoleNameType
-	schemaGetRoleInput.Members = []*smithy.Member{&memberGetRoleInput_RoleName}
-	memberGetRoleOutput_Role.Target = &schemaRole
-	schemaGetRoleOutput.Members = []*smithy.Member{&memberGetRoleOutput_Role}
-	memberGetRolePolicyInput_RoleName.Target = &schemaRoleNameType
-	memberGetRolePolicyInput_PolicyName.Target = &schemaPolicyNameType
-	schemaGetRolePolicyInput.Members = []*smithy.Member{&memberGetRolePolicyInput_RoleName, &memberGetRolePolicyInput_PolicyName}
-	memberGetRolePolicyOutput_RoleName.Target = &schemaRoleNameType
-	memberGetRolePolicyOutput_PolicyName.Target = &schemaPolicyNameType
-	memberGetRolePolicyOutput_PolicyDocument.Target = &schemaPolicyDocumentType
-	schemaGetRolePolicyOutput.Members = []*smithy.Member{&memberGetRolePolicyOutput_RoleName, &memberGetRolePolicyOutput_PolicyName, &memberGetRolePolicyOutput_PolicyDocument}
-	memberGetRoleTemplateVersionInput_TemplateArn.Target = &schemaArnType
-	memberGetRoleTemplateVersionInput_MinorVersion.Target = &schemaMinorVersionType
-	schemaGetRoleTemplateVersionInput.Members = []*smithy.Member{&memberGetRoleTemplateVersionInput_TemplateArn, &memberGetRoleTemplateVersionInput_MinorVersion}
-	memberGetRoleTemplateVersionOutput_RoleTemplateVersion.Target = &schemaRoleTemplateVersion
-	schemaGetRoleTemplateVersionOutput.Members = []*smithy.Member{&memberGetRoleTemplateVersionOutput_RoleTemplateVersion}
-	memberGetSAMLProviderInput_SAMLProviderArn.Target = &schemaArnType
-	schemaGetSAMLProviderInput.Members = []*smithy.Member{&memberGetSAMLProviderInput_SAMLProviderArn}
-	memberGetSAMLProviderOutput_SAMLProviderUUID.Target = &schemaPrivateKeyIdType
-	memberGetSAMLProviderOutput_SAMLMetadataDocument.Target = &schemaSAMLMetadataDocumentType
-	memberGetSAMLProviderOutput_CreateDate.Target = &schemaDateType
-	memberGetSAMLProviderOutput_ValidUntil.Target = &schemaDateType
-	memberGetSAMLProviderOutput_Tags.Target = &schemaTagListType
-	memberGetSAMLProviderOutput_AssertionEncryptionMode.Target = &schemaAssertionEncryptionModeType
-	memberGetSAMLProviderOutput_PrivateKeyList.Target = &schemaPrivateKeyList
-	schemaGetSAMLProviderOutput.Members = []*smithy.Member{&memberGetSAMLProviderOutput_SAMLProviderUUID, &memberGetSAMLProviderOutput_SAMLMetadataDocument, &memberGetSAMLProviderOutput_CreateDate, &memberGetSAMLProviderOutput_ValidUntil, &memberGetSAMLProviderOutput_Tags, &memberGetSAMLProviderOutput_AssertionEncryptionMode, &memberGetSAMLProviderOutput_PrivateKeyList}
-	memberGetSSHPublicKeyInput_UserName.Target = &schemaUserNameType
-	memberGetSSHPublicKeyInput_SSHPublicKeyId.Target = &schemaPublicKeyIdType
-	memberGetSSHPublicKeyInput_Encoding.Target = &schemaEncodingType
-	schemaGetSSHPublicKeyInput.Members = []*smithy.Member{&memberGetSSHPublicKeyInput_UserName, &memberGetSSHPublicKeyInput_SSHPublicKeyId, &memberGetSSHPublicKeyInput_Encoding}
-	memberGetSSHPublicKeyOutput_SSHPublicKey.Target = &schemaSSHPublicKey
-	schemaGetSSHPublicKeyOutput.Members = []*smithy.Member{&memberGetSSHPublicKeyOutput_SSHPublicKey}
-	memberGetServerCertificateInput_ServerCertificateName.Target = &schemaServerCertificateNameType
-	schemaGetServerCertificateInput.Members = []*smithy.Member{&memberGetServerCertificateInput_ServerCertificateName}
-	memberGetServerCertificateOutput_ServerCertificate.Target = &schemaServerCertificate
-	schemaGetServerCertificateOutput.Members = []*smithy.Member{&memberGetServerCertificateOutput_ServerCertificate}
-	memberGetServiceLastAccessedDetailsInput_JobId.Target = &schemaJobIDType
-	memberGetServiceLastAccessedDetailsInput_MaxItems.Target = &schemaMaxItemsType
-	memberGetServiceLastAccessedDetailsInput_Marker.Target = &schemaMarkerType
-	schemaGetServiceLastAccessedDetailsInput.Members = []*smithy.Member{&memberGetServiceLastAccessedDetailsInput_JobId, &memberGetServiceLastAccessedDetailsInput_MaxItems, &memberGetServiceLastAccessedDetailsInput_Marker}
-	memberGetServiceLastAccessedDetailsOutput_JobStatus.Target = &schemaJobStatusType
-	memberGetServiceLastAccessedDetailsOutput_JobType.Target = &schemaAccessAdvisorUsageGranularityType
-	memberGetServiceLastAccessedDetailsOutput_JobCreationDate.Target = &schemaDateType
-	memberGetServiceLastAccessedDetailsOutput_ServicesLastAccessed.Target = &schemaServicesLastAccessed
-	memberGetServiceLastAccessedDetailsOutput_JobCompletionDate.Target = &schemaDateType
-	memberGetServiceLastAccessedDetailsOutput_IsTruncated.Target = &schemaBooleanType
-	memberGetServiceLastAccessedDetailsOutput_Marker.Target = &schemaResponseMarkerType
-	memberGetServiceLastAccessedDetailsOutput_Error.Target = &schemaErrorDetails
-	schemaGetServiceLastAccessedDetailsOutput.Members = []*smithy.Member{&memberGetServiceLastAccessedDetailsOutput_JobStatus, &memberGetServiceLastAccessedDetailsOutput_JobType, &memberGetServiceLastAccessedDetailsOutput_JobCreationDate, &memberGetServiceLastAccessedDetailsOutput_ServicesLastAccessed, &memberGetServiceLastAccessedDetailsOutput_JobCompletionDate, &memberGetServiceLastAccessedDetailsOutput_IsTruncated, &memberGetServiceLastAccessedDetailsOutput_Marker, &memberGetServiceLastAccessedDetailsOutput_Error}
-	memberGetServiceLastAccessedDetailsWithEntitiesInput_JobId.Target = &schemaJobIDType
-	memberGetServiceLastAccessedDetailsWithEntitiesInput_ServiceNamespace.Target = &schemaServiceNamespaceType
-	memberGetServiceLastAccessedDetailsWithEntitiesInput_MaxItems.Target = &schemaMaxItemsType
-	memberGetServiceLastAccessedDetailsWithEntitiesInput_Marker.Target = &schemaMarkerType
-	schemaGetServiceLastAccessedDetailsWithEntitiesInput.Members = []*smithy.Member{&memberGetServiceLastAccessedDetailsWithEntitiesInput_JobId, &memberGetServiceLastAccessedDetailsWithEntitiesInput_ServiceNamespace, &memberGetServiceLastAccessedDetailsWithEntitiesInput_MaxItems, &memberGetServiceLastAccessedDetailsWithEntitiesInput_Marker}
-	memberGetServiceLastAccessedDetailsWithEntitiesOutput_JobStatus.Target = &schemaJobStatusType
-	memberGetServiceLastAccessedDetailsWithEntitiesOutput_JobCreationDate.Target = &schemaDateType
-	memberGetServiceLastAccessedDetailsWithEntitiesOutput_JobCompletionDate.Target = &schemaDateType
-	memberGetServiceLastAccessedDetailsWithEntitiesOutput_EntityDetailsList.Target = &schemaEntityDetailsListType
-	memberGetServiceLastAccessedDetailsWithEntitiesOutput_IsTruncated.Target = &schemaBooleanType
-	memberGetServiceLastAccessedDetailsWithEntitiesOutput_Marker.Target = &schemaResponseMarkerType
-	memberGetServiceLastAccessedDetailsWithEntitiesOutput_Error.Target = &schemaErrorDetails
-	schemaGetServiceLastAccessedDetailsWithEntitiesOutput.Members = []*smithy.Member{&memberGetServiceLastAccessedDetailsWithEntitiesOutput_JobStatus, &memberGetServiceLastAccessedDetailsWithEntitiesOutput_JobCreationDate, &memberGetServiceLastAccessedDetailsWithEntitiesOutput_JobCompletionDate, &memberGetServiceLastAccessedDetailsWithEntitiesOutput_EntityDetailsList, &memberGetServiceLastAccessedDetailsWithEntitiesOutput_IsTruncated, &memberGetServiceLastAccessedDetailsWithEntitiesOutput_Marker, &memberGetServiceLastAccessedDetailsWithEntitiesOutput_Error}
-	memberGetServiceLinkedRoleDeletionStatusInput_DeletionTaskId.Target = &schemaDeletionTaskIdType
-	schemaGetServiceLinkedRoleDeletionStatusInput.Members = []*smithy.Member{&memberGetServiceLinkedRoleDeletionStatusInput_DeletionTaskId}
-	memberGetServiceLinkedRoleDeletionStatusOutput_Status.Target = &schemaDeletionTaskStatusType
-	memberGetServiceLinkedRoleDeletionStatusOutput_Reason.Target = &schemaDeletionTaskFailureReasonType
-	schemaGetServiceLinkedRoleDeletionStatusOutput.Members = []*smithy.Member{&memberGetServiceLinkedRoleDeletionStatusOutput_Status, &memberGetServiceLinkedRoleDeletionStatusOutput_Reason}
-	memberGetUserInput_UserName.Target = &schemaExistingUserNameType
-	schemaGetUserInput.Members = []*smithy.Member{&memberGetUserInput_UserName}
-	memberGetUserOutput_User.Target = &schemaUser
-	schemaGetUserOutput.Members = []*smithy.Member{&memberGetUserOutput_User}
-	memberGetUserPolicyInput_UserName.Target = &schemaExistingUserNameType
-	memberGetUserPolicyInput_PolicyName.Target = &schemaPolicyNameType
-	schemaGetUserPolicyInput.Members = []*smithy.Member{&memberGetUserPolicyInput_UserName, &memberGetUserPolicyInput_PolicyName}
-	memberGetUserPolicyOutput_UserName.Target = &schemaExistingUserNameType
-	memberGetUserPolicyOutput_PolicyName.Target = &schemaPolicyNameType
-	memberGetUserPolicyOutput_PolicyDocument.Target = &schemaPolicyDocumentType
-	schemaGetUserPolicyOutput.Members = []*smithy.Member{&memberGetUserPolicyOutput_UserName, &memberGetUserPolicyOutput_PolicyName, &memberGetUserPolicyOutput_PolicyDocument}
-	memberGroup_Path.Target = &schemaPathType
-	memberGroup_GroupName.Target = &schemaGroupNameType
-	memberGroup_GroupId.Target = &schemaIdType
-	memberGroup_Arn.Target = &schemaArnType
-	memberGroup_CreateDate.Target = &schemaDateType
-	schemaGroup.Members = []*smithy.Member{&memberGroup_Path, &memberGroup_GroupName, &memberGroup_GroupId, &memberGroup_Arn, &memberGroup_CreateDate}
-	memberGroupDetail_Path.Target = &schemaPathType
-	memberGroupDetail_GroupName.Target = &schemaGroupNameType
-	memberGroupDetail_GroupId.Target = &schemaIdType
-	memberGroupDetail_Arn.Target = &schemaArnType
-	memberGroupDetail_CreateDate.Target = &schemaDateType
-	memberGroupDetail_GroupPolicyList.Target = &schemaPolicyDetailListType
-	memberGroupDetail_AttachedManagedPolicies.Target = &schemaAttachedPoliciesListType
-	schemaGroupDetail.Members = []*smithy.Member{&memberGroupDetail_Path, &memberGroupDetail_GroupName, &memberGroupDetail_GroupId, &memberGroupDetail_Arn, &memberGroupDetail_CreateDate, &memberGroupDetail_GroupPolicyList, &memberGroupDetail_AttachedManagedPolicies}
-	memberGroupDetailListType_member.Target = &schemaGroupDetail
-	schemaGroupDetailListType.Members = []*smithy.Member{&memberGroupDetailListType_member}
-	memberGroupListType_member.Target = &schemaGroup
-	schemaGroupListType.Members = []*smithy.Member{&memberGroupListType_member}
-	memberGroupNameListType_member.Target = &schemaGroupNameType
-	schemaGroupNameListType.Members = []*smithy.Member{&memberGroupNameListType_member}
-	memberIncompleteSignature_message.Target = &schemaSmithyString
-	schemaIncompleteSignature.Members = []*smithy.Member{&memberIncompleteSignature_message}
-	memberInlinePolicy_PolicyName.Target = &schemaPolicyNameType
-	memberInlinePolicy_PolicyDocument.Target = &schemaPolicyDocumentType
-	schemaInlinePolicy.Members = []*smithy.Member{&memberInlinePolicy_PolicyName, &memberInlinePolicy_PolicyDocument}
-	memberInlinePolicyIdentifierType_PolicyName.Target = &schemaPolicyNameType
-	memberInlinePolicyIdentifierType_AttachmentType.Target = &schemaAttachmentType
-	memberInlinePolicyIdentifierType_AttachmentName.Target = &schemaAttachmentName
-	schemaInlinePolicyIdentifierType.Members = []*smithy.Member{&memberInlinePolicyIdentifierType_PolicyName, &memberInlinePolicyIdentifierType_AttachmentType, &memberInlinePolicyIdentifierType_AttachmentName}
-	memberInlinePolicyTemplateListType_member.Target = &schemaInlinePolicy
-	schemaInlinePolicyTemplateListType.Members = []*smithy.Member{&memberInlinePolicyTemplateListType_member}
-	memberInstanceProfile_Path.Target = &schemaPathType
-	memberInstanceProfile_InstanceProfileName.Target = &schemaInstanceProfileNameType
-	memberInstanceProfile_InstanceProfileId.Target = &schemaIdType
-	memberInstanceProfile_Arn.Target = &schemaArnType
-	memberInstanceProfile_CreateDate.Target = &schemaDateType
-	memberInstanceProfile_Roles.Target = &schemaRoleListType
-	memberInstanceProfile_Tags.Target = &schemaTagListType
-	schemaInstanceProfile.Members = []*smithy.Member{&memberInstanceProfile_Path, &memberInstanceProfile_InstanceProfileName, &memberInstanceProfile_InstanceProfileId, &memberInstanceProfile_Arn, &memberInstanceProfile_CreateDate, &memberInstanceProfile_Roles, &memberInstanceProfile_Tags}
-	memberInstanceProfileListType_member.Target = &schemaInstanceProfile
-	schemaInstanceProfileListType.Members = []*smithy.Member{&memberInstanceProfileListType_member}
-	memberInternalFailure_message.Target = &schemaSmithyString
-	schemaInternalFailure.Members = []*smithy.Member{&memberInternalFailure_message}
-	memberInvalidAction_message.Target = &schemaSmithyString
-	schemaInvalidAction.Members = []*smithy.Member{&memberInvalidAction_message}
-	memberInvalidAuthenticationCodeException_message.Target = &schemaInvalidAuthenticationCodeMessage
-	schemaInvalidAuthenticationCodeException.Members = []*smithy.Member{&memberInvalidAuthenticationCodeException_message}
-	memberInvalidCertificateException_message.Target = &schemaInvalidCertificateMessage
-	schemaInvalidCertificateException.Members = []*smithy.Member{&memberInvalidCertificateException_message}
-	memberInvalidClientTokenId_message.Target = &schemaSmithyString
-	schemaInvalidClientTokenId.Members = []*smithy.Member{&memberInvalidClientTokenId_message}
-	memberInvalidInputException_message.Target = &schemaInvalidInputMessage
-	schemaInvalidInputException.Members = []*smithy.Member{&memberInvalidInputException_message}
-	memberInvalidPublicKeyException_message.Target = &schemaInvalidPublicKeyMessage
-	schemaInvalidPublicKeyException.Members = []*smithy.Member{&memberInvalidPublicKeyException_message}
-	memberInvalidUserTypeException_message.Target = &schemaInvalidUserTypeMessage
-	schemaInvalidUserTypeException.Members = []*smithy.Member{&memberInvalidUserTypeException_message}
-	memberKeyPairMismatchException_message.Target = &schemaKeyPairMismatchMessage
-	schemaKeyPairMismatchException.Members = []*smithy.Member{&memberKeyPairMismatchException_message}
-	memberLimitExceededException_message.Target = &schemaLimitExceededMessage
-	schemaLimitExceededException.Members = []*smithy.Member{&memberLimitExceededException_message}
-	memberListAccessKeysInput_UserName.Target = &schemaExistingUserNameType
-	memberListAccessKeysInput_Marker.Target = &schemaMarkerType
-	memberListAccessKeysInput_MaxItems.Target = &schemaMaxItemsType
-	schemaListAccessKeysInput.Members = []*smithy.Member{&memberListAccessKeysInput_UserName, &memberListAccessKeysInput_Marker, &memberListAccessKeysInput_MaxItems}
-	memberListAccessKeysOutput_AccessKeyMetadata.Target = &schemaAccessKeyMetadataListType
-	memberListAccessKeysOutput_IsTruncated.Target = &schemaBooleanType
-	memberListAccessKeysOutput_Marker.Target = &schemaResponseMarkerType
-	schemaListAccessKeysOutput.Members = []*smithy.Member{&memberListAccessKeysOutput_AccessKeyMetadata, &memberListAccessKeysOutput_IsTruncated, &memberListAccessKeysOutput_Marker}
-	memberListAccountAliasesInput_Marker.Target = &schemaMarkerType
-	memberListAccountAliasesInput_MaxItems.Target = &schemaMaxItemsType
-	schemaListAccountAliasesInput.Members = []*smithy.Member{&memberListAccountAliasesInput_Marker, &memberListAccountAliasesInput_MaxItems}
-	memberListAccountAliasesOutput_AccountAliases.Target = &schemaAccountAliasListType
-	memberListAccountAliasesOutput_IsTruncated.Target = &schemaBooleanType
-	memberListAccountAliasesOutput_Marker.Target = &schemaResponseMarkerType
-	schemaListAccountAliasesOutput.Members = []*smithy.Member{&memberListAccountAliasesOutput_AccountAliases, &memberListAccountAliasesOutput_IsTruncated, &memberListAccountAliasesOutput_Marker}
-	memberListAttachedGroupPoliciesInput_GroupName.Target = &schemaGroupNameType
-	memberListAttachedGroupPoliciesInput_PathPrefix.Target = &schemaPolicyPathType
-	memberListAttachedGroupPoliciesInput_Marker.Target = &schemaMarkerType
-	memberListAttachedGroupPoliciesInput_MaxItems.Target = &schemaMaxItemsType
-	schemaListAttachedGroupPoliciesInput.Members = []*smithy.Member{&memberListAttachedGroupPoliciesInput_GroupName, &memberListAttachedGroupPoliciesInput_PathPrefix, &memberListAttachedGroupPoliciesInput_Marker, &memberListAttachedGroupPoliciesInput_MaxItems}
-	memberListAttachedGroupPoliciesOutput_AttachedPolicies.Target = &schemaAttachedPoliciesListType
-	memberListAttachedGroupPoliciesOutput_IsTruncated.Target = &schemaBooleanType
-	memberListAttachedGroupPoliciesOutput_Marker.Target = &schemaResponseMarkerType
-	schemaListAttachedGroupPoliciesOutput.Members = []*smithy.Member{&memberListAttachedGroupPoliciesOutput_AttachedPolicies, &memberListAttachedGroupPoliciesOutput_IsTruncated, &memberListAttachedGroupPoliciesOutput_Marker}
-	memberListAttachedRolePoliciesInput_RoleName.Target = &schemaRoleNameType
-	memberListAttachedRolePoliciesInput_PathPrefix.Target = &schemaPolicyPathType
-	memberListAttachedRolePoliciesInput_Marker.Target = &schemaMarkerType
-	memberListAttachedRolePoliciesInput_MaxItems.Target = &schemaMaxItemsType
-	schemaListAttachedRolePoliciesInput.Members = []*smithy.Member{&memberListAttachedRolePoliciesInput_RoleName, &memberListAttachedRolePoliciesInput_PathPrefix, &memberListAttachedRolePoliciesInput_Marker, &memberListAttachedRolePoliciesInput_MaxItems}
-	memberListAttachedRolePoliciesOutput_AttachedPolicies.Target = &schemaAttachedPoliciesListType
-	memberListAttachedRolePoliciesOutput_IsTruncated.Target = &schemaBooleanType
-	memberListAttachedRolePoliciesOutput_Marker.Target = &schemaResponseMarkerType
-	schemaListAttachedRolePoliciesOutput.Members = []*smithy.Member{&memberListAttachedRolePoliciesOutput_AttachedPolicies, &memberListAttachedRolePoliciesOutput_IsTruncated, &memberListAttachedRolePoliciesOutput_Marker}
-	memberListAttachedUserPoliciesInput_UserName.Target = &schemaUserNameType
-	memberListAttachedUserPoliciesInput_PathPrefix.Target = &schemaPolicyPathType
-	memberListAttachedUserPoliciesInput_Marker.Target = &schemaMarkerType
-	memberListAttachedUserPoliciesInput_MaxItems.Target = &schemaMaxItemsType
-	schemaListAttachedUserPoliciesInput.Members = []*smithy.Member{&memberListAttachedUserPoliciesInput_UserName, &memberListAttachedUserPoliciesInput_PathPrefix, &memberListAttachedUserPoliciesInput_Marker, &memberListAttachedUserPoliciesInput_MaxItems}
-	memberListAttachedUserPoliciesOutput_AttachedPolicies.Target = &schemaAttachedPoliciesListType
-	memberListAttachedUserPoliciesOutput_IsTruncated.Target = &schemaBooleanType
-	memberListAttachedUserPoliciesOutput_Marker.Target = &schemaResponseMarkerType
-	schemaListAttachedUserPoliciesOutput.Members = []*smithy.Member{&memberListAttachedUserPoliciesOutput_AttachedPolicies, &memberListAttachedUserPoliciesOutput_IsTruncated, &memberListAttachedUserPoliciesOutput_Marker}
-	memberListDelegationRequestsInput_OwnerId.Target = &schemaOwnerIdType
-	memberListDelegationRequestsInput_Marker.Target = &schemaMarkerType
-	memberListDelegationRequestsInput_MaxItems.Target = &schemaMaxItemsType
-	schemaListDelegationRequestsInput.Members = []*smithy.Member{&memberListDelegationRequestsInput_OwnerId, &memberListDelegationRequestsInput_Marker, &memberListDelegationRequestsInput_MaxItems}
-	memberListDelegationRequestsOutput_DelegationRequests.Target = &schemaDelegationRequestsListType
-	memberListDelegationRequestsOutput_Marker.Target = &schemaMarkerType
-	memberListDelegationRequestsOutput_isTruncated.Target = &schemaBooleanType
-	schemaListDelegationRequestsOutput.Members = []*smithy.Member{&memberListDelegationRequestsOutput_DelegationRequests, &memberListDelegationRequestsOutput_Marker, &memberListDelegationRequestsOutput_isTruncated}
-	memberListEntitiesForPolicyInput_PolicyArn.Target = &schemaArnType
-	memberListEntitiesForPolicyInput_EntityFilter.Target = &schemaEntityType
-	memberListEntitiesForPolicyInput_PathPrefix.Target = &schemaPathType
-	memberListEntitiesForPolicyInput_PolicyUsageFilter.Target = &schemaPolicyUsageType
-	memberListEntitiesForPolicyInput_Marker.Target = &schemaMarkerType
-	memberListEntitiesForPolicyInput_MaxItems.Target = &schemaMaxItemsType
-	schemaListEntitiesForPolicyInput.Members = []*smithy.Member{&memberListEntitiesForPolicyInput_PolicyArn, &memberListEntitiesForPolicyInput_EntityFilter, &memberListEntitiesForPolicyInput_PathPrefix, &memberListEntitiesForPolicyInput_PolicyUsageFilter, &memberListEntitiesForPolicyInput_Marker, &memberListEntitiesForPolicyInput_MaxItems}
-	memberListEntitiesForPolicyOutput_PolicyGroups.Target = &schemaPolicyGroupListType
-	memberListEntitiesForPolicyOutput_PolicyUsers.Target = &schemaPolicyUserListType
-	memberListEntitiesForPolicyOutput_PolicyRoles.Target = &schemaPolicyRoleListType
-	memberListEntitiesForPolicyOutput_IsTruncated.Target = &schemaBooleanType
-	memberListEntitiesForPolicyOutput_Marker.Target = &schemaResponseMarkerType
-	schemaListEntitiesForPolicyOutput.Members = []*smithy.Member{&memberListEntitiesForPolicyOutput_PolicyGroups, &memberListEntitiesForPolicyOutput_PolicyUsers, &memberListEntitiesForPolicyOutput_PolicyRoles, &memberListEntitiesForPolicyOutput_IsTruncated, &memberListEntitiesForPolicyOutput_Marker}
-	memberListGroupPoliciesInput_GroupName.Target = &schemaGroupNameType
-	memberListGroupPoliciesInput_Marker.Target = &schemaMarkerType
-	memberListGroupPoliciesInput_MaxItems.Target = &schemaMaxItemsType
-	schemaListGroupPoliciesInput.Members = []*smithy.Member{&memberListGroupPoliciesInput_GroupName, &memberListGroupPoliciesInput_Marker, &memberListGroupPoliciesInput_MaxItems}
-	memberListGroupPoliciesOutput_PolicyNames.Target = &schemaPolicyNameListType
-	memberListGroupPoliciesOutput_IsTruncated.Target = &schemaBooleanType
-	memberListGroupPoliciesOutput_Marker.Target = &schemaResponseMarkerType
-	schemaListGroupPoliciesOutput.Members = []*smithy.Member{&memberListGroupPoliciesOutput_PolicyNames, &memberListGroupPoliciesOutput_IsTruncated, &memberListGroupPoliciesOutput_Marker}
-	memberListGroupsForUserInput_UserName.Target = &schemaExistingUserNameType
-	memberListGroupsForUserInput_Marker.Target = &schemaMarkerType
-	memberListGroupsForUserInput_MaxItems.Target = &schemaMaxItemsType
-	schemaListGroupsForUserInput.Members = []*smithy.Member{&memberListGroupsForUserInput_UserName, &memberListGroupsForUserInput_Marker, &memberListGroupsForUserInput_MaxItems}
-	memberListGroupsForUserOutput_Groups.Target = &schemaGroupListType
-	memberListGroupsForUserOutput_IsTruncated.Target = &schemaBooleanType
-	memberListGroupsForUserOutput_Marker.Target = &schemaResponseMarkerType
-	schemaListGroupsForUserOutput.Members = []*smithy.Member{&memberListGroupsForUserOutput_Groups, &memberListGroupsForUserOutput_IsTruncated, &memberListGroupsForUserOutput_Marker}
-	memberListGroupsInput_PathPrefix.Target = &schemaPathPrefixType
-	memberListGroupsInput_Marker.Target = &schemaMarkerType
-	memberListGroupsInput_MaxItems.Target = &schemaMaxItemsType
-	schemaListGroupsInput.Members = []*smithy.Member{&memberListGroupsInput_PathPrefix, &memberListGroupsInput_Marker, &memberListGroupsInput_MaxItems}
-	memberListGroupsOutput_Groups.Target = &schemaGroupListType
-	memberListGroupsOutput_IsTruncated.Target = &schemaBooleanType
-	memberListGroupsOutput_Marker.Target = &schemaResponseMarkerType
-	schemaListGroupsOutput.Members = []*smithy.Member{&memberListGroupsOutput_Groups, &memberListGroupsOutput_IsTruncated, &memberListGroupsOutput_Marker}
-	memberListInstanceProfileTagsInput_InstanceProfileName.Target = &schemaInstanceProfileNameType
-	memberListInstanceProfileTagsInput_Marker.Target = &schemaMarkerType
-	memberListInstanceProfileTagsInput_MaxItems.Target = &schemaMaxItemsType
-	schemaListInstanceProfileTagsInput.Members = []*smithy.Member{&memberListInstanceProfileTagsInput_InstanceProfileName, &memberListInstanceProfileTagsInput_Marker, &memberListInstanceProfileTagsInput_MaxItems}
-	memberListInstanceProfileTagsOutput_Tags.Target = &schemaTagListType
-	memberListInstanceProfileTagsOutput_IsTruncated.Target = &schemaBooleanType
-	memberListInstanceProfileTagsOutput_Marker.Target = &schemaResponseMarkerType
-	schemaListInstanceProfileTagsOutput.Members = []*smithy.Member{&memberListInstanceProfileTagsOutput_Tags, &memberListInstanceProfileTagsOutput_IsTruncated, &memberListInstanceProfileTagsOutput_Marker}
-	memberListInstanceProfilesForRoleInput_RoleName.Target = &schemaRoleNameType
-	memberListInstanceProfilesForRoleInput_Marker.Target = &schemaMarkerType
-	memberListInstanceProfilesForRoleInput_MaxItems.Target = &schemaMaxItemsType
-	schemaListInstanceProfilesForRoleInput.Members = []*smithy.Member{&memberListInstanceProfilesForRoleInput_RoleName, &memberListInstanceProfilesForRoleInput_Marker, &memberListInstanceProfilesForRoleInput_MaxItems}
-	memberListInstanceProfilesForRoleOutput_InstanceProfiles.Target = &schemaInstanceProfileListType
-	memberListInstanceProfilesForRoleOutput_IsTruncated.Target = &schemaBooleanType
-	memberListInstanceProfilesForRoleOutput_Marker.Target = &schemaResponseMarkerType
-	schemaListInstanceProfilesForRoleOutput.Members = []*smithy.Member{&memberListInstanceProfilesForRoleOutput_InstanceProfiles, &memberListInstanceProfilesForRoleOutput_IsTruncated, &memberListInstanceProfilesForRoleOutput_Marker}
-	memberListInstanceProfilesInput_PathPrefix.Target = &schemaPathPrefixType
-	memberListInstanceProfilesInput_Marker.Target = &schemaMarkerType
-	memberListInstanceProfilesInput_MaxItems.Target = &schemaMaxItemsType
-	schemaListInstanceProfilesInput.Members = []*smithy.Member{&memberListInstanceProfilesInput_PathPrefix, &memberListInstanceProfilesInput_Marker, &memberListInstanceProfilesInput_MaxItems}
-	memberListInstanceProfilesOutput_InstanceProfiles.Target = &schemaInstanceProfileListType
-	memberListInstanceProfilesOutput_IsTruncated.Target = &schemaBooleanType
-	memberListInstanceProfilesOutput_Marker.Target = &schemaResponseMarkerType
-	schemaListInstanceProfilesOutput.Members = []*smithy.Member{&memberListInstanceProfilesOutput_InstanceProfiles, &memberListInstanceProfilesOutput_IsTruncated, &memberListInstanceProfilesOutput_Marker}
-	memberListMFADeviceTagsInput_SerialNumber.Target = &schemaSerialNumberType
-	memberListMFADeviceTagsInput_Marker.Target = &schemaMarkerType
-	memberListMFADeviceTagsInput_MaxItems.Target = &schemaMaxItemsType
-	schemaListMFADeviceTagsInput.Members = []*smithy.Member{&memberListMFADeviceTagsInput_SerialNumber, &memberListMFADeviceTagsInput_Marker, &memberListMFADeviceTagsInput_MaxItems}
-	memberListMFADeviceTagsOutput_Tags.Target = &schemaTagListType
-	memberListMFADeviceTagsOutput_IsTruncated.Target = &schemaBooleanType
-	memberListMFADeviceTagsOutput_Marker.Target = &schemaResponseMarkerType
-	schemaListMFADeviceTagsOutput.Members = []*smithy.Member{&memberListMFADeviceTagsOutput_Tags, &memberListMFADeviceTagsOutput_IsTruncated, &memberListMFADeviceTagsOutput_Marker}
-	memberListMFADevicesInput_UserName.Target = &schemaExistingUserNameType
-	memberListMFADevicesInput_Marker.Target = &schemaMarkerType
-	memberListMFADevicesInput_MaxItems.Target = &schemaMaxItemsType
-	schemaListMFADevicesInput.Members = []*smithy.Member{&memberListMFADevicesInput_UserName, &memberListMFADevicesInput_Marker, &memberListMFADevicesInput_MaxItems}
-	memberListMFADevicesOutput_MFADevices.Target = &schemaMfaDeviceListType
-	memberListMFADevicesOutput_IsTruncated.Target = &schemaBooleanType
-	memberListMFADevicesOutput_Marker.Target = &schemaResponseMarkerType
-	schemaListMFADevicesOutput.Members = []*smithy.Member{&memberListMFADevicesOutput_MFADevices, &memberListMFADevicesOutput_IsTruncated, &memberListMFADevicesOutput_Marker}
-	memberListOpenIDConnectProviderTagsInput_OpenIDConnectProviderArn.Target = &schemaArnType
-	memberListOpenIDConnectProviderTagsInput_Marker.Target = &schemaMarkerType
-	memberListOpenIDConnectProviderTagsInput_MaxItems.Target = &schemaMaxItemsType
-	schemaListOpenIDConnectProviderTagsInput.Members = []*smithy.Member{&memberListOpenIDConnectProviderTagsInput_OpenIDConnectProviderArn, &memberListOpenIDConnectProviderTagsInput_Marker, &memberListOpenIDConnectProviderTagsInput_MaxItems}
-	memberListOpenIDConnectProviderTagsOutput_Tags.Target = &schemaTagListType
-	memberListOpenIDConnectProviderTagsOutput_IsTruncated.Target = &schemaBooleanType
-	memberListOpenIDConnectProviderTagsOutput_Marker.Target = &schemaResponseMarkerType
-	schemaListOpenIDConnectProviderTagsOutput.Members = []*smithy.Member{&memberListOpenIDConnectProviderTagsOutput_Tags, &memberListOpenIDConnectProviderTagsOutput_IsTruncated, &memberListOpenIDConnectProviderTagsOutput_Marker}
-	memberListOpenIDConnectProvidersOutput_OpenIDConnectProviderList.Target = &schemaOpenIDConnectProviderListType
-	schemaListOpenIDConnectProvidersOutput.Members = []*smithy.Member{&memberListOpenIDConnectProvidersOutput_OpenIDConnectProviderList}
-	memberListOrganizationsFeaturesOutput_OrganizationId.Target = &schemaOrganizationIdType
-	memberListOrganizationsFeaturesOutput_EnabledFeatures.Target = &schemaFeaturesListType
-	schemaListOrganizationsFeaturesOutput.Members = []*smithy.Member{&memberListOrganizationsFeaturesOutput_OrganizationId, &memberListOrganizationsFeaturesOutput_EnabledFeatures}
-	memberListPoliciesGrantingServiceAccessEntry_ServiceNamespace.Target = &schemaServiceNamespaceType
-	memberListPoliciesGrantingServiceAccessEntry_Policies.Target = &schemaPolicyGrantingServiceAccessListType
-	schemaListPoliciesGrantingServiceAccessEntry.Members = []*smithy.Member{&memberListPoliciesGrantingServiceAccessEntry_ServiceNamespace, &memberListPoliciesGrantingServiceAccessEntry_Policies}
-	memberListPoliciesGrantingServiceAccessInput_Marker.Target = &schemaMarkerType
-	memberListPoliciesGrantingServiceAccessInput_Arn.Target = &schemaArnType
-	memberListPoliciesGrantingServiceAccessInput_ServiceNamespaces.Target = &schemaServiceNamespaceListType
-	schemaListPoliciesGrantingServiceAccessInput.Members = []*smithy.Member{&memberListPoliciesGrantingServiceAccessInput_Marker, &memberListPoliciesGrantingServiceAccessInput_Arn, &memberListPoliciesGrantingServiceAccessInput_ServiceNamespaces}
-	memberListPoliciesGrantingServiceAccessOutput_PoliciesGrantingServiceAccess.Target = &schemaListPolicyGrantingServiceAccessResponseListType
-	memberListPoliciesGrantingServiceAccessOutput_IsTruncated.Target = &schemaBooleanType
-	memberListPoliciesGrantingServiceAccessOutput_Marker.Target = &schemaResponseMarkerType
-	schemaListPoliciesGrantingServiceAccessOutput.Members = []*smithy.Member{&memberListPoliciesGrantingServiceAccessOutput_PoliciesGrantingServiceAccess, &memberListPoliciesGrantingServiceAccessOutput_IsTruncated, &memberListPoliciesGrantingServiceAccessOutput_Marker}
-	memberListPoliciesInput_Scope.Target = &schemaPolicyScopeType
-	memberListPoliciesInput_OnlyAttached.Target = &schemaBooleanType
-	memberListPoliciesInput_PathPrefix.Target = &schemaPolicyPathType
-	memberListPoliciesInput_PolicyUsageFilter.Target = &schemaPolicyUsageType
-	memberListPoliciesInput_Marker.Target = &schemaMarkerType
-	memberListPoliciesInput_MaxItems.Target = &schemaMaxItemsType
-	schemaListPoliciesInput.Members = []*smithy.Member{&memberListPoliciesInput_Scope, &memberListPoliciesInput_OnlyAttached, &memberListPoliciesInput_PathPrefix, &memberListPoliciesInput_PolicyUsageFilter, &memberListPoliciesInput_Marker, &memberListPoliciesInput_MaxItems}
-	memberListPoliciesOutput_Policies.Target = &schemaPolicyListType
-	memberListPoliciesOutput_IsTruncated.Target = &schemaBooleanType
-	memberListPoliciesOutput_Marker.Target = &schemaResponseMarkerType
-	schemaListPoliciesOutput.Members = []*smithy.Member{&memberListPoliciesOutput_Policies, &memberListPoliciesOutput_IsTruncated, &memberListPoliciesOutput_Marker}
-	memberListPolicyGrantingServiceAccessResponseListType_member.Target = &schemaListPoliciesGrantingServiceAccessEntry
-	schemaListPolicyGrantingServiceAccessResponseListType.Members = []*smithy.Member{&memberListPolicyGrantingServiceAccessResponseListType_member}
-	memberListPolicyTagsInput_PolicyArn.Target = &schemaArnType
-	memberListPolicyTagsInput_Marker.Target = &schemaMarkerType
-	memberListPolicyTagsInput_MaxItems.Target = &schemaMaxItemsType
-	schemaListPolicyTagsInput.Members = []*smithy.Member{&memberListPolicyTagsInput_PolicyArn, &memberListPolicyTagsInput_Marker, &memberListPolicyTagsInput_MaxItems}
-	memberListPolicyTagsOutput_Tags.Target = &schemaTagListType
-	memberListPolicyTagsOutput_IsTruncated.Target = &schemaBooleanType
-	memberListPolicyTagsOutput_Marker.Target = &schemaResponseMarkerType
-	schemaListPolicyTagsOutput.Members = []*smithy.Member{&memberListPolicyTagsOutput_Tags, &memberListPolicyTagsOutput_IsTruncated, &memberListPolicyTagsOutput_Marker}
-	memberListPolicyVersionsInput_PolicyArn.Target = &schemaArnType
-	memberListPolicyVersionsInput_Marker.Target = &schemaMarkerType
-	memberListPolicyVersionsInput_MaxItems.Target = &schemaMaxItemsType
-	schemaListPolicyVersionsInput.Members = []*smithy.Member{&memberListPolicyVersionsInput_PolicyArn, &memberListPolicyVersionsInput_Marker, &memberListPolicyVersionsInput_MaxItems}
-	memberListPolicyVersionsOutput_Versions.Target = &schemaPolicyDocumentVersionListType
-	memberListPolicyVersionsOutput_IsTruncated.Target = &schemaBooleanType
-	memberListPolicyVersionsOutput_Marker.Target = &schemaResponseMarkerType
-	schemaListPolicyVersionsOutput.Members = []*smithy.Member{&memberListPolicyVersionsOutput_Versions, &memberListPolicyVersionsOutput_IsTruncated, &memberListPolicyVersionsOutput_Marker}
-	memberListRolePoliciesInput_RoleName.Target = &schemaRoleNameType
-	memberListRolePoliciesInput_Marker.Target = &schemaMarkerType
-	memberListRolePoliciesInput_MaxItems.Target = &schemaMaxItemsType
-	schemaListRolePoliciesInput.Members = []*smithy.Member{&memberListRolePoliciesInput_RoleName, &memberListRolePoliciesInput_Marker, &memberListRolePoliciesInput_MaxItems}
-	memberListRolePoliciesOutput_PolicyNames.Target = &schemaPolicyNameListType
-	memberListRolePoliciesOutput_IsTruncated.Target = &schemaBooleanType
-	memberListRolePoliciesOutput_Marker.Target = &schemaResponseMarkerType
-	schemaListRolePoliciesOutput.Members = []*smithy.Member{&memberListRolePoliciesOutput_PolicyNames, &memberListRolePoliciesOutput_IsTruncated, &memberListRolePoliciesOutput_Marker}
-	memberListRoleTagsInput_RoleName.Target = &schemaRoleNameType
-	memberListRoleTagsInput_Marker.Target = &schemaMarkerType
-	memberListRoleTagsInput_MaxItems.Target = &schemaMaxItemsType
-	schemaListRoleTagsInput.Members = []*smithy.Member{&memberListRoleTagsInput_RoleName, &memberListRoleTagsInput_Marker, &memberListRoleTagsInput_MaxItems}
-	memberListRoleTagsOutput_Tags.Target = &schemaTagListType
-	memberListRoleTagsOutput_IsTruncated.Target = &schemaBooleanType
-	memberListRoleTagsOutput_Marker.Target = &schemaResponseMarkerType
-	schemaListRoleTagsOutput.Members = []*smithy.Member{&memberListRoleTagsOutput_Tags, &memberListRoleTagsOutput_IsTruncated, &memberListRoleTagsOutput_Marker}
-	memberListRolesInput_PathPrefix.Target = &schemaPathPrefixType
-	memberListRolesInput_Marker.Target = &schemaMarkerType
-	memberListRolesInput_MaxItems.Target = &schemaMaxItemsType
-	schemaListRolesInput.Members = []*smithy.Member{&memberListRolesInput_PathPrefix, &memberListRolesInput_Marker, &memberListRolesInput_MaxItems}
-	memberListRolesOutput_Roles.Target = &schemaRoleListType
-	memberListRolesOutput_IsTruncated.Target = &schemaBooleanType
-	memberListRolesOutput_Marker.Target = &schemaResponseMarkerType
-	schemaListRolesOutput.Members = []*smithy.Member{&memberListRolesOutput_Roles, &memberListRolesOutput_IsTruncated, &memberListRolesOutput_Marker}
-	memberListSAMLProviderTagsInput_SAMLProviderArn.Target = &schemaArnType
-	memberListSAMLProviderTagsInput_Marker.Target = &schemaMarkerType
-	memberListSAMLProviderTagsInput_MaxItems.Target = &schemaMaxItemsType
-	schemaListSAMLProviderTagsInput.Members = []*smithy.Member{&memberListSAMLProviderTagsInput_SAMLProviderArn, &memberListSAMLProviderTagsInput_Marker, &memberListSAMLProviderTagsInput_MaxItems}
-	memberListSAMLProviderTagsOutput_Tags.Target = &schemaTagListType
-	memberListSAMLProviderTagsOutput_IsTruncated.Target = &schemaBooleanType
-	memberListSAMLProviderTagsOutput_Marker.Target = &schemaResponseMarkerType
-	schemaListSAMLProviderTagsOutput.Members = []*smithy.Member{&memberListSAMLProviderTagsOutput_Tags, &memberListSAMLProviderTagsOutput_IsTruncated, &memberListSAMLProviderTagsOutput_Marker}
-	memberListSAMLProvidersOutput_SAMLProviderList.Target = &schemaSAMLProviderListType
-	schemaListSAMLProvidersOutput.Members = []*smithy.Member{&memberListSAMLProvidersOutput_SAMLProviderList}
-	memberListSSHPublicKeysInput_UserName.Target = &schemaUserNameType
-	memberListSSHPublicKeysInput_Marker.Target = &schemaMarkerType
-	memberListSSHPublicKeysInput_MaxItems.Target = &schemaMaxItemsType
-	schemaListSSHPublicKeysInput.Members = []*smithy.Member{&memberListSSHPublicKeysInput_UserName, &memberListSSHPublicKeysInput_Marker, &memberListSSHPublicKeysInput_MaxItems}
-	memberListSSHPublicKeysOutput_SSHPublicKeys.Target = &schemaSSHPublicKeyListType
-	memberListSSHPublicKeysOutput_IsTruncated.Target = &schemaBooleanType
-	memberListSSHPublicKeysOutput_Marker.Target = &schemaResponseMarkerType
-	schemaListSSHPublicKeysOutput.Members = []*smithy.Member{&memberListSSHPublicKeysOutput_SSHPublicKeys, &memberListSSHPublicKeysOutput_IsTruncated, &memberListSSHPublicKeysOutput_Marker}
-	memberListServerCertificateTagsInput_ServerCertificateName.Target = &schemaServerCertificateNameType
-	memberListServerCertificateTagsInput_Marker.Target = &schemaMarkerType
-	memberListServerCertificateTagsInput_MaxItems.Target = &schemaMaxItemsType
-	schemaListServerCertificateTagsInput.Members = []*smithy.Member{&memberListServerCertificateTagsInput_ServerCertificateName, &memberListServerCertificateTagsInput_Marker, &memberListServerCertificateTagsInput_MaxItems}
-	memberListServerCertificateTagsOutput_Tags.Target = &schemaTagListType
-	memberListServerCertificateTagsOutput_IsTruncated.Target = &schemaBooleanType
-	memberListServerCertificateTagsOutput_Marker.Target = &schemaResponseMarkerType
-	schemaListServerCertificateTagsOutput.Members = []*smithy.Member{&memberListServerCertificateTagsOutput_Tags, &memberListServerCertificateTagsOutput_IsTruncated, &memberListServerCertificateTagsOutput_Marker}
-	memberListServerCertificatesInput_PathPrefix.Target = &schemaPathPrefixType
-	memberListServerCertificatesInput_Marker.Target = &schemaMarkerType
-	memberListServerCertificatesInput_MaxItems.Target = &schemaMaxItemsType
-	schemaListServerCertificatesInput.Members = []*smithy.Member{&memberListServerCertificatesInput_PathPrefix, &memberListServerCertificatesInput_Marker, &memberListServerCertificatesInput_MaxItems}
-	memberListServerCertificatesOutput_ServerCertificateMetadataList.Target = &schemaServerCertificateMetadataListType
-	memberListServerCertificatesOutput_IsTruncated.Target = &schemaBooleanType
-	memberListServerCertificatesOutput_Marker.Target = &schemaResponseMarkerType
-	schemaListServerCertificatesOutput.Members = []*smithy.Member{&memberListServerCertificatesOutput_ServerCertificateMetadataList, &memberListServerCertificatesOutput_IsTruncated, &memberListServerCertificatesOutput_Marker}
-	memberListServiceSpecificCredentialsInput_UserName.Target = &schemaUserNameType
-	memberListServiceSpecificCredentialsInput_ServiceName.Target = &schemaServiceName
-	memberListServiceSpecificCredentialsInput_AllUsers.Target = &schemaAllUsers
-	memberListServiceSpecificCredentialsInput_Marker.Target = &schemaMarkerType
-	memberListServiceSpecificCredentialsInput_MaxItems.Target = &schemaMaxItemsType
-	schemaListServiceSpecificCredentialsInput.Members = []*smithy.Member{&memberListServiceSpecificCredentialsInput_UserName, &memberListServiceSpecificCredentialsInput_ServiceName, &memberListServiceSpecificCredentialsInput_AllUsers, &memberListServiceSpecificCredentialsInput_Marker, &memberListServiceSpecificCredentialsInput_MaxItems}
-	memberListServiceSpecificCredentialsOutput_ServiceSpecificCredentials.Target = &schemaServiceSpecificCredentialsListType
-	memberListServiceSpecificCredentialsOutput_Marker.Target = &schemaResponseMarkerType
-	memberListServiceSpecificCredentialsOutput_IsTruncated.Target = &schemaBooleanType
-	schemaListServiceSpecificCredentialsOutput.Members = []*smithy.Member{&memberListServiceSpecificCredentialsOutput_ServiceSpecificCredentials, &memberListServiceSpecificCredentialsOutput_Marker, &memberListServiceSpecificCredentialsOutput_IsTruncated}
-	memberListSigningCertificatesInput_UserName.Target = &schemaExistingUserNameType
-	memberListSigningCertificatesInput_Marker.Target = &schemaMarkerType
-	memberListSigningCertificatesInput_MaxItems.Target = &schemaMaxItemsType
-	schemaListSigningCertificatesInput.Members = []*smithy.Member{&memberListSigningCertificatesInput_UserName, &memberListSigningCertificatesInput_Marker, &memberListSigningCertificatesInput_MaxItems}
-	memberListSigningCertificatesOutput_Certificates.Target = &schemaCertificateListType
-	memberListSigningCertificatesOutput_IsTruncated.Target = &schemaBooleanType
-	memberListSigningCertificatesOutput_Marker.Target = &schemaResponseMarkerType
-	schemaListSigningCertificatesOutput.Members = []*smithy.Member{&memberListSigningCertificatesOutput_Certificates, &memberListSigningCertificatesOutput_IsTruncated, &memberListSigningCertificatesOutput_Marker}
-	memberListUserPoliciesInput_UserName.Target = &schemaExistingUserNameType
-	memberListUserPoliciesInput_Marker.Target = &schemaMarkerType
-	memberListUserPoliciesInput_MaxItems.Target = &schemaMaxItemsType
-	schemaListUserPoliciesInput.Members = []*smithy.Member{&memberListUserPoliciesInput_UserName, &memberListUserPoliciesInput_Marker, &memberListUserPoliciesInput_MaxItems}
-	memberListUserPoliciesOutput_PolicyNames.Target = &schemaPolicyNameListType
-	memberListUserPoliciesOutput_IsTruncated.Target = &schemaBooleanType
-	memberListUserPoliciesOutput_Marker.Target = &schemaResponseMarkerType
-	schemaListUserPoliciesOutput.Members = []*smithy.Member{&memberListUserPoliciesOutput_PolicyNames, &memberListUserPoliciesOutput_IsTruncated, &memberListUserPoliciesOutput_Marker}
-	memberListUserTagsInput_UserName.Target = &schemaExistingUserNameType
-	memberListUserTagsInput_Marker.Target = &schemaMarkerType
-	memberListUserTagsInput_MaxItems.Target = &schemaMaxItemsType
-	schemaListUserTagsInput.Members = []*smithy.Member{&memberListUserTagsInput_UserName, &memberListUserTagsInput_Marker, &memberListUserTagsInput_MaxItems}
-	memberListUserTagsOutput_Tags.Target = &schemaTagListType
-	memberListUserTagsOutput_IsTruncated.Target = &schemaBooleanType
-	memberListUserTagsOutput_Marker.Target = &schemaResponseMarkerType
-	schemaListUserTagsOutput.Members = []*smithy.Member{&memberListUserTagsOutput_Tags, &memberListUserTagsOutput_IsTruncated, &memberListUserTagsOutput_Marker}
-	memberListUsersInput_PathPrefix.Target = &schemaPathPrefixType
-	memberListUsersInput_Marker.Target = &schemaMarkerType
-	memberListUsersInput_MaxItems.Target = &schemaMaxItemsType
-	schemaListUsersInput.Members = []*smithy.Member{&memberListUsersInput_PathPrefix, &memberListUsersInput_Marker, &memberListUsersInput_MaxItems}
-	memberListUsersOutput_Users.Target = &schemaUserListType
-	memberListUsersOutput_IsTruncated.Target = &schemaBooleanType
-	memberListUsersOutput_Marker.Target = &schemaResponseMarkerType
-	schemaListUsersOutput.Members = []*smithy.Member{&memberListUsersOutput_Users, &memberListUsersOutput_IsTruncated, &memberListUsersOutput_Marker}
-	memberListVirtualMFADevicesInput_AssignmentStatus.Target = &schemaAssignmentStatusType
-	memberListVirtualMFADevicesInput_Marker.Target = &schemaMarkerType
-	memberListVirtualMFADevicesInput_MaxItems.Target = &schemaMaxItemsType
-	schemaListVirtualMFADevicesInput.Members = []*smithy.Member{&memberListVirtualMFADevicesInput_AssignmentStatus, &memberListVirtualMFADevicesInput_Marker, &memberListVirtualMFADevicesInput_MaxItems}
-	memberListVirtualMFADevicesOutput_VirtualMFADevices.Target = &schemaVirtualMFADeviceListType
-	memberListVirtualMFADevicesOutput_IsTruncated.Target = &schemaBooleanType
-	memberListVirtualMFADevicesOutput_Marker.Target = &schemaResponseMarkerType
-	schemaListVirtualMFADevicesOutput.Members = []*smithy.Member{&memberListVirtualMFADevicesOutput_VirtualMFADevices, &memberListVirtualMFADevicesOutput_IsTruncated, &memberListVirtualMFADevicesOutput_Marker}
-	memberLoginProfile_UserName.Target = &schemaUserNameType
-	memberLoginProfile_CreateDate.Target = &schemaDateType
-	memberLoginProfile_PasswordResetRequired.Target = &schemaBooleanType
-	schemaLoginProfile.Members = []*smithy.Member{&memberLoginProfile_UserName, &memberLoginProfile_CreateDate, &memberLoginProfile_PasswordResetRequired}
-	memberMFADevice_UserName.Target = &schemaUserNameType
-	memberMFADevice_SerialNumber.Target = &schemaSerialNumberType
-	memberMFADevice_EnableDate.Target = &schemaDateType
-	schemaMFADevice.Members = []*smithy.Member{&memberMFADevice_UserName, &memberMFADevice_SerialNumber, &memberMFADevice_EnableDate}
-	memberMalformedCertificateException_message.Target = &schemaMalformedCertificateMessage
-	schemaMalformedCertificateException.Members = []*smithy.Member{&memberMalformedCertificateException_message}
-	memberMalformedPolicyDocumentException_message.Target = &schemaMalformedPolicyDocumentMessage
-	schemaMalformedPolicyDocumentException.Members = []*smithy.Member{&memberMalformedPolicyDocumentException_message}
-	memberManagedPolicyArnListType_member.Target = &schemaArnType
-	schemaManagedPolicyArnListType.Members = []*smithy.Member{&memberManagedPolicyArnListType_member}
-	memberManagedPolicyDetail_PolicyName.Target = &schemaPolicyNameType
-	memberManagedPolicyDetail_PolicyId.Target = &schemaIdType
-	memberManagedPolicyDetail_Arn.Target = &schemaArnType
-	memberManagedPolicyDetail_Path.Target = &schemaPolicyPathType
-	memberManagedPolicyDetail_DefaultVersionId.Target = &schemaPolicyVersionIdType
-	memberManagedPolicyDetail_AttachmentCount.Target = &schemaAttachmentCountType
-	memberManagedPolicyDetail_PermissionsBoundaryUsageCount.Target = &schemaAttachmentCountType
-	memberManagedPolicyDetail_IsAttachable.Target = &schemaBooleanType
-	memberManagedPolicyDetail_Description.Target = &schemaPolicyDescriptionType
-	memberManagedPolicyDetail_CreateDate.Target = &schemaDateType
-	memberManagedPolicyDetail_UpdateDate.Target = &schemaDateType
-	memberManagedPolicyDetail_PolicyVersionList.Target = &schemaPolicyDocumentVersionListType
-	schemaManagedPolicyDetail.Members = []*smithy.Member{&memberManagedPolicyDetail_PolicyName, &memberManagedPolicyDetail_PolicyId, &memberManagedPolicyDetail_Arn, &memberManagedPolicyDetail_Path, &memberManagedPolicyDetail_DefaultVersionId, &memberManagedPolicyDetail_AttachmentCount, &memberManagedPolicyDetail_PermissionsBoundaryUsageCount, &memberManagedPolicyDetail_IsAttachable, &memberManagedPolicyDetail_Description, &memberManagedPolicyDetail_CreateDate, &memberManagedPolicyDetail_UpdateDate, &memberManagedPolicyDetail_PolicyVersionList}
-	memberManagedPolicyDetailListType_member.Target = &schemaManagedPolicyDetail
-	schemaManagedPolicyDetailListType.Members = []*smithy.Member{&memberManagedPolicyDetailListType_member}
-	memberMapStringReplacementValueEntry_key.Target = &schemaStringType
-	memberMapStringReplacementValueEntry_value.Target = &schemaReplacementValueEntry
-	schemaMapStringReplacementValueEntry.Members = []*smithy.Member{&memberMapStringReplacementValueEntry_key, &memberMapStringReplacementValueEntry_value}
-	memberMfaDeviceListType_member.Target = &schemaMFADevice
-	schemaMfaDeviceListType.Members = []*smithy.Member{&memberMfaDeviceListType_member}
-	memberMissingAuthenticationToken_message.Target = &schemaSmithyString
-	schemaMissingAuthenticationToken.Members = []*smithy.Member{&memberMissingAuthenticationToken_message}
-	memberNameConflictException_message.Target = &schemaNameConflictMessage
-	schemaNameConflictException.Members = []*smithy.Member{&memberNameConflictException_message}
-	memberNoSuchEntityException_message.Target = &schemaNoSuchEntityMessage
-	schemaNoSuchEntityException.Members = []*smithy.Member{&memberNoSuchEntityException_message}
-	memberNotImplemented_message.Target = &schemaSmithyString
-	schemaNotImplemented.Members = []*smithy.Member{&memberNotImplemented_message}
-	memberOpenIDConnectProviderListEntry_Arn.Target = &schemaArnType
-	schemaOpenIDConnectProviderListEntry.Members = []*smithy.Member{&memberOpenIDConnectProviderListEntry_Arn}
-	memberOpenIDConnectProviderListType_member.Target = &schemaOpenIDConnectProviderListEntry
-	schemaOpenIDConnectProviderListType.Members = []*smithy.Member{&memberOpenIDConnectProviderListType_member}
-	memberOpenIdIdpCommunicationErrorException_message.Target = &schemaOpenIdIdpCommunicationErrorExceptionMessage
-	schemaOpenIdIdpCommunicationErrorException.Members = []*smithy.Member{&memberOpenIdIdpCommunicationErrorException_message}
-	memberOrderedOrganizationPolicyType_ServiceControlPolicyInputList.Target = &schemaSimulationPolicyListType
-	schemaOrderedOrganizationPolicyType.Members = []*smithy.Member{&memberOrderedOrganizationPolicyType_ServiceControlPolicyInputList}
-	memberOrganizationNotFoundException_Message.Target = &schemaExceptionMessage
-	schemaOrganizationNotFoundException.Members = []*smithy.Member{&memberOrganizationNotFoundException_Message}
-	memberOrganizationNotInAllFeaturesModeException_Message.Target = &schemaExceptionMessage
-	schemaOrganizationNotInAllFeaturesModeException.Members = []*smithy.Member{&memberOrganizationNotInAllFeaturesModeException_Message}
-	memberOrganizationPolicyListType_member.Target = &schemaOrderedOrganizationPolicyType
-	schemaOrganizationPolicyListType.Members = []*smithy.Member{&memberOrganizationPolicyListType_member}
-	memberOrganizationsDecisionDetail_AllowedByOrganizations.Target = &schemaBooleanType
-	schemaOrganizationsDecisionDetail.Members = []*smithy.Member{&memberOrganizationsDecisionDetail_AllowedByOrganizations}
-	memberParameterDefinition_Name.Target = &schemaParameterNameType
-	memberParameterDefinition_Type.Target = &schemaParameterTypeType
-	memberParameterDefinition_SubType.Target = &schemaParameterSubTypeType
-	memberParameterDefinition_Description.Target = &schemaParameterDescriptionType
-	memberParameterDefinition_IsRequired.Target = &schemaBooleanType
-	memberParameterDefinition_DefaultValue.Target = &schemaParameterDefaultValueType
-	memberParameterDefinition_Immutable.Target = &schemaBooleanType
-	schemaParameterDefinition.Members = []*smithy.Member{&memberParameterDefinition_Name, &memberParameterDefinition_Type, &memberParameterDefinition_SubType, &memberParameterDefinition_Description, &memberParameterDefinition_IsRequired, &memberParameterDefinition_DefaultValue, &memberParameterDefinition_Immutable}
-	memberParametersDefinitionListType_member.Target = &schemaParameterDefinition
-	schemaParametersDefinitionListType.Members = []*smithy.Member{&memberParametersDefinitionListType_member}
-	memberPasswordPolicy_MinimumPasswordLength.Target = &schemaMinimumPasswordLengthType
-	memberPasswordPolicy_RequireSymbols.Target = &schemaBooleanType
-	memberPasswordPolicy_RequireNumbers.Target = &schemaBooleanType
-	memberPasswordPolicy_RequireUppercaseCharacters.Target = &schemaBooleanType
-	memberPasswordPolicy_RequireLowercaseCharacters.Target = &schemaBooleanType
-	memberPasswordPolicy_AllowUsersToChangePassword.Target = &schemaBooleanType
-	memberPasswordPolicy_ExpirePasswords.Target = &schemaBooleanType
-	memberPasswordPolicy_MaxPasswordAge.Target = &schemaMaxPasswordAgeType
-	memberPasswordPolicy_PasswordReusePrevention.Target = &schemaPasswordReusePreventionType
-	memberPasswordPolicy_HardExpiry.Target = &schemaBooleanObjectType
-	schemaPasswordPolicy.Members = []*smithy.Member{&memberPasswordPolicy_MinimumPasswordLength, &memberPasswordPolicy_RequireSymbols, &memberPasswordPolicy_RequireNumbers, &memberPasswordPolicy_RequireUppercaseCharacters, &memberPasswordPolicy_RequireLowercaseCharacters, &memberPasswordPolicy_AllowUsersToChangePassword, &memberPasswordPolicy_ExpirePasswords, &memberPasswordPolicy_MaxPasswordAge, &memberPasswordPolicy_PasswordReusePrevention, &memberPasswordPolicy_HardExpiry}
-	memberPasswordPolicyViolationException_message.Target = &schemaPasswordPolicyViolationMessage
-	schemaPasswordPolicyViolationException.Members = []*smithy.Member{&memberPasswordPolicyViolationException_message}
-	memberPermissionsBoundaryDecisionDetail_AllowedByPermissionsBoundary.Target = &schemaBooleanType
-	schemaPermissionsBoundaryDecisionDetail.Members = []*smithy.Member{&memberPermissionsBoundaryDecisionDetail_AllowedByPermissionsBoundary}
-	memberPolicy_PolicyName.Target = &schemaPolicyNameType
-	memberPolicy_PolicyId.Target = &schemaIdType
-	memberPolicy_Arn.Target = &schemaArnType
-	memberPolicy_Path.Target = &schemaPolicyPathType
-	memberPolicy_DefaultVersionId.Target = &schemaPolicyVersionIdType
-	memberPolicy_AttachmentCount.Target = &schemaAttachmentCountType
-	memberPolicy_PermissionsBoundaryUsageCount.Target = &schemaAttachmentCountType
-	memberPolicy_IsAttachable.Target = &schemaBooleanType
-	memberPolicy_Description.Target = &schemaPolicyDescriptionType
-	memberPolicy_CreateDate.Target = &schemaDateType
-	memberPolicy_UpdateDate.Target = &schemaDateType
-	memberPolicy_Tags.Target = &schemaTagListType
-	schemaPolicy.Members = []*smithy.Member{&memberPolicy_PolicyName, &memberPolicy_PolicyId, &memberPolicy_Arn, &memberPolicy_Path, &memberPolicy_DefaultVersionId, &memberPolicy_AttachmentCount, &memberPolicy_PermissionsBoundaryUsageCount, &memberPolicy_IsAttachable, &memberPolicy_Description, &memberPolicy_CreateDate, &memberPolicy_UpdateDate, &memberPolicy_Tags}
-	memberPolicyDetail_PolicyName.Target = &schemaPolicyNameType
-	memberPolicyDetail_PolicyDocument.Target = &schemaPolicyDocumentType
-	schemaPolicyDetail.Members = []*smithy.Member{&memberPolicyDetail_PolicyName, &memberPolicyDetail_PolicyDocument}
-	memberPolicyDetailListType_member.Target = &schemaPolicyDetail
-	schemaPolicyDetailListType.Members = []*smithy.Member{&memberPolicyDetailListType_member}
-	memberPolicyDocumentVersionListType_member.Target = &schemaPolicyVersion
-	schemaPolicyDocumentVersionListType.Members = []*smithy.Member{&memberPolicyDocumentVersionListType_member}
-	memberPolicyEvaluationException_message.Target = &schemaPolicyEvaluationErrorMessage
-	schemaPolicyEvaluationException.Members = []*smithy.Member{&memberPolicyEvaluationException_message}
-	memberPolicyExclusionsListType_member.Target = &schemaPolicyIdentifier
-	schemaPolicyExclusionsListType.Members = []*smithy.Member{&memberPolicyExclusionsListType_member}
-	memberPolicyGrantingServiceAccess_PolicyName.Target = &schemaPolicyNameType
-	memberPolicyGrantingServiceAccess_PolicyType.Target = &schemaPolicyType
-	memberPolicyGrantingServiceAccess_PolicyArn.Target = &schemaArnType
-	memberPolicyGrantingServiceAccess_EntityType.Target = &schemaPolicyOwnerEntityType
-	memberPolicyGrantingServiceAccess_EntityName.Target = &schemaEntityNameType
-	schemaPolicyGrantingServiceAccess.Members = []*smithy.Member{&memberPolicyGrantingServiceAccess_PolicyName, &memberPolicyGrantingServiceAccess_PolicyType, &memberPolicyGrantingServiceAccess_PolicyArn, &memberPolicyGrantingServiceAccess_EntityType, &memberPolicyGrantingServiceAccess_EntityName}
-	memberPolicyGrantingServiceAccessListType_member.Target = &schemaPolicyGrantingServiceAccess
-	schemaPolicyGrantingServiceAccessListType.Members = []*smithy.Member{&memberPolicyGrantingServiceAccessListType_member}
-	memberPolicyGroup_GroupName.Target = &schemaGroupNameType
-	memberPolicyGroup_GroupId.Target = &schemaIdType
-	schemaPolicyGroup.Members = []*smithy.Member{&memberPolicyGroup_GroupName, &memberPolicyGroup_GroupId}
-	memberPolicyGroupListType_member.Target = &schemaPolicyGroup
-	schemaPolicyGroupListType.Members = []*smithy.Member{&memberPolicyGroupListType_member}
-	memberPolicyIdentifier_PolicyType.Target = &schemaPolicyIdentifierPolicyType
-	memberPolicyIdentifier_PolicyArn.Target = &schemaArnType
-	memberPolicyIdentifier_InlinePolicyIdentifier.Target = &schemaInlinePolicyIdentifierType
-	schemaPolicyIdentifier.Members = []*smithy.Member{&memberPolicyIdentifier_PolicyType, &memberPolicyIdentifier_PolicyArn, &memberPolicyIdentifier_InlinePolicyIdentifier}
-	memberPolicyListType_member.Target = &schemaPolicy
-	schemaPolicyListType.Members = []*smithy.Member{&memberPolicyListType_member}
-	memberPolicyNameListType_member.Target = &schemaPolicyNameType
-	schemaPolicyNameListType.Members = []*smithy.Member{&memberPolicyNameListType_member}
-	memberPolicyNotAttachableException_message.Target = &schemaPolicyNotAttachableMessage
-	schemaPolicyNotAttachableException.Members = []*smithy.Member{&memberPolicyNotAttachableException_message}
-	memberPolicyParameter_Name.Target = &schemaPolicyParameterNameType
-	memberPolicyParameter_Values.Target = &schemaPolicyParameterValuesListType
-	memberPolicyParameter_Type.Target = &schemaPolicyParameterTypeEnum
-	schemaPolicyParameter.Members = []*smithy.Member{&memberPolicyParameter_Name, &memberPolicyParameter_Values, &memberPolicyParameter_Type}
-	memberPolicyParameterListType_member.Target = &schemaPolicyParameter
-	schemaPolicyParameterListType.Members = []*smithy.Member{&memberPolicyParameterListType_member}
-	memberPolicyParameterValuesListType_member.Target = &schemaPolicyParameterValueType
-	schemaPolicyParameterValuesListType.Members = []*smithy.Member{&memberPolicyParameterValuesListType_member}
-	memberPolicyRole_RoleName.Target = &schemaRoleNameType
-	memberPolicyRole_RoleId.Target = &schemaIdType
-	schemaPolicyRole.Members = []*smithy.Member{&memberPolicyRole_RoleName, &memberPolicyRole_RoleId}
-	memberPolicyRoleListType_member.Target = &schemaPolicyRole
-	schemaPolicyRoleListType.Members = []*smithy.Member{&memberPolicyRoleListType_member}
-	memberPolicyUser_UserName.Target = &schemaUserNameType
-	memberPolicyUser_UserId.Target = &schemaIdType
-	schemaPolicyUser.Members = []*smithy.Member{&memberPolicyUser_UserName, &memberPolicyUser_UserId}
-	memberPolicyUserListType_member.Target = &schemaPolicyUser
-	schemaPolicyUserListType.Members = []*smithy.Member{&memberPolicyUserListType_member}
-	memberPolicyVersion_Document.Target = &schemaPolicyDocumentType
-	memberPolicyVersion_VersionId.Target = &schemaPolicyVersionIdType
-	memberPolicyVersion_IsDefaultVersion.Target = &schemaBooleanType
-	memberPolicyVersion_CreateDate.Target = &schemaDateType
-	schemaPolicyVersion.Members = []*smithy.Member{&memberPolicyVersion_Document, &memberPolicyVersion_VersionId, &memberPolicyVersion_IsDefaultVersion, &memberPolicyVersion_CreateDate}
-	memberPosition_Line.Target = &schemaLineNumber
-	memberPosition_Column.Target = &schemaColumnNumber
-	schemaPosition.Members = []*smithy.Member{&memberPosition_Line, &memberPosition_Column}
-	memberPrivateKeyList_member.Target = &schemaSAMLPrivateKey
-	schemaPrivateKeyList.Members = []*smithy.Member{&memberPrivateKeyList_member}
-	memberPutAccountPropertiesInput_Properties.Target = &schemaAccountPropertiesMapType
-	schemaPutAccountPropertiesInput.Members = []*smithy.Member{&memberPutAccountPropertiesInput_Properties}
-	memberPutGroupPolicyInput_GroupName.Target = &schemaGroupNameType
-	memberPutGroupPolicyInput_PolicyName.Target = &schemaPolicyNameType
-	memberPutGroupPolicyInput_PolicyDocument.Target = &schemaPolicyDocumentType
-	schemaPutGroupPolicyInput.Members = []*smithy.Member{&memberPutGroupPolicyInput_GroupName, &memberPutGroupPolicyInput_PolicyName, &memberPutGroupPolicyInput_PolicyDocument}
-	memberPutRolePermissionsBoundaryInput_RoleName.Target = &schemaRoleNameType
-	memberPutRolePermissionsBoundaryInput_PermissionsBoundary.Target = &schemaArnType
-	schemaPutRolePermissionsBoundaryInput.Members = []*smithy.Member{&memberPutRolePermissionsBoundaryInput_RoleName, &memberPutRolePermissionsBoundaryInput_PermissionsBoundary}
-	memberPutRolePolicyInput_RoleName.Target = &schemaRoleNameType
-	memberPutRolePolicyInput_PolicyName.Target = &schemaPolicyNameType
-	memberPutRolePolicyInput_PolicyDocument.Target = &schemaPolicyDocumentType
-	schemaPutRolePolicyInput.Members = []*smithy.Member{&memberPutRolePolicyInput_RoleName, &memberPutRolePolicyInput_PolicyName, &memberPutRolePolicyInput_PolicyDocument}
-	memberPutUserPermissionsBoundaryInput_UserName.Target = &schemaUserNameType
-	memberPutUserPermissionsBoundaryInput_PermissionsBoundary.Target = &schemaArnType
-	schemaPutUserPermissionsBoundaryInput.Members = []*smithy.Member{&memberPutUserPermissionsBoundaryInput_UserName, &memberPutUserPermissionsBoundaryInput_PermissionsBoundary}
-	memberPutUserPolicyInput_UserName.Target = &schemaExistingUserNameType
-	memberPutUserPolicyInput_PolicyName.Target = &schemaPolicyNameType
-	memberPutUserPolicyInput_PolicyDocument.Target = &schemaPolicyDocumentType
-	schemaPutUserPolicyInput.Members = []*smithy.Member{&memberPutUserPolicyInput_UserName, &memberPutUserPolicyInput_PolicyName, &memberPutUserPolicyInput_PolicyDocument}
-	memberRejectDelegationRequestInput_DelegationRequestId.Target = &schemaDelegationRequestIdType
-	memberRejectDelegationRequestInput_Notes.Target = &schemaNotesType
-	schemaRejectDelegationRequestInput.Members = []*smithy.Member{&memberRejectDelegationRequestInput_DelegationRequestId, &memberRejectDelegationRequestInput_Notes}
-	memberRemoveClientIDFromOpenIDConnectProviderInput_OpenIDConnectProviderArn.Target = &schemaArnType
-	memberRemoveClientIDFromOpenIDConnectProviderInput_ClientID.Target = &schemaClientIDType
-	schemaRemoveClientIDFromOpenIDConnectProviderInput.Members = []*smithy.Member{&memberRemoveClientIDFromOpenIDConnectProviderInput_OpenIDConnectProviderArn, &memberRemoveClientIDFromOpenIDConnectProviderInput_ClientID}
-	memberRemoveRoleFromInstanceProfileInput_InstanceProfileName.Target = &schemaInstanceProfileNameType
-	memberRemoveRoleFromInstanceProfileInput_RoleName.Target = &schemaRoleNameType
-	schemaRemoveRoleFromInstanceProfileInput.Members = []*smithy.Member{&memberRemoveRoleFromInstanceProfileInput_InstanceProfileName, &memberRemoveRoleFromInstanceProfileInput_RoleName}
-	memberRemoveUserFromGroupInput_GroupName.Target = &schemaGroupNameType
-	memberRemoveUserFromGroupInput_UserName.Target = &schemaExistingUserNameType
-	schemaRemoveUserFromGroupInput.Members = []*smithy.Member{&memberRemoveUserFromGroupInput_GroupName, &memberRemoveUserFromGroupInput_UserName}
-	memberReplacementValueEntry_Values.Target = &schemaReplacementValueListType
-	schemaReplacementValueEntry.Members = []*smithy.Member{&memberReplacementValueEntry_Values}
-	memberReplacementValueListType_member.Target = &schemaStringType
-	schemaReplacementValueListType.Members = []*smithy.Member{&memberReplacementValueListType_member}
-	memberReportGenerationLimitExceededException_message.Target = &schemaReportGenerationLimitExceededMessage
-	schemaReportGenerationLimitExceededException.Members = []*smithy.Member{&memberReportGenerationLimitExceededException_message}
-	memberRequestEntityTooLargeException_message.Target = &schemaSmithyString
-	schemaRequestEntityTooLargeException.Members = []*smithy.Member{&memberRequestEntityTooLargeException_message}
-	memberResetServiceSpecificCredentialInput_UserName.Target = &schemaUserNameType
-	memberResetServiceSpecificCredentialInput_ServiceSpecificCredentialId.Target = &schemaServiceSpecificCredentialId
-	schemaResetServiceSpecificCredentialInput.Members = []*smithy.Member{&memberResetServiceSpecificCredentialInput_UserName, &memberResetServiceSpecificCredentialInput_ServiceSpecificCredentialId}
-	memberResetServiceSpecificCredentialOutput_ServiceSpecificCredential.Target = &schemaServiceSpecificCredential
-	schemaResetServiceSpecificCredentialOutput.Members = []*smithy.Member{&memberResetServiceSpecificCredentialOutput_ServiceSpecificCredential}
-	memberResolveRoleInput_RoleArn.Target = &schemaArnType
-	schemaResolveRoleInput.Members = []*smithy.Member{&memberResolveRoleInput_RoleArn}
-	memberResolveRoleOutput_Role.Target = &schemaRole
-	schemaResolveRoleOutput.Members = []*smithy.Member{&memberResolveRoleOutput_Role}
-	memberResourceNameListType_member.Target = &schemaResourceNameType
-	schemaResourceNameListType.Members = []*smithy.Member{&memberResourceNameListType_member}
-	memberResourceSpecificResult_EvalResourceName.Target = &schemaResourceNameType
-	memberResourceSpecificResult_EvalResourceDecision.Target = &schemaPolicyEvaluationDecisionType
-	memberResourceSpecificResult_MatchedStatements.Target = &schemaStatementListType
-	memberResourceSpecificResult_MissingContextValues.Target = &schemaContextKeyNamesResultListType
-	memberResourceSpecificResult_EvalDecisionDetails.Target = &schemaEvalDecisionDetailsType
-	memberResourceSpecificResult_PermissionsBoundaryDecisionDetail.Target = &schemaPermissionsBoundaryDecisionDetail
-	schemaResourceSpecificResult.Members = []*smithy.Member{&memberResourceSpecificResult_EvalResourceName, &memberResourceSpecificResult_EvalResourceDecision, &memberResourceSpecificResult_MatchedStatements, &memberResourceSpecificResult_MissingContextValues, &memberResourceSpecificResult_EvalDecisionDetails, &memberResourceSpecificResult_PermissionsBoundaryDecisionDetail}
-	memberResourceSpecificResultListType_member.Target = &schemaResourceSpecificResult
-	schemaResourceSpecificResultListType.Members = []*smithy.Member{&memberResourceSpecificResultListType_member}
-	memberResyncMFADeviceInput_UserName.Target = &schemaExistingUserNameType
-	memberResyncMFADeviceInput_SerialNumber.Target = &schemaSerialNumberType
-	memberResyncMFADeviceInput_AuthenticationCode1.Target = &schemaAuthenticationCodeType
-	memberResyncMFADeviceInput_AuthenticationCode2.Target = &schemaAuthenticationCodeType
-	schemaResyncMFADeviceInput.Members = []*smithy.Member{&memberResyncMFADeviceInput_UserName, &memberResyncMFADeviceInput_SerialNumber, &memberResyncMFADeviceInput_AuthenticationCode1, &memberResyncMFADeviceInput_AuthenticationCode2}
-	memberRole_Path.Target = &schemaPathType
-	memberRole_RoleName.Target = &schemaRoleNameType
-	memberRole_RoleId.Target = &schemaIdType
-	memberRole_Arn.Target = &schemaArnType
-	memberRole_CreateDate.Target = &schemaDateType
-	memberRole_AssumeRolePolicyDocument.Target = &schemaPolicyDocumentType
-	memberRole_Description.Target = &schemaRoleDescriptionType
-	memberRole_MaxSessionDuration.Target = &schemaRoleMaxSessionDurationType
-	memberRole_PermissionsBoundary.Target = &schemaAttachedPermissionsBoundary
-	memberRole_Tags.Target = &schemaTagListType
-	memberRole_RoleLastUsed.Target = &schemaRoleLastUsed
-	memberRole_SourceRoleTemplate.Target = &schemaSourceRoleTemplate
-	schemaRole.Members = []*smithy.Member{&memberRole_Path, &memberRole_RoleName, &memberRole_RoleId, &memberRole_Arn, &memberRole_CreateDate, &memberRole_AssumeRolePolicyDocument, &memberRole_Description, &memberRole_MaxSessionDuration, &memberRole_PermissionsBoundary, &memberRole_Tags, &memberRole_RoleLastUsed, &memberRole_SourceRoleTemplate}
-	memberRoleDetail_Path.Target = &schemaPathType
-	memberRoleDetail_RoleName.Target = &schemaRoleNameType
-	memberRoleDetail_RoleId.Target = &schemaIdType
-	memberRoleDetail_Arn.Target = &schemaArnType
-	memberRoleDetail_CreateDate.Target = &schemaDateType
-	memberRoleDetail_AssumeRolePolicyDocument.Target = &schemaPolicyDocumentType
-	memberRoleDetail_InstanceProfileList.Target = &schemaInstanceProfileListType
-	memberRoleDetail_RolePolicyList.Target = &schemaPolicyDetailListType
-	memberRoleDetail_AttachedManagedPolicies.Target = &schemaAttachedPoliciesListType
-	memberRoleDetail_PermissionsBoundary.Target = &schemaAttachedPermissionsBoundary
-	memberRoleDetail_Tags.Target = &schemaTagListType
-	memberRoleDetail_RoleLastUsed.Target = &schemaRoleLastUsed
-	schemaRoleDetail.Members = []*smithy.Member{&memberRoleDetail_Path, &memberRoleDetail_RoleName, &memberRoleDetail_RoleId, &memberRoleDetail_Arn, &memberRoleDetail_CreateDate, &memberRoleDetail_AssumeRolePolicyDocument, &memberRoleDetail_InstanceProfileList, &memberRoleDetail_RolePolicyList, &memberRoleDetail_AttachedManagedPolicies, &memberRoleDetail_PermissionsBoundary, &memberRoleDetail_Tags, &memberRoleDetail_RoleLastUsed}
-	memberRoleDetailListType_member.Target = &schemaRoleDetail
-	schemaRoleDetailListType.Members = []*smithy.Member{&memberRoleDetailListType_member}
-	memberRoleLastUsed_LastUsedDate.Target = &schemaDateType
-	memberRoleLastUsed_Region.Target = &schemaStringType
-	schemaRoleLastUsed.Members = []*smithy.Member{&memberRoleLastUsed_LastUsedDate, &memberRoleLastUsed_Region}
-	memberRoleListType_member.Target = &schemaRole
-	schemaRoleListType.Members = []*smithy.Member{&memberRoleListType_member}
-	memberRoleModifiedException_message.Target = &schemaRoleModifiedMessage
-	schemaRoleModifiedException.Members = []*smithy.Member{&memberRoleModifiedException_message}
-	memberRolePermissionRestrictionArnListType_member.Target = &schemaArnType
-	schemaRolePermissionRestrictionArnListType.Members = []*smithy.Member{&memberRolePermissionRestrictionArnListType_member}
-	memberRoleTemplateDisabledException_message.Target = &schemaRoleTemplateDisabledMessage
-	schemaRoleTemplateDisabledException.Members = []*smithy.Member{&memberRoleTemplateDisabledException_message}
-	memberRoleTemplateVersion_TemplateArn.Target = &schemaArnType
-	memberRoleTemplateVersion_TemplateName.Target = &schemaRoleTemplateNameType
-	memberRoleTemplateVersion_TemplateVersionId.Target = &schemaIdType
-	memberRoleTemplateVersion_Description.Target = &schemaRoleTemplateDescriptionType
-	memberRoleTemplateVersion_MajorVersion.Target = &schemaIntegerType
-	memberRoleTemplateVersion_DefaultMinorVersion.Target = &schemaMinorVersionType
-	memberRoleTemplateVersion_ManagedByType.Target = &schemaManagedByTypeType
-	memberRoleTemplateVersion_ManagedByValue.Target = &schemaManagedByValueType
-	memberRoleTemplateVersion_Enabled.Target = &schemaBooleanType
-	memberRoleTemplateVersion_MinorVersion.Target = &schemaMinorVersionType
-	memberRoleTemplateVersion_RoleNamePattern.Target = &schemaRoleNamePatternType
-	memberRoleTemplateVersion_RolePathPattern.Target = &schemaRolePathPatternType
-	memberRoleTemplateVersion_RoleDescriptionPattern.Target = &schemaRoleDescriptionPatternType
-	memberRoleTemplateVersion_AssumeRolePolicyDocumentTemplate.Target = &schemaPolicyDocumentType
-	memberRoleTemplateVersion_InlinePolicyTemplates.Target = &schemaInlinePolicyTemplateListType
-	memberRoleTemplateVersion_ManagedPolicyArns.Target = &schemaManagedPolicyArnListType
-	memberRoleTemplateVersion_PermissionBoundaryArn.Target = &schemaArnType
-	memberRoleTemplateVersion_ParametersDefinition.Target = &schemaParametersDefinitionListType
-	memberRoleTemplateVersion_RoleTagsTemplate.Target = &schemaTagTemplateListType
-	memberRoleTemplateVersion_MaxSessionDuration.Target = &schemaRoleMaxSessionDurationType
-	memberRoleTemplateVersion_VersionEnabled.Target = &schemaBooleanType
-	memberRoleTemplateVersion_CreateTimestamp.Target = &schemaDateType
-	memberRoleTemplateVersion_UpdateTimestamp.Target = &schemaDateType
-	schemaRoleTemplateVersion.Members = []*smithy.Member{&memberRoleTemplateVersion_TemplateArn, &memberRoleTemplateVersion_TemplateName, &memberRoleTemplateVersion_TemplateVersionId, &memberRoleTemplateVersion_Description, &memberRoleTemplateVersion_MajorVersion, &memberRoleTemplateVersion_DefaultMinorVersion, &memberRoleTemplateVersion_ManagedByType, &memberRoleTemplateVersion_ManagedByValue, &memberRoleTemplateVersion_Enabled, &memberRoleTemplateVersion_MinorVersion, &memberRoleTemplateVersion_RoleNamePattern, &memberRoleTemplateVersion_RolePathPattern, &memberRoleTemplateVersion_RoleDescriptionPattern, &memberRoleTemplateVersion_AssumeRolePolicyDocumentTemplate, &memberRoleTemplateVersion_InlinePolicyTemplates, &memberRoleTemplateVersion_ManagedPolicyArns, &memberRoleTemplateVersion_PermissionBoundaryArn, &memberRoleTemplateVersion_ParametersDefinition, &memberRoleTemplateVersion_RoleTagsTemplate, &memberRoleTemplateVersion_MaxSessionDuration, &memberRoleTemplateVersion_VersionEnabled, &memberRoleTemplateVersion_CreateTimestamp, &memberRoleTemplateVersion_UpdateTimestamp}
-	memberRoleUsageListType_member.Target = &schemaRoleUsageType
-	schemaRoleUsageListType.Members = []*smithy.Member{&memberRoleUsageListType_member}
-	memberRoleUsageType_Region.Target = &schemaRegionNameType
-	memberRoleUsageType_Resources.Target = &schemaArnListType
-	schemaRoleUsageType.Members = []*smithy.Member{&memberRoleUsageType_Region, &memberRoleUsageType_Resources}
-	memberSAMLPrivateKey_KeyId.Target = &schemaPrivateKeyIdType
-	memberSAMLPrivateKey_Timestamp.Target = &schemaDateType
-	schemaSAMLPrivateKey.Members = []*smithy.Member{&memberSAMLPrivateKey_KeyId, &memberSAMLPrivateKey_Timestamp}
-	memberSAMLProviderListEntry_Arn.Target = &schemaArnType
-	memberSAMLProviderListEntry_ValidUntil.Target = &schemaDateType
-	memberSAMLProviderListEntry_CreateDate.Target = &schemaDateType
-	schemaSAMLProviderListEntry.Members = []*smithy.Member{&memberSAMLProviderListEntry_Arn, &memberSAMLProviderListEntry_ValidUntil, &memberSAMLProviderListEntry_CreateDate}
-	memberSAMLProviderListType_member.Target = &schemaSAMLProviderListEntry
-	schemaSAMLProviderListType.Members = []*smithy.Member{&memberSAMLProviderListType_member}
-	memberSSHPublicKey_UserName.Target = &schemaUserNameType
-	memberSSHPublicKey_SSHPublicKeyId.Target = &schemaPublicKeyIdType
-	memberSSHPublicKey_Fingerprint.Target = &schemaPublicKeyFingerprintType
-	memberSSHPublicKey_SSHPublicKeyBody.Target = &schemaPublicKeyMaterialType
-	memberSSHPublicKey_Status.Target = &schemaStatusType
-	memberSSHPublicKey_UploadDate.Target = &schemaDateType
-	schemaSSHPublicKey.Members = []*smithy.Member{&memberSSHPublicKey_UserName, &memberSSHPublicKey_SSHPublicKeyId, &memberSSHPublicKey_Fingerprint, &memberSSHPublicKey_SSHPublicKeyBody, &memberSSHPublicKey_Status, &memberSSHPublicKey_UploadDate}
-	memberSSHPublicKeyListType_member.Target = &schemaSSHPublicKeyMetadata
-	schemaSSHPublicKeyListType.Members = []*smithy.Member{&memberSSHPublicKeyListType_member}
-	memberSSHPublicKeyMetadata_UserName.Target = &schemaUserNameType
-	memberSSHPublicKeyMetadata_SSHPublicKeyId.Target = &schemaPublicKeyIdType
-	memberSSHPublicKeyMetadata_Status.Target = &schemaStatusType
-	memberSSHPublicKeyMetadata_UploadDate.Target = &schemaDateType
-	schemaSSHPublicKeyMetadata.Members = []*smithy.Member{&memberSSHPublicKeyMetadata_UserName, &memberSSHPublicKeyMetadata_SSHPublicKeyId, &memberSSHPublicKeyMetadata_Status, &memberSSHPublicKeyMetadata_UploadDate}
-	memberSendDelegationTokenInput_DelegationRequestId.Target = &schemaDelegationRequestIdType
-	schemaSendDelegationTokenInput.Members = []*smithy.Member{&memberSendDelegationTokenInput_DelegationRequestId}
-	memberServerCertificate_ServerCertificateMetadata.Target = &schemaServerCertificateMetadata
-	memberServerCertificate_CertificateBody.Target = &schemaCertificateBodyType
-	memberServerCertificate_CertificateChain.Target = &schemaCertificateChainType
-	memberServerCertificate_Tags.Target = &schemaTagListType
-	schemaServerCertificate.Members = []*smithy.Member{&memberServerCertificate_ServerCertificateMetadata, &memberServerCertificate_CertificateBody, &memberServerCertificate_CertificateChain, &memberServerCertificate_Tags}
-	memberServerCertificateMetadata_Path.Target = &schemaPathType
-	memberServerCertificateMetadata_ServerCertificateName.Target = &schemaServerCertificateNameType
-	memberServerCertificateMetadata_ServerCertificateId.Target = &schemaIdType
-	memberServerCertificateMetadata_Arn.Target = &schemaArnType
-	memberServerCertificateMetadata_UploadDate.Target = &schemaDateType
-	memberServerCertificateMetadata_Expiration.Target = &schemaDateType
-	schemaServerCertificateMetadata.Members = []*smithy.Member{&memberServerCertificateMetadata_Path, &memberServerCertificateMetadata_ServerCertificateName, &memberServerCertificateMetadata_ServerCertificateId, &memberServerCertificateMetadata_Arn, &memberServerCertificateMetadata_UploadDate, &memberServerCertificateMetadata_Expiration}
-	memberServerCertificateMetadataListType_member.Target = &schemaServerCertificateMetadata
-	schemaServerCertificateMetadataListType.Members = []*smithy.Member{&memberServerCertificateMetadataListType_member}
-	memberServiceAccessNotEnabledException_Message.Target = &schemaExceptionMessage
-	schemaServiceAccessNotEnabledException.Members = []*smithy.Member{&memberServiceAccessNotEnabledException_Message}
-	memberServiceFailureException_message.Target = &schemaServiceFailureExceptionMessage
-	schemaServiceFailureException.Members = []*smithy.Member{&memberServiceFailureException_message}
-	memberServiceLastAccessed_ServiceName.Target = &schemaServiceNameType
-	memberServiceLastAccessed_LastAuthenticated.Target = &schemaDateType
-	memberServiceLastAccessed_ServiceNamespace.Target = &schemaServiceNamespaceType
-	memberServiceLastAccessed_LastAuthenticatedEntity.Target = &schemaArnType
-	memberServiceLastAccessed_LastAuthenticatedRegion.Target = &schemaStringType
-	memberServiceLastAccessed_TotalAuthenticatedEntities.Target = &schemaIntegerType
-	memberServiceLastAccessed_TrackedActionsLastAccessed.Target = &schemaTrackedActionsLastAccessed
-	schemaServiceLastAccessed.Members = []*smithy.Member{&memberServiceLastAccessed_ServiceName, &memberServiceLastAccessed_LastAuthenticated, &memberServiceLastAccessed_ServiceNamespace, &memberServiceLastAccessed_LastAuthenticatedEntity, &memberServiceLastAccessed_LastAuthenticatedRegion, &memberServiceLastAccessed_TotalAuthenticatedEntities, &memberServiceLastAccessed_TrackedActionsLastAccessed}
-	memberServiceNamespaceListType_member.Target = &schemaServiceNamespaceType
-	schemaServiceNamespaceListType.Members = []*smithy.Member{&memberServiceNamespaceListType_member}
-	memberServiceNotSupportedException_message.Target = &schemaServiceNotSupportedMessage
-	schemaServiceNotSupportedException.Members = []*smithy.Member{&memberServiceNotSupportedException_message}
-	memberServiceSpecificCredential_CreateDate.Target = &schemaDateType
-	memberServiceSpecificCredential_ExpirationDate.Target = &schemaDateType
-	memberServiceSpecificCredential_ServiceName.Target = &schemaServiceName
-	memberServiceSpecificCredential_ServiceUserName.Target = &schemaServiceUserName
-	memberServiceSpecificCredential_ServicePassword.Target = &schemaServicePassword
-	memberServiceSpecificCredential_ServiceCredentialAlias.Target = &schemaServiceCredentialAlias
-	memberServiceSpecificCredential_ServiceCredentialSecret.Target = &schemaServiceCredentialSecret
-	memberServiceSpecificCredential_ServiceSpecificCredentialId.Target = &schemaServiceSpecificCredentialId
-	memberServiceSpecificCredential_UserName.Target = &schemaUserNameType
-	memberServiceSpecificCredential_Status.Target = &schemaStatusType
-	schemaServiceSpecificCredential.Members = []*smithy.Member{&memberServiceSpecificCredential_CreateDate, &memberServiceSpecificCredential_ExpirationDate, &memberServiceSpecificCredential_ServiceName, &memberServiceSpecificCredential_ServiceUserName, &memberServiceSpecificCredential_ServicePassword, &memberServiceSpecificCredential_ServiceCredentialAlias, &memberServiceSpecificCredential_ServiceCredentialSecret, &memberServiceSpecificCredential_ServiceSpecificCredentialId, &memberServiceSpecificCredential_UserName, &memberServiceSpecificCredential_Status}
-	memberServiceSpecificCredentialMetadata_UserName.Target = &schemaUserNameType
-	memberServiceSpecificCredentialMetadata_Status.Target = &schemaStatusType
-	memberServiceSpecificCredentialMetadata_ServiceUserName.Target = &schemaServiceUserName
-	memberServiceSpecificCredentialMetadata_ServiceCredentialAlias.Target = &schemaServiceCredentialAlias
-	memberServiceSpecificCredentialMetadata_CreateDate.Target = &schemaDateType
-	memberServiceSpecificCredentialMetadata_ExpirationDate.Target = &schemaDateType
-	memberServiceSpecificCredentialMetadata_ServiceSpecificCredentialId.Target = &schemaServiceSpecificCredentialId
-	memberServiceSpecificCredentialMetadata_ServiceName.Target = &schemaServiceName
-	schemaServiceSpecificCredentialMetadata.Members = []*smithy.Member{&memberServiceSpecificCredentialMetadata_UserName, &memberServiceSpecificCredentialMetadata_Status, &memberServiceSpecificCredentialMetadata_ServiceUserName, &memberServiceSpecificCredentialMetadata_ServiceCredentialAlias, &memberServiceSpecificCredentialMetadata_CreateDate, &memberServiceSpecificCredentialMetadata_ExpirationDate, &memberServiceSpecificCredentialMetadata_ServiceSpecificCredentialId, &memberServiceSpecificCredentialMetadata_ServiceName}
-	memberServiceSpecificCredentialsListType_member.Target = &schemaServiceSpecificCredentialMetadata
-	schemaServiceSpecificCredentialsListType.Members = []*smithy.Member{&memberServiceSpecificCredentialsListType_member}
-	memberServicesLastAccessed_member.Target = &schemaServiceLastAccessed
-	schemaServicesLastAccessed.Members = []*smithy.Member{&memberServicesLastAccessed_member}
-	memberSetDefaultPolicyVersionInput_PolicyArn.Target = &schemaArnType
-	memberSetDefaultPolicyVersionInput_VersionId.Target = &schemaPolicyVersionIdType
-	schemaSetDefaultPolicyVersionInput.Members = []*smithy.Member{&memberSetDefaultPolicyVersionInput_PolicyArn, &memberSetDefaultPolicyVersionInput_VersionId}
-	memberSetSecurityTokenServicePreferencesInput_GlobalEndpointTokenVersion.Target = &schemaGlobalEndpointTokenVersion
-	schemaSetSecurityTokenServicePreferencesInput.Members = []*smithy.Member{&memberSetSecurityTokenServicePreferencesInput_GlobalEndpointTokenVersion}
-	memberSignatureDoesNotMatch_message.Target = &schemaSmithyString
-	schemaSignatureDoesNotMatch.Members = []*smithy.Member{&memberSignatureDoesNotMatch_message}
-	memberSigningCertificate_UserName.Target = &schemaUserNameType
-	memberSigningCertificate_CertificateId.Target = &schemaCertificateIdType
-	memberSigningCertificate_CertificateBody.Target = &schemaCertificateBodyType
-	memberSigningCertificate_Status.Target = &schemaStatusType
-	memberSigningCertificate_UploadDate.Target = &schemaDateType
-	schemaSigningCertificate.Members = []*smithy.Member{&memberSigningCertificate_UserName, &memberSigningCertificate_CertificateId, &memberSigningCertificate_CertificateBody, &memberSigningCertificate_Status, &memberSigningCertificate_UploadDate}
-	memberSimulateCustomPolicyInput_PolicyInputList.Target = &schemaSimulationPolicyListType
-	memberSimulateCustomPolicyInput_PermissionsBoundaryPolicyInputList.Target = &schemaSimulationPolicyListType
-	memberSimulateCustomPolicyInput_OrderedOrganizationPolicyInputList.Target = &schemaOrganizationPolicyListType
-	memberSimulateCustomPolicyInput_ActionNames.Target = &schemaActionNameListType
-	memberSimulateCustomPolicyInput_ResourceArns.Target = &schemaResourceNameListType
-	memberSimulateCustomPolicyInput_ResourcePolicy.Target = &schemaPolicyDocumentType
-	memberSimulateCustomPolicyInput_ResourceOwner.Target = &schemaResourceNameType
-	memberSimulateCustomPolicyInput_CallerArn.Target = &schemaResourceNameType
-	memberSimulateCustomPolicyInput_ContextEntries.Target = &schemaContextEntryListType
-	memberSimulateCustomPolicyInput_ResourceHandlingOption.Target = &schemaResourceHandlingOptionType
-	memberSimulateCustomPolicyInput_MaxItems.Target = &schemaMaxItemsType
-	memberSimulateCustomPolicyInput_Marker.Target = &schemaMarkerType
-	schemaSimulateCustomPolicyInput.Members = []*smithy.Member{&memberSimulateCustomPolicyInput_PolicyInputList, &memberSimulateCustomPolicyInput_PermissionsBoundaryPolicyInputList, &memberSimulateCustomPolicyInput_OrderedOrganizationPolicyInputList, &memberSimulateCustomPolicyInput_ActionNames, &memberSimulateCustomPolicyInput_ResourceArns, &memberSimulateCustomPolicyInput_ResourcePolicy, &memberSimulateCustomPolicyInput_ResourceOwner, &memberSimulateCustomPolicyInput_CallerArn, &memberSimulateCustomPolicyInput_ContextEntries, &memberSimulateCustomPolicyInput_ResourceHandlingOption, &memberSimulateCustomPolicyInput_MaxItems, &memberSimulateCustomPolicyInput_Marker}
-	memberSimulatePolicyResponse_EvaluationResults.Target = &schemaEvaluationResultsListType
-	memberSimulatePolicyResponse_IsTruncated.Target = &schemaBooleanType
-	memberSimulatePolicyResponse_Marker.Target = &schemaResponseMarkerType
-	schemaSimulatePolicyResponse.Members = []*smithy.Member{&memberSimulatePolicyResponse_EvaluationResults, &memberSimulatePolicyResponse_IsTruncated, &memberSimulatePolicyResponse_Marker}
-	memberSimulatePrincipalPolicyInput_PolicySourceArn.Target = &schemaArnType
-	memberSimulatePrincipalPolicyInput_PolicyInputList.Target = &schemaSimulationPolicyListType
-	memberSimulatePrincipalPolicyInput_PermissionsBoundaryPolicyInputList.Target = &schemaSimulationPolicyListType
-	memberSimulatePrincipalPolicyInput_PolicyExclusionList.Target = &schemaPolicyExclusionsListType
-	memberSimulatePrincipalPolicyInput_ActionNames.Target = &schemaActionNameListType
-	memberSimulatePrincipalPolicyInput_ResourceArns.Target = &schemaResourceNameListType
-	memberSimulatePrincipalPolicyInput_ResourcePolicy.Target = &schemaPolicyDocumentType
-	memberSimulatePrincipalPolicyInput_ResourceOwner.Target = &schemaResourceNameType
-	memberSimulatePrincipalPolicyInput_CallerArn.Target = &schemaResourceNameType
-	memberSimulatePrincipalPolicyInput_ContextEntries.Target = &schemaContextEntryListType
-	memberSimulatePrincipalPolicyInput_ResourceHandlingOption.Target = &schemaResourceHandlingOptionType
-	memberSimulatePrincipalPolicyInput_MaxItems.Target = &schemaMaxItemsType
-	memberSimulatePrincipalPolicyInput_Marker.Target = &schemaMarkerType
-	schemaSimulatePrincipalPolicyInput.Members = []*smithy.Member{&memberSimulatePrincipalPolicyInput_PolicySourceArn, &memberSimulatePrincipalPolicyInput_PolicyInputList, &memberSimulatePrincipalPolicyInput_PermissionsBoundaryPolicyInputList, &memberSimulatePrincipalPolicyInput_PolicyExclusionList, &memberSimulatePrincipalPolicyInput_ActionNames, &memberSimulatePrincipalPolicyInput_ResourceArns, &memberSimulatePrincipalPolicyInput_ResourcePolicy, &memberSimulatePrincipalPolicyInput_ResourceOwner, &memberSimulatePrincipalPolicyInput_CallerArn, &memberSimulatePrincipalPolicyInput_ContextEntries, &memberSimulatePrincipalPolicyInput_ResourceHandlingOption, &memberSimulatePrincipalPolicyInput_MaxItems, &memberSimulatePrincipalPolicyInput_Marker}
-	memberSimulationPolicyListType_member.Target = &schemaPolicyDocumentType
-	schemaSimulationPolicyListType.Members = []*smithy.Member{&memberSimulationPolicyListType_member}
-	memberSourceRoleTemplate_TemplateArn.Target = &schemaArnType
-	memberSourceRoleTemplate_TemplateMinorVersion.Target = &schemaIntegerType
-	schemaSourceRoleTemplate.Members = []*smithy.Member{&memberSourceRoleTemplate_TemplateArn, &memberSourceRoleTemplate_TemplateMinorVersion}
-	memberStatement_SourcePolicyId.Target = &schemaPolicyIdentifierType
-	memberStatement_SourcePolicyType.Target = &schemaPolicySourceType
-	memberStatement_StartPosition.Target = &schemaPosition
-	memberStatement_EndPosition.Target = &schemaPosition
-	schemaStatement.Members = []*smithy.Member{&memberStatement_SourcePolicyId, &memberStatement_SourcePolicyType, &memberStatement_StartPosition, &memberStatement_EndPosition}
-	memberStatementListType_member.Target = &schemaStatement
-	schemaStatementListType.Members = []*smithy.Member{&memberStatementListType_member}
-	memberSummaryMapType_key.Target = &schemaSummaryKeyType
-	memberSummaryMapType_value.Target = &schemaSummaryValueType
-	schemaSummaryMapType.Members = []*smithy.Member{&memberSummaryMapType_key, &memberSummaryMapType_value}
-	memberTag_Key.Target = &schemaTagKeyType
-	memberTag_Value.Target = &schemaTagValueType
-	schemaTag.Members = []*smithy.Member{&memberTag_Key, &memberTag_Value}
-	memberTagInstanceProfileInput_InstanceProfileName.Target = &schemaInstanceProfileNameType
-	memberTagInstanceProfileInput_Tags.Target = &schemaTagListType
-	schemaTagInstanceProfileInput.Members = []*smithy.Member{&memberTagInstanceProfileInput_InstanceProfileName, &memberTagInstanceProfileInput_Tags}
-	memberTagKeyListType_member.Target = &schemaTagKeyType
-	schemaTagKeyListType.Members = []*smithy.Member{&memberTagKeyListType_member}
-	memberTagListType_member.Target = &schemaTag
-	schemaTagListType.Members = []*smithy.Member{&memberTagListType_member}
-	memberTagMFADeviceInput_SerialNumber.Target = &schemaSerialNumberType
-	memberTagMFADeviceInput_Tags.Target = &schemaTagListType
-	schemaTagMFADeviceInput.Members = []*smithy.Member{&memberTagMFADeviceInput_SerialNumber, &memberTagMFADeviceInput_Tags}
-	memberTagOpenIDConnectProviderInput_OpenIDConnectProviderArn.Target = &schemaArnType
-	memberTagOpenIDConnectProviderInput_Tags.Target = &schemaTagListType
-	schemaTagOpenIDConnectProviderInput.Members = []*smithy.Member{&memberTagOpenIDConnectProviderInput_OpenIDConnectProviderArn, &memberTagOpenIDConnectProviderInput_Tags}
-	memberTagPolicyInput_PolicyArn.Target = &schemaArnType
-	memberTagPolicyInput_Tags.Target = &schemaTagListType
-	schemaTagPolicyInput.Members = []*smithy.Member{&memberTagPolicyInput_PolicyArn, &memberTagPolicyInput_Tags}
-	memberTagRoleInput_RoleName.Target = &schemaRoleNameType
-	memberTagRoleInput_Tags.Target = &schemaTagListType
-	schemaTagRoleInput.Members = []*smithy.Member{&memberTagRoleInput_RoleName, &memberTagRoleInput_Tags}
-	memberTagSAMLProviderInput_SAMLProviderArn.Target = &schemaArnType
-	memberTagSAMLProviderInput_Tags.Target = &schemaTagListType
-	schemaTagSAMLProviderInput.Members = []*smithy.Member{&memberTagSAMLProviderInput_SAMLProviderArn, &memberTagSAMLProviderInput_Tags}
-	memberTagServerCertificateInput_ServerCertificateName.Target = &schemaServerCertificateNameType
-	memberTagServerCertificateInput_Tags.Target = &schemaTagListType
-	schemaTagServerCertificateInput.Members = []*smithy.Member{&memberTagServerCertificateInput_ServerCertificateName, &memberTagServerCertificateInput_Tags}
-	memberTagTemplate_Key.Target = &schemaTagTemplateKeyType
-	memberTagTemplate_Value.Target = &schemaTagTemplateValueType
-	schemaTagTemplate.Members = []*smithy.Member{&memberTagTemplate_Key, &memberTagTemplate_Value}
-	memberTagTemplateListType_member.Target = &schemaTagTemplate
-	schemaTagTemplateListType.Members = []*smithy.Member{&memberTagTemplateListType_member}
-	memberTagUserInput_UserName.Target = &schemaExistingUserNameType
-	memberTagUserInput_Tags.Target = &schemaTagListType
-	schemaTagUserInput.Members = []*smithy.Member{&memberTagUserInput_UserName, &memberTagUserInput_Tags}
-	memberThrottlingException_message.Target = &schemaSmithyString
-	schemaThrottlingException.Members = []*smithy.Member{&memberThrottlingException_message}
-	memberThumbprintListType_member.Target = &schemaThumbprintType
-	schemaThumbprintListType.Members = []*smithy.Member{&memberThumbprintListType_member}
-	memberTrackedActionLastAccessed_ActionName.Target = &schemaStringType
-	memberTrackedActionLastAccessed_LastAccessedEntity.Target = &schemaArnType
-	memberTrackedActionLastAccessed_LastAccessedTime.Target = &schemaDateType
-	memberTrackedActionLastAccessed_LastAccessedRegion.Target = &schemaStringType
-	schemaTrackedActionLastAccessed.Members = []*smithy.Member{&memberTrackedActionLastAccessed_ActionName, &memberTrackedActionLastAccessed_LastAccessedEntity, &memberTrackedActionLastAccessed_LastAccessedTime, &memberTrackedActionLastAccessed_LastAccessedRegion}
-	memberTrackedActionsLastAccessed_member.Target = &schemaTrackedActionLastAccessed
-	schemaTrackedActionsLastAccessed.Members = []*smithy.Member{&memberTrackedActionsLastAccessed_member}
-	memberUnmodifiableEntityException_message.Target = &schemaUnmodifiableEntityMessage
-	schemaUnmodifiableEntityException.Members = []*smithy.Member{&memberUnmodifiableEntityException_message}
-	memberUnrecognizedPublicKeyEncodingException_message.Target = &schemaUnrecognizedPublicKeyEncodingMessage
-	schemaUnrecognizedPublicKeyEncodingException.Members = []*smithy.Member{&memberUnrecognizedPublicKeyEncodingException_message}
-	memberUntagInstanceProfileInput_InstanceProfileName.Target = &schemaInstanceProfileNameType
-	memberUntagInstanceProfileInput_TagKeys.Target = &schemaTagKeyListType
-	schemaUntagInstanceProfileInput.Members = []*smithy.Member{&memberUntagInstanceProfileInput_InstanceProfileName, &memberUntagInstanceProfileInput_TagKeys}
-	memberUntagMFADeviceInput_SerialNumber.Target = &schemaSerialNumberType
-	memberUntagMFADeviceInput_TagKeys.Target = &schemaTagKeyListType
-	schemaUntagMFADeviceInput.Members = []*smithy.Member{&memberUntagMFADeviceInput_SerialNumber, &memberUntagMFADeviceInput_TagKeys}
-	memberUntagOpenIDConnectProviderInput_OpenIDConnectProviderArn.Target = &schemaArnType
-	memberUntagOpenIDConnectProviderInput_TagKeys.Target = &schemaTagKeyListType
-	schemaUntagOpenIDConnectProviderInput.Members = []*smithy.Member{&memberUntagOpenIDConnectProviderInput_OpenIDConnectProviderArn, &memberUntagOpenIDConnectProviderInput_TagKeys}
-	memberUntagPolicyInput_PolicyArn.Target = &schemaArnType
-	memberUntagPolicyInput_TagKeys.Target = &schemaTagKeyListType
-	schemaUntagPolicyInput.Members = []*smithy.Member{&memberUntagPolicyInput_PolicyArn, &memberUntagPolicyInput_TagKeys}
-	memberUntagRoleInput_RoleName.Target = &schemaRoleNameType
-	memberUntagRoleInput_TagKeys.Target = &schemaTagKeyListType
-	schemaUntagRoleInput.Members = []*smithy.Member{&memberUntagRoleInput_RoleName, &memberUntagRoleInput_TagKeys}
-	memberUntagSAMLProviderInput_SAMLProviderArn.Target = &schemaArnType
-	memberUntagSAMLProviderInput_TagKeys.Target = &schemaTagKeyListType
-	schemaUntagSAMLProviderInput.Members = []*smithy.Member{&memberUntagSAMLProviderInput_SAMLProviderArn, &memberUntagSAMLProviderInput_TagKeys}
-	memberUntagServerCertificateInput_ServerCertificateName.Target = &schemaServerCertificateNameType
-	memberUntagServerCertificateInput_TagKeys.Target = &schemaTagKeyListType
-	schemaUntagServerCertificateInput.Members = []*smithy.Member{&memberUntagServerCertificateInput_ServerCertificateName, &memberUntagServerCertificateInput_TagKeys}
-	memberUntagUserInput_UserName.Target = &schemaExistingUserNameType
-	memberUntagUserInput_TagKeys.Target = &schemaTagKeyListType
-	schemaUntagUserInput.Members = []*smithy.Member{&memberUntagUserInput_UserName, &memberUntagUserInput_TagKeys}
-	memberUpdateAccessKeyInput_UserName.Target = &schemaExistingUserNameType
-	memberUpdateAccessKeyInput_AccessKeyId.Target = &schemaAccessKeyIdType
-	memberUpdateAccessKeyInput_Status.Target = &schemaStatusType
-	schemaUpdateAccessKeyInput.Members = []*smithy.Member{&memberUpdateAccessKeyInput_UserName, &memberUpdateAccessKeyInput_AccessKeyId, &memberUpdateAccessKeyInput_Status}
-	memberUpdateAccountPasswordPolicyInput_MinimumPasswordLength.Target = &schemaMinimumPasswordLengthType
-	memberUpdateAccountPasswordPolicyInput_RequireSymbols.Target = &schemaBooleanType
-	memberUpdateAccountPasswordPolicyInput_RequireNumbers.Target = &schemaBooleanType
-	memberUpdateAccountPasswordPolicyInput_RequireUppercaseCharacters.Target = &schemaBooleanType
-	memberUpdateAccountPasswordPolicyInput_RequireLowercaseCharacters.Target = &schemaBooleanType
-	memberUpdateAccountPasswordPolicyInput_AllowUsersToChangePassword.Target = &schemaBooleanType
-	memberUpdateAccountPasswordPolicyInput_MaxPasswordAge.Target = &schemaMaxPasswordAgeType
-	memberUpdateAccountPasswordPolicyInput_PasswordReusePrevention.Target = &schemaPasswordReusePreventionType
-	memberUpdateAccountPasswordPolicyInput_HardExpiry.Target = &schemaBooleanObjectType
-	schemaUpdateAccountPasswordPolicyInput.Members = []*smithy.Member{&memberUpdateAccountPasswordPolicyInput_MinimumPasswordLength, &memberUpdateAccountPasswordPolicyInput_RequireSymbols, &memberUpdateAccountPasswordPolicyInput_RequireNumbers, &memberUpdateAccountPasswordPolicyInput_RequireUppercaseCharacters, &memberUpdateAccountPasswordPolicyInput_RequireLowercaseCharacters, &memberUpdateAccountPasswordPolicyInput_AllowUsersToChangePassword, &memberUpdateAccountPasswordPolicyInput_MaxPasswordAge, &memberUpdateAccountPasswordPolicyInput_PasswordReusePrevention, &memberUpdateAccountPasswordPolicyInput_HardExpiry}
-	memberUpdateAssumeRolePolicyInput_RoleName.Target = &schemaRoleNameType
-	memberUpdateAssumeRolePolicyInput_PolicyDocument.Target = &schemaPolicyDocumentType
-	schemaUpdateAssumeRolePolicyInput.Members = []*smithy.Member{&memberUpdateAssumeRolePolicyInput_RoleName, &memberUpdateAssumeRolePolicyInput_PolicyDocument}
-	memberUpdateDelegationRequestInput_DelegationRequestId.Target = &schemaDelegationRequestIdType
-	memberUpdateDelegationRequestInput_Notes.Target = &schemaNotesType
-	schemaUpdateDelegationRequestInput.Members = []*smithy.Member{&memberUpdateDelegationRequestInput_DelegationRequestId, &memberUpdateDelegationRequestInput_Notes}
-	memberUpdateGroupInput_GroupName.Target = &schemaGroupNameType
-	memberUpdateGroupInput_NewPath.Target = &schemaPathType
-	memberUpdateGroupInput_NewGroupName.Target = &schemaGroupNameType
-	schemaUpdateGroupInput.Members = []*smithy.Member{&memberUpdateGroupInput_GroupName, &memberUpdateGroupInput_NewPath, &memberUpdateGroupInput_NewGroupName}
-	memberUpdateLoginProfileInput_UserName.Target = &schemaUserNameType
-	memberUpdateLoginProfileInput_Password.Target = &schemaPasswordType
-	memberUpdateLoginProfileInput_PasswordResetRequired.Target = &schemaBooleanObjectType
-	schemaUpdateLoginProfileInput.Members = []*smithy.Member{&memberUpdateLoginProfileInput_UserName, &memberUpdateLoginProfileInput_Password, &memberUpdateLoginProfileInput_PasswordResetRequired}
-	memberUpdateOpenIDConnectProviderThumbprintInput_OpenIDConnectProviderArn.Target = &schemaArnType
-	memberUpdateOpenIDConnectProviderThumbprintInput_ThumbprintList.Target = &schemaThumbprintListType
-	schemaUpdateOpenIDConnectProviderThumbprintInput.Members = []*smithy.Member{&memberUpdateOpenIDConnectProviderThumbprintInput_OpenIDConnectProviderArn, &memberUpdateOpenIDConnectProviderThumbprintInput_ThumbprintList}
-	memberUpdateRoleDescriptionInput_RoleName.Target = &schemaRoleNameType
-	memberUpdateRoleDescriptionInput_Description.Target = &schemaRoleDescriptionType
-	schemaUpdateRoleDescriptionInput.Members = []*smithy.Member{&memberUpdateRoleDescriptionInput_RoleName, &memberUpdateRoleDescriptionInput_Description}
-	memberUpdateRoleDescriptionOutput_Role.Target = &schemaRole
-	schemaUpdateRoleDescriptionOutput.Members = []*smithy.Member{&memberUpdateRoleDescriptionOutput_Role}
-	memberUpdateRoleInput_RoleName.Target = &schemaRoleNameType
-	memberUpdateRoleInput_Description.Target = &schemaRoleDescriptionType
-	memberUpdateRoleInput_MaxSessionDuration.Target = &schemaRoleMaxSessionDurationType
-	schemaUpdateRoleInput.Members = []*smithy.Member{&memberUpdateRoleInput_RoleName, &memberUpdateRoleInput_Description, &memberUpdateRoleInput_MaxSessionDuration}
-	memberUpdateSAMLProviderInput_SAMLMetadataDocument.Target = &schemaSAMLMetadataDocumentType
-	memberUpdateSAMLProviderInput_SAMLProviderArn.Target = &schemaArnType
-	memberUpdateSAMLProviderInput_AssertionEncryptionMode.Target = &schemaAssertionEncryptionModeType
-	memberUpdateSAMLProviderInput_AddPrivateKey.Target = &schemaPrivateKeyType
-	memberUpdateSAMLProviderInput_RemovePrivateKey.Target = &schemaPrivateKeyIdType
-	schemaUpdateSAMLProviderInput.Members = []*smithy.Member{&memberUpdateSAMLProviderInput_SAMLMetadataDocument, &memberUpdateSAMLProviderInput_SAMLProviderArn, &memberUpdateSAMLProviderInput_AssertionEncryptionMode, &memberUpdateSAMLProviderInput_AddPrivateKey, &memberUpdateSAMLProviderInput_RemovePrivateKey}
-	memberUpdateSAMLProviderOutput_SAMLProviderArn.Target = &schemaArnType
-	schemaUpdateSAMLProviderOutput.Members = []*smithy.Member{&memberUpdateSAMLProviderOutput_SAMLProviderArn}
-	memberUpdateSSHPublicKeyInput_UserName.Target = &schemaUserNameType
-	memberUpdateSSHPublicKeyInput_SSHPublicKeyId.Target = &schemaPublicKeyIdType
-	memberUpdateSSHPublicKeyInput_Status.Target = &schemaStatusType
-	schemaUpdateSSHPublicKeyInput.Members = []*smithy.Member{&memberUpdateSSHPublicKeyInput_UserName, &memberUpdateSSHPublicKeyInput_SSHPublicKeyId, &memberUpdateSSHPublicKeyInput_Status}
-	memberUpdateServerCertificateInput_ServerCertificateName.Target = &schemaServerCertificateNameType
-	memberUpdateServerCertificateInput_NewPath.Target = &schemaPathType
-	memberUpdateServerCertificateInput_NewServerCertificateName.Target = &schemaServerCertificateNameType
-	schemaUpdateServerCertificateInput.Members = []*smithy.Member{&memberUpdateServerCertificateInput_ServerCertificateName, &memberUpdateServerCertificateInput_NewPath, &memberUpdateServerCertificateInput_NewServerCertificateName}
-	memberUpdateServiceSpecificCredentialInput_UserName.Target = &schemaUserNameType
-	memberUpdateServiceSpecificCredentialInput_ServiceSpecificCredentialId.Target = &schemaServiceSpecificCredentialId
-	memberUpdateServiceSpecificCredentialInput_Status.Target = &schemaStatusType
-	schemaUpdateServiceSpecificCredentialInput.Members = []*smithy.Member{&memberUpdateServiceSpecificCredentialInput_UserName, &memberUpdateServiceSpecificCredentialInput_ServiceSpecificCredentialId, &memberUpdateServiceSpecificCredentialInput_Status}
-	memberUpdateSigningCertificateInput_UserName.Target = &schemaExistingUserNameType
-	memberUpdateSigningCertificateInput_CertificateId.Target = &schemaCertificateIdType
-	memberUpdateSigningCertificateInput_Status.Target = &schemaStatusType
-	schemaUpdateSigningCertificateInput.Members = []*smithy.Member{&memberUpdateSigningCertificateInput_UserName, &memberUpdateSigningCertificateInput_CertificateId, &memberUpdateSigningCertificateInput_Status}
-	memberUpdateUserInput_UserName.Target = &schemaExistingUserNameType
-	memberUpdateUserInput_NewPath.Target = &schemaPathType
-	memberUpdateUserInput_NewUserName.Target = &schemaUserNameType
-	schemaUpdateUserInput.Members = []*smithy.Member{&memberUpdateUserInput_UserName, &memberUpdateUserInput_NewPath, &memberUpdateUserInput_NewUserName}
-	memberUploadSSHPublicKeyInput_UserName.Target = &schemaUserNameType
-	memberUploadSSHPublicKeyInput_SSHPublicKeyBody.Target = &schemaPublicKeyMaterialType
-	schemaUploadSSHPublicKeyInput.Members = []*smithy.Member{&memberUploadSSHPublicKeyInput_UserName, &memberUploadSSHPublicKeyInput_SSHPublicKeyBody}
-	memberUploadSSHPublicKeyOutput_SSHPublicKey.Target = &schemaSSHPublicKey
-	schemaUploadSSHPublicKeyOutput.Members = []*smithy.Member{&memberUploadSSHPublicKeyOutput_SSHPublicKey}
-	memberUploadServerCertificateInput_Path.Target = &schemaPathType
-	memberUploadServerCertificateInput_ServerCertificateName.Target = &schemaServerCertificateNameType
-	memberUploadServerCertificateInput_CertificateBody.Target = &schemaCertificateBodyType
-	memberUploadServerCertificateInput_PrivateKey.Target = &schemaPrivateKeyType
-	memberUploadServerCertificateInput_CertificateChain.Target = &schemaCertificateChainType
-	memberUploadServerCertificateInput_Tags.Target = &schemaTagListType
-	schemaUploadServerCertificateInput.Members = []*smithy.Member{&memberUploadServerCertificateInput_Path, &memberUploadServerCertificateInput_ServerCertificateName, &memberUploadServerCertificateInput_CertificateBody, &memberUploadServerCertificateInput_PrivateKey, &memberUploadServerCertificateInput_CertificateChain, &memberUploadServerCertificateInput_Tags}
-	memberUploadServerCertificateOutput_ServerCertificateMetadata.Target = &schemaServerCertificateMetadata
-	memberUploadServerCertificateOutput_Tags.Target = &schemaTagListType
-	schemaUploadServerCertificateOutput.Members = []*smithy.Member{&memberUploadServerCertificateOutput_ServerCertificateMetadata, &memberUploadServerCertificateOutput_Tags}
-	memberUploadSigningCertificateInput_UserName.Target = &schemaExistingUserNameType
-	memberUploadSigningCertificateInput_CertificateBody.Target = &schemaCertificateBodyType
-	schemaUploadSigningCertificateInput.Members = []*smithy.Member{&memberUploadSigningCertificateInput_UserName, &memberUploadSigningCertificateInput_CertificateBody}
-	memberUploadSigningCertificateOutput_Certificate.Target = &schemaSigningCertificate
-	schemaUploadSigningCertificateOutput.Members = []*smithy.Member{&memberUploadSigningCertificateOutput_Certificate}
-	memberUser_Path.Target = &schemaPathType
-	memberUser_UserName.Target = &schemaUserNameType
-	memberUser_UserId.Target = &schemaIdType
-	memberUser_Arn.Target = &schemaArnType
-	memberUser_CreateDate.Target = &schemaDateType
-	memberUser_PasswordLastUsed.Target = &schemaDateType
-	memberUser_PermissionsBoundary.Target = &schemaAttachedPermissionsBoundary
-	memberUser_Tags.Target = &schemaTagListType
-	schemaUser.Members = []*smithy.Member{&memberUser_Path, &memberUser_UserName, &memberUser_UserId, &memberUser_Arn, &memberUser_CreateDate, &memberUser_PasswordLastUsed, &memberUser_PermissionsBoundary, &memberUser_Tags}
-	memberUserDetail_Path.Target = &schemaPathType
-	memberUserDetail_UserName.Target = &schemaUserNameType
-	memberUserDetail_UserId.Target = &schemaIdType
-	memberUserDetail_Arn.Target = &schemaArnType
-	memberUserDetail_CreateDate.Target = &schemaDateType
-	memberUserDetail_UserPolicyList.Target = &schemaPolicyDetailListType
-	memberUserDetail_GroupList.Target = &schemaGroupNameListType
-	memberUserDetail_AttachedManagedPolicies.Target = &schemaAttachedPoliciesListType
-	memberUserDetail_PermissionsBoundary.Target = &schemaAttachedPermissionsBoundary
-	memberUserDetail_Tags.Target = &schemaTagListType
-	schemaUserDetail.Members = []*smithy.Member{&memberUserDetail_Path, &memberUserDetail_UserName, &memberUserDetail_UserId, &memberUserDetail_Arn, &memberUserDetail_CreateDate, &memberUserDetail_UserPolicyList, &memberUserDetail_GroupList, &memberUserDetail_AttachedManagedPolicies, &memberUserDetail_PermissionsBoundary, &memberUserDetail_Tags}
-	memberUserDetailListType_member.Target = &schemaUserDetail
-	schemaUserDetailListType.Members = []*smithy.Member{&memberUserDetailListType_member}
-	memberUserListType_member.Target = &schemaUser
-	schemaUserListType.Members = []*smithy.Member{&memberUserListType_member}
-	memberValidationException_message.Target = &schemaSmithyString
-	schemaValidationException.Members = []*smithy.Member{&memberValidationException_message}
-	memberVirtualMFADevice_SerialNumber.Target = &schemaSerialNumberType
-	memberVirtualMFADevice_Base32StringSeed.Target = &schemaBootstrapDatum
-	memberVirtualMFADevice_QRCodePNG.Target = &schemaBootstrapDatum
-	memberVirtualMFADevice_User.Target = &schemaUser
-	memberVirtualMFADevice_EnableDate.Target = &schemaDateType
-	memberVirtualMFADevice_Tags.Target = &schemaTagListType
-	schemaVirtualMFADevice.Members = []*smithy.Member{&memberVirtualMFADevice_SerialNumber, &memberVirtualMFADevice_Base32StringSeed, &memberVirtualMFADevice_QRCodePNG, &memberVirtualMFADevice_User, &memberVirtualMFADevice_EnableDate, &memberVirtualMFADevice_Tags}
-	memberVirtualMFADeviceListType_member.Target = &schemaVirtualMFADevice
-	schemaVirtualMFADeviceListType.Members = []*smithy.Member{&memberVirtualMFADeviceListType_member}
-}

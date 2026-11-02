@@ -7,35 +7,35 @@ import (
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy/document"
 )
 
-var schemaAccessDeniedException = smithy.Schema{ID: "com.amazon.coral.service#AccessDeniedException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+var schemaAccessDeniedException = smithy.Schema{ID: "com.amazon.coral.service#AccessDeniedException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAccessDeniedException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
 
-var memberAccessDeniedException_message = smithy.Member{Name: "message", Index: 0}
+var memberAccessDeniedException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
 var schemaActionAfterCompletion = smithy.Schema{ID: "com.amazonaws.scheduler#ActionAfterCompletion", Type: smithy.TypeEnum}
 
 var schemaAssignPublicIp = smithy.Schema{ID: "com.amazonaws.scheduler#AssignPublicIp", Type: smithy.TypeEnum}
 
-var schemaAwsVpcConfiguration = smithy.Schema{ID: "com.amazonaws.scheduler#AwsVpcConfiguration", Type: smithy.TypeStructure}
+var schemaAwsVpcConfiguration = smithy.Schema{ID: "com.amazonaws.scheduler#AwsVpcConfiguration", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAwsVpcConfiguration_Subnets, &memberAwsVpcConfiguration_SecurityGroups, &memberAwsVpcConfiguration_AssignPublicIp}}
 
-var memberAwsVpcConfiguration_Subnets = smithy.Member{Name: "Subnets", Index: 0, Required: true}
+var memberAwsVpcConfiguration_Subnets = smithy.Member{Name: "Subnets", Index: 0, Target: &schemaSubnets, Required: true}
 
-var memberAwsVpcConfiguration_SecurityGroups = smithy.Member{Name: "SecurityGroups", Index: 1}
+var memberAwsVpcConfiguration_SecurityGroups = smithy.Member{Name: "SecurityGroups", Index: 1, Target: &schemaSecurityGroups}
 
-var memberAwsVpcConfiguration_AssignPublicIp = smithy.Member{Name: "AssignPublicIp", Index: 2}
+var memberAwsVpcConfiguration_AssignPublicIp = smithy.Member{Name: "AssignPublicIp", Index: 2, Target: &schemaAssignPublicIp}
 
 var schemaCapacityProvider = smithy.Schema{ID: "com.amazonaws.scheduler#CapacityProvider", Type: smithy.TypeString}
 
-var schemaCapacityProviderStrategy = smithy.Schema{ID: "com.amazonaws.scheduler#CapacityProviderStrategy", Type: smithy.TypeList}
+var schemaCapacityProviderStrategy = smithy.Schema{ID: "com.amazonaws.scheduler#CapacityProviderStrategy", Type: smithy.TypeList, Members: []*smithy.Member{&memberCapacityProviderStrategy_member}}
 
-var memberCapacityProviderStrategy_member = smithy.Member{Name: "member", Index: 0}
+var memberCapacityProviderStrategy_member = smithy.Member{Name: "member", Index: 0, Target: &schemaCapacityProviderStrategyItem}
 
-var schemaCapacityProviderStrategyItem = smithy.Schema{ID: "com.amazonaws.scheduler#CapacityProviderStrategyItem", Type: smithy.TypeStructure}
+var schemaCapacityProviderStrategyItem = smithy.Schema{ID: "com.amazonaws.scheduler#CapacityProviderStrategyItem", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCapacityProviderStrategyItem_capacityProvider, &memberCapacityProviderStrategyItem_weight, &memberCapacityProviderStrategyItem_base}}
 
-var memberCapacityProviderStrategyItem_capacityProvider = smithy.Member{Name: "capacityProvider", Index: 0, Required: true}
+var memberCapacityProviderStrategyItem_capacityProvider = smithy.Member{Name: "capacityProvider", Index: 0, Target: &schemaCapacityProvider, Required: true}
 
-var memberCapacityProviderStrategyItem_weight = smithy.Member{Name: "weight", Index: 1, Default: document.Number("0")}
+var memberCapacityProviderStrategyItem_weight = smithy.Member{Name: "weight", Index: 1, Target: &schemaCapacityProviderStrategyItemWeight, Default: document.Number("0")}
 
-var memberCapacityProviderStrategyItem_base = smithy.Member{Name: "base", Index: 2, Default: document.Number("0")}
+var memberCapacityProviderStrategyItem_base = smithy.Member{Name: "base", Index: 2, Target: &schemaCapacityProviderStrategyItemBase, Default: document.Number("0")}
 
 var schemaCapacityProviderStrategyItemBase = smithy.Schema{ID: "com.amazonaws.scheduler#CapacityProviderStrategyItemBase", Type: smithy.TypeInteger}
 
@@ -43,79 +43,79 @@ var schemaCapacityProviderStrategyItemWeight = smithy.Schema{ID: "com.amazonaws.
 
 var schemaClientToken = smithy.Schema{ID: "com.amazonaws.scheduler#ClientToken", Type: smithy.TypeString}
 
-var schemaConflictException = smithy.Schema{ID: "com.amazonaws.scheduler#ConflictException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 409}}
+var schemaConflictException = smithy.Schema{ID: "com.amazonaws.scheduler#ConflictException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberConflictException_Message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 409}}
 
-var memberConflictException_Message = smithy.Member{Name: "Message", Index: 0, Required: true}
+var memberConflictException_Message = smithy.Member{Name: "Message", Index: 0, Target: &schemaSmithyString, Required: true}
 
-var schemaCoralServiceThrottlingException = smithy.Schema{ID: "com.amazon.coral.service#ThrottlingException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaCoralServiceThrottlingException = smithy.Schema{ID: "com.amazon.coral.service#ThrottlingException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCoralServiceThrottlingException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberCoralServiceThrottlingException_message = smithy.Member{Name: "message", Index: 0}
+var memberCoralServiceThrottlingException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaCreateScheduleGroupInput = smithy.Schema{ID: "com.amazonaws.scheduler#CreateScheduleGroupInput", Type: smithy.TypeStructure}
+var schemaCreateScheduleGroupInput = smithy.Schema{ID: "com.amazonaws.scheduler#CreateScheduleGroupInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateScheduleGroupInput_Name, &memberCreateScheduleGroupInput_Tags, &memberCreateScheduleGroupInput_ClientToken}}
 
-var memberCreateScheduleGroupInput_Name = smithy.Member{Name: "Name", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberCreateScheduleGroupInput_Name = smithy.Member{Name: "Name", Index: 0, Target: &schemaScheduleGroupName, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberCreateScheduleGroupInput_Tags = smithy.Member{Name: "Tags", Index: 1}
+var memberCreateScheduleGroupInput_Tags = smithy.Member{Name: "Tags", Index: 1, Target: &schemaTagList}
 
-var memberCreateScheduleGroupInput_ClientToken = smithy.Member{Name: "ClientToken", Index: 2}
+var memberCreateScheduleGroupInput_ClientToken = smithy.Member{Name: "ClientToken", Index: 2, Target: &schemaClientToken}
 
-var schemaCreateScheduleGroupOutput = smithy.Schema{ID: "com.amazonaws.scheduler#CreateScheduleGroupOutput", Type: smithy.TypeStructure}
+var schemaCreateScheduleGroupOutput = smithy.Schema{ID: "com.amazonaws.scheduler#CreateScheduleGroupOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateScheduleGroupOutput_ScheduleGroupArn}}
 
-var memberCreateScheduleGroupOutput_ScheduleGroupArn = smithy.Member{Name: "ScheduleGroupArn", Index: 0, Required: true}
+var memberCreateScheduleGroupOutput_ScheduleGroupArn = smithy.Member{Name: "ScheduleGroupArn", Index: 0, Target: &schemaScheduleGroupArn, Required: true}
 
-var schemaCreateScheduleInput = smithy.Schema{ID: "com.amazonaws.scheduler#CreateScheduleInput", Type: smithy.TypeStructure}
+var schemaCreateScheduleInput = smithy.Schema{ID: "com.amazonaws.scheduler#CreateScheduleInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateScheduleInput_Name, &memberCreateScheduleInput_GroupName, &memberCreateScheduleInput_ScheduleExpression, &memberCreateScheduleInput_StartDate, &memberCreateScheduleInput_EndDate, &memberCreateScheduleInput_Description, &memberCreateScheduleInput_ScheduleExpressionTimezone, &memberCreateScheduleInput_State, &memberCreateScheduleInput_KmsKeyArn, &memberCreateScheduleInput_Target, &memberCreateScheduleInput_FlexibleTimeWindow, &memberCreateScheduleInput_ClientToken, &memberCreateScheduleInput_ActionAfterCompletion}}
 
-var memberCreateScheduleInput_Name = smithy.Member{Name: "Name", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberCreateScheduleInput_Name = smithy.Member{Name: "Name", Index: 0, Target: &schemaName, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberCreateScheduleInput_GroupName = smithy.Member{Name: "GroupName", Index: 1}
+var memberCreateScheduleInput_GroupName = smithy.Member{Name: "GroupName", Index: 1, Target: &schemaScheduleGroupName}
 
-var memberCreateScheduleInput_ScheduleExpression = smithy.Member{Name: "ScheduleExpression", Index: 2, Required: true}
+var memberCreateScheduleInput_ScheduleExpression = smithy.Member{Name: "ScheduleExpression", Index: 2, Target: &schemaScheduleExpression, Required: true}
 
-var memberCreateScheduleInput_StartDate = smithy.Member{Name: "StartDate", Index: 3}
+var memberCreateScheduleInput_StartDate = smithy.Member{Name: "StartDate", Index: 3, Target: &schemaStartDate}
 
-var memberCreateScheduleInput_EndDate = smithy.Member{Name: "EndDate", Index: 4}
+var memberCreateScheduleInput_EndDate = smithy.Member{Name: "EndDate", Index: 4, Target: &schemaEndDate}
 
-var memberCreateScheduleInput_Description = smithy.Member{Name: "Description", Index: 5}
+var memberCreateScheduleInput_Description = smithy.Member{Name: "Description", Index: 5, Target: &schemaDescription}
 
-var memberCreateScheduleInput_ScheduleExpressionTimezone = smithy.Member{Name: "ScheduleExpressionTimezone", Index: 6}
+var memberCreateScheduleInput_ScheduleExpressionTimezone = smithy.Member{Name: "ScheduleExpressionTimezone", Index: 6, Target: &schemaScheduleExpressionTimezone}
 
-var memberCreateScheduleInput_State = smithy.Member{Name: "State", Index: 7}
+var memberCreateScheduleInput_State = smithy.Member{Name: "State", Index: 7, Target: &schemaScheduleState}
 
-var memberCreateScheduleInput_KmsKeyArn = smithy.Member{Name: "KmsKeyArn", Index: 8}
+var memberCreateScheduleInput_KmsKeyArn = smithy.Member{Name: "KmsKeyArn", Index: 8, Target: &schemaKmsKeyArn}
 
-var memberCreateScheduleInput_Target = smithy.Member{Name: "Target", Index: 9, Required: true}
+var memberCreateScheduleInput_Target = smithy.Member{Name: "Target", Index: 9, Target: &schemaTarget, Required: true}
 
-var memberCreateScheduleInput_FlexibleTimeWindow = smithy.Member{Name: "FlexibleTimeWindow", Index: 10, Required: true}
+var memberCreateScheduleInput_FlexibleTimeWindow = smithy.Member{Name: "FlexibleTimeWindow", Index: 10, Target: &schemaFlexibleTimeWindow, Required: true}
 
-var memberCreateScheduleInput_ClientToken = smithy.Member{Name: "ClientToken", Index: 11}
+var memberCreateScheduleInput_ClientToken = smithy.Member{Name: "ClientToken", Index: 11, Target: &schemaClientToken}
 
-var memberCreateScheduleInput_ActionAfterCompletion = smithy.Member{Name: "ActionAfterCompletion", Index: 12}
+var memberCreateScheduleInput_ActionAfterCompletion = smithy.Member{Name: "ActionAfterCompletion", Index: 12, Target: &schemaActionAfterCompletion}
 
-var schemaCreateScheduleOutput = smithy.Schema{ID: "com.amazonaws.scheduler#CreateScheduleOutput", Type: smithy.TypeStructure}
+var schemaCreateScheduleOutput = smithy.Schema{ID: "com.amazonaws.scheduler#CreateScheduleOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateScheduleOutput_ScheduleArn}}
 
-var memberCreateScheduleOutput_ScheduleArn = smithy.Member{Name: "ScheduleArn", Index: 0, Required: true}
+var memberCreateScheduleOutput_ScheduleArn = smithy.Member{Name: "ScheduleArn", Index: 0, Target: &schemaScheduleArn, Required: true}
 
 var schemaCreationDate = smithy.Schema{ID: "com.amazonaws.scheduler#CreationDate", Type: smithy.TypeTimestamp}
 
-var schemaDeadLetterConfig = smithy.Schema{ID: "com.amazonaws.scheduler#DeadLetterConfig", Type: smithy.TypeStructure}
+var schemaDeadLetterConfig = smithy.Schema{ID: "com.amazonaws.scheduler#DeadLetterConfig", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeadLetterConfig_Arn}}
 
-var memberDeadLetterConfig_Arn = smithy.Member{Name: "Arn", Index: 0}
+var memberDeadLetterConfig_Arn = smithy.Member{Name: "Arn", Index: 0, Target: &schemaResourceArn}
 
-var schemaDeleteScheduleGroupInput = smithy.Schema{ID: "com.amazonaws.scheduler#DeleteScheduleGroupInput", Type: smithy.TypeStructure}
+var schemaDeleteScheduleGroupInput = smithy.Schema{ID: "com.amazonaws.scheduler#DeleteScheduleGroupInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteScheduleGroupInput_Name, &memberDeleteScheduleGroupInput_ClientToken}}
 
-var memberDeleteScheduleGroupInput_Name = smithy.Member{Name: "Name", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberDeleteScheduleGroupInput_Name = smithy.Member{Name: "Name", Index: 0, Target: &schemaScheduleGroupName, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberDeleteScheduleGroupInput_ClientToken = smithy.Member{Name: "ClientToken", Index: 1, HTTP: smithy.HTTPQuery{Name: "clientToken"}}
+var memberDeleteScheduleGroupInput_ClientToken = smithy.Member{Name: "ClientToken", Index: 1, Target: &schemaClientToken, HTTP: smithy.HTTPQuery{Name: "clientToken"}}
 
 var schemaDeleteScheduleGroupOutput = smithy.Schema{ID: "com.amazonaws.scheduler#DeleteScheduleGroupOutput", Type: smithy.TypeStructure}
 
-var schemaDeleteScheduleInput = smithy.Schema{ID: "com.amazonaws.scheduler#DeleteScheduleInput", Type: smithy.TypeStructure}
+var schemaDeleteScheduleInput = smithy.Schema{ID: "com.amazonaws.scheduler#DeleteScheduleInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteScheduleInput_Name, &memberDeleteScheduleInput_GroupName, &memberDeleteScheduleInput_ClientToken}}
 
-var memberDeleteScheduleInput_Name = smithy.Member{Name: "Name", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberDeleteScheduleInput_Name = smithy.Member{Name: "Name", Index: 0, Target: &schemaName, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberDeleteScheduleInput_GroupName = smithy.Member{Name: "GroupName", Index: 1, HTTP: smithy.HTTPQuery{Name: "groupName"}}
+var memberDeleteScheduleInput_GroupName = smithy.Member{Name: "GroupName", Index: 1, Target: &schemaScheduleGroupName, HTTP: smithy.HTTPQuery{Name: "groupName"}}
 
-var memberDeleteScheduleInput_ClientToken = smithy.Member{Name: "ClientToken", Index: 2, HTTP: smithy.HTTPQuery{Name: "clientToken"}}
+var memberDeleteScheduleInput_ClientToken = smithy.Member{Name: "ClientToken", Index: 2, Target: &schemaClientToken, HTTP: smithy.HTTPQuery{Name: "clientToken"}}
 
 var schemaDeleteScheduleOutput = smithy.Schema{ID: "com.amazonaws.scheduler#DeleteScheduleOutput", Type: smithy.TypeStructure}
 
@@ -123,35 +123,35 @@ var schemaDescription = smithy.Schema{ID: "com.amazonaws.scheduler#Description",
 
 var schemaDetailType = smithy.Schema{ID: "com.amazonaws.scheduler#DetailType", Type: smithy.TypeString}
 
-var schemaEcsParameters = smithy.Schema{ID: "com.amazonaws.scheduler#EcsParameters", Type: smithy.TypeStructure}
+var schemaEcsParameters = smithy.Schema{ID: "com.amazonaws.scheduler#EcsParameters", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberEcsParameters_TaskDefinitionArn, &memberEcsParameters_TaskCount, &memberEcsParameters_LaunchType, &memberEcsParameters_NetworkConfiguration, &memberEcsParameters_PlatformVersion, &memberEcsParameters_Group, &memberEcsParameters_CapacityProviderStrategy, &memberEcsParameters_EnableECSManagedTags, &memberEcsParameters_EnableExecuteCommand, &memberEcsParameters_PlacementConstraints, &memberEcsParameters_PlacementStrategy, &memberEcsParameters_PropagateTags, &memberEcsParameters_ReferenceId, &memberEcsParameters_Tags}}
 
-var memberEcsParameters_TaskDefinitionArn = smithy.Member{Name: "TaskDefinitionArn", Index: 0, Required: true}
+var memberEcsParameters_TaskDefinitionArn = smithy.Member{Name: "TaskDefinitionArn", Index: 0, Target: &schemaTaskDefinitionArn, Required: true}
 
-var memberEcsParameters_TaskCount = smithy.Member{Name: "TaskCount", Index: 1}
+var memberEcsParameters_TaskCount = smithy.Member{Name: "TaskCount", Index: 1, Target: &schemaTaskCount}
 
-var memberEcsParameters_LaunchType = smithy.Member{Name: "LaunchType", Index: 2}
+var memberEcsParameters_LaunchType = smithy.Member{Name: "LaunchType", Index: 2, Target: &schemaLaunchType}
 
-var memberEcsParameters_NetworkConfiguration = smithy.Member{Name: "NetworkConfiguration", Index: 3}
+var memberEcsParameters_NetworkConfiguration = smithy.Member{Name: "NetworkConfiguration", Index: 3, Target: &schemaNetworkConfiguration}
 
-var memberEcsParameters_PlatformVersion = smithy.Member{Name: "PlatformVersion", Index: 4}
+var memberEcsParameters_PlatformVersion = smithy.Member{Name: "PlatformVersion", Index: 4, Target: &schemaPlatformVersion}
 
-var memberEcsParameters_Group = smithy.Member{Name: "Group", Index: 5}
+var memberEcsParameters_Group = smithy.Member{Name: "Group", Index: 5, Target: &schemaGroup}
 
-var memberEcsParameters_CapacityProviderStrategy = smithy.Member{Name: "CapacityProviderStrategy", Index: 6}
+var memberEcsParameters_CapacityProviderStrategy = smithy.Member{Name: "CapacityProviderStrategy", Index: 6, Target: &schemaCapacityProviderStrategy}
 
-var memberEcsParameters_EnableECSManagedTags = smithy.Member{Name: "EnableECSManagedTags", Index: 7}
+var memberEcsParameters_EnableECSManagedTags = smithy.Member{Name: "EnableECSManagedTags", Index: 7, Target: &schemaEnableECSManagedTags}
 
-var memberEcsParameters_EnableExecuteCommand = smithy.Member{Name: "EnableExecuteCommand", Index: 8}
+var memberEcsParameters_EnableExecuteCommand = smithy.Member{Name: "EnableExecuteCommand", Index: 8, Target: &schemaEnableExecuteCommand}
 
-var memberEcsParameters_PlacementConstraints = smithy.Member{Name: "PlacementConstraints", Index: 9}
+var memberEcsParameters_PlacementConstraints = smithy.Member{Name: "PlacementConstraints", Index: 9, Target: &schemaPlacementConstraints}
 
-var memberEcsParameters_PlacementStrategy = smithy.Member{Name: "PlacementStrategy", Index: 10}
+var memberEcsParameters_PlacementStrategy = smithy.Member{Name: "PlacementStrategy", Index: 10, Target: &schemaPlacementStrategies}
 
-var memberEcsParameters_PropagateTags = smithy.Member{Name: "PropagateTags", Index: 11}
+var memberEcsParameters_PropagateTags = smithy.Member{Name: "PropagateTags", Index: 11, Target: &schemaPropagateTags}
 
-var memberEcsParameters_ReferenceId = smithy.Member{Name: "ReferenceId", Index: 12}
+var memberEcsParameters_ReferenceId = smithy.Member{Name: "ReferenceId", Index: 12, Target: &schemaReferenceId}
 
-var memberEcsParameters_Tags = smithy.Member{Name: "Tags", Index: 13}
+var memberEcsParameters_Tags = smithy.Member{Name: "Tags", Index: 13, Target: &schemaTags}
 
 var schemaEnableECSManagedTags = smithy.Schema{ID: "com.amazonaws.scheduler#EnableECSManagedTags", Type: smithy.TypeBoolean}
 
@@ -159,99 +159,99 @@ var schemaEnableExecuteCommand = smithy.Schema{ID: "com.amazonaws.scheduler#Enab
 
 var schemaEndDate = smithy.Schema{ID: "com.amazonaws.scheduler#EndDate", Type: smithy.TypeTimestamp}
 
-var schemaEventBridgeParameters = smithy.Schema{ID: "com.amazonaws.scheduler#EventBridgeParameters", Type: smithy.TypeStructure}
+var schemaEventBridgeParameters = smithy.Schema{ID: "com.amazonaws.scheduler#EventBridgeParameters", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberEventBridgeParameters_DetailType, &memberEventBridgeParameters_Source}}
 
-var memberEventBridgeParameters_DetailType = smithy.Member{Name: "DetailType", Index: 0, Required: true}
+var memberEventBridgeParameters_DetailType = smithy.Member{Name: "DetailType", Index: 0, Target: &schemaDetailType, Required: true}
 
-var memberEventBridgeParameters_Source = smithy.Member{Name: "Source", Index: 1, Required: true}
+var memberEventBridgeParameters_Source = smithy.Member{Name: "Source", Index: 1, Target: &schemaSource, Required: true}
 
-var schemaExpiredTokenException = smithy.Schema{ID: "com.amazon.coral.service#ExpiredTokenException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+var schemaExpiredTokenException = smithy.Schema{ID: "com.amazon.coral.service#ExpiredTokenException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberExpiredTokenException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
 
-var memberExpiredTokenException_message = smithy.Member{Name: "message", Index: 0}
+var memberExpiredTokenException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaFlexibleTimeWindow = smithy.Schema{ID: "com.amazonaws.scheduler#FlexibleTimeWindow", Type: smithy.TypeStructure}
+var schemaFlexibleTimeWindow = smithy.Schema{ID: "com.amazonaws.scheduler#FlexibleTimeWindow", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberFlexibleTimeWindow_Mode, &memberFlexibleTimeWindow_MaximumWindowInMinutes}}
 
-var memberFlexibleTimeWindow_Mode = smithy.Member{Name: "Mode", Index: 0, Required: true}
+var memberFlexibleTimeWindow_Mode = smithy.Member{Name: "Mode", Index: 0, Target: &schemaFlexibleTimeWindowMode, Required: true}
 
-var memberFlexibleTimeWindow_MaximumWindowInMinutes = smithy.Member{Name: "MaximumWindowInMinutes", Index: 1}
+var memberFlexibleTimeWindow_MaximumWindowInMinutes = smithy.Member{Name: "MaximumWindowInMinutes", Index: 1, Target: &schemaMaximumWindowInMinutes}
 
 var schemaFlexibleTimeWindowMode = smithy.Schema{ID: "com.amazonaws.scheduler#FlexibleTimeWindowMode", Type: smithy.TypeEnum}
 
-var schemaGetScheduleGroupInput = smithy.Schema{ID: "com.amazonaws.scheduler#GetScheduleGroupInput", Type: smithy.TypeStructure}
+var schemaGetScheduleGroupInput = smithy.Schema{ID: "com.amazonaws.scheduler#GetScheduleGroupInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetScheduleGroupInput_Name}}
 
-var memberGetScheduleGroupInput_Name = smithy.Member{Name: "Name", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberGetScheduleGroupInput_Name = smithy.Member{Name: "Name", Index: 0, Target: &schemaScheduleGroupName, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaGetScheduleGroupOutput = smithy.Schema{ID: "com.amazonaws.scheduler#GetScheduleGroupOutput", Type: smithy.TypeStructure}
+var schemaGetScheduleGroupOutput = smithy.Schema{ID: "com.amazonaws.scheduler#GetScheduleGroupOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetScheduleGroupOutput_Arn, &memberGetScheduleGroupOutput_Name, &memberGetScheduleGroupOutput_State, &memberGetScheduleGroupOutput_CreationDate, &memberGetScheduleGroupOutput_LastModificationDate}}
 
-var memberGetScheduleGroupOutput_Arn = smithy.Member{Name: "Arn", Index: 0}
+var memberGetScheduleGroupOutput_Arn = smithy.Member{Name: "Arn", Index: 0, Target: &schemaScheduleGroupArn}
 
-var memberGetScheduleGroupOutput_Name = smithy.Member{Name: "Name", Index: 1}
+var memberGetScheduleGroupOutput_Name = smithy.Member{Name: "Name", Index: 1, Target: &schemaScheduleGroupName}
 
-var memberGetScheduleGroupOutput_State = smithy.Member{Name: "State", Index: 2}
+var memberGetScheduleGroupOutput_State = smithy.Member{Name: "State", Index: 2, Target: &schemaScheduleGroupState}
 
-var memberGetScheduleGroupOutput_CreationDate = smithy.Member{Name: "CreationDate", Index: 3}
+var memberGetScheduleGroupOutput_CreationDate = smithy.Member{Name: "CreationDate", Index: 3, Target: &schemaCreationDate}
 
-var memberGetScheduleGroupOutput_LastModificationDate = smithy.Member{Name: "LastModificationDate", Index: 4}
+var memberGetScheduleGroupOutput_LastModificationDate = smithy.Member{Name: "LastModificationDate", Index: 4, Target: &schemaLastModificationDate}
 
-var schemaGetScheduleInput = smithy.Schema{ID: "com.amazonaws.scheduler#GetScheduleInput", Type: smithy.TypeStructure}
+var schemaGetScheduleInput = smithy.Schema{ID: "com.amazonaws.scheduler#GetScheduleInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetScheduleInput_Name, &memberGetScheduleInput_GroupName}}
 
-var memberGetScheduleInput_Name = smithy.Member{Name: "Name", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberGetScheduleInput_Name = smithy.Member{Name: "Name", Index: 0, Target: &schemaName, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberGetScheduleInput_GroupName = smithy.Member{Name: "GroupName", Index: 1, HTTP: smithy.HTTPQuery{Name: "groupName"}}
+var memberGetScheduleInput_GroupName = smithy.Member{Name: "GroupName", Index: 1, Target: &schemaScheduleGroupName, HTTP: smithy.HTTPQuery{Name: "groupName"}}
 
-var schemaGetScheduleOutput = smithy.Schema{ID: "com.amazonaws.scheduler#GetScheduleOutput", Type: smithy.TypeStructure}
+var schemaGetScheduleOutput = smithy.Schema{ID: "com.amazonaws.scheduler#GetScheduleOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetScheduleOutput_Arn, &memberGetScheduleOutput_GroupName, &memberGetScheduleOutput_Name, &memberGetScheduleOutput_ScheduleExpression, &memberGetScheduleOutput_StartDate, &memberGetScheduleOutput_EndDate, &memberGetScheduleOutput_Description, &memberGetScheduleOutput_ScheduleExpressionTimezone, &memberGetScheduleOutput_State, &memberGetScheduleOutput_CreationDate, &memberGetScheduleOutput_LastModificationDate, &memberGetScheduleOutput_KmsKeyArn, &memberGetScheduleOutput_Target, &memberGetScheduleOutput_FlexibleTimeWindow, &memberGetScheduleOutput_ActionAfterCompletion}}
 
-var memberGetScheduleOutput_Arn = smithy.Member{Name: "Arn", Index: 0}
+var memberGetScheduleOutput_Arn = smithy.Member{Name: "Arn", Index: 0, Target: &schemaScheduleArn}
 
-var memberGetScheduleOutput_GroupName = smithy.Member{Name: "GroupName", Index: 1}
+var memberGetScheduleOutput_GroupName = smithy.Member{Name: "GroupName", Index: 1, Target: &schemaScheduleGroupName}
 
-var memberGetScheduleOutput_Name = smithy.Member{Name: "Name", Index: 2}
+var memberGetScheduleOutput_Name = smithy.Member{Name: "Name", Index: 2, Target: &schemaName}
 
-var memberGetScheduleOutput_ScheduleExpression = smithy.Member{Name: "ScheduleExpression", Index: 3}
+var memberGetScheduleOutput_ScheduleExpression = smithy.Member{Name: "ScheduleExpression", Index: 3, Target: &schemaScheduleExpression}
 
-var memberGetScheduleOutput_StartDate = smithy.Member{Name: "StartDate", Index: 4}
+var memberGetScheduleOutput_StartDate = smithy.Member{Name: "StartDate", Index: 4, Target: &schemaStartDate}
 
-var memberGetScheduleOutput_EndDate = smithy.Member{Name: "EndDate", Index: 5}
+var memberGetScheduleOutput_EndDate = smithy.Member{Name: "EndDate", Index: 5, Target: &schemaEndDate}
 
-var memberGetScheduleOutput_Description = smithy.Member{Name: "Description", Index: 6}
+var memberGetScheduleOutput_Description = smithy.Member{Name: "Description", Index: 6, Target: &schemaDescription}
 
-var memberGetScheduleOutput_ScheduleExpressionTimezone = smithy.Member{Name: "ScheduleExpressionTimezone", Index: 7}
+var memberGetScheduleOutput_ScheduleExpressionTimezone = smithy.Member{Name: "ScheduleExpressionTimezone", Index: 7, Target: &schemaScheduleExpressionTimezone}
 
-var memberGetScheduleOutput_State = smithy.Member{Name: "State", Index: 8}
+var memberGetScheduleOutput_State = smithy.Member{Name: "State", Index: 8, Target: &schemaScheduleState}
 
-var memberGetScheduleOutput_CreationDate = smithy.Member{Name: "CreationDate", Index: 9}
+var memberGetScheduleOutput_CreationDate = smithy.Member{Name: "CreationDate", Index: 9, Target: &schemaCreationDate}
 
-var memberGetScheduleOutput_LastModificationDate = smithy.Member{Name: "LastModificationDate", Index: 10}
+var memberGetScheduleOutput_LastModificationDate = smithy.Member{Name: "LastModificationDate", Index: 10, Target: &schemaLastModificationDate}
 
-var memberGetScheduleOutput_KmsKeyArn = smithy.Member{Name: "KmsKeyArn", Index: 11}
+var memberGetScheduleOutput_KmsKeyArn = smithy.Member{Name: "KmsKeyArn", Index: 11, Target: &schemaKmsKeyArn}
 
-var memberGetScheduleOutput_Target = smithy.Member{Name: "Target", Index: 12}
+var memberGetScheduleOutput_Target = smithy.Member{Name: "Target", Index: 12, Target: &schemaTarget}
 
-var memberGetScheduleOutput_FlexibleTimeWindow = smithy.Member{Name: "FlexibleTimeWindow", Index: 13}
+var memberGetScheduleOutput_FlexibleTimeWindow = smithy.Member{Name: "FlexibleTimeWindow", Index: 13, Target: &schemaFlexibleTimeWindow}
 
-var memberGetScheduleOutput_ActionAfterCompletion = smithy.Member{Name: "ActionAfterCompletion", Index: 14}
+var memberGetScheduleOutput_ActionAfterCompletion = smithy.Member{Name: "ActionAfterCompletion", Index: 14, Target: &schemaActionAfterCompletion}
 
 var schemaGroup = smithy.Schema{ID: "com.amazonaws.scheduler#Group", Type: smithy.TypeString}
 
-var schemaIncompleteSignatureException = smithy.Schema{ID: "com.amazon.coral.service#IncompleteSignatureException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaIncompleteSignatureException = smithy.Schema{ID: "com.amazon.coral.service#IncompleteSignatureException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberIncompleteSignatureException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberIncompleteSignatureException_message = smithy.Member{Name: "message", Index: 0}
+var memberIncompleteSignatureException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaInternalFailure = smithy.Schema{ID: "com.amazon.coral.service#InternalFailure", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ServerFault, HTTPError: 500}}
+var schemaInternalFailure = smithy.Schema{ID: "com.amazon.coral.service#InternalFailure", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberInternalFailure_message}, Error: &smithy.ErrorTrait{Fault: smithy.ServerFault, HTTPError: 500}}
 
-var memberInternalFailure_message = smithy.Member{Name: "message", Index: 0}
+var memberInternalFailure_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaInternalServerException = smithy.Schema{ID: "com.amazonaws.scheduler#InternalServerException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ServerFault, HTTPError: 500}}
+var schemaInternalServerException = smithy.Schema{ID: "com.amazonaws.scheduler#InternalServerException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberInternalServerException_Message}, Error: &smithy.ErrorTrait{Fault: smithy.ServerFault, HTTPError: 500}}
 
-var memberInternalServerException_Message = smithy.Member{Name: "Message", Index: 0, Required: true}
+var memberInternalServerException_Message = smithy.Member{Name: "Message", Index: 0, Target: &schemaSmithyString, Required: true}
 
-var schemaInvalidSignatureException = smithy.Schema{ID: "com.amazon.coral.service#InvalidSignatureException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaInvalidSignatureException = smithy.Schema{ID: "com.amazon.coral.service#InvalidSignatureException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberInvalidSignatureException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberInvalidSignatureException_message = smithy.Member{Name: "message", Index: 0}
+var memberInvalidSignatureException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaKinesisParameters = smithy.Schema{ID: "com.amazonaws.scheduler#KinesisParameters", Type: smithy.TypeStructure}
+var schemaKinesisParameters = smithy.Schema{ID: "com.amazonaws.scheduler#KinesisParameters", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberKinesisParameters_PartitionKey}}
 
-var memberKinesisParameters_PartitionKey = smithy.Member{Name: "PartitionKey", Index: 0, Required: true}
+var memberKinesisParameters_PartitionKey = smithy.Member{Name: "PartitionKey", Index: 0, Target: &schemaTargetPartitionKey, Required: true}
 
 var schemaKmsKeyArn = smithy.Schema{ID: "com.amazonaws.scheduler#KmsKeyArn", Type: smithy.TypeString}
 
@@ -259,45 +259,45 @@ var schemaLastModificationDate = smithy.Schema{ID: "com.amazonaws.scheduler#Last
 
 var schemaLaunchType = smithy.Schema{ID: "com.amazonaws.scheduler#LaunchType", Type: smithy.TypeEnum}
 
-var schemaListScheduleGroupsInput = smithy.Schema{ID: "com.amazonaws.scheduler#ListScheduleGroupsInput", Type: smithy.TypeStructure}
+var schemaListScheduleGroupsInput = smithy.Schema{ID: "com.amazonaws.scheduler#ListScheduleGroupsInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListScheduleGroupsInput_NamePrefix, &memberListScheduleGroupsInput_NextToken, &memberListScheduleGroupsInput_MaxResults}}
 
-var memberListScheduleGroupsInput_NamePrefix = smithy.Member{Name: "NamePrefix", Index: 0, HTTP: smithy.HTTPQuery{Name: "NamePrefix"}}
+var memberListScheduleGroupsInput_NamePrefix = smithy.Member{Name: "NamePrefix", Index: 0, Target: &schemaScheduleGroupNamePrefix, HTTP: smithy.HTTPQuery{Name: "NamePrefix"}}
 
-var memberListScheduleGroupsInput_NextToken = smithy.Member{Name: "NextToken", Index: 1, HTTP: smithy.HTTPQuery{Name: "NextToken"}}
+var memberListScheduleGroupsInput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schemaNextToken, HTTP: smithy.HTTPQuery{Name: "NextToken"}}
 
-var memberListScheduleGroupsInput_MaxResults = smithy.Member{Name: "MaxResults", Index: 2, HTTP: smithy.HTTPQuery{Name: "MaxResults"}}
+var memberListScheduleGroupsInput_MaxResults = smithy.Member{Name: "MaxResults", Index: 2, Target: &schemaMaxResults, HTTP: smithy.HTTPQuery{Name: "MaxResults"}}
 
-var schemaListScheduleGroupsOutput = smithy.Schema{ID: "com.amazonaws.scheduler#ListScheduleGroupsOutput", Type: smithy.TypeStructure}
+var schemaListScheduleGroupsOutput = smithy.Schema{ID: "com.amazonaws.scheduler#ListScheduleGroupsOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListScheduleGroupsOutput_NextToken, &memberListScheduleGroupsOutput_ScheduleGroups}}
 
-var memberListScheduleGroupsOutput_NextToken = smithy.Member{Name: "NextToken", Index: 0}
+var memberListScheduleGroupsOutput_NextToken = smithy.Member{Name: "NextToken", Index: 0, Target: &schemaNextToken}
 
-var memberListScheduleGroupsOutput_ScheduleGroups = smithy.Member{Name: "ScheduleGroups", Index: 1, Required: true}
+var memberListScheduleGroupsOutput_ScheduleGroups = smithy.Member{Name: "ScheduleGroups", Index: 1, Target: &schemaScheduleGroupList, Required: true}
 
-var schemaListSchedulesInput = smithy.Schema{ID: "com.amazonaws.scheduler#ListSchedulesInput", Type: smithy.TypeStructure}
+var schemaListSchedulesInput = smithy.Schema{ID: "com.amazonaws.scheduler#ListSchedulesInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListSchedulesInput_GroupName, &memberListSchedulesInput_NamePrefix, &memberListSchedulesInput_State, &memberListSchedulesInput_NextToken, &memberListSchedulesInput_MaxResults}}
 
-var memberListSchedulesInput_GroupName = smithy.Member{Name: "GroupName", Index: 0, HTTP: smithy.HTTPQuery{Name: "ScheduleGroup"}}
+var memberListSchedulesInput_GroupName = smithy.Member{Name: "GroupName", Index: 0, Target: &schemaScheduleGroupName, HTTP: smithy.HTTPQuery{Name: "ScheduleGroup"}}
 
-var memberListSchedulesInput_NamePrefix = smithy.Member{Name: "NamePrefix", Index: 1, HTTP: smithy.HTTPQuery{Name: "NamePrefix"}}
+var memberListSchedulesInput_NamePrefix = smithy.Member{Name: "NamePrefix", Index: 1, Target: &schemaNamePrefix, HTTP: smithy.HTTPQuery{Name: "NamePrefix"}}
 
-var memberListSchedulesInput_State = smithy.Member{Name: "State", Index: 2, HTTP: smithy.HTTPQuery{Name: "State"}}
+var memberListSchedulesInput_State = smithy.Member{Name: "State", Index: 2, Target: &schemaScheduleState, HTTP: smithy.HTTPQuery{Name: "State"}}
 
-var memberListSchedulesInput_NextToken = smithy.Member{Name: "NextToken", Index: 3, HTTP: smithy.HTTPQuery{Name: "NextToken"}}
+var memberListSchedulesInput_NextToken = smithy.Member{Name: "NextToken", Index: 3, Target: &schemaNextToken, HTTP: smithy.HTTPQuery{Name: "NextToken"}}
 
-var memberListSchedulesInput_MaxResults = smithy.Member{Name: "MaxResults", Index: 4, HTTP: smithy.HTTPQuery{Name: "MaxResults"}}
+var memberListSchedulesInput_MaxResults = smithy.Member{Name: "MaxResults", Index: 4, Target: &schemaMaxResults, HTTP: smithy.HTTPQuery{Name: "MaxResults"}}
 
-var schemaListSchedulesOutput = smithy.Schema{ID: "com.amazonaws.scheduler#ListSchedulesOutput", Type: smithy.TypeStructure}
+var schemaListSchedulesOutput = smithy.Schema{ID: "com.amazonaws.scheduler#ListSchedulesOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListSchedulesOutput_NextToken, &memberListSchedulesOutput_Schedules}}
 
-var memberListSchedulesOutput_NextToken = smithy.Member{Name: "NextToken", Index: 0}
+var memberListSchedulesOutput_NextToken = smithy.Member{Name: "NextToken", Index: 0, Target: &schemaNextToken}
 
-var memberListSchedulesOutput_Schedules = smithy.Member{Name: "Schedules", Index: 1, Required: true}
+var memberListSchedulesOutput_Schedules = smithy.Member{Name: "Schedules", Index: 1, Target: &schemaScheduleList, Required: true}
 
-var schemaListTagsForResourceInput = smithy.Schema{ID: "com.amazonaws.scheduler#ListTagsForResourceInput", Type: smithy.TypeStructure}
+var schemaListTagsForResourceInput = smithy.Schema{ID: "com.amazonaws.scheduler#ListTagsForResourceInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListTagsForResourceInput_ResourceArn}}
 
-var memberListTagsForResourceInput_ResourceArn = smithy.Member{Name: "ResourceArn", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberListTagsForResourceInput_ResourceArn = smithy.Member{Name: "ResourceArn", Index: 0, Target: &schemaTagResourceArn, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaListTagsForResourceOutput = smithy.Schema{ID: "com.amazonaws.scheduler#ListTagsForResourceOutput", Type: smithy.TypeStructure}
+var schemaListTagsForResourceOutput = smithy.Schema{ID: "com.amazonaws.scheduler#ListTagsForResourceOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListTagsForResourceOutput_Tags}}
 
-var memberListTagsForResourceOutput_Tags = smithy.Member{Name: "Tags", Index: 0}
+var memberListTagsForResourceOutput_Tags = smithy.Member{Name: "Tags", Index: 0, Target: &schemaTagList}
 
 var schemaMaxResults = smithy.Schema{ID: "com.amazonaws.scheduler#MaxResults", Type: smithy.TypeInteger}
 
@@ -309,47 +309,47 @@ var schemaMaximumWindowInMinutes = smithy.Schema{ID: "com.amazonaws.scheduler#Ma
 
 var schemaMessageGroupId = smithy.Schema{ID: "com.amazonaws.scheduler#MessageGroupId", Type: smithy.TypeString}
 
-var schemaMissingAuthenticationTokenException = smithy.Schema{ID: "com.amazon.coral.service#MissingAuthenticationTokenException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaMissingAuthenticationTokenException = smithy.Schema{ID: "com.amazon.coral.service#MissingAuthenticationTokenException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberMissingAuthenticationTokenException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberMissingAuthenticationTokenException_message = smithy.Member{Name: "message", Index: 0}
+var memberMissingAuthenticationTokenException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
 var schemaName = smithy.Schema{ID: "com.amazonaws.scheduler#Name", Type: smithy.TypeString}
 
 var schemaNamePrefix = smithy.Schema{ID: "com.amazonaws.scheduler#NamePrefix", Type: smithy.TypeString}
 
-var schemaNetworkConfiguration = smithy.Schema{ID: "com.amazonaws.scheduler#NetworkConfiguration", Type: smithy.TypeStructure}
+var schemaNetworkConfiguration = smithy.Schema{ID: "com.amazonaws.scheduler#NetworkConfiguration", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberNetworkConfiguration_awsvpcConfiguration}}
 
-var memberNetworkConfiguration_awsvpcConfiguration = smithy.Member{Name: "awsvpcConfiguration", Index: 0}
+var memberNetworkConfiguration_awsvpcConfiguration = smithy.Member{Name: "awsvpcConfiguration", Index: 0, Target: &schemaAwsVpcConfiguration}
 
 var schemaNextToken = smithy.Schema{ID: "com.amazonaws.scheduler#NextToken", Type: smithy.TypeString}
 
-var schemaNotImplemented = smithy.Schema{ID: "dev.understudy#NotImplemented", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ServerFault, HTTPError: 501}}
+var schemaNotImplemented = smithy.Schema{ID: "dev.understudy#NotImplemented", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberNotImplemented_message}, Error: &smithy.ErrorTrait{Fault: smithy.ServerFault, HTTPError: 501}}
 
-var memberNotImplemented_message = smithy.Member{Name: "message", Index: 0}
+var memberNotImplemented_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaPlacementConstraint = smithy.Schema{ID: "com.amazonaws.scheduler#PlacementConstraint", Type: smithy.TypeStructure}
+var schemaPlacementConstraint = smithy.Schema{ID: "com.amazonaws.scheduler#PlacementConstraint", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPlacementConstraint_type, &memberPlacementConstraint_expression}}
 
-var memberPlacementConstraint_type = smithy.Member{Name: "type", Index: 0}
+var memberPlacementConstraint_type = smithy.Member{Name: "type", Index: 0, Target: &schemaPlacementConstraintType}
 
-var memberPlacementConstraint_expression = smithy.Member{Name: "expression", Index: 1}
+var memberPlacementConstraint_expression = smithy.Member{Name: "expression", Index: 1, Target: &schemaPlacementConstraintExpression}
 
 var schemaPlacementConstraintExpression = smithy.Schema{ID: "com.amazonaws.scheduler#PlacementConstraintExpression", Type: smithy.TypeString}
 
 var schemaPlacementConstraintType = smithy.Schema{ID: "com.amazonaws.scheduler#PlacementConstraintType", Type: smithy.TypeEnum}
 
-var schemaPlacementConstraints = smithy.Schema{ID: "com.amazonaws.scheduler#PlacementConstraints", Type: smithy.TypeList}
+var schemaPlacementConstraints = smithy.Schema{ID: "com.amazonaws.scheduler#PlacementConstraints", Type: smithy.TypeList, Members: []*smithy.Member{&memberPlacementConstraints_member}}
 
-var memberPlacementConstraints_member = smithy.Member{Name: "member", Index: 0}
+var memberPlacementConstraints_member = smithy.Member{Name: "member", Index: 0, Target: &schemaPlacementConstraint}
 
-var schemaPlacementStrategies = smithy.Schema{ID: "com.amazonaws.scheduler#PlacementStrategies", Type: smithy.TypeList}
+var schemaPlacementStrategies = smithy.Schema{ID: "com.amazonaws.scheduler#PlacementStrategies", Type: smithy.TypeList, Members: []*smithy.Member{&memberPlacementStrategies_member}}
 
-var memberPlacementStrategies_member = smithy.Member{Name: "member", Index: 0}
+var memberPlacementStrategies_member = smithy.Member{Name: "member", Index: 0, Target: &schemaPlacementStrategy}
 
-var schemaPlacementStrategy = smithy.Schema{ID: "com.amazonaws.scheduler#PlacementStrategy", Type: smithy.TypeStructure}
+var schemaPlacementStrategy = smithy.Schema{ID: "com.amazonaws.scheduler#PlacementStrategy", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPlacementStrategy_type, &memberPlacementStrategy_field}}
 
-var memberPlacementStrategy_type = smithy.Member{Name: "type", Index: 0}
+var memberPlacementStrategy_type = smithy.Member{Name: "type", Index: 0, Target: &schemaPlacementStrategyType}
 
-var memberPlacementStrategy_field = smithy.Member{Name: "field", Index: 1}
+var memberPlacementStrategy_field = smithy.Member{Name: "field", Index: 1, Target: &schemaPlacementStrategyField}
 
 var schemaPlacementStrategyField = smithy.Schema{ID: "com.amazonaws.scheduler#PlacementStrategyField", Type: smithy.TypeString}
 
@@ -361,41 +361,41 @@ var schemaPropagateTags = smithy.Schema{ID: "com.amazonaws.scheduler#PropagateTa
 
 var schemaReferenceId = smithy.Schema{ID: "com.amazonaws.scheduler#ReferenceId", Type: smithy.TypeString}
 
-var schemaRequestEntityTooLargeException = smithy.Schema{ID: "com.amazon.coral.service#RequestEntityTooLargeException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 413}}
+var schemaRequestEntityTooLargeException = smithy.Schema{ID: "com.amazon.coral.service#RequestEntityTooLargeException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRequestEntityTooLargeException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 413}}
 
-var memberRequestEntityTooLargeException_message = smithy.Member{Name: "message", Index: 0}
+var memberRequestEntityTooLargeException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
 var schemaResourceArn = smithy.Schema{ID: "com.amazonaws.scheduler#ResourceArn", Type: smithy.TypeString}
 
-var schemaResourceNotFoundException = smithy.Schema{ID: "com.amazonaws.scheduler#ResourceNotFoundException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 404}}
+var schemaResourceNotFoundException = smithy.Schema{ID: "com.amazonaws.scheduler#ResourceNotFoundException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberResourceNotFoundException_Message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 404}}
 
-var memberResourceNotFoundException_Message = smithy.Member{Name: "Message", Index: 0, Required: true}
+var memberResourceNotFoundException_Message = smithy.Member{Name: "Message", Index: 0, Target: &schemaSmithyString, Required: true}
 
-var schemaRetryPolicy = smithy.Schema{ID: "com.amazonaws.scheduler#RetryPolicy", Type: smithy.TypeStructure}
+var schemaRetryPolicy = smithy.Schema{ID: "com.amazonaws.scheduler#RetryPolicy", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRetryPolicy_MaximumEventAgeInSeconds, &memberRetryPolicy_MaximumRetryAttempts}}
 
-var memberRetryPolicy_MaximumEventAgeInSeconds = smithy.Member{Name: "MaximumEventAgeInSeconds", Index: 0}
+var memberRetryPolicy_MaximumEventAgeInSeconds = smithy.Member{Name: "MaximumEventAgeInSeconds", Index: 0, Target: &schemaMaximumEventAgeInSeconds}
 
-var memberRetryPolicy_MaximumRetryAttempts = smithy.Member{Name: "MaximumRetryAttempts", Index: 1}
+var memberRetryPolicy_MaximumRetryAttempts = smithy.Member{Name: "MaximumRetryAttempts", Index: 1, Target: &schemaMaximumRetryAttempts}
 
 var schemaRoleArn = smithy.Schema{ID: "com.amazonaws.scheduler#RoleArn", Type: smithy.TypeString}
 
-var schemaSageMakerPipelineParameter = smithy.Schema{ID: "com.amazonaws.scheduler#SageMakerPipelineParameter", Type: smithy.TypeStructure}
+var schemaSageMakerPipelineParameter = smithy.Schema{ID: "com.amazonaws.scheduler#SageMakerPipelineParameter", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSageMakerPipelineParameter_Name, &memberSageMakerPipelineParameter_Value}}
 
-var memberSageMakerPipelineParameter_Name = smithy.Member{Name: "Name", Index: 0, Required: true}
+var memberSageMakerPipelineParameter_Name = smithy.Member{Name: "Name", Index: 0, Target: &schemaSageMakerPipelineParameterName, Required: true}
 
-var memberSageMakerPipelineParameter_Value = smithy.Member{Name: "Value", Index: 1, Required: true}
+var memberSageMakerPipelineParameter_Value = smithy.Member{Name: "Value", Index: 1, Target: &schemaSageMakerPipelineParameterValue, Required: true}
 
-var schemaSageMakerPipelineParameterList = smithy.Schema{ID: "com.amazonaws.scheduler#SageMakerPipelineParameterList", Type: smithy.TypeList}
+var schemaSageMakerPipelineParameterList = smithy.Schema{ID: "com.amazonaws.scheduler#SageMakerPipelineParameterList", Type: smithy.TypeList, Members: []*smithy.Member{&memberSageMakerPipelineParameterList_member}}
 
-var memberSageMakerPipelineParameterList_member = smithy.Member{Name: "member", Index: 0}
+var memberSageMakerPipelineParameterList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaSageMakerPipelineParameter}
 
 var schemaSageMakerPipelineParameterName = smithy.Schema{ID: "com.amazonaws.scheduler#SageMakerPipelineParameterName", Type: smithy.TypeString}
 
 var schemaSageMakerPipelineParameterValue = smithy.Schema{ID: "com.amazonaws.scheduler#SageMakerPipelineParameterValue", Type: smithy.TypeString}
 
-var schemaSageMakerPipelineParameters = smithy.Schema{ID: "com.amazonaws.scheduler#SageMakerPipelineParameters", Type: smithy.TypeStructure}
+var schemaSageMakerPipelineParameters = smithy.Schema{ID: "com.amazonaws.scheduler#SageMakerPipelineParameters", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSageMakerPipelineParameters_PipelineParameterList}}
 
-var memberSageMakerPipelineParameters_PipelineParameterList = smithy.Member{Name: "PipelineParameterList", Index: 0}
+var memberSageMakerPipelineParameters_PipelineParameterList = smithy.Member{Name: "PipelineParameterList", Index: 0, Target: &schemaSageMakerPipelineParameterList}
 
 var schemaScheduleArn = smithy.Schema{ID: "com.amazonaws.scheduler#ScheduleArn", Type: smithy.TypeString}
 
@@ -405,9 +405,9 @@ var schemaScheduleExpressionTimezone = smithy.Schema{ID: "com.amazonaws.schedule
 
 var schemaScheduleGroupArn = smithy.Schema{ID: "com.amazonaws.scheduler#ScheduleGroupArn", Type: smithy.TypeString}
 
-var schemaScheduleGroupList = smithy.Schema{ID: "com.amazonaws.scheduler#ScheduleGroupList", Type: smithy.TypeList}
+var schemaScheduleGroupList = smithy.Schema{ID: "com.amazonaws.scheduler#ScheduleGroupList", Type: smithy.TypeList, Members: []*smithy.Member{&memberScheduleGroupList_member}}
 
-var memberScheduleGroupList_member = smithy.Member{Name: "member", Index: 0}
+var memberScheduleGroupList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaScheduleGroupSummary}
 
 var schemaScheduleGroupName = smithy.Schema{ID: "com.amazonaws.scheduler#ScheduleGroupName", Type: smithy.TypeString}
 
@@ -415,129 +415,129 @@ var schemaScheduleGroupNamePrefix = smithy.Schema{ID: "com.amazonaws.scheduler#S
 
 var schemaScheduleGroupState = smithy.Schema{ID: "com.amazonaws.scheduler#ScheduleGroupState", Type: smithy.TypeEnum}
 
-var schemaScheduleGroupSummary = smithy.Schema{ID: "com.amazonaws.scheduler#ScheduleGroupSummary", Type: smithy.TypeStructure}
+var schemaScheduleGroupSummary = smithy.Schema{ID: "com.amazonaws.scheduler#ScheduleGroupSummary", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberScheduleGroupSummary_Arn, &memberScheduleGroupSummary_Name, &memberScheduleGroupSummary_State, &memberScheduleGroupSummary_CreationDate, &memberScheduleGroupSummary_LastModificationDate}}
 
-var memberScheduleGroupSummary_Arn = smithy.Member{Name: "Arn", Index: 0}
+var memberScheduleGroupSummary_Arn = smithy.Member{Name: "Arn", Index: 0, Target: &schemaScheduleGroupArn}
 
-var memberScheduleGroupSummary_Name = smithy.Member{Name: "Name", Index: 1}
+var memberScheduleGroupSummary_Name = smithy.Member{Name: "Name", Index: 1, Target: &schemaScheduleGroupName}
 
-var memberScheduleGroupSummary_State = smithy.Member{Name: "State", Index: 2}
+var memberScheduleGroupSummary_State = smithy.Member{Name: "State", Index: 2, Target: &schemaScheduleGroupState}
 
-var memberScheduleGroupSummary_CreationDate = smithy.Member{Name: "CreationDate", Index: 3}
+var memberScheduleGroupSummary_CreationDate = smithy.Member{Name: "CreationDate", Index: 3, Target: &schemaCreationDate}
 
-var memberScheduleGroupSummary_LastModificationDate = smithy.Member{Name: "LastModificationDate", Index: 4}
+var memberScheduleGroupSummary_LastModificationDate = smithy.Member{Name: "LastModificationDate", Index: 4, Target: &schemaLastModificationDate}
 
-var schemaScheduleList = smithy.Schema{ID: "com.amazonaws.scheduler#ScheduleList", Type: smithy.TypeList}
+var schemaScheduleList = smithy.Schema{ID: "com.amazonaws.scheduler#ScheduleList", Type: smithy.TypeList, Members: []*smithy.Member{&memberScheduleList_member}}
 
-var memberScheduleList_member = smithy.Member{Name: "member", Index: 0}
+var memberScheduleList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaScheduleSummary}
 
 var schemaScheduleState = smithy.Schema{ID: "com.amazonaws.scheduler#ScheduleState", Type: smithy.TypeEnum}
 
-var schemaScheduleSummary = smithy.Schema{ID: "com.amazonaws.scheduler#ScheduleSummary", Type: smithy.TypeStructure}
+var schemaScheduleSummary = smithy.Schema{ID: "com.amazonaws.scheduler#ScheduleSummary", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberScheduleSummary_Arn, &memberScheduleSummary_Name, &memberScheduleSummary_GroupName, &memberScheduleSummary_State, &memberScheduleSummary_CreationDate, &memberScheduleSummary_LastModificationDate, &memberScheduleSummary_Target}}
 
-var memberScheduleSummary_Arn = smithy.Member{Name: "Arn", Index: 0}
+var memberScheduleSummary_Arn = smithy.Member{Name: "Arn", Index: 0, Target: &schemaScheduleArn}
 
-var memberScheduleSummary_Name = smithy.Member{Name: "Name", Index: 1}
+var memberScheduleSummary_Name = smithy.Member{Name: "Name", Index: 1, Target: &schemaName}
 
-var memberScheduleSummary_GroupName = smithy.Member{Name: "GroupName", Index: 2}
+var memberScheduleSummary_GroupName = smithy.Member{Name: "GroupName", Index: 2, Target: &schemaScheduleGroupName}
 
-var memberScheduleSummary_State = smithy.Member{Name: "State", Index: 3}
+var memberScheduleSummary_State = smithy.Member{Name: "State", Index: 3, Target: &schemaScheduleState}
 
-var memberScheduleSummary_CreationDate = smithy.Member{Name: "CreationDate", Index: 4}
+var memberScheduleSummary_CreationDate = smithy.Member{Name: "CreationDate", Index: 4, Target: &schemaCreationDate}
 
-var memberScheduleSummary_LastModificationDate = smithy.Member{Name: "LastModificationDate", Index: 5}
+var memberScheduleSummary_LastModificationDate = smithy.Member{Name: "LastModificationDate", Index: 5, Target: &schemaLastModificationDate}
 
-var memberScheduleSummary_Target = smithy.Member{Name: "Target", Index: 6}
+var memberScheduleSummary_Target = smithy.Member{Name: "Target", Index: 6, Target: &schemaTargetSummary}
 
 var schemaSecurityGroup = smithy.Schema{ID: "com.amazonaws.scheduler#SecurityGroup", Type: smithy.TypeString}
 
-var schemaSecurityGroups = smithy.Schema{ID: "com.amazonaws.scheduler#SecurityGroups", Type: smithy.TypeList}
+var schemaSecurityGroups = smithy.Schema{ID: "com.amazonaws.scheduler#SecurityGroups", Type: smithy.TypeList, Members: []*smithy.Member{&memberSecurityGroups_member}}
 
-var memberSecurityGroups_member = smithy.Member{Name: "member", Index: 0}
+var memberSecurityGroups_member = smithy.Member{Name: "member", Index: 0, Target: &schemaSecurityGroup}
 
-var schemaSerializationException = smithy.Schema{ID: "com.amazon.coral.service#SerializationException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaSerializationException = smithy.Schema{ID: "com.amazon.coral.service#SerializationException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSerializationException_Message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberSerializationException_Message = smithy.Member{Name: "Message", Index: 0}
+var memberSerializationException_Message = smithy.Member{Name: "Message", Index: 0, Target: &schemaSmithyString}
 
-var schemaServiceQuotaExceededException = smithy.Schema{ID: "com.amazonaws.scheduler#ServiceQuotaExceededException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 402}}
+var schemaServiceQuotaExceededException = smithy.Schema{ID: "com.amazonaws.scheduler#ServiceQuotaExceededException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberServiceQuotaExceededException_Message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 402}}
 
-var memberServiceQuotaExceededException_Message = smithy.Member{Name: "Message", Index: 0, Required: true}
+var memberServiceQuotaExceededException_Message = smithy.Member{Name: "Message", Index: 0, Target: &schemaSmithyString, Required: true}
 
 var schemaSmithyString = smithy.Schema{ID: "smithy.api#String", Type: smithy.TypeString}
 
 var schemaSource = smithy.Schema{ID: "com.amazonaws.scheduler#Source", Type: smithy.TypeString}
 
-var schemaSqsParameters = smithy.Schema{ID: "com.amazonaws.scheduler#SqsParameters", Type: smithy.TypeStructure}
+var schemaSqsParameters = smithy.Schema{ID: "com.amazonaws.scheduler#SqsParameters", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSqsParameters_MessageGroupId}}
 
-var memberSqsParameters_MessageGroupId = smithy.Member{Name: "MessageGroupId", Index: 0}
+var memberSqsParameters_MessageGroupId = smithy.Member{Name: "MessageGroupId", Index: 0, Target: &schemaMessageGroupId}
 
 var schemaStartDate = smithy.Schema{ID: "com.amazonaws.scheduler#StartDate", Type: smithy.TypeTimestamp}
 
 var schemaSubnet = smithy.Schema{ID: "com.amazonaws.scheduler#Subnet", Type: smithy.TypeString}
 
-var schemaSubnets = smithy.Schema{ID: "com.amazonaws.scheduler#Subnets", Type: smithy.TypeList}
+var schemaSubnets = smithy.Schema{ID: "com.amazonaws.scheduler#Subnets", Type: smithy.TypeList, Members: []*smithy.Member{&memberSubnets_member}}
 
-var memberSubnets_member = smithy.Member{Name: "member", Index: 0}
+var memberSubnets_member = smithy.Member{Name: "member", Index: 0, Target: &schemaSubnet}
 
-var schemaTag = smithy.Schema{ID: "com.amazonaws.scheduler#Tag", Type: smithy.TypeStructure}
+var schemaTag = smithy.Schema{ID: "com.amazonaws.scheduler#Tag", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberTag_Key, &memberTag_Value}}
 
-var memberTag_Key = smithy.Member{Name: "Key", Index: 0, Required: true}
+var memberTag_Key = smithy.Member{Name: "Key", Index: 0, Target: &schemaTagKey, Required: true}
 
-var memberTag_Value = smithy.Member{Name: "Value", Index: 1, Required: true}
+var memberTag_Value = smithy.Member{Name: "Value", Index: 1, Target: &schemaTagValue, Required: true}
 
 var schemaTagKey = smithy.Schema{ID: "com.amazonaws.scheduler#TagKey", Type: smithy.TypeString}
 
-var schemaTagKeyList = smithy.Schema{ID: "com.amazonaws.scheduler#TagKeyList", Type: smithy.TypeList}
+var schemaTagKeyList = smithy.Schema{ID: "com.amazonaws.scheduler#TagKeyList", Type: smithy.TypeList, Members: []*smithy.Member{&memberTagKeyList_member}}
 
-var memberTagKeyList_member = smithy.Member{Name: "member", Index: 0}
+var memberTagKeyList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaTagKey}
 
-var schemaTagList = smithy.Schema{ID: "com.amazonaws.scheduler#TagList", Type: smithy.TypeList}
+var schemaTagList = smithy.Schema{ID: "com.amazonaws.scheduler#TagList", Type: smithy.TypeList, Members: []*smithy.Member{&memberTagList_member}}
 
-var memberTagList_member = smithy.Member{Name: "member", Index: 0}
+var memberTagList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaTag}
 
-var schemaTagMap = smithy.Schema{ID: "com.amazonaws.scheduler#TagMap", Type: smithy.TypeMap}
+var schemaTagMap = smithy.Schema{ID: "com.amazonaws.scheduler#TagMap", Type: smithy.TypeMap, Members: []*smithy.Member{&memberTagMap_key, &memberTagMap_value}}
 
-var memberTagMap_key = smithy.Member{Name: "key", Index: 0}
+var memberTagMap_key = smithy.Member{Name: "key", Index: 0, Target: &schemaTagKey}
 
-var memberTagMap_value = smithy.Member{Name: "value", Index: 1}
+var memberTagMap_value = smithy.Member{Name: "value", Index: 1, Target: &schemaTagValue}
 
 var schemaTagResourceArn = smithy.Schema{ID: "com.amazonaws.scheduler#TagResourceArn", Type: smithy.TypeString}
 
-var schemaTagResourceInput = smithy.Schema{ID: "com.amazonaws.scheduler#TagResourceInput", Type: smithy.TypeStructure}
+var schemaTagResourceInput = smithy.Schema{ID: "com.amazonaws.scheduler#TagResourceInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberTagResourceInput_ResourceArn, &memberTagResourceInput_Tags}}
 
-var memberTagResourceInput_ResourceArn = smithy.Member{Name: "ResourceArn", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberTagResourceInput_ResourceArn = smithy.Member{Name: "ResourceArn", Index: 0, Target: &schemaTagResourceArn, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberTagResourceInput_Tags = smithy.Member{Name: "Tags", Index: 1, Required: true}
+var memberTagResourceInput_Tags = smithy.Member{Name: "Tags", Index: 1, Target: &schemaTagList, Required: true}
 
 var schemaTagResourceOutput = smithy.Schema{ID: "com.amazonaws.scheduler#TagResourceOutput", Type: smithy.TypeStructure}
 
 var schemaTagValue = smithy.Schema{ID: "com.amazonaws.scheduler#TagValue", Type: smithy.TypeString}
 
-var schemaTags = smithy.Schema{ID: "com.amazonaws.scheduler#Tags", Type: smithy.TypeList}
+var schemaTags = smithy.Schema{ID: "com.amazonaws.scheduler#Tags", Type: smithy.TypeList, Members: []*smithy.Member{&memberTags_member}}
 
-var memberTags_member = smithy.Member{Name: "member", Index: 0}
+var memberTags_member = smithy.Member{Name: "member", Index: 0, Target: &schemaTagMap}
 
-var schemaTarget = smithy.Schema{ID: "com.amazonaws.scheduler#Target", Type: smithy.TypeStructure}
+var schemaTarget = smithy.Schema{ID: "com.amazonaws.scheduler#Target", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberTarget_Arn, &memberTarget_RoleArn, &memberTarget_DeadLetterConfig, &memberTarget_RetryPolicy, &memberTarget_Input, &memberTarget_EcsParameters, &memberTarget_EventBridgeParameters, &memberTarget_KinesisParameters, &memberTarget_SageMakerPipelineParameters, &memberTarget_SqsParameters}}
 
-var memberTarget_Arn = smithy.Member{Name: "Arn", Index: 0, Required: true}
+var memberTarget_Arn = smithy.Member{Name: "Arn", Index: 0, Target: &schemaTargetArn, Required: true}
 
-var memberTarget_RoleArn = smithy.Member{Name: "RoleArn", Index: 1, Required: true}
+var memberTarget_RoleArn = smithy.Member{Name: "RoleArn", Index: 1, Target: &schemaRoleArn, Required: true}
 
-var memberTarget_DeadLetterConfig = smithy.Member{Name: "DeadLetterConfig", Index: 2}
+var memberTarget_DeadLetterConfig = smithy.Member{Name: "DeadLetterConfig", Index: 2, Target: &schemaDeadLetterConfig}
 
-var memberTarget_RetryPolicy = smithy.Member{Name: "RetryPolicy", Index: 3}
+var memberTarget_RetryPolicy = smithy.Member{Name: "RetryPolicy", Index: 3, Target: &schemaRetryPolicy}
 
-var memberTarget_Input = smithy.Member{Name: "Input", Index: 4}
+var memberTarget_Input = smithy.Member{Name: "Input", Index: 4, Target: &schemaTargetInput}
 
-var memberTarget_EcsParameters = smithy.Member{Name: "EcsParameters", Index: 5}
+var memberTarget_EcsParameters = smithy.Member{Name: "EcsParameters", Index: 5, Target: &schemaEcsParameters}
 
-var memberTarget_EventBridgeParameters = smithy.Member{Name: "EventBridgeParameters", Index: 6}
+var memberTarget_EventBridgeParameters = smithy.Member{Name: "EventBridgeParameters", Index: 6, Target: &schemaEventBridgeParameters}
 
-var memberTarget_KinesisParameters = smithy.Member{Name: "KinesisParameters", Index: 7}
+var memberTarget_KinesisParameters = smithy.Member{Name: "KinesisParameters", Index: 7, Target: &schemaKinesisParameters}
 
-var memberTarget_SageMakerPipelineParameters = smithy.Member{Name: "SageMakerPipelineParameters", Index: 8}
+var memberTarget_SageMakerPipelineParameters = smithy.Member{Name: "SageMakerPipelineParameters", Index: 8, Target: &schemaSageMakerPipelineParameters}
 
-var memberTarget_SqsParameters = smithy.Member{Name: "SqsParameters", Index: 9}
+var memberTarget_SqsParameters = smithy.Member{Name: "SqsParameters", Index: 9, Target: &schemaSqsParameters}
 
 var schemaTargetArn = smithy.Schema{ID: "com.amazonaws.scheduler#TargetArn", Type: smithy.TypeString}
 
@@ -545,309 +545,66 @@ var schemaTargetInput = smithy.Schema{ID: "com.amazonaws.scheduler#TargetInput",
 
 var schemaTargetPartitionKey = smithy.Schema{ID: "com.amazonaws.scheduler#TargetPartitionKey", Type: smithy.TypeString}
 
-var schemaTargetSummary = smithy.Schema{ID: "com.amazonaws.scheduler#TargetSummary", Type: smithy.TypeStructure}
+var schemaTargetSummary = smithy.Schema{ID: "com.amazonaws.scheduler#TargetSummary", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberTargetSummary_Arn}}
 
-var memberTargetSummary_Arn = smithy.Member{Name: "Arn", Index: 0, Required: true}
+var memberTargetSummary_Arn = smithy.Member{Name: "Arn", Index: 0, Target: &schemaTargetArn, Required: true}
 
 var schemaTaskCount = smithy.Schema{ID: "com.amazonaws.scheduler#TaskCount", Type: smithy.TypeInteger}
 
 var schemaTaskDefinitionArn = smithy.Schema{ID: "com.amazonaws.scheduler#TaskDefinitionArn", Type: smithy.TypeString}
 
-var schemaThrottlingException = smithy.Schema{ID: "com.amazonaws.scheduler#ThrottlingException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 429}}
+var schemaThrottlingException = smithy.Schema{ID: "com.amazonaws.scheduler#ThrottlingException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberThrottlingException_Message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 429}}
 
-var memberThrottlingException_Message = smithy.Member{Name: "Message", Index: 0, Required: true}
+var memberThrottlingException_Message = smithy.Member{Name: "Message", Index: 0, Target: &schemaSmithyString, Required: true}
 
-var schemaUnknownOperationException = smithy.Schema{ID: "com.amazon.coral.service#UnknownOperationException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaUnknownOperationException = smithy.Schema{ID: "com.amazon.coral.service#UnknownOperationException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUnknownOperationException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberUnknownOperationException_message = smithy.Member{Name: "message", Index: 0}
+var memberUnknownOperationException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaUnrecognizedClientException = smithy.Schema{ID: "com.amazon.coral.service#UnrecognizedClientException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaUnrecognizedClientException = smithy.Schema{ID: "com.amazon.coral.service#UnrecognizedClientException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUnrecognizedClientException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberUnrecognizedClientException_message = smithy.Member{Name: "message", Index: 0}
+var memberUnrecognizedClientException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaUntagResourceInput = smithy.Schema{ID: "com.amazonaws.scheduler#UntagResourceInput", Type: smithy.TypeStructure}
+var schemaUntagResourceInput = smithy.Schema{ID: "com.amazonaws.scheduler#UntagResourceInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUntagResourceInput_ResourceArn, &memberUntagResourceInput_TagKeys}}
 
-var memberUntagResourceInput_ResourceArn = smithy.Member{Name: "ResourceArn", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberUntagResourceInput_ResourceArn = smithy.Member{Name: "ResourceArn", Index: 0, Target: &schemaTagResourceArn, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberUntagResourceInput_TagKeys = smithy.Member{Name: "TagKeys", Index: 1, Required: true, HTTP: smithy.HTTPQuery{Name: "TagKeys"}}
+var memberUntagResourceInput_TagKeys = smithy.Member{Name: "TagKeys", Index: 1, Target: &schemaTagKeyList, Required: true, HTTP: smithy.HTTPQuery{Name: "TagKeys"}}
 
 var schemaUntagResourceOutput = smithy.Schema{ID: "com.amazonaws.scheduler#UntagResourceOutput", Type: smithy.TypeStructure}
 
-var schemaUpdateScheduleInput = smithy.Schema{ID: "com.amazonaws.scheduler#UpdateScheduleInput", Type: smithy.TypeStructure}
+var schemaUpdateScheduleInput = smithy.Schema{ID: "com.amazonaws.scheduler#UpdateScheduleInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateScheduleInput_Name, &memberUpdateScheduleInput_GroupName, &memberUpdateScheduleInput_ScheduleExpression, &memberUpdateScheduleInput_StartDate, &memberUpdateScheduleInput_EndDate, &memberUpdateScheduleInput_Description, &memberUpdateScheduleInput_ScheduleExpressionTimezone, &memberUpdateScheduleInput_State, &memberUpdateScheduleInput_KmsKeyArn, &memberUpdateScheduleInput_Target, &memberUpdateScheduleInput_FlexibleTimeWindow, &memberUpdateScheduleInput_ClientToken, &memberUpdateScheduleInput_ActionAfterCompletion}}
 
-var memberUpdateScheduleInput_Name = smithy.Member{Name: "Name", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberUpdateScheduleInput_Name = smithy.Member{Name: "Name", Index: 0, Target: &schemaName, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberUpdateScheduleInput_GroupName = smithy.Member{Name: "GroupName", Index: 1}
+var memberUpdateScheduleInput_GroupName = smithy.Member{Name: "GroupName", Index: 1, Target: &schemaScheduleGroupName}
 
-var memberUpdateScheduleInput_ScheduleExpression = smithy.Member{Name: "ScheduleExpression", Index: 2, Required: true}
+var memberUpdateScheduleInput_ScheduleExpression = smithy.Member{Name: "ScheduleExpression", Index: 2, Target: &schemaScheduleExpression, Required: true}
 
-var memberUpdateScheduleInput_StartDate = smithy.Member{Name: "StartDate", Index: 3}
+var memberUpdateScheduleInput_StartDate = smithy.Member{Name: "StartDate", Index: 3, Target: &schemaStartDate}
 
-var memberUpdateScheduleInput_EndDate = smithy.Member{Name: "EndDate", Index: 4}
+var memberUpdateScheduleInput_EndDate = smithy.Member{Name: "EndDate", Index: 4, Target: &schemaEndDate}
 
-var memberUpdateScheduleInput_Description = smithy.Member{Name: "Description", Index: 5}
+var memberUpdateScheduleInput_Description = smithy.Member{Name: "Description", Index: 5, Target: &schemaDescription}
 
-var memberUpdateScheduleInput_ScheduleExpressionTimezone = smithy.Member{Name: "ScheduleExpressionTimezone", Index: 6}
+var memberUpdateScheduleInput_ScheduleExpressionTimezone = smithy.Member{Name: "ScheduleExpressionTimezone", Index: 6, Target: &schemaScheduleExpressionTimezone}
 
-var memberUpdateScheduleInput_State = smithy.Member{Name: "State", Index: 7}
+var memberUpdateScheduleInput_State = smithy.Member{Name: "State", Index: 7, Target: &schemaScheduleState}
 
-var memberUpdateScheduleInput_KmsKeyArn = smithy.Member{Name: "KmsKeyArn", Index: 8}
+var memberUpdateScheduleInput_KmsKeyArn = smithy.Member{Name: "KmsKeyArn", Index: 8, Target: &schemaKmsKeyArn}
 
-var memberUpdateScheduleInput_Target = smithy.Member{Name: "Target", Index: 9, Required: true}
+var memberUpdateScheduleInput_Target = smithy.Member{Name: "Target", Index: 9, Target: &schemaTarget, Required: true}
 
-var memberUpdateScheduleInput_FlexibleTimeWindow = smithy.Member{Name: "FlexibleTimeWindow", Index: 10, Required: true}
+var memberUpdateScheduleInput_FlexibleTimeWindow = smithy.Member{Name: "FlexibleTimeWindow", Index: 10, Target: &schemaFlexibleTimeWindow, Required: true}
 
-var memberUpdateScheduleInput_ClientToken = smithy.Member{Name: "ClientToken", Index: 11}
+var memberUpdateScheduleInput_ClientToken = smithy.Member{Name: "ClientToken", Index: 11, Target: &schemaClientToken}
 
-var memberUpdateScheduleInput_ActionAfterCompletion = smithy.Member{Name: "ActionAfterCompletion", Index: 12}
+var memberUpdateScheduleInput_ActionAfterCompletion = smithy.Member{Name: "ActionAfterCompletion", Index: 12, Target: &schemaActionAfterCompletion}
 
-var schemaUpdateScheduleOutput = smithy.Schema{ID: "com.amazonaws.scheduler#UpdateScheduleOutput", Type: smithy.TypeStructure}
+var schemaUpdateScheduleOutput = smithy.Schema{ID: "com.amazonaws.scheduler#UpdateScheduleOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateScheduleOutput_ScheduleArn}}
 
-var memberUpdateScheduleOutput_ScheduleArn = smithy.Member{Name: "ScheduleArn", Index: 0, Required: true}
+var memberUpdateScheduleOutput_ScheduleArn = smithy.Member{Name: "ScheduleArn", Index: 0, Target: &schemaScheduleArn, Required: true}
 
-var schemaValidationException = smithy.Schema{ID: "com.amazonaws.scheduler#ValidationException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaValidationException = smithy.Schema{ID: "com.amazonaws.scheduler#ValidationException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberValidationException_Message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberValidationException_Message = smithy.Member{Name: "Message", Index: 0, Required: true}
-
-func init() {
-	memberAccessDeniedException_message.Target = &schemaSmithyString
-	schemaAccessDeniedException.Members = []*smithy.Member{&memberAccessDeniedException_message}
-	memberAwsVpcConfiguration_Subnets.Target = &schemaSubnets
-	memberAwsVpcConfiguration_SecurityGroups.Target = &schemaSecurityGroups
-	memberAwsVpcConfiguration_AssignPublicIp.Target = &schemaAssignPublicIp
-	schemaAwsVpcConfiguration.Members = []*smithy.Member{&memberAwsVpcConfiguration_Subnets, &memberAwsVpcConfiguration_SecurityGroups, &memberAwsVpcConfiguration_AssignPublicIp}
-	memberCapacityProviderStrategy_member.Target = &schemaCapacityProviderStrategyItem
-	schemaCapacityProviderStrategy.Members = []*smithy.Member{&memberCapacityProviderStrategy_member}
-	memberCapacityProviderStrategyItem_capacityProvider.Target = &schemaCapacityProvider
-	memberCapacityProviderStrategyItem_weight.Target = &schemaCapacityProviderStrategyItemWeight
-	memberCapacityProviderStrategyItem_base.Target = &schemaCapacityProviderStrategyItemBase
-	schemaCapacityProviderStrategyItem.Members = []*smithy.Member{&memberCapacityProviderStrategyItem_capacityProvider, &memberCapacityProviderStrategyItem_weight, &memberCapacityProviderStrategyItem_base}
-	memberConflictException_Message.Target = &schemaSmithyString
-	schemaConflictException.Members = []*smithy.Member{&memberConflictException_Message}
-	memberCoralServiceThrottlingException_message.Target = &schemaSmithyString
-	schemaCoralServiceThrottlingException.Members = []*smithy.Member{&memberCoralServiceThrottlingException_message}
-	memberCreateScheduleGroupInput_Name.Target = &schemaScheduleGroupName
-	memberCreateScheduleGroupInput_Tags.Target = &schemaTagList
-	memberCreateScheduleGroupInput_ClientToken.Target = &schemaClientToken
-	schemaCreateScheduleGroupInput.Members = []*smithy.Member{&memberCreateScheduleGroupInput_Name, &memberCreateScheduleGroupInput_Tags, &memberCreateScheduleGroupInput_ClientToken}
-	memberCreateScheduleGroupOutput_ScheduleGroupArn.Target = &schemaScheduleGroupArn
-	schemaCreateScheduleGroupOutput.Members = []*smithy.Member{&memberCreateScheduleGroupOutput_ScheduleGroupArn}
-	memberCreateScheduleInput_Name.Target = &schemaName
-	memberCreateScheduleInput_GroupName.Target = &schemaScheduleGroupName
-	memberCreateScheduleInput_ScheduleExpression.Target = &schemaScheduleExpression
-	memberCreateScheduleInput_StartDate.Target = &schemaStartDate
-	memberCreateScheduleInput_EndDate.Target = &schemaEndDate
-	memberCreateScheduleInput_Description.Target = &schemaDescription
-	memberCreateScheduleInput_ScheduleExpressionTimezone.Target = &schemaScheduleExpressionTimezone
-	memberCreateScheduleInput_State.Target = &schemaScheduleState
-	memberCreateScheduleInput_KmsKeyArn.Target = &schemaKmsKeyArn
-	memberCreateScheduleInput_Target.Target = &schemaTarget
-	memberCreateScheduleInput_FlexibleTimeWindow.Target = &schemaFlexibleTimeWindow
-	memberCreateScheduleInput_ClientToken.Target = &schemaClientToken
-	memberCreateScheduleInput_ActionAfterCompletion.Target = &schemaActionAfterCompletion
-	schemaCreateScheduleInput.Members = []*smithy.Member{&memberCreateScheduleInput_Name, &memberCreateScheduleInput_GroupName, &memberCreateScheduleInput_ScheduleExpression, &memberCreateScheduleInput_StartDate, &memberCreateScheduleInput_EndDate, &memberCreateScheduleInput_Description, &memberCreateScheduleInput_ScheduleExpressionTimezone, &memberCreateScheduleInput_State, &memberCreateScheduleInput_KmsKeyArn, &memberCreateScheduleInput_Target, &memberCreateScheduleInput_FlexibleTimeWindow, &memberCreateScheduleInput_ClientToken, &memberCreateScheduleInput_ActionAfterCompletion}
-	memberCreateScheduleOutput_ScheduleArn.Target = &schemaScheduleArn
-	schemaCreateScheduleOutput.Members = []*smithy.Member{&memberCreateScheduleOutput_ScheduleArn}
-	memberDeadLetterConfig_Arn.Target = &schemaResourceArn
-	schemaDeadLetterConfig.Members = []*smithy.Member{&memberDeadLetterConfig_Arn}
-	memberDeleteScheduleGroupInput_Name.Target = &schemaScheduleGroupName
-	memberDeleteScheduleGroupInput_ClientToken.Target = &schemaClientToken
-	schemaDeleteScheduleGroupInput.Members = []*smithy.Member{&memberDeleteScheduleGroupInput_Name, &memberDeleteScheduleGroupInput_ClientToken}
-	memberDeleteScheduleInput_Name.Target = &schemaName
-	memberDeleteScheduleInput_GroupName.Target = &schemaScheduleGroupName
-	memberDeleteScheduleInput_ClientToken.Target = &schemaClientToken
-	schemaDeleteScheduleInput.Members = []*smithy.Member{&memberDeleteScheduleInput_Name, &memberDeleteScheduleInput_GroupName, &memberDeleteScheduleInput_ClientToken}
-	memberEcsParameters_TaskDefinitionArn.Target = &schemaTaskDefinitionArn
-	memberEcsParameters_TaskCount.Target = &schemaTaskCount
-	memberEcsParameters_LaunchType.Target = &schemaLaunchType
-	memberEcsParameters_NetworkConfiguration.Target = &schemaNetworkConfiguration
-	memberEcsParameters_PlatformVersion.Target = &schemaPlatformVersion
-	memberEcsParameters_Group.Target = &schemaGroup
-	memberEcsParameters_CapacityProviderStrategy.Target = &schemaCapacityProviderStrategy
-	memberEcsParameters_EnableECSManagedTags.Target = &schemaEnableECSManagedTags
-	memberEcsParameters_EnableExecuteCommand.Target = &schemaEnableExecuteCommand
-	memberEcsParameters_PlacementConstraints.Target = &schemaPlacementConstraints
-	memberEcsParameters_PlacementStrategy.Target = &schemaPlacementStrategies
-	memberEcsParameters_PropagateTags.Target = &schemaPropagateTags
-	memberEcsParameters_ReferenceId.Target = &schemaReferenceId
-	memberEcsParameters_Tags.Target = &schemaTags
-	schemaEcsParameters.Members = []*smithy.Member{&memberEcsParameters_TaskDefinitionArn, &memberEcsParameters_TaskCount, &memberEcsParameters_LaunchType, &memberEcsParameters_NetworkConfiguration, &memberEcsParameters_PlatformVersion, &memberEcsParameters_Group, &memberEcsParameters_CapacityProviderStrategy, &memberEcsParameters_EnableECSManagedTags, &memberEcsParameters_EnableExecuteCommand, &memberEcsParameters_PlacementConstraints, &memberEcsParameters_PlacementStrategy, &memberEcsParameters_PropagateTags, &memberEcsParameters_ReferenceId, &memberEcsParameters_Tags}
-	memberEventBridgeParameters_DetailType.Target = &schemaDetailType
-	memberEventBridgeParameters_Source.Target = &schemaSource
-	schemaEventBridgeParameters.Members = []*smithy.Member{&memberEventBridgeParameters_DetailType, &memberEventBridgeParameters_Source}
-	memberExpiredTokenException_message.Target = &schemaSmithyString
-	schemaExpiredTokenException.Members = []*smithy.Member{&memberExpiredTokenException_message}
-	memberFlexibleTimeWindow_Mode.Target = &schemaFlexibleTimeWindowMode
-	memberFlexibleTimeWindow_MaximumWindowInMinutes.Target = &schemaMaximumWindowInMinutes
-	schemaFlexibleTimeWindow.Members = []*smithy.Member{&memberFlexibleTimeWindow_Mode, &memberFlexibleTimeWindow_MaximumWindowInMinutes}
-	memberGetScheduleGroupInput_Name.Target = &schemaScheduleGroupName
-	schemaGetScheduleGroupInput.Members = []*smithy.Member{&memberGetScheduleGroupInput_Name}
-	memberGetScheduleGroupOutput_Arn.Target = &schemaScheduleGroupArn
-	memberGetScheduleGroupOutput_Name.Target = &schemaScheduleGroupName
-	memberGetScheduleGroupOutput_State.Target = &schemaScheduleGroupState
-	memberGetScheduleGroupOutput_CreationDate.Target = &schemaCreationDate
-	memberGetScheduleGroupOutput_LastModificationDate.Target = &schemaLastModificationDate
-	schemaGetScheduleGroupOutput.Members = []*smithy.Member{&memberGetScheduleGroupOutput_Arn, &memberGetScheduleGroupOutput_Name, &memberGetScheduleGroupOutput_State, &memberGetScheduleGroupOutput_CreationDate, &memberGetScheduleGroupOutput_LastModificationDate}
-	memberGetScheduleInput_Name.Target = &schemaName
-	memberGetScheduleInput_GroupName.Target = &schemaScheduleGroupName
-	schemaGetScheduleInput.Members = []*smithy.Member{&memberGetScheduleInput_Name, &memberGetScheduleInput_GroupName}
-	memberGetScheduleOutput_Arn.Target = &schemaScheduleArn
-	memberGetScheduleOutput_GroupName.Target = &schemaScheduleGroupName
-	memberGetScheduleOutput_Name.Target = &schemaName
-	memberGetScheduleOutput_ScheduleExpression.Target = &schemaScheduleExpression
-	memberGetScheduleOutput_StartDate.Target = &schemaStartDate
-	memberGetScheduleOutput_EndDate.Target = &schemaEndDate
-	memberGetScheduleOutput_Description.Target = &schemaDescription
-	memberGetScheduleOutput_ScheduleExpressionTimezone.Target = &schemaScheduleExpressionTimezone
-	memberGetScheduleOutput_State.Target = &schemaScheduleState
-	memberGetScheduleOutput_CreationDate.Target = &schemaCreationDate
-	memberGetScheduleOutput_LastModificationDate.Target = &schemaLastModificationDate
-	memberGetScheduleOutput_KmsKeyArn.Target = &schemaKmsKeyArn
-	memberGetScheduleOutput_Target.Target = &schemaTarget
-	memberGetScheduleOutput_FlexibleTimeWindow.Target = &schemaFlexibleTimeWindow
-	memberGetScheduleOutput_ActionAfterCompletion.Target = &schemaActionAfterCompletion
-	schemaGetScheduleOutput.Members = []*smithy.Member{&memberGetScheduleOutput_Arn, &memberGetScheduleOutput_GroupName, &memberGetScheduleOutput_Name, &memberGetScheduleOutput_ScheduleExpression, &memberGetScheduleOutput_StartDate, &memberGetScheduleOutput_EndDate, &memberGetScheduleOutput_Description, &memberGetScheduleOutput_ScheduleExpressionTimezone, &memberGetScheduleOutput_State, &memberGetScheduleOutput_CreationDate, &memberGetScheduleOutput_LastModificationDate, &memberGetScheduleOutput_KmsKeyArn, &memberGetScheduleOutput_Target, &memberGetScheduleOutput_FlexibleTimeWindow, &memberGetScheduleOutput_ActionAfterCompletion}
-	memberIncompleteSignatureException_message.Target = &schemaSmithyString
-	schemaIncompleteSignatureException.Members = []*smithy.Member{&memberIncompleteSignatureException_message}
-	memberInternalFailure_message.Target = &schemaSmithyString
-	schemaInternalFailure.Members = []*smithy.Member{&memberInternalFailure_message}
-	memberInternalServerException_Message.Target = &schemaSmithyString
-	schemaInternalServerException.Members = []*smithy.Member{&memberInternalServerException_Message}
-	memberInvalidSignatureException_message.Target = &schemaSmithyString
-	schemaInvalidSignatureException.Members = []*smithy.Member{&memberInvalidSignatureException_message}
-	memberKinesisParameters_PartitionKey.Target = &schemaTargetPartitionKey
-	schemaKinesisParameters.Members = []*smithy.Member{&memberKinesisParameters_PartitionKey}
-	memberListScheduleGroupsInput_NamePrefix.Target = &schemaScheduleGroupNamePrefix
-	memberListScheduleGroupsInput_NextToken.Target = &schemaNextToken
-	memberListScheduleGroupsInput_MaxResults.Target = &schemaMaxResults
-	schemaListScheduleGroupsInput.Members = []*smithy.Member{&memberListScheduleGroupsInput_NamePrefix, &memberListScheduleGroupsInput_NextToken, &memberListScheduleGroupsInput_MaxResults}
-	memberListScheduleGroupsOutput_NextToken.Target = &schemaNextToken
-	memberListScheduleGroupsOutput_ScheduleGroups.Target = &schemaScheduleGroupList
-	schemaListScheduleGroupsOutput.Members = []*smithy.Member{&memberListScheduleGroupsOutput_NextToken, &memberListScheduleGroupsOutput_ScheduleGroups}
-	memberListSchedulesInput_GroupName.Target = &schemaScheduleGroupName
-	memberListSchedulesInput_NamePrefix.Target = &schemaNamePrefix
-	memberListSchedulesInput_State.Target = &schemaScheduleState
-	memberListSchedulesInput_NextToken.Target = &schemaNextToken
-	memberListSchedulesInput_MaxResults.Target = &schemaMaxResults
-	schemaListSchedulesInput.Members = []*smithy.Member{&memberListSchedulesInput_GroupName, &memberListSchedulesInput_NamePrefix, &memberListSchedulesInput_State, &memberListSchedulesInput_NextToken, &memberListSchedulesInput_MaxResults}
-	memberListSchedulesOutput_NextToken.Target = &schemaNextToken
-	memberListSchedulesOutput_Schedules.Target = &schemaScheduleList
-	schemaListSchedulesOutput.Members = []*smithy.Member{&memberListSchedulesOutput_NextToken, &memberListSchedulesOutput_Schedules}
-	memberListTagsForResourceInput_ResourceArn.Target = &schemaTagResourceArn
-	schemaListTagsForResourceInput.Members = []*smithy.Member{&memberListTagsForResourceInput_ResourceArn}
-	memberListTagsForResourceOutput_Tags.Target = &schemaTagList
-	schemaListTagsForResourceOutput.Members = []*smithy.Member{&memberListTagsForResourceOutput_Tags}
-	memberMissingAuthenticationTokenException_message.Target = &schemaSmithyString
-	schemaMissingAuthenticationTokenException.Members = []*smithy.Member{&memberMissingAuthenticationTokenException_message}
-	memberNetworkConfiguration_awsvpcConfiguration.Target = &schemaAwsVpcConfiguration
-	schemaNetworkConfiguration.Members = []*smithy.Member{&memberNetworkConfiguration_awsvpcConfiguration}
-	memberNotImplemented_message.Target = &schemaSmithyString
-	schemaNotImplemented.Members = []*smithy.Member{&memberNotImplemented_message}
-	memberPlacementConstraint_type.Target = &schemaPlacementConstraintType
-	memberPlacementConstraint_expression.Target = &schemaPlacementConstraintExpression
-	schemaPlacementConstraint.Members = []*smithy.Member{&memberPlacementConstraint_type, &memberPlacementConstraint_expression}
-	memberPlacementConstraints_member.Target = &schemaPlacementConstraint
-	schemaPlacementConstraints.Members = []*smithy.Member{&memberPlacementConstraints_member}
-	memberPlacementStrategies_member.Target = &schemaPlacementStrategy
-	schemaPlacementStrategies.Members = []*smithy.Member{&memberPlacementStrategies_member}
-	memberPlacementStrategy_type.Target = &schemaPlacementStrategyType
-	memberPlacementStrategy_field.Target = &schemaPlacementStrategyField
-	schemaPlacementStrategy.Members = []*smithy.Member{&memberPlacementStrategy_type, &memberPlacementStrategy_field}
-	memberRequestEntityTooLargeException_message.Target = &schemaSmithyString
-	schemaRequestEntityTooLargeException.Members = []*smithy.Member{&memberRequestEntityTooLargeException_message}
-	memberResourceNotFoundException_Message.Target = &schemaSmithyString
-	schemaResourceNotFoundException.Members = []*smithy.Member{&memberResourceNotFoundException_Message}
-	memberRetryPolicy_MaximumEventAgeInSeconds.Target = &schemaMaximumEventAgeInSeconds
-	memberRetryPolicy_MaximumRetryAttempts.Target = &schemaMaximumRetryAttempts
-	schemaRetryPolicy.Members = []*smithy.Member{&memberRetryPolicy_MaximumEventAgeInSeconds, &memberRetryPolicy_MaximumRetryAttempts}
-	memberSageMakerPipelineParameter_Name.Target = &schemaSageMakerPipelineParameterName
-	memberSageMakerPipelineParameter_Value.Target = &schemaSageMakerPipelineParameterValue
-	schemaSageMakerPipelineParameter.Members = []*smithy.Member{&memberSageMakerPipelineParameter_Name, &memberSageMakerPipelineParameter_Value}
-	memberSageMakerPipelineParameterList_member.Target = &schemaSageMakerPipelineParameter
-	schemaSageMakerPipelineParameterList.Members = []*smithy.Member{&memberSageMakerPipelineParameterList_member}
-	memberSageMakerPipelineParameters_PipelineParameterList.Target = &schemaSageMakerPipelineParameterList
-	schemaSageMakerPipelineParameters.Members = []*smithy.Member{&memberSageMakerPipelineParameters_PipelineParameterList}
-	memberScheduleGroupList_member.Target = &schemaScheduleGroupSummary
-	schemaScheduleGroupList.Members = []*smithy.Member{&memberScheduleGroupList_member}
-	memberScheduleGroupSummary_Arn.Target = &schemaScheduleGroupArn
-	memberScheduleGroupSummary_Name.Target = &schemaScheduleGroupName
-	memberScheduleGroupSummary_State.Target = &schemaScheduleGroupState
-	memberScheduleGroupSummary_CreationDate.Target = &schemaCreationDate
-	memberScheduleGroupSummary_LastModificationDate.Target = &schemaLastModificationDate
-	schemaScheduleGroupSummary.Members = []*smithy.Member{&memberScheduleGroupSummary_Arn, &memberScheduleGroupSummary_Name, &memberScheduleGroupSummary_State, &memberScheduleGroupSummary_CreationDate, &memberScheduleGroupSummary_LastModificationDate}
-	memberScheduleList_member.Target = &schemaScheduleSummary
-	schemaScheduleList.Members = []*smithy.Member{&memberScheduleList_member}
-	memberScheduleSummary_Arn.Target = &schemaScheduleArn
-	memberScheduleSummary_Name.Target = &schemaName
-	memberScheduleSummary_GroupName.Target = &schemaScheduleGroupName
-	memberScheduleSummary_State.Target = &schemaScheduleState
-	memberScheduleSummary_CreationDate.Target = &schemaCreationDate
-	memberScheduleSummary_LastModificationDate.Target = &schemaLastModificationDate
-	memberScheduleSummary_Target.Target = &schemaTargetSummary
-	schemaScheduleSummary.Members = []*smithy.Member{&memberScheduleSummary_Arn, &memberScheduleSummary_Name, &memberScheduleSummary_GroupName, &memberScheduleSummary_State, &memberScheduleSummary_CreationDate, &memberScheduleSummary_LastModificationDate, &memberScheduleSummary_Target}
-	memberSecurityGroups_member.Target = &schemaSecurityGroup
-	schemaSecurityGroups.Members = []*smithy.Member{&memberSecurityGroups_member}
-	memberSerializationException_Message.Target = &schemaSmithyString
-	schemaSerializationException.Members = []*smithy.Member{&memberSerializationException_Message}
-	memberServiceQuotaExceededException_Message.Target = &schemaSmithyString
-	schemaServiceQuotaExceededException.Members = []*smithy.Member{&memberServiceQuotaExceededException_Message}
-	memberSqsParameters_MessageGroupId.Target = &schemaMessageGroupId
-	schemaSqsParameters.Members = []*smithy.Member{&memberSqsParameters_MessageGroupId}
-	memberSubnets_member.Target = &schemaSubnet
-	schemaSubnets.Members = []*smithy.Member{&memberSubnets_member}
-	memberTag_Key.Target = &schemaTagKey
-	memberTag_Value.Target = &schemaTagValue
-	schemaTag.Members = []*smithy.Member{&memberTag_Key, &memberTag_Value}
-	memberTagKeyList_member.Target = &schemaTagKey
-	schemaTagKeyList.Members = []*smithy.Member{&memberTagKeyList_member}
-	memberTagList_member.Target = &schemaTag
-	schemaTagList.Members = []*smithy.Member{&memberTagList_member}
-	memberTagMap_key.Target = &schemaTagKey
-	memberTagMap_value.Target = &schemaTagValue
-	schemaTagMap.Members = []*smithy.Member{&memberTagMap_key, &memberTagMap_value}
-	memberTagResourceInput_ResourceArn.Target = &schemaTagResourceArn
-	memberTagResourceInput_Tags.Target = &schemaTagList
-	schemaTagResourceInput.Members = []*smithy.Member{&memberTagResourceInput_ResourceArn, &memberTagResourceInput_Tags}
-	memberTags_member.Target = &schemaTagMap
-	schemaTags.Members = []*smithy.Member{&memberTags_member}
-	memberTarget_Arn.Target = &schemaTargetArn
-	memberTarget_RoleArn.Target = &schemaRoleArn
-	memberTarget_DeadLetterConfig.Target = &schemaDeadLetterConfig
-	memberTarget_RetryPolicy.Target = &schemaRetryPolicy
-	memberTarget_Input.Target = &schemaTargetInput
-	memberTarget_EcsParameters.Target = &schemaEcsParameters
-	memberTarget_EventBridgeParameters.Target = &schemaEventBridgeParameters
-	memberTarget_KinesisParameters.Target = &schemaKinesisParameters
-	memberTarget_SageMakerPipelineParameters.Target = &schemaSageMakerPipelineParameters
-	memberTarget_SqsParameters.Target = &schemaSqsParameters
-	schemaTarget.Members = []*smithy.Member{&memberTarget_Arn, &memberTarget_RoleArn, &memberTarget_DeadLetterConfig, &memberTarget_RetryPolicy, &memberTarget_Input, &memberTarget_EcsParameters, &memberTarget_EventBridgeParameters, &memberTarget_KinesisParameters, &memberTarget_SageMakerPipelineParameters, &memberTarget_SqsParameters}
-	memberTargetSummary_Arn.Target = &schemaTargetArn
-	schemaTargetSummary.Members = []*smithy.Member{&memberTargetSummary_Arn}
-	memberThrottlingException_Message.Target = &schemaSmithyString
-	schemaThrottlingException.Members = []*smithy.Member{&memberThrottlingException_Message}
-	memberUnknownOperationException_message.Target = &schemaSmithyString
-	schemaUnknownOperationException.Members = []*smithy.Member{&memberUnknownOperationException_message}
-	memberUnrecognizedClientException_message.Target = &schemaSmithyString
-	schemaUnrecognizedClientException.Members = []*smithy.Member{&memberUnrecognizedClientException_message}
-	memberUntagResourceInput_ResourceArn.Target = &schemaTagResourceArn
-	memberUntagResourceInput_TagKeys.Target = &schemaTagKeyList
-	schemaUntagResourceInput.Members = []*smithy.Member{&memberUntagResourceInput_ResourceArn, &memberUntagResourceInput_TagKeys}
-	memberUpdateScheduleInput_Name.Target = &schemaName
-	memberUpdateScheduleInput_GroupName.Target = &schemaScheduleGroupName
-	memberUpdateScheduleInput_ScheduleExpression.Target = &schemaScheduleExpression
-	memberUpdateScheduleInput_StartDate.Target = &schemaStartDate
-	memberUpdateScheduleInput_EndDate.Target = &schemaEndDate
-	memberUpdateScheduleInput_Description.Target = &schemaDescription
-	memberUpdateScheduleInput_ScheduleExpressionTimezone.Target = &schemaScheduleExpressionTimezone
-	memberUpdateScheduleInput_State.Target = &schemaScheduleState
-	memberUpdateScheduleInput_KmsKeyArn.Target = &schemaKmsKeyArn
-	memberUpdateScheduleInput_Target.Target = &schemaTarget
-	memberUpdateScheduleInput_FlexibleTimeWindow.Target = &schemaFlexibleTimeWindow
-	memberUpdateScheduleInput_ClientToken.Target = &schemaClientToken
-	memberUpdateScheduleInput_ActionAfterCompletion.Target = &schemaActionAfterCompletion
-	schemaUpdateScheduleInput.Members = []*smithy.Member{&memberUpdateScheduleInput_Name, &memberUpdateScheduleInput_GroupName, &memberUpdateScheduleInput_ScheduleExpression, &memberUpdateScheduleInput_StartDate, &memberUpdateScheduleInput_EndDate, &memberUpdateScheduleInput_Description, &memberUpdateScheduleInput_ScheduleExpressionTimezone, &memberUpdateScheduleInput_State, &memberUpdateScheduleInput_KmsKeyArn, &memberUpdateScheduleInput_Target, &memberUpdateScheduleInput_FlexibleTimeWindow, &memberUpdateScheduleInput_ClientToken, &memberUpdateScheduleInput_ActionAfterCompletion}
-	memberUpdateScheduleOutput_ScheduleArn.Target = &schemaScheduleArn
-	schemaUpdateScheduleOutput.Members = []*smithy.Member{&memberUpdateScheduleOutput_ScheduleArn}
-	memberValidationException_Message.Target = &schemaSmithyString
-	schemaValidationException.Members = []*smithy.Member{&memberValidationException_Message}
-}
+var memberValidationException_Message = smithy.Member{Name: "Message", Index: 0, Target: &schemaSmithyString, Required: true}

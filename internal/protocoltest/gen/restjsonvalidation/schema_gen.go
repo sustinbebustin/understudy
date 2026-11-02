@@ -6,271 +6,271 @@ import (
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 )
 
-var schemaBlobSet = smithy.Schema{ID: "aws.protocoltests.shared#BlobSet", Type: smithy.TypeList}
+var schemaBlobSet = smithy.Schema{ID: "aws.protocoltests.shared#BlobSet", Type: smithy.TypeList, Members: []*smithy.Member{&memberBlobSet_member}}
 
-var memberBlobSet_member = smithy.Member{Name: "member", Index: 0}
+var memberBlobSet_member = smithy.Member{Name: "member", Index: 0, Target: &schemaSmithyBlob}
 
-var schemaBooleanSet = smithy.Schema{ID: "aws.protocoltests.shared#BooleanSet", Type: smithy.TypeList}
+var schemaBooleanSet = smithy.Schema{ID: "aws.protocoltests.shared#BooleanSet", Type: smithy.TypeList, Members: []*smithy.Member{&memberBooleanSet_member}}
 
-var memberBooleanSet_member = smithy.Member{Name: "member", Index: 0}
+var memberBooleanSet_member = smithy.Member{Name: "member", Index: 0, Target: &schemaSmithyBoolean}
 
-var schemaByteSet = smithy.Schema{ID: "aws.protocoltests.shared#ByteSet", Type: smithy.TypeList}
+var schemaByteSet = smithy.Schema{ID: "aws.protocoltests.shared#ByteSet", Type: smithy.TypeList, Members: []*smithy.Member{&memberByteSet_member}}
 
-var memberByteSet_member = smithy.Member{Name: "member", Index: 0}
+var memberByteSet_member = smithy.Member{Name: "member", Index: 0, Target: &schemaSmithyByte}
 
 var schemaDateTime = smithy.Schema{ID: "aws.protocoltests.shared#DateTime", Type: smithy.TypeTimestamp, TimestampFormat: smithy.DateTime}
 
-var schemaDateTimeSet = smithy.Schema{ID: "aws.protocoltests.shared#DateTimeSet", Type: smithy.TypeList}
+var schemaDateTimeSet = smithy.Schema{ID: "aws.protocoltests.shared#DateTimeSet", Type: smithy.TypeList, Members: []*smithy.Member{&memberDateTimeSet_member}}
 
-var memberDateTimeSet_member = smithy.Member{Name: "member", Index: 0, TimestampFormat: smithy.DateTime}
+var memberDateTimeSet_member = smithy.Member{Name: "member", Index: 0, Target: &schemaDateTime, TimestampFormat: smithy.DateTime}
 
-var schemaEnumList = smithy.Schema{ID: "aws.protocoltests.restjson.validation#EnumList", Type: smithy.TypeList}
+var schemaEnumList = smithy.Schema{ID: "aws.protocoltests.restjson.validation#EnumList", Type: smithy.TypeList, Members: []*smithy.Member{&memberEnumList_member}}
 
-var memberEnumList_member = smithy.Member{Name: "member", Index: 0}
+var memberEnumList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaEnumString}
 
-var schemaEnumMap = smithy.Schema{ID: "aws.protocoltests.restjson.validation#EnumMap", Type: smithy.TypeMap}
+var schemaEnumMap = smithy.Schema{ID: "aws.protocoltests.restjson.validation#EnumMap", Type: smithy.TypeMap, Members: []*smithy.Member{&memberEnumMap_key, &memberEnumMap_value}}
 
-var memberEnumMap_key = smithy.Member{Name: "key", Index: 0}
+var memberEnumMap_key = smithy.Member{Name: "key", Index: 0, Target: &schemaEnumString}
 
-var memberEnumMap_value = smithy.Member{Name: "value", Index: 1}
+var memberEnumMap_value = smithy.Member{Name: "value", Index: 1, Target: &schemaEnumString}
 
 var schemaEnumString = smithy.Schema{ID: "aws.protocoltests.restjson.validation#EnumString", Type: smithy.TypeEnum}
 
 var schemaEnumTraitString = smithy.Schema{ID: "aws.protocoltests.restjson.validation#EnumTraitString", Type: smithy.TypeEnum}
 
-var schemaEnumUnion = smithy.Schema{ID: "aws.protocoltests.restjson.validation#EnumUnion", Type: smithy.TypeUnion}
+var schemaEnumUnion = smithy.Schema{ID: "aws.protocoltests.restjson.validation#EnumUnion", Type: smithy.TypeUnion, Members: []*smithy.Member{&memberEnumUnion_first, &memberEnumUnion_second}}
 
-var memberEnumUnion_first = smithy.Member{Name: "first", Index: 0}
+var memberEnumUnion_first = smithy.Member{Name: "first", Index: 0, Target: &schemaEnumString}
 
-var memberEnumUnion_second = smithy.Member{Name: "second", Index: 1}
+var memberEnumUnion_second = smithy.Member{Name: "second", Index: 1, Target: &schemaEnumString}
 
 var schemaEvilString = smithy.Schema{ID: "aws.protocoltests.restjson.validation#EvilString", Type: smithy.TypeString}
 
 var schemaFooEnum = smithy.Schema{ID: "aws.protocoltests.shared#FooEnum", Type: smithy.TypeEnum}
 
-var schemaFooEnumSet = smithy.Schema{ID: "aws.protocoltests.shared#FooEnumSet", Type: smithy.TypeList}
+var schemaFooEnumSet = smithy.Schema{ID: "aws.protocoltests.shared#FooEnumSet", Type: smithy.TypeList, Members: []*smithy.Member{&memberFooEnumSet_member}}
 
-var memberFooEnumSet_member = smithy.Member{Name: "member", Index: 0}
+var memberFooEnumSet_member = smithy.Member{Name: "member", Index: 0, Target: &schemaFooEnum}
 
-var schemaFooUnion = smithy.Schema{ID: "aws.protocoltests.shared#FooUnion", Type: smithy.TypeUnion}
+var schemaFooUnion = smithy.Schema{ID: "aws.protocoltests.shared#FooUnion", Type: smithy.TypeUnion, Members: []*smithy.Member{&memberFooUnion_string, &memberFooUnion_integer}}
 
-var memberFooUnion_string = smithy.Member{Name: "string", Index: 0}
+var memberFooUnion_string = smithy.Member{Name: "string", Index: 0, Target: &schemaSmithyString}
 
-var memberFooUnion_integer = smithy.Member{Name: "integer", Index: 1}
+var memberFooUnion_integer = smithy.Member{Name: "integer", Index: 1, Target: &schemaSmithyInteger}
 
-var schemaGreetingStruct = smithy.Schema{ID: "aws.protocoltests.shared#GreetingStruct", Type: smithy.TypeStructure}
+var schemaGreetingStruct = smithy.Schema{ID: "aws.protocoltests.shared#GreetingStruct", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGreetingStruct_hi}}
 
-var memberGreetingStruct_hi = smithy.Member{Name: "hi", Index: 0}
+var memberGreetingStruct_hi = smithy.Member{Name: "hi", Index: 0, Target: &schemaSmithyString}
 
 var schemaHttpDate = smithy.Schema{ID: "aws.protocoltests.shared#HttpDate", Type: smithy.TypeTimestamp, TimestampFormat: smithy.HTTPDate}
 
-var schemaHttpDateSet = smithy.Schema{ID: "aws.protocoltests.shared#HttpDateSet", Type: smithy.TypeList}
+var schemaHttpDateSet = smithy.Schema{ID: "aws.protocoltests.shared#HttpDateSet", Type: smithy.TypeList, Members: []*smithy.Member{&memberHttpDateSet_member}}
 
-var memberHttpDateSet_member = smithy.Member{Name: "member", Index: 0, TimestampFormat: smithy.HTTPDate}
+var memberHttpDateSet_member = smithy.Member{Name: "member", Index: 0, Target: &schemaHttpDate, TimestampFormat: smithy.HTTPDate}
 
 var schemaIntegerEnum = smithy.Schema{ID: "aws.protocoltests.shared#IntegerEnum", Type: smithy.TypeIntEnum}
 
-var schemaIntegerEnumSet = smithy.Schema{ID: "aws.protocoltests.shared#IntegerEnumSet", Type: smithy.TypeList}
+var schemaIntegerEnumSet = smithy.Schema{ID: "aws.protocoltests.shared#IntegerEnumSet", Type: smithy.TypeList, Members: []*smithy.Member{&memberIntegerEnumSet_member}}
 
-var memberIntegerEnumSet_member = smithy.Member{Name: "member", Index: 0}
+var memberIntegerEnumSet_member = smithy.Member{Name: "member", Index: 0, Target: &schemaIntegerEnum}
 
-var schemaIntegerSet = smithy.Schema{ID: "aws.protocoltests.shared#IntegerSet", Type: smithy.TypeList}
+var schemaIntegerSet = smithy.Schema{ID: "aws.protocoltests.shared#IntegerSet", Type: smithy.TypeList, Members: []*smithy.Member{&memberIntegerSet_member}}
 
-var memberIntegerSet_member = smithy.Member{Name: "member", Index: 0}
+var memberIntegerSet_member = smithy.Member{Name: "member", Index: 0, Target: &schemaSmithyInteger}
 
 var schemaLengthBlob = smithy.Schema{ID: "aws.protocoltests.restjson.validation#LengthBlob", Type: smithy.TypeBlob}
 
-var schemaLengthList = smithy.Schema{ID: "aws.protocoltests.restjson.validation#LengthList", Type: smithy.TypeList}
+var schemaLengthList = smithy.Schema{ID: "aws.protocoltests.restjson.validation#LengthList", Type: smithy.TypeList, Members: []*smithy.Member{&memberLengthList_member}}
 
-var memberLengthList_member = smithy.Member{Name: "member", Index: 0}
+var memberLengthList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaLengthString}
 
-var schemaLengthMap = smithy.Schema{ID: "aws.protocoltests.restjson.validation#LengthMap", Type: smithy.TypeMap}
+var schemaLengthMap = smithy.Schema{ID: "aws.protocoltests.restjson.validation#LengthMap", Type: smithy.TypeMap, Members: []*smithy.Member{&memberLengthMap_key, &memberLengthMap_value}}
 
-var memberLengthMap_key = smithy.Member{Name: "key", Index: 0}
+var memberLengthMap_key = smithy.Member{Name: "key", Index: 0, Target: &schemaLengthString}
 
-var memberLengthMap_value = smithy.Member{Name: "value", Index: 1}
+var memberLengthMap_value = smithy.Member{Name: "value", Index: 1, Target: &schemaLengthList}
 
 var schemaLengthString = smithy.Schema{ID: "aws.protocoltests.restjson.validation#LengthString", Type: smithy.TypeString}
 
-var schemaListSet = smithy.Schema{ID: "aws.protocoltests.shared#ListSet", Type: smithy.TypeList}
+var schemaListSet = smithy.Schema{ID: "aws.protocoltests.shared#ListSet", Type: smithy.TypeList, Members: []*smithy.Member{&memberListSet_member}}
 
-var memberListSet_member = smithy.Member{Name: "member", Index: 0}
+var memberListSet_member = smithy.Member{Name: "member", Index: 0, Target: &schemaStringList}
 
-var schemaLongSet = smithy.Schema{ID: "aws.protocoltests.shared#LongSet", Type: smithy.TypeList}
+var schemaLongSet = smithy.Schema{ID: "aws.protocoltests.shared#LongSet", Type: smithy.TypeList, Members: []*smithy.Member{&memberLongSet_member}}
 
-var memberLongSet_member = smithy.Member{Name: "member", Index: 0}
+var memberLongSet_member = smithy.Member{Name: "member", Index: 0, Target: &schemaSmithyLong}
 
-var schemaMalformedEnumInput = smithy.Schema{ID: "aws.protocoltests.restjson.validation#MalformedEnumInput", Type: smithy.TypeStructure}
+var schemaMalformedEnumInput = smithy.Schema{ID: "aws.protocoltests.restjson.validation#MalformedEnumInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberMalformedEnumInput_string, &memberMalformedEnumInput_stringWithEnumTrait, &memberMalformedEnumInput_list, &memberMalformedEnumInput_map, &memberMalformedEnumInput_union}}
 
-var memberMalformedEnumInput_string = smithy.Member{Name: "string", Index: 0}
+var memberMalformedEnumInput_string = smithy.Member{Name: "string", Index: 0, Target: &schemaEnumString}
 
-var memberMalformedEnumInput_stringWithEnumTrait = smithy.Member{Name: "stringWithEnumTrait", Index: 1}
+var memberMalformedEnumInput_stringWithEnumTrait = smithy.Member{Name: "stringWithEnumTrait", Index: 1, Target: &schemaEnumTraitString}
 
-var memberMalformedEnumInput_list = smithy.Member{Name: "list", Index: 2}
+var memberMalformedEnumInput_list = smithy.Member{Name: "list", Index: 2, Target: &schemaEnumList}
 
-var memberMalformedEnumInput_map = smithy.Member{Name: "map", Index: 3}
+var memberMalformedEnumInput_map = smithy.Member{Name: "map", Index: 3, Target: &schemaEnumMap}
 
-var memberMalformedEnumInput_union = smithy.Member{Name: "union", Index: 4}
+var memberMalformedEnumInput_union = smithy.Member{Name: "union", Index: 4, Target: &schemaEnumUnion}
 
-var schemaMalformedLengthInput = smithy.Schema{ID: "aws.protocoltests.restjson.validation#MalformedLengthInput", Type: smithy.TypeStructure}
+var schemaMalformedLengthInput = smithy.Schema{ID: "aws.protocoltests.restjson.validation#MalformedLengthInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberMalformedLengthInput_blob, &memberMalformedLengthInput_string, &memberMalformedLengthInput_minString, &memberMalformedLengthInput_maxString, &memberMalformedLengthInput_list, &memberMalformedLengthInput_map}}
 
-var memberMalformedLengthInput_blob = smithy.Member{Name: "blob", Index: 0}
+var memberMalformedLengthInput_blob = smithy.Member{Name: "blob", Index: 0, Target: &schemaLengthBlob}
 
-var memberMalformedLengthInput_string = smithy.Member{Name: "string", Index: 1}
+var memberMalformedLengthInput_string = smithy.Member{Name: "string", Index: 1, Target: &schemaLengthString}
 
-var memberMalformedLengthInput_minString = smithy.Member{Name: "minString", Index: 2}
+var memberMalformedLengthInput_minString = smithy.Member{Name: "minString", Index: 2, Target: &schemaMinLengthString}
 
-var memberMalformedLengthInput_maxString = smithy.Member{Name: "maxString", Index: 3}
+var memberMalformedLengthInput_maxString = smithy.Member{Name: "maxString", Index: 3, Target: &schemaMaxLengthString}
 
-var memberMalformedLengthInput_list = smithy.Member{Name: "list", Index: 4}
+var memberMalformedLengthInput_list = smithy.Member{Name: "list", Index: 4, Target: &schemaLengthList}
 
-var memberMalformedLengthInput_map = smithy.Member{Name: "map", Index: 5}
+var memberMalformedLengthInput_map = smithy.Member{Name: "map", Index: 5, Target: &schemaLengthMap}
 
-var schemaMalformedLengthOverrideInput = smithy.Schema{ID: "aws.protocoltests.restjson.validation#MalformedLengthOverrideInput", Type: smithy.TypeStructure}
+var schemaMalformedLengthOverrideInput = smithy.Schema{ID: "aws.protocoltests.restjson.validation#MalformedLengthOverrideInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberMalformedLengthOverrideInput_blob, &memberMalformedLengthOverrideInput_string, &memberMalformedLengthOverrideInput_minString, &memberMalformedLengthOverrideInput_maxString, &memberMalformedLengthOverrideInput_list, &memberMalformedLengthOverrideInput_map}}
 
-var memberMalformedLengthOverrideInput_blob = smithy.Member{Name: "blob", Index: 0}
+var memberMalformedLengthOverrideInput_blob = smithy.Member{Name: "blob", Index: 0, Target: &schemaLengthBlob}
 
-var memberMalformedLengthOverrideInput_string = smithy.Member{Name: "string", Index: 1}
+var memberMalformedLengthOverrideInput_string = smithy.Member{Name: "string", Index: 1, Target: &schemaLengthString}
 
-var memberMalformedLengthOverrideInput_minString = smithy.Member{Name: "minString", Index: 2}
+var memberMalformedLengthOverrideInput_minString = smithy.Member{Name: "minString", Index: 2, Target: &schemaMinLengthString}
 
-var memberMalformedLengthOverrideInput_maxString = smithy.Member{Name: "maxString", Index: 3}
+var memberMalformedLengthOverrideInput_maxString = smithy.Member{Name: "maxString", Index: 3, Target: &schemaMaxLengthString}
 
-var memberMalformedLengthOverrideInput_list = smithy.Member{Name: "list", Index: 4}
+var memberMalformedLengthOverrideInput_list = smithy.Member{Name: "list", Index: 4, Target: &schemaLengthList}
 
-var memberMalformedLengthOverrideInput_map = smithy.Member{Name: "map", Index: 5}
+var memberMalformedLengthOverrideInput_map = smithy.Member{Name: "map", Index: 5, Target: &schemaLengthMap}
 
-var schemaMalformedLengthQueryStringInput = smithy.Schema{ID: "aws.protocoltests.restjson.validation#MalformedLengthQueryStringInput", Type: smithy.TypeStructure}
+var schemaMalformedLengthQueryStringInput = smithy.Schema{ID: "aws.protocoltests.restjson.validation#MalformedLengthQueryStringInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberMalformedLengthQueryStringInput_string}}
 
-var memberMalformedLengthQueryStringInput_string = smithy.Member{Name: "string", Index: 0, HTTP: smithy.HTTPQuery{Name: "string"}}
+var memberMalformedLengthQueryStringInput_string = smithy.Member{Name: "string", Index: 0, Target: &schemaLengthString, HTTP: smithy.HTTPQuery{Name: "string"}}
 
-var schemaMalformedPatternInput = smithy.Schema{ID: "aws.protocoltests.restjson.validation#MalformedPatternInput", Type: smithy.TypeStructure}
+var schemaMalformedPatternInput = smithy.Schema{ID: "aws.protocoltests.restjson.validation#MalformedPatternInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberMalformedPatternInput_string, &memberMalformedPatternInput_evilString, &memberMalformedPatternInput_list, &memberMalformedPatternInput_map, &memberMalformedPatternInput_union}}
 
-var memberMalformedPatternInput_string = smithy.Member{Name: "string", Index: 0}
+var memberMalformedPatternInput_string = smithy.Member{Name: "string", Index: 0, Target: &schemaPatternString}
 
-var memberMalformedPatternInput_evilString = smithy.Member{Name: "evilString", Index: 1}
+var memberMalformedPatternInput_evilString = smithy.Member{Name: "evilString", Index: 1, Target: &schemaEvilString}
 
-var memberMalformedPatternInput_list = smithy.Member{Name: "list", Index: 2}
+var memberMalformedPatternInput_list = smithy.Member{Name: "list", Index: 2, Target: &schemaPatternList}
 
-var memberMalformedPatternInput_map = smithy.Member{Name: "map", Index: 3}
+var memberMalformedPatternInput_map = smithy.Member{Name: "map", Index: 3, Target: &schemaPatternMap}
 
-var memberMalformedPatternInput_union = smithy.Member{Name: "union", Index: 4}
+var memberMalformedPatternInput_union = smithy.Member{Name: "union", Index: 4, Target: &schemaPatternUnion}
 
-var schemaMalformedPatternOverrideInput = smithy.Schema{ID: "aws.protocoltests.restjson.validation#MalformedPatternOverrideInput", Type: smithy.TypeStructure}
+var schemaMalformedPatternOverrideInput = smithy.Schema{ID: "aws.protocoltests.restjson.validation#MalformedPatternOverrideInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberMalformedPatternOverrideInput_string, &memberMalformedPatternOverrideInput_list, &memberMalformedPatternOverrideInput_map, &memberMalformedPatternOverrideInput_union}}
 
-var memberMalformedPatternOverrideInput_string = smithy.Member{Name: "string", Index: 0}
+var memberMalformedPatternOverrideInput_string = smithy.Member{Name: "string", Index: 0, Target: &schemaPatternString}
 
-var memberMalformedPatternOverrideInput_list = smithy.Member{Name: "list", Index: 1}
+var memberMalformedPatternOverrideInput_list = smithy.Member{Name: "list", Index: 1, Target: &schemaPatternListOverride}
 
-var memberMalformedPatternOverrideInput_map = smithy.Member{Name: "map", Index: 2}
+var memberMalformedPatternOverrideInput_map = smithy.Member{Name: "map", Index: 2, Target: &schemaPatternMapOverride}
 
-var memberMalformedPatternOverrideInput_union = smithy.Member{Name: "union", Index: 3}
+var memberMalformedPatternOverrideInput_union = smithy.Member{Name: "union", Index: 3, Target: &schemaPatternUnionOverride}
 
-var schemaMalformedRangeInput = smithy.Schema{ID: "aws.protocoltests.restjson.validation#MalformedRangeInput", Type: smithy.TypeStructure}
+var schemaMalformedRangeInput = smithy.Schema{ID: "aws.protocoltests.restjson.validation#MalformedRangeInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberMalformedRangeInput_byte, &memberMalformedRangeInput_minByte, &memberMalformedRangeInput_maxByte, &memberMalformedRangeInput_short, &memberMalformedRangeInput_minShort, &memberMalformedRangeInput_maxShort, &memberMalformedRangeInput_integer, &memberMalformedRangeInput_minInteger, &memberMalformedRangeInput_maxInteger, &memberMalformedRangeInput_long, &memberMalformedRangeInput_minLong, &memberMalformedRangeInput_maxLong, &memberMalformedRangeInput_float, &memberMalformedRangeInput_minFloat, &memberMalformedRangeInput_maxFloat}}
 
-var memberMalformedRangeInput_byte = smithy.Member{Name: "byte", Index: 0}
+var memberMalformedRangeInput_byte = smithy.Member{Name: "byte", Index: 0, Target: &schemaRangeByte}
 
-var memberMalformedRangeInput_minByte = smithy.Member{Name: "minByte", Index: 1}
+var memberMalformedRangeInput_minByte = smithy.Member{Name: "minByte", Index: 1, Target: &schemaMinByte}
 
-var memberMalformedRangeInput_maxByte = smithy.Member{Name: "maxByte", Index: 2}
+var memberMalformedRangeInput_maxByte = smithy.Member{Name: "maxByte", Index: 2, Target: &schemaMaxByte}
 
-var memberMalformedRangeInput_short = smithy.Member{Name: "short", Index: 3}
+var memberMalformedRangeInput_short = smithy.Member{Name: "short", Index: 3, Target: &schemaRangeShort}
 
-var memberMalformedRangeInput_minShort = smithy.Member{Name: "minShort", Index: 4}
+var memberMalformedRangeInput_minShort = smithy.Member{Name: "minShort", Index: 4, Target: &schemaMinShort}
 
-var memberMalformedRangeInput_maxShort = smithy.Member{Name: "maxShort", Index: 5}
+var memberMalformedRangeInput_maxShort = smithy.Member{Name: "maxShort", Index: 5, Target: &schemaMaxShort}
 
-var memberMalformedRangeInput_integer = smithy.Member{Name: "integer", Index: 6}
+var memberMalformedRangeInput_integer = smithy.Member{Name: "integer", Index: 6, Target: &schemaRangeInteger}
 
-var memberMalformedRangeInput_minInteger = smithy.Member{Name: "minInteger", Index: 7}
+var memberMalformedRangeInput_minInteger = smithy.Member{Name: "minInteger", Index: 7, Target: &schemaMinInteger}
 
-var memberMalformedRangeInput_maxInteger = smithy.Member{Name: "maxInteger", Index: 8}
+var memberMalformedRangeInput_maxInteger = smithy.Member{Name: "maxInteger", Index: 8, Target: &schemaMaxInteger}
 
-var memberMalformedRangeInput_long = smithy.Member{Name: "long", Index: 9}
+var memberMalformedRangeInput_long = smithy.Member{Name: "long", Index: 9, Target: &schemaRangeLong}
 
-var memberMalformedRangeInput_minLong = smithy.Member{Name: "minLong", Index: 10}
+var memberMalformedRangeInput_minLong = smithy.Member{Name: "minLong", Index: 10, Target: &schemaMinLong}
 
-var memberMalformedRangeInput_maxLong = smithy.Member{Name: "maxLong", Index: 11}
+var memberMalformedRangeInput_maxLong = smithy.Member{Name: "maxLong", Index: 11, Target: &schemaMaxLong}
 
-var memberMalformedRangeInput_float = smithy.Member{Name: "float", Index: 12}
+var memberMalformedRangeInput_float = smithy.Member{Name: "float", Index: 12, Target: &schemaRangeFloat}
 
-var memberMalformedRangeInput_minFloat = smithy.Member{Name: "minFloat", Index: 13}
+var memberMalformedRangeInput_minFloat = smithy.Member{Name: "minFloat", Index: 13, Target: &schemaMinFloat}
 
-var memberMalformedRangeInput_maxFloat = smithy.Member{Name: "maxFloat", Index: 14}
+var memberMalformedRangeInput_maxFloat = smithy.Member{Name: "maxFloat", Index: 14, Target: &schemaMaxFloat}
 
-var schemaMalformedRangeOverrideInput = smithy.Schema{ID: "aws.protocoltests.restjson.validation#MalformedRangeOverrideInput", Type: smithy.TypeStructure}
+var schemaMalformedRangeOverrideInput = smithy.Schema{ID: "aws.protocoltests.restjson.validation#MalformedRangeOverrideInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberMalformedRangeOverrideInput_byte, &memberMalformedRangeOverrideInput_minByte, &memberMalformedRangeOverrideInput_maxByte, &memberMalformedRangeOverrideInput_short, &memberMalformedRangeOverrideInput_minShort, &memberMalformedRangeOverrideInput_maxShort, &memberMalformedRangeOverrideInput_integer, &memberMalformedRangeOverrideInput_minInteger, &memberMalformedRangeOverrideInput_maxInteger, &memberMalformedRangeOverrideInput_long, &memberMalformedRangeOverrideInput_minLong, &memberMalformedRangeOverrideInput_maxLong, &memberMalformedRangeOverrideInput_float, &memberMalformedRangeOverrideInput_minFloat, &memberMalformedRangeOverrideInput_maxFloat}}
 
-var memberMalformedRangeOverrideInput_byte = smithy.Member{Name: "byte", Index: 0}
+var memberMalformedRangeOverrideInput_byte = smithy.Member{Name: "byte", Index: 0, Target: &schemaRangeByte}
 
-var memberMalformedRangeOverrideInput_minByte = smithy.Member{Name: "minByte", Index: 1}
+var memberMalformedRangeOverrideInput_minByte = smithy.Member{Name: "minByte", Index: 1, Target: &schemaMinByte}
 
-var memberMalformedRangeOverrideInput_maxByte = smithy.Member{Name: "maxByte", Index: 2}
+var memberMalformedRangeOverrideInput_maxByte = smithy.Member{Name: "maxByte", Index: 2, Target: &schemaMaxByte}
 
-var memberMalformedRangeOverrideInput_short = smithy.Member{Name: "short", Index: 3}
+var memberMalformedRangeOverrideInput_short = smithy.Member{Name: "short", Index: 3, Target: &schemaRangeShort}
 
-var memberMalformedRangeOverrideInput_minShort = smithy.Member{Name: "minShort", Index: 4}
+var memberMalformedRangeOverrideInput_minShort = smithy.Member{Name: "minShort", Index: 4, Target: &schemaMinShort}
 
-var memberMalformedRangeOverrideInput_maxShort = smithy.Member{Name: "maxShort", Index: 5}
+var memberMalformedRangeOverrideInput_maxShort = smithy.Member{Name: "maxShort", Index: 5, Target: &schemaMaxShort}
 
-var memberMalformedRangeOverrideInput_integer = smithy.Member{Name: "integer", Index: 6}
+var memberMalformedRangeOverrideInput_integer = smithy.Member{Name: "integer", Index: 6, Target: &schemaRangeInteger}
 
-var memberMalformedRangeOverrideInput_minInteger = smithy.Member{Name: "minInteger", Index: 7}
+var memberMalformedRangeOverrideInput_minInteger = smithy.Member{Name: "minInteger", Index: 7, Target: &schemaMinInteger}
 
-var memberMalformedRangeOverrideInput_maxInteger = smithy.Member{Name: "maxInteger", Index: 8}
+var memberMalformedRangeOverrideInput_maxInteger = smithy.Member{Name: "maxInteger", Index: 8, Target: &schemaMaxInteger}
 
-var memberMalformedRangeOverrideInput_long = smithy.Member{Name: "long", Index: 9}
+var memberMalformedRangeOverrideInput_long = smithy.Member{Name: "long", Index: 9, Target: &schemaRangeLong}
 
-var memberMalformedRangeOverrideInput_minLong = smithy.Member{Name: "minLong", Index: 10}
+var memberMalformedRangeOverrideInput_minLong = smithy.Member{Name: "minLong", Index: 10, Target: &schemaMinLong}
 
-var memberMalformedRangeOverrideInput_maxLong = smithy.Member{Name: "maxLong", Index: 11}
+var memberMalformedRangeOverrideInput_maxLong = smithy.Member{Name: "maxLong", Index: 11, Target: &schemaMaxLong}
 
-var memberMalformedRangeOverrideInput_float = smithy.Member{Name: "float", Index: 12}
+var memberMalformedRangeOverrideInput_float = smithy.Member{Name: "float", Index: 12, Target: &schemaRangeFloat}
 
-var memberMalformedRangeOverrideInput_minFloat = smithy.Member{Name: "minFloat", Index: 13}
+var memberMalformedRangeOverrideInput_minFloat = smithy.Member{Name: "minFloat", Index: 13, Target: &schemaMinFloat}
 
-var memberMalformedRangeOverrideInput_maxFloat = smithy.Member{Name: "maxFloat", Index: 14}
+var memberMalformedRangeOverrideInput_maxFloat = smithy.Member{Name: "maxFloat", Index: 14, Target: &schemaMaxFloat}
 
-var schemaMalformedRequiredInput = smithy.Schema{ID: "aws.protocoltests.restjson.validation#MalformedRequiredInput", Type: smithy.TypeStructure}
+var schemaMalformedRequiredInput = smithy.Schema{ID: "aws.protocoltests.restjson.validation#MalformedRequiredInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberMalformedRequiredInput_string, &memberMalformedRequiredInput_stringInQuery, &memberMalformedRequiredInput_stringInHeader}}
 
-var memberMalformedRequiredInput_string = smithy.Member{Name: "string", Index: 0, Required: true}
+var memberMalformedRequiredInput_string = smithy.Member{Name: "string", Index: 0, Target: &schemaSmithyString, Required: true}
 
-var memberMalformedRequiredInput_stringInQuery = smithy.Member{Name: "stringInQuery", Index: 1, Required: true, HTTP: smithy.HTTPQuery{Name: "stringInQuery"}}
+var memberMalformedRequiredInput_stringInQuery = smithy.Member{Name: "stringInQuery", Index: 1, Target: &schemaSmithyString, Required: true, HTTP: smithy.HTTPQuery{Name: "stringInQuery"}}
 
-var memberMalformedRequiredInput_stringInHeader = smithy.Member{Name: "stringInHeader", Index: 2, Required: true, HTTP: smithy.HTTPHeader{Name: "string-in-headers"}}
+var memberMalformedRequiredInput_stringInHeader = smithy.Member{Name: "stringInHeader", Index: 2, Target: &schemaSmithyString, Required: true, HTTP: smithy.HTTPHeader{Name: "string-in-headers"}}
 
-var schemaMalformedUniqueItemsInput = smithy.Schema{ID: "aws.protocoltests.restjson.validation#MalformedUniqueItemsInput", Type: smithy.TypeStructure}
+var schemaMalformedUniqueItemsInput = smithy.Schema{ID: "aws.protocoltests.restjson.validation#MalformedUniqueItemsInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberMalformedUniqueItemsInput_blobList, &memberMalformedUniqueItemsInput_booleanList, &memberMalformedUniqueItemsInput_stringList, &memberMalformedUniqueItemsInput_byteList, &memberMalformedUniqueItemsInput_shortList, &memberMalformedUniqueItemsInput_integerList, &memberMalformedUniqueItemsInput_longList, &memberMalformedUniqueItemsInput_timestampList, &memberMalformedUniqueItemsInput_dateTimeList, &memberMalformedUniqueItemsInput_httpDateList, &memberMalformedUniqueItemsInput_enumList, &memberMalformedUniqueItemsInput_intEnumList, &memberMalformedUniqueItemsInput_listList, &memberMalformedUniqueItemsInput_structureList, &memberMalformedUniqueItemsInput_structureListWithNoKey, &memberMalformedUniqueItemsInput_unionList}}
 
-var memberMalformedUniqueItemsInput_blobList = smithy.Member{Name: "blobList", Index: 0}
+var memberMalformedUniqueItemsInput_blobList = smithy.Member{Name: "blobList", Index: 0, Target: &schemaBlobSet}
 
-var memberMalformedUniqueItemsInput_booleanList = smithy.Member{Name: "booleanList", Index: 1}
+var memberMalformedUniqueItemsInput_booleanList = smithy.Member{Name: "booleanList", Index: 1, Target: &schemaBooleanSet}
 
-var memberMalformedUniqueItemsInput_stringList = smithy.Member{Name: "stringList", Index: 2}
+var memberMalformedUniqueItemsInput_stringList = smithy.Member{Name: "stringList", Index: 2, Target: &schemaStringSet}
 
-var memberMalformedUniqueItemsInput_byteList = smithy.Member{Name: "byteList", Index: 3}
+var memberMalformedUniqueItemsInput_byteList = smithy.Member{Name: "byteList", Index: 3, Target: &schemaByteSet}
 
-var memberMalformedUniqueItemsInput_shortList = smithy.Member{Name: "shortList", Index: 4}
+var memberMalformedUniqueItemsInput_shortList = smithy.Member{Name: "shortList", Index: 4, Target: &schemaShortSet}
 
-var memberMalformedUniqueItemsInput_integerList = smithy.Member{Name: "integerList", Index: 5}
+var memberMalformedUniqueItemsInput_integerList = smithy.Member{Name: "integerList", Index: 5, Target: &schemaIntegerSet}
 
-var memberMalformedUniqueItemsInput_longList = smithy.Member{Name: "longList", Index: 6}
+var memberMalformedUniqueItemsInput_longList = smithy.Member{Name: "longList", Index: 6, Target: &schemaLongSet}
 
-var memberMalformedUniqueItemsInput_timestampList = smithy.Member{Name: "timestampList", Index: 7}
+var memberMalformedUniqueItemsInput_timestampList = smithy.Member{Name: "timestampList", Index: 7, Target: &schemaTimestampSet}
 
-var memberMalformedUniqueItemsInput_dateTimeList = smithy.Member{Name: "dateTimeList", Index: 8}
+var memberMalformedUniqueItemsInput_dateTimeList = smithy.Member{Name: "dateTimeList", Index: 8, Target: &schemaDateTimeSet}
 
-var memberMalformedUniqueItemsInput_httpDateList = smithy.Member{Name: "httpDateList", Index: 9}
+var memberMalformedUniqueItemsInput_httpDateList = smithy.Member{Name: "httpDateList", Index: 9, Target: &schemaHttpDateSet}
 
-var memberMalformedUniqueItemsInput_enumList = smithy.Member{Name: "enumList", Index: 10}
+var memberMalformedUniqueItemsInput_enumList = smithy.Member{Name: "enumList", Index: 10, Target: &schemaFooEnumSet}
 
-var memberMalformedUniqueItemsInput_intEnumList = smithy.Member{Name: "intEnumList", Index: 11}
+var memberMalformedUniqueItemsInput_intEnumList = smithy.Member{Name: "intEnumList", Index: 11, Target: &schemaIntegerEnumSet}
 
-var memberMalformedUniqueItemsInput_listList = smithy.Member{Name: "listList", Index: 12}
+var memberMalformedUniqueItemsInput_listList = smithy.Member{Name: "listList", Index: 12, Target: &schemaListSet}
 
-var memberMalformedUniqueItemsInput_structureList = smithy.Member{Name: "structureList", Index: 13}
+var memberMalformedUniqueItemsInput_structureList = smithy.Member{Name: "structureList", Index: 13, Target: &schemaStructureSet}
 
-var memberMalformedUniqueItemsInput_structureListWithNoKey = smithy.Member{Name: "structureListWithNoKey", Index: 14}
+var memberMalformedUniqueItemsInput_structureListWithNoKey = smithy.Member{Name: "structureListWithNoKey", Index: 14, Target: &schemaStructureSetWithNoKey}
 
-var memberMalformedUniqueItemsInput_unionList = smithy.Member{Name: "unionList", Index: 15}
+var memberMalformedUniqueItemsInput_unionList = smithy.Member{Name: "unionList", Index: 15, Target: &schemaUnionSet}
 
 var schemaMaxByte = smithy.Schema{ID: "aws.protocoltests.restjson.validation#MaxByte", Type: smithy.TypeByte}
 
@@ -296,45 +296,45 @@ var schemaMinLong = smithy.Schema{ID: "aws.protocoltests.restjson.validation#Min
 
 var schemaMinShort = smithy.Schema{ID: "aws.protocoltests.restjson.validation#MinShort", Type: smithy.TypeShort}
 
-var schemaMissingKeyStructure = smithy.Schema{ID: "aws.protocoltests.restjson.validation#MissingKeyStructure", Type: smithy.TypeStructure}
+var schemaMissingKeyStructure = smithy.Schema{ID: "aws.protocoltests.restjson.validation#MissingKeyStructure", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberMissingKeyStructure_hi}}
 
-var memberMissingKeyStructure_hi = smithy.Member{Name: "hi", Index: 0, Required: true}
+var memberMissingKeyStructure_hi = smithy.Member{Name: "hi", Index: 0, Target: &schemaMyStringKey, Required: true}
 
 var schemaMyStringKey = smithy.Schema{ID: "aws.protocoltests.restjson.validation#MyStringKey", Type: smithy.TypeString}
 
-var schemaPatternList = smithy.Schema{ID: "aws.protocoltests.restjson.validation#PatternList", Type: smithy.TypeList}
+var schemaPatternList = smithy.Schema{ID: "aws.protocoltests.restjson.validation#PatternList", Type: smithy.TypeList, Members: []*smithy.Member{&memberPatternList_member}}
 
-var memberPatternList_member = smithy.Member{Name: "member", Index: 0}
+var memberPatternList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaPatternString}
 
-var schemaPatternListOverride = smithy.Schema{ID: "aws.protocoltests.restjson.validation#PatternListOverride", Type: smithy.TypeList}
+var schemaPatternListOverride = smithy.Schema{ID: "aws.protocoltests.restjson.validation#PatternListOverride", Type: smithy.TypeList, Members: []*smithy.Member{&memberPatternListOverride_member}}
 
-var memberPatternListOverride_member = smithy.Member{Name: "member", Index: 0}
+var memberPatternListOverride_member = smithy.Member{Name: "member", Index: 0, Target: &schemaPatternString}
 
-var schemaPatternMap = smithy.Schema{ID: "aws.protocoltests.restjson.validation#PatternMap", Type: smithy.TypeMap}
+var schemaPatternMap = smithy.Schema{ID: "aws.protocoltests.restjson.validation#PatternMap", Type: smithy.TypeMap, Members: []*smithy.Member{&memberPatternMap_key, &memberPatternMap_value}}
 
-var memberPatternMap_key = smithy.Member{Name: "key", Index: 0}
+var memberPatternMap_key = smithy.Member{Name: "key", Index: 0, Target: &schemaPatternString}
 
-var memberPatternMap_value = smithy.Member{Name: "value", Index: 1}
+var memberPatternMap_value = smithy.Member{Name: "value", Index: 1, Target: &schemaPatternString}
 
-var schemaPatternMapOverride = smithy.Schema{ID: "aws.protocoltests.restjson.validation#PatternMapOverride", Type: smithy.TypeMap}
+var schemaPatternMapOverride = smithy.Schema{ID: "aws.protocoltests.restjson.validation#PatternMapOverride", Type: smithy.TypeMap, Members: []*smithy.Member{&memberPatternMapOverride_key, &memberPatternMapOverride_value}}
 
-var memberPatternMapOverride_key = smithy.Member{Name: "key", Index: 0}
+var memberPatternMapOverride_key = smithy.Member{Name: "key", Index: 0, Target: &schemaPatternString}
 
-var memberPatternMapOverride_value = smithy.Member{Name: "value", Index: 1}
+var memberPatternMapOverride_value = smithy.Member{Name: "value", Index: 1, Target: &schemaPatternString}
 
 var schemaPatternString = smithy.Schema{ID: "aws.protocoltests.restjson.validation#PatternString", Type: smithy.TypeString}
 
-var schemaPatternUnion = smithy.Schema{ID: "aws.protocoltests.restjson.validation#PatternUnion", Type: smithy.TypeUnion}
+var schemaPatternUnion = smithy.Schema{ID: "aws.protocoltests.restjson.validation#PatternUnion", Type: smithy.TypeUnion, Members: []*smithy.Member{&memberPatternUnion_first, &memberPatternUnion_second}}
 
-var memberPatternUnion_first = smithy.Member{Name: "first", Index: 0}
+var memberPatternUnion_first = smithy.Member{Name: "first", Index: 0, Target: &schemaPatternString}
 
-var memberPatternUnion_second = smithy.Member{Name: "second", Index: 1}
+var memberPatternUnion_second = smithy.Member{Name: "second", Index: 1, Target: &schemaPatternString}
 
-var schemaPatternUnionOverride = smithy.Schema{ID: "aws.protocoltests.restjson.validation#PatternUnionOverride", Type: smithy.TypeUnion}
+var schemaPatternUnionOverride = smithy.Schema{ID: "aws.protocoltests.restjson.validation#PatternUnionOverride", Type: smithy.TypeUnion, Members: []*smithy.Member{&memberPatternUnionOverride_first, &memberPatternUnionOverride_second}}
 
-var memberPatternUnionOverride_first = smithy.Member{Name: "first", Index: 0}
+var memberPatternUnionOverride_first = smithy.Member{Name: "first", Index: 0, Target: &schemaPatternString}
 
-var memberPatternUnionOverride_second = smithy.Member{Name: "second", Index: 1}
+var memberPatternUnionOverride_second = smithy.Member{Name: "second", Index: 1, Target: &schemaPatternString}
 
 var schemaRangeByte = smithy.Schema{ID: "aws.protocoltests.restjson.validation#RangeByte", Type: smithy.TypeByte}
 
@@ -348,35 +348,35 @@ var schemaRangeShort = smithy.Schema{ID: "aws.protocoltests.restjson.validation#
 
 var schemaRecursiveEnumString = smithy.Schema{ID: "aws.protocoltests.restjson.validation#RecursiveEnumString", Type: smithy.TypeEnum}
 
-var schemaRecursiveStructuresInput = smithy.Schema{ID: "aws.protocoltests.restjson.validation#RecursiveStructuresInput", Type: smithy.TypeStructure}
+var schemaRecursiveStructuresInput = smithy.Schema{ID: "aws.protocoltests.restjson.validation#RecursiveStructuresInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRecursiveStructuresInput_union}}
 
-var memberRecursiveStructuresInput_union = smithy.Member{Name: "union", Index: 0}
+var memberRecursiveStructuresInput_union = smithy.Member{Name: "union", Index: 0, Target: &schemaRecursiveUnionOne}
 
 var schemaRecursiveUnionOne = smithy.Schema{ID: "aws.protocoltests.restjson.validation#RecursiveUnionOne", Type: smithy.TypeUnion}
 
-var memberRecursiveUnionOne_string = smithy.Member{Name: "string", Index: 0}
+var memberRecursiveUnionOne_string = smithy.Member{Name: "string", Index: 0, Target: &schemaRecursiveEnumString}
 
-var memberRecursiveUnionOne_union = smithy.Member{Name: "union", Index: 1}
+var memberRecursiveUnionOne_union = smithy.Member{Name: "union", Index: 1, Target: &schemaRecursiveUnionTwo}
 
 var schemaRecursiveUnionTwo = smithy.Schema{ID: "aws.protocoltests.restjson.validation#RecursiveUnionTwo", Type: smithy.TypeUnion}
 
-var memberRecursiveUnionTwo_string = smithy.Member{Name: "string", Index: 0}
+var memberRecursiveUnionTwo_string = smithy.Member{Name: "string", Index: 0, Target: &schemaRecursiveEnumString}
 
-var memberRecursiveUnionTwo_union = smithy.Member{Name: "union", Index: 1}
+var memberRecursiveUnionTwo_union = smithy.Member{Name: "union", Index: 1, Target: &schemaRecursiveUnionOne}
 
 var schemaSensitivePatternString = smithy.Schema{ID: "aws.protocoltests.restjson.validation#SensitivePatternString", Type: smithy.TypeString, Sensitive: true}
 
-var schemaSensitiveValidationInput = smithy.Schema{ID: "aws.protocoltests.restjson.validation#SensitiveValidationInput", Type: smithy.TypeStructure}
+var schemaSensitiveValidationInput = smithy.Schema{ID: "aws.protocoltests.restjson.validation#SensitiveValidationInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSensitiveValidationInput_string}}
 
-var memberSensitiveValidationInput_string = smithy.Member{Name: "string", Index: 0, Sensitive: true}
+var memberSensitiveValidationInput_string = smithy.Member{Name: "string", Index: 0, Target: &schemaSensitivePatternString, Sensitive: true}
 
-var schemaSerializationException = smithy.Schema{ID: "com.amazon.coral.service#SerializationException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaSerializationException = smithy.Schema{ID: "com.amazon.coral.service#SerializationException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSerializationException_Message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberSerializationException_Message = smithy.Member{Name: "Message", Index: 0}
+var memberSerializationException_Message = smithy.Member{Name: "Message", Index: 0, Target: &schemaSmithyString}
 
-var schemaShortSet = smithy.Schema{ID: "aws.protocoltests.shared#ShortSet", Type: smithy.TypeList}
+var schemaShortSet = smithy.Schema{ID: "aws.protocoltests.shared#ShortSet", Type: smithy.TypeList, Members: []*smithy.Member{&memberShortSet_member}}
 
-var memberShortSet_member = smithy.Member{Name: "member", Index: 0}
+var memberShortSet_member = smithy.Member{Name: "member", Index: 0, Target: &schemaSmithyShort}
 
 var schemaSmithyBlob = smithy.Schema{ID: "smithy.api#Blob", Type: smithy.TypeBlob}
 
@@ -396,227 +396,51 @@ var schemaSmithyTimestamp = smithy.Schema{ID: "smithy.api#Timestamp", Type: smit
 
 var schemaSmithyUnit = smithy.Schema{ID: "smithy.api#Unit", Type: smithy.TypeUnit}
 
-var schemaStringList = smithy.Schema{ID: "aws.protocoltests.shared#StringList", Type: smithy.TypeList}
+var schemaStringList = smithy.Schema{ID: "aws.protocoltests.shared#StringList", Type: smithy.TypeList, Members: []*smithy.Member{&memberStringList_member}}
 
-var memberStringList_member = smithy.Member{Name: "member", Index: 0}
+var memberStringList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaSmithyString}
 
-var schemaStringSet = smithy.Schema{ID: "aws.protocoltests.shared#StringSet", Type: smithy.TypeList}
+var schemaStringSet = smithy.Schema{ID: "aws.protocoltests.shared#StringSet", Type: smithy.TypeList, Members: []*smithy.Member{&memberStringSet_member}}
 
-var memberStringSet_member = smithy.Member{Name: "member", Index: 0}
+var memberStringSet_member = smithy.Member{Name: "member", Index: 0, Target: &schemaSmithyString}
 
-var schemaStructureSet = smithy.Schema{ID: "aws.protocoltests.shared#StructureSet", Type: smithy.TypeList}
+var schemaStructureSet = smithy.Schema{ID: "aws.protocoltests.shared#StructureSet", Type: smithy.TypeList, Members: []*smithy.Member{&memberStructureSet_member}}
 
-var memberStructureSet_member = smithy.Member{Name: "member", Index: 0}
+var memberStructureSet_member = smithy.Member{Name: "member", Index: 0, Target: &schemaGreetingStruct}
 
-var schemaStructureSetWithNoKey = smithy.Schema{ID: "aws.protocoltests.restjson.validation#StructureSetWithNoKey", Type: smithy.TypeList}
+var schemaStructureSetWithNoKey = smithy.Schema{ID: "aws.protocoltests.restjson.validation#StructureSetWithNoKey", Type: smithy.TypeList, Members: []*smithy.Member{&memberStructureSetWithNoKey_member}}
 
-var memberStructureSetWithNoKey_member = smithy.Member{Name: "member", Index: 0}
+var memberStructureSetWithNoKey_member = smithy.Member{Name: "member", Index: 0, Target: &schemaMissingKeyStructure}
 
-var schemaTimestampSet = smithy.Schema{ID: "aws.protocoltests.shared#TimestampSet", Type: smithy.TypeList}
+var schemaTimestampSet = smithy.Schema{ID: "aws.protocoltests.shared#TimestampSet", Type: smithy.TypeList, Members: []*smithy.Member{&memberTimestampSet_member}}
 
-var memberTimestampSet_member = smithy.Member{Name: "member", Index: 0}
+var memberTimestampSet_member = smithy.Member{Name: "member", Index: 0, Target: &schemaSmithyTimestamp}
 
-var schemaUnionSet = smithy.Schema{ID: "aws.protocoltests.shared#UnionSet", Type: smithy.TypeList}
+var schemaUnionSet = smithy.Schema{ID: "aws.protocoltests.shared#UnionSet", Type: smithy.TypeList, Members: []*smithy.Member{&memberUnionSet_member}}
 
-var memberUnionSet_member = smithy.Member{Name: "member", Index: 0}
+var memberUnionSet_member = smithy.Member{Name: "member", Index: 0, Target: &schemaFooUnion}
 
-var schemaUnknownOperationException = smithy.Schema{ID: "com.amazon.coral.service#UnknownOperationException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaUnknownOperationException = smithy.Schema{ID: "com.amazon.coral.service#UnknownOperationException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUnknownOperationException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberUnknownOperationException_message = smithy.Member{Name: "message", Index: 0}
+var memberUnknownOperationException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaValidationException = smithy.Schema{ID: "smithy.framework#ValidationException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
+var schemaValidationException = smithy.Schema{ID: "smithy.framework#ValidationException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberValidationException_message, &memberValidationException_fieldList}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
 
-var memberValidationException_message = smithy.Member{Name: "message", Index: 0, Required: true}
+var memberValidationException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString, Required: true}
 
-var memberValidationException_fieldList = smithy.Member{Name: "fieldList", Index: 1}
+var memberValidationException_fieldList = smithy.Member{Name: "fieldList", Index: 1, Target: &schemaValidationExceptionFieldList}
 
-var schemaValidationExceptionField = smithy.Schema{ID: "smithy.framework#ValidationExceptionField", Type: smithy.TypeStructure}
+var schemaValidationExceptionField = smithy.Schema{ID: "smithy.framework#ValidationExceptionField", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberValidationExceptionField_path, &memberValidationExceptionField_message}}
 
-var memberValidationExceptionField_path = smithy.Member{Name: "path", Index: 0, Required: true}
+var memberValidationExceptionField_path = smithy.Member{Name: "path", Index: 0, Target: &schemaSmithyString, Required: true}
 
-var memberValidationExceptionField_message = smithy.Member{Name: "message", Index: 1, Required: true}
+var memberValidationExceptionField_message = smithy.Member{Name: "message", Index: 1, Target: &schemaSmithyString, Required: true}
 
-var schemaValidationExceptionFieldList = smithy.Schema{ID: "smithy.framework#ValidationExceptionFieldList", Type: smithy.TypeList}
+var schemaValidationExceptionFieldList = smithy.Schema{ID: "smithy.framework#ValidationExceptionFieldList", Type: smithy.TypeList, Members: []*smithy.Member{&memberValidationExceptionFieldList_member}}
 
-var memberValidationExceptionFieldList_member = smithy.Member{Name: "member", Index: 0}
+var memberValidationExceptionFieldList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaValidationExceptionField}
 
 func init() {
-	memberBlobSet_member.Target = &schemaSmithyBlob
-	schemaBlobSet.Members = []*smithy.Member{&memberBlobSet_member}
-	memberBooleanSet_member.Target = &schemaSmithyBoolean
-	schemaBooleanSet.Members = []*smithy.Member{&memberBooleanSet_member}
-	memberByteSet_member.Target = &schemaSmithyByte
-	schemaByteSet.Members = []*smithy.Member{&memberByteSet_member}
-	memberDateTimeSet_member.Target = &schemaDateTime
-	schemaDateTimeSet.Members = []*smithy.Member{&memberDateTimeSet_member}
-	memberEnumList_member.Target = &schemaEnumString
-	schemaEnumList.Members = []*smithy.Member{&memberEnumList_member}
-	memberEnumMap_key.Target = &schemaEnumString
-	memberEnumMap_value.Target = &schemaEnumString
-	schemaEnumMap.Members = []*smithy.Member{&memberEnumMap_key, &memberEnumMap_value}
-	memberEnumUnion_first.Target = &schemaEnumString
-	memberEnumUnion_second.Target = &schemaEnumString
-	schemaEnumUnion.Members = []*smithy.Member{&memberEnumUnion_first, &memberEnumUnion_second}
-	memberFooEnumSet_member.Target = &schemaFooEnum
-	schemaFooEnumSet.Members = []*smithy.Member{&memberFooEnumSet_member}
-	memberFooUnion_string.Target = &schemaSmithyString
-	memberFooUnion_integer.Target = &schemaSmithyInteger
-	schemaFooUnion.Members = []*smithy.Member{&memberFooUnion_string, &memberFooUnion_integer}
-	memberGreetingStruct_hi.Target = &schemaSmithyString
-	schemaGreetingStruct.Members = []*smithy.Member{&memberGreetingStruct_hi}
-	memberHttpDateSet_member.Target = &schemaHttpDate
-	schemaHttpDateSet.Members = []*smithy.Member{&memberHttpDateSet_member}
-	memberIntegerEnumSet_member.Target = &schemaIntegerEnum
-	schemaIntegerEnumSet.Members = []*smithy.Member{&memberIntegerEnumSet_member}
-	memberIntegerSet_member.Target = &schemaSmithyInteger
-	schemaIntegerSet.Members = []*smithy.Member{&memberIntegerSet_member}
-	memberLengthList_member.Target = &schemaLengthString
-	schemaLengthList.Members = []*smithy.Member{&memberLengthList_member}
-	memberLengthMap_key.Target = &schemaLengthString
-	memberLengthMap_value.Target = &schemaLengthList
-	schemaLengthMap.Members = []*smithy.Member{&memberLengthMap_key, &memberLengthMap_value}
-	memberListSet_member.Target = &schemaStringList
-	schemaListSet.Members = []*smithy.Member{&memberListSet_member}
-	memberLongSet_member.Target = &schemaSmithyLong
-	schemaLongSet.Members = []*smithy.Member{&memberLongSet_member}
-	memberMalformedEnumInput_string.Target = &schemaEnumString
-	memberMalformedEnumInput_stringWithEnumTrait.Target = &schemaEnumTraitString
-	memberMalformedEnumInput_list.Target = &schemaEnumList
-	memberMalformedEnumInput_map.Target = &schemaEnumMap
-	memberMalformedEnumInput_union.Target = &schemaEnumUnion
-	schemaMalformedEnumInput.Members = []*smithy.Member{&memberMalformedEnumInput_string, &memberMalformedEnumInput_stringWithEnumTrait, &memberMalformedEnumInput_list, &memberMalformedEnumInput_map, &memberMalformedEnumInput_union}
-	memberMalformedLengthInput_blob.Target = &schemaLengthBlob
-	memberMalformedLengthInput_string.Target = &schemaLengthString
-	memberMalformedLengthInput_minString.Target = &schemaMinLengthString
-	memberMalformedLengthInput_maxString.Target = &schemaMaxLengthString
-	memberMalformedLengthInput_list.Target = &schemaLengthList
-	memberMalformedLengthInput_map.Target = &schemaLengthMap
-	schemaMalformedLengthInput.Members = []*smithy.Member{&memberMalformedLengthInput_blob, &memberMalformedLengthInput_string, &memberMalformedLengthInput_minString, &memberMalformedLengthInput_maxString, &memberMalformedLengthInput_list, &memberMalformedLengthInput_map}
-	memberMalformedLengthOverrideInput_blob.Target = &schemaLengthBlob
-	memberMalformedLengthOverrideInput_string.Target = &schemaLengthString
-	memberMalformedLengthOverrideInput_minString.Target = &schemaMinLengthString
-	memberMalformedLengthOverrideInput_maxString.Target = &schemaMaxLengthString
-	memberMalformedLengthOverrideInput_list.Target = &schemaLengthList
-	memberMalformedLengthOverrideInput_map.Target = &schemaLengthMap
-	schemaMalformedLengthOverrideInput.Members = []*smithy.Member{&memberMalformedLengthOverrideInput_blob, &memberMalformedLengthOverrideInput_string, &memberMalformedLengthOverrideInput_minString, &memberMalformedLengthOverrideInput_maxString, &memberMalformedLengthOverrideInput_list, &memberMalformedLengthOverrideInput_map}
-	memberMalformedLengthQueryStringInput_string.Target = &schemaLengthString
-	schemaMalformedLengthQueryStringInput.Members = []*smithy.Member{&memberMalformedLengthQueryStringInput_string}
-	memberMalformedPatternInput_string.Target = &schemaPatternString
-	memberMalformedPatternInput_evilString.Target = &schemaEvilString
-	memberMalformedPatternInput_list.Target = &schemaPatternList
-	memberMalformedPatternInput_map.Target = &schemaPatternMap
-	memberMalformedPatternInput_union.Target = &schemaPatternUnion
-	schemaMalformedPatternInput.Members = []*smithy.Member{&memberMalformedPatternInput_string, &memberMalformedPatternInput_evilString, &memberMalformedPatternInput_list, &memberMalformedPatternInput_map, &memberMalformedPatternInput_union}
-	memberMalformedPatternOverrideInput_string.Target = &schemaPatternString
-	memberMalformedPatternOverrideInput_list.Target = &schemaPatternListOverride
-	memberMalformedPatternOverrideInput_map.Target = &schemaPatternMapOverride
-	memberMalformedPatternOverrideInput_union.Target = &schemaPatternUnionOverride
-	schemaMalformedPatternOverrideInput.Members = []*smithy.Member{&memberMalformedPatternOverrideInput_string, &memberMalformedPatternOverrideInput_list, &memberMalformedPatternOverrideInput_map, &memberMalformedPatternOverrideInput_union}
-	memberMalformedRangeInput_byte.Target = &schemaRangeByte
-	memberMalformedRangeInput_minByte.Target = &schemaMinByte
-	memberMalformedRangeInput_maxByte.Target = &schemaMaxByte
-	memberMalformedRangeInput_short.Target = &schemaRangeShort
-	memberMalformedRangeInput_minShort.Target = &schemaMinShort
-	memberMalformedRangeInput_maxShort.Target = &schemaMaxShort
-	memberMalformedRangeInput_integer.Target = &schemaRangeInteger
-	memberMalformedRangeInput_minInteger.Target = &schemaMinInteger
-	memberMalformedRangeInput_maxInteger.Target = &schemaMaxInteger
-	memberMalformedRangeInput_long.Target = &schemaRangeLong
-	memberMalformedRangeInput_minLong.Target = &schemaMinLong
-	memberMalformedRangeInput_maxLong.Target = &schemaMaxLong
-	memberMalformedRangeInput_float.Target = &schemaRangeFloat
-	memberMalformedRangeInput_minFloat.Target = &schemaMinFloat
-	memberMalformedRangeInput_maxFloat.Target = &schemaMaxFloat
-	schemaMalformedRangeInput.Members = []*smithy.Member{&memberMalformedRangeInput_byte, &memberMalformedRangeInput_minByte, &memberMalformedRangeInput_maxByte, &memberMalformedRangeInput_short, &memberMalformedRangeInput_minShort, &memberMalformedRangeInput_maxShort, &memberMalformedRangeInput_integer, &memberMalformedRangeInput_minInteger, &memberMalformedRangeInput_maxInteger, &memberMalformedRangeInput_long, &memberMalformedRangeInput_minLong, &memberMalformedRangeInput_maxLong, &memberMalformedRangeInput_float, &memberMalformedRangeInput_minFloat, &memberMalformedRangeInput_maxFloat}
-	memberMalformedRangeOverrideInput_byte.Target = &schemaRangeByte
-	memberMalformedRangeOverrideInput_minByte.Target = &schemaMinByte
-	memberMalformedRangeOverrideInput_maxByte.Target = &schemaMaxByte
-	memberMalformedRangeOverrideInput_short.Target = &schemaRangeShort
-	memberMalformedRangeOverrideInput_minShort.Target = &schemaMinShort
-	memberMalformedRangeOverrideInput_maxShort.Target = &schemaMaxShort
-	memberMalformedRangeOverrideInput_integer.Target = &schemaRangeInteger
-	memberMalformedRangeOverrideInput_minInteger.Target = &schemaMinInteger
-	memberMalformedRangeOverrideInput_maxInteger.Target = &schemaMaxInteger
-	memberMalformedRangeOverrideInput_long.Target = &schemaRangeLong
-	memberMalformedRangeOverrideInput_minLong.Target = &schemaMinLong
-	memberMalformedRangeOverrideInput_maxLong.Target = &schemaMaxLong
-	memberMalformedRangeOverrideInput_float.Target = &schemaRangeFloat
-	memberMalformedRangeOverrideInput_minFloat.Target = &schemaMinFloat
-	memberMalformedRangeOverrideInput_maxFloat.Target = &schemaMaxFloat
-	schemaMalformedRangeOverrideInput.Members = []*smithy.Member{&memberMalformedRangeOverrideInput_byte, &memberMalformedRangeOverrideInput_minByte, &memberMalformedRangeOverrideInput_maxByte, &memberMalformedRangeOverrideInput_short, &memberMalformedRangeOverrideInput_minShort, &memberMalformedRangeOverrideInput_maxShort, &memberMalformedRangeOverrideInput_integer, &memberMalformedRangeOverrideInput_minInteger, &memberMalformedRangeOverrideInput_maxInteger, &memberMalformedRangeOverrideInput_long, &memberMalformedRangeOverrideInput_minLong, &memberMalformedRangeOverrideInput_maxLong, &memberMalformedRangeOverrideInput_float, &memberMalformedRangeOverrideInput_minFloat, &memberMalformedRangeOverrideInput_maxFloat}
-	memberMalformedRequiredInput_string.Target = &schemaSmithyString
-	memberMalformedRequiredInput_stringInQuery.Target = &schemaSmithyString
-	memberMalformedRequiredInput_stringInHeader.Target = &schemaSmithyString
-	schemaMalformedRequiredInput.Members = []*smithy.Member{&memberMalformedRequiredInput_string, &memberMalformedRequiredInput_stringInQuery, &memberMalformedRequiredInput_stringInHeader}
-	memberMalformedUniqueItemsInput_blobList.Target = &schemaBlobSet
-	memberMalformedUniqueItemsInput_booleanList.Target = &schemaBooleanSet
-	memberMalformedUniqueItemsInput_stringList.Target = &schemaStringSet
-	memberMalformedUniqueItemsInput_byteList.Target = &schemaByteSet
-	memberMalformedUniqueItemsInput_shortList.Target = &schemaShortSet
-	memberMalformedUniqueItemsInput_integerList.Target = &schemaIntegerSet
-	memberMalformedUniqueItemsInput_longList.Target = &schemaLongSet
-	memberMalformedUniqueItemsInput_timestampList.Target = &schemaTimestampSet
-	memberMalformedUniqueItemsInput_dateTimeList.Target = &schemaDateTimeSet
-	memberMalformedUniqueItemsInput_httpDateList.Target = &schemaHttpDateSet
-	memberMalformedUniqueItemsInput_enumList.Target = &schemaFooEnumSet
-	memberMalformedUniqueItemsInput_intEnumList.Target = &schemaIntegerEnumSet
-	memberMalformedUniqueItemsInput_listList.Target = &schemaListSet
-	memberMalformedUniqueItemsInput_structureList.Target = &schemaStructureSet
-	memberMalformedUniqueItemsInput_structureListWithNoKey.Target = &schemaStructureSetWithNoKey
-	memberMalformedUniqueItemsInput_unionList.Target = &schemaUnionSet
-	schemaMalformedUniqueItemsInput.Members = []*smithy.Member{&memberMalformedUniqueItemsInput_blobList, &memberMalformedUniqueItemsInput_booleanList, &memberMalformedUniqueItemsInput_stringList, &memberMalformedUniqueItemsInput_byteList, &memberMalformedUniqueItemsInput_shortList, &memberMalformedUniqueItemsInput_integerList, &memberMalformedUniqueItemsInput_longList, &memberMalformedUniqueItemsInput_timestampList, &memberMalformedUniqueItemsInput_dateTimeList, &memberMalformedUniqueItemsInput_httpDateList, &memberMalformedUniqueItemsInput_enumList, &memberMalformedUniqueItemsInput_intEnumList, &memberMalformedUniqueItemsInput_listList, &memberMalformedUniqueItemsInput_structureList, &memberMalformedUniqueItemsInput_structureListWithNoKey, &memberMalformedUniqueItemsInput_unionList}
-	memberMissingKeyStructure_hi.Target = &schemaMyStringKey
-	schemaMissingKeyStructure.Members = []*smithy.Member{&memberMissingKeyStructure_hi}
-	memberPatternList_member.Target = &schemaPatternString
-	schemaPatternList.Members = []*smithy.Member{&memberPatternList_member}
-	memberPatternListOverride_member.Target = &schemaPatternString
-	schemaPatternListOverride.Members = []*smithy.Member{&memberPatternListOverride_member}
-	memberPatternMap_key.Target = &schemaPatternString
-	memberPatternMap_value.Target = &schemaPatternString
-	schemaPatternMap.Members = []*smithy.Member{&memberPatternMap_key, &memberPatternMap_value}
-	memberPatternMapOverride_key.Target = &schemaPatternString
-	memberPatternMapOverride_value.Target = &schemaPatternString
-	schemaPatternMapOverride.Members = []*smithy.Member{&memberPatternMapOverride_key, &memberPatternMapOverride_value}
-	memberPatternUnion_first.Target = &schemaPatternString
-	memberPatternUnion_second.Target = &schemaPatternString
-	schemaPatternUnion.Members = []*smithy.Member{&memberPatternUnion_first, &memberPatternUnion_second}
-	memberPatternUnionOverride_first.Target = &schemaPatternString
-	memberPatternUnionOverride_second.Target = &schemaPatternString
-	schemaPatternUnionOverride.Members = []*smithy.Member{&memberPatternUnionOverride_first, &memberPatternUnionOverride_second}
-	memberRecursiveStructuresInput_union.Target = &schemaRecursiveUnionOne
-	schemaRecursiveStructuresInput.Members = []*smithy.Member{&memberRecursiveStructuresInput_union}
-	memberRecursiveUnionOne_string.Target = &schemaRecursiveEnumString
-	memberRecursiveUnionOne_union.Target = &schemaRecursiveUnionTwo
 	schemaRecursiveUnionOne.Members = []*smithy.Member{&memberRecursiveUnionOne_string, &memberRecursiveUnionOne_union}
-	memberRecursiveUnionTwo_string.Target = &schemaRecursiveEnumString
-	memberRecursiveUnionTwo_union.Target = &schemaRecursiveUnionOne
 	schemaRecursiveUnionTwo.Members = []*smithy.Member{&memberRecursiveUnionTwo_string, &memberRecursiveUnionTwo_union}
-	memberSensitiveValidationInput_string.Target = &schemaSensitivePatternString
-	schemaSensitiveValidationInput.Members = []*smithy.Member{&memberSensitiveValidationInput_string}
-	memberSerializationException_Message.Target = &schemaSmithyString
-	schemaSerializationException.Members = []*smithy.Member{&memberSerializationException_Message}
-	memberShortSet_member.Target = &schemaSmithyShort
-	schemaShortSet.Members = []*smithy.Member{&memberShortSet_member}
-	memberStringList_member.Target = &schemaSmithyString
-	schemaStringList.Members = []*smithy.Member{&memberStringList_member}
-	memberStringSet_member.Target = &schemaSmithyString
-	schemaStringSet.Members = []*smithy.Member{&memberStringSet_member}
-	memberStructureSet_member.Target = &schemaGreetingStruct
-	schemaStructureSet.Members = []*smithy.Member{&memberStructureSet_member}
-	memberStructureSetWithNoKey_member.Target = &schemaMissingKeyStructure
-	schemaStructureSetWithNoKey.Members = []*smithy.Member{&memberStructureSetWithNoKey_member}
-	memberTimestampSet_member.Target = &schemaSmithyTimestamp
-	schemaTimestampSet.Members = []*smithy.Member{&memberTimestampSet_member}
-	memberUnionSet_member.Target = &schemaFooUnion
-	schemaUnionSet.Members = []*smithy.Member{&memberUnionSet_member}
-	memberUnknownOperationException_message.Target = &schemaSmithyString
-	schemaUnknownOperationException.Members = []*smithy.Member{&memberUnknownOperationException_message}
-	memberValidationException_message.Target = &schemaSmithyString
-	memberValidationException_fieldList.Target = &schemaValidationExceptionFieldList
-	schemaValidationException.Members = []*smithy.Member{&memberValidationException_message, &memberValidationException_fieldList}
-	memberValidationExceptionField_path.Target = &schemaSmithyString
-	memberValidationExceptionField_message.Target = &schemaSmithyString
-	schemaValidationExceptionField.Members = []*smithy.Member{&memberValidationExceptionField_path, &memberValidationExceptionField_message}
-	memberValidationExceptionFieldList_member.Target = &schemaValidationExceptionField
-	schemaValidationExceptionFieldList.Members = []*smithy.Member{&memberValidationExceptionFieldList_member}
 }

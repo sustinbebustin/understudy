@@ -6,179 +6,179 @@ import (
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 )
 
-var schemaAccessDeniedException = smithy.Schema{ID: "com.amazon.coral.service#AccessDeniedException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+var schemaAccessDeniedException = smithy.Schema{ID: "com.amazon.coral.service#AccessDeniedException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAccessDeniedException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
 
-var memberAccessDeniedException_message = smithy.Member{Name: "message", Index: 0}
+var memberAccessDeniedException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaAttributeMap = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#AttributeMap", Type: smithy.TypeMap}
+var schemaAttributeMap = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#AttributeMap", Type: smithy.TypeMap, Members: []*smithy.Member{&memberAttributeMap_key, &memberAttributeMap_value}}
 
-var memberAttributeMap_key = smithy.Member{Name: "key", Index: 0}
+var memberAttributeMap_key = smithy.Member{Name: "key", Index: 0, Target: &schemaAttributeName}
 
-var memberAttributeMap_value = smithy.Member{Name: "value", Index: 1}
+var memberAttributeMap_value = smithy.Member{Name: "value", Index: 1, Target: &schemaAttributeValue}
 
 var schemaAttributeName = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#AttributeName", Type: smithy.TypeString}
 
 var schemaAttributeValue = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#AttributeValue", Type: smithy.TypeUnion}
 
-var memberAttributeValue_S = smithy.Member{Name: "S", Index: 0}
+var memberAttributeValue_S = smithy.Member{Name: "S", Index: 0, Target: &schemaStringAttributeValue}
 
-var memberAttributeValue_N = smithy.Member{Name: "N", Index: 1}
+var memberAttributeValue_N = smithy.Member{Name: "N", Index: 1, Target: &schemaNumberAttributeValue}
 
-var memberAttributeValue_B = smithy.Member{Name: "B", Index: 2}
+var memberAttributeValue_B = smithy.Member{Name: "B", Index: 2, Target: &schemaBinaryAttributeValue}
 
-var memberAttributeValue_SS = smithy.Member{Name: "SS", Index: 3}
+var memberAttributeValue_SS = smithy.Member{Name: "SS", Index: 3, Target: &schemaStringSetAttributeValue}
 
-var memberAttributeValue_NS = smithy.Member{Name: "NS", Index: 4}
+var memberAttributeValue_NS = smithy.Member{Name: "NS", Index: 4, Target: &schemaNumberSetAttributeValue}
 
-var memberAttributeValue_BS = smithy.Member{Name: "BS", Index: 5}
+var memberAttributeValue_BS = smithy.Member{Name: "BS", Index: 5, Target: &schemaBinarySetAttributeValue}
 
-var memberAttributeValue_M = smithy.Member{Name: "M", Index: 6}
+var memberAttributeValue_M = smithy.Member{Name: "M", Index: 6, Target: &schemaMapAttributeValue}
 
-var memberAttributeValue_L = smithy.Member{Name: "L", Index: 7}
+var memberAttributeValue_L = smithy.Member{Name: "L", Index: 7, Target: &schemaListAttributeValue}
 
-var memberAttributeValue_NULL = smithy.Member{Name: "NULL", Index: 8}
+var memberAttributeValue_NULL = smithy.Member{Name: "NULL", Index: 8, Target: &schemaNullAttributeValue}
 
-var memberAttributeValue_BOOL = smithy.Member{Name: "BOOL", Index: 9}
+var memberAttributeValue_BOOL = smithy.Member{Name: "BOOL", Index: 9, Target: &schemaBooleanAttributeValue}
 
 var schemaBinaryAttributeValue = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#BinaryAttributeValue", Type: smithy.TypeBlob}
 
-var schemaBinarySetAttributeValue = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#BinarySetAttributeValue", Type: smithy.TypeList}
+var schemaBinarySetAttributeValue = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#BinarySetAttributeValue", Type: smithy.TypeList, Members: []*smithy.Member{&memberBinarySetAttributeValue_member}}
 
-var memberBinarySetAttributeValue_member = smithy.Member{Name: "member", Index: 0}
+var memberBinarySetAttributeValue_member = smithy.Member{Name: "member", Index: 0, Target: &schemaBinaryAttributeValue}
 
 var schemaBooleanAttributeValue = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#BooleanAttributeValue", Type: smithy.TypeBoolean}
 
 var schemaDate = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#Date", Type: smithy.TypeTimestamp}
 
-var schemaDescribeStreamInput = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#DescribeStreamInput", Type: smithy.TypeStructure}
+var schemaDescribeStreamInput = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#DescribeStreamInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeStreamInput_StreamArn, &memberDescribeStreamInput_Limit, &memberDescribeStreamInput_ExclusiveStartShardId, &memberDescribeStreamInput_ShardFilter}}
 
-var memberDescribeStreamInput_StreamArn = smithy.Member{Name: "StreamArn", Index: 0, Required: true}
+var memberDescribeStreamInput_StreamArn = smithy.Member{Name: "StreamArn", Index: 0, Target: &schemaStreamArn, Required: true}
 
-var memberDescribeStreamInput_Limit = smithy.Member{Name: "Limit", Index: 1}
+var memberDescribeStreamInput_Limit = smithy.Member{Name: "Limit", Index: 1, Target: &schemaPositiveIntegerObject}
 
-var memberDescribeStreamInput_ExclusiveStartShardId = smithy.Member{Name: "ExclusiveStartShardId", Index: 2}
+var memberDescribeStreamInput_ExclusiveStartShardId = smithy.Member{Name: "ExclusiveStartShardId", Index: 2, Target: &schemaShardId}
 
-var memberDescribeStreamInput_ShardFilter = smithy.Member{Name: "ShardFilter", Index: 3}
+var memberDescribeStreamInput_ShardFilter = smithy.Member{Name: "ShardFilter", Index: 3, Target: &schemaShardFilter}
 
-var schemaDescribeStreamOutput = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#DescribeStreamOutput", Type: smithy.TypeStructure}
+var schemaDescribeStreamOutput = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#DescribeStreamOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeStreamOutput_StreamDescription}}
 
-var memberDescribeStreamOutput_StreamDescription = smithy.Member{Name: "StreamDescription", Index: 0}
+var memberDescribeStreamOutput_StreamDescription = smithy.Member{Name: "StreamDescription", Index: 0, Target: &schemaStreamDescription}
 
 var schemaErrorMessage = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#ErrorMessage", Type: smithy.TypeString}
 
-var schemaExpiredIteratorException = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#ExpiredIteratorException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
+var schemaExpiredIteratorException = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#ExpiredIteratorException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberExpiredIteratorException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
 
-var memberExpiredIteratorException_message = smithy.Member{Name: "message", Index: 0}
+var memberExpiredIteratorException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaErrorMessage}
 
-var schemaExpiredTokenException = smithy.Schema{ID: "com.amazon.coral.service#ExpiredTokenException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+var schemaExpiredTokenException = smithy.Schema{ID: "com.amazon.coral.service#ExpiredTokenException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberExpiredTokenException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
 
-var memberExpiredTokenException_message = smithy.Member{Name: "message", Index: 0}
+var memberExpiredTokenException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaGetRecordsInput = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#GetRecordsInput", Type: smithy.TypeStructure}
+var schemaGetRecordsInput = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#GetRecordsInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetRecordsInput_ShardIterator, &memberGetRecordsInput_Limit}}
 
-var memberGetRecordsInput_ShardIterator = smithy.Member{Name: "ShardIterator", Index: 0, Required: true}
+var memberGetRecordsInput_ShardIterator = smithy.Member{Name: "ShardIterator", Index: 0, Target: &schemaShardIterator, Required: true}
 
-var memberGetRecordsInput_Limit = smithy.Member{Name: "Limit", Index: 1}
+var memberGetRecordsInput_Limit = smithy.Member{Name: "Limit", Index: 1, Target: &schemaPositiveIntegerObject}
 
-var schemaGetRecordsOutput = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#GetRecordsOutput", Type: smithy.TypeStructure}
+var schemaGetRecordsOutput = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#GetRecordsOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetRecordsOutput_Records, &memberGetRecordsOutput_NextShardIterator}}
 
-var memberGetRecordsOutput_Records = smithy.Member{Name: "Records", Index: 0}
+var memberGetRecordsOutput_Records = smithy.Member{Name: "Records", Index: 0, Target: &schemaRecordList}
 
-var memberGetRecordsOutput_NextShardIterator = smithy.Member{Name: "NextShardIterator", Index: 1}
+var memberGetRecordsOutput_NextShardIterator = smithy.Member{Name: "NextShardIterator", Index: 1, Target: &schemaShardIterator}
 
-var schemaGetShardIteratorInput = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#GetShardIteratorInput", Type: smithy.TypeStructure}
+var schemaGetShardIteratorInput = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#GetShardIteratorInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetShardIteratorInput_StreamArn, &memberGetShardIteratorInput_ShardId, &memberGetShardIteratorInput_ShardIteratorType, &memberGetShardIteratorInput_SequenceNumber}}
 
-var memberGetShardIteratorInput_StreamArn = smithy.Member{Name: "StreamArn", Index: 0, Required: true}
+var memberGetShardIteratorInput_StreamArn = smithy.Member{Name: "StreamArn", Index: 0, Target: &schemaStreamArn, Required: true}
 
-var memberGetShardIteratorInput_ShardId = smithy.Member{Name: "ShardId", Index: 1, Required: true}
+var memberGetShardIteratorInput_ShardId = smithy.Member{Name: "ShardId", Index: 1, Target: &schemaShardId, Required: true}
 
-var memberGetShardIteratorInput_ShardIteratorType = smithy.Member{Name: "ShardIteratorType", Index: 2, Required: true}
+var memberGetShardIteratorInput_ShardIteratorType = smithy.Member{Name: "ShardIteratorType", Index: 2, Target: &schemaShardIteratorType, Required: true}
 
-var memberGetShardIteratorInput_SequenceNumber = smithy.Member{Name: "SequenceNumber", Index: 3}
+var memberGetShardIteratorInput_SequenceNumber = smithy.Member{Name: "SequenceNumber", Index: 3, Target: &schemaSequenceNumber}
 
-var schemaGetShardIteratorOutput = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#GetShardIteratorOutput", Type: smithy.TypeStructure}
+var schemaGetShardIteratorOutput = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#GetShardIteratorOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetShardIteratorOutput_ShardIterator}}
 
-var memberGetShardIteratorOutput_ShardIterator = smithy.Member{Name: "ShardIterator", Index: 0}
+var memberGetShardIteratorOutput_ShardIterator = smithy.Member{Name: "ShardIterator", Index: 0, Target: &schemaShardIterator}
 
-var schemaIdentity = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#Identity", Type: smithy.TypeStructure}
+var schemaIdentity = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#Identity", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberIdentity_PrincipalId, &memberIdentity_Type}}
 
-var memberIdentity_PrincipalId = smithy.Member{Name: "PrincipalId", Index: 0}
+var memberIdentity_PrincipalId = smithy.Member{Name: "PrincipalId", Index: 0, Target: &schemaString}
 
-var memberIdentity_Type = smithy.Member{Name: "Type", Index: 1}
+var memberIdentity_Type = smithy.Member{Name: "Type", Index: 1, Target: &schemaString}
 
-var schemaIncompleteSignatureException = smithy.Schema{ID: "com.amazon.coral.service#IncompleteSignatureException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaIncompleteSignatureException = smithy.Schema{ID: "com.amazon.coral.service#IncompleteSignatureException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberIncompleteSignatureException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberIncompleteSignatureException_message = smithy.Member{Name: "message", Index: 0}
+var memberIncompleteSignatureException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaInternalFailure = smithy.Schema{ID: "com.amazon.coral.service#InternalFailure", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ServerFault, HTTPError: 500}}
+var schemaInternalFailure = smithy.Schema{ID: "com.amazon.coral.service#InternalFailure", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberInternalFailure_message}, Error: &smithy.ErrorTrait{Fault: smithy.ServerFault, HTTPError: 500}}
 
-var memberInternalFailure_message = smithy.Member{Name: "message", Index: 0}
+var memberInternalFailure_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaInternalServerError = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#InternalServerError", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ServerFault}}
+var schemaInternalServerError = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#InternalServerError", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberInternalServerError_message}, Error: &smithy.ErrorTrait{Fault: smithy.ServerFault}}
 
-var memberInternalServerError_message = smithy.Member{Name: "message", Index: 0}
+var memberInternalServerError_message = smithy.Member{Name: "message", Index: 0, Target: &schemaErrorMessage}
 
-var schemaInvalidSignatureException = smithy.Schema{ID: "com.amazon.coral.service#InvalidSignatureException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaInvalidSignatureException = smithy.Schema{ID: "com.amazon.coral.service#InvalidSignatureException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberInvalidSignatureException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberInvalidSignatureException_message = smithy.Member{Name: "message", Index: 0}
+var memberInvalidSignatureException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaKeySchema = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#KeySchema", Type: smithy.TypeList}
+var schemaKeySchema = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#KeySchema", Type: smithy.TypeList, Members: []*smithy.Member{&memberKeySchema_member}}
 
-var memberKeySchema_member = smithy.Member{Name: "member", Index: 0}
+var memberKeySchema_member = smithy.Member{Name: "member", Index: 0, Target: &schemaKeySchemaElement}
 
 var schemaKeySchemaAttributeName = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#KeySchemaAttributeName", Type: smithy.TypeString}
 
-var schemaKeySchemaElement = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#KeySchemaElement", Type: smithy.TypeStructure}
+var schemaKeySchemaElement = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#KeySchemaElement", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberKeySchemaElement_AttributeName, &memberKeySchemaElement_KeyType}}
 
-var memberKeySchemaElement_AttributeName = smithy.Member{Name: "AttributeName", Index: 0, Required: true}
+var memberKeySchemaElement_AttributeName = smithy.Member{Name: "AttributeName", Index: 0, Target: &schemaKeySchemaAttributeName, Required: true}
 
-var memberKeySchemaElement_KeyType = smithy.Member{Name: "KeyType", Index: 1, Required: true}
+var memberKeySchemaElement_KeyType = smithy.Member{Name: "KeyType", Index: 1, Target: &schemaKeyType, Required: true}
 
 var schemaKeyType = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#KeyType", Type: smithy.TypeEnum}
 
-var schemaLimitExceededException = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#LimitExceededException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
+var schemaLimitExceededException = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#LimitExceededException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberLimitExceededException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
 
-var memberLimitExceededException_message = smithy.Member{Name: "message", Index: 0}
+var memberLimitExceededException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaErrorMessage}
 
 var schemaListAttributeValue = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#ListAttributeValue", Type: smithy.TypeList}
 
-var memberListAttributeValue_member = smithy.Member{Name: "member", Index: 0}
+var memberListAttributeValue_member = smithy.Member{Name: "member", Index: 0, Target: &schemaAttributeValue}
 
-var schemaListStreamsInput = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#ListStreamsInput", Type: smithy.TypeStructure}
+var schemaListStreamsInput = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#ListStreamsInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListStreamsInput_TableName, &memberListStreamsInput_Limit, &memberListStreamsInput_ExclusiveStartStreamArn}}
 
-var memberListStreamsInput_TableName = smithy.Member{Name: "TableName", Index: 0}
+var memberListStreamsInput_TableName = smithy.Member{Name: "TableName", Index: 0, Target: &schemaTableName}
 
-var memberListStreamsInput_Limit = smithy.Member{Name: "Limit", Index: 1}
+var memberListStreamsInput_Limit = smithy.Member{Name: "Limit", Index: 1, Target: &schemaPositiveIntegerObject}
 
-var memberListStreamsInput_ExclusiveStartStreamArn = smithy.Member{Name: "ExclusiveStartStreamArn", Index: 2}
+var memberListStreamsInput_ExclusiveStartStreamArn = smithy.Member{Name: "ExclusiveStartStreamArn", Index: 2, Target: &schemaStreamArn}
 
-var schemaListStreamsOutput = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#ListStreamsOutput", Type: smithy.TypeStructure}
+var schemaListStreamsOutput = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#ListStreamsOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListStreamsOutput_Streams, &memberListStreamsOutput_LastEvaluatedStreamArn}}
 
-var memberListStreamsOutput_Streams = smithy.Member{Name: "Streams", Index: 0}
+var memberListStreamsOutput_Streams = smithy.Member{Name: "Streams", Index: 0, Target: &schemaStreamList}
 
-var memberListStreamsOutput_LastEvaluatedStreamArn = smithy.Member{Name: "LastEvaluatedStreamArn", Index: 1}
+var memberListStreamsOutput_LastEvaluatedStreamArn = smithy.Member{Name: "LastEvaluatedStreamArn", Index: 1, Target: &schemaStreamArn}
 
 var schemaMapAttributeValue = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#MapAttributeValue", Type: smithy.TypeMap}
 
-var memberMapAttributeValue_key = smithy.Member{Name: "key", Index: 0}
+var memberMapAttributeValue_key = smithy.Member{Name: "key", Index: 0, Target: &schemaAttributeName}
 
-var memberMapAttributeValue_value = smithy.Member{Name: "value", Index: 1}
+var memberMapAttributeValue_value = smithy.Member{Name: "value", Index: 1, Target: &schemaAttributeValue}
 
-var schemaMissingAuthenticationTokenException = smithy.Schema{ID: "com.amazon.coral.service#MissingAuthenticationTokenException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaMissingAuthenticationTokenException = smithy.Schema{ID: "com.amazon.coral.service#MissingAuthenticationTokenException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberMissingAuthenticationTokenException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberMissingAuthenticationTokenException_message = smithy.Member{Name: "message", Index: 0}
+var memberMissingAuthenticationTokenException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaNotImplemented = smithy.Schema{ID: "dev.understudy#NotImplemented", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ServerFault, HTTPError: 501}}
+var schemaNotImplemented = smithy.Schema{ID: "dev.understudy#NotImplemented", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberNotImplemented_message}, Error: &smithy.ErrorTrait{Fault: smithy.ServerFault, HTTPError: 501}}
 
-var memberNotImplemented_message = smithy.Member{Name: "message", Index: 0}
+var memberNotImplemented_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
 var schemaNullAttributeValue = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#NullAttributeValue", Type: smithy.TypeBoolean}
 
 var schemaNumberAttributeValue = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#NumberAttributeValue", Type: smithy.TypeString}
 
-var schemaNumberSetAttributeValue = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#NumberSetAttributeValue", Type: smithy.TypeList}
+var schemaNumberSetAttributeValue = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#NumberSetAttributeValue", Type: smithy.TypeList, Members: []*smithy.Member{&memberNumberSetAttributeValue_member}}
 
-var memberNumberSetAttributeValue_member = smithy.Member{Name: "member", Index: 0}
+var memberNumberSetAttributeValue_member = smithy.Member{Name: "member", Index: 0, Target: &schemaNumberAttributeValue}
 
 var schemaOperationType = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#OperationType", Type: smithy.TypeEnum}
 
@@ -186,63 +186,63 @@ var schemaPositiveIntegerObject = smithy.Schema{ID: "com.amazonaws.dynamodbstrea
 
 var schemaPositiveLongObject = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#PositiveLongObject", Type: smithy.TypeLong}
 
-var schemaRecord = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#Record", Type: smithy.TypeStructure}
+var schemaRecord = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#Record", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRecord_eventID, &memberRecord_eventName, &memberRecord_eventVersion, &memberRecord_eventSource, &memberRecord_awsRegion, &memberRecord_dynamodb, &memberRecord_userIdentity}}
 
-var memberRecord_eventID = smithy.Member{Name: "eventID", Index: 0}
+var memberRecord_eventID = smithy.Member{Name: "eventID", Index: 0, Target: &schemaString}
 
-var memberRecord_eventName = smithy.Member{Name: "eventName", Index: 1}
+var memberRecord_eventName = smithy.Member{Name: "eventName", Index: 1, Target: &schemaOperationType}
 
-var memberRecord_eventVersion = smithy.Member{Name: "eventVersion", Index: 2}
+var memberRecord_eventVersion = smithy.Member{Name: "eventVersion", Index: 2, Target: &schemaString}
 
-var memberRecord_eventSource = smithy.Member{Name: "eventSource", Index: 3}
+var memberRecord_eventSource = smithy.Member{Name: "eventSource", Index: 3, Target: &schemaString}
 
-var memberRecord_awsRegion = smithy.Member{Name: "awsRegion", Index: 4}
+var memberRecord_awsRegion = smithy.Member{Name: "awsRegion", Index: 4, Target: &schemaString}
 
-var memberRecord_dynamodb = smithy.Member{Name: "dynamodb", Index: 5}
+var memberRecord_dynamodb = smithy.Member{Name: "dynamodb", Index: 5, Target: &schemaStreamRecord}
 
-var memberRecord_userIdentity = smithy.Member{Name: "userIdentity", Index: 6}
+var memberRecord_userIdentity = smithy.Member{Name: "userIdentity", Index: 6, Target: &schemaIdentity}
 
-var schemaRecordList = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#RecordList", Type: smithy.TypeList}
+var schemaRecordList = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#RecordList", Type: smithy.TypeList, Members: []*smithy.Member{&memberRecordList_member}}
 
-var memberRecordList_member = smithy.Member{Name: "member", Index: 0}
+var memberRecordList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaRecord}
 
-var schemaRequestEntityTooLargeException = smithy.Schema{ID: "com.amazon.coral.service#RequestEntityTooLargeException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 413}}
+var schemaRequestEntityTooLargeException = smithy.Schema{ID: "com.amazon.coral.service#RequestEntityTooLargeException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRequestEntityTooLargeException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 413}}
 
-var memberRequestEntityTooLargeException_message = smithy.Member{Name: "message", Index: 0}
+var memberRequestEntityTooLargeException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaResourceNotFoundException = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#ResourceNotFoundException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
+var schemaResourceNotFoundException = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#ResourceNotFoundException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberResourceNotFoundException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
 
-var memberResourceNotFoundException_message = smithy.Member{Name: "message", Index: 0}
+var memberResourceNotFoundException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaErrorMessage}
 
 var schemaSequenceNumber = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#SequenceNumber", Type: smithy.TypeString}
 
-var schemaSequenceNumberRange = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#SequenceNumberRange", Type: smithy.TypeStructure}
+var schemaSequenceNumberRange = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#SequenceNumberRange", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSequenceNumberRange_StartingSequenceNumber, &memberSequenceNumberRange_EndingSequenceNumber}}
 
-var memberSequenceNumberRange_StartingSequenceNumber = smithy.Member{Name: "StartingSequenceNumber", Index: 0}
+var memberSequenceNumberRange_StartingSequenceNumber = smithy.Member{Name: "StartingSequenceNumber", Index: 0, Target: &schemaSequenceNumber}
 
-var memberSequenceNumberRange_EndingSequenceNumber = smithy.Member{Name: "EndingSequenceNumber", Index: 1}
+var memberSequenceNumberRange_EndingSequenceNumber = smithy.Member{Name: "EndingSequenceNumber", Index: 1, Target: &schemaSequenceNumber}
 
-var schemaSerializationException = smithy.Schema{ID: "com.amazon.coral.service#SerializationException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaSerializationException = smithy.Schema{ID: "com.amazon.coral.service#SerializationException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSerializationException_Message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberSerializationException_Message = smithy.Member{Name: "Message", Index: 0}
+var memberSerializationException_Message = smithy.Member{Name: "Message", Index: 0, Target: &schemaSmithyString}
 
-var schemaShard = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#Shard", Type: smithy.TypeStructure}
+var schemaShard = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#Shard", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberShard_ShardId, &memberShard_SequenceNumberRange, &memberShard_ParentShardId}}
 
-var memberShard_ShardId = smithy.Member{Name: "ShardId", Index: 0}
+var memberShard_ShardId = smithy.Member{Name: "ShardId", Index: 0, Target: &schemaShardId}
 
-var memberShard_SequenceNumberRange = smithy.Member{Name: "SequenceNumberRange", Index: 1}
+var memberShard_SequenceNumberRange = smithy.Member{Name: "SequenceNumberRange", Index: 1, Target: &schemaSequenceNumberRange}
 
-var memberShard_ParentShardId = smithy.Member{Name: "ParentShardId", Index: 2}
+var memberShard_ParentShardId = smithy.Member{Name: "ParentShardId", Index: 2, Target: &schemaShardId}
 
-var schemaShardDescriptionList = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#ShardDescriptionList", Type: smithy.TypeList}
+var schemaShardDescriptionList = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#ShardDescriptionList", Type: smithy.TypeList, Members: []*smithy.Member{&memberShardDescriptionList_member}}
 
-var memberShardDescriptionList_member = smithy.Member{Name: "member", Index: 0}
+var memberShardDescriptionList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaShard}
 
-var schemaShardFilter = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#ShardFilter", Type: smithy.TypeStructure}
+var schemaShardFilter = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#ShardFilter", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberShardFilter_Type, &memberShardFilter_ShardId}}
 
-var memberShardFilter_Type = smithy.Member{Name: "Type", Index: 0}
+var memberShardFilter_Type = smithy.Member{Name: "Type", Index: 0, Target: &schemaShardFilterType}
 
-var memberShardFilter_ShardId = smithy.Member{Name: "ShardId", Index: 1}
+var memberShardFilter_ShardId = smithy.Member{Name: "ShardId", Index: 1, Target: &schemaShardId}
 
 var schemaShardFilterType = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#ShardFilterType", Type: smithy.TypeEnum}
 
@@ -254,55 +254,55 @@ var schemaShardIteratorType = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#S
 
 var schemaSmithyString = smithy.Schema{ID: "smithy.api#String", Type: smithy.TypeString}
 
-var schemaStream = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#Stream", Type: smithy.TypeStructure}
+var schemaStream = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#Stream", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberStream_StreamArn, &memberStream_TableName, &memberStream_StreamLabel}}
 
-var memberStream_StreamArn = smithy.Member{Name: "StreamArn", Index: 0}
+var memberStream_StreamArn = smithy.Member{Name: "StreamArn", Index: 0, Target: &schemaStreamArn}
 
-var memberStream_TableName = smithy.Member{Name: "TableName", Index: 1}
+var memberStream_TableName = smithy.Member{Name: "TableName", Index: 1, Target: &schemaTableName}
 
-var memberStream_StreamLabel = smithy.Member{Name: "StreamLabel", Index: 2}
+var memberStream_StreamLabel = smithy.Member{Name: "StreamLabel", Index: 2, Target: &schemaString}
 
 var schemaStreamArn = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#StreamArn", Type: smithy.TypeString}
 
-var schemaStreamDescription = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#StreamDescription", Type: smithy.TypeStructure}
+var schemaStreamDescription = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#StreamDescription", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberStreamDescription_StreamArn, &memberStreamDescription_StreamLabel, &memberStreamDescription_StreamStatus, &memberStreamDescription_StreamViewType, &memberStreamDescription_CreationRequestDateTime, &memberStreamDescription_TableName, &memberStreamDescription_KeySchema, &memberStreamDescription_Shards, &memberStreamDescription_LastEvaluatedShardId}}
 
-var memberStreamDescription_StreamArn = smithy.Member{Name: "StreamArn", Index: 0}
+var memberStreamDescription_StreamArn = smithy.Member{Name: "StreamArn", Index: 0, Target: &schemaStreamArn}
 
-var memberStreamDescription_StreamLabel = smithy.Member{Name: "StreamLabel", Index: 1}
+var memberStreamDescription_StreamLabel = smithy.Member{Name: "StreamLabel", Index: 1, Target: &schemaString}
 
-var memberStreamDescription_StreamStatus = smithy.Member{Name: "StreamStatus", Index: 2}
+var memberStreamDescription_StreamStatus = smithy.Member{Name: "StreamStatus", Index: 2, Target: &schemaStreamStatus}
 
-var memberStreamDescription_StreamViewType = smithy.Member{Name: "StreamViewType", Index: 3}
+var memberStreamDescription_StreamViewType = smithy.Member{Name: "StreamViewType", Index: 3, Target: &schemaStreamViewType}
 
-var memberStreamDescription_CreationRequestDateTime = smithy.Member{Name: "CreationRequestDateTime", Index: 4}
+var memberStreamDescription_CreationRequestDateTime = smithy.Member{Name: "CreationRequestDateTime", Index: 4, Target: &schemaDate}
 
-var memberStreamDescription_TableName = smithy.Member{Name: "TableName", Index: 5}
+var memberStreamDescription_TableName = smithy.Member{Name: "TableName", Index: 5, Target: &schemaTableName}
 
-var memberStreamDescription_KeySchema = smithy.Member{Name: "KeySchema", Index: 6}
+var memberStreamDescription_KeySchema = smithy.Member{Name: "KeySchema", Index: 6, Target: &schemaKeySchema}
 
-var memberStreamDescription_Shards = smithy.Member{Name: "Shards", Index: 7}
+var memberStreamDescription_Shards = smithy.Member{Name: "Shards", Index: 7, Target: &schemaShardDescriptionList}
 
-var memberStreamDescription_LastEvaluatedShardId = smithy.Member{Name: "LastEvaluatedShardId", Index: 8}
+var memberStreamDescription_LastEvaluatedShardId = smithy.Member{Name: "LastEvaluatedShardId", Index: 8, Target: &schemaShardId}
 
-var schemaStreamList = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#StreamList", Type: smithy.TypeList}
+var schemaStreamList = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#StreamList", Type: smithy.TypeList, Members: []*smithy.Member{&memberStreamList_member}}
 
-var memberStreamList_member = smithy.Member{Name: "member", Index: 0}
+var memberStreamList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaStream}
 
-var schemaStreamRecord = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#StreamRecord", Type: smithy.TypeStructure}
+var schemaStreamRecord = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#StreamRecord", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberStreamRecord_ApproximateCreationDateTime, &memberStreamRecord_Keys, &memberStreamRecord_NewImage, &memberStreamRecord_OldImage, &memberStreamRecord_SequenceNumber, &memberStreamRecord_SizeBytes, &memberStreamRecord_StreamViewType}}
 
-var memberStreamRecord_ApproximateCreationDateTime = smithy.Member{Name: "ApproximateCreationDateTime", Index: 0}
+var memberStreamRecord_ApproximateCreationDateTime = smithy.Member{Name: "ApproximateCreationDateTime", Index: 0, Target: &schemaDate}
 
-var memberStreamRecord_Keys = smithy.Member{Name: "Keys", Index: 1}
+var memberStreamRecord_Keys = smithy.Member{Name: "Keys", Index: 1, Target: &schemaAttributeMap}
 
-var memberStreamRecord_NewImage = smithy.Member{Name: "NewImage", Index: 2}
+var memberStreamRecord_NewImage = smithy.Member{Name: "NewImage", Index: 2, Target: &schemaAttributeMap}
 
-var memberStreamRecord_OldImage = smithy.Member{Name: "OldImage", Index: 3}
+var memberStreamRecord_OldImage = smithy.Member{Name: "OldImage", Index: 3, Target: &schemaAttributeMap}
 
-var memberStreamRecord_SequenceNumber = smithy.Member{Name: "SequenceNumber", Index: 4}
+var memberStreamRecord_SequenceNumber = smithy.Member{Name: "SequenceNumber", Index: 4, Target: &schemaSequenceNumber}
 
-var memberStreamRecord_SizeBytes = smithy.Member{Name: "SizeBytes", Index: 5}
+var memberStreamRecord_SizeBytes = smithy.Member{Name: "SizeBytes", Index: 5, Target: &schemaPositiveLongObject}
 
-var memberStreamRecord_StreamViewType = smithy.Member{Name: "StreamViewType", Index: 6}
+var memberStreamRecord_StreamViewType = smithy.Member{Name: "StreamViewType", Index: 6, Target: &schemaStreamViewType}
 
 var schemaStreamStatus = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#StreamStatus", Type: smithy.TypeEnum}
 
@@ -312,173 +312,34 @@ var schemaString = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#String", Typ
 
 var schemaStringAttributeValue = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#StringAttributeValue", Type: smithy.TypeString}
 
-var schemaStringSetAttributeValue = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#StringSetAttributeValue", Type: smithy.TypeList}
+var schemaStringSetAttributeValue = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#StringSetAttributeValue", Type: smithy.TypeList, Members: []*smithy.Member{&memberStringSetAttributeValue_member}}
 
-var memberStringSetAttributeValue_member = smithy.Member{Name: "member", Index: 0}
+var memberStringSetAttributeValue_member = smithy.Member{Name: "member", Index: 0, Target: &schemaStringAttributeValue}
 
 var schemaTableName = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#TableName", Type: smithy.TypeString}
 
-var schemaThrottlingException = smithy.Schema{ID: "com.amazon.coral.service#ThrottlingException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaThrottlingException = smithy.Schema{ID: "com.amazon.coral.service#ThrottlingException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberThrottlingException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberThrottlingException_message = smithy.Member{Name: "message", Index: 0}
+var memberThrottlingException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaTrimmedDataAccessException = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#TrimmedDataAccessException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
+var schemaTrimmedDataAccessException = smithy.Schema{ID: "com.amazonaws.dynamodbstreams#TrimmedDataAccessException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberTrimmedDataAccessException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
 
-var memberTrimmedDataAccessException_message = smithy.Member{Name: "message", Index: 0}
+var memberTrimmedDataAccessException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaErrorMessage}
 
-var schemaUnknownOperationException = smithy.Schema{ID: "com.amazon.coral.service#UnknownOperationException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaUnknownOperationException = smithy.Schema{ID: "com.amazon.coral.service#UnknownOperationException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUnknownOperationException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberUnknownOperationException_message = smithy.Member{Name: "message", Index: 0}
+var memberUnknownOperationException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaUnrecognizedClientException = smithy.Schema{ID: "com.amazon.coral.service#UnrecognizedClientException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaUnrecognizedClientException = smithy.Schema{ID: "com.amazon.coral.service#UnrecognizedClientException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUnrecognizedClientException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberUnrecognizedClientException_message = smithy.Member{Name: "message", Index: 0}
+var memberUnrecognizedClientException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaValidationException = smithy.Schema{ID: "com.amazon.coral.validate#ValidationException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaValidationException = smithy.Schema{ID: "com.amazon.coral.validate#ValidationException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberValidationException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberValidationException_message = smithy.Member{Name: "message", Index: 0}
+var memberValidationException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
 func init() {
-	memberAccessDeniedException_message.Target = &schemaSmithyString
-	schemaAccessDeniedException.Members = []*smithy.Member{&memberAccessDeniedException_message}
-	memberAttributeMap_key.Target = &schemaAttributeName
-	memberAttributeMap_value.Target = &schemaAttributeValue
-	schemaAttributeMap.Members = []*smithy.Member{&memberAttributeMap_key, &memberAttributeMap_value}
-	memberAttributeValue_S.Target = &schemaStringAttributeValue
-	memberAttributeValue_N.Target = &schemaNumberAttributeValue
-	memberAttributeValue_B.Target = &schemaBinaryAttributeValue
-	memberAttributeValue_SS.Target = &schemaStringSetAttributeValue
-	memberAttributeValue_NS.Target = &schemaNumberSetAttributeValue
-	memberAttributeValue_BS.Target = &schemaBinarySetAttributeValue
-	memberAttributeValue_M.Target = &schemaMapAttributeValue
-	memberAttributeValue_L.Target = &schemaListAttributeValue
-	memberAttributeValue_NULL.Target = &schemaNullAttributeValue
-	memberAttributeValue_BOOL.Target = &schemaBooleanAttributeValue
 	schemaAttributeValue.Members = []*smithy.Member{&memberAttributeValue_S, &memberAttributeValue_N, &memberAttributeValue_B, &memberAttributeValue_SS, &memberAttributeValue_NS, &memberAttributeValue_BS, &memberAttributeValue_M, &memberAttributeValue_L, &memberAttributeValue_NULL, &memberAttributeValue_BOOL}
-	memberBinarySetAttributeValue_member.Target = &schemaBinaryAttributeValue
-	schemaBinarySetAttributeValue.Members = []*smithy.Member{&memberBinarySetAttributeValue_member}
-	memberDescribeStreamInput_StreamArn.Target = &schemaStreamArn
-	memberDescribeStreamInput_Limit.Target = &schemaPositiveIntegerObject
-	memberDescribeStreamInput_ExclusiveStartShardId.Target = &schemaShardId
-	memberDescribeStreamInput_ShardFilter.Target = &schemaShardFilter
-	schemaDescribeStreamInput.Members = []*smithy.Member{&memberDescribeStreamInput_StreamArn, &memberDescribeStreamInput_Limit, &memberDescribeStreamInput_ExclusiveStartShardId, &memberDescribeStreamInput_ShardFilter}
-	memberDescribeStreamOutput_StreamDescription.Target = &schemaStreamDescription
-	schemaDescribeStreamOutput.Members = []*smithy.Member{&memberDescribeStreamOutput_StreamDescription}
-	memberExpiredIteratorException_message.Target = &schemaErrorMessage
-	schemaExpiredIteratorException.Members = []*smithy.Member{&memberExpiredIteratorException_message}
-	memberExpiredTokenException_message.Target = &schemaSmithyString
-	schemaExpiredTokenException.Members = []*smithy.Member{&memberExpiredTokenException_message}
-	memberGetRecordsInput_ShardIterator.Target = &schemaShardIterator
-	memberGetRecordsInput_Limit.Target = &schemaPositiveIntegerObject
-	schemaGetRecordsInput.Members = []*smithy.Member{&memberGetRecordsInput_ShardIterator, &memberGetRecordsInput_Limit}
-	memberGetRecordsOutput_Records.Target = &schemaRecordList
-	memberGetRecordsOutput_NextShardIterator.Target = &schemaShardIterator
-	schemaGetRecordsOutput.Members = []*smithy.Member{&memberGetRecordsOutput_Records, &memberGetRecordsOutput_NextShardIterator}
-	memberGetShardIteratorInput_StreamArn.Target = &schemaStreamArn
-	memberGetShardIteratorInput_ShardId.Target = &schemaShardId
-	memberGetShardIteratorInput_ShardIteratorType.Target = &schemaShardIteratorType
-	memberGetShardIteratorInput_SequenceNumber.Target = &schemaSequenceNumber
-	schemaGetShardIteratorInput.Members = []*smithy.Member{&memberGetShardIteratorInput_StreamArn, &memberGetShardIteratorInput_ShardId, &memberGetShardIteratorInput_ShardIteratorType, &memberGetShardIteratorInput_SequenceNumber}
-	memberGetShardIteratorOutput_ShardIterator.Target = &schemaShardIterator
-	schemaGetShardIteratorOutput.Members = []*smithy.Member{&memberGetShardIteratorOutput_ShardIterator}
-	memberIdentity_PrincipalId.Target = &schemaString
-	memberIdentity_Type.Target = &schemaString
-	schemaIdentity.Members = []*smithy.Member{&memberIdentity_PrincipalId, &memberIdentity_Type}
-	memberIncompleteSignatureException_message.Target = &schemaSmithyString
-	schemaIncompleteSignatureException.Members = []*smithy.Member{&memberIncompleteSignatureException_message}
-	memberInternalFailure_message.Target = &schemaSmithyString
-	schemaInternalFailure.Members = []*smithy.Member{&memberInternalFailure_message}
-	memberInternalServerError_message.Target = &schemaErrorMessage
-	schemaInternalServerError.Members = []*smithy.Member{&memberInternalServerError_message}
-	memberInvalidSignatureException_message.Target = &schemaSmithyString
-	schemaInvalidSignatureException.Members = []*smithy.Member{&memberInvalidSignatureException_message}
-	memberKeySchema_member.Target = &schemaKeySchemaElement
-	schemaKeySchema.Members = []*smithy.Member{&memberKeySchema_member}
-	memberKeySchemaElement_AttributeName.Target = &schemaKeySchemaAttributeName
-	memberKeySchemaElement_KeyType.Target = &schemaKeyType
-	schemaKeySchemaElement.Members = []*smithy.Member{&memberKeySchemaElement_AttributeName, &memberKeySchemaElement_KeyType}
-	memberLimitExceededException_message.Target = &schemaErrorMessage
-	schemaLimitExceededException.Members = []*smithy.Member{&memberLimitExceededException_message}
-	memberListAttributeValue_member.Target = &schemaAttributeValue
 	schemaListAttributeValue.Members = []*smithy.Member{&memberListAttributeValue_member}
-	memberListStreamsInput_TableName.Target = &schemaTableName
-	memberListStreamsInput_Limit.Target = &schemaPositiveIntegerObject
-	memberListStreamsInput_ExclusiveStartStreamArn.Target = &schemaStreamArn
-	schemaListStreamsInput.Members = []*smithy.Member{&memberListStreamsInput_TableName, &memberListStreamsInput_Limit, &memberListStreamsInput_ExclusiveStartStreamArn}
-	memberListStreamsOutput_Streams.Target = &schemaStreamList
-	memberListStreamsOutput_LastEvaluatedStreamArn.Target = &schemaStreamArn
-	schemaListStreamsOutput.Members = []*smithy.Member{&memberListStreamsOutput_Streams, &memberListStreamsOutput_LastEvaluatedStreamArn}
-	memberMapAttributeValue_key.Target = &schemaAttributeName
-	memberMapAttributeValue_value.Target = &schemaAttributeValue
 	schemaMapAttributeValue.Members = []*smithy.Member{&memberMapAttributeValue_key, &memberMapAttributeValue_value}
-	memberMissingAuthenticationTokenException_message.Target = &schemaSmithyString
-	schemaMissingAuthenticationTokenException.Members = []*smithy.Member{&memberMissingAuthenticationTokenException_message}
-	memberNotImplemented_message.Target = &schemaSmithyString
-	schemaNotImplemented.Members = []*smithy.Member{&memberNotImplemented_message}
-	memberNumberSetAttributeValue_member.Target = &schemaNumberAttributeValue
-	schemaNumberSetAttributeValue.Members = []*smithy.Member{&memberNumberSetAttributeValue_member}
-	memberRecord_eventID.Target = &schemaString
-	memberRecord_eventName.Target = &schemaOperationType
-	memberRecord_eventVersion.Target = &schemaString
-	memberRecord_eventSource.Target = &schemaString
-	memberRecord_awsRegion.Target = &schemaString
-	memberRecord_dynamodb.Target = &schemaStreamRecord
-	memberRecord_userIdentity.Target = &schemaIdentity
-	schemaRecord.Members = []*smithy.Member{&memberRecord_eventID, &memberRecord_eventName, &memberRecord_eventVersion, &memberRecord_eventSource, &memberRecord_awsRegion, &memberRecord_dynamodb, &memberRecord_userIdentity}
-	memberRecordList_member.Target = &schemaRecord
-	schemaRecordList.Members = []*smithy.Member{&memberRecordList_member}
-	memberRequestEntityTooLargeException_message.Target = &schemaSmithyString
-	schemaRequestEntityTooLargeException.Members = []*smithy.Member{&memberRequestEntityTooLargeException_message}
-	memberResourceNotFoundException_message.Target = &schemaErrorMessage
-	schemaResourceNotFoundException.Members = []*smithy.Member{&memberResourceNotFoundException_message}
-	memberSequenceNumberRange_StartingSequenceNumber.Target = &schemaSequenceNumber
-	memberSequenceNumberRange_EndingSequenceNumber.Target = &schemaSequenceNumber
-	schemaSequenceNumberRange.Members = []*smithy.Member{&memberSequenceNumberRange_StartingSequenceNumber, &memberSequenceNumberRange_EndingSequenceNumber}
-	memberSerializationException_Message.Target = &schemaSmithyString
-	schemaSerializationException.Members = []*smithy.Member{&memberSerializationException_Message}
-	memberShard_ShardId.Target = &schemaShardId
-	memberShard_SequenceNumberRange.Target = &schemaSequenceNumberRange
-	memberShard_ParentShardId.Target = &schemaShardId
-	schemaShard.Members = []*smithy.Member{&memberShard_ShardId, &memberShard_SequenceNumberRange, &memberShard_ParentShardId}
-	memberShardDescriptionList_member.Target = &schemaShard
-	schemaShardDescriptionList.Members = []*smithy.Member{&memberShardDescriptionList_member}
-	memberShardFilter_Type.Target = &schemaShardFilterType
-	memberShardFilter_ShardId.Target = &schemaShardId
-	schemaShardFilter.Members = []*smithy.Member{&memberShardFilter_Type, &memberShardFilter_ShardId}
-	memberStream_StreamArn.Target = &schemaStreamArn
-	memberStream_TableName.Target = &schemaTableName
-	memberStream_StreamLabel.Target = &schemaString
-	schemaStream.Members = []*smithy.Member{&memberStream_StreamArn, &memberStream_TableName, &memberStream_StreamLabel}
-	memberStreamDescription_StreamArn.Target = &schemaStreamArn
-	memberStreamDescription_StreamLabel.Target = &schemaString
-	memberStreamDescription_StreamStatus.Target = &schemaStreamStatus
-	memberStreamDescription_StreamViewType.Target = &schemaStreamViewType
-	memberStreamDescription_CreationRequestDateTime.Target = &schemaDate
-	memberStreamDescription_TableName.Target = &schemaTableName
-	memberStreamDescription_KeySchema.Target = &schemaKeySchema
-	memberStreamDescription_Shards.Target = &schemaShardDescriptionList
-	memberStreamDescription_LastEvaluatedShardId.Target = &schemaShardId
-	schemaStreamDescription.Members = []*smithy.Member{&memberStreamDescription_StreamArn, &memberStreamDescription_StreamLabel, &memberStreamDescription_StreamStatus, &memberStreamDescription_StreamViewType, &memberStreamDescription_CreationRequestDateTime, &memberStreamDescription_TableName, &memberStreamDescription_KeySchema, &memberStreamDescription_Shards, &memberStreamDescription_LastEvaluatedShardId}
-	memberStreamList_member.Target = &schemaStream
-	schemaStreamList.Members = []*smithy.Member{&memberStreamList_member}
-	memberStreamRecord_ApproximateCreationDateTime.Target = &schemaDate
-	memberStreamRecord_Keys.Target = &schemaAttributeMap
-	memberStreamRecord_NewImage.Target = &schemaAttributeMap
-	memberStreamRecord_OldImage.Target = &schemaAttributeMap
-	memberStreamRecord_SequenceNumber.Target = &schemaSequenceNumber
-	memberStreamRecord_SizeBytes.Target = &schemaPositiveLongObject
-	memberStreamRecord_StreamViewType.Target = &schemaStreamViewType
-	schemaStreamRecord.Members = []*smithy.Member{&memberStreamRecord_ApproximateCreationDateTime, &memberStreamRecord_Keys, &memberStreamRecord_NewImage, &memberStreamRecord_OldImage, &memberStreamRecord_SequenceNumber, &memberStreamRecord_SizeBytes, &memberStreamRecord_StreamViewType}
-	memberStringSetAttributeValue_member.Target = &schemaStringAttributeValue
-	schemaStringSetAttributeValue.Members = []*smithy.Member{&memberStringSetAttributeValue_member}
-	memberThrottlingException_message.Target = &schemaSmithyString
-	schemaThrottlingException.Members = []*smithy.Member{&memberThrottlingException_message}
-	memberTrimmedDataAccessException_message.Target = &schemaErrorMessage
-	schemaTrimmedDataAccessException.Members = []*smithy.Member{&memberTrimmedDataAccessException_message}
-	memberUnknownOperationException_message.Target = &schemaSmithyString
-	schemaUnknownOperationException.Members = []*smithy.Member{&memberUnknownOperationException_message}
-	memberUnrecognizedClientException_message.Target = &schemaSmithyString
-	schemaUnrecognizedClientException.Members = []*smithy.Member{&memberUnrecognizedClientException_message}
-	memberValidationException_message.Target = &schemaSmithyString
-	schemaValidationException.Members = []*smithy.Member{&memberValidationException_message}
 }

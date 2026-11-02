@@ -6,291 +6,291 @@ import (
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 )
 
-var schemaBooleanList = smithy.Schema{ID: "aws.protocoltests.shared#BooleanList", Type: smithy.TypeList}
+var schemaBooleanList = smithy.Schema{ID: "aws.protocoltests.shared#BooleanList", Type: smithy.TypeList, Members: []*smithy.Member{&memberBooleanList_member}}
 
-var memberBooleanList_member = smithy.Member{Name: "member", Index: 0}
+var memberBooleanList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaSmithyBoolean}
 
-var schemaComplexError = smithy.Schema{ID: "aws.protocoltests.query#ComplexError", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
+var schemaComplexError = smithy.Schema{ID: "aws.protocoltests.query#ComplexError", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberComplexError_TopLevel, &memberComplexError_Nested}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
 
-var memberComplexError_TopLevel = smithy.Member{Name: "TopLevel", Index: 0}
+var memberComplexError_TopLevel = smithy.Member{Name: "TopLevel", Index: 0, Target: &schemaSmithyString}
 
-var memberComplexError_Nested = smithy.Member{Name: "Nested", Index: 1}
+var memberComplexError_Nested = smithy.Member{Name: "Nested", Index: 1, Target: &schemaComplexNestedErrorData}
 
-var schemaComplexMap = smithy.Schema{ID: "aws.protocoltests.query#ComplexMap", Type: smithy.TypeMap}
+var schemaComplexMap = smithy.Schema{ID: "aws.protocoltests.query#ComplexMap", Type: smithy.TypeMap, Members: []*smithy.Member{&memberComplexMap_key, &memberComplexMap_value}}
 
-var memberComplexMap_key = smithy.Member{Name: "key", Index: 0}
+var memberComplexMap_key = smithy.Member{Name: "key", Index: 0, Target: &schemaSmithyString}
 
-var memberComplexMap_value = smithy.Member{Name: "value", Index: 1}
+var memberComplexMap_value = smithy.Member{Name: "value", Index: 1, Target: &schemaGreetingStruct}
 
-var schemaComplexNestedErrorData = smithy.Schema{ID: "aws.protocoltests.query#ComplexNestedErrorData", Type: smithy.TypeStructure}
+var schemaComplexNestedErrorData = smithy.Schema{ID: "aws.protocoltests.query#ComplexNestedErrorData", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberComplexNestedErrorData_Foo}}
 
-var memberComplexNestedErrorData_Foo = smithy.Member{Name: "Foo", Index: 0}
+var memberComplexNestedErrorData_Foo = smithy.Member{Name: "Foo", Index: 0, Target: &schemaSmithyString}
 
-var schemaCustomCodeError = smithy.Schema{ID: "aws.protocoltests.query#CustomCodeError", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
+var schemaCustomCodeError = smithy.Schema{ID: "aws.protocoltests.query#CustomCodeError", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCustomCodeError_Message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
 
-var memberCustomCodeError_Message = smithy.Member{Name: "Message", Index: 0}
+var memberCustomCodeError_Message = smithy.Member{Name: "Message", Index: 0, Target: &schemaSmithyString}
 
 var schemaDateTime = smithy.Schema{ID: "aws.protocoltests.shared#DateTime", Type: smithy.TypeTimestamp, TimestampFormat: smithy.DateTime}
 
-var schemaDatetimeOffsetsOutput = smithy.Schema{ID: "aws.protocoltests.query#DatetimeOffsetsOutput", Type: smithy.TypeStructure}
+var schemaDatetimeOffsetsOutput = smithy.Schema{ID: "aws.protocoltests.query#DatetimeOffsetsOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDatetimeOffsetsOutput_datetime}}
 
-var memberDatetimeOffsetsOutput_datetime = smithy.Member{Name: "datetime", Index: 0, TimestampFormat: smithy.DateTime}
+var memberDatetimeOffsetsOutput_datetime = smithy.Member{Name: "datetime", Index: 0, Target: &schemaDateTime, TimestampFormat: smithy.DateTime}
 
 var schemaEmptyInputAndEmptyOutputInput = smithy.Schema{ID: "aws.protocoltests.query#EmptyInputAndEmptyOutputInput", Type: smithy.TypeStructure}
 
 var schemaEmptyInputAndEmptyOutputOutput = smithy.Schema{ID: "aws.protocoltests.query#EmptyInputAndEmptyOutputOutput", Type: smithy.TypeStructure}
 
-var schemaEndpointWithHostLabelOperationInput = smithy.Schema{ID: "aws.protocoltests.query#HostLabelInput", Type: smithy.TypeStructure}
+var schemaEndpointWithHostLabelOperationInput = smithy.Schema{ID: "aws.protocoltests.query#HostLabelInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberEndpointWithHostLabelOperationInput_label}}
 
-var memberEndpointWithHostLabelOperationInput_label = smithy.Member{Name: "label", Index: 0, Required: true}
+var memberEndpointWithHostLabelOperationInput_label = smithy.Member{Name: "label", Index: 0, Target: &schemaSmithyString, Required: true}
 
 var schemaEpochSeconds = smithy.Schema{ID: "aws.protocoltests.shared#EpochSeconds", Type: smithy.TypeTimestamp, TimestampFormat: smithy.EpochSeconds}
 
-var schemaFlattenedXmlMapOutput = smithy.Schema{ID: "aws.protocoltests.query#FlattenedXmlMapOutput", Type: smithy.TypeStructure}
+var schemaFlattenedXmlMapOutput = smithy.Schema{ID: "aws.protocoltests.query#FlattenedXmlMapOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberFlattenedXmlMapOutput_myMap}}
 
-var memberFlattenedXmlMapOutput_myMap = smithy.Member{Name: "myMap", Index: 0, XMLFlattened: true}
+var memberFlattenedXmlMapOutput_myMap = smithy.Member{Name: "myMap", Index: 0, Target: &schemaFooEnumMap, XMLFlattened: true}
 
-var schemaFlattenedXmlMapWithXmlNameOutput = smithy.Schema{ID: "aws.protocoltests.query#FlattenedXmlMapWithXmlNameOutput", Type: smithy.TypeStructure}
+var schemaFlattenedXmlMapWithXmlNameOutput = smithy.Schema{ID: "aws.protocoltests.query#FlattenedXmlMapWithXmlNameOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberFlattenedXmlMapWithXmlNameOutput_myMap}}
 
-var memberFlattenedXmlMapWithXmlNameOutput_myMap = smithy.Member{Name: "myMap", Index: 0, XMLName: "KVP", XMLFlattened: true}
+var memberFlattenedXmlMapWithXmlNameOutput_myMap = smithy.Member{Name: "myMap", Index: 0, Target: &schemaFlattenedXmlMapWithXmlNameOutputMap, XMLName: "KVP", XMLFlattened: true}
 
-var schemaFlattenedXmlMapWithXmlNameOutputMap = smithy.Schema{ID: "aws.protocoltests.query#FlattenedXmlMapWithXmlNameOutputMap", Type: smithy.TypeMap}
+var schemaFlattenedXmlMapWithXmlNameOutputMap = smithy.Schema{ID: "aws.protocoltests.query#FlattenedXmlMapWithXmlNameOutputMap", Type: smithy.TypeMap, Members: []*smithy.Member{&memberFlattenedXmlMapWithXmlNameOutputMap_key, &memberFlattenedXmlMapWithXmlNameOutputMap_value}}
 
-var memberFlattenedXmlMapWithXmlNameOutputMap_key = smithy.Member{Name: "key", Index: 0, XMLName: "K"}
+var memberFlattenedXmlMapWithXmlNameOutputMap_key = smithy.Member{Name: "key", Index: 0, Target: &schemaSmithyString, XMLName: "K"}
 
-var memberFlattenedXmlMapWithXmlNameOutputMap_value = smithy.Member{Name: "value", Index: 1, XMLName: "V"}
+var memberFlattenedXmlMapWithXmlNameOutputMap_value = smithy.Member{Name: "value", Index: 1, Target: &schemaSmithyString, XMLName: "V"}
 
-var schemaFlattenedXmlMapWithXmlNamespaceOutput = smithy.Schema{ID: "aws.protocoltests.query#FlattenedXmlMapWithXmlNamespaceOutput", Type: smithy.TypeStructure}
+var schemaFlattenedXmlMapWithXmlNamespaceOutput = smithy.Schema{ID: "aws.protocoltests.query#FlattenedXmlMapWithXmlNamespaceOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberFlattenedXmlMapWithXmlNamespaceOutput_myMap}}
 
-var memberFlattenedXmlMapWithXmlNamespaceOutput_myMap = smithy.Member{Name: "myMap", Index: 0, XMLName: "KVP", XMLFlattened: true, XMLNamespace: &smithy.XMLNamespace{URI: "https://the-member.example.com"}}
+var memberFlattenedXmlMapWithXmlNamespaceOutput_myMap = smithy.Member{Name: "myMap", Index: 0, Target: &schemaFlattenedXmlMapWithXmlNamespaceOutputMap, XMLName: "KVP", XMLFlattened: true, XMLNamespace: &smithy.XMLNamespace{URI: "https://the-member.example.com"}}
 
-var schemaFlattenedXmlMapWithXmlNamespaceOutputMap = smithy.Schema{ID: "aws.protocoltests.query#FlattenedXmlMapWithXmlNamespaceOutputMap", Type: smithy.TypeMap}
+var schemaFlattenedXmlMapWithXmlNamespaceOutputMap = smithy.Schema{ID: "aws.protocoltests.query#FlattenedXmlMapWithXmlNamespaceOutputMap", Type: smithy.TypeMap, Members: []*smithy.Member{&memberFlattenedXmlMapWithXmlNamespaceOutputMap_key, &memberFlattenedXmlMapWithXmlNamespaceOutputMap_value}}
 
-var memberFlattenedXmlMapWithXmlNamespaceOutputMap_key = smithy.Member{Name: "key", Index: 0, XMLName: "K", XMLNamespace: &smithy.XMLNamespace{URI: "https://the-key.example.com"}}
+var memberFlattenedXmlMapWithXmlNamespaceOutputMap_key = smithy.Member{Name: "key", Index: 0, Target: &schemaSmithyString, XMLName: "K", XMLNamespace: &smithy.XMLNamespace{URI: "https://the-key.example.com"}}
 
-var memberFlattenedXmlMapWithXmlNamespaceOutputMap_value = smithy.Member{Name: "value", Index: 1, XMLName: "V", XMLNamespace: &smithy.XMLNamespace{URI: "https://the-value.example.com"}}
+var memberFlattenedXmlMapWithXmlNamespaceOutputMap_value = smithy.Member{Name: "value", Index: 1, Target: &schemaSmithyString, XMLName: "V", XMLNamespace: &smithy.XMLNamespace{URI: "https://the-value.example.com"}}
 
 var schemaFooEnum = smithy.Schema{ID: "aws.protocoltests.shared#FooEnum", Type: smithy.TypeEnum}
 
-var schemaFooEnumList = smithy.Schema{ID: "aws.protocoltests.shared#FooEnumList", Type: smithy.TypeList}
+var schemaFooEnumList = smithy.Schema{ID: "aws.protocoltests.shared#FooEnumList", Type: smithy.TypeList, Members: []*smithy.Member{&memberFooEnumList_member}}
 
-var memberFooEnumList_member = smithy.Member{Name: "member", Index: 0}
+var memberFooEnumList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaFooEnum}
 
-var schemaFooEnumMap = smithy.Schema{ID: "aws.protocoltests.shared#FooEnumMap", Type: smithy.TypeMap}
+var schemaFooEnumMap = smithy.Schema{ID: "aws.protocoltests.shared#FooEnumMap", Type: smithy.TypeMap, Members: []*smithy.Member{&memberFooEnumMap_key, &memberFooEnumMap_value}}
 
-var memberFooEnumMap_key = smithy.Member{Name: "key", Index: 0}
+var memberFooEnumMap_key = smithy.Member{Name: "key", Index: 0, Target: &schemaSmithyString}
 
-var memberFooEnumMap_value = smithy.Member{Name: "value", Index: 1}
+var memberFooEnumMap_value = smithy.Member{Name: "value", Index: 1, Target: &schemaFooEnum}
 
-var schemaFooEnumSet = smithy.Schema{ID: "aws.protocoltests.shared#FooEnumSet", Type: smithy.TypeList}
+var schemaFooEnumSet = smithy.Schema{ID: "aws.protocoltests.shared#FooEnumSet", Type: smithy.TypeList, Members: []*smithy.Member{&memberFooEnumSet_member}}
 
-var memberFooEnumSet_member = smithy.Member{Name: "member", Index: 0}
+var memberFooEnumSet_member = smithy.Member{Name: "member", Index: 0, Target: &schemaFooEnum}
 
-var schemaFractionalSecondsOutput = smithy.Schema{ID: "aws.protocoltests.query#FractionalSecondsOutput", Type: smithy.TypeStructure}
+var schemaFractionalSecondsOutput = smithy.Schema{ID: "aws.protocoltests.query#FractionalSecondsOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberFractionalSecondsOutput_datetime}}
 
-var memberFractionalSecondsOutput_datetime = smithy.Member{Name: "datetime", Index: 0, TimestampFormat: smithy.DateTime}
+var memberFractionalSecondsOutput_datetime = smithy.Member{Name: "datetime", Index: 0, Target: &schemaDateTime, TimestampFormat: smithy.DateTime}
 
-var schemaGreetingList = smithy.Schema{ID: "aws.protocoltests.shared#GreetingList", Type: smithy.TypeList}
+var schemaGreetingList = smithy.Schema{ID: "aws.protocoltests.shared#GreetingList", Type: smithy.TypeList, Members: []*smithy.Member{&memberGreetingList_member}}
 
-var memberGreetingList_member = smithy.Member{Name: "member", Index: 0}
+var memberGreetingList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaGreetingStruct}
 
-var schemaGreetingStruct = smithy.Schema{ID: "aws.protocoltests.shared#GreetingStruct", Type: smithy.TypeStructure}
+var schemaGreetingStruct = smithy.Schema{ID: "aws.protocoltests.shared#GreetingStruct", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGreetingStruct_hi}}
 
-var memberGreetingStruct_hi = smithy.Member{Name: "hi", Index: 0}
+var memberGreetingStruct_hi = smithy.Member{Name: "hi", Index: 0, Target: &schemaSmithyString}
 
-var schemaGreetingWithErrorsOutput = smithy.Schema{ID: "aws.protocoltests.query#GreetingWithErrorsOutput", Type: smithy.TypeStructure}
+var schemaGreetingWithErrorsOutput = smithy.Schema{ID: "aws.protocoltests.query#GreetingWithErrorsOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGreetingWithErrorsOutput_greeting}}
 
-var memberGreetingWithErrorsOutput_greeting = smithy.Member{Name: "greeting", Index: 0}
+var memberGreetingWithErrorsOutput_greeting = smithy.Member{Name: "greeting", Index: 0, Target: &schemaSmithyString}
 
 var schemaHttpDate = smithy.Schema{ID: "aws.protocoltests.shared#HttpDate", Type: smithy.TypeTimestamp, TimestampFormat: smithy.HTTPDate}
 
-var schemaIgnoresWrappingXmlNameOutput = smithy.Schema{ID: "aws.protocoltests.query#IgnoresWrappingXmlNameOutput", Type: smithy.TypeStructure, XMLName: "IgnoreMe"}
+var schemaIgnoresWrappingXmlNameOutput = smithy.Schema{ID: "aws.protocoltests.query#IgnoresWrappingXmlNameOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberIgnoresWrappingXmlNameOutput_foo}, XMLName: "IgnoreMe"}
 
-var memberIgnoresWrappingXmlNameOutput_foo = smithy.Member{Name: "foo", Index: 0}
+var memberIgnoresWrappingXmlNameOutput_foo = smithy.Member{Name: "foo", Index: 0, Target: &schemaSmithyString}
 
 var schemaIntegerEnum = smithy.Schema{ID: "aws.protocoltests.shared#IntegerEnum", Type: smithy.TypeIntEnum}
 
-var schemaIntegerEnumList = smithy.Schema{ID: "aws.protocoltests.shared#IntegerEnumList", Type: smithy.TypeList}
+var schemaIntegerEnumList = smithy.Schema{ID: "aws.protocoltests.shared#IntegerEnumList", Type: smithy.TypeList, Members: []*smithy.Member{&memberIntegerEnumList_member}}
 
-var memberIntegerEnumList_member = smithy.Member{Name: "member", Index: 0}
+var memberIntegerEnumList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaIntegerEnum}
 
-var schemaIntegerEnumMap = smithy.Schema{ID: "aws.protocoltests.shared#IntegerEnumMap", Type: smithy.TypeMap}
+var schemaIntegerEnumMap = smithy.Schema{ID: "aws.protocoltests.shared#IntegerEnumMap", Type: smithy.TypeMap, Members: []*smithy.Member{&memberIntegerEnumMap_key, &memberIntegerEnumMap_value}}
 
-var memberIntegerEnumMap_key = smithy.Member{Name: "key", Index: 0}
+var memberIntegerEnumMap_key = smithy.Member{Name: "key", Index: 0, Target: &schemaSmithyString}
 
-var memberIntegerEnumMap_value = smithy.Member{Name: "value", Index: 1}
+var memberIntegerEnumMap_value = smithy.Member{Name: "value", Index: 1, Target: &schemaIntegerEnum}
 
-var schemaIntegerEnumSet = smithy.Schema{ID: "aws.protocoltests.shared#IntegerEnumSet", Type: smithy.TypeList}
+var schemaIntegerEnumSet = smithy.Schema{ID: "aws.protocoltests.shared#IntegerEnumSet", Type: smithy.TypeList, Members: []*smithy.Member{&memberIntegerEnumSet_member}}
 
-var memberIntegerEnumSet_member = smithy.Member{Name: "member", Index: 0}
+var memberIntegerEnumSet_member = smithy.Member{Name: "member", Index: 0, Target: &schemaIntegerEnum}
 
-var schemaIntegerList = smithy.Schema{ID: "aws.protocoltests.shared#IntegerList", Type: smithy.TypeList}
+var schemaIntegerList = smithy.Schema{ID: "aws.protocoltests.shared#IntegerList", Type: smithy.TypeList, Members: []*smithy.Member{&memberIntegerList_member}}
 
-var memberIntegerList_member = smithy.Member{Name: "member", Index: 0}
+var memberIntegerList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaSmithyInteger}
 
-var schemaInvalidAction = smithy.Schema{ID: "com.amazon.coral.service#InvalidAction", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaInvalidAction = smithy.Schema{ID: "com.amazon.coral.service#InvalidAction", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberInvalidAction_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberInvalidAction_message = smithy.Member{Name: "message", Index: 0}
+var memberInvalidAction_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaInvalidGreeting = smithy.Schema{ID: "aws.protocoltests.query#InvalidGreeting", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
+var schemaInvalidGreeting = smithy.Schema{ID: "aws.protocoltests.query#InvalidGreeting", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberInvalidGreeting_Message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
 
-var memberInvalidGreeting_Message = smithy.Member{Name: "Message", Index: 0}
+var memberInvalidGreeting_Message = smithy.Member{Name: "Message", Index: 0, Target: &schemaSmithyString}
 
-var schemaListWithMemberNamespace = smithy.Schema{ID: "aws.protocoltests.query#ListWithMemberNamespace", Type: smithy.TypeList, XMLNamespace: &smithy.XMLNamespace{URI: "https://xml-list.example.com"}}
+var schemaListWithMemberNamespace = smithy.Schema{ID: "aws.protocoltests.query#ListWithMemberNamespace", Type: smithy.TypeList, Members: []*smithy.Member{&memberListWithMemberNamespace_member}, XMLNamespace: &smithy.XMLNamespace{URI: "https://xml-list.example.com"}}
 
-var memberListWithMemberNamespace_member = smithy.Member{Name: "member", Index: 0, XMLNamespace: &smithy.XMLNamespace{URI: "https://xml-member.example.com"}}
+var memberListWithMemberNamespace_member = smithy.Member{Name: "member", Index: 0, Target: &schemaSmithyString, XMLNamespace: &smithy.XMLNamespace{URI: "https://xml-member.example.com"}}
 
-var schemaListWithNamespace = smithy.Schema{ID: "aws.protocoltests.query#ListWithNamespace", Type: smithy.TypeList, XMLNamespace: &smithy.XMLNamespace{URI: "https://xml-list.example.com"}}
+var schemaListWithNamespace = smithy.Schema{ID: "aws.protocoltests.query#ListWithNamespace", Type: smithy.TypeList, Members: []*smithy.Member{&memberListWithNamespace_member}, XMLNamespace: &smithy.XMLNamespace{URI: "https://xml-list.example.com"}}
 
-var memberListWithNamespace_member = smithy.Member{Name: "member", Index: 0}
+var memberListWithNamespace_member = smithy.Member{Name: "member", Index: 0, Target: &schemaSmithyString}
 
-var schemaListWithXmlName = smithy.Schema{ID: "aws.protocoltests.query#ListWithXmlName", Type: smithy.TypeList}
+var schemaListWithXmlName = smithy.Schema{ID: "aws.protocoltests.query#ListWithXmlName", Type: smithy.TypeList, Members: []*smithy.Member{&memberListWithXmlName_member}}
 
-var memberListWithXmlName_member = smithy.Member{Name: "member", Index: 0, XMLName: "item"}
+var memberListWithXmlName_member = smithy.Member{Name: "member", Index: 0, Target: &schemaSmithyString, XMLName: "item"}
 
-var schemaMapOfLists = smithy.Schema{ID: "aws.protocoltests.query#MapOfLists", Type: smithy.TypeMap}
+var schemaMapOfLists = smithy.Schema{ID: "aws.protocoltests.query#MapOfLists", Type: smithy.TypeMap, Members: []*smithy.Member{&memberMapOfLists_key, &memberMapOfLists_value}}
 
-var memberMapOfLists_key = smithy.Member{Name: "key", Index: 0}
+var memberMapOfLists_key = smithy.Member{Name: "key", Index: 0, Target: &schemaSmithyString}
 
-var memberMapOfLists_value = smithy.Member{Name: "value", Index: 1}
+var memberMapOfLists_value = smithy.Member{Name: "value", Index: 1, Target: &schemaStringList}
 
-var schemaMapWithXmlName = smithy.Schema{ID: "aws.protocoltests.query#MapWithXmlName", Type: smithy.TypeMap}
+var schemaMapWithXmlName = smithy.Schema{ID: "aws.protocoltests.query#MapWithXmlName", Type: smithy.TypeMap, Members: []*smithy.Member{&memberMapWithXmlName_key, &memberMapWithXmlName_value}}
 
-var memberMapWithXmlName_key = smithy.Member{Name: "key", Index: 0, XMLName: "K"}
+var memberMapWithXmlName_key = smithy.Member{Name: "key", Index: 0, Target: &schemaSmithyString, XMLName: "K"}
 
-var memberMapWithXmlName_value = smithy.Member{Name: "value", Index: 1, XMLName: "V"}
+var memberMapWithXmlName_value = smithy.Member{Name: "value", Index: 1, Target: &schemaSmithyString, XMLName: "V"}
 
-var schemaNestedStringList = smithy.Schema{ID: "aws.protocoltests.shared#NestedStringList", Type: smithy.TypeList}
+var schemaNestedStringList = smithy.Schema{ID: "aws.protocoltests.shared#NestedStringList", Type: smithy.TypeList, Members: []*smithy.Member{&memberNestedStringList_member}}
 
-var memberNestedStringList_member = smithy.Member{Name: "member", Index: 0}
+var memberNestedStringList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaStringList}
 
-var schemaNestedStructWithList = smithy.Schema{ID: "aws.protocoltests.query#NestedStructWithList", Type: smithy.TypeStructure}
+var schemaNestedStructWithList = smithy.Schema{ID: "aws.protocoltests.query#NestedStructWithList", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberNestedStructWithList_ListArg}}
 
-var memberNestedStructWithList_ListArg = smithy.Member{Name: "ListArg", Index: 0}
+var memberNestedStructWithList_ListArg = smithy.Member{Name: "ListArg", Index: 0, Target: &schemaStringList}
 
-var schemaNestedStructWithMap = smithy.Schema{ID: "aws.protocoltests.query#NestedStructWithMap", Type: smithy.TypeStructure}
+var schemaNestedStructWithMap = smithy.Schema{ID: "aws.protocoltests.query#NestedStructWithMap", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberNestedStructWithMap_MapArg}}
 
-var memberNestedStructWithMap_MapArg = smithy.Member{Name: "MapArg", Index: 0}
+var memberNestedStructWithMap_MapArg = smithy.Member{Name: "MapArg", Index: 0, Target: &schemaStringMap}
 
-var schemaNestedStructuresInput = smithy.Schema{ID: "aws.protocoltests.query#NestedStructuresInput", Type: smithy.TypeStructure}
+var schemaNestedStructuresInput = smithy.Schema{ID: "aws.protocoltests.query#NestedStructuresInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberNestedStructuresInput_Nested}}
 
-var memberNestedStructuresInput_Nested = smithy.Member{Name: "Nested", Index: 0}
+var memberNestedStructuresInput_Nested = smithy.Member{Name: "Nested", Index: 0, Target: &schemaStructArg}
 
 var schemaNoInputAndOutputInput = smithy.Schema{ID: "aws.protocoltests.query#NoInputAndOutputInput", Type: smithy.TypeStructure}
 
 var schemaNoInputAndOutputOutput = smithy.Schema{ID: "aws.protocoltests.query#NoInputAndOutputOutput", Type: smithy.TypeStructure}
 
-var schemaPutWithContentEncodingInput = smithy.Schema{ID: "aws.protocoltests.query#PutWithContentEncodingInput", Type: smithy.TypeStructure}
+var schemaPutWithContentEncodingInput = smithy.Schema{ID: "aws.protocoltests.query#PutWithContentEncodingInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutWithContentEncodingInput_encoding, &memberPutWithContentEncodingInput_data}}
 
-var memberPutWithContentEncodingInput_encoding = smithy.Member{Name: "encoding", Index: 0, HTTP: smithy.HTTPHeader{Name: "Content-Encoding"}}
+var memberPutWithContentEncodingInput_encoding = smithy.Member{Name: "encoding", Index: 0, Target: &schemaSmithyString, HTTP: smithy.HTTPHeader{Name: "Content-Encoding"}}
 
-var memberPutWithContentEncodingInput_data = smithy.Member{Name: "data", Index: 1}
+var memberPutWithContentEncodingInput_data = smithy.Member{Name: "data", Index: 1, Target: &schemaSmithyString}
 
-var schemaQueryIdempotencyTokenAutoFillInput = smithy.Schema{ID: "aws.protocoltests.query#QueryIdempotencyTokenAutoFillInput", Type: smithy.TypeStructure}
+var schemaQueryIdempotencyTokenAutoFillInput = smithy.Schema{ID: "aws.protocoltests.query#QueryIdempotencyTokenAutoFillInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberQueryIdempotencyTokenAutoFillInput_token}}
 
-var memberQueryIdempotencyTokenAutoFillInput_token = smithy.Member{Name: "token", Index: 0}
+var memberQueryIdempotencyTokenAutoFillInput_token = smithy.Member{Name: "token", Index: 0, Target: &schemaSmithyString}
 
-var schemaQueryListsInput = smithy.Schema{ID: "aws.protocoltests.query#QueryListsInput", Type: smithy.TypeStructure}
+var schemaQueryListsInput = smithy.Schema{ID: "aws.protocoltests.query#QueryListsInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberQueryListsInput_ListArg, &memberQueryListsInput_ComplexListArg, &memberQueryListsInput_FlattenedListArg, &memberQueryListsInput_ListArgWithXmlNameMember, &memberQueryListsInput_FlattenedListArgWithXmlName, &memberQueryListsInput_NestedWithList}}
 
-var memberQueryListsInput_ListArg = smithy.Member{Name: "ListArg", Index: 0}
+var memberQueryListsInput_ListArg = smithy.Member{Name: "ListArg", Index: 0, Target: &schemaStringList}
 
-var memberQueryListsInput_ComplexListArg = smithy.Member{Name: "ComplexListArg", Index: 1}
+var memberQueryListsInput_ComplexListArg = smithy.Member{Name: "ComplexListArg", Index: 1, Target: &schemaGreetingList}
 
-var memberQueryListsInput_FlattenedListArg = smithy.Member{Name: "FlattenedListArg", Index: 2, XMLFlattened: true}
+var memberQueryListsInput_FlattenedListArg = smithy.Member{Name: "FlattenedListArg", Index: 2, Target: &schemaStringList, XMLFlattened: true}
 
-var memberQueryListsInput_ListArgWithXmlNameMember = smithy.Member{Name: "ListArgWithXmlNameMember", Index: 3}
+var memberQueryListsInput_ListArgWithXmlNameMember = smithy.Member{Name: "ListArgWithXmlNameMember", Index: 3, Target: &schemaListWithXmlName}
 
-var memberQueryListsInput_FlattenedListArgWithXmlName = smithy.Member{Name: "FlattenedListArgWithXmlName", Index: 4, XMLName: "Hi", XMLFlattened: true}
+var memberQueryListsInput_FlattenedListArgWithXmlName = smithy.Member{Name: "FlattenedListArgWithXmlName", Index: 4, Target: &schemaListWithXmlName, XMLName: "Hi", XMLFlattened: true}
 
-var memberQueryListsInput_NestedWithList = smithy.Member{Name: "NestedWithList", Index: 5}
+var memberQueryListsInput_NestedWithList = smithy.Member{Name: "NestedWithList", Index: 5, Target: &schemaNestedStructWithList}
 
-var schemaQueryMapsInput = smithy.Schema{ID: "aws.protocoltests.query#QueryMapsInput", Type: smithy.TypeStructure}
+var schemaQueryMapsInput = smithy.Schema{ID: "aws.protocoltests.query#QueryMapsInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberQueryMapsInput_MapArg, &memberQueryMapsInput_RenamedMapArg, &memberQueryMapsInput_ComplexMapArg, &memberQueryMapsInput_MapWithXmlMemberName, &memberQueryMapsInput_FlattenedMap, &memberQueryMapsInput_FlattenedMapWithXmlName, &memberQueryMapsInput_MapOfLists, &memberQueryMapsInput_NestedStructWithMap}}
 
-var memberQueryMapsInput_MapArg = smithy.Member{Name: "MapArg", Index: 0}
+var memberQueryMapsInput_MapArg = smithy.Member{Name: "MapArg", Index: 0, Target: &schemaStringMap}
 
-var memberQueryMapsInput_RenamedMapArg = smithy.Member{Name: "RenamedMapArg", Index: 1, XMLName: "Foo"}
+var memberQueryMapsInput_RenamedMapArg = smithy.Member{Name: "RenamedMapArg", Index: 1, Target: &schemaStringMap, XMLName: "Foo"}
 
-var memberQueryMapsInput_ComplexMapArg = smithy.Member{Name: "ComplexMapArg", Index: 2}
+var memberQueryMapsInput_ComplexMapArg = smithy.Member{Name: "ComplexMapArg", Index: 2, Target: &schemaComplexMap}
 
-var memberQueryMapsInput_MapWithXmlMemberName = smithy.Member{Name: "MapWithXmlMemberName", Index: 3}
+var memberQueryMapsInput_MapWithXmlMemberName = smithy.Member{Name: "MapWithXmlMemberName", Index: 3, Target: &schemaMapWithXmlName}
 
-var memberQueryMapsInput_FlattenedMap = smithy.Member{Name: "FlattenedMap", Index: 4, XMLFlattened: true}
+var memberQueryMapsInput_FlattenedMap = smithy.Member{Name: "FlattenedMap", Index: 4, Target: &schemaStringMap, XMLFlattened: true}
 
-var memberQueryMapsInput_FlattenedMapWithXmlName = smithy.Member{Name: "FlattenedMapWithXmlName", Index: 5, XMLName: "Hi", XMLFlattened: true}
+var memberQueryMapsInput_FlattenedMapWithXmlName = smithy.Member{Name: "FlattenedMapWithXmlName", Index: 5, Target: &schemaMapWithXmlName, XMLName: "Hi", XMLFlattened: true}
 
-var memberQueryMapsInput_MapOfLists = smithy.Member{Name: "MapOfLists", Index: 6}
+var memberQueryMapsInput_MapOfLists = smithy.Member{Name: "MapOfLists", Index: 6, Target: &schemaMapOfLists}
 
-var memberQueryMapsInput_NestedStructWithMap = smithy.Member{Name: "NestedStructWithMap", Index: 7}
+var memberQueryMapsInput_NestedStructWithMap = smithy.Member{Name: "NestedStructWithMap", Index: 7, Target: &schemaNestedStructWithMap}
 
-var schemaQueryTimestampsInput = smithy.Schema{ID: "aws.protocoltests.query#QueryTimestampsInput", Type: smithy.TypeStructure}
+var schemaQueryTimestampsInput = smithy.Schema{ID: "aws.protocoltests.query#QueryTimestampsInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberQueryTimestampsInput_normalFormat, &memberQueryTimestampsInput_epochMember, &memberQueryTimestampsInput_epochTarget}}
 
-var memberQueryTimestampsInput_normalFormat = smithy.Member{Name: "normalFormat", Index: 0}
+var memberQueryTimestampsInput_normalFormat = smithy.Member{Name: "normalFormat", Index: 0, Target: &schemaSmithyTimestamp}
 
-var memberQueryTimestampsInput_epochMember = smithy.Member{Name: "epochMember", Index: 1, TimestampFormat: smithy.EpochSeconds}
+var memberQueryTimestampsInput_epochMember = smithy.Member{Name: "epochMember", Index: 1, Target: &schemaSmithyTimestamp, TimestampFormat: smithy.EpochSeconds}
 
-var memberQueryTimestampsInput_epochTarget = smithy.Member{Name: "epochTarget", Index: 2, TimestampFormat: smithy.EpochSeconds}
+var memberQueryTimestampsInput_epochTarget = smithy.Member{Name: "epochTarget", Index: 2, Target: &schemaEpochSeconds, TimestampFormat: smithy.EpochSeconds}
 
-var schemaRecursiveXmlShapesOutput = smithy.Schema{ID: "aws.protocoltests.query#RecursiveXmlShapesOutput", Type: smithy.TypeStructure}
+var schemaRecursiveXmlShapesOutput = smithy.Schema{ID: "aws.protocoltests.query#RecursiveXmlShapesOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRecursiveXmlShapesOutput_nested}}
 
-var memberRecursiveXmlShapesOutput_nested = smithy.Member{Name: "nested", Index: 0}
+var memberRecursiveXmlShapesOutput_nested = smithy.Member{Name: "nested", Index: 0, Target: &schemaRecursiveXmlShapesOutputNested1}
 
 var schemaRecursiveXmlShapesOutputNested1 = smithy.Schema{ID: "aws.protocoltests.query#RecursiveXmlShapesOutputNested1", Type: smithy.TypeStructure}
 
-var memberRecursiveXmlShapesOutputNested1_foo = smithy.Member{Name: "foo", Index: 0}
+var memberRecursiveXmlShapesOutputNested1_foo = smithy.Member{Name: "foo", Index: 0, Target: &schemaSmithyString}
 
-var memberRecursiveXmlShapesOutputNested1_nested = smithy.Member{Name: "nested", Index: 1}
+var memberRecursiveXmlShapesOutputNested1_nested = smithy.Member{Name: "nested", Index: 1, Target: &schemaRecursiveXmlShapesOutputNested2}
 
 var schemaRecursiveXmlShapesOutputNested2 = smithy.Schema{ID: "aws.protocoltests.query#RecursiveXmlShapesOutputNested2", Type: smithy.TypeStructure}
 
-var memberRecursiveXmlShapesOutputNested2_bar = smithy.Member{Name: "bar", Index: 0}
+var memberRecursiveXmlShapesOutputNested2_bar = smithy.Member{Name: "bar", Index: 0, Target: &schemaSmithyString}
 
-var memberRecursiveXmlShapesOutputNested2_recursiveMember = smithy.Member{Name: "recursiveMember", Index: 1}
+var memberRecursiveXmlShapesOutputNested2_recursiveMember = smithy.Member{Name: "recursiveMember", Index: 1, Target: &schemaRecursiveXmlShapesOutputNested1}
 
-var schemaRenamedListMembers = smithy.Schema{ID: "aws.protocoltests.query#RenamedListMembers", Type: smithy.TypeList}
+var schemaRenamedListMembers = smithy.Schema{ID: "aws.protocoltests.query#RenamedListMembers", Type: smithy.TypeList, Members: []*smithy.Member{&memberRenamedListMembers_member}}
 
-var memberRenamedListMembers_member = smithy.Member{Name: "member", Index: 0, XMLName: "item"}
+var memberRenamedListMembers_member = smithy.Member{Name: "member", Index: 0, Target: &schemaSmithyString, XMLName: "item"}
 
-var schemaSimpleInputParamsInput = smithy.Schema{ID: "aws.protocoltests.query#SimpleInputParamsInput", Type: smithy.TypeStructure}
+var schemaSimpleInputParamsInput = smithy.Schema{ID: "aws.protocoltests.query#SimpleInputParamsInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSimpleInputParamsInput_Foo, &memberSimpleInputParamsInput_Bar, &memberSimpleInputParamsInput_Baz, &memberSimpleInputParamsInput_Bam, &memberSimpleInputParamsInput_FloatValue, &memberSimpleInputParamsInput_Boo, &memberSimpleInputParamsInput_Qux, &memberSimpleInputParamsInput_FooEnum, &memberSimpleInputParamsInput_IntegerEnum}}
 
-var memberSimpleInputParamsInput_Foo = smithy.Member{Name: "Foo", Index: 0}
+var memberSimpleInputParamsInput_Foo = smithy.Member{Name: "Foo", Index: 0, Target: &schemaSmithyString}
 
-var memberSimpleInputParamsInput_Bar = smithy.Member{Name: "Bar", Index: 1}
+var memberSimpleInputParamsInput_Bar = smithy.Member{Name: "Bar", Index: 1, Target: &schemaSmithyString}
 
-var memberSimpleInputParamsInput_Baz = smithy.Member{Name: "Baz", Index: 2}
+var memberSimpleInputParamsInput_Baz = smithy.Member{Name: "Baz", Index: 2, Target: &schemaSmithyBoolean}
 
-var memberSimpleInputParamsInput_Bam = smithy.Member{Name: "Bam", Index: 3}
+var memberSimpleInputParamsInput_Bam = smithy.Member{Name: "Bam", Index: 3, Target: &schemaSmithyInteger}
 
-var memberSimpleInputParamsInput_FloatValue = smithy.Member{Name: "FloatValue", Index: 4}
+var memberSimpleInputParamsInput_FloatValue = smithy.Member{Name: "FloatValue", Index: 4, Target: &schemaSmithyFloat}
 
-var memberSimpleInputParamsInput_Boo = smithy.Member{Name: "Boo", Index: 5}
+var memberSimpleInputParamsInput_Boo = smithy.Member{Name: "Boo", Index: 5, Target: &schemaSmithyDouble}
 
-var memberSimpleInputParamsInput_Qux = smithy.Member{Name: "Qux", Index: 6}
+var memberSimpleInputParamsInput_Qux = smithy.Member{Name: "Qux", Index: 6, Target: &schemaSmithyBlob}
 
-var memberSimpleInputParamsInput_FooEnum = smithy.Member{Name: "FooEnum", Index: 7}
+var memberSimpleInputParamsInput_FooEnum = smithy.Member{Name: "FooEnum", Index: 7, Target: &schemaFooEnum}
 
-var memberSimpleInputParamsInput_IntegerEnum = smithy.Member{Name: "IntegerEnum", Index: 8}
+var memberSimpleInputParamsInput_IntegerEnum = smithy.Member{Name: "IntegerEnum", Index: 8, Target: &schemaIntegerEnum}
 
-var schemaSimpleScalarXmlPropertiesOutput = smithy.Schema{ID: "aws.protocoltests.query#SimpleScalarXmlPropertiesOutput", Type: smithy.TypeStructure}
+var schemaSimpleScalarXmlPropertiesOutput = smithy.Schema{ID: "aws.protocoltests.query#SimpleScalarXmlPropertiesOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSimpleScalarXmlPropertiesOutput_stringValue, &memberSimpleScalarXmlPropertiesOutput_emptyStringValue, &memberSimpleScalarXmlPropertiesOutput_trueBooleanValue, &memberSimpleScalarXmlPropertiesOutput_falseBooleanValue, &memberSimpleScalarXmlPropertiesOutput_byteValue, &memberSimpleScalarXmlPropertiesOutput_shortValue, &memberSimpleScalarXmlPropertiesOutput_integerValue, &memberSimpleScalarXmlPropertiesOutput_longValue, &memberSimpleScalarXmlPropertiesOutput_floatValue, &memberSimpleScalarXmlPropertiesOutput_doubleValue}}
 
-var memberSimpleScalarXmlPropertiesOutput_stringValue = smithy.Member{Name: "stringValue", Index: 0}
+var memberSimpleScalarXmlPropertiesOutput_stringValue = smithy.Member{Name: "stringValue", Index: 0, Target: &schemaSmithyString}
 
-var memberSimpleScalarXmlPropertiesOutput_emptyStringValue = smithy.Member{Name: "emptyStringValue", Index: 1}
+var memberSimpleScalarXmlPropertiesOutput_emptyStringValue = smithy.Member{Name: "emptyStringValue", Index: 1, Target: &schemaSmithyString}
 
-var memberSimpleScalarXmlPropertiesOutput_trueBooleanValue = smithy.Member{Name: "trueBooleanValue", Index: 2}
+var memberSimpleScalarXmlPropertiesOutput_trueBooleanValue = smithy.Member{Name: "trueBooleanValue", Index: 2, Target: &schemaSmithyBoolean}
 
-var memberSimpleScalarXmlPropertiesOutput_falseBooleanValue = smithy.Member{Name: "falseBooleanValue", Index: 3}
+var memberSimpleScalarXmlPropertiesOutput_falseBooleanValue = smithy.Member{Name: "falseBooleanValue", Index: 3, Target: &schemaSmithyBoolean}
 
-var memberSimpleScalarXmlPropertiesOutput_byteValue = smithy.Member{Name: "byteValue", Index: 4}
+var memberSimpleScalarXmlPropertiesOutput_byteValue = smithy.Member{Name: "byteValue", Index: 4, Target: &schemaSmithyByte}
 
-var memberSimpleScalarXmlPropertiesOutput_shortValue = smithy.Member{Name: "shortValue", Index: 5}
+var memberSimpleScalarXmlPropertiesOutput_shortValue = smithy.Member{Name: "shortValue", Index: 5, Target: &schemaSmithyShort}
 
-var memberSimpleScalarXmlPropertiesOutput_integerValue = smithy.Member{Name: "integerValue", Index: 6}
+var memberSimpleScalarXmlPropertiesOutput_integerValue = smithy.Member{Name: "integerValue", Index: 6, Target: &schemaSmithyInteger}
 
-var memberSimpleScalarXmlPropertiesOutput_longValue = smithy.Member{Name: "longValue", Index: 7}
+var memberSimpleScalarXmlPropertiesOutput_longValue = smithy.Member{Name: "longValue", Index: 7, Target: &schemaSmithyLong}
 
-var memberSimpleScalarXmlPropertiesOutput_floatValue = smithy.Member{Name: "floatValue", Index: 8}
+var memberSimpleScalarXmlPropertiesOutput_floatValue = smithy.Member{Name: "floatValue", Index: 8, Target: &schemaSmithyFloat}
 
-var memberSimpleScalarXmlPropertiesOutput_doubleValue = smithy.Member{Name: "doubleValue", Index: 9, XMLName: "DoubleDribble"}
+var memberSimpleScalarXmlPropertiesOutput_doubleValue = smithy.Member{Name: "doubleValue", Index: 9, Target: &schemaSmithyDouble, XMLName: "DoubleDribble"}
 
 var schemaSmithyBlob = smithy.Schema{ID: "smithy.api#Blob", Type: smithy.TypeBlob}
 
@@ -314,367 +314,160 @@ var schemaSmithyTimestamp = smithy.Schema{ID: "smithy.api#Timestamp", Type: smit
 
 var schemaSmithyUnit = smithy.Schema{ID: "smithy.api#Unit", Type: smithy.TypeUnit}
 
-var schemaStringList = smithy.Schema{ID: "aws.protocoltests.shared#StringList", Type: smithy.TypeList}
+var schemaStringList = smithy.Schema{ID: "aws.protocoltests.shared#StringList", Type: smithy.TypeList, Members: []*smithy.Member{&memberStringList_member}}
 
-var memberStringList_member = smithy.Member{Name: "member", Index: 0}
+var memberStringList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaSmithyString}
 
-var schemaStringMap = smithy.Schema{ID: "aws.protocoltests.shared#StringMap", Type: smithy.TypeMap}
+var schemaStringMap = smithy.Schema{ID: "aws.protocoltests.shared#StringMap", Type: smithy.TypeMap, Members: []*smithy.Member{&memberStringMap_key, &memberStringMap_value}}
 
-var memberStringMap_key = smithy.Member{Name: "key", Index: 0}
+var memberStringMap_key = smithy.Member{Name: "key", Index: 0, Target: &schemaSmithyString}
 
-var memberStringMap_value = smithy.Member{Name: "value", Index: 1}
+var memberStringMap_value = smithy.Member{Name: "value", Index: 1, Target: &schemaSmithyString}
 
-var schemaStringSet = smithy.Schema{ID: "aws.protocoltests.shared#StringSet", Type: smithy.TypeList}
+var schemaStringSet = smithy.Schema{ID: "aws.protocoltests.shared#StringSet", Type: smithy.TypeList, Members: []*smithy.Member{&memberStringSet_member}}
 
-var memberStringSet_member = smithy.Member{Name: "member", Index: 0}
+var memberStringSet_member = smithy.Member{Name: "member", Index: 0, Target: &schemaSmithyString}
 
 var schemaStructArg = smithy.Schema{ID: "aws.protocoltests.query#StructArg", Type: smithy.TypeStructure}
 
-var memberStructArg_StringArg = smithy.Member{Name: "StringArg", Index: 0}
+var memberStructArg_StringArg = smithy.Member{Name: "StringArg", Index: 0, Target: &schemaSmithyString}
 
-var memberStructArg_OtherArg = smithy.Member{Name: "OtherArg", Index: 1}
+var memberStructArg_OtherArg = smithy.Member{Name: "OtherArg", Index: 1, Target: &schemaSmithyBoolean}
 
-var memberStructArg_RecursiveArg = smithy.Member{Name: "RecursiveArg", Index: 2}
+var memberStructArg_RecursiveArg = smithy.Member{Name: "RecursiveArg", Index: 2, Target: &schemaStructArg}
 
-var schemaStructureList = smithy.Schema{ID: "aws.protocoltests.query#StructureList", Type: smithy.TypeList}
+var schemaStructureList = smithy.Schema{ID: "aws.protocoltests.query#StructureList", Type: smithy.TypeList, Members: []*smithy.Member{&memberStructureList_member}}
 
-var memberStructureList_member = smithy.Member{Name: "member", Index: 0, XMLName: "item"}
+var memberStructureList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaStructureListMember, XMLName: "item"}
 
-var schemaStructureListMember = smithy.Schema{ID: "aws.protocoltests.query#StructureListMember", Type: smithy.TypeStructure}
+var schemaStructureListMember = smithy.Schema{ID: "aws.protocoltests.query#StructureListMember", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberStructureListMember_a, &memberStructureListMember_b}}
 
-var memberStructureListMember_a = smithy.Member{Name: "a", Index: 0, XMLName: "value"}
+var memberStructureListMember_a = smithy.Member{Name: "a", Index: 0, Target: &schemaSmithyString, XMLName: "value"}
 
-var memberStructureListMember_b = smithy.Member{Name: "b", Index: 1, XMLName: "other"}
+var memberStructureListMember_b = smithy.Member{Name: "b", Index: 1, Target: &schemaSmithyString, XMLName: "other"}
 
-var schemaTimestampList = smithy.Schema{ID: "aws.protocoltests.shared#TimestampList", Type: smithy.TypeList}
+var schemaTimestampList = smithy.Schema{ID: "aws.protocoltests.shared#TimestampList", Type: smithy.TypeList, Members: []*smithy.Member{&memberTimestampList_member}}
 
-var memberTimestampList_member = smithy.Member{Name: "member", Index: 0}
+var memberTimestampList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaSmithyTimestamp}
 
-var schemaValidationException = smithy.Schema{ID: "com.amazon.coral.validate#ValidationException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaValidationException = smithy.Schema{ID: "com.amazon.coral.validate#ValidationException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberValidationException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberValidationException_message = smithy.Member{Name: "message", Index: 0}
+var memberValidationException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaXmlBlobsOutput = smithy.Schema{ID: "aws.protocoltests.query#XmlBlobsOutput", Type: smithy.TypeStructure}
+var schemaXmlBlobsOutput = smithy.Schema{ID: "aws.protocoltests.query#XmlBlobsOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberXmlBlobsOutput_data}}
 
-var memberXmlBlobsOutput_data = smithy.Member{Name: "data", Index: 0}
+var memberXmlBlobsOutput_data = smithy.Member{Name: "data", Index: 0, Target: &schemaSmithyBlob}
 
-var schemaXmlEnumsOutput = smithy.Schema{ID: "aws.protocoltests.query#XmlEnumsOutput", Type: smithy.TypeStructure}
+var schemaXmlEnumsOutput = smithy.Schema{ID: "aws.protocoltests.query#XmlEnumsOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberXmlEnumsOutput_fooEnum1, &memberXmlEnumsOutput_fooEnum2, &memberXmlEnumsOutput_fooEnum3, &memberXmlEnumsOutput_fooEnumList, &memberXmlEnumsOutput_fooEnumSet, &memberXmlEnumsOutput_fooEnumMap}}
 
-var memberXmlEnumsOutput_fooEnum1 = smithy.Member{Name: "fooEnum1", Index: 0}
+var memberXmlEnumsOutput_fooEnum1 = smithy.Member{Name: "fooEnum1", Index: 0, Target: &schemaFooEnum}
 
-var memberXmlEnumsOutput_fooEnum2 = smithy.Member{Name: "fooEnum2", Index: 1}
+var memberXmlEnumsOutput_fooEnum2 = smithy.Member{Name: "fooEnum2", Index: 1, Target: &schemaFooEnum}
 
-var memberXmlEnumsOutput_fooEnum3 = smithy.Member{Name: "fooEnum3", Index: 2}
+var memberXmlEnumsOutput_fooEnum3 = smithy.Member{Name: "fooEnum3", Index: 2, Target: &schemaFooEnum}
 
-var memberXmlEnumsOutput_fooEnumList = smithy.Member{Name: "fooEnumList", Index: 3}
+var memberXmlEnumsOutput_fooEnumList = smithy.Member{Name: "fooEnumList", Index: 3, Target: &schemaFooEnumList}
 
-var memberXmlEnumsOutput_fooEnumSet = smithy.Member{Name: "fooEnumSet", Index: 4}
+var memberXmlEnumsOutput_fooEnumSet = smithy.Member{Name: "fooEnumSet", Index: 4, Target: &schemaFooEnumSet}
 
-var memberXmlEnumsOutput_fooEnumMap = smithy.Member{Name: "fooEnumMap", Index: 5}
+var memberXmlEnumsOutput_fooEnumMap = smithy.Member{Name: "fooEnumMap", Index: 5, Target: &schemaFooEnumMap}
 
-var schemaXmlIntEnumsOutput = smithy.Schema{ID: "aws.protocoltests.query#XmlIntEnumsOutput", Type: smithy.TypeStructure}
+var schemaXmlIntEnumsOutput = smithy.Schema{ID: "aws.protocoltests.query#XmlIntEnumsOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberXmlIntEnumsOutput_intEnum1, &memberXmlIntEnumsOutput_intEnum2, &memberXmlIntEnumsOutput_intEnum3, &memberXmlIntEnumsOutput_intEnumList, &memberXmlIntEnumsOutput_intEnumSet, &memberXmlIntEnumsOutput_intEnumMap}}
 
-var memberXmlIntEnumsOutput_intEnum1 = smithy.Member{Name: "intEnum1", Index: 0}
+var memberXmlIntEnumsOutput_intEnum1 = smithy.Member{Name: "intEnum1", Index: 0, Target: &schemaIntegerEnum}
 
-var memberXmlIntEnumsOutput_intEnum2 = smithy.Member{Name: "intEnum2", Index: 1}
+var memberXmlIntEnumsOutput_intEnum2 = smithy.Member{Name: "intEnum2", Index: 1, Target: &schemaIntegerEnum}
 
-var memberXmlIntEnumsOutput_intEnum3 = smithy.Member{Name: "intEnum3", Index: 2}
+var memberXmlIntEnumsOutput_intEnum3 = smithy.Member{Name: "intEnum3", Index: 2, Target: &schemaIntegerEnum}
 
-var memberXmlIntEnumsOutput_intEnumList = smithy.Member{Name: "intEnumList", Index: 3}
+var memberXmlIntEnumsOutput_intEnumList = smithy.Member{Name: "intEnumList", Index: 3, Target: &schemaIntegerEnumList}
 
-var memberXmlIntEnumsOutput_intEnumSet = smithy.Member{Name: "intEnumSet", Index: 4}
+var memberXmlIntEnumsOutput_intEnumSet = smithy.Member{Name: "intEnumSet", Index: 4, Target: &schemaIntegerEnumSet}
 
-var memberXmlIntEnumsOutput_intEnumMap = smithy.Member{Name: "intEnumMap", Index: 5}
+var memberXmlIntEnumsOutput_intEnumMap = smithy.Member{Name: "intEnumMap", Index: 5, Target: &schemaIntegerEnumMap}
 
-var schemaXmlListsOutput = smithy.Schema{ID: "aws.protocoltests.query#XmlListsOutput", Type: smithy.TypeStructure}
+var schemaXmlListsOutput = smithy.Schema{ID: "aws.protocoltests.query#XmlListsOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberXmlListsOutput_stringList, &memberXmlListsOutput_stringSet, &memberXmlListsOutput_integerList, &memberXmlListsOutput_booleanList, &memberXmlListsOutput_timestampList, &memberXmlListsOutput_enumList, &memberXmlListsOutput_intEnumList, &memberXmlListsOutput_nestedStringList, &memberXmlListsOutput_renamedListMembers, &memberXmlListsOutput_flattenedList, &memberXmlListsOutput_flattenedList2, &memberXmlListsOutput_flattenedListWithMemberNamespace, &memberXmlListsOutput_flattenedListWithNamespace, &memberXmlListsOutput_structureList}}
 
-var memberXmlListsOutput_stringList = smithy.Member{Name: "stringList", Index: 0}
+var memberXmlListsOutput_stringList = smithy.Member{Name: "stringList", Index: 0, Target: &schemaStringList}
 
-var memberXmlListsOutput_stringSet = smithy.Member{Name: "stringSet", Index: 1}
+var memberXmlListsOutput_stringSet = smithy.Member{Name: "stringSet", Index: 1, Target: &schemaStringSet}
 
-var memberXmlListsOutput_integerList = smithy.Member{Name: "integerList", Index: 2}
+var memberXmlListsOutput_integerList = smithy.Member{Name: "integerList", Index: 2, Target: &schemaIntegerList}
 
-var memberXmlListsOutput_booleanList = smithy.Member{Name: "booleanList", Index: 3}
+var memberXmlListsOutput_booleanList = smithy.Member{Name: "booleanList", Index: 3, Target: &schemaBooleanList}
 
-var memberXmlListsOutput_timestampList = smithy.Member{Name: "timestampList", Index: 4}
+var memberXmlListsOutput_timestampList = smithy.Member{Name: "timestampList", Index: 4, Target: &schemaTimestampList}
 
-var memberXmlListsOutput_enumList = smithy.Member{Name: "enumList", Index: 5}
+var memberXmlListsOutput_enumList = smithy.Member{Name: "enumList", Index: 5, Target: &schemaFooEnumList}
 
-var memberXmlListsOutput_intEnumList = smithy.Member{Name: "intEnumList", Index: 6}
+var memberXmlListsOutput_intEnumList = smithy.Member{Name: "intEnumList", Index: 6, Target: &schemaIntegerEnumList}
 
-var memberXmlListsOutput_nestedStringList = smithy.Member{Name: "nestedStringList", Index: 7}
+var memberXmlListsOutput_nestedStringList = smithy.Member{Name: "nestedStringList", Index: 7, Target: &schemaNestedStringList}
 
-var memberXmlListsOutput_renamedListMembers = smithy.Member{Name: "renamedListMembers", Index: 8, XMLName: "renamed"}
+var memberXmlListsOutput_renamedListMembers = smithy.Member{Name: "renamedListMembers", Index: 8, Target: &schemaRenamedListMembers, XMLName: "renamed"}
 
-var memberXmlListsOutput_flattenedList = smithy.Member{Name: "flattenedList", Index: 9, XMLFlattened: true}
+var memberXmlListsOutput_flattenedList = smithy.Member{Name: "flattenedList", Index: 9, Target: &schemaRenamedListMembers, XMLFlattened: true}
 
-var memberXmlListsOutput_flattenedList2 = smithy.Member{Name: "flattenedList2", Index: 10, XMLName: "customName", XMLFlattened: true}
+var memberXmlListsOutput_flattenedList2 = smithy.Member{Name: "flattenedList2", Index: 10, Target: &schemaRenamedListMembers, XMLName: "customName", XMLFlattened: true}
 
-var memberXmlListsOutput_flattenedListWithMemberNamespace = smithy.Member{Name: "flattenedListWithMemberNamespace", Index: 11, XMLFlattened: true}
+var memberXmlListsOutput_flattenedListWithMemberNamespace = smithy.Member{Name: "flattenedListWithMemberNamespace", Index: 11, Target: &schemaListWithMemberNamespace, XMLFlattened: true}
 
-var memberXmlListsOutput_flattenedListWithNamespace = smithy.Member{Name: "flattenedListWithNamespace", Index: 12, XMLFlattened: true}
+var memberXmlListsOutput_flattenedListWithNamespace = smithy.Member{Name: "flattenedListWithNamespace", Index: 12, Target: &schemaListWithNamespace, XMLFlattened: true}
 
-var memberXmlListsOutput_structureList = smithy.Member{Name: "structureList", Index: 13, XMLName: "myStructureList"}
+var memberXmlListsOutput_structureList = smithy.Member{Name: "structureList", Index: 13, Target: &schemaStructureList, XMLName: "myStructureList"}
 
-var schemaXmlMapsOutput = smithy.Schema{ID: "aws.protocoltests.query#XmlMapsOutput", Type: smithy.TypeStructure}
+var schemaXmlMapsOutput = smithy.Schema{ID: "aws.protocoltests.query#XmlMapsOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberXmlMapsOutput_myMap}}
 
-var memberXmlMapsOutput_myMap = smithy.Member{Name: "myMap", Index: 0}
+var memberXmlMapsOutput_myMap = smithy.Member{Name: "myMap", Index: 0, Target: &schemaXmlMapsOutputMap}
 
-var schemaXmlMapsOutputMap = smithy.Schema{ID: "aws.protocoltests.query#XmlMapsOutputMap", Type: smithy.TypeMap}
+var schemaXmlMapsOutputMap = smithy.Schema{ID: "aws.protocoltests.query#XmlMapsOutputMap", Type: smithy.TypeMap, Members: []*smithy.Member{&memberXmlMapsOutputMap_key, &memberXmlMapsOutputMap_value}}
 
-var memberXmlMapsOutputMap_key = smithy.Member{Name: "key", Index: 0}
+var memberXmlMapsOutputMap_key = smithy.Member{Name: "key", Index: 0, Target: &schemaSmithyString}
 
-var memberXmlMapsOutputMap_value = smithy.Member{Name: "value", Index: 1}
+var memberXmlMapsOutputMap_value = smithy.Member{Name: "value", Index: 1, Target: &schemaGreetingStruct}
 
-var schemaXmlMapsXmlNameOutput = smithy.Schema{ID: "aws.protocoltests.query#XmlMapsXmlNameOutput", Type: smithy.TypeStructure}
+var schemaXmlMapsXmlNameOutput = smithy.Schema{ID: "aws.protocoltests.query#XmlMapsXmlNameOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberXmlMapsXmlNameOutput_myMap}}
 
-var memberXmlMapsXmlNameOutput_myMap = smithy.Member{Name: "myMap", Index: 0}
+var memberXmlMapsXmlNameOutput_myMap = smithy.Member{Name: "myMap", Index: 0, Target: &schemaXmlMapsXmlNameOutputMap}
 
-var schemaXmlMapsXmlNameOutputMap = smithy.Schema{ID: "aws.protocoltests.query#XmlMapsXmlNameOutputMap", Type: smithy.TypeMap}
+var schemaXmlMapsXmlNameOutputMap = smithy.Schema{ID: "aws.protocoltests.query#XmlMapsXmlNameOutputMap", Type: smithy.TypeMap, Members: []*smithy.Member{&memberXmlMapsXmlNameOutputMap_key, &memberXmlMapsXmlNameOutputMap_value}}
 
-var memberXmlMapsXmlNameOutputMap_key = smithy.Member{Name: "key", Index: 0, XMLName: "Attribute"}
+var memberXmlMapsXmlNameOutputMap_key = smithy.Member{Name: "key", Index: 0, Target: &schemaSmithyString, XMLName: "Attribute"}
 
-var memberXmlMapsXmlNameOutputMap_value = smithy.Member{Name: "value", Index: 1, XMLName: "Setting"}
+var memberXmlMapsXmlNameOutputMap_value = smithy.Member{Name: "value", Index: 1, Target: &schemaGreetingStruct, XMLName: "Setting"}
 
-var schemaXmlNamespaceNested = smithy.Schema{ID: "aws.protocoltests.query#XmlNamespaceNested", Type: smithy.TypeStructure, XMLNamespace: &smithy.XMLNamespace{URI: "http://boo.com"}}
+var schemaXmlNamespaceNested = smithy.Schema{ID: "aws.protocoltests.query#XmlNamespaceNested", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberXmlNamespaceNested_foo, &memberXmlNamespaceNested_values}, XMLNamespace: &smithy.XMLNamespace{URI: "http://boo.com"}}
 
-var memberXmlNamespaceNested_foo = smithy.Member{Name: "foo", Index: 0, XMLNamespace: &smithy.XMLNamespace{URI: "http://baz.com", Prefix: "baz"}}
+var memberXmlNamespaceNested_foo = smithy.Member{Name: "foo", Index: 0, Target: &schemaSmithyString, XMLNamespace: &smithy.XMLNamespace{URI: "http://baz.com", Prefix: "baz"}}
 
-var memberXmlNamespaceNested_values = smithy.Member{Name: "values", Index: 1, XMLNamespace: &smithy.XMLNamespace{URI: "http://qux.com"}}
+var memberXmlNamespaceNested_values = smithy.Member{Name: "values", Index: 1, Target: &schemaXmlNamespacedList, XMLNamespace: &smithy.XMLNamespace{URI: "http://qux.com"}}
 
-var schemaXmlNamespacedList = smithy.Schema{ID: "aws.protocoltests.query#XmlNamespacedList", Type: smithy.TypeList}
+var schemaXmlNamespacedList = smithy.Schema{ID: "aws.protocoltests.query#XmlNamespacedList", Type: smithy.TypeList, Members: []*smithy.Member{&memberXmlNamespacedList_member}}
 
-var memberXmlNamespacedList_member = smithy.Member{Name: "member", Index: 0, XMLNamespace: &smithy.XMLNamespace{URI: "http://bux.com"}}
+var memberXmlNamespacedList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaSmithyString, XMLNamespace: &smithy.XMLNamespace{URI: "http://bux.com"}}
 
-var schemaXmlNamespacesOutput = smithy.Schema{ID: "aws.protocoltests.query#XmlNamespacesOutput", Type: smithy.TypeStructure, XMLNamespace: &smithy.XMLNamespace{URI: "http://foo.com"}}
+var schemaXmlNamespacesOutput = smithy.Schema{ID: "aws.protocoltests.query#XmlNamespacesOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberXmlNamespacesOutput_nested}, XMLNamespace: &smithy.XMLNamespace{URI: "http://foo.com"}}
 
-var memberXmlNamespacesOutput_nested = smithy.Member{Name: "nested", Index: 0}
+var memberXmlNamespacesOutput_nested = smithy.Member{Name: "nested", Index: 0, Target: &schemaXmlNamespaceNested}
 
-var schemaXmlTimestampsOutput = smithy.Schema{ID: "aws.protocoltests.query#XmlTimestampsOutput", Type: smithy.TypeStructure}
+var schemaXmlTimestampsOutput = smithy.Schema{ID: "aws.protocoltests.query#XmlTimestampsOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberXmlTimestampsOutput_normal, &memberXmlTimestampsOutput_dateTime, &memberXmlTimestampsOutput_dateTimeOnTarget, &memberXmlTimestampsOutput_epochSeconds, &memberXmlTimestampsOutput_epochSecondsOnTarget, &memberXmlTimestampsOutput_httpDate, &memberXmlTimestampsOutput_httpDateOnTarget}}
 
-var memberXmlTimestampsOutput_normal = smithy.Member{Name: "normal", Index: 0}
+var memberXmlTimestampsOutput_normal = smithy.Member{Name: "normal", Index: 0, Target: &schemaSmithyTimestamp}
 
-var memberXmlTimestampsOutput_dateTime = smithy.Member{Name: "dateTime", Index: 1, TimestampFormat: smithy.DateTime}
+var memberXmlTimestampsOutput_dateTime = smithy.Member{Name: "dateTime", Index: 1, Target: &schemaSmithyTimestamp, TimestampFormat: smithy.DateTime}
 
-var memberXmlTimestampsOutput_dateTimeOnTarget = smithy.Member{Name: "dateTimeOnTarget", Index: 2, TimestampFormat: smithy.DateTime}
+var memberXmlTimestampsOutput_dateTimeOnTarget = smithy.Member{Name: "dateTimeOnTarget", Index: 2, Target: &schemaDateTime, TimestampFormat: smithy.DateTime}
 
-var memberXmlTimestampsOutput_epochSeconds = smithy.Member{Name: "epochSeconds", Index: 3, TimestampFormat: smithy.EpochSeconds}
+var memberXmlTimestampsOutput_epochSeconds = smithy.Member{Name: "epochSeconds", Index: 3, Target: &schemaSmithyTimestamp, TimestampFormat: smithy.EpochSeconds}
 
-var memberXmlTimestampsOutput_epochSecondsOnTarget = smithy.Member{Name: "epochSecondsOnTarget", Index: 4, TimestampFormat: smithy.EpochSeconds}
+var memberXmlTimestampsOutput_epochSecondsOnTarget = smithy.Member{Name: "epochSecondsOnTarget", Index: 4, Target: &schemaEpochSeconds, TimestampFormat: smithy.EpochSeconds}
 
-var memberXmlTimestampsOutput_httpDate = smithy.Member{Name: "httpDate", Index: 5, TimestampFormat: smithy.HTTPDate}
+var memberXmlTimestampsOutput_httpDate = smithy.Member{Name: "httpDate", Index: 5, Target: &schemaSmithyTimestamp, TimestampFormat: smithy.HTTPDate}
 
-var memberXmlTimestampsOutput_httpDateOnTarget = smithy.Member{Name: "httpDateOnTarget", Index: 6, TimestampFormat: smithy.HTTPDate}
+var memberXmlTimestampsOutput_httpDateOnTarget = smithy.Member{Name: "httpDateOnTarget", Index: 6, Target: &schemaHttpDate, TimestampFormat: smithy.HTTPDate}
 
 func init() {
-	memberBooleanList_member.Target = &schemaSmithyBoolean
-	schemaBooleanList.Members = []*smithy.Member{&memberBooleanList_member}
-	memberComplexError_TopLevel.Target = &schemaSmithyString
-	memberComplexError_Nested.Target = &schemaComplexNestedErrorData
-	schemaComplexError.Members = []*smithy.Member{&memberComplexError_TopLevel, &memberComplexError_Nested}
-	memberComplexMap_key.Target = &schemaSmithyString
-	memberComplexMap_value.Target = &schemaGreetingStruct
-	schemaComplexMap.Members = []*smithy.Member{&memberComplexMap_key, &memberComplexMap_value}
-	memberComplexNestedErrorData_Foo.Target = &schemaSmithyString
-	schemaComplexNestedErrorData.Members = []*smithy.Member{&memberComplexNestedErrorData_Foo}
-	memberCustomCodeError_Message.Target = &schemaSmithyString
-	schemaCustomCodeError.Members = []*smithy.Member{&memberCustomCodeError_Message}
-	memberDatetimeOffsetsOutput_datetime.Target = &schemaDateTime
-	schemaDatetimeOffsetsOutput.Members = []*smithy.Member{&memberDatetimeOffsetsOutput_datetime}
-	memberEndpointWithHostLabelOperationInput_label.Target = &schemaSmithyString
-	schemaEndpointWithHostLabelOperationInput.Members = []*smithy.Member{&memberEndpointWithHostLabelOperationInput_label}
-	memberFlattenedXmlMapOutput_myMap.Target = &schemaFooEnumMap
-	schemaFlattenedXmlMapOutput.Members = []*smithy.Member{&memberFlattenedXmlMapOutput_myMap}
-	memberFlattenedXmlMapWithXmlNameOutput_myMap.Target = &schemaFlattenedXmlMapWithXmlNameOutputMap
-	schemaFlattenedXmlMapWithXmlNameOutput.Members = []*smithy.Member{&memberFlattenedXmlMapWithXmlNameOutput_myMap}
-	memberFlattenedXmlMapWithXmlNameOutputMap_key.Target = &schemaSmithyString
-	memberFlattenedXmlMapWithXmlNameOutputMap_value.Target = &schemaSmithyString
-	schemaFlattenedXmlMapWithXmlNameOutputMap.Members = []*smithy.Member{&memberFlattenedXmlMapWithXmlNameOutputMap_key, &memberFlattenedXmlMapWithXmlNameOutputMap_value}
-	memberFlattenedXmlMapWithXmlNamespaceOutput_myMap.Target = &schemaFlattenedXmlMapWithXmlNamespaceOutputMap
-	schemaFlattenedXmlMapWithXmlNamespaceOutput.Members = []*smithy.Member{&memberFlattenedXmlMapWithXmlNamespaceOutput_myMap}
-	memberFlattenedXmlMapWithXmlNamespaceOutputMap_key.Target = &schemaSmithyString
-	memberFlattenedXmlMapWithXmlNamespaceOutputMap_value.Target = &schemaSmithyString
-	schemaFlattenedXmlMapWithXmlNamespaceOutputMap.Members = []*smithy.Member{&memberFlattenedXmlMapWithXmlNamespaceOutputMap_key, &memberFlattenedXmlMapWithXmlNamespaceOutputMap_value}
-	memberFooEnumList_member.Target = &schemaFooEnum
-	schemaFooEnumList.Members = []*smithy.Member{&memberFooEnumList_member}
-	memberFooEnumMap_key.Target = &schemaSmithyString
-	memberFooEnumMap_value.Target = &schemaFooEnum
-	schemaFooEnumMap.Members = []*smithy.Member{&memberFooEnumMap_key, &memberFooEnumMap_value}
-	memberFooEnumSet_member.Target = &schemaFooEnum
-	schemaFooEnumSet.Members = []*smithy.Member{&memberFooEnumSet_member}
-	memberFractionalSecondsOutput_datetime.Target = &schemaDateTime
-	schemaFractionalSecondsOutput.Members = []*smithy.Member{&memberFractionalSecondsOutput_datetime}
-	memberGreetingList_member.Target = &schemaGreetingStruct
-	schemaGreetingList.Members = []*smithy.Member{&memberGreetingList_member}
-	memberGreetingStruct_hi.Target = &schemaSmithyString
-	schemaGreetingStruct.Members = []*smithy.Member{&memberGreetingStruct_hi}
-	memberGreetingWithErrorsOutput_greeting.Target = &schemaSmithyString
-	schemaGreetingWithErrorsOutput.Members = []*smithy.Member{&memberGreetingWithErrorsOutput_greeting}
-	memberIgnoresWrappingXmlNameOutput_foo.Target = &schemaSmithyString
-	schemaIgnoresWrappingXmlNameOutput.Members = []*smithy.Member{&memberIgnoresWrappingXmlNameOutput_foo}
-	memberIntegerEnumList_member.Target = &schemaIntegerEnum
-	schemaIntegerEnumList.Members = []*smithy.Member{&memberIntegerEnumList_member}
-	memberIntegerEnumMap_key.Target = &schemaSmithyString
-	memberIntegerEnumMap_value.Target = &schemaIntegerEnum
-	schemaIntegerEnumMap.Members = []*smithy.Member{&memberIntegerEnumMap_key, &memberIntegerEnumMap_value}
-	memberIntegerEnumSet_member.Target = &schemaIntegerEnum
-	schemaIntegerEnumSet.Members = []*smithy.Member{&memberIntegerEnumSet_member}
-	memberIntegerList_member.Target = &schemaSmithyInteger
-	schemaIntegerList.Members = []*smithy.Member{&memberIntegerList_member}
-	memberInvalidAction_message.Target = &schemaSmithyString
-	schemaInvalidAction.Members = []*smithy.Member{&memberInvalidAction_message}
-	memberInvalidGreeting_Message.Target = &schemaSmithyString
-	schemaInvalidGreeting.Members = []*smithy.Member{&memberInvalidGreeting_Message}
-	memberListWithMemberNamespace_member.Target = &schemaSmithyString
-	schemaListWithMemberNamespace.Members = []*smithy.Member{&memberListWithMemberNamespace_member}
-	memberListWithNamespace_member.Target = &schemaSmithyString
-	schemaListWithNamespace.Members = []*smithy.Member{&memberListWithNamespace_member}
-	memberListWithXmlName_member.Target = &schemaSmithyString
-	schemaListWithXmlName.Members = []*smithy.Member{&memberListWithXmlName_member}
-	memberMapOfLists_key.Target = &schemaSmithyString
-	memberMapOfLists_value.Target = &schemaStringList
-	schemaMapOfLists.Members = []*smithy.Member{&memberMapOfLists_key, &memberMapOfLists_value}
-	memberMapWithXmlName_key.Target = &schemaSmithyString
-	memberMapWithXmlName_value.Target = &schemaSmithyString
-	schemaMapWithXmlName.Members = []*smithy.Member{&memberMapWithXmlName_key, &memberMapWithXmlName_value}
-	memberNestedStringList_member.Target = &schemaStringList
-	schemaNestedStringList.Members = []*smithy.Member{&memberNestedStringList_member}
-	memberNestedStructWithList_ListArg.Target = &schemaStringList
-	schemaNestedStructWithList.Members = []*smithy.Member{&memberNestedStructWithList_ListArg}
-	memberNestedStructWithMap_MapArg.Target = &schemaStringMap
-	schemaNestedStructWithMap.Members = []*smithy.Member{&memberNestedStructWithMap_MapArg}
-	memberNestedStructuresInput_Nested.Target = &schemaStructArg
-	schemaNestedStructuresInput.Members = []*smithy.Member{&memberNestedStructuresInput_Nested}
-	memberPutWithContentEncodingInput_encoding.Target = &schemaSmithyString
-	memberPutWithContentEncodingInput_data.Target = &schemaSmithyString
-	schemaPutWithContentEncodingInput.Members = []*smithy.Member{&memberPutWithContentEncodingInput_encoding, &memberPutWithContentEncodingInput_data}
-	memberQueryIdempotencyTokenAutoFillInput_token.Target = &schemaSmithyString
-	schemaQueryIdempotencyTokenAutoFillInput.Members = []*smithy.Member{&memberQueryIdempotencyTokenAutoFillInput_token}
-	memberQueryListsInput_ListArg.Target = &schemaStringList
-	memberQueryListsInput_ComplexListArg.Target = &schemaGreetingList
-	memberQueryListsInput_FlattenedListArg.Target = &schemaStringList
-	memberQueryListsInput_ListArgWithXmlNameMember.Target = &schemaListWithXmlName
-	memberQueryListsInput_FlattenedListArgWithXmlName.Target = &schemaListWithXmlName
-	memberQueryListsInput_NestedWithList.Target = &schemaNestedStructWithList
-	schemaQueryListsInput.Members = []*smithy.Member{&memberQueryListsInput_ListArg, &memberQueryListsInput_ComplexListArg, &memberQueryListsInput_FlattenedListArg, &memberQueryListsInput_ListArgWithXmlNameMember, &memberQueryListsInput_FlattenedListArgWithXmlName, &memberQueryListsInput_NestedWithList}
-	memberQueryMapsInput_MapArg.Target = &schemaStringMap
-	memberQueryMapsInput_RenamedMapArg.Target = &schemaStringMap
-	memberQueryMapsInput_ComplexMapArg.Target = &schemaComplexMap
-	memberQueryMapsInput_MapWithXmlMemberName.Target = &schemaMapWithXmlName
-	memberQueryMapsInput_FlattenedMap.Target = &schemaStringMap
-	memberQueryMapsInput_FlattenedMapWithXmlName.Target = &schemaMapWithXmlName
-	memberQueryMapsInput_MapOfLists.Target = &schemaMapOfLists
-	memberQueryMapsInput_NestedStructWithMap.Target = &schemaNestedStructWithMap
-	schemaQueryMapsInput.Members = []*smithy.Member{&memberQueryMapsInput_MapArg, &memberQueryMapsInput_RenamedMapArg, &memberQueryMapsInput_ComplexMapArg, &memberQueryMapsInput_MapWithXmlMemberName, &memberQueryMapsInput_FlattenedMap, &memberQueryMapsInput_FlattenedMapWithXmlName, &memberQueryMapsInput_MapOfLists, &memberQueryMapsInput_NestedStructWithMap}
-	memberQueryTimestampsInput_normalFormat.Target = &schemaSmithyTimestamp
-	memberQueryTimestampsInput_epochMember.Target = &schemaSmithyTimestamp
-	memberQueryTimestampsInput_epochTarget.Target = &schemaEpochSeconds
-	schemaQueryTimestampsInput.Members = []*smithy.Member{&memberQueryTimestampsInput_normalFormat, &memberQueryTimestampsInput_epochMember, &memberQueryTimestampsInput_epochTarget}
-	memberRecursiveXmlShapesOutput_nested.Target = &schemaRecursiveXmlShapesOutputNested1
-	schemaRecursiveXmlShapesOutput.Members = []*smithy.Member{&memberRecursiveXmlShapesOutput_nested}
-	memberRecursiveXmlShapesOutputNested1_foo.Target = &schemaSmithyString
-	memberRecursiveXmlShapesOutputNested1_nested.Target = &schemaRecursiveXmlShapesOutputNested2
 	schemaRecursiveXmlShapesOutputNested1.Members = []*smithy.Member{&memberRecursiveXmlShapesOutputNested1_foo, &memberRecursiveXmlShapesOutputNested1_nested}
-	memberRecursiveXmlShapesOutputNested2_bar.Target = &schemaSmithyString
-	memberRecursiveXmlShapesOutputNested2_recursiveMember.Target = &schemaRecursiveXmlShapesOutputNested1
 	schemaRecursiveXmlShapesOutputNested2.Members = []*smithy.Member{&memberRecursiveXmlShapesOutputNested2_bar, &memberRecursiveXmlShapesOutputNested2_recursiveMember}
-	memberRenamedListMembers_member.Target = &schemaSmithyString
-	schemaRenamedListMembers.Members = []*smithy.Member{&memberRenamedListMembers_member}
-	memberSimpleInputParamsInput_Foo.Target = &schemaSmithyString
-	memberSimpleInputParamsInput_Bar.Target = &schemaSmithyString
-	memberSimpleInputParamsInput_Baz.Target = &schemaSmithyBoolean
-	memberSimpleInputParamsInput_Bam.Target = &schemaSmithyInteger
-	memberSimpleInputParamsInput_FloatValue.Target = &schemaSmithyFloat
-	memberSimpleInputParamsInput_Boo.Target = &schemaSmithyDouble
-	memberSimpleInputParamsInput_Qux.Target = &schemaSmithyBlob
-	memberSimpleInputParamsInput_FooEnum.Target = &schemaFooEnum
-	memberSimpleInputParamsInput_IntegerEnum.Target = &schemaIntegerEnum
-	schemaSimpleInputParamsInput.Members = []*smithy.Member{&memberSimpleInputParamsInput_Foo, &memberSimpleInputParamsInput_Bar, &memberSimpleInputParamsInput_Baz, &memberSimpleInputParamsInput_Bam, &memberSimpleInputParamsInput_FloatValue, &memberSimpleInputParamsInput_Boo, &memberSimpleInputParamsInput_Qux, &memberSimpleInputParamsInput_FooEnum, &memberSimpleInputParamsInput_IntegerEnum}
-	memberSimpleScalarXmlPropertiesOutput_stringValue.Target = &schemaSmithyString
-	memberSimpleScalarXmlPropertiesOutput_emptyStringValue.Target = &schemaSmithyString
-	memberSimpleScalarXmlPropertiesOutput_trueBooleanValue.Target = &schemaSmithyBoolean
-	memberSimpleScalarXmlPropertiesOutput_falseBooleanValue.Target = &schemaSmithyBoolean
-	memberSimpleScalarXmlPropertiesOutput_byteValue.Target = &schemaSmithyByte
-	memberSimpleScalarXmlPropertiesOutput_shortValue.Target = &schemaSmithyShort
-	memberSimpleScalarXmlPropertiesOutput_integerValue.Target = &schemaSmithyInteger
-	memberSimpleScalarXmlPropertiesOutput_longValue.Target = &schemaSmithyLong
-	memberSimpleScalarXmlPropertiesOutput_floatValue.Target = &schemaSmithyFloat
-	memberSimpleScalarXmlPropertiesOutput_doubleValue.Target = &schemaSmithyDouble
-	schemaSimpleScalarXmlPropertiesOutput.Members = []*smithy.Member{&memberSimpleScalarXmlPropertiesOutput_stringValue, &memberSimpleScalarXmlPropertiesOutput_emptyStringValue, &memberSimpleScalarXmlPropertiesOutput_trueBooleanValue, &memberSimpleScalarXmlPropertiesOutput_falseBooleanValue, &memberSimpleScalarXmlPropertiesOutput_byteValue, &memberSimpleScalarXmlPropertiesOutput_shortValue, &memberSimpleScalarXmlPropertiesOutput_integerValue, &memberSimpleScalarXmlPropertiesOutput_longValue, &memberSimpleScalarXmlPropertiesOutput_floatValue, &memberSimpleScalarXmlPropertiesOutput_doubleValue}
-	memberStringList_member.Target = &schemaSmithyString
-	schemaStringList.Members = []*smithy.Member{&memberStringList_member}
-	memberStringMap_key.Target = &schemaSmithyString
-	memberStringMap_value.Target = &schemaSmithyString
-	schemaStringMap.Members = []*smithy.Member{&memberStringMap_key, &memberStringMap_value}
-	memberStringSet_member.Target = &schemaSmithyString
-	schemaStringSet.Members = []*smithy.Member{&memberStringSet_member}
-	memberStructArg_StringArg.Target = &schemaSmithyString
-	memberStructArg_OtherArg.Target = &schemaSmithyBoolean
-	memberStructArg_RecursiveArg.Target = &schemaStructArg
 	schemaStructArg.Members = []*smithy.Member{&memberStructArg_StringArg, &memberStructArg_OtherArg, &memberStructArg_RecursiveArg}
-	memberStructureList_member.Target = &schemaStructureListMember
-	schemaStructureList.Members = []*smithy.Member{&memberStructureList_member}
-	memberStructureListMember_a.Target = &schemaSmithyString
-	memberStructureListMember_b.Target = &schemaSmithyString
-	schemaStructureListMember.Members = []*smithy.Member{&memberStructureListMember_a, &memberStructureListMember_b}
-	memberTimestampList_member.Target = &schemaSmithyTimestamp
-	schemaTimestampList.Members = []*smithy.Member{&memberTimestampList_member}
-	memberValidationException_message.Target = &schemaSmithyString
-	schemaValidationException.Members = []*smithy.Member{&memberValidationException_message}
-	memberXmlBlobsOutput_data.Target = &schemaSmithyBlob
-	schemaXmlBlobsOutput.Members = []*smithy.Member{&memberXmlBlobsOutput_data}
-	memberXmlEnumsOutput_fooEnum1.Target = &schemaFooEnum
-	memberXmlEnumsOutput_fooEnum2.Target = &schemaFooEnum
-	memberXmlEnumsOutput_fooEnum3.Target = &schemaFooEnum
-	memberXmlEnumsOutput_fooEnumList.Target = &schemaFooEnumList
-	memberXmlEnumsOutput_fooEnumSet.Target = &schemaFooEnumSet
-	memberXmlEnumsOutput_fooEnumMap.Target = &schemaFooEnumMap
-	schemaXmlEnumsOutput.Members = []*smithy.Member{&memberXmlEnumsOutput_fooEnum1, &memberXmlEnumsOutput_fooEnum2, &memberXmlEnumsOutput_fooEnum3, &memberXmlEnumsOutput_fooEnumList, &memberXmlEnumsOutput_fooEnumSet, &memberXmlEnumsOutput_fooEnumMap}
-	memberXmlIntEnumsOutput_intEnum1.Target = &schemaIntegerEnum
-	memberXmlIntEnumsOutput_intEnum2.Target = &schemaIntegerEnum
-	memberXmlIntEnumsOutput_intEnum3.Target = &schemaIntegerEnum
-	memberXmlIntEnumsOutput_intEnumList.Target = &schemaIntegerEnumList
-	memberXmlIntEnumsOutput_intEnumSet.Target = &schemaIntegerEnumSet
-	memberXmlIntEnumsOutput_intEnumMap.Target = &schemaIntegerEnumMap
-	schemaXmlIntEnumsOutput.Members = []*smithy.Member{&memberXmlIntEnumsOutput_intEnum1, &memberXmlIntEnumsOutput_intEnum2, &memberXmlIntEnumsOutput_intEnum3, &memberXmlIntEnumsOutput_intEnumList, &memberXmlIntEnumsOutput_intEnumSet, &memberXmlIntEnumsOutput_intEnumMap}
-	memberXmlListsOutput_stringList.Target = &schemaStringList
-	memberXmlListsOutput_stringSet.Target = &schemaStringSet
-	memberXmlListsOutput_integerList.Target = &schemaIntegerList
-	memberXmlListsOutput_booleanList.Target = &schemaBooleanList
-	memberXmlListsOutput_timestampList.Target = &schemaTimestampList
-	memberXmlListsOutput_enumList.Target = &schemaFooEnumList
-	memberXmlListsOutput_intEnumList.Target = &schemaIntegerEnumList
-	memberXmlListsOutput_nestedStringList.Target = &schemaNestedStringList
-	memberXmlListsOutput_renamedListMembers.Target = &schemaRenamedListMembers
-	memberXmlListsOutput_flattenedList.Target = &schemaRenamedListMembers
-	memberXmlListsOutput_flattenedList2.Target = &schemaRenamedListMembers
-	memberXmlListsOutput_flattenedListWithMemberNamespace.Target = &schemaListWithMemberNamespace
-	memberXmlListsOutput_flattenedListWithNamespace.Target = &schemaListWithNamespace
-	memberXmlListsOutput_structureList.Target = &schemaStructureList
-	schemaXmlListsOutput.Members = []*smithy.Member{&memberXmlListsOutput_stringList, &memberXmlListsOutput_stringSet, &memberXmlListsOutput_integerList, &memberXmlListsOutput_booleanList, &memberXmlListsOutput_timestampList, &memberXmlListsOutput_enumList, &memberXmlListsOutput_intEnumList, &memberXmlListsOutput_nestedStringList, &memberXmlListsOutput_renamedListMembers, &memberXmlListsOutput_flattenedList, &memberXmlListsOutput_flattenedList2, &memberXmlListsOutput_flattenedListWithMemberNamespace, &memberXmlListsOutput_flattenedListWithNamespace, &memberXmlListsOutput_structureList}
-	memberXmlMapsOutput_myMap.Target = &schemaXmlMapsOutputMap
-	schemaXmlMapsOutput.Members = []*smithy.Member{&memberXmlMapsOutput_myMap}
-	memberXmlMapsOutputMap_key.Target = &schemaSmithyString
-	memberXmlMapsOutputMap_value.Target = &schemaGreetingStruct
-	schemaXmlMapsOutputMap.Members = []*smithy.Member{&memberXmlMapsOutputMap_key, &memberXmlMapsOutputMap_value}
-	memberXmlMapsXmlNameOutput_myMap.Target = &schemaXmlMapsXmlNameOutputMap
-	schemaXmlMapsXmlNameOutput.Members = []*smithy.Member{&memberXmlMapsXmlNameOutput_myMap}
-	memberXmlMapsXmlNameOutputMap_key.Target = &schemaSmithyString
-	memberXmlMapsXmlNameOutputMap_value.Target = &schemaGreetingStruct
-	schemaXmlMapsXmlNameOutputMap.Members = []*smithy.Member{&memberXmlMapsXmlNameOutputMap_key, &memberXmlMapsXmlNameOutputMap_value}
-	memberXmlNamespaceNested_foo.Target = &schemaSmithyString
-	memberXmlNamespaceNested_values.Target = &schemaXmlNamespacedList
-	schemaXmlNamespaceNested.Members = []*smithy.Member{&memberXmlNamespaceNested_foo, &memberXmlNamespaceNested_values}
-	memberXmlNamespacedList_member.Target = &schemaSmithyString
-	schemaXmlNamespacedList.Members = []*smithy.Member{&memberXmlNamespacedList_member}
-	memberXmlNamespacesOutput_nested.Target = &schemaXmlNamespaceNested
-	schemaXmlNamespacesOutput.Members = []*smithy.Member{&memberXmlNamespacesOutput_nested}
-	memberXmlTimestampsOutput_normal.Target = &schemaSmithyTimestamp
-	memberXmlTimestampsOutput_dateTime.Target = &schemaSmithyTimestamp
-	memberXmlTimestampsOutput_dateTimeOnTarget.Target = &schemaDateTime
-	memberXmlTimestampsOutput_epochSeconds.Target = &schemaSmithyTimestamp
-	memberXmlTimestampsOutput_epochSecondsOnTarget.Target = &schemaEpochSeconds
-	memberXmlTimestampsOutput_httpDate.Target = &schemaSmithyTimestamp
-	memberXmlTimestampsOutput_httpDateOnTarget.Target = &schemaHttpDate
-	schemaXmlTimestampsOutput.Members = []*smithy.Member{&memberXmlTimestampsOutput_normal, &memberXmlTimestampsOutput_dateTime, &memberXmlTimestampsOutput_dateTimeOnTarget, &memberXmlTimestampsOutput_epochSeconds, &memberXmlTimestampsOutput_epochSecondsOnTarget, &memberXmlTimestampsOutput_httpDate, &memberXmlTimestampsOutput_httpDateOnTarget}
 }

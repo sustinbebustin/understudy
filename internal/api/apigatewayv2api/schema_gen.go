@@ -6,1773 +6,1773 @@ import (
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 )
 
-var schemaACMManaged = smithy.Schema{ID: "com.amazonaws.apigatewayv2#ACMManaged", Type: smithy.TypeStructure}
+var schemaACMManaged = smithy.Schema{ID: "com.amazonaws.apigatewayv2#ACMManaged", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberACMManaged_CertificateArn, &memberACMManaged_DomainName}}
 
-var memberACMManaged_CertificateArn = smithy.Member{Name: "CertificateArn", Index: 0, Required: true, JSONName: "certificateArn"}
+var memberACMManaged_CertificateArn = smithy.Member{Name: "CertificateArn", Index: 0, Target: &schema__stringMin10Max2048, Required: true, JSONName: "certificateArn"}
 
-var memberACMManaged_DomainName = smithy.Member{Name: "DomainName", Index: 1, Required: true, JSONName: "domainName"}
+var memberACMManaged_DomainName = smithy.Member{Name: "DomainName", Index: 1, Target: &schema__stringMin3Max256, Required: true, JSONName: "domainName"}
 
-var schemaAccessDeniedException = smithy.Schema{ID: "com.amazonaws.apigatewayv2#AccessDeniedException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+var schemaAccessDeniedException = smithy.Schema{ID: "com.amazonaws.apigatewayv2#AccessDeniedException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAccessDeniedException_Message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
 
-var memberAccessDeniedException_Message = smithy.Member{Name: "Message", Index: 0, JSONName: "message"}
+var memberAccessDeniedException_Message = smithy.Member{Name: "Message", Index: 0, Target: &schema__string, JSONName: "message"}
 
-var schemaAccessLogSettings = smithy.Schema{ID: "com.amazonaws.apigatewayv2#AccessLogSettings", Type: smithy.TypeStructure}
+var schemaAccessLogSettings = smithy.Schema{ID: "com.amazonaws.apigatewayv2#AccessLogSettings", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAccessLogSettings_DestinationArn, &memberAccessLogSettings_Format}}
 
-var memberAccessLogSettings_DestinationArn = smithy.Member{Name: "DestinationArn", Index: 0, JSONName: "destinationArn"}
+var memberAccessLogSettings_DestinationArn = smithy.Member{Name: "DestinationArn", Index: 0, Target: &schemaArn, JSONName: "destinationArn"}
 
-var memberAccessLogSettings_Format = smithy.Member{Name: "Format", Index: 1, JSONName: "format"}
+var memberAccessLogSettings_Format = smithy.Member{Name: "Format", Index: 1, Target: &schemaStringWithLengthBetween1And1024, JSONName: "format"}
 
-var schemaApi = smithy.Schema{ID: "com.amazonaws.apigatewayv2#Api", Type: smithy.TypeStructure}
+var schemaApi = smithy.Schema{ID: "com.amazonaws.apigatewayv2#Api", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberApi_ApiEndpoint, &memberApi_ApiGatewayManaged, &memberApi_ApiId, &memberApi_ApiKeySelectionExpression, &memberApi_CorsConfiguration, &memberApi_CreatedDate, &memberApi_Description, &memberApi_DisableSchemaValidation, &memberApi_DisableExecuteApiEndpoint, &memberApi_ImportInfo, &memberApi_IpAddressType, &memberApi_Name, &memberApi_ProtocolType, &memberApi_RouteSelectionExpression, &memberApi_Tags, &memberApi_Version, &memberApi_Warnings}}
 
-var memberApi_ApiEndpoint = smithy.Member{Name: "ApiEndpoint", Index: 0, JSONName: "apiEndpoint"}
+var memberApi_ApiEndpoint = smithy.Member{Name: "ApiEndpoint", Index: 0, Target: &schema__string, JSONName: "apiEndpoint"}
 
-var memberApi_ApiGatewayManaged = smithy.Member{Name: "ApiGatewayManaged", Index: 1, JSONName: "apiGatewayManaged"}
+var memberApi_ApiGatewayManaged = smithy.Member{Name: "ApiGatewayManaged", Index: 1, Target: &schema__boolean, JSONName: "apiGatewayManaged"}
 
-var memberApi_ApiId = smithy.Member{Name: "ApiId", Index: 2, JSONName: "apiId"}
+var memberApi_ApiId = smithy.Member{Name: "ApiId", Index: 2, Target: &schemaId, JSONName: "apiId"}
 
-var memberApi_ApiKeySelectionExpression = smithy.Member{Name: "ApiKeySelectionExpression", Index: 3, JSONName: "apiKeySelectionExpression"}
+var memberApi_ApiKeySelectionExpression = smithy.Member{Name: "ApiKeySelectionExpression", Index: 3, Target: &schemaSelectionExpression, JSONName: "apiKeySelectionExpression"}
 
-var memberApi_CorsConfiguration = smithy.Member{Name: "CorsConfiguration", Index: 4, JSONName: "corsConfiguration"}
+var memberApi_CorsConfiguration = smithy.Member{Name: "CorsConfiguration", Index: 4, Target: &schemaCors, JSONName: "corsConfiguration"}
 
-var memberApi_CreatedDate = smithy.Member{Name: "CreatedDate", Index: 5, JSONName: "createdDate", TimestampFormat: smithy.DateTime}
+var memberApi_CreatedDate = smithy.Member{Name: "CreatedDate", Index: 5, Target: &schema__timestampIso8601, JSONName: "createdDate", TimestampFormat: smithy.DateTime}
 
-var memberApi_Description = smithy.Member{Name: "Description", Index: 6, JSONName: "description"}
+var memberApi_Description = smithy.Member{Name: "Description", Index: 6, Target: &schemaStringWithLengthBetween0And1024, JSONName: "description"}
 
-var memberApi_DisableSchemaValidation = smithy.Member{Name: "DisableSchemaValidation", Index: 7, JSONName: "disableSchemaValidation"}
+var memberApi_DisableSchemaValidation = smithy.Member{Name: "DisableSchemaValidation", Index: 7, Target: &schema__boolean, JSONName: "disableSchemaValidation"}
 
-var memberApi_DisableExecuteApiEndpoint = smithy.Member{Name: "DisableExecuteApiEndpoint", Index: 8, JSONName: "disableExecuteApiEndpoint"}
+var memberApi_DisableExecuteApiEndpoint = smithy.Member{Name: "DisableExecuteApiEndpoint", Index: 8, Target: &schema__boolean, JSONName: "disableExecuteApiEndpoint"}
 
-var memberApi_ImportInfo = smithy.Member{Name: "ImportInfo", Index: 9, JSONName: "importInfo"}
+var memberApi_ImportInfo = smithy.Member{Name: "ImportInfo", Index: 9, Target: &schema__listOf__string, JSONName: "importInfo"}
 
-var memberApi_IpAddressType = smithy.Member{Name: "IpAddressType", Index: 10, JSONName: "ipAddressType"}
+var memberApi_IpAddressType = smithy.Member{Name: "IpAddressType", Index: 10, Target: &schemaIpAddressType, JSONName: "ipAddressType"}
 
-var memberApi_Name = smithy.Member{Name: "Name", Index: 11, Required: true, JSONName: "name"}
+var memberApi_Name = smithy.Member{Name: "Name", Index: 11, Target: &schemaStringWithLengthBetween1And128, Required: true, JSONName: "name"}
 
-var memberApi_ProtocolType = smithy.Member{Name: "ProtocolType", Index: 12, Required: true, JSONName: "protocolType"}
+var memberApi_ProtocolType = smithy.Member{Name: "ProtocolType", Index: 12, Target: &schemaProtocolType, Required: true, JSONName: "protocolType"}
 
-var memberApi_RouteSelectionExpression = smithy.Member{Name: "RouteSelectionExpression", Index: 13, Required: true, JSONName: "routeSelectionExpression"}
+var memberApi_RouteSelectionExpression = smithy.Member{Name: "RouteSelectionExpression", Index: 13, Target: &schemaSelectionExpression, Required: true, JSONName: "routeSelectionExpression"}
 
-var memberApi_Tags = smithy.Member{Name: "Tags", Index: 14, JSONName: "tags"}
+var memberApi_Tags = smithy.Member{Name: "Tags", Index: 14, Target: &schemaTags, JSONName: "tags"}
 
-var memberApi_Version = smithy.Member{Name: "Version", Index: 15, JSONName: "version"}
+var memberApi_Version = smithy.Member{Name: "Version", Index: 15, Target: &schemaStringWithLengthBetween1And64, JSONName: "version"}
 
-var memberApi_Warnings = smithy.Member{Name: "Warnings", Index: 16, JSONName: "warnings"}
+var memberApi_Warnings = smithy.Member{Name: "Warnings", Index: 16, Target: &schema__listOf__string, JSONName: "warnings"}
 
-var schemaApiMapping = smithy.Schema{ID: "com.amazonaws.apigatewayv2#ApiMapping", Type: smithy.TypeStructure}
+var schemaApiMapping = smithy.Schema{ID: "com.amazonaws.apigatewayv2#ApiMapping", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberApiMapping_ApiId, &memberApiMapping_ApiMappingId, &memberApiMapping_ApiMappingKey, &memberApiMapping_Stage}}
 
-var memberApiMapping_ApiId = smithy.Member{Name: "ApiId", Index: 0, Required: true, JSONName: "apiId"}
+var memberApiMapping_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schemaId, Required: true, JSONName: "apiId"}
 
-var memberApiMapping_ApiMappingId = smithy.Member{Name: "ApiMappingId", Index: 1, JSONName: "apiMappingId"}
+var memberApiMapping_ApiMappingId = smithy.Member{Name: "ApiMappingId", Index: 1, Target: &schemaId, JSONName: "apiMappingId"}
 
-var memberApiMapping_ApiMappingKey = smithy.Member{Name: "ApiMappingKey", Index: 2, JSONName: "apiMappingKey"}
+var memberApiMapping_ApiMappingKey = smithy.Member{Name: "ApiMappingKey", Index: 2, Target: &schemaSelectionKey, JSONName: "apiMappingKey"}
 
-var memberApiMapping_Stage = smithy.Member{Name: "Stage", Index: 3, Required: true, JSONName: "stage"}
+var memberApiMapping_Stage = smithy.Member{Name: "Stage", Index: 3, Target: &schemaStringWithLengthBetween1And128, Required: true, JSONName: "stage"}
 
 var schemaArn = smithy.Schema{ID: "com.amazonaws.apigatewayv2#Arn", Type: smithy.TypeString}
 
-var schemaAuthorization = smithy.Schema{ID: "com.amazonaws.apigatewayv2#Authorization", Type: smithy.TypeStructure}
+var schemaAuthorization = smithy.Schema{ID: "com.amazonaws.apigatewayv2#Authorization", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAuthorization_CognitoConfig, &memberAuthorization_None}}
 
-var memberAuthorization_CognitoConfig = smithy.Member{Name: "CognitoConfig", Index: 0, JSONName: "cognitoConfig"}
+var memberAuthorization_CognitoConfig = smithy.Member{Name: "CognitoConfig", Index: 0, Target: &schemaCognitoConfig, JSONName: "cognitoConfig"}
 
-var memberAuthorization_None = smithy.Member{Name: "None", Index: 1, JSONName: "none"}
+var memberAuthorization_None = smithy.Member{Name: "None", Index: 1, Target: &schemaNone, JSONName: "none"}
 
-var schemaAuthorizationScopes = smithy.Schema{ID: "com.amazonaws.apigatewayv2#AuthorizationScopes", Type: smithy.TypeList}
+var schemaAuthorizationScopes = smithy.Schema{ID: "com.amazonaws.apigatewayv2#AuthorizationScopes", Type: smithy.TypeList, Members: []*smithy.Member{&memberAuthorizationScopes_member}}
 
-var memberAuthorizationScopes_member = smithy.Member{Name: "member", Index: 0}
+var memberAuthorizationScopes_member = smithy.Member{Name: "member", Index: 0, Target: &schemaStringWithLengthBetween1And64}
 
 var schemaAuthorizationType = smithy.Schema{ID: "com.amazonaws.apigatewayv2#AuthorizationType", Type: smithy.TypeEnum}
 
-var schemaAuthorizer = smithy.Schema{ID: "com.amazonaws.apigatewayv2#Authorizer", Type: smithy.TypeStructure}
+var schemaAuthorizer = smithy.Schema{ID: "com.amazonaws.apigatewayv2#Authorizer", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAuthorizer_AuthorizerCredentialsArn, &memberAuthorizer_AuthorizerId, &memberAuthorizer_AuthorizerPayloadFormatVersion, &memberAuthorizer_AuthorizerResultTtlInSeconds, &memberAuthorizer_AuthorizerType, &memberAuthorizer_AuthorizerUri, &memberAuthorizer_EnableSimpleResponses, &memberAuthorizer_IdentitySource, &memberAuthorizer_IdentityValidationExpression, &memberAuthorizer_JwtConfiguration, &memberAuthorizer_Name}}
 
-var memberAuthorizer_AuthorizerCredentialsArn = smithy.Member{Name: "AuthorizerCredentialsArn", Index: 0, JSONName: "authorizerCredentialsArn"}
+var memberAuthorizer_AuthorizerCredentialsArn = smithy.Member{Name: "AuthorizerCredentialsArn", Index: 0, Target: &schemaArn, JSONName: "authorizerCredentialsArn"}
 
-var memberAuthorizer_AuthorizerId = smithy.Member{Name: "AuthorizerId", Index: 1, JSONName: "authorizerId"}
+var memberAuthorizer_AuthorizerId = smithy.Member{Name: "AuthorizerId", Index: 1, Target: &schemaId, JSONName: "authorizerId"}
 
-var memberAuthorizer_AuthorizerPayloadFormatVersion = smithy.Member{Name: "AuthorizerPayloadFormatVersion", Index: 2, JSONName: "authorizerPayloadFormatVersion"}
+var memberAuthorizer_AuthorizerPayloadFormatVersion = smithy.Member{Name: "AuthorizerPayloadFormatVersion", Index: 2, Target: &schemaStringWithLengthBetween1And64, JSONName: "authorizerPayloadFormatVersion"}
 
-var memberAuthorizer_AuthorizerResultTtlInSeconds = smithy.Member{Name: "AuthorizerResultTtlInSeconds", Index: 3, JSONName: "authorizerResultTtlInSeconds"}
+var memberAuthorizer_AuthorizerResultTtlInSeconds = smithy.Member{Name: "AuthorizerResultTtlInSeconds", Index: 3, Target: &schemaIntegerWithLengthBetween0And3600, JSONName: "authorizerResultTtlInSeconds"}
 
-var memberAuthorizer_AuthorizerType = smithy.Member{Name: "AuthorizerType", Index: 4, JSONName: "authorizerType"}
+var memberAuthorizer_AuthorizerType = smithy.Member{Name: "AuthorizerType", Index: 4, Target: &schemaAuthorizerType, JSONName: "authorizerType"}
 
-var memberAuthorizer_AuthorizerUri = smithy.Member{Name: "AuthorizerUri", Index: 5, JSONName: "authorizerUri"}
+var memberAuthorizer_AuthorizerUri = smithy.Member{Name: "AuthorizerUri", Index: 5, Target: &schemaUriWithLengthBetween1And2048, JSONName: "authorizerUri"}
 
-var memberAuthorizer_EnableSimpleResponses = smithy.Member{Name: "EnableSimpleResponses", Index: 6, JSONName: "enableSimpleResponses"}
+var memberAuthorizer_EnableSimpleResponses = smithy.Member{Name: "EnableSimpleResponses", Index: 6, Target: &schema__boolean, JSONName: "enableSimpleResponses"}
 
-var memberAuthorizer_IdentitySource = smithy.Member{Name: "IdentitySource", Index: 7, JSONName: "identitySource"}
+var memberAuthorizer_IdentitySource = smithy.Member{Name: "IdentitySource", Index: 7, Target: &schemaIdentitySourceList, JSONName: "identitySource"}
 
-var memberAuthorizer_IdentityValidationExpression = smithy.Member{Name: "IdentityValidationExpression", Index: 8, JSONName: "identityValidationExpression"}
+var memberAuthorizer_IdentityValidationExpression = smithy.Member{Name: "IdentityValidationExpression", Index: 8, Target: &schemaStringWithLengthBetween0And1024, JSONName: "identityValidationExpression"}
 
-var memberAuthorizer_JwtConfiguration = smithy.Member{Name: "JwtConfiguration", Index: 9, JSONName: "jwtConfiguration"}
+var memberAuthorizer_JwtConfiguration = smithy.Member{Name: "JwtConfiguration", Index: 9, Target: &schemaJWTConfiguration, JSONName: "jwtConfiguration"}
 
-var memberAuthorizer_Name = smithy.Member{Name: "Name", Index: 10, Required: true, JSONName: "name"}
+var memberAuthorizer_Name = smithy.Member{Name: "Name", Index: 10, Target: &schemaStringWithLengthBetween1And128, Required: true, JSONName: "name"}
 
 var schemaAuthorizerType = smithy.Schema{ID: "com.amazonaws.apigatewayv2#AuthorizerType", Type: smithy.TypeEnum}
 
-var schemaBadRequestException = smithy.Schema{ID: "com.amazonaws.apigatewayv2#BadRequestException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaBadRequestException = smithy.Schema{ID: "com.amazonaws.apigatewayv2#BadRequestException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberBadRequestException_Message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberBadRequestException_Message = smithy.Member{Name: "Message", Index: 0, JSONName: "message"}
+var memberBadRequestException_Message = smithy.Member{Name: "Message", Index: 0, Target: &schema__string, JSONName: "message"}
 
-var schemaCognitoConfig = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CognitoConfig", Type: smithy.TypeStructure}
+var schemaCognitoConfig = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CognitoConfig", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCognitoConfig_AppClientId, &memberCognitoConfig_UserPoolArn, &memberCognitoConfig_UserPoolDomain}}
 
-var memberCognitoConfig_AppClientId = smithy.Member{Name: "AppClientId", Index: 0, Required: true, JSONName: "appClientId"}
+var memberCognitoConfig_AppClientId = smithy.Member{Name: "AppClientId", Index: 0, Target: &schema__stringMin1Max256, Required: true, JSONName: "appClientId"}
 
-var memberCognitoConfig_UserPoolArn = smithy.Member{Name: "UserPoolArn", Index: 1, Required: true, JSONName: "userPoolArn"}
+var memberCognitoConfig_UserPoolArn = smithy.Member{Name: "UserPoolArn", Index: 1, Target: &schema__stringMin20Max2048, Required: true, JSONName: "userPoolArn"}
 
-var memberCognitoConfig_UserPoolDomain = smithy.Member{Name: "UserPoolDomain", Index: 2, Required: true, JSONName: "userPoolDomain"}
+var memberCognitoConfig_UserPoolDomain = smithy.Member{Name: "UserPoolDomain", Index: 2, Target: &schema__stringMin20Max2048, Required: true, JSONName: "userPoolDomain"}
 
-var schemaConflictException = smithy.Schema{ID: "com.amazonaws.apigatewayv2#ConflictException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 409}}
+var schemaConflictException = smithy.Schema{ID: "com.amazonaws.apigatewayv2#ConflictException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberConflictException_Message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 409}}
 
-var memberConflictException_Message = smithy.Member{Name: "Message", Index: 0, JSONName: "message"}
+var memberConflictException_Message = smithy.Member{Name: "Message", Index: 0, Target: &schema__string, JSONName: "message"}
 
 var schemaConnectionType = smithy.Schema{ID: "com.amazonaws.apigatewayv2#ConnectionType", Type: smithy.TypeEnum}
 
 var schemaContentHandlingStrategy = smithy.Schema{ID: "com.amazonaws.apigatewayv2#ContentHandlingStrategy", Type: smithy.TypeEnum}
 
-var schemaCoralServiceAccessDeniedException = smithy.Schema{ID: "com.amazon.coral.service#AccessDeniedException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+var schemaCoralServiceAccessDeniedException = smithy.Schema{ID: "com.amazon.coral.service#AccessDeniedException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCoralServiceAccessDeniedException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
 
-var memberCoralServiceAccessDeniedException_message = smithy.Member{Name: "message", Index: 0}
+var memberCoralServiceAccessDeniedException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaCors = smithy.Schema{ID: "com.amazonaws.apigatewayv2#Cors", Type: smithy.TypeStructure}
+var schemaCors = smithy.Schema{ID: "com.amazonaws.apigatewayv2#Cors", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCors_AllowCredentials, &memberCors_AllowHeaders, &memberCors_AllowMethods, &memberCors_AllowOrigins, &memberCors_ExposeHeaders, &memberCors_MaxAge}}
 
-var memberCors_AllowCredentials = smithy.Member{Name: "AllowCredentials", Index: 0, JSONName: "allowCredentials"}
+var memberCors_AllowCredentials = smithy.Member{Name: "AllowCredentials", Index: 0, Target: &schema__boolean, JSONName: "allowCredentials"}
 
-var memberCors_AllowHeaders = smithy.Member{Name: "AllowHeaders", Index: 1, JSONName: "allowHeaders"}
+var memberCors_AllowHeaders = smithy.Member{Name: "AllowHeaders", Index: 1, Target: &schemaCorsHeaderList, JSONName: "allowHeaders"}
 
-var memberCors_AllowMethods = smithy.Member{Name: "AllowMethods", Index: 2, JSONName: "allowMethods"}
+var memberCors_AllowMethods = smithy.Member{Name: "AllowMethods", Index: 2, Target: &schemaCorsMethodList, JSONName: "allowMethods"}
 
-var memberCors_AllowOrigins = smithy.Member{Name: "AllowOrigins", Index: 3, JSONName: "allowOrigins"}
+var memberCors_AllowOrigins = smithy.Member{Name: "AllowOrigins", Index: 3, Target: &schemaCorsOriginList, JSONName: "allowOrigins"}
 
-var memberCors_ExposeHeaders = smithy.Member{Name: "ExposeHeaders", Index: 4, JSONName: "exposeHeaders"}
+var memberCors_ExposeHeaders = smithy.Member{Name: "ExposeHeaders", Index: 4, Target: &schemaCorsHeaderList, JSONName: "exposeHeaders"}
 
-var memberCors_MaxAge = smithy.Member{Name: "MaxAge", Index: 5, JSONName: "maxAge"}
+var memberCors_MaxAge = smithy.Member{Name: "MaxAge", Index: 5, Target: &schemaIntegerWithLengthBetweenMinus1And86400, JSONName: "maxAge"}
 
-var schemaCorsHeaderList = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CorsHeaderList", Type: smithy.TypeList}
+var schemaCorsHeaderList = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CorsHeaderList", Type: smithy.TypeList, Members: []*smithy.Member{&memberCorsHeaderList_member}}
 
-var memberCorsHeaderList_member = smithy.Member{Name: "member", Index: 0}
+var memberCorsHeaderList_member = smithy.Member{Name: "member", Index: 0, Target: &schema__string}
 
-var schemaCorsMethodList = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CorsMethodList", Type: smithy.TypeList}
+var schemaCorsMethodList = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CorsMethodList", Type: smithy.TypeList, Members: []*smithy.Member{&memberCorsMethodList_member}}
 
-var memberCorsMethodList_member = smithy.Member{Name: "member", Index: 0}
+var memberCorsMethodList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaStringWithLengthBetween1And64}
 
-var schemaCorsOriginList = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CorsOriginList", Type: smithy.TypeList}
+var schemaCorsOriginList = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CorsOriginList", Type: smithy.TypeList, Members: []*smithy.Member{&memberCorsOriginList_member}}
 
-var memberCorsOriginList_member = smithy.Member{Name: "member", Index: 0}
+var memberCorsOriginList_member = smithy.Member{Name: "member", Index: 0, Target: &schema__string}
 
-var schemaCreateApiInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateApiRequest", Type: smithy.TypeStructure}
+var schemaCreateApiInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateApiRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateApiInput_ApiKeySelectionExpression, &memberCreateApiInput_CorsConfiguration, &memberCreateApiInput_CredentialsArn, &memberCreateApiInput_Description, &memberCreateApiInput_DisableSchemaValidation, &memberCreateApiInput_DisableExecuteApiEndpoint, &memberCreateApiInput_IpAddressType, &memberCreateApiInput_Name, &memberCreateApiInput_ProtocolType, &memberCreateApiInput_RouteKey, &memberCreateApiInput_RouteSelectionExpression, &memberCreateApiInput_Tags, &memberCreateApiInput_Target, &memberCreateApiInput_Version}}
 
-var memberCreateApiInput_ApiKeySelectionExpression = smithy.Member{Name: "ApiKeySelectionExpression", Index: 0, JSONName: "apiKeySelectionExpression"}
+var memberCreateApiInput_ApiKeySelectionExpression = smithy.Member{Name: "ApiKeySelectionExpression", Index: 0, Target: &schemaSelectionExpression, JSONName: "apiKeySelectionExpression"}
 
-var memberCreateApiInput_CorsConfiguration = smithy.Member{Name: "CorsConfiguration", Index: 1, JSONName: "corsConfiguration"}
+var memberCreateApiInput_CorsConfiguration = smithy.Member{Name: "CorsConfiguration", Index: 1, Target: &schemaCors, JSONName: "corsConfiguration"}
 
-var memberCreateApiInput_CredentialsArn = smithy.Member{Name: "CredentialsArn", Index: 2, JSONName: "credentialsArn"}
+var memberCreateApiInput_CredentialsArn = smithy.Member{Name: "CredentialsArn", Index: 2, Target: &schemaArn, JSONName: "credentialsArn"}
 
-var memberCreateApiInput_Description = smithy.Member{Name: "Description", Index: 3, JSONName: "description"}
+var memberCreateApiInput_Description = smithy.Member{Name: "Description", Index: 3, Target: &schemaStringWithLengthBetween0And1024, JSONName: "description"}
 
-var memberCreateApiInput_DisableSchemaValidation = smithy.Member{Name: "DisableSchemaValidation", Index: 4, JSONName: "disableSchemaValidation"}
+var memberCreateApiInput_DisableSchemaValidation = smithy.Member{Name: "DisableSchemaValidation", Index: 4, Target: &schema__boolean, JSONName: "disableSchemaValidation"}
 
-var memberCreateApiInput_DisableExecuteApiEndpoint = smithy.Member{Name: "DisableExecuteApiEndpoint", Index: 5, JSONName: "disableExecuteApiEndpoint"}
+var memberCreateApiInput_DisableExecuteApiEndpoint = smithy.Member{Name: "DisableExecuteApiEndpoint", Index: 5, Target: &schema__boolean, JSONName: "disableExecuteApiEndpoint"}
 
-var memberCreateApiInput_IpAddressType = smithy.Member{Name: "IpAddressType", Index: 6, JSONName: "ipAddressType"}
+var memberCreateApiInput_IpAddressType = smithy.Member{Name: "IpAddressType", Index: 6, Target: &schemaIpAddressType, JSONName: "ipAddressType"}
 
-var memberCreateApiInput_Name = smithy.Member{Name: "Name", Index: 7, Required: true, JSONName: "name"}
+var memberCreateApiInput_Name = smithy.Member{Name: "Name", Index: 7, Target: &schemaStringWithLengthBetween1And128, Required: true, JSONName: "name"}
 
-var memberCreateApiInput_ProtocolType = smithy.Member{Name: "ProtocolType", Index: 8, Required: true, JSONName: "protocolType"}
+var memberCreateApiInput_ProtocolType = smithy.Member{Name: "ProtocolType", Index: 8, Target: &schemaProtocolType, Required: true, JSONName: "protocolType"}
 
-var memberCreateApiInput_RouteKey = smithy.Member{Name: "RouteKey", Index: 9, JSONName: "routeKey"}
+var memberCreateApiInput_RouteKey = smithy.Member{Name: "RouteKey", Index: 9, Target: &schemaSelectionKey, JSONName: "routeKey"}
 
-var memberCreateApiInput_RouteSelectionExpression = smithy.Member{Name: "RouteSelectionExpression", Index: 10, JSONName: "routeSelectionExpression"}
+var memberCreateApiInput_RouteSelectionExpression = smithy.Member{Name: "RouteSelectionExpression", Index: 10, Target: &schemaSelectionExpression, JSONName: "routeSelectionExpression"}
 
-var memberCreateApiInput_Tags = smithy.Member{Name: "Tags", Index: 11, JSONName: "tags"}
+var memberCreateApiInput_Tags = smithy.Member{Name: "Tags", Index: 11, Target: &schemaTags, JSONName: "tags"}
 
-var memberCreateApiInput_Target = smithy.Member{Name: "Target", Index: 12, JSONName: "target"}
+var memberCreateApiInput_Target = smithy.Member{Name: "Target", Index: 12, Target: &schemaUriWithLengthBetween1And2048, JSONName: "target"}
 
-var memberCreateApiInput_Version = smithy.Member{Name: "Version", Index: 13, JSONName: "version"}
+var memberCreateApiInput_Version = smithy.Member{Name: "Version", Index: 13, Target: &schemaStringWithLengthBetween1And64, JSONName: "version"}
 
-var schemaCreateApiMappingInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateApiMappingRequest", Type: smithy.TypeStructure}
+var schemaCreateApiMappingInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateApiMappingRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateApiMappingInput_ApiId, &memberCreateApiMappingInput_ApiMappingKey, &memberCreateApiMappingInput_DomainName, &memberCreateApiMappingInput_Stage}}
 
-var memberCreateApiMappingInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Required: true, JSONName: "apiId"}
+var memberCreateApiMappingInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schemaId, Required: true, JSONName: "apiId"}
 
-var memberCreateApiMappingInput_ApiMappingKey = smithy.Member{Name: "ApiMappingKey", Index: 1, JSONName: "apiMappingKey"}
+var memberCreateApiMappingInput_ApiMappingKey = smithy.Member{Name: "ApiMappingKey", Index: 1, Target: &schemaSelectionKey, JSONName: "apiMappingKey"}
 
-var memberCreateApiMappingInput_DomainName = smithy.Member{Name: "DomainName", Index: 2, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberCreateApiMappingInput_DomainName = smithy.Member{Name: "DomainName", Index: 2, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberCreateApiMappingInput_Stage = smithy.Member{Name: "Stage", Index: 3, Required: true, JSONName: "stage"}
+var memberCreateApiMappingInput_Stage = smithy.Member{Name: "Stage", Index: 3, Target: &schemaStringWithLengthBetween1And128, Required: true, JSONName: "stage"}
 
-var schemaCreateApiMappingOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateApiMappingResponse", Type: smithy.TypeStructure}
+var schemaCreateApiMappingOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateApiMappingResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateApiMappingOutput_ApiId, &memberCreateApiMappingOutput_ApiMappingId, &memberCreateApiMappingOutput_ApiMappingKey, &memberCreateApiMappingOutput_Stage}}
 
-var memberCreateApiMappingOutput_ApiId = smithy.Member{Name: "ApiId", Index: 0, JSONName: "apiId"}
+var memberCreateApiMappingOutput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schemaId, JSONName: "apiId"}
 
-var memberCreateApiMappingOutput_ApiMappingId = smithy.Member{Name: "ApiMappingId", Index: 1, JSONName: "apiMappingId"}
+var memberCreateApiMappingOutput_ApiMappingId = smithy.Member{Name: "ApiMappingId", Index: 1, Target: &schemaId, JSONName: "apiMappingId"}
 
-var memberCreateApiMappingOutput_ApiMappingKey = smithy.Member{Name: "ApiMappingKey", Index: 2, JSONName: "apiMappingKey"}
+var memberCreateApiMappingOutput_ApiMappingKey = smithy.Member{Name: "ApiMappingKey", Index: 2, Target: &schemaSelectionKey, JSONName: "apiMappingKey"}
 
-var memberCreateApiMappingOutput_Stage = smithy.Member{Name: "Stage", Index: 3, JSONName: "stage"}
+var memberCreateApiMappingOutput_Stage = smithy.Member{Name: "Stage", Index: 3, Target: &schemaStringWithLengthBetween1And128, JSONName: "stage"}
 
-var schemaCreateApiOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateApiResponse", Type: smithy.TypeStructure}
+var schemaCreateApiOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateApiResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateApiOutput_ApiEndpoint, &memberCreateApiOutput_ApiGatewayManaged, &memberCreateApiOutput_ApiId, &memberCreateApiOutput_ApiKeySelectionExpression, &memberCreateApiOutput_CorsConfiguration, &memberCreateApiOutput_CreatedDate, &memberCreateApiOutput_Description, &memberCreateApiOutput_DisableSchemaValidation, &memberCreateApiOutput_DisableExecuteApiEndpoint, &memberCreateApiOutput_ImportInfo, &memberCreateApiOutput_IpAddressType, &memberCreateApiOutput_Name, &memberCreateApiOutput_ProtocolType, &memberCreateApiOutput_RouteSelectionExpression, &memberCreateApiOutput_Tags, &memberCreateApiOutput_Version, &memberCreateApiOutput_Warnings}}
 
-var memberCreateApiOutput_ApiEndpoint = smithy.Member{Name: "ApiEndpoint", Index: 0, JSONName: "apiEndpoint"}
+var memberCreateApiOutput_ApiEndpoint = smithy.Member{Name: "ApiEndpoint", Index: 0, Target: &schema__string, JSONName: "apiEndpoint"}
 
-var memberCreateApiOutput_ApiGatewayManaged = smithy.Member{Name: "ApiGatewayManaged", Index: 1, JSONName: "apiGatewayManaged"}
+var memberCreateApiOutput_ApiGatewayManaged = smithy.Member{Name: "ApiGatewayManaged", Index: 1, Target: &schema__boolean, JSONName: "apiGatewayManaged"}
 
-var memberCreateApiOutput_ApiId = smithy.Member{Name: "ApiId", Index: 2, JSONName: "apiId"}
+var memberCreateApiOutput_ApiId = smithy.Member{Name: "ApiId", Index: 2, Target: &schemaId, JSONName: "apiId"}
 
-var memberCreateApiOutput_ApiKeySelectionExpression = smithy.Member{Name: "ApiKeySelectionExpression", Index: 3, JSONName: "apiKeySelectionExpression"}
+var memberCreateApiOutput_ApiKeySelectionExpression = smithy.Member{Name: "ApiKeySelectionExpression", Index: 3, Target: &schemaSelectionExpression, JSONName: "apiKeySelectionExpression"}
 
-var memberCreateApiOutput_CorsConfiguration = smithy.Member{Name: "CorsConfiguration", Index: 4, JSONName: "corsConfiguration"}
+var memberCreateApiOutput_CorsConfiguration = smithy.Member{Name: "CorsConfiguration", Index: 4, Target: &schemaCors, JSONName: "corsConfiguration"}
 
-var memberCreateApiOutput_CreatedDate = smithy.Member{Name: "CreatedDate", Index: 5, JSONName: "createdDate", TimestampFormat: smithy.DateTime}
+var memberCreateApiOutput_CreatedDate = smithy.Member{Name: "CreatedDate", Index: 5, Target: &schema__timestampIso8601, JSONName: "createdDate", TimestampFormat: smithy.DateTime}
 
-var memberCreateApiOutput_Description = smithy.Member{Name: "Description", Index: 6, JSONName: "description"}
+var memberCreateApiOutput_Description = smithy.Member{Name: "Description", Index: 6, Target: &schemaStringWithLengthBetween0And1024, JSONName: "description"}
 
-var memberCreateApiOutput_DisableSchemaValidation = smithy.Member{Name: "DisableSchemaValidation", Index: 7, JSONName: "disableSchemaValidation"}
+var memberCreateApiOutput_DisableSchemaValidation = smithy.Member{Name: "DisableSchemaValidation", Index: 7, Target: &schema__boolean, JSONName: "disableSchemaValidation"}
 
-var memberCreateApiOutput_DisableExecuteApiEndpoint = smithy.Member{Name: "DisableExecuteApiEndpoint", Index: 8, JSONName: "disableExecuteApiEndpoint"}
+var memberCreateApiOutput_DisableExecuteApiEndpoint = smithy.Member{Name: "DisableExecuteApiEndpoint", Index: 8, Target: &schema__boolean, JSONName: "disableExecuteApiEndpoint"}
 
-var memberCreateApiOutput_ImportInfo = smithy.Member{Name: "ImportInfo", Index: 9, JSONName: "importInfo"}
+var memberCreateApiOutput_ImportInfo = smithy.Member{Name: "ImportInfo", Index: 9, Target: &schema__listOf__string, JSONName: "importInfo"}
 
-var memberCreateApiOutput_IpAddressType = smithy.Member{Name: "IpAddressType", Index: 10, JSONName: "ipAddressType"}
+var memberCreateApiOutput_IpAddressType = smithy.Member{Name: "IpAddressType", Index: 10, Target: &schemaIpAddressType, JSONName: "ipAddressType"}
 
-var memberCreateApiOutput_Name = smithy.Member{Name: "Name", Index: 11, JSONName: "name"}
+var memberCreateApiOutput_Name = smithy.Member{Name: "Name", Index: 11, Target: &schemaStringWithLengthBetween1And128, JSONName: "name"}
 
-var memberCreateApiOutput_ProtocolType = smithy.Member{Name: "ProtocolType", Index: 12, JSONName: "protocolType"}
+var memberCreateApiOutput_ProtocolType = smithy.Member{Name: "ProtocolType", Index: 12, Target: &schemaProtocolType, JSONName: "protocolType"}
 
-var memberCreateApiOutput_RouteSelectionExpression = smithy.Member{Name: "RouteSelectionExpression", Index: 13, JSONName: "routeSelectionExpression"}
+var memberCreateApiOutput_RouteSelectionExpression = smithy.Member{Name: "RouteSelectionExpression", Index: 13, Target: &schemaSelectionExpression, JSONName: "routeSelectionExpression"}
 
-var memberCreateApiOutput_Tags = smithy.Member{Name: "Tags", Index: 14, JSONName: "tags"}
+var memberCreateApiOutput_Tags = smithy.Member{Name: "Tags", Index: 14, Target: &schemaTags, JSONName: "tags"}
 
-var memberCreateApiOutput_Version = smithy.Member{Name: "Version", Index: 15, JSONName: "version"}
+var memberCreateApiOutput_Version = smithy.Member{Name: "Version", Index: 15, Target: &schemaStringWithLengthBetween1And64, JSONName: "version"}
 
-var memberCreateApiOutput_Warnings = smithy.Member{Name: "Warnings", Index: 16, JSONName: "warnings"}
+var memberCreateApiOutput_Warnings = smithy.Member{Name: "Warnings", Index: 16, Target: &schema__listOf__string, JSONName: "warnings"}
 
-var schemaCreateAuthorizerInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateAuthorizerRequest", Type: smithy.TypeStructure}
+var schemaCreateAuthorizerInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateAuthorizerRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateAuthorizerInput_ApiId, &memberCreateAuthorizerInput_AuthorizerCredentialsArn, &memberCreateAuthorizerInput_AuthorizerPayloadFormatVersion, &memberCreateAuthorizerInput_AuthorizerResultTtlInSeconds, &memberCreateAuthorizerInput_AuthorizerType, &memberCreateAuthorizerInput_AuthorizerUri, &memberCreateAuthorizerInput_EnableSimpleResponses, &memberCreateAuthorizerInput_IdentitySource, &memberCreateAuthorizerInput_IdentityValidationExpression, &memberCreateAuthorizerInput_JwtConfiguration, &memberCreateAuthorizerInput_Name}}
 
-var memberCreateAuthorizerInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberCreateAuthorizerInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberCreateAuthorizerInput_AuthorizerCredentialsArn = smithy.Member{Name: "AuthorizerCredentialsArn", Index: 1, JSONName: "authorizerCredentialsArn"}
+var memberCreateAuthorizerInput_AuthorizerCredentialsArn = smithy.Member{Name: "AuthorizerCredentialsArn", Index: 1, Target: &schemaArn, JSONName: "authorizerCredentialsArn"}
 
-var memberCreateAuthorizerInput_AuthorizerPayloadFormatVersion = smithy.Member{Name: "AuthorizerPayloadFormatVersion", Index: 2, JSONName: "authorizerPayloadFormatVersion"}
+var memberCreateAuthorizerInput_AuthorizerPayloadFormatVersion = smithy.Member{Name: "AuthorizerPayloadFormatVersion", Index: 2, Target: &schemaStringWithLengthBetween1And64, JSONName: "authorizerPayloadFormatVersion"}
 
-var memberCreateAuthorizerInput_AuthorizerResultTtlInSeconds = smithy.Member{Name: "AuthorizerResultTtlInSeconds", Index: 3, JSONName: "authorizerResultTtlInSeconds"}
+var memberCreateAuthorizerInput_AuthorizerResultTtlInSeconds = smithy.Member{Name: "AuthorizerResultTtlInSeconds", Index: 3, Target: &schemaIntegerWithLengthBetween0And3600, JSONName: "authorizerResultTtlInSeconds"}
 
-var memberCreateAuthorizerInput_AuthorizerType = smithy.Member{Name: "AuthorizerType", Index: 4, Required: true, JSONName: "authorizerType"}
+var memberCreateAuthorizerInput_AuthorizerType = smithy.Member{Name: "AuthorizerType", Index: 4, Target: &schemaAuthorizerType, Required: true, JSONName: "authorizerType"}
 
-var memberCreateAuthorizerInput_AuthorizerUri = smithy.Member{Name: "AuthorizerUri", Index: 5, JSONName: "authorizerUri"}
+var memberCreateAuthorizerInput_AuthorizerUri = smithy.Member{Name: "AuthorizerUri", Index: 5, Target: &schemaUriWithLengthBetween1And2048, JSONName: "authorizerUri"}
 
-var memberCreateAuthorizerInput_EnableSimpleResponses = smithy.Member{Name: "EnableSimpleResponses", Index: 6, JSONName: "enableSimpleResponses"}
+var memberCreateAuthorizerInput_EnableSimpleResponses = smithy.Member{Name: "EnableSimpleResponses", Index: 6, Target: &schema__boolean, JSONName: "enableSimpleResponses"}
 
-var memberCreateAuthorizerInput_IdentitySource = smithy.Member{Name: "IdentitySource", Index: 7, Required: true, JSONName: "identitySource"}
+var memberCreateAuthorizerInput_IdentitySource = smithy.Member{Name: "IdentitySource", Index: 7, Target: &schemaIdentitySourceList, Required: true, JSONName: "identitySource"}
 
-var memberCreateAuthorizerInput_IdentityValidationExpression = smithy.Member{Name: "IdentityValidationExpression", Index: 8, JSONName: "identityValidationExpression"}
+var memberCreateAuthorizerInput_IdentityValidationExpression = smithy.Member{Name: "IdentityValidationExpression", Index: 8, Target: &schemaStringWithLengthBetween0And1024, JSONName: "identityValidationExpression"}
 
-var memberCreateAuthorizerInput_JwtConfiguration = smithy.Member{Name: "JwtConfiguration", Index: 9, JSONName: "jwtConfiguration"}
+var memberCreateAuthorizerInput_JwtConfiguration = smithy.Member{Name: "JwtConfiguration", Index: 9, Target: &schemaJWTConfiguration, JSONName: "jwtConfiguration"}
 
-var memberCreateAuthorizerInput_Name = smithy.Member{Name: "Name", Index: 10, Required: true, JSONName: "name"}
+var memberCreateAuthorizerInput_Name = smithy.Member{Name: "Name", Index: 10, Target: &schemaStringWithLengthBetween1And128, Required: true, JSONName: "name"}
 
-var schemaCreateAuthorizerOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateAuthorizerResponse", Type: smithy.TypeStructure}
+var schemaCreateAuthorizerOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateAuthorizerResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateAuthorizerOutput_AuthorizerCredentialsArn, &memberCreateAuthorizerOutput_AuthorizerId, &memberCreateAuthorizerOutput_AuthorizerPayloadFormatVersion, &memberCreateAuthorizerOutput_AuthorizerResultTtlInSeconds, &memberCreateAuthorizerOutput_AuthorizerType, &memberCreateAuthorizerOutput_AuthorizerUri, &memberCreateAuthorizerOutput_EnableSimpleResponses, &memberCreateAuthorizerOutput_IdentitySource, &memberCreateAuthorizerOutput_IdentityValidationExpression, &memberCreateAuthorizerOutput_JwtConfiguration, &memberCreateAuthorizerOutput_Name}}
 
-var memberCreateAuthorizerOutput_AuthorizerCredentialsArn = smithy.Member{Name: "AuthorizerCredentialsArn", Index: 0, JSONName: "authorizerCredentialsArn"}
+var memberCreateAuthorizerOutput_AuthorizerCredentialsArn = smithy.Member{Name: "AuthorizerCredentialsArn", Index: 0, Target: &schemaArn, JSONName: "authorizerCredentialsArn"}
 
-var memberCreateAuthorizerOutput_AuthorizerId = smithy.Member{Name: "AuthorizerId", Index: 1, JSONName: "authorizerId"}
+var memberCreateAuthorizerOutput_AuthorizerId = smithy.Member{Name: "AuthorizerId", Index: 1, Target: &schemaId, JSONName: "authorizerId"}
 
-var memberCreateAuthorizerOutput_AuthorizerPayloadFormatVersion = smithy.Member{Name: "AuthorizerPayloadFormatVersion", Index: 2, JSONName: "authorizerPayloadFormatVersion"}
+var memberCreateAuthorizerOutput_AuthorizerPayloadFormatVersion = smithy.Member{Name: "AuthorizerPayloadFormatVersion", Index: 2, Target: &schemaStringWithLengthBetween1And64, JSONName: "authorizerPayloadFormatVersion"}
 
-var memberCreateAuthorizerOutput_AuthorizerResultTtlInSeconds = smithy.Member{Name: "AuthorizerResultTtlInSeconds", Index: 3, JSONName: "authorizerResultTtlInSeconds"}
+var memberCreateAuthorizerOutput_AuthorizerResultTtlInSeconds = smithy.Member{Name: "AuthorizerResultTtlInSeconds", Index: 3, Target: &schemaIntegerWithLengthBetween0And3600, JSONName: "authorizerResultTtlInSeconds"}
 
-var memberCreateAuthorizerOutput_AuthorizerType = smithy.Member{Name: "AuthorizerType", Index: 4, JSONName: "authorizerType"}
+var memberCreateAuthorizerOutput_AuthorizerType = smithy.Member{Name: "AuthorizerType", Index: 4, Target: &schemaAuthorizerType, JSONName: "authorizerType"}
 
-var memberCreateAuthorizerOutput_AuthorizerUri = smithy.Member{Name: "AuthorizerUri", Index: 5, JSONName: "authorizerUri"}
+var memberCreateAuthorizerOutput_AuthorizerUri = smithy.Member{Name: "AuthorizerUri", Index: 5, Target: &schemaUriWithLengthBetween1And2048, JSONName: "authorizerUri"}
 
-var memberCreateAuthorizerOutput_EnableSimpleResponses = smithy.Member{Name: "EnableSimpleResponses", Index: 6, JSONName: "enableSimpleResponses"}
+var memberCreateAuthorizerOutput_EnableSimpleResponses = smithy.Member{Name: "EnableSimpleResponses", Index: 6, Target: &schema__boolean, JSONName: "enableSimpleResponses"}
 
-var memberCreateAuthorizerOutput_IdentitySource = smithy.Member{Name: "IdentitySource", Index: 7, JSONName: "identitySource"}
+var memberCreateAuthorizerOutput_IdentitySource = smithy.Member{Name: "IdentitySource", Index: 7, Target: &schemaIdentitySourceList, JSONName: "identitySource"}
 
-var memberCreateAuthorizerOutput_IdentityValidationExpression = smithy.Member{Name: "IdentityValidationExpression", Index: 8, JSONName: "identityValidationExpression"}
+var memberCreateAuthorizerOutput_IdentityValidationExpression = smithy.Member{Name: "IdentityValidationExpression", Index: 8, Target: &schemaStringWithLengthBetween0And1024, JSONName: "identityValidationExpression"}
 
-var memberCreateAuthorizerOutput_JwtConfiguration = smithy.Member{Name: "JwtConfiguration", Index: 9, JSONName: "jwtConfiguration"}
+var memberCreateAuthorizerOutput_JwtConfiguration = smithy.Member{Name: "JwtConfiguration", Index: 9, Target: &schemaJWTConfiguration, JSONName: "jwtConfiguration"}
 
-var memberCreateAuthorizerOutput_Name = smithy.Member{Name: "Name", Index: 10, JSONName: "name"}
+var memberCreateAuthorizerOutput_Name = smithy.Member{Name: "Name", Index: 10, Target: &schemaStringWithLengthBetween1And128, JSONName: "name"}
 
-var schemaCreateDeploymentInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateDeploymentRequest", Type: smithy.TypeStructure}
+var schemaCreateDeploymentInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateDeploymentRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateDeploymentInput_ApiId, &memberCreateDeploymentInput_Description, &memberCreateDeploymentInput_StageName}}
 
-var memberCreateDeploymentInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberCreateDeploymentInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberCreateDeploymentInput_Description = smithy.Member{Name: "Description", Index: 1, JSONName: "description"}
+var memberCreateDeploymentInput_Description = smithy.Member{Name: "Description", Index: 1, Target: &schemaStringWithLengthBetween0And1024, JSONName: "description"}
 
-var memberCreateDeploymentInput_StageName = smithy.Member{Name: "StageName", Index: 2, JSONName: "stageName"}
+var memberCreateDeploymentInput_StageName = smithy.Member{Name: "StageName", Index: 2, Target: &schemaStringWithLengthBetween1And128, JSONName: "stageName"}
 
-var schemaCreateDeploymentOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateDeploymentResponse", Type: smithy.TypeStructure}
+var schemaCreateDeploymentOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateDeploymentResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateDeploymentOutput_AutoDeployed, &memberCreateDeploymentOutput_CreatedDate, &memberCreateDeploymentOutput_DeploymentId, &memberCreateDeploymentOutput_DeploymentStatus, &memberCreateDeploymentOutput_DeploymentStatusMessage, &memberCreateDeploymentOutput_Description}}
 
-var memberCreateDeploymentOutput_AutoDeployed = smithy.Member{Name: "AutoDeployed", Index: 0, JSONName: "autoDeployed"}
+var memberCreateDeploymentOutput_AutoDeployed = smithy.Member{Name: "AutoDeployed", Index: 0, Target: &schema__boolean, JSONName: "autoDeployed"}
 
-var memberCreateDeploymentOutput_CreatedDate = smithy.Member{Name: "CreatedDate", Index: 1, JSONName: "createdDate", TimestampFormat: smithy.DateTime}
+var memberCreateDeploymentOutput_CreatedDate = smithy.Member{Name: "CreatedDate", Index: 1, Target: &schema__timestampIso8601, JSONName: "createdDate", TimestampFormat: smithy.DateTime}
 
-var memberCreateDeploymentOutput_DeploymentId = smithy.Member{Name: "DeploymentId", Index: 2, JSONName: "deploymentId"}
+var memberCreateDeploymentOutput_DeploymentId = smithy.Member{Name: "DeploymentId", Index: 2, Target: &schemaId, JSONName: "deploymentId"}
 
-var memberCreateDeploymentOutput_DeploymentStatus = smithy.Member{Name: "DeploymentStatus", Index: 3, JSONName: "deploymentStatus"}
+var memberCreateDeploymentOutput_DeploymentStatus = smithy.Member{Name: "DeploymentStatus", Index: 3, Target: &schemaDeploymentStatus, JSONName: "deploymentStatus"}
 
-var memberCreateDeploymentOutput_DeploymentStatusMessage = smithy.Member{Name: "DeploymentStatusMessage", Index: 4, JSONName: "deploymentStatusMessage"}
+var memberCreateDeploymentOutput_DeploymentStatusMessage = smithy.Member{Name: "DeploymentStatusMessage", Index: 4, Target: &schema__string, JSONName: "deploymentStatusMessage"}
 
-var memberCreateDeploymentOutput_Description = smithy.Member{Name: "Description", Index: 5, JSONName: "description"}
+var memberCreateDeploymentOutput_Description = smithy.Member{Name: "Description", Index: 5, Target: &schemaStringWithLengthBetween0And1024, JSONName: "description"}
 
-var schemaCreateDomainNameInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateDomainNameRequest", Type: smithy.TypeStructure}
+var schemaCreateDomainNameInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateDomainNameRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateDomainNameInput_DomainName, &memberCreateDomainNameInput_DomainNameConfigurations, &memberCreateDomainNameInput_MutualTlsAuthentication, &memberCreateDomainNameInput_RoutingMode, &memberCreateDomainNameInput_Tags}}
 
-var memberCreateDomainNameInput_DomainName = smithy.Member{Name: "DomainName", Index: 0, Required: true, JSONName: "domainName"}
+var memberCreateDomainNameInput_DomainName = smithy.Member{Name: "DomainName", Index: 0, Target: &schemaStringWithLengthBetween1And512, Required: true, JSONName: "domainName"}
 
-var memberCreateDomainNameInput_DomainNameConfigurations = smithy.Member{Name: "DomainNameConfigurations", Index: 1, JSONName: "domainNameConfigurations"}
+var memberCreateDomainNameInput_DomainNameConfigurations = smithy.Member{Name: "DomainNameConfigurations", Index: 1, Target: &schemaDomainNameConfigurations, JSONName: "domainNameConfigurations"}
 
-var memberCreateDomainNameInput_MutualTlsAuthentication = smithy.Member{Name: "MutualTlsAuthentication", Index: 2, JSONName: "mutualTlsAuthentication"}
+var memberCreateDomainNameInput_MutualTlsAuthentication = smithy.Member{Name: "MutualTlsAuthentication", Index: 2, Target: &schemaMutualTlsAuthenticationInput, JSONName: "mutualTlsAuthentication"}
 
-var memberCreateDomainNameInput_RoutingMode = smithy.Member{Name: "RoutingMode", Index: 3, JSONName: "routingMode"}
+var memberCreateDomainNameInput_RoutingMode = smithy.Member{Name: "RoutingMode", Index: 3, Target: &schemaRoutingMode, JSONName: "routingMode"}
 
-var memberCreateDomainNameInput_Tags = smithy.Member{Name: "Tags", Index: 4, JSONName: "tags"}
+var memberCreateDomainNameInput_Tags = smithy.Member{Name: "Tags", Index: 4, Target: &schemaTags, JSONName: "tags"}
 
-var schemaCreateDomainNameOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateDomainNameResponse", Type: smithy.TypeStructure}
+var schemaCreateDomainNameOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateDomainNameResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateDomainNameOutput_ApiMappingSelectionExpression, &memberCreateDomainNameOutput_DomainName, &memberCreateDomainNameOutput_DomainNameArn, &memberCreateDomainNameOutput_DomainNameConfigurations, &memberCreateDomainNameOutput_MutualTlsAuthentication, &memberCreateDomainNameOutput_RoutingMode, &memberCreateDomainNameOutput_Tags}}
 
-var memberCreateDomainNameOutput_ApiMappingSelectionExpression = smithy.Member{Name: "ApiMappingSelectionExpression", Index: 0, JSONName: "apiMappingSelectionExpression"}
+var memberCreateDomainNameOutput_ApiMappingSelectionExpression = smithy.Member{Name: "ApiMappingSelectionExpression", Index: 0, Target: &schemaSelectionExpression, JSONName: "apiMappingSelectionExpression"}
 
-var memberCreateDomainNameOutput_DomainName = smithy.Member{Name: "DomainName", Index: 1, JSONName: "domainName"}
+var memberCreateDomainNameOutput_DomainName = smithy.Member{Name: "DomainName", Index: 1, Target: &schemaStringWithLengthBetween1And512, JSONName: "domainName"}
 
-var memberCreateDomainNameOutput_DomainNameArn = smithy.Member{Name: "DomainNameArn", Index: 2, JSONName: "domainNameArn"}
+var memberCreateDomainNameOutput_DomainNameArn = smithy.Member{Name: "DomainNameArn", Index: 2, Target: &schemaArn, JSONName: "domainNameArn"}
 
-var memberCreateDomainNameOutput_DomainNameConfigurations = smithy.Member{Name: "DomainNameConfigurations", Index: 3, JSONName: "domainNameConfigurations"}
+var memberCreateDomainNameOutput_DomainNameConfigurations = smithy.Member{Name: "DomainNameConfigurations", Index: 3, Target: &schemaDomainNameConfigurations, JSONName: "domainNameConfigurations"}
 
-var memberCreateDomainNameOutput_MutualTlsAuthentication = smithy.Member{Name: "MutualTlsAuthentication", Index: 4, JSONName: "mutualTlsAuthentication"}
+var memberCreateDomainNameOutput_MutualTlsAuthentication = smithy.Member{Name: "MutualTlsAuthentication", Index: 4, Target: &schemaMutualTlsAuthentication, JSONName: "mutualTlsAuthentication"}
 
-var memberCreateDomainNameOutput_RoutingMode = smithy.Member{Name: "RoutingMode", Index: 5, JSONName: "routingMode"}
+var memberCreateDomainNameOutput_RoutingMode = smithy.Member{Name: "RoutingMode", Index: 5, Target: &schemaRoutingMode, JSONName: "routingMode"}
 
-var memberCreateDomainNameOutput_Tags = smithy.Member{Name: "Tags", Index: 6, JSONName: "tags"}
+var memberCreateDomainNameOutput_Tags = smithy.Member{Name: "Tags", Index: 6, Target: &schemaTags, JSONName: "tags"}
 
-var schemaCreateIntegrationInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateIntegrationRequest", Type: smithy.TypeStructure}
+var schemaCreateIntegrationInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateIntegrationRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateIntegrationInput_ApiId, &memberCreateIntegrationInput_ConnectionId, &memberCreateIntegrationInput_ConnectionType, &memberCreateIntegrationInput_ContentHandlingStrategy, &memberCreateIntegrationInput_CredentialsArn, &memberCreateIntegrationInput_Description, &memberCreateIntegrationInput_IntegrationMethod, &memberCreateIntegrationInput_IntegrationSubtype, &memberCreateIntegrationInput_IntegrationType, &memberCreateIntegrationInput_IntegrationUri, &memberCreateIntegrationInput_PassthroughBehavior, &memberCreateIntegrationInput_PayloadFormatVersion, &memberCreateIntegrationInput_RequestParameters, &memberCreateIntegrationInput_RequestTemplates, &memberCreateIntegrationInput_ResponseParameters, &memberCreateIntegrationInput_TemplateSelectionExpression, &memberCreateIntegrationInput_TimeoutInMillis, &memberCreateIntegrationInput_TlsConfig}}
 
-var memberCreateIntegrationInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberCreateIntegrationInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberCreateIntegrationInput_ConnectionId = smithy.Member{Name: "ConnectionId", Index: 1, JSONName: "connectionId"}
+var memberCreateIntegrationInput_ConnectionId = smithy.Member{Name: "ConnectionId", Index: 1, Target: &schemaStringWithLengthBetween1And1024, JSONName: "connectionId"}
 
-var memberCreateIntegrationInput_ConnectionType = smithy.Member{Name: "ConnectionType", Index: 2, JSONName: "connectionType"}
+var memberCreateIntegrationInput_ConnectionType = smithy.Member{Name: "ConnectionType", Index: 2, Target: &schemaConnectionType, JSONName: "connectionType"}
 
-var memberCreateIntegrationInput_ContentHandlingStrategy = smithy.Member{Name: "ContentHandlingStrategy", Index: 3, JSONName: "contentHandlingStrategy"}
+var memberCreateIntegrationInput_ContentHandlingStrategy = smithy.Member{Name: "ContentHandlingStrategy", Index: 3, Target: &schemaContentHandlingStrategy, JSONName: "contentHandlingStrategy"}
 
-var memberCreateIntegrationInput_CredentialsArn = smithy.Member{Name: "CredentialsArn", Index: 4, JSONName: "credentialsArn"}
+var memberCreateIntegrationInput_CredentialsArn = smithy.Member{Name: "CredentialsArn", Index: 4, Target: &schemaArn, JSONName: "credentialsArn"}
 
-var memberCreateIntegrationInput_Description = smithy.Member{Name: "Description", Index: 5, JSONName: "description"}
+var memberCreateIntegrationInput_Description = smithy.Member{Name: "Description", Index: 5, Target: &schemaStringWithLengthBetween0And1024, JSONName: "description"}
 
-var memberCreateIntegrationInput_IntegrationMethod = smithy.Member{Name: "IntegrationMethod", Index: 6, JSONName: "integrationMethod"}
+var memberCreateIntegrationInput_IntegrationMethod = smithy.Member{Name: "IntegrationMethod", Index: 6, Target: &schemaStringWithLengthBetween1And64, JSONName: "integrationMethod"}
 
-var memberCreateIntegrationInput_IntegrationSubtype = smithy.Member{Name: "IntegrationSubtype", Index: 7, JSONName: "integrationSubtype"}
+var memberCreateIntegrationInput_IntegrationSubtype = smithy.Member{Name: "IntegrationSubtype", Index: 7, Target: &schemaStringWithLengthBetween1And128, JSONName: "integrationSubtype"}
 
-var memberCreateIntegrationInput_IntegrationType = smithy.Member{Name: "IntegrationType", Index: 8, Required: true, JSONName: "integrationType"}
+var memberCreateIntegrationInput_IntegrationType = smithy.Member{Name: "IntegrationType", Index: 8, Target: &schemaIntegrationType, Required: true, JSONName: "integrationType"}
 
-var memberCreateIntegrationInput_IntegrationUri = smithy.Member{Name: "IntegrationUri", Index: 9, JSONName: "integrationUri"}
+var memberCreateIntegrationInput_IntegrationUri = smithy.Member{Name: "IntegrationUri", Index: 9, Target: &schemaUriWithLengthBetween1And2048, JSONName: "integrationUri"}
 
-var memberCreateIntegrationInput_PassthroughBehavior = smithy.Member{Name: "PassthroughBehavior", Index: 10, JSONName: "passthroughBehavior"}
+var memberCreateIntegrationInput_PassthroughBehavior = smithy.Member{Name: "PassthroughBehavior", Index: 10, Target: &schemaPassthroughBehavior, JSONName: "passthroughBehavior"}
 
-var memberCreateIntegrationInput_PayloadFormatVersion = smithy.Member{Name: "PayloadFormatVersion", Index: 11, JSONName: "payloadFormatVersion"}
+var memberCreateIntegrationInput_PayloadFormatVersion = smithy.Member{Name: "PayloadFormatVersion", Index: 11, Target: &schemaStringWithLengthBetween1And64, JSONName: "payloadFormatVersion"}
 
-var memberCreateIntegrationInput_RequestParameters = smithy.Member{Name: "RequestParameters", Index: 12, JSONName: "requestParameters"}
+var memberCreateIntegrationInput_RequestParameters = smithy.Member{Name: "RequestParameters", Index: 12, Target: &schemaIntegrationParameters, JSONName: "requestParameters"}
 
-var memberCreateIntegrationInput_RequestTemplates = smithy.Member{Name: "RequestTemplates", Index: 13, JSONName: "requestTemplates"}
+var memberCreateIntegrationInput_RequestTemplates = smithy.Member{Name: "RequestTemplates", Index: 13, Target: &schemaTemplateMap, JSONName: "requestTemplates"}
 
-var memberCreateIntegrationInput_ResponseParameters = smithy.Member{Name: "ResponseParameters", Index: 14, JSONName: "responseParameters"}
+var memberCreateIntegrationInput_ResponseParameters = smithy.Member{Name: "ResponseParameters", Index: 14, Target: &schemaResponseParameters, JSONName: "responseParameters"}
 
-var memberCreateIntegrationInput_TemplateSelectionExpression = smithy.Member{Name: "TemplateSelectionExpression", Index: 15, JSONName: "templateSelectionExpression"}
+var memberCreateIntegrationInput_TemplateSelectionExpression = smithy.Member{Name: "TemplateSelectionExpression", Index: 15, Target: &schemaSelectionExpression, JSONName: "templateSelectionExpression"}
 
-var memberCreateIntegrationInput_TimeoutInMillis = smithy.Member{Name: "TimeoutInMillis", Index: 16, JSONName: "timeoutInMillis"}
+var memberCreateIntegrationInput_TimeoutInMillis = smithy.Member{Name: "TimeoutInMillis", Index: 16, Target: &schemaIntegerWithLengthBetween50And30000, JSONName: "timeoutInMillis"}
 
-var memberCreateIntegrationInput_TlsConfig = smithy.Member{Name: "TlsConfig", Index: 17, JSONName: "tlsConfig"}
+var memberCreateIntegrationInput_TlsConfig = smithy.Member{Name: "TlsConfig", Index: 17, Target: &schemaTlsConfigInput, JSONName: "tlsConfig"}
 
-var schemaCreateIntegrationOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateIntegrationResult", Type: smithy.TypeStructure}
+var schemaCreateIntegrationOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateIntegrationResult", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateIntegrationOutput_ApiGatewayManaged, &memberCreateIntegrationOutput_ConnectionId, &memberCreateIntegrationOutput_ConnectionType, &memberCreateIntegrationOutput_ContentHandlingStrategy, &memberCreateIntegrationOutput_CredentialsArn, &memberCreateIntegrationOutput_Description, &memberCreateIntegrationOutput_IntegrationId, &memberCreateIntegrationOutput_IntegrationMethod, &memberCreateIntegrationOutput_IntegrationResponseSelectionExpression, &memberCreateIntegrationOutput_IntegrationSubtype, &memberCreateIntegrationOutput_IntegrationType, &memberCreateIntegrationOutput_IntegrationUri, &memberCreateIntegrationOutput_PassthroughBehavior, &memberCreateIntegrationOutput_PayloadFormatVersion, &memberCreateIntegrationOutput_RequestParameters, &memberCreateIntegrationOutput_RequestTemplates, &memberCreateIntegrationOutput_ResponseParameters, &memberCreateIntegrationOutput_TemplateSelectionExpression, &memberCreateIntegrationOutput_TimeoutInMillis, &memberCreateIntegrationOutput_TlsConfig}}
 
-var memberCreateIntegrationOutput_ApiGatewayManaged = smithy.Member{Name: "ApiGatewayManaged", Index: 0, JSONName: "apiGatewayManaged"}
+var memberCreateIntegrationOutput_ApiGatewayManaged = smithy.Member{Name: "ApiGatewayManaged", Index: 0, Target: &schema__boolean, JSONName: "apiGatewayManaged"}
 
-var memberCreateIntegrationOutput_ConnectionId = smithy.Member{Name: "ConnectionId", Index: 1, JSONName: "connectionId"}
+var memberCreateIntegrationOutput_ConnectionId = smithy.Member{Name: "ConnectionId", Index: 1, Target: &schemaStringWithLengthBetween1And1024, JSONName: "connectionId"}
 
-var memberCreateIntegrationOutput_ConnectionType = smithy.Member{Name: "ConnectionType", Index: 2, JSONName: "connectionType"}
+var memberCreateIntegrationOutput_ConnectionType = smithy.Member{Name: "ConnectionType", Index: 2, Target: &schemaConnectionType, JSONName: "connectionType"}
 
-var memberCreateIntegrationOutput_ContentHandlingStrategy = smithy.Member{Name: "ContentHandlingStrategy", Index: 3, JSONName: "contentHandlingStrategy"}
+var memberCreateIntegrationOutput_ContentHandlingStrategy = smithy.Member{Name: "ContentHandlingStrategy", Index: 3, Target: &schemaContentHandlingStrategy, JSONName: "contentHandlingStrategy"}
 
-var memberCreateIntegrationOutput_CredentialsArn = smithy.Member{Name: "CredentialsArn", Index: 4, JSONName: "credentialsArn"}
+var memberCreateIntegrationOutput_CredentialsArn = smithy.Member{Name: "CredentialsArn", Index: 4, Target: &schemaArn, JSONName: "credentialsArn"}
 
-var memberCreateIntegrationOutput_Description = smithy.Member{Name: "Description", Index: 5, JSONName: "description"}
+var memberCreateIntegrationOutput_Description = smithy.Member{Name: "Description", Index: 5, Target: &schemaStringWithLengthBetween0And1024, JSONName: "description"}
 
-var memberCreateIntegrationOutput_IntegrationId = smithy.Member{Name: "IntegrationId", Index: 6, JSONName: "integrationId"}
+var memberCreateIntegrationOutput_IntegrationId = smithy.Member{Name: "IntegrationId", Index: 6, Target: &schemaId, JSONName: "integrationId"}
 
-var memberCreateIntegrationOutput_IntegrationMethod = smithy.Member{Name: "IntegrationMethod", Index: 7, JSONName: "integrationMethod"}
+var memberCreateIntegrationOutput_IntegrationMethod = smithy.Member{Name: "IntegrationMethod", Index: 7, Target: &schemaStringWithLengthBetween1And64, JSONName: "integrationMethod"}
 
-var memberCreateIntegrationOutput_IntegrationResponseSelectionExpression = smithy.Member{Name: "IntegrationResponseSelectionExpression", Index: 8, JSONName: "integrationResponseSelectionExpression"}
+var memberCreateIntegrationOutput_IntegrationResponseSelectionExpression = smithy.Member{Name: "IntegrationResponseSelectionExpression", Index: 8, Target: &schemaSelectionExpression, JSONName: "integrationResponseSelectionExpression"}
 
-var memberCreateIntegrationOutput_IntegrationSubtype = smithy.Member{Name: "IntegrationSubtype", Index: 9, JSONName: "integrationSubtype"}
+var memberCreateIntegrationOutput_IntegrationSubtype = smithy.Member{Name: "IntegrationSubtype", Index: 9, Target: &schemaStringWithLengthBetween1And128, JSONName: "integrationSubtype"}
 
-var memberCreateIntegrationOutput_IntegrationType = smithy.Member{Name: "IntegrationType", Index: 10, JSONName: "integrationType"}
+var memberCreateIntegrationOutput_IntegrationType = smithy.Member{Name: "IntegrationType", Index: 10, Target: &schemaIntegrationType, JSONName: "integrationType"}
 
-var memberCreateIntegrationOutput_IntegrationUri = smithy.Member{Name: "IntegrationUri", Index: 11, JSONName: "integrationUri"}
+var memberCreateIntegrationOutput_IntegrationUri = smithy.Member{Name: "IntegrationUri", Index: 11, Target: &schemaUriWithLengthBetween1And2048, JSONName: "integrationUri"}
 
-var memberCreateIntegrationOutput_PassthroughBehavior = smithy.Member{Name: "PassthroughBehavior", Index: 12, JSONName: "passthroughBehavior"}
+var memberCreateIntegrationOutput_PassthroughBehavior = smithy.Member{Name: "PassthroughBehavior", Index: 12, Target: &schemaPassthroughBehavior, JSONName: "passthroughBehavior"}
 
-var memberCreateIntegrationOutput_PayloadFormatVersion = smithy.Member{Name: "PayloadFormatVersion", Index: 13, JSONName: "payloadFormatVersion"}
+var memberCreateIntegrationOutput_PayloadFormatVersion = smithy.Member{Name: "PayloadFormatVersion", Index: 13, Target: &schemaStringWithLengthBetween1And64, JSONName: "payloadFormatVersion"}
 
-var memberCreateIntegrationOutput_RequestParameters = smithy.Member{Name: "RequestParameters", Index: 14, JSONName: "requestParameters"}
+var memberCreateIntegrationOutput_RequestParameters = smithy.Member{Name: "RequestParameters", Index: 14, Target: &schemaIntegrationParameters, JSONName: "requestParameters"}
 
-var memberCreateIntegrationOutput_RequestTemplates = smithy.Member{Name: "RequestTemplates", Index: 15, JSONName: "requestTemplates"}
+var memberCreateIntegrationOutput_RequestTemplates = smithy.Member{Name: "RequestTemplates", Index: 15, Target: &schemaTemplateMap, JSONName: "requestTemplates"}
 
-var memberCreateIntegrationOutput_ResponseParameters = smithy.Member{Name: "ResponseParameters", Index: 16, JSONName: "responseParameters"}
+var memberCreateIntegrationOutput_ResponseParameters = smithy.Member{Name: "ResponseParameters", Index: 16, Target: &schemaResponseParameters, JSONName: "responseParameters"}
 
-var memberCreateIntegrationOutput_TemplateSelectionExpression = smithy.Member{Name: "TemplateSelectionExpression", Index: 17, JSONName: "templateSelectionExpression"}
+var memberCreateIntegrationOutput_TemplateSelectionExpression = smithy.Member{Name: "TemplateSelectionExpression", Index: 17, Target: &schemaSelectionExpression, JSONName: "templateSelectionExpression"}
 
-var memberCreateIntegrationOutput_TimeoutInMillis = smithy.Member{Name: "TimeoutInMillis", Index: 18, JSONName: "timeoutInMillis"}
+var memberCreateIntegrationOutput_TimeoutInMillis = smithy.Member{Name: "TimeoutInMillis", Index: 18, Target: &schemaIntegerWithLengthBetween50And30000, JSONName: "timeoutInMillis"}
 
-var memberCreateIntegrationOutput_TlsConfig = smithy.Member{Name: "TlsConfig", Index: 19, JSONName: "tlsConfig"}
+var memberCreateIntegrationOutput_TlsConfig = smithy.Member{Name: "TlsConfig", Index: 19, Target: &schemaTlsConfig, JSONName: "tlsConfig"}
 
-var schemaCreateIntegrationResponseInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateIntegrationResponseRequest", Type: smithy.TypeStructure}
+var schemaCreateIntegrationResponseInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateIntegrationResponseRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateIntegrationResponseInput_ApiId, &memberCreateIntegrationResponseInput_ContentHandlingStrategy, &memberCreateIntegrationResponseInput_IntegrationId, &memberCreateIntegrationResponseInput_IntegrationResponseKey, &memberCreateIntegrationResponseInput_ResponseParameters, &memberCreateIntegrationResponseInput_ResponseTemplates, &memberCreateIntegrationResponseInput_TemplateSelectionExpression}}
 
-var memberCreateIntegrationResponseInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberCreateIntegrationResponseInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberCreateIntegrationResponseInput_ContentHandlingStrategy = smithy.Member{Name: "ContentHandlingStrategy", Index: 1, JSONName: "contentHandlingStrategy"}
+var memberCreateIntegrationResponseInput_ContentHandlingStrategy = smithy.Member{Name: "ContentHandlingStrategy", Index: 1, Target: &schemaContentHandlingStrategy, JSONName: "contentHandlingStrategy"}
 
-var memberCreateIntegrationResponseInput_IntegrationId = smithy.Member{Name: "IntegrationId", Index: 2, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberCreateIntegrationResponseInput_IntegrationId = smithy.Member{Name: "IntegrationId", Index: 2, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberCreateIntegrationResponseInput_IntegrationResponseKey = smithy.Member{Name: "IntegrationResponseKey", Index: 3, Required: true, JSONName: "integrationResponseKey"}
+var memberCreateIntegrationResponseInput_IntegrationResponseKey = smithy.Member{Name: "IntegrationResponseKey", Index: 3, Target: &schemaSelectionKey, Required: true, JSONName: "integrationResponseKey"}
 
-var memberCreateIntegrationResponseInput_ResponseParameters = smithy.Member{Name: "ResponseParameters", Index: 4, JSONName: "responseParameters"}
+var memberCreateIntegrationResponseInput_ResponseParameters = smithy.Member{Name: "ResponseParameters", Index: 4, Target: &schemaIntegrationParameters, JSONName: "responseParameters"}
 
-var memberCreateIntegrationResponseInput_ResponseTemplates = smithy.Member{Name: "ResponseTemplates", Index: 5, JSONName: "responseTemplates"}
+var memberCreateIntegrationResponseInput_ResponseTemplates = smithy.Member{Name: "ResponseTemplates", Index: 5, Target: &schemaTemplateMap, JSONName: "responseTemplates"}
 
-var memberCreateIntegrationResponseInput_TemplateSelectionExpression = smithy.Member{Name: "TemplateSelectionExpression", Index: 6, JSONName: "templateSelectionExpression"}
+var memberCreateIntegrationResponseInput_TemplateSelectionExpression = smithy.Member{Name: "TemplateSelectionExpression", Index: 6, Target: &schemaSelectionExpression, JSONName: "templateSelectionExpression"}
 
-var schemaCreateIntegrationResponseOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateIntegrationResponseResponse", Type: smithy.TypeStructure}
+var schemaCreateIntegrationResponseOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateIntegrationResponseResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateIntegrationResponseOutput_ContentHandlingStrategy, &memberCreateIntegrationResponseOutput_IntegrationResponseId, &memberCreateIntegrationResponseOutput_IntegrationResponseKey, &memberCreateIntegrationResponseOutput_ResponseParameters, &memberCreateIntegrationResponseOutput_ResponseTemplates, &memberCreateIntegrationResponseOutput_TemplateSelectionExpression}}
 
-var memberCreateIntegrationResponseOutput_ContentHandlingStrategy = smithy.Member{Name: "ContentHandlingStrategy", Index: 0, JSONName: "contentHandlingStrategy"}
+var memberCreateIntegrationResponseOutput_ContentHandlingStrategy = smithy.Member{Name: "ContentHandlingStrategy", Index: 0, Target: &schemaContentHandlingStrategy, JSONName: "contentHandlingStrategy"}
 
-var memberCreateIntegrationResponseOutput_IntegrationResponseId = smithy.Member{Name: "IntegrationResponseId", Index: 1, JSONName: "integrationResponseId"}
+var memberCreateIntegrationResponseOutput_IntegrationResponseId = smithy.Member{Name: "IntegrationResponseId", Index: 1, Target: &schemaId, JSONName: "integrationResponseId"}
 
-var memberCreateIntegrationResponseOutput_IntegrationResponseKey = smithy.Member{Name: "IntegrationResponseKey", Index: 2, JSONName: "integrationResponseKey"}
+var memberCreateIntegrationResponseOutput_IntegrationResponseKey = smithy.Member{Name: "IntegrationResponseKey", Index: 2, Target: &schemaSelectionKey, JSONName: "integrationResponseKey"}
 
-var memberCreateIntegrationResponseOutput_ResponseParameters = smithy.Member{Name: "ResponseParameters", Index: 3, JSONName: "responseParameters"}
+var memberCreateIntegrationResponseOutput_ResponseParameters = smithy.Member{Name: "ResponseParameters", Index: 3, Target: &schemaIntegrationParameters, JSONName: "responseParameters"}
 
-var memberCreateIntegrationResponseOutput_ResponseTemplates = smithy.Member{Name: "ResponseTemplates", Index: 4, JSONName: "responseTemplates"}
+var memberCreateIntegrationResponseOutput_ResponseTemplates = smithy.Member{Name: "ResponseTemplates", Index: 4, Target: &schemaTemplateMap, JSONName: "responseTemplates"}
 
-var memberCreateIntegrationResponseOutput_TemplateSelectionExpression = smithy.Member{Name: "TemplateSelectionExpression", Index: 5, JSONName: "templateSelectionExpression"}
+var memberCreateIntegrationResponseOutput_TemplateSelectionExpression = smithy.Member{Name: "TemplateSelectionExpression", Index: 5, Target: &schemaSelectionExpression, JSONName: "templateSelectionExpression"}
 
-var schemaCreateModelInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateModelRequest", Type: smithy.TypeStructure}
+var schemaCreateModelInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateModelRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateModelInput_ApiId, &memberCreateModelInput_ContentType, &memberCreateModelInput_Description, &memberCreateModelInput_Name, &memberCreateModelInput_Schema}}
 
-var memberCreateModelInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberCreateModelInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberCreateModelInput_ContentType = smithy.Member{Name: "ContentType", Index: 1, JSONName: "contentType"}
+var memberCreateModelInput_ContentType = smithy.Member{Name: "ContentType", Index: 1, Target: &schemaStringWithLengthBetween1And256, JSONName: "contentType"}
 
-var memberCreateModelInput_Description = smithy.Member{Name: "Description", Index: 2, JSONName: "description"}
+var memberCreateModelInput_Description = smithy.Member{Name: "Description", Index: 2, Target: &schemaStringWithLengthBetween0And1024, JSONName: "description"}
 
-var memberCreateModelInput_Name = smithy.Member{Name: "Name", Index: 3, Required: true, JSONName: "name"}
+var memberCreateModelInput_Name = smithy.Member{Name: "Name", Index: 3, Target: &schemaStringWithLengthBetween1And128, Required: true, JSONName: "name"}
 
-var memberCreateModelInput_Schema = smithy.Member{Name: "Schema", Index: 4, Required: true, JSONName: "schema"}
+var memberCreateModelInput_Schema = smithy.Member{Name: "Schema", Index: 4, Target: &schemaStringWithLengthBetween0And32K, Required: true, JSONName: "schema"}
 
-var schemaCreateModelOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateModelResponse", Type: smithy.TypeStructure}
+var schemaCreateModelOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateModelResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateModelOutput_ContentType, &memberCreateModelOutput_Description, &memberCreateModelOutput_ModelId, &memberCreateModelOutput_Name, &memberCreateModelOutput_Schema}}
 
-var memberCreateModelOutput_ContentType = smithy.Member{Name: "ContentType", Index: 0, JSONName: "contentType"}
+var memberCreateModelOutput_ContentType = smithy.Member{Name: "ContentType", Index: 0, Target: &schemaStringWithLengthBetween1And256, JSONName: "contentType"}
 
-var memberCreateModelOutput_Description = smithy.Member{Name: "Description", Index: 1, JSONName: "description"}
+var memberCreateModelOutput_Description = smithy.Member{Name: "Description", Index: 1, Target: &schemaStringWithLengthBetween0And1024, JSONName: "description"}
 
-var memberCreateModelOutput_ModelId = smithy.Member{Name: "ModelId", Index: 2, JSONName: "modelId"}
+var memberCreateModelOutput_ModelId = smithy.Member{Name: "ModelId", Index: 2, Target: &schemaId, JSONName: "modelId"}
 
-var memberCreateModelOutput_Name = smithy.Member{Name: "Name", Index: 3, JSONName: "name"}
+var memberCreateModelOutput_Name = smithy.Member{Name: "Name", Index: 3, Target: &schemaStringWithLengthBetween1And128, JSONName: "name"}
 
-var memberCreateModelOutput_Schema = smithy.Member{Name: "Schema", Index: 4, JSONName: "schema"}
+var memberCreateModelOutput_Schema = smithy.Member{Name: "Schema", Index: 4, Target: &schemaStringWithLengthBetween0And32K, JSONName: "schema"}
 
-var schemaCreatePortalInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreatePortalRequest", Type: smithy.TypeStructure}
+var schemaCreatePortalInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreatePortalRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreatePortalInput_Authorization, &memberCreatePortalInput_EndpointConfiguration, &memberCreatePortalInput_IncludedPortalProductArns, &memberCreatePortalInput_LogoUri, &memberCreatePortalInput_PortalContent, &memberCreatePortalInput_RumAppMonitorName, &memberCreatePortalInput_Tags}}
 
-var memberCreatePortalInput_Authorization = smithy.Member{Name: "Authorization", Index: 0, Required: true, JSONName: "authorization"}
+var memberCreatePortalInput_Authorization = smithy.Member{Name: "Authorization", Index: 0, Target: &schemaAuthorization, Required: true, JSONName: "authorization"}
 
-var memberCreatePortalInput_EndpointConfiguration = smithy.Member{Name: "EndpointConfiguration", Index: 1, Required: true, JSONName: "endpointConfiguration"}
+var memberCreatePortalInput_EndpointConfiguration = smithy.Member{Name: "EndpointConfiguration", Index: 1, Target: &schemaEndpointConfigurationRequest, Required: true, JSONName: "endpointConfiguration"}
 
-var memberCreatePortalInput_IncludedPortalProductArns = smithy.Member{Name: "IncludedPortalProductArns", Index: 2, JSONName: "includedPortalProductArns"}
+var memberCreatePortalInput_IncludedPortalProductArns = smithy.Member{Name: "IncludedPortalProductArns", Index: 2, Target: &schema__listOf__stringMin20Max2048, JSONName: "includedPortalProductArns"}
 
-var memberCreatePortalInput_LogoUri = smithy.Member{Name: "LogoUri", Index: 3, JSONName: "logoUri"}
+var memberCreatePortalInput_LogoUri = smithy.Member{Name: "LogoUri", Index: 3, Target: &schema__stringMin0Max1092, JSONName: "logoUri"}
 
-var memberCreatePortalInput_PortalContent = smithy.Member{Name: "PortalContent", Index: 4, Required: true, JSONName: "portalContent"}
+var memberCreatePortalInput_PortalContent = smithy.Member{Name: "PortalContent", Index: 4, Target: &schemaPortalContent, Required: true, JSONName: "portalContent"}
 
-var memberCreatePortalInput_RumAppMonitorName = smithy.Member{Name: "RumAppMonitorName", Index: 5, JSONName: "rumAppMonitorName"}
+var memberCreatePortalInput_RumAppMonitorName = smithy.Member{Name: "RumAppMonitorName", Index: 5, Target: &schema__stringMin0Max255, JSONName: "rumAppMonitorName"}
 
-var memberCreatePortalInput_Tags = smithy.Member{Name: "Tags", Index: 6, JSONName: "tags"}
+var memberCreatePortalInput_Tags = smithy.Member{Name: "Tags", Index: 6, Target: &schemaTags, JSONName: "tags"}
 
-var schemaCreatePortalOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreatePortalResponse", Type: smithy.TypeStructure}
+var schemaCreatePortalOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreatePortalResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreatePortalOutput_Authorization, &memberCreatePortalOutput_EndpointConfiguration, &memberCreatePortalOutput_IncludedPortalProductArns, &memberCreatePortalOutput_LastModified, &memberCreatePortalOutput_LastPublished, &memberCreatePortalOutput_LastPublishedDescription, &memberCreatePortalOutput_PortalArn, &memberCreatePortalOutput_PortalContent, &memberCreatePortalOutput_PortalId, &memberCreatePortalOutput_PublishStatus, &memberCreatePortalOutput_RumAppMonitorName, &memberCreatePortalOutput_StatusException, &memberCreatePortalOutput_Tags}}
 
-var memberCreatePortalOutput_Authorization = smithy.Member{Name: "Authorization", Index: 0, JSONName: "authorization"}
+var memberCreatePortalOutput_Authorization = smithy.Member{Name: "Authorization", Index: 0, Target: &schemaAuthorization, JSONName: "authorization"}
 
-var memberCreatePortalOutput_EndpointConfiguration = smithy.Member{Name: "EndpointConfiguration", Index: 1, JSONName: "endpointConfiguration"}
+var memberCreatePortalOutput_EndpointConfiguration = smithy.Member{Name: "EndpointConfiguration", Index: 1, Target: &schemaEndpointConfigurationResponse, JSONName: "endpointConfiguration"}
 
-var memberCreatePortalOutput_IncludedPortalProductArns = smithy.Member{Name: "IncludedPortalProductArns", Index: 2, JSONName: "includedPortalProductArns"}
+var memberCreatePortalOutput_IncludedPortalProductArns = smithy.Member{Name: "IncludedPortalProductArns", Index: 2, Target: &schema__listOf__stringMin20Max2048, JSONName: "includedPortalProductArns"}
 
-var memberCreatePortalOutput_LastModified = smithy.Member{Name: "LastModified", Index: 3, JSONName: "lastModified", TimestampFormat: smithy.DateTime}
+var memberCreatePortalOutput_LastModified = smithy.Member{Name: "LastModified", Index: 3, Target: &schema__timestampIso8601, JSONName: "lastModified", TimestampFormat: smithy.DateTime}
 
-var memberCreatePortalOutput_LastPublished = smithy.Member{Name: "LastPublished", Index: 4, JSONName: "lastPublished", TimestampFormat: smithy.DateTime}
+var memberCreatePortalOutput_LastPublished = smithy.Member{Name: "LastPublished", Index: 4, Target: &schema__timestampIso8601, JSONName: "lastPublished", TimestampFormat: smithy.DateTime}
 
-var memberCreatePortalOutput_LastPublishedDescription = smithy.Member{Name: "LastPublishedDescription", Index: 5, JSONName: "lastPublishedDescription"}
+var memberCreatePortalOutput_LastPublishedDescription = smithy.Member{Name: "LastPublishedDescription", Index: 5, Target: &schema__stringMin0Max1024, JSONName: "lastPublishedDescription"}
 
-var memberCreatePortalOutput_PortalArn = smithy.Member{Name: "PortalArn", Index: 6, JSONName: "portalArn"}
+var memberCreatePortalOutput_PortalArn = smithy.Member{Name: "PortalArn", Index: 6, Target: &schema__stringMin20Max2048, JSONName: "portalArn"}
 
-var memberCreatePortalOutput_PortalContent = smithy.Member{Name: "PortalContent", Index: 7, JSONName: "portalContent"}
+var memberCreatePortalOutput_PortalContent = smithy.Member{Name: "PortalContent", Index: 7, Target: &schemaPortalContent, JSONName: "portalContent"}
 
-var memberCreatePortalOutput_PortalId = smithy.Member{Name: "PortalId", Index: 8, JSONName: "portalId"}
+var memberCreatePortalOutput_PortalId = smithy.Member{Name: "PortalId", Index: 8, Target: &schema__stringMin10Max30PatternAZ09, JSONName: "portalId"}
 
-var memberCreatePortalOutput_PublishStatus = smithy.Member{Name: "PublishStatus", Index: 9, JSONName: "publishStatus"}
+var memberCreatePortalOutput_PublishStatus = smithy.Member{Name: "PublishStatus", Index: 9, Target: &schemaPublishStatus, JSONName: "publishStatus"}
 
-var memberCreatePortalOutput_RumAppMonitorName = smithy.Member{Name: "RumAppMonitorName", Index: 10, JSONName: "rumAppMonitorName"}
+var memberCreatePortalOutput_RumAppMonitorName = smithy.Member{Name: "RumAppMonitorName", Index: 10, Target: &schema__stringMin0Max255, JSONName: "rumAppMonitorName"}
 
-var memberCreatePortalOutput_StatusException = smithy.Member{Name: "StatusException", Index: 11, JSONName: "statusException"}
+var memberCreatePortalOutput_StatusException = smithy.Member{Name: "StatusException", Index: 11, Target: &schemaStatusException, JSONName: "statusException"}
 
-var memberCreatePortalOutput_Tags = smithy.Member{Name: "Tags", Index: 12, JSONName: "tags"}
+var memberCreatePortalOutput_Tags = smithy.Member{Name: "Tags", Index: 12, Target: &schemaTags, JSONName: "tags"}
 
-var schemaCreatePortalProductInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreatePortalProductRequest", Type: smithy.TypeStructure}
+var schemaCreatePortalProductInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreatePortalProductRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreatePortalProductInput_Description, &memberCreatePortalProductInput_DisplayName, &memberCreatePortalProductInput_Tags}}
 
-var memberCreatePortalProductInput_Description = smithy.Member{Name: "Description", Index: 0, JSONName: "description"}
+var memberCreatePortalProductInput_Description = smithy.Member{Name: "Description", Index: 0, Target: &schema__stringMin0Max1024, JSONName: "description"}
 
-var memberCreatePortalProductInput_DisplayName = smithy.Member{Name: "DisplayName", Index: 1, Required: true, JSONName: "displayName"}
+var memberCreatePortalProductInput_DisplayName = smithy.Member{Name: "DisplayName", Index: 1, Target: &schema__stringMin1Max255, Required: true, JSONName: "displayName"}
 
-var memberCreatePortalProductInput_Tags = smithy.Member{Name: "Tags", Index: 2, JSONName: "tags"}
+var memberCreatePortalProductInput_Tags = smithy.Member{Name: "Tags", Index: 2, Target: &schemaTags, JSONName: "tags"}
 
-var schemaCreatePortalProductOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreatePortalProductResponse", Type: smithy.TypeStructure}
+var schemaCreatePortalProductOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreatePortalProductResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreatePortalProductOutput_Description, &memberCreatePortalProductOutput_DisplayName, &memberCreatePortalProductOutput_DisplayOrder, &memberCreatePortalProductOutput_LastModified, &memberCreatePortalProductOutput_PortalProductArn, &memberCreatePortalProductOutput_PortalProductId, &memberCreatePortalProductOutput_Tags}}
 
-var memberCreatePortalProductOutput_Description = smithy.Member{Name: "Description", Index: 0, JSONName: "description"}
+var memberCreatePortalProductOutput_Description = smithy.Member{Name: "Description", Index: 0, Target: &schema__stringMin0Max1024, JSONName: "description"}
 
-var memberCreatePortalProductOutput_DisplayName = smithy.Member{Name: "DisplayName", Index: 1, JSONName: "displayName"}
+var memberCreatePortalProductOutput_DisplayName = smithy.Member{Name: "DisplayName", Index: 1, Target: &schema__stringMin1Max255, JSONName: "displayName"}
 
-var memberCreatePortalProductOutput_DisplayOrder = smithy.Member{Name: "DisplayOrder", Index: 2, JSONName: "displayOrder"}
+var memberCreatePortalProductOutput_DisplayOrder = smithy.Member{Name: "DisplayOrder", Index: 2, Target: &schemaDisplayOrder, JSONName: "displayOrder"}
 
-var memberCreatePortalProductOutput_LastModified = smithy.Member{Name: "LastModified", Index: 3, JSONName: "lastModified", TimestampFormat: smithy.DateTime}
+var memberCreatePortalProductOutput_LastModified = smithy.Member{Name: "LastModified", Index: 3, Target: &schema__timestampIso8601, JSONName: "lastModified", TimestampFormat: smithy.DateTime}
 
-var memberCreatePortalProductOutput_PortalProductArn = smithy.Member{Name: "PortalProductArn", Index: 4, JSONName: "portalProductArn"}
+var memberCreatePortalProductOutput_PortalProductArn = smithy.Member{Name: "PortalProductArn", Index: 4, Target: &schema__stringMin20Max2048, JSONName: "portalProductArn"}
 
-var memberCreatePortalProductOutput_PortalProductId = smithy.Member{Name: "PortalProductId", Index: 5, JSONName: "portalProductId"}
+var memberCreatePortalProductOutput_PortalProductId = smithy.Member{Name: "PortalProductId", Index: 5, Target: &schema__stringMin10Max30PatternAZ09, JSONName: "portalProductId"}
 
-var memberCreatePortalProductOutput_Tags = smithy.Member{Name: "Tags", Index: 6, JSONName: "tags"}
+var memberCreatePortalProductOutput_Tags = smithy.Member{Name: "Tags", Index: 6, Target: &schemaTags, JSONName: "tags"}
 
-var schemaCreateProductPageInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateProductPageRequest", Type: smithy.TypeStructure}
+var schemaCreateProductPageInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateProductPageRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateProductPageInput_DisplayContent, &memberCreateProductPageInput_PortalProductId}}
 
-var memberCreateProductPageInput_DisplayContent = smithy.Member{Name: "DisplayContent", Index: 0, Required: true, JSONName: "displayContent"}
+var memberCreateProductPageInput_DisplayContent = smithy.Member{Name: "DisplayContent", Index: 0, Target: &schemaDisplayContent, Required: true, JSONName: "displayContent"}
 
-var memberCreateProductPageInput_PortalProductId = smithy.Member{Name: "PortalProductId", Index: 1, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberCreateProductPageInput_PortalProductId = smithy.Member{Name: "PortalProductId", Index: 1, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaCreateProductPageOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateProductPageResponse", Type: smithy.TypeStructure}
+var schemaCreateProductPageOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateProductPageResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateProductPageOutput_DisplayContent, &memberCreateProductPageOutput_LastModified, &memberCreateProductPageOutput_ProductPageArn, &memberCreateProductPageOutput_ProductPageId}}
 
-var memberCreateProductPageOutput_DisplayContent = smithy.Member{Name: "DisplayContent", Index: 0, JSONName: "displayContent"}
+var memberCreateProductPageOutput_DisplayContent = smithy.Member{Name: "DisplayContent", Index: 0, Target: &schemaDisplayContent, JSONName: "displayContent"}
 
-var memberCreateProductPageOutput_LastModified = smithy.Member{Name: "LastModified", Index: 1, JSONName: "lastModified", TimestampFormat: smithy.DateTime}
+var memberCreateProductPageOutput_LastModified = smithy.Member{Name: "LastModified", Index: 1, Target: &schema__timestampIso8601, JSONName: "lastModified", TimestampFormat: smithy.DateTime}
 
-var memberCreateProductPageOutput_ProductPageArn = smithy.Member{Name: "ProductPageArn", Index: 2, JSONName: "productPageArn"}
+var memberCreateProductPageOutput_ProductPageArn = smithy.Member{Name: "ProductPageArn", Index: 2, Target: &schema__stringMin20Max2048, JSONName: "productPageArn"}
 
-var memberCreateProductPageOutput_ProductPageId = smithy.Member{Name: "ProductPageId", Index: 3, JSONName: "productPageId"}
+var memberCreateProductPageOutput_ProductPageId = smithy.Member{Name: "ProductPageId", Index: 3, Target: &schema__stringMin10Max30PatternAZ09, JSONName: "productPageId"}
 
-var schemaCreateProductRestEndpointPageInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateProductRestEndpointPageRequest", Type: smithy.TypeStructure}
+var schemaCreateProductRestEndpointPageInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateProductRestEndpointPageRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateProductRestEndpointPageInput_DisplayContent, &memberCreateProductRestEndpointPageInput_PortalProductId, &memberCreateProductRestEndpointPageInput_RestEndpointIdentifier, &memberCreateProductRestEndpointPageInput_TryItState}}
 
-var memberCreateProductRestEndpointPageInput_DisplayContent = smithy.Member{Name: "DisplayContent", Index: 0, JSONName: "displayContent"}
+var memberCreateProductRestEndpointPageInput_DisplayContent = smithy.Member{Name: "DisplayContent", Index: 0, Target: &schemaEndpointDisplayContent, JSONName: "displayContent"}
 
-var memberCreateProductRestEndpointPageInput_PortalProductId = smithy.Member{Name: "PortalProductId", Index: 1, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberCreateProductRestEndpointPageInput_PortalProductId = smithy.Member{Name: "PortalProductId", Index: 1, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberCreateProductRestEndpointPageInput_RestEndpointIdentifier = smithy.Member{Name: "RestEndpointIdentifier", Index: 2, Required: true, JSONName: "restEndpointIdentifier"}
+var memberCreateProductRestEndpointPageInput_RestEndpointIdentifier = smithy.Member{Name: "RestEndpointIdentifier", Index: 2, Target: &schemaRestEndpointIdentifier, Required: true, JSONName: "restEndpointIdentifier"}
 
-var memberCreateProductRestEndpointPageInput_TryItState = smithy.Member{Name: "TryItState", Index: 3, JSONName: "tryItState"}
+var memberCreateProductRestEndpointPageInput_TryItState = smithy.Member{Name: "TryItState", Index: 3, Target: &schemaTryItState, JSONName: "tryItState"}
 
-var schemaCreateProductRestEndpointPageOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateProductRestEndpointPageResponse", Type: smithy.TypeStructure}
+var schemaCreateProductRestEndpointPageOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateProductRestEndpointPageResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateProductRestEndpointPageOutput_DisplayContent, &memberCreateProductRestEndpointPageOutput_LastModified, &memberCreateProductRestEndpointPageOutput_ProductRestEndpointPageArn, &memberCreateProductRestEndpointPageOutput_ProductRestEndpointPageId, &memberCreateProductRestEndpointPageOutput_RestEndpointIdentifier, &memberCreateProductRestEndpointPageOutput_Status, &memberCreateProductRestEndpointPageOutput_StatusException, &memberCreateProductRestEndpointPageOutput_TryItState}}
 
-var memberCreateProductRestEndpointPageOutput_DisplayContent = smithy.Member{Name: "DisplayContent", Index: 0, JSONName: "displayContent"}
+var memberCreateProductRestEndpointPageOutput_DisplayContent = smithy.Member{Name: "DisplayContent", Index: 0, Target: &schemaEndpointDisplayContentResponse, JSONName: "displayContent"}
 
-var memberCreateProductRestEndpointPageOutput_LastModified = smithy.Member{Name: "LastModified", Index: 1, JSONName: "lastModified", TimestampFormat: smithy.DateTime}
+var memberCreateProductRestEndpointPageOutput_LastModified = smithy.Member{Name: "LastModified", Index: 1, Target: &schema__timestampIso8601, JSONName: "lastModified", TimestampFormat: smithy.DateTime}
 
-var memberCreateProductRestEndpointPageOutput_ProductRestEndpointPageArn = smithy.Member{Name: "ProductRestEndpointPageArn", Index: 2, JSONName: "productRestEndpointPageArn"}
+var memberCreateProductRestEndpointPageOutput_ProductRestEndpointPageArn = smithy.Member{Name: "ProductRestEndpointPageArn", Index: 2, Target: &schema__stringMin20Max2048, JSONName: "productRestEndpointPageArn"}
 
-var memberCreateProductRestEndpointPageOutput_ProductRestEndpointPageId = smithy.Member{Name: "ProductRestEndpointPageId", Index: 3, JSONName: "productRestEndpointPageId"}
+var memberCreateProductRestEndpointPageOutput_ProductRestEndpointPageId = smithy.Member{Name: "ProductRestEndpointPageId", Index: 3, Target: &schema__stringMin10Max30PatternAZ09, JSONName: "productRestEndpointPageId"}
 
-var memberCreateProductRestEndpointPageOutput_RestEndpointIdentifier = smithy.Member{Name: "RestEndpointIdentifier", Index: 4, JSONName: "restEndpointIdentifier"}
+var memberCreateProductRestEndpointPageOutput_RestEndpointIdentifier = smithy.Member{Name: "RestEndpointIdentifier", Index: 4, Target: &schemaRestEndpointIdentifier, JSONName: "restEndpointIdentifier"}
 
-var memberCreateProductRestEndpointPageOutput_Status = smithy.Member{Name: "Status", Index: 5, JSONName: "status"}
+var memberCreateProductRestEndpointPageOutput_Status = smithy.Member{Name: "Status", Index: 5, Target: &schemaStatus, JSONName: "status"}
 
-var memberCreateProductRestEndpointPageOutput_StatusException = smithy.Member{Name: "StatusException", Index: 6, JSONName: "statusException"}
+var memberCreateProductRestEndpointPageOutput_StatusException = smithy.Member{Name: "StatusException", Index: 6, Target: &schemaStatusException, JSONName: "statusException"}
 
-var memberCreateProductRestEndpointPageOutput_TryItState = smithy.Member{Name: "TryItState", Index: 7, JSONName: "tryItState"}
+var memberCreateProductRestEndpointPageOutput_TryItState = smithy.Member{Name: "TryItState", Index: 7, Target: &schemaTryItState, JSONName: "tryItState"}
 
-var schemaCreateRouteInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateRouteRequest", Type: smithy.TypeStructure}
+var schemaCreateRouteInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateRouteRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateRouteInput_ApiId, &memberCreateRouteInput_ApiKeyRequired, &memberCreateRouteInput_AuthorizationScopes, &memberCreateRouteInput_AuthorizationType, &memberCreateRouteInput_AuthorizerId, &memberCreateRouteInput_ModelSelectionExpression, &memberCreateRouteInput_OperationName, &memberCreateRouteInput_RequestModels, &memberCreateRouteInput_RequestParameters, &memberCreateRouteInput_RouteKey, &memberCreateRouteInput_RouteResponseSelectionExpression, &memberCreateRouteInput_Target}}
 
-var memberCreateRouteInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberCreateRouteInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberCreateRouteInput_ApiKeyRequired = smithy.Member{Name: "ApiKeyRequired", Index: 1, JSONName: "apiKeyRequired"}
+var memberCreateRouteInput_ApiKeyRequired = smithy.Member{Name: "ApiKeyRequired", Index: 1, Target: &schema__boolean, JSONName: "apiKeyRequired"}
 
-var memberCreateRouteInput_AuthorizationScopes = smithy.Member{Name: "AuthorizationScopes", Index: 2, JSONName: "authorizationScopes"}
+var memberCreateRouteInput_AuthorizationScopes = smithy.Member{Name: "AuthorizationScopes", Index: 2, Target: &schemaAuthorizationScopes, JSONName: "authorizationScopes"}
 
-var memberCreateRouteInput_AuthorizationType = smithy.Member{Name: "AuthorizationType", Index: 3, JSONName: "authorizationType"}
+var memberCreateRouteInput_AuthorizationType = smithy.Member{Name: "AuthorizationType", Index: 3, Target: &schemaAuthorizationType, JSONName: "authorizationType"}
 
-var memberCreateRouteInput_AuthorizerId = smithy.Member{Name: "AuthorizerId", Index: 4, JSONName: "authorizerId"}
+var memberCreateRouteInput_AuthorizerId = smithy.Member{Name: "AuthorizerId", Index: 4, Target: &schemaId, JSONName: "authorizerId"}
 
-var memberCreateRouteInput_ModelSelectionExpression = smithy.Member{Name: "ModelSelectionExpression", Index: 5, JSONName: "modelSelectionExpression"}
+var memberCreateRouteInput_ModelSelectionExpression = smithy.Member{Name: "ModelSelectionExpression", Index: 5, Target: &schemaSelectionExpression, JSONName: "modelSelectionExpression"}
 
-var memberCreateRouteInput_OperationName = smithy.Member{Name: "OperationName", Index: 6, JSONName: "operationName"}
+var memberCreateRouteInput_OperationName = smithy.Member{Name: "OperationName", Index: 6, Target: &schemaStringWithLengthBetween1And64, JSONName: "operationName"}
 
-var memberCreateRouteInput_RequestModels = smithy.Member{Name: "RequestModels", Index: 7, JSONName: "requestModels"}
+var memberCreateRouteInput_RequestModels = smithy.Member{Name: "RequestModels", Index: 7, Target: &schemaRouteModels, JSONName: "requestModels"}
 
-var memberCreateRouteInput_RequestParameters = smithy.Member{Name: "RequestParameters", Index: 8, JSONName: "requestParameters"}
+var memberCreateRouteInput_RequestParameters = smithy.Member{Name: "RequestParameters", Index: 8, Target: &schemaRouteParameters, JSONName: "requestParameters"}
 
-var memberCreateRouteInput_RouteKey = smithy.Member{Name: "RouteKey", Index: 9, Required: true, JSONName: "routeKey"}
+var memberCreateRouteInput_RouteKey = smithy.Member{Name: "RouteKey", Index: 9, Target: &schemaSelectionKey, Required: true, JSONName: "routeKey"}
 
-var memberCreateRouteInput_RouteResponseSelectionExpression = smithy.Member{Name: "RouteResponseSelectionExpression", Index: 10, JSONName: "routeResponseSelectionExpression"}
+var memberCreateRouteInput_RouteResponseSelectionExpression = smithy.Member{Name: "RouteResponseSelectionExpression", Index: 10, Target: &schemaSelectionExpression, JSONName: "routeResponseSelectionExpression"}
 
-var memberCreateRouteInput_Target = smithy.Member{Name: "Target", Index: 11, JSONName: "target"}
+var memberCreateRouteInput_Target = smithy.Member{Name: "Target", Index: 11, Target: &schemaStringWithLengthBetween1And128, JSONName: "target"}
 
-var schemaCreateRouteOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateRouteResult", Type: smithy.TypeStructure}
+var schemaCreateRouteOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateRouteResult", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateRouteOutput_ApiGatewayManaged, &memberCreateRouteOutput_ApiKeyRequired, &memberCreateRouteOutput_AuthorizationScopes, &memberCreateRouteOutput_AuthorizationType, &memberCreateRouteOutput_AuthorizerId, &memberCreateRouteOutput_ModelSelectionExpression, &memberCreateRouteOutput_OperationName, &memberCreateRouteOutput_RequestModels, &memberCreateRouteOutput_RequestParameters, &memberCreateRouteOutput_RouteId, &memberCreateRouteOutput_RouteKey, &memberCreateRouteOutput_RouteResponseSelectionExpression, &memberCreateRouteOutput_Target}}
 
-var memberCreateRouteOutput_ApiGatewayManaged = smithy.Member{Name: "ApiGatewayManaged", Index: 0, JSONName: "apiGatewayManaged"}
+var memberCreateRouteOutput_ApiGatewayManaged = smithy.Member{Name: "ApiGatewayManaged", Index: 0, Target: &schema__boolean, JSONName: "apiGatewayManaged"}
 
-var memberCreateRouteOutput_ApiKeyRequired = smithy.Member{Name: "ApiKeyRequired", Index: 1, JSONName: "apiKeyRequired"}
+var memberCreateRouteOutput_ApiKeyRequired = smithy.Member{Name: "ApiKeyRequired", Index: 1, Target: &schema__boolean, JSONName: "apiKeyRequired"}
 
-var memberCreateRouteOutput_AuthorizationScopes = smithy.Member{Name: "AuthorizationScopes", Index: 2, JSONName: "authorizationScopes"}
+var memberCreateRouteOutput_AuthorizationScopes = smithy.Member{Name: "AuthorizationScopes", Index: 2, Target: &schemaAuthorizationScopes, JSONName: "authorizationScopes"}
 
-var memberCreateRouteOutput_AuthorizationType = smithy.Member{Name: "AuthorizationType", Index: 3, JSONName: "authorizationType"}
+var memberCreateRouteOutput_AuthorizationType = smithy.Member{Name: "AuthorizationType", Index: 3, Target: &schemaAuthorizationType, JSONName: "authorizationType"}
 
-var memberCreateRouteOutput_AuthorizerId = smithy.Member{Name: "AuthorizerId", Index: 4, JSONName: "authorizerId"}
+var memberCreateRouteOutput_AuthorizerId = smithy.Member{Name: "AuthorizerId", Index: 4, Target: &schemaId, JSONName: "authorizerId"}
 
-var memberCreateRouteOutput_ModelSelectionExpression = smithy.Member{Name: "ModelSelectionExpression", Index: 5, JSONName: "modelSelectionExpression"}
+var memberCreateRouteOutput_ModelSelectionExpression = smithy.Member{Name: "ModelSelectionExpression", Index: 5, Target: &schemaSelectionExpression, JSONName: "modelSelectionExpression"}
 
-var memberCreateRouteOutput_OperationName = smithy.Member{Name: "OperationName", Index: 6, JSONName: "operationName"}
+var memberCreateRouteOutput_OperationName = smithy.Member{Name: "OperationName", Index: 6, Target: &schemaStringWithLengthBetween1And64, JSONName: "operationName"}
 
-var memberCreateRouteOutput_RequestModels = smithy.Member{Name: "RequestModels", Index: 7, JSONName: "requestModels"}
+var memberCreateRouteOutput_RequestModels = smithy.Member{Name: "RequestModels", Index: 7, Target: &schemaRouteModels, JSONName: "requestModels"}
 
-var memberCreateRouteOutput_RequestParameters = smithy.Member{Name: "RequestParameters", Index: 8, JSONName: "requestParameters"}
+var memberCreateRouteOutput_RequestParameters = smithy.Member{Name: "RequestParameters", Index: 8, Target: &schemaRouteParameters, JSONName: "requestParameters"}
 
-var memberCreateRouteOutput_RouteId = smithy.Member{Name: "RouteId", Index: 9, JSONName: "routeId"}
+var memberCreateRouteOutput_RouteId = smithy.Member{Name: "RouteId", Index: 9, Target: &schemaId, JSONName: "routeId"}
 
-var memberCreateRouteOutput_RouteKey = smithy.Member{Name: "RouteKey", Index: 10, JSONName: "routeKey"}
+var memberCreateRouteOutput_RouteKey = smithy.Member{Name: "RouteKey", Index: 10, Target: &schemaSelectionKey, JSONName: "routeKey"}
 
-var memberCreateRouteOutput_RouteResponseSelectionExpression = smithy.Member{Name: "RouteResponseSelectionExpression", Index: 11, JSONName: "routeResponseSelectionExpression"}
+var memberCreateRouteOutput_RouteResponseSelectionExpression = smithy.Member{Name: "RouteResponseSelectionExpression", Index: 11, Target: &schemaSelectionExpression, JSONName: "routeResponseSelectionExpression"}
 
-var memberCreateRouteOutput_Target = smithy.Member{Name: "Target", Index: 12, JSONName: "target"}
+var memberCreateRouteOutput_Target = smithy.Member{Name: "Target", Index: 12, Target: &schemaStringWithLengthBetween1And128, JSONName: "target"}
 
-var schemaCreateRouteResponseInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateRouteResponseRequest", Type: smithy.TypeStructure}
+var schemaCreateRouteResponseInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateRouteResponseRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateRouteResponseInput_ApiId, &memberCreateRouteResponseInput_ModelSelectionExpression, &memberCreateRouteResponseInput_ResponseModels, &memberCreateRouteResponseInput_ResponseParameters, &memberCreateRouteResponseInput_RouteId, &memberCreateRouteResponseInput_RouteResponseKey}}
 
-var memberCreateRouteResponseInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberCreateRouteResponseInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberCreateRouteResponseInput_ModelSelectionExpression = smithy.Member{Name: "ModelSelectionExpression", Index: 1, JSONName: "modelSelectionExpression"}
+var memberCreateRouteResponseInput_ModelSelectionExpression = smithy.Member{Name: "ModelSelectionExpression", Index: 1, Target: &schemaSelectionExpression, JSONName: "modelSelectionExpression"}
 
-var memberCreateRouteResponseInput_ResponseModels = smithy.Member{Name: "ResponseModels", Index: 2, JSONName: "responseModels"}
+var memberCreateRouteResponseInput_ResponseModels = smithy.Member{Name: "ResponseModels", Index: 2, Target: &schemaRouteModels, JSONName: "responseModels"}
 
-var memberCreateRouteResponseInput_ResponseParameters = smithy.Member{Name: "ResponseParameters", Index: 3, JSONName: "responseParameters"}
+var memberCreateRouteResponseInput_ResponseParameters = smithy.Member{Name: "ResponseParameters", Index: 3, Target: &schemaRouteParameters, JSONName: "responseParameters"}
 
-var memberCreateRouteResponseInput_RouteId = smithy.Member{Name: "RouteId", Index: 4, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberCreateRouteResponseInput_RouteId = smithy.Member{Name: "RouteId", Index: 4, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberCreateRouteResponseInput_RouteResponseKey = smithy.Member{Name: "RouteResponseKey", Index: 5, Required: true, JSONName: "routeResponseKey"}
+var memberCreateRouteResponseInput_RouteResponseKey = smithy.Member{Name: "RouteResponseKey", Index: 5, Target: &schemaSelectionKey, Required: true, JSONName: "routeResponseKey"}
 
-var schemaCreateRouteResponseOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateRouteResponseResponse", Type: smithy.TypeStructure}
+var schemaCreateRouteResponseOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateRouteResponseResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateRouteResponseOutput_ModelSelectionExpression, &memberCreateRouteResponseOutput_ResponseModels, &memberCreateRouteResponseOutput_ResponseParameters, &memberCreateRouteResponseOutput_RouteResponseId, &memberCreateRouteResponseOutput_RouteResponseKey}}
 
-var memberCreateRouteResponseOutput_ModelSelectionExpression = smithy.Member{Name: "ModelSelectionExpression", Index: 0, JSONName: "modelSelectionExpression"}
+var memberCreateRouteResponseOutput_ModelSelectionExpression = smithy.Member{Name: "ModelSelectionExpression", Index: 0, Target: &schemaSelectionExpression, JSONName: "modelSelectionExpression"}
 
-var memberCreateRouteResponseOutput_ResponseModels = smithy.Member{Name: "ResponseModels", Index: 1, JSONName: "responseModels"}
+var memberCreateRouteResponseOutput_ResponseModels = smithy.Member{Name: "ResponseModels", Index: 1, Target: &schemaRouteModels, JSONName: "responseModels"}
 
-var memberCreateRouteResponseOutput_ResponseParameters = smithy.Member{Name: "ResponseParameters", Index: 2, JSONName: "responseParameters"}
+var memberCreateRouteResponseOutput_ResponseParameters = smithy.Member{Name: "ResponseParameters", Index: 2, Target: &schemaRouteParameters, JSONName: "responseParameters"}
 
-var memberCreateRouteResponseOutput_RouteResponseId = smithy.Member{Name: "RouteResponseId", Index: 3, JSONName: "routeResponseId"}
+var memberCreateRouteResponseOutput_RouteResponseId = smithy.Member{Name: "RouteResponseId", Index: 3, Target: &schemaId, JSONName: "routeResponseId"}
 
-var memberCreateRouteResponseOutput_RouteResponseKey = smithy.Member{Name: "RouteResponseKey", Index: 4, JSONName: "routeResponseKey"}
+var memberCreateRouteResponseOutput_RouteResponseKey = smithy.Member{Name: "RouteResponseKey", Index: 4, Target: &schemaSelectionKey, JSONName: "routeResponseKey"}
 
-var schemaCreateRoutingRuleInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateRoutingRuleRequest", Type: smithy.TypeStructure}
+var schemaCreateRoutingRuleInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateRoutingRuleRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateRoutingRuleInput_Actions, &memberCreateRoutingRuleInput_Conditions, &memberCreateRoutingRuleInput_DomainName, &memberCreateRoutingRuleInput_DomainNameId, &memberCreateRoutingRuleInput_Priority}}
 
-var memberCreateRoutingRuleInput_Actions = smithy.Member{Name: "Actions", Index: 0, Required: true, JSONName: "actions"}
+var memberCreateRoutingRuleInput_Actions = smithy.Member{Name: "Actions", Index: 0, Target: &schema__listOfRoutingRuleAction, Required: true, JSONName: "actions"}
 
-var memberCreateRoutingRuleInput_Conditions = smithy.Member{Name: "Conditions", Index: 1, Required: true, JSONName: "conditions"}
+var memberCreateRoutingRuleInput_Conditions = smithy.Member{Name: "Conditions", Index: 1, Target: &schema__listOfRoutingRuleCondition, Required: true, JSONName: "conditions"}
 
-var memberCreateRoutingRuleInput_DomainName = smithy.Member{Name: "DomainName", Index: 2, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberCreateRoutingRuleInput_DomainName = smithy.Member{Name: "DomainName", Index: 2, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberCreateRoutingRuleInput_DomainNameId = smithy.Member{Name: "DomainNameId", Index: 3, HTTP: smithy.HTTPQuery{Name: "domainNameId"}}
+var memberCreateRoutingRuleInput_DomainNameId = smithy.Member{Name: "DomainNameId", Index: 3, Target: &schema__string, HTTP: smithy.HTTPQuery{Name: "domainNameId"}}
 
-var memberCreateRoutingRuleInput_Priority = smithy.Member{Name: "Priority", Index: 4, Required: true, JSONName: "priority"}
+var memberCreateRoutingRuleInput_Priority = smithy.Member{Name: "Priority", Index: 4, Target: &schemaRoutingRulePriority, Required: true, JSONName: "priority"}
 
-var schemaCreateRoutingRuleOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateRoutingRuleResponse", Type: smithy.TypeStructure}
+var schemaCreateRoutingRuleOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateRoutingRuleResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateRoutingRuleOutput_Actions, &memberCreateRoutingRuleOutput_Conditions, &memberCreateRoutingRuleOutput_Priority, &memberCreateRoutingRuleOutput_RoutingRuleArn, &memberCreateRoutingRuleOutput_RoutingRuleId}}
 
-var memberCreateRoutingRuleOutput_Actions = smithy.Member{Name: "Actions", Index: 0, JSONName: "actions"}
+var memberCreateRoutingRuleOutput_Actions = smithy.Member{Name: "Actions", Index: 0, Target: &schema__listOfRoutingRuleAction, JSONName: "actions"}
 
-var memberCreateRoutingRuleOutput_Conditions = smithy.Member{Name: "Conditions", Index: 1, JSONName: "conditions"}
+var memberCreateRoutingRuleOutput_Conditions = smithy.Member{Name: "Conditions", Index: 1, Target: &schema__listOfRoutingRuleCondition, JSONName: "conditions"}
 
-var memberCreateRoutingRuleOutput_Priority = smithy.Member{Name: "Priority", Index: 2, JSONName: "priority"}
+var memberCreateRoutingRuleOutput_Priority = smithy.Member{Name: "Priority", Index: 2, Target: &schemaRoutingRulePriority, JSONName: "priority"}
 
-var memberCreateRoutingRuleOutput_RoutingRuleArn = smithy.Member{Name: "RoutingRuleArn", Index: 3, JSONName: "routingRuleArn"}
+var memberCreateRoutingRuleOutput_RoutingRuleArn = smithy.Member{Name: "RoutingRuleArn", Index: 3, Target: &schemaArn, JSONName: "routingRuleArn"}
 
-var memberCreateRoutingRuleOutput_RoutingRuleId = smithy.Member{Name: "RoutingRuleId", Index: 4, JSONName: "routingRuleId"}
+var memberCreateRoutingRuleOutput_RoutingRuleId = smithy.Member{Name: "RoutingRuleId", Index: 4, Target: &schemaId, JSONName: "routingRuleId"}
 
-var schemaCreateStageInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateStageRequest", Type: smithy.TypeStructure}
+var schemaCreateStageInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateStageRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateStageInput_AccessLogSettings, &memberCreateStageInput_ApiId, &memberCreateStageInput_AutoDeploy, &memberCreateStageInput_ClientCertificateId, &memberCreateStageInput_DefaultRouteSettings, &memberCreateStageInput_DeploymentId, &memberCreateStageInput_Description, &memberCreateStageInput_RouteSettings, &memberCreateStageInput_StageName, &memberCreateStageInput_StageVariables, &memberCreateStageInput_Tags}}
 
-var memberCreateStageInput_AccessLogSettings = smithy.Member{Name: "AccessLogSettings", Index: 0, JSONName: "accessLogSettings"}
+var memberCreateStageInput_AccessLogSettings = smithy.Member{Name: "AccessLogSettings", Index: 0, Target: &schemaAccessLogSettings, JSONName: "accessLogSettings"}
 
-var memberCreateStageInput_ApiId = smithy.Member{Name: "ApiId", Index: 1, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberCreateStageInput_ApiId = smithy.Member{Name: "ApiId", Index: 1, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberCreateStageInput_AutoDeploy = smithy.Member{Name: "AutoDeploy", Index: 2, JSONName: "autoDeploy"}
+var memberCreateStageInput_AutoDeploy = smithy.Member{Name: "AutoDeploy", Index: 2, Target: &schema__boolean, JSONName: "autoDeploy"}
 
-var memberCreateStageInput_ClientCertificateId = smithy.Member{Name: "ClientCertificateId", Index: 3, JSONName: "clientCertificateId"}
+var memberCreateStageInput_ClientCertificateId = smithy.Member{Name: "ClientCertificateId", Index: 3, Target: &schemaId, JSONName: "clientCertificateId"}
 
-var memberCreateStageInput_DefaultRouteSettings = smithy.Member{Name: "DefaultRouteSettings", Index: 4, JSONName: "defaultRouteSettings"}
+var memberCreateStageInput_DefaultRouteSettings = smithy.Member{Name: "DefaultRouteSettings", Index: 4, Target: &schemaRouteSettings, JSONName: "defaultRouteSettings"}
 
-var memberCreateStageInput_DeploymentId = smithy.Member{Name: "DeploymentId", Index: 5, JSONName: "deploymentId"}
+var memberCreateStageInput_DeploymentId = smithy.Member{Name: "DeploymentId", Index: 5, Target: &schemaId, JSONName: "deploymentId"}
 
-var memberCreateStageInput_Description = smithy.Member{Name: "Description", Index: 6, JSONName: "description"}
+var memberCreateStageInput_Description = smithy.Member{Name: "Description", Index: 6, Target: &schemaStringWithLengthBetween0And1024, JSONName: "description"}
 
-var memberCreateStageInput_RouteSettings = smithy.Member{Name: "RouteSettings", Index: 7, JSONName: "routeSettings"}
+var memberCreateStageInput_RouteSettings = smithy.Member{Name: "RouteSettings", Index: 7, Target: &schemaRouteSettingsMap, JSONName: "routeSettings"}
 
-var memberCreateStageInput_StageName = smithy.Member{Name: "StageName", Index: 8, Required: true, JSONName: "stageName"}
+var memberCreateStageInput_StageName = smithy.Member{Name: "StageName", Index: 8, Target: &schemaStringWithLengthBetween1And128, Required: true, JSONName: "stageName"}
 
-var memberCreateStageInput_StageVariables = smithy.Member{Name: "StageVariables", Index: 9, JSONName: "stageVariables"}
+var memberCreateStageInput_StageVariables = smithy.Member{Name: "StageVariables", Index: 9, Target: &schemaStageVariablesMap, JSONName: "stageVariables"}
 
-var memberCreateStageInput_Tags = smithy.Member{Name: "Tags", Index: 10, JSONName: "tags"}
+var memberCreateStageInput_Tags = smithy.Member{Name: "Tags", Index: 10, Target: &schemaTags, JSONName: "tags"}
 
-var schemaCreateStageOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateStageResponse", Type: smithy.TypeStructure}
+var schemaCreateStageOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateStageResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateStageOutput_AccessLogSettings, &memberCreateStageOutput_ApiGatewayManaged, &memberCreateStageOutput_AutoDeploy, &memberCreateStageOutput_ClientCertificateId, &memberCreateStageOutput_CreatedDate, &memberCreateStageOutput_DefaultRouteSettings, &memberCreateStageOutput_DeploymentId, &memberCreateStageOutput_Description, &memberCreateStageOutput_LastDeploymentStatusMessage, &memberCreateStageOutput_LastUpdatedDate, &memberCreateStageOutput_RouteSettings, &memberCreateStageOutput_StageName, &memberCreateStageOutput_StageVariables, &memberCreateStageOutput_Tags}}
 
-var memberCreateStageOutput_AccessLogSettings = smithy.Member{Name: "AccessLogSettings", Index: 0, JSONName: "accessLogSettings"}
+var memberCreateStageOutput_AccessLogSettings = smithy.Member{Name: "AccessLogSettings", Index: 0, Target: &schemaAccessLogSettings, JSONName: "accessLogSettings"}
 
-var memberCreateStageOutput_ApiGatewayManaged = smithy.Member{Name: "ApiGatewayManaged", Index: 1, JSONName: "apiGatewayManaged"}
+var memberCreateStageOutput_ApiGatewayManaged = smithy.Member{Name: "ApiGatewayManaged", Index: 1, Target: &schema__boolean, JSONName: "apiGatewayManaged"}
 
-var memberCreateStageOutput_AutoDeploy = smithy.Member{Name: "AutoDeploy", Index: 2, JSONName: "autoDeploy"}
+var memberCreateStageOutput_AutoDeploy = smithy.Member{Name: "AutoDeploy", Index: 2, Target: &schema__boolean, JSONName: "autoDeploy"}
 
-var memberCreateStageOutput_ClientCertificateId = smithy.Member{Name: "ClientCertificateId", Index: 3, JSONName: "clientCertificateId"}
+var memberCreateStageOutput_ClientCertificateId = smithy.Member{Name: "ClientCertificateId", Index: 3, Target: &schemaId, JSONName: "clientCertificateId"}
 
-var memberCreateStageOutput_CreatedDate = smithy.Member{Name: "CreatedDate", Index: 4, JSONName: "createdDate", TimestampFormat: smithy.DateTime}
+var memberCreateStageOutput_CreatedDate = smithy.Member{Name: "CreatedDate", Index: 4, Target: &schema__timestampIso8601, JSONName: "createdDate", TimestampFormat: smithy.DateTime}
 
-var memberCreateStageOutput_DefaultRouteSettings = smithy.Member{Name: "DefaultRouteSettings", Index: 5, JSONName: "defaultRouteSettings"}
+var memberCreateStageOutput_DefaultRouteSettings = smithy.Member{Name: "DefaultRouteSettings", Index: 5, Target: &schemaRouteSettings, JSONName: "defaultRouteSettings"}
 
-var memberCreateStageOutput_DeploymentId = smithy.Member{Name: "DeploymentId", Index: 6, JSONName: "deploymentId"}
+var memberCreateStageOutput_DeploymentId = smithy.Member{Name: "DeploymentId", Index: 6, Target: &schemaId, JSONName: "deploymentId"}
 
-var memberCreateStageOutput_Description = smithy.Member{Name: "Description", Index: 7, JSONName: "description"}
+var memberCreateStageOutput_Description = smithy.Member{Name: "Description", Index: 7, Target: &schemaStringWithLengthBetween0And1024, JSONName: "description"}
 
-var memberCreateStageOutput_LastDeploymentStatusMessage = smithy.Member{Name: "LastDeploymentStatusMessage", Index: 8, JSONName: "lastDeploymentStatusMessage"}
+var memberCreateStageOutput_LastDeploymentStatusMessage = smithy.Member{Name: "LastDeploymentStatusMessage", Index: 8, Target: &schema__string, JSONName: "lastDeploymentStatusMessage"}
 
-var memberCreateStageOutput_LastUpdatedDate = smithy.Member{Name: "LastUpdatedDate", Index: 9, JSONName: "lastUpdatedDate", TimestampFormat: smithy.DateTime}
+var memberCreateStageOutput_LastUpdatedDate = smithy.Member{Name: "LastUpdatedDate", Index: 9, Target: &schema__timestampIso8601, JSONName: "lastUpdatedDate", TimestampFormat: smithy.DateTime}
 
-var memberCreateStageOutput_RouteSettings = smithy.Member{Name: "RouteSettings", Index: 10, JSONName: "routeSettings"}
+var memberCreateStageOutput_RouteSettings = smithy.Member{Name: "RouteSettings", Index: 10, Target: &schemaRouteSettingsMap, JSONName: "routeSettings"}
 
-var memberCreateStageOutput_StageName = smithy.Member{Name: "StageName", Index: 11, JSONName: "stageName"}
+var memberCreateStageOutput_StageName = smithy.Member{Name: "StageName", Index: 11, Target: &schemaStringWithLengthBetween1And128, JSONName: "stageName"}
 
-var memberCreateStageOutput_StageVariables = smithy.Member{Name: "StageVariables", Index: 12, JSONName: "stageVariables"}
+var memberCreateStageOutput_StageVariables = smithy.Member{Name: "StageVariables", Index: 12, Target: &schemaStageVariablesMap, JSONName: "stageVariables"}
 
-var memberCreateStageOutput_Tags = smithy.Member{Name: "Tags", Index: 13, JSONName: "tags"}
+var memberCreateStageOutput_Tags = smithy.Member{Name: "Tags", Index: 13, Target: &schemaTags, JSONName: "tags"}
 
-var schemaCreateVpcLinkInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateVpcLinkRequest", Type: smithy.TypeStructure}
+var schemaCreateVpcLinkInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateVpcLinkRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateVpcLinkInput_Name, &memberCreateVpcLinkInput_SecurityGroupIds, &memberCreateVpcLinkInput_SubnetIds, &memberCreateVpcLinkInput_Tags}}
 
-var memberCreateVpcLinkInput_Name = smithy.Member{Name: "Name", Index: 0, Required: true, JSONName: "name"}
+var memberCreateVpcLinkInput_Name = smithy.Member{Name: "Name", Index: 0, Target: &schemaStringWithLengthBetween1And128, Required: true, JSONName: "name"}
 
-var memberCreateVpcLinkInput_SecurityGroupIds = smithy.Member{Name: "SecurityGroupIds", Index: 1, JSONName: "securityGroupIds"}
+var memberCreateVpcLinkInput_SecurityGroupIds = smithy.Member{Name: "SecurityGroupIds", Index: 1, Target: &schemaSecurityGroupIdList, JSONName: "securityGroupIds"}
 
-var memberCreateVpcLinkInput_SubnetIds = smithy.Member{Name: "SubnetIds", Index: 2, Required: true, JSONName: "subnetIds"}
+var memberCreateVpcLinkInput_SubnetIds = smithy.Member{Name: "SubnetIds", Index: 2, Target: &schemaSubnetIdList, Required: true, JSONName: "subnetIds"}
 
-var memberCreateVpcLinkInput_Tags = smithy.Member{Name: "Tags", Index: 3, JSONName: "tags"}
+var memberCreateVpcLinkInput_Tags = smithy.Member{Name: "Tags", Index: 3, Target: &schemaTags, JSONName: "tags"}
 
-var schemaCreateVpcLinkOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateVpcLinkResponse", Type: smithy.TypeStructure}
+var schemaCreateVpcLinkOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CreateVpcLinkResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateVpcLinkOutput_CreatedDate, &memberCreateVpcLinkOutput_Name, &memberCreateVpcLinkOutput_SecurityGroupIds, &memberCreateVpcLinkOutput_SubnetIds, &memberCreateVpcLinkOutput_Tags, &memberCreateVpcLinkOutput_VpcLinkId, &memberCreateVpcLinkOutput_VpcLinkStatus, &memberCreateVpcLinkOutput_VpcLinkStatusMessage, &memberCreateVpcLinkOutput_VpcLinkVersion}}
 
-var memberCreateVpcLinkOutput_CreatedDate = smithy.Member{Name: "CreatedDate", Index: 0, JSONName: "createdDate", TimestampFormat: smithy.DateTime}
+var memberCreateVpcLinkOutput_CreatedDate = smithy.Member{Name: "CreatedDate", Index: 0, Target: &schema__timestampIso8601, JSONName: "createdDate", TimestampFormat: smithy.DateTime}
 
-var memberCreateVpcLinkOutput_Name = smithy.Member{Name: "Name", Index: 1, JSONName: "name"}
+var memberCreateVpcLinkOutput_Name = smithy.Member{Name: "Name", Index: 1, Target: &schemaStringWithLengthBetween1And128, JSONName: "name"}
 
-var memberCreateVpcLinkOutput_SecurityGroupIds = smithy.Member{Name: "SecurityGroupIds", Index: 2, JSONName: "securityGroupIds"}
+var memberCreateVpcLinkOutput_SecurityGroupIds = smithy.Member{Name: "SecurityGroupIds", Index: 2, Target: &schemaSecurityGroupIdList, JSONName: "securityGroupIds"}
 
-var memberCreateVpcLinkOutput_SubnetIds = smithy.Member{Name: "SubnetIds", Index: 3, JSONName: "subnetIds"}
+var memberCreateVpcLinkOutput_SubnetIds = smithy.Member{Name: "SubnetIds", Index: 3, Target: &schemaSubnetIdList, JSONName: "subnetIds"}
 
-var memberCreateVpcLinkOutput_Tags = smithy.Member{Name: "Tags", Index: 4, JSONName: "tags"}
+var memberCreateVpcLinkOutput_Tags = smithy.Member{Name: "Tags", Index: 4, Target: &schemaTags, JSONName: "tags"}
 
-var memberCreateVpcLinkOutput_VpcLinkId = smithy.Member{Name: "VpcLinkId", Index: 5, JSONName: "vpcLinkId"}
+var memberCreateVpcLinkOutput_VpcLinkId = smithy.Member{Name: "VpcLinkId", Index: 5, Target: &schemaId, JSONName: "vpcLinkId"}
 
-var memberCreateVpcLinkOutput_VpcLinkStatus = smithy.Member{Name: "VpcLinkStatus", Index: 6, JSONName: "vpcLinkStatus"}
+var memberCreateVpcLinkOutput_VpcLinkStatus = smithy.Member{Name: "VpcLinkStatus", Index: 6, Target: &schemaVpcLinkStatus, JSONName: "vpcLinkStatus"}
 
-var memberCreateVpcLinkOutput_VpcLinkStatusMessage = smithy.Member{Name: "VpcLinkStatusMessage", Index: 7, JSONName: "vpcLinkStatusMessage"}
+var memberCreateVpcLinkOutput_VpcLinkStatusMessage = smithy.Member{Name: "VpcLinkStatusMessage", Index: 7, Target: &schemaStringWithLengthBetween0And1024, JSONName: "vpcLinkStatusMessage"}
 
-var memberCreateVpcLinkOutput_VpcLinkVersion = smithy.Member{Name: "VpcLinkVersion", Index: 8, JSONName: "vpcLinkVersion"}
+var memberCreateVpcLinkOutput_VpcLinkVersion = smithy.Member{Name: "VpcLinkVersion", Index: 8, Target: &schemaVpcLinkVersion, JSONName: "vpcLinkVersion"}
 
-var schemaCustomColors = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CustomColors", Type: smithy.TypeStructure}
+var schemaCustomColors = smithy.Schema{ID: "com.amazonaws.apigatewayv2#CustomColors", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCustomColors_AccentColor, &memberCustomColors_BackgroundColor, &memberCustomColors_ErrorValidationColor, &memberCustomColors_HeaderColor, &memberCustomColors_NavigationColor, &memberCustomColors_TextColor}}
 
-var memberCustomColors_AccentColor = smithy.Member{Name: "AccentColor", Index: 0, Required: true, JSONName: "accentColor"}
+var memberCustomColors_AccentColor = smithy.Member{Name: "AccentColor", Index: 0, Target: &schema__stringMin1Max16, Required: true, JSONName: "accentColor"}
 
-var memberCustomColors_BackgroundColor = smithy.Member{Name: "BackgroundColor", Index: 1, Required: true, JSONName: "backgroundColor"}
+var memberCustomColors_BackgroundColor = smithy.Member{Name: "BackgroundColor", Index: 1, Target: &schema__stringMin1Max16, Required: true, JSONName: "backgroundColor"}
 
-var memberCustomColors_ErrorValidationColor = smithy.Member{Name: "ErrorValidationColor", Index: 2, Required: true, JSONName: "errorValidationColor"}
+var memberCustomColors_ErrorValidationColor = smithy.Member{Name: "ErrorValidationColor", Index: 2, Target: &schema__stringMin1Max16, Required: true, JSONName: "errorValidationColor"}
 
-var memberCustomColors_HeaderColor = smithy.Member{Name: "HeaderColor", Index: 3, Required: true, JSONName: "headerColor"}
+var memberCustomColors_HeaderColor = smithy.Member{Name: "HeaderColor", Index: 3, Target: &schema__stringMin1Max16, Required: true, JSONName: "headerColor"}
 
-var memberCustomColors_NavigationColor = smithy.Member{Name: "NavigationColor", Index: 4, Required: true, JSONName: "navigationColor"}
+var memberCustomColors_NavigationColor = smithy.Member{Name: "NavigationColor", Index: 4, Target: &schema__stringMin1Max16, Required: true, JSONName: "navigationColor"}
 
-var memberCustomColors_TextColor = smithy.Member{Name: "TextColor", Index: 5, Required: true, JSONName: "textColor"}
+var memberCustomColors_TextColor = smithy.Member{Name: "TextColor", Index: 5, Target: &schema__stringMin1Max16, Required: true, JSONName: "textColor"}
 
-var schemaDeleteAccessLogSettingsInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DeleteAccessLogSettingsRequest", Type: smithy.TypeStructure}
+var schemaDeleteAccessLogSettingsInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DeleteAccessLogSettingsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteAccessLogSettingsInput_ApiId, &memberDeleteAccessLogSettingsInput_StageName}}
 
-var memberDeleteAccessLogSettingsInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberDeleteAccessLogSettingsInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberDeleteAccessLogSettingsInput_StageName = smithy.Member{Name: "StageName", Index: 1, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberDeleteAccessLogSettingsInput_StageName = smithy.Member{Name: "StageName", Index: 1, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaDeleteApiInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DeleteApiRequest", Type: smithy.TypeStructure}
+var schemaDeleteApiInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DeleteApiRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteApiInput_ApiId}}
 
-var memberDeleteApiInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberDeleteApiInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaDeleteApiMappingInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DeleteApiMappingRequest", Type: smithy.TypeStructure}
+var schemaDeleteApiMappingInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DeleteApiMappingRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteApiMappingInput_ApiMappingId, &memberDeleteApiMappingInput_DomainName}}
 
-var memberDeleteApiMappingInput_ApiMappingId = smithy.Member{Name: "ApiMappingId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberDeleteApiMappingInput_ApiMappingId = smithy.Member{Name: "ApiMappingId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberDeleteApiMappingInput_DomainName = smithy.Member{Name: "DomainName", Index: 1, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberDeleteApiMappingInput_DomainName = smithy.Member{Name: "DomainName", Index: 1, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaDeleteAuthorizerInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DeleteAuthorizerRequest", Type: smithy.TypeStructure}
+var schemaDeleteAuthorizerInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DeleteAuthorizerRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteAuthorizerInput_ApiId, &memberDeleteAuthorizerInput_AuthorizerId}}
 
-var memberDeleteAuthorizerInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberDeleteAuthorizerInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberDeleteAuthorizerInput_AuthorizerId = smithy.Member{Name: "AuthorizerId", Index: 1, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberDeleteAuthorizerInput_AuthorizerId = smithy.Member{Name: "AuthorizerId", Index: 1, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaDeleteCorsConfigurationInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DeleteCorsConfigurationRequest", Type: smithy.TypeStructure}
+var schemaDeleteCorsConfigurationInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DeleteCorsConfigurationRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteCorsConfigurationInput_ApiId}}
 
-var memberDeleteCorsConfigurationInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberDeleteCorsConfigurationInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaDeleteDeploymentInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DeleteDeploymentRequest", Type: smithy.TypeStructure}
+var schemaDeleteDeploymentInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DeleteDeploymentRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteDeploymentInput_ApiId, &memberDeleteDeploymentInput_DeploymentId}}
 
-var memberDeleteDeploymentInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberDeleteDeploymentInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberDeleteDeploymentInput_DeploymentId = smithy.Member{Name: "DeploymentId", Index: 1, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberDeleteDeploymentInput_DeploymentId = smithy.Member{Name: "DeploymentId", Index: 1, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaDeleteDomainNameInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DeleteDomainNameRequest", Type: smithy.TypeStructure}
+var schemaDeleteDomainNameInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DeleteDomainNameRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteDomainNameInput_DomainName}}
 
-var memberDeleteDomainNameInput_DomainName = smithy.Member{Name: "DomainName", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberDeleteDomainNameInput_DomainName = smithy.Member{Name: "DomainName", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaDeleteIntegrationInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DeleteIntegrationRequest", Type: smithy.TypeStructure}
+var schemaDeleteIntegrationInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DeleteIntegrationRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteIntegrationInput_ApiId, &memberDeleteIntegrationInput_IntegrationId}}
 
-var memberDeleteIntegrationInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberDeleteIntegrationInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberDeleteIntegrationInput_IntegrationId = smithy.Member{Name: "IntegrationId", Index: 1, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberDeleteIntegrationInput_IntegrationId = smithy.Member{Name: "IntegrationId", Index: 1, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaDeleteIntegrationResponseInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DeleteIntegrationResponseRequest", Type: smithy.TypeStructure}
+var schemaDeleteIntegrationResponseInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DeleteIntegrationResponseRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteIntegrationResponseInput_ApiId, &memberDeleteIntegrationResponseInput_IntegrationId, &memberDeleteIntegrationResponseInput_IntegrationResponseId}}
 
-var memberDeleteIntegrationResponseInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberDeleteIntegrationResponseInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberDeleteIntegrationResponseInput_IntegrationId = smithy.Member{Name: "IntegrationId", Index: 1, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberDeleteIntegrationResponseInput_IntegrationId = smithy.Member{Name: "IntegrationId", Index: 1, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberDeleteIntegrationResponseInput_IntegrationResponseId = smithy.Member{Name: "IntegrationResponseId", Index: 2, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberDeleteIntegrationResponseInput_IntegrationResponseId = smithy.Member{Name: "IntegrationResponseId", Index: 2, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaDeleteModelInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DeleteModelRequest", Type: smithy.TypeStructure}
+var schemaDeleteModelInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DeleteModelRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteModelInput_ApiId, &memberDeleteModelInput_ModelId}}
 
-var memberDeleteModelInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberDeleteModelInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberDeleteModelInput_ModelId = smithy.Member{Name: "ModelId", Index: 1, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberDeleteModelInput_ModelId = smithy.Member{Name: "ModelId", Index: 1, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaDeletePortalInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DeletePortalRequest", Type: smithy.TypeStructure}
+var schemaDeletePortalInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DeletePortalRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeletePortalInput_PortalId}}
 
-var memberDeletePortalInput_PortalId = smithy.Member{Name: "PortalId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberDeletePortalInput_PortalId = smithy.Member{Name: "PortalId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaDeletePortalProductInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DeletePortalProductRequest", Type: smithy.TypeStructure}
+var schemaDeletePortalProductInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DeletePortalProductRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeletePortalProductInput_PortalProductId}}
 
-var memberDeletePortalProductInput_PortalProductId = smithy.Member{Name: "PortalProductId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberDeletePortalProductInput_PortalProductId = smithy.Member{Name: "PortalProductId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaDeletePortalProductSharingPolicyInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DeletePortalProductSharingPolicyRequest", Type: smithy.TypeStructure}
+var schemaDeletePortalProductSharingPolicyInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DeletePortalProductSharingPolicyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeletePortalProductSharingPolicyInput_PortalProductId}}
 
-var memberDeletePortalProductSharingPolicyInput_PortalProductId = smithy.Member{Name: "PortalProductId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberDeletePortalProductSharingPolicyInput_PortalProductId = smithy.Member{Name: "PortalProductId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaDeleteProductPageInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DeleteProductPageRequest", Type: smithy.TypeStructure}
+var schemaDeleteProductPageInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DeleteProductPageRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteProductPageInput_PortalProductId, &memberDeleteProductPageInput_ProductPageId}}
 
-var memberDeleteProductPageInput_PortalProductId = smithy.Member{Name: "PortalProductId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberDeleteProductPageInput_PortalProductId = smithy.Member{Name: "PortalProductId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberDeleteProductPageInput_ProductPageId = smithy.Member{Name: "ProductPageId", Index: 1, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberDeleteProductPageInput_ProductPageId = smithy.Member{Name: "ProductPageId", Index: 1, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaDeleteProductRestEndpointPageInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DeleteProductRestEndpointPageRequest", Type: smithy.TypeStructure}
+var schemaDeleteProductRestEndpointPageInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DeleteProductRestEndpointPageRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteProductRestEndpointPageInput_PortalProductId, &memberDeleteProductRestEndpointPageInput_ProductRestEndpointPageId}}
 
-var memberDeleteProductRestEndpointPageInput_PortalProductId = smithy.Member{Name: "PortalProductId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberDeleteProductRestEndpointPageInput_PortalProductId = smithy.Member{Name: "PortalProductId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberDeleteProductRestEndpointPageInput_ProductRestEndpointPageId = smithy.Member{Name: "ProductRestEndpointPageId", Index: 1, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberDeleteProductRestEndpointPageInput_ProductRestEndpointPageId = smithy.Member{Name: "ProductRestEndpointPageId", Index: 1, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaDeleteRouteInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DeleteRouteRequest", Type: smithy.TypeStructure}
+var schemaDeleteRouteInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DeleteRouteRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteRouteInput_ApiId, &memberDeleteRouteInput_RouteId}}
 
-var memberDeleteRouteInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberDeleteRouteInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberDeleteRouteInput_RouteId = smithy.Member{Name: "RouteId", Index: 1, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberDeleteRouteInput_RouteId = smithy.Member{Name: "RouteId", Index: 1, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaDeleteRouteRequestParameterInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DeleteRouteRequestParameterRequest", Type: smithy.TypeStructure}
+var schemaDeleteRouteRequestParameterInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DeleteRouteRequestParameterRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteRouteRequestParameterInput_ApiId, &memberDeleteRouteRequestParameterInput_RequestParameterKey, &memberDeleteRouteRequestParameterInput_RouteId}}
 
-var memberDeleteRouteRequestParameterInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberDeleteRouteRequestParameterInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberDeleteRouteRequestParameterInput_RequestParameterKey = smithy.Member{Name: "RequestParameterKey", Index: 1, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberDeleteRouteRequestParameterInput_RequestParameterKey = smithy.Member{Name: "RequestParameterKey", Index: 1, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberDeleteRouteRequestParameterInput_RouteId = smithy.Member{Name: "RouteId", Index: 2, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberDeleteRouteRequestParameterInput_RouteId = smithy.Member{Name: "RouteId", Index: 2, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaDeleteRouteResponseInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DeleteRouteResponseRequest", Type: smithy.TypeStructure}
+var schemaDeleteRouteResponseInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DeleteRouteResponseRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteRouteResponseInput_ApiId, &memberDeleteRouteResponseInput_RouteId, &memberDeleteRouteResponseInput_RouteResponseId}}
 
-var memberDeleteRouteResponseInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberDeleteRouteResponseInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberDeleteRouteResponseInput_RouteId = smithy.Member{Name: "RouteId", Index: 1, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberDeleteRouteResponseInput_RouteId = smithy.Member{Name: "RouteId", Index: 1, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberDeleteRouteResponseInput_RouteResponseId = smithy.Member{Name: "RouteResponseId", Index: 2, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberDeleteRouteResponseInput_RouteResponseId = smithy.Member{Name: "RouteResponseId", Index: 2, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaDeleteRouteSettingsInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DeleteRouteSettingsRequest", Type: smithy.TypeStructure}
+var schemaDeleteRouteSettingsInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DeleteRouteSettingsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteRouteSettingsInput_ApiId, &memberDeleteRouteSettingsInput_RouteKey, &memberDeleteRouteSettingsInput_StageName}}
 
-var memberDeleteRouteSettingsInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberDeleteRouteSettingsInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberDeleteRouteSettingsInput_RouteKey = smithy.Member{Name: "RouteKey", Index: 1, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberDeleteRouteSettingsInput_RouteKey = smithy.Member{Name: "RouteKey", Index: 1, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberDeleteRouteSettingsInput_StageName = smithy.Member{Name: "StageName", Index: 2, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberDeleteRouteSettingsInput_StageName = smithy.Member{Name: "StageName", Index: 2, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaDeleteRoutingRuleInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DeleteRoutingRuleRequest", Type: smithy.TypeStructure}
+var schemaDeleteRoutingRuleInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DeleteRoutingRuleRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteRoutingRuleInput_DomainName, &memberDeleteRoutingRuleInput_DomainNameId, &memberDeleteRoutingRuleInput_RoutingRuleId}}
 
-var memberDeleteRoutingRuleInput_DomainName = smithy.Member{Name: "DomainName", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberDeleteRoutingRuleInput_DomainName = smithy.Member{Name: "DomainName", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberDeleteRoutingRuleInput_DomainNameId = smithy.Member{Name: "DomainNameId", Index: 1, HTTP: smithy.HTTPQuery{Name: "domainNameId"}}
+var memberDeleteRoutingRuleInput_DomainNameId = smithy.Member{Name: "DomainNameId", Index: 1, Target: &schema__string, HTTP: smithy.HTTPQuery{Name: "domainNameId"}}
 
-var memberDeleteRoutingRuleInput_RoutingRuleId = smithy.Member{Name: "RoutingRuleId", Index: 2, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberDeleteRoutingRuleInput_RoutingRuleId = smithy.Member{Name: "RoutingRuleId", Index: 2, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaDeleteStageInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DeleteStageRequest", Type: smithy.TypeStructure}
+var schemaDeleteStageInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DeleteStageRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteStageInput_ApiId, &memberDeleteStageInput_StageName}}
 
-var memberDeleteStageInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberDeleteStageInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberDeleteStageInput_StageName = smithy.Member{Name: "StageName", Index: 1, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberDeleteStageInput_StageName = smithy.Member{Name: "StageName", Index: 1, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaDeleteVpcLinkInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DeleteVpcLinkRequest", Type: smithy.TypeStructure}
+var schemaDeleteVpcLinkInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DeleteVpcLinkRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteVpcLinkInput_VpcLinkId}}
 
-var memberDeleteVpcLinkInput_VpcLinkId = smithy.Member{Name: "VpcLinkId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberDeleteVpcLinkInput_VpcLinkId = smithy.Member{Name: "VpcLinkId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
 var schemaDeleteVpcLinkOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DeleteVpcLinkResponse", Type: smithy.TypeStructure}
 
-var schemaDeployment = smithy.Schema{ID: "com.amazonaws.apigatewayv2#Deployment", Type: smithy.TypeStructure}
+var schemaDeployment = smithy.Schema{ID: "com.amazonaws.apigatewayv2#Deployment", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeployment_AutoDeployed, &memberDeployment_CreatedDate, &memberDeployment_DeploymentId, &memberDeployment_DeploymentStatus, &memberDeployment_DeploymentStatusMessage, &memberDeployment_Description}}
 
-var memberDeployment_AutoDeployed = smithy.Member{Name: "AutoDeployed", Index: 0, JSONName: "autoDeployed"}
+var memberDeployment_AutoDeployed = smithy.Member{Name: "AutoDeployed", Index: 0, Target: &schema__boolean, JSONName: "autoDeployed"}
 
-var memberDeployment_CreatedDate = smithy.Member{Name: "CreatedDate", Index: 1, JSONName: "createdDate", TimestampFormat: smithy.DateTime}
+var memberDeployment_CreatedDate = smithy.Member{Name: "CreatedDate", Index: 1, Target: &schema__timestampIso8601, JSONName: "createdDate", TimestampFormat: smithy.DateTime}
 
-var memberDeployment_DeploymentId = smithy.Member{Name: "DeploymentId", Index: 2, JSONName: "deploymentId"}
+var memberDeployment_DeploymentId = smithy.Member{Name: "DeploymentId", Index: 2, Target: &schemaId, JSONName: "deploymentId"}
 
-var memberDeployment_DeploymentStatus = smithy.Member{Name: "DeploymentStatus", Index: 3, JSONName: "deploymentStatus"}
+var memberDeployment_DeploymentStatus = smithy.Member{Name: "DeploymentStatus", Index: 3, Target: &schemaDeploymentStatus, JSONName: "deploymentStatus"}
 
-var memberDeployment_DeploymentStatusMessage = smithy.Member{Name: "DeploymentStatusMessage", Index: 4, JSONName: "deploymentStatusMessage"}
+var memberDeployment_DeploymentStatusMessage = smithy.Member{Name: "DeploymentStatusMessage", Index: 4, Target: &schema__string, JSONName: "deploymentStatusMessage"}
 
-var memberDeployment_Description = smithy.Member{Name: "Description", Index: 5, JSONName: "description"}
+var memberDeployment_Description = smithy.Member{Name: "Description", Index: 5, Target: &schemaStringWithLengthBetween0And1024, JSONName: "description"}
 
 var schemaDeploymentStatus = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DeploymentStatus", Type: smithy.TypeEnum}
 
-var schemaDisablePortalInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DisablePortalRequest", Type: smithy.TypeStructure}
+var schemaDisablePortalInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DisablePortalRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDisablePortalInput_PortalId}}
 
-var memberDisablePortalInput_PortalId = smithy.Member{Name: "PortalId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberDisablePortalInput_PortalId = smithy.Member{Name: "PortalId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaDisplayContent = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DisplayContent", Type: smithy.TypeStructure}
+var schemaDisplayContent = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DisplayContent", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDisplayContent_Body, &memberDisplayContent_Title}}
 
-var memberDisplayContent_Body = smithy.Member{Name: "Body", Index: 0, Required: true, JSONName: "body"}
+var memberDisplayContent_Body = smithy.Member{Name: "Body", Index: 0, Target: &schema__stringMin1Max32768, Required: true, JSONName: "body"}
 
-var memberDisplayContent_Title = smithy.Member{Name: "Title", Index: 1, Required: true, JSONName: "title"}
+var memberDisplayContent_Title = smithy.Member{Name: "Title", Index: 1, Target: &schema__stringMin1Max255, Required: true, JSONName: "title"}
 
-var schemaDisplayContentOverrides = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DisplayContentOverrides", Type: smithy.TypeStructure}
+var schemaDisplayContentOverrides = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DisplayContentOverrides", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDisplayContentOverrides_Body, &memberDisplayContentOverrides_Endpoint, &memberDisplayContentOverrides_OperationName}}
 
-var memberDisplayContentOverrides_Body = smithy.Member{Name: "Body", Index: 0, JSONName: "body"}
+var memberDisplayContentOverrides_Body = smithy.Member{Name: "Body", Index: 0, Target: &schema__stringMin1Max32768, JSONName: "body"}
 
-var memberDisplayContentOverrides_Endpoint = smithy.Member{Name: "Endpoint", Index: 1, JSONName: "endpoint"}
+var memberDisplayContentOverrides_Endpoint = smithy.Member{Name: "Endpoint", Index: 1, Target: &schema__stringMin1Max1024, JSONName: "endpoint"}
 
-var memberDisplayContentOverrides_OperationName = smithy.Member{Name: "OperationName", Index: 2, JSONName: "operationName"}
+var memberDisplayContentOverrides_OperationName = smithy.Member{Name: "OperationName", Index: 2, Target: &schema__stringMin1Max255, JSONName: "operationName"}
 
-var schemaDisplayOrder = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DisplayOrder", Type: smithy.TypeStructure}
+var schemaDisplayOrder = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DisplayOrder", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDisplayOrder_Contents, &memberDisplayOrder_OverviewPageArn, &memberDisplayOrder_ProductPageArns}}
 
-var memberDisplayOrder_Contents = smithy.Member{Name: "Contents", Index: 0, JSONName: "contents"}
+var memberDisplayOrder_Contents = smithy.Member{Name: "Contents", Index: 0, Target: &schema__listOfSection, JSONName: "contents"}
 
-var memberDisplayOrder_OverviewPageArn = smithy.Member{Name: "OverviewPageArn", Index: 1, JSONName: "overviewPageArn"}
+var memberDisplayOrder_OverviewPageArn = smithy.Member{Name: "OverviewPageArn", Index: 1, Target: &schema__stringMin20Max2048, JSONName: "overviewPageArn"}
 
-var memberDisplayOrder_ProductPageArns = smithy.Member{Name: "ProductPageArns", Index: 2, JSONName: "productPageArns"}
+var memberDisplayOrder_ProductPageArns = smithy.Member{Name: "ProductPageArns", Index: 2, Target: &schema__listOf__stringMin20Max2048, JSONName: "productPageArns"}
 
-var schemaDomainName = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DomainName", Type: smithy.TypeStructure}
+var schemaDomainName = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DomainName", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDomainName_ApiMappingSelectionExpression, &memberDomainName_DomainName, &memberDomainName_DomainNameArn, &memberDomainName_DomainNameConfigurations, &memberDomainName_MutualTlsAuthentication, &memberDomainName_RoutingMode, &memberDomainName_Tags}}
 
-var memberDomainName_ApiMappingSelectionExpression = smithy.Member{Name: "ApiMappingSelectionExpression", Index: 0, JSONName: "apiMappingSelectionExpression"}
+var memberDomainName_ApiMappingSelectionExpression = smithy.Member{Name: "ApiMappingSelectionExpression", Index: 0, Target: &schemaSelectionExpression, JSONName: "apiMappingSelectionExpression"}
 
-var memberDomainName_DomainName = smithy.Member{Name: "DomainName", Index: 1, Required: true, JSONName: "domainName"}
+var memberDomainName_DomainName = smithy.Member{Name: "DomainName", Index: 1, Target: &schemaStringWithLengthBetween1And512, Required: true, JSONName: "domainName"}
 
-var memberDomainName_DomainNameArn = smithy.Member{Name: "DomainNameArn", Index: 2, JSONName: "domainNameArn"}
+var memberDomainName_DomainNameArn = smithy.Member{Name: "DomainNameArn", Index: 2, Target: &schemaArn, JSONName: "domainNameArn"}
 
-var memberDomainName_DomainNameConfigurations = smithy.Member{Name: "DomainNameConfigurations", Index: 3, JSONName: "domainNameConfigurations"}
+var memberDomainName_DomainNameConfigurations = smithy.Member{Name: "DomainNameConfigurations", Index: 3, Target: &schemaDomainNameConfigurations, JSONName: "domainNameConfigurations"}
 
-var memberDomainName_MutualTlsAuthentication = smithy.Member{Name: "MutualTlsAuthentication", Index: 4, JSONName: "mutualTlsAuthentication"}
+var memberDomainName_MutualTlsAuthentication = smithy.Member{Name: "MutualTlsAuthentication", Index: 4, Target: &schemaMutualTlsAuthentication, JSONName: "mutualTlsAuthentication"}
 
-var memberDomainName_RoutingMode = smithy.Member{Name: "RoutingMode", Index: 5, JSONName: "routingMode"}
+var memberDomainName_RoutingMode = smithy.Member{Name: "RoutingMode", Index: 5, Target: &schemaRoutingMode, JSONName: "routingMode"}
 
-var memberDomainName_Tags = smithy.Member{Name: "Tags", Index: 6, JSONName: "tags"}
+var memberDomainName_Tags = smithy.Member{Name: "Tags", Index: 6, Target: &schemaTags, JSONName: "tags"}
 
-var schemaDomainNameConfiguration = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DomainNameConfiguration", Type: smithy.TypeStructure}
+var schemaDomainNameConfiguration = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DomainNameConfiguration", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDomainNameConfiguration_ApiGatewayDomainName, &memberDomainNameConfiguration_CertificateArn, &memberDomainNameConfiguration_CertificateName, &memberDomainNameConfiguration_CertificateUploadDate, &memberDomainNameConfiguration_DomainNameStatus, &memberDomainNameConfiguration_DomainNameStatusMessage, &memberDomainNameConfiguration_EndpointType, &memberDomainNameConfiguration_HostedZoneId, &memberDomainNameConfiguration_IpAddressType, &memberDomainNameConfiguration_SecurityPolicy, &memberDomainNameConfiguration_OwnershipVerificationCertificateArn}}
 
-var memberDomainNameConfiguration_ApiGatewayDomainName = smithy.Member{Name: "ApiGatewayDomainName", Index: 0, JSONName: "apiGatewayDomainName"}
+var memberDomainNameConfiguration_ApiGatewayDomainName = smithy.Member{Name: "ApiGatewayDomainName", Index: 0, Target: &schema__string, JSONName: "apiGatewayDomainName"}
 
-var memberDomainNameConfiguration_CertificateArn = smithy.Member{Name: "CertificateArn", Index: 1, JSONName: "certificateArn"}
+var memberDomainNameConfiguration_CertificateArn = smithy.Member{Name: "CertificateArn", Index: 1, Target: &schemaArn, JSONName: "certificateArn"}
 
-var memberDomainNameConfiguration_CertificateName = smithy.Member{Name: "CertificateName", Index: 2, JSONName: "certificateName"}
+var memberDomainNameConfiguration_CertificateName = smithy.Member{Name: "CertificateName", Index: 2, Target: &schemaStringWithLengthBetween1And128, JSONName: "certificateName"}
 
-var memberDomainNameConfiguration_CertificateUploadDate = smithy.Member{Name: "CertificateUploadDate", Index: 3, JSONName: "certificateUploadDate", TimestampFormat: smithy.DateTime}
+var memberDomainNameConfiguration_CertificateUploadDate = smithy.Member{Name: "CertificateUploadDate", Index: 3, Target: &schema__timestampIso8601, JSONName: "certificateUploadDate", TimestampFormat: smithy.DateTime}
 
-var memberDomainNameConfiguration_DomainNameStatus = smithy.Member{Name: "DomainNameStatus", Index: 4, JSONName: "domainNameStatus"}
+var memberDomainNameConfiguration_DomainNameStatus = smithy.Member{Name: "DomainNameStatus", Index: 4, Target: &schemaDomainNameStatus, JSONName: "domainNameStatus"}
 
-var memberDomainNameConfiguration_DomainNameStatusMessage = smithy.Member{Name: "DomainNameStatusMessage", Index: 5, JSONName: "domainNameStatusMessage"}
+var memberDomainNameConfiguration_DomainNameStatusMessage = smithy.Member{Name: "DomainNameStatusMessage", Index: 5, Target: &schema__string, JSONName: "domainNameStatusMessage"}
 
-var memberDomainNameConfiguration_EndpointType = smithy.Member{Name: "EndpointType", Index: 6, JSONName: "endpointType"}
+var memberDomainNameConfiguration_EndpointType = smithy.Member{Name: "EndpointType", Index: 6, Target: &schemaEndpointType, JSONName: "endpointType"}
 
-var memberDomainNameConfiguration_HostedZoneId = smithy.Member{Name: "HostedZoneId", Index: 7, JSONName: "hostedZoneId"}
+var memberDomainNameConfiguration_HostedZoneId = smithy.Member{Name: "HostedZoneId", Index: 7, Target: &schema__string, JSONName: "hostedZoneId"}
 
-var memberDomainNameConfiguration_IpAddressType = smithy.Member{Name: "IpAddressType", Index: 8, JSONName: "ipAddressType"}
+var memberDomainNameConfiguration_IpAddressType = smithy.Member{Name: "IpAddressType", Index: 8, Target: &schemaIpAddressType, JSONName: "ipAddressType"}
 
-var memberDomainNameConfiguration_SecurityPolicy = smithy.Member{Name: "SecurityPolicy", Index: 9, JSONName: "securityPolicy"}
+var memberDomainNameConfiguration_SecurityPolicy = smithy.Member{Name: "SecurityPolicy", Index: 9, Target: &schemaSecurityPolicy, JSONName: "securityPolicy"}
 
-var memberDomainNameConfiguration_OwnershipVerificationCertificateArn = smithy.Member{Name: "OwnershipVerificationCertificateArn", Index: 10, JSONName: "ownershipVerificationCertificateArn"}
+var memberDomainNameConfiguration_OwnershipVerificationCertificateArn = smithy.Member{Name: "OwnershipVerificationCertificateArn", Index: 10, Target: &schemaArn, JSONName: "ownershipVerificationCertificateArn"}
 
-var schemaDomainNameConfigurations = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DomainNameConfigurations", Type: smithy.TypeList}
+var schemaDomainNameConfigurations = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DomainNameConfigurations", Type: smithy.TypeList, Members: []*smithy.Member{&memberDomainNameConfigurations_member}}
 
-var memberDomainNameConfigurations_member = smithy.Member{Name: "member", Index: 0}
+var memberDomainNameConfigurations_member = smithy.Member{Name: "member", Index: 0, Target: &schemaDomainNameConfiguration}
 
 var schemaDomainNameStatus = smithy.Schema{ID: "com.amazonaws.apigatewayv2#DomainNameStatus", Type: smithy.TypeEnum}
 
-var schemaEndpointConfigurationRequest = smithy.Schema{ID: "com.amazonaws.apigatewayv2#EndpointConfigurationRequest", Type: smithy.TypeStructure}
+var schemaEndpointConfigurationRequest = smithy.Schema{ID: "com.amazonaws.apigatewayv2#EndpointConfigurationRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberEndpointConfigurationRequest_AcmManaged, &memberEndpointConfigurationRequest_None}}
 
-var memberEndpointConfigurationRequest_AcmManaged = smithy.Member{Name: "AcmManaged", Index: 0, JSONName: "acmManaged"}
+var memberEndpointConfigurationRequest_AcmManaged = smithy.Member{Name: "AcmManaged", Index: 0, Target: &schemaACMManaged, JSONName: "acmManaged"}
 
-var memberEndpointConfigurationRequest_None = smithy.Member{Name: "None", Index: 1, JSONName: "none"}
+var memberEndpointConfigurationRequest_None = smithy.Member{Name: "None", Index: 1, Target: &schemaNone, JSONName: "none"}
 
-var schemaEndpointConfigurationResponse = smithy.Schema{ID: "com.amazonaws.apigatewayv2#EndpointConfigurationResponse", Type: smithy.TypeStructure}
+var schemaEndpointConfigurationResponse = smithy.Schema{ID: "com.amazonaws.apigatewayv2#EndpointConfigurationResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberEndpointConfigurationResponse_CertificateArn, &memberEndpointConfigurationResponse_DomainName, &memberEndpointConfigurationResponse_PortalDefaultDomainName, &memberEndpointConfigurationResponse_PortalDomainHostedZoneId}}
 
-var memberEndpointConfigurationResponse_CertificateArn = smithy.Member{Name: "CertificateArn", Index: 0, JSONName: "certificateArn"}
+var memberEndpointConfigurationResponse_CertificateArn = smithy.Member{Name: "CertificateArn", Index: 0, Target: &schema__stringMin10Max2048, JSONName: "certificateArn"}
 
-var memberEndpointConfigurationResponse_DomainName = smithy.Member{Name: "DomainName", Index: 1, JSONName: "domainName"}
+var memberEndpointConfigurationResponse_DomainName = smithy.Member{Name: "DomainName", Index: 1, Target: &schema__stringMin3Max256, JSONName: "domainName"}
 
-var memberEndpointConfigurationResponse_PortalDefaultDomainName = smithy.Member{Name: "PortalDefaultDomainName", Index: 2, Required: true, JSONName: "portalDefaultDomainName"}
+var memberEndpointConfigurationResponse_PortalDefaultDomainName = smithy.Member{Name: "PortalDefaultDomainName", Index: 2, Target: &schema__stringMin3Max256, Required: true, JSONName: "portalDefaultDomainName"}
 
-var memberEndpointConfigurationResponse_PortalDomainHostedZoneId = smithy.Member{Name: "PortalDomainHostedZoneId", Index: 3, Required: true, JSONName: "portalDomainHostedZoneId"}
+var memberEndpointConfigurationResponse_PortalDomainHostedZoneId = smithy.Member{Name: "PortalDomainHostedZoneId", Index: 3, Target: &schema__stringMin1Max64, Required: true, JSONName: "portalDomainHostedZoneId"}
 
-var schemaEndpointDisplayContent = smithy.Schema{ID: "com.amazonaws.apigatewayv2#EndpointDisplayContent", Type: smithy.TypeStructure}
+var schemaEndpointDisplayContent = smithy.Schema{ID: "com.amazonaws.apigatewayv2#EndpointDisplayContent", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberEndpointDisplayContent_None, &memberEndpointDisplayContent_Overrides}}
 
-var memberEndpointDisplayContent_None = smithy.Member{Name: "None", Index: 0, JSONName: "none"}
+var memberEndpointDisplayContent_None = smithy.Member{Name: "None", Index: 0, Target: &schemaNone, JSONName: "none"}
 
-var memberEndpointDisplayContent_Overrides = smithy.Member{Name: "Overrides", Index: 1, JSONName: "overrides"}
+var memberEndpointDisplayContent_Overrides = smithy.Member{Name: "Overrides", Index: 1, Target: &schemaDisplayContentOverrides, JSONName: "overrides"}
 
-var schemaEndpointDisplayContentResponse = smithy.Schema{ID: "com.amazonaws.apigatewayv2#EndpointDisplayContentResponse", Type: smithy.TypeStructure}
+var schemaEndpointDisplayContentResponse = smithy.Schema{ID: "com.amazonaws.apigatewayv2#EndpointDisplayContentResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberEndpointDisplayContentResponse_Body, &memberEndpointDisplayContentResponse_Endpoint, &memberEndpointDisplayContentResponse_OperationName}}
 
-var memberEndpointDisplayContentResponse_Body = smithy.Member{Name: "Body", Index: 0, JSONName: "body"}
+var memberEndpointDisplayContentResponse_Body = smithy.Member{Name: "Body", Index: 0, Target: &schema__stringMin1Max32768, JSONName: "body"}
 
-var memberEndpointDisplayContentResponse_Endpoint = smithy.Member{Name: "Endpoint", Index: 1, Required: true, JSONName: "endpoint"}
+var memberEndpointDisplayContentResponse_Endpoint = smithy.Member{Name: "Endpoint", Index: 1, Target: &schema__stringMin1Max1024, Required: true, JSONName: "endpoint"}
 
-var memberEndpointDisplayContentResponse_OperationName = smithy.Member{Name: "OperationName", Index: 2, JSONName: "operationName"}
+var memberEndpointDisplayContentResponse_OperationName = smithy.Member{Name: "OperationName", Index: 2, Target: &schema__stringMin1Max255, JSONName: "operationName"}
 
 var schemaEndpointType = smithy.Schema{ID: "com.amazonaws.apigatewayv2#EndpointType", Type: smithy.TypeEnum}
 
-var schemaExpiredTokenException = smithy.Schema{ID: "com.amazon.coral.service#ExpiredTokenException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+var schemaExpiredTokenException = smithy.Schema{ID: "com.amazon.coral.service#ExpiredTokenException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberExpiredTokenException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
 
-var memberExpiredTokenException_message = smithy.Member{Name: "message", Index: 0}
+var memberExpiredTokenException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaExportApiInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#ExportApiRequest", Type: smithy.TypeStructure}
+var schemaExportApiInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#ExportApiRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberExportApiInput_ApiId, &memberExportApiInput_ExportVersion, &memberExportApiInput_IncludeExtensions, &memberExportApiInput_OutputType, &memberExportApiInput_Specification, &memberExportApiInput_StageName}}
 
-var memberExportApiInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberExportApiInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberExportApiInput_ExportVersion = smithy.Member{Name: "ExportVersion", Index: 1, HTTP: smithy.HTTPQuery{Name: "exportVersion"}}
+var memberExportApiInput_ExportVersion = smithy.Member{Name: "ExportVersion", Index: 1, Target: &schema__string, HTTP: smithy.HTTPQuery{Name: "exportVersion"}}
 
-var memberExportApiInput_IncludeExtensions = smithy.Member{Name: "IncludeExtensions", Index: 2, HTTP: smithy.HTTPQuery{Name: "includeExtensions"}}
+var memberExportApiInput_IncludeExtensions = smithy.Member{Name: "IncludeExtensions", Index: 2, Target: &schema__boolean, HTTP: smithy.HTTPQuery{Name: "includeExtensions"}}
 
-var memberExportApiInput_OutputType = smithy.Member{Name: "OutputType", Index: 3, Required: true, HTTP: smithy.HTTPQuery{Name: "outputType"}}
+var memberExportApiInput_OutputType = smithy.Member{Name: "OutputType", Index: 3, Target: &schema__string, Required: true, HTTP: smithy.HTTPQuery{Name: "outputType"}}
 
-var memberExportApiInput_Specification = smithy.Member{Name: "Specification", Index: 4, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberExportApiInput_Specification = smithy.Member{Name: "Specification", Index: 4, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberExportApiInput_StageName = smithy.Member{Name: "StageName", Index: 5, HTTP: smithy.HTTPQuery{Name: "stageName"}}
+var memberExportApiInput_StageName = smithy.Member{Name: "StageName", Index: 5, Target: &schema__string, HTTP: smithy.HTTPQuery{Name: "stageName"}}
 
-var schemaExportApiOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#ExportApiResponse", Type: smithy.TypeStructure}
+var schemaExportApiOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#ExportApiResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberExportApiOutput_body}}
 
-var memberExportApiOutput_body = smithy.Member{Name: "body", Index: 0, HTTP: smithy.HTTPPayload{}}
+var memberExportApiOutput_body = smithy.Member{Name: "body", Index: 0, Target: &schemaExportedApi, HTTP: smithy.HTTPPayload{}}
 
 var schemaExportedApi = smithy.Schema{ID: "com.amazonaws.apigatewayv2#ExportedApi", Type: smithy.TypeBlob}
 
-var schemaGetApiInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetApiRequest", Type: smithy.TypeStructure}
+var schemaGetApiInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetApiRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetApiInput_ApiId}}
 
-var memberGetApiInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberGetApiInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaGetApiMappingInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetApiMappingRequest", Type: smithy.TypeStructure}
+var schemaGetApiMappingInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetApiMappingRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetApiMappingInput_ApiMappingId, &memberGetApiMappingInput_DomainName}}
 
-var memberGetApiMappingInput_ApiMappingId = smithy.Member{Name: "ApiMappingId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberGetApiMappingInput_ApiMappingId = smithy.Member{Name: "ApiMappingId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberGetApiMappingInput_DomainName = smithy.Member{Name: "DomainName", Index: 1, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberGetApiMappingInput_DomainName = smithy.Member{Name: "DomainName", Index: 1, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaGetApiMappingOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetApiMappingResponse", Type: smithy.TypeStructure}
+var schemaGetApiMappingOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetApiMappingResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetApiMappingOutput_ApiId, &memberGetApiMappingOutput_ApiMappingId, &memberGetApiMappingOutput_ApiMappingKey, &memberGetApiMappingOutput_Stage}}
 
-var memberGetApiMappingOutput_ApiId = smithy.Member{Name: "ApiId", Index: 0, JSONName: "apiId"}
+var memberGetApiMappingOutput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schemaId, JSONName: "apiId"}
 
-var memberGetApiMappingOutput_ApiMappingId = smithy.Member{Name: "ApiMappingId", Index: 1, JSONName: "apiMappingId"}
+var memberGetApiMappingOutput_ApiMappingId = smithy.Member{Name: "ApiMappingId", Index: 1, Target: &schemaId, JSONName: "apiMappingId"}
 
-var memberGetApiMappingOutput_ApiMappingKey = smithy.Member{Name: "ApiMappingKey", Index: 2, JSONName: "apiMappingKey"}
+var memberGetApiMappingOutput_ApiMappingKey = smithy.Member{Name: "ApiMappingKey", Index: 2, Target: &schemaSelectionKey, JSONName: "apiMappingKey"}
 
-var memberGetApiMappingOutput_Stage = smithy.Member{Name: "Stage", Index: 3, JSONName: "stage"}
+var memberGetApiMappingOutput_Stage = smithy.Member{Name: "Stage", Index: 3, Target: &schemaStringWithLengthBetween1And128, JSONName: "stage"}
 
-var schemaGetApiMappingsInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetApiMappingsRequest", Type: smithy.TypeStructure}
+var schemaGetApiMappingsInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetApiMappingsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetApiMappingsInput_DomainName, &memberGetApiMappingsInput_MaxResults, &memberGetApiMappingsInput_NextToken}}
 
-var memberGetApiMappingsInput_DomainName = smithy.Member{Name: "DomainName", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberGetApiMappingsInput_DomainName = smithy.Member{Name: "DomainName", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberGetApiMappingsInput_MaxResults = smithy.Member{Name: "MaxResults", Index: 1, HTTP: smithy.HTTPQuery{Name: "maxResults"}}
+var memberGetApiMappingsInput_MaxResults = smithy.Member{Name: "MaxResults", Index: 1, Target: &schema__string, HTTP: smithy.HTTPQuery{Name: "maxResults"}}
 
-var memberGetApiMappingsInput_NextToken = smithy.Member{Name: "NextToken", Index: 2, HTTP: smithy.HTTPQuery{Name: "nextToken"}}
+var memberGetApiMappingsInput_NextToken = smithy.Member{Name: "NextToken", Index: 2, Target: &schema__string, HTTP: smithy.HTTPQuery{Name: "nextToken"}}
 
-var schemaGetApiMappingsOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetApiMappingsResponse", Type: smithy.TypeStructure}
+var schemaGetApiMappingsOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetApiMappingsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetApiMappingsOutput_Items, &memberGetApiMappingsOutput_NextToken}}
 
-var memberGetApiMappingsOutput_Items = smithy.Member{Name: "Items", Index: 0, JSONName: "items"}
+var memberGetApiMappingsOutput_Items = smithy.Member{Name: "Items", Index: 0, Target: &schema__listOfApiMapping, JSONName: "items"}
 
-var memberGetApiMappingsOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, JSONName: "nextToken"}
+var memberGetApiMappingsOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schemaNextToken, JSONName: "nextToken"}
 
-var schemaGetApiOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetApiResponse", Type: smithy.TypeStructure}
+var schemaGetApiOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetApiResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetApiOutput_ApiEndpoint, &memberGetApiOutput_ApiGatewayManaged, &memberGetApiOutput_ApiId, &memberGetApiOutput_ApiKeySelectionExpression, &memberGetApiOutput_CorsConfiguration, &memberGetApiOutput_CreatedDate, &memberGetApiOutput_Description, &memberGetApiOutput_DisableSchemaValidation, &memberGetApiOutput_DisableExecuteApiEndpoint, &memberGetApiOutput_ImportInfo, &memberGetApiOutput_IpAddressType, &memberGetApiOutput_Name, &memberGetApiOutput_ProtocolType, &memberGetApiOutput_RouteSelectionExpression, &memberGetApiOutput_Tags, &memberGetApiOutput_Version, &memberGetApiOutput_Warnings}}
 
-var memberGetApiOutput_ApiEndpoint = smithy.Member{Name: "ApiEndpoint", Index: 0, JSONName: "apiEndpoint"}
+var memberGetApiOutput_ApiEndpoint = smithy.Member{Name: "ApiEndpoint", Index: 0, Target: &schema__string, JSONName: "apiEndpoint"}
 
-var memberGetApiOutput_ApiGatewayManaged = smithy.Member{Name: "ApiGatewayManaged", Index: 1, JSONName: "apiGatewayManaged"}
+var memberGetApiOutput_ApiGatewayManaged = smithy.Member{Name: "ApiGatewayManaged", Index: 1, Target: &schema__boolean, JSONName: "apiGatewayManaged"}
 
-var memberGetApiOutput_ApiId = smithy.Member{Name: "ApiId", Index: 2, JSONName: "apiId"}
+var memberGetApiOutput_ApiId = smithy.Member{Name: "ApiId", Index: 2, Target: &schemaId, JSONName: "apiId"}
 
-var memberGetApiOutput_ApiKeySelectionExpression = smithy.Member{Name: "ApiKeySelectionExpression", Index: 3, JSONName: "apiKeySelectionExpression"}
+var memberGetApiOutput_ApiKeySelectionExpression = smithy.Member{Name: "ApiKeySelectionExpression", Index: 3, Target: &schemaSelectionExpression, JSONName: "apiKeySelectionExpression"}
 
-var memberGetApiOutput_CorsConfiguration = smithy.Member{Name: "CorsConfiguration", Index: 4, JSONName: "corsConfiguration"}
+var memberGetApiOutput_CorsConfiguration = smithy.Member{Name: "CorsConfiguration", Index: 4, Target: &schemaCors, JSONName: "corsConfiguration"}
 
-var memberGetApiOutput_CreatedDate = smithy.Member{Name: "CreatedDate", Index: 5, JSONName: "createdDate", TimestampFormat: smithy.DateTime}
+var memberGetApiOutput_CreatedDate = smithy.Member{Name: "CreatedDate", Index: 5, Target: &schema__timestampIso8601, JSONName: "createdDate", TimestampFormat: smithy.DateTime}
 
-var memberGetApiOutput_Description = smithy.Member{Name: "Description", Index: 6, JSONName: "description"}
+var memberGetApiOutput_Description = smithy.Member{Name: "Description", Index: 6, Target: &schemaStringWithLengthBetween0And1024, JSONName: "description"}
 
-var memberGetApiOutput_DisableSchemaValidation = smithy.Member{Name: "DisableSchemaValidation", Index: 7, JSONName: "disableSchemaValidation"}
+var memberGetApiOutput_DisableSchemaValidation = smithy.Member{Name: "DisableSchemaValidation", Index: 7, Target: &schema__boolean, JSONName: "disableSchemaValidation"}
 
-var memberGetApiOutput_DisableExecuteApiEndpoint = smithy.Member{Name: "DisableExecuteApiEndpoint", Index: 8, JSONName: "disableExecuteApiEndpoint"}
+var memberGetApiOutput_DisableExecuteApiEndpoint = smithy.Member{Name: "DisableExecuteApiEndpoint", Index: 8, Target: &schema__boolean, JSONName: "disableExecuteApiEndpoint"}
 
-var memberGetApiOutput_ImportInfo = smithy.Member{Name: "ImportInfo", Index: 9, JSONName: "importInfo"}
+var memberGetApiOutput_ImportInfo = smithy.Member{Name: "ImportInfo", Index: 9, Target: &schema__listOf__string, JSONName: "importInfo"}
 
-var memberGetApiOutput_IpAddressType = smithy.Member{Name: "IpAddressType", Index: 10, JSONName: "ipAddressType"}
+var memberGetApiOutput_IpAddressType = smithy.Member{Name: "IpAddressType", Index: 10, Target: &schemaIpAddressType, JSONName: "ipAddressType"}
 
-var memberGetApiOutput_Name = smithy.Member{Name: "Name", Index: 11, JSONName: "name"}
+var memberGetApiOutput_Name = smithy.Member{Name: "Name", Index: 11, Target: &schemaStringWithLengthBetween1And128, JSONName: "name"}
 
-var memberGetApiOutput_ProtocolType = smithy.Member{Name: "ProtocolType", Index: 12, JSONName: "protocolType"}
+var memberGetApiOutput_ProtocolType = smithy.Member{Name: "ProtocolType", Index: 12, Target: &schemaProtocolType, JSONName: "protocolType"}
 
-var memberGetApiOutput_RouteSelectionExpression = smithy.Member{Name: "RouteSelectionExpression", Index: 13, JSONName: "routeSelectionExpression"}
+var memberGetApiOutput_RouteSelectionExpression = smithy.Member{Name: "RouteSelectionExpression", Index: 13, Target: &schemaSelectionExpression, JSONName: "routeSelectionExpression"}
 
-var memberGetApiOutput_Tags = smithy.Member{Name: "Tags", Index: 14, JSONName: "tags"}
+var memberGetApiOutput_Tags = smithy.Member{Name: "Tags", Index: 14, Target: &schemaTags, JSONName: "tags"}
 
-var memberGetApiOutput_Version = smithy.Member{Name: "Version", Index: 15, JSONName: "version"}
+var memberGetApiOutput_Version = smithy.Member{Name: "Version", Index: 15, Target: &schemaStringWithLengthBetween1And64, JSONName: "version"}
 
-var memberGetApiOutput_Warnings = smithy.Member{Name: "Warnings", Index: 16, JSONName: "warnings"}
+var memberGetApiOutput_Warnings = smithy.Member{Name: "Warnings", Index: 16, Target: &schema__listOf__string, JSONName: "warnings"}
 
-var schemaGetApisInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetApisRequest", Type: smithy.TypeStructure}
+var schemaGetApisInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetApisRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetApisInput_MaxResults, &memberGetApisInput_NextToken}}
 
-var memberGetApisInput_MaxResults = smithy.Member{Name: "MaxResults", Index: 0, HTTP: smithy.HTTPQuery{Name: "maxResults"}}
+var memberGetApisInput_MaxResults = smithy.Member{Name: "MaxResults", Index: 0, Target: &schema__string, HTTP: smithy.HTTPQuery{Name: "maxResults"}}
 
-var memberGetApisInput_NextToken = smithy.Member{Name: "NextToken", Index: 1, HTTP: smithy.HTTPQuery{Name: "nextToken"}}
+var memberGetApisInput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schema__string, HTTP: smithy.HTTPQuery{Name: "nextToken"}}
 
-var schemaGetApisOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetApisResponse", Type: smithy.TypeStructure}
+var schemaGetApisOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetApisResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetApisOutput_Items, &memberGetApisOutput_NextToken}}
 
-var memberGetApisOutput_Items = smithy.Member{Name: "Items", Index: 0, JSONName: "items"}
+var memberGetApisOutput_Items = smithy.Member{Name: "Items", Index: 0, Target: &schema__listOfApi, JSONName: "items"}
 
-var memberGetApisOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, JSONName: "nextToken"}
+var memberGetApisOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schemaNextToken, JSONName: "nextToken"}
 
-var schemaGetAuthorizerInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetAuthorizerRequest", Type: smithy.TypeStructure}
+var schemaGetAuthorizerInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetAuthorizerRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetAuthorizerInput_ApiId, &memberGetAuthorizerInput_AuthorizerId}}
 
-var memberGetAuthorizerInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberGetAuthorizerInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberGetAuthorizerInput_AuthorizerId = smithy.Member{Name: "AuthorizerId", Index: 1, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberGetAuthorizerInput_AuthorizerId = smithy.Member{Name: "AuthorizerId", Index: 1, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaGetAuthorizerOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetAuthorizerResponse", Type: smithy.TypeStructure}
+var schemaGetAuthorizerOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetAuthorizerResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetAuthorizerOutput_AuthorizerCredentialsArn, &memberGetAuthorizerOutput_AuthorizerId, &memberGetAuthorizerOutput_AuthorizerPayloadFormatVersion, &memberGetAuthorizerOutput_AuthorizerResultTtlInSeconds, &memberGetAuthorizerOutput_AuthorizerType, &memberGetAuthorizerOutput_AuthorizerUri, &memberGetAuthorizerOutput_EnableSimpleResponses, &memberGetAuthorizerOutput_IdentitySource, &memberGetAuthorizerOutput_IdentityValidationExpression, &memberGetAuthorizerOutput_JwtConfiguration, &memberGetAuthorizerOutput_Name}}
 
-var memberGetAuthorizerOutput_AuthorizerCredentialsArn = smithy.Member{Name: "AuthorizerCredentialsArn", Index: 0, JSONName: "authorizerCredentialsArn"}
+var memberGetAuthorizerOutput_AuthorizerCredentialsArn = smithy.Member{Name: "AuthorizerCredentialsArn", Index: 0, Target: &schemaArn, JSONName: "authorizerCredentialsArn"}
 
-var memberGetAuthorizerOutput_AuthorizerId = smithy.Member{Name: "AuthorizerId", Index: 1, JSONName: "authorizerId"}
+var memberGetAuthorizerOutput_AuthorizerId = smithy.Member{Name: "AuthorizerId", Index: 1, Target: &schemaId, JSONName: "authorizerId"}
 
-var memberGetAuthorizerOutput_AuthorizerPayloadFormatVersion = smithy.Member{Name: "AuthorizerPayloadFormatVersion", Index: 2, JSONName: "authorizerPayloadFormatVersion"}
+var memberGetAuthorizerOutput_AuthorizerPayloadFormatVersion = smithy.Member{Name: "AuthorizerPayloadFormatVersion", Index: 2, Target: &schemaStringWithLengthBetween1And64, JSONName: "authorizerPayloadFormatVersion"}
 
-var memberGetAuthorizerOutput_AuthorizerResultTtlInSeconds = smithy.Member{Name: "AuthorizerResultTtlInSeconds", Index: 3, JSONName: "authorizerResultTtlInSeconds"}
+var memberGetAuthorizerOutput_AuthorizerResultTtlInSeconds = smithy.Member{Name: "AuthorizerResultTtlInSeconds", Index: 3, Target: &schemaIntegerWithLengthBetween0And3600, JSONName: "authorizerResultTtlInSeconds"}
 
-var memberGetAuthorizerOutput_AuthorizerType = smithy.Member{Name: "AuthorizerType", Index: 4, JSONName: "authorizerType"}
+var memberGetAuthorizerOutput_AuthorizerType = smithy.Member{Name: "AuthorizerType", Index: 4, Target: &schemaAuthorizerType, JSONName: "authorizerType"}
 
-var memberGetAuthorizerOutput_AuthorizerUri = smithy.Member{Name: "AuthorizerUri", Index: 5, JSONName: "authorizerUri"}
+var memberGetAuthorizerOutput_AuthorizerUri = smithy.Member{Name: "AuthorizerUri", Index: 5, Target: &schemaUriWithLengthBetween1And2048, JSONName: "authorizerUri"}
 
-var memberGetAuthorizerOutput_EnableSimpleResponses = smithy.Member{Name: "EnableSimpleResponses", Index: 6, JSONName: "enableSimpleResponses"}
+var memberGetAuthorizerOutput_EnableSimpleResponses = smithy.Member{Name: "EnableSimpleResponses", Index: 6, Target: &schema__boolean, JSONName: "enableSimpleResponses"}
 
-var memberGetAuthorizerOutput_IdentitySource = smithy.Member{Name: "IdentitySource", Index: 7, JSONName: "identitySource"}
+var memberGetAuthorizerOutput_IdentitySource = smithy.Member{Name: "IdentitySource", Index: 7, Target: &schemaIdentitySourceList, JSONName: "identitySource"}
 
-var memberGetAuthorizerOutput_IdentityValidationExpression = smithy.Member{Name: "IdentityValidationExpression", Index: 8, JSONName: "identityValidationExpression"}
+var memberGetAuthorizerOutput_IdentityValidationExpression = smithy.Member{Name: "IdentityValidationExpression", Index: 8, Target: &schemaStringWithLengthBetween0And1024, JSONName: "identityValidationExpression"}
 
-var memberGetAuthorizerOutput_JwtConfiguration = smithy.Member{Name: "JwtConfiguration", Index: 9, JSONName: "jwtConfiguration"}
+var memberGetAuthorizerOutput_JwtConfiguration = smithy.Member{Name: "JwtConfiguration", Index: 9, Target: &schemaJWTConfiguration, JSONName: "jwtConfiguration"}
 
-var memberGetAuthorizerOutput_Name = smithy.Member{Name: "Name", Index: 10, JSONName: "name"}
+var memberGetAuthorizerOutput_Name = smithy.Member{Name: "Name", Index: 10, Target: &schemaStringWithLengthBetween1And128, JSONName: "name"}
 
-var schemaGetAuthorizersInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetAuthorizersRequest", Type: smithy.TypeStructure}
+var schemaGetAuthorizersInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetAuthorizersRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetAuthorizersInput_ApiId, &memberGetAuthorizersInput_MaxResults, &memberGetAuthorizersInput_NextToken}}
 
-var memberGetAuthorizersInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberGetAuthorizersInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberGetAuthorizersInput_MaxResults = smithy.Member{Name: "MaxResults", Index: 1, HTTP: smithy.HTTPQuery{Name: "maxResults"}}
+var memberGetAuthorizersInput_MaxResults = smithy.Member{Name: "MaxResults", Index: 1, Target: &schema__string, HTTP: smithy.HTTPQuery{Name: "maxResults"}}
 
-var memberGetAuthorizersInput_NextToken = smithy.Member{Name: "NextToken", Index: 2, HTTP: smithy.HTTPQuery{Name: "nextToken"}}
+var memberGetAuthorizersInput_NextToken = smithy.Member{Name: "NextToken", Index: 2, Target: &schema__string, HTTP: smithy.HTTPQuery{Name: "nextToken"}}
 
-var schemaGetAuthorizersOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetAuthorizersResponse", Type: smithy.TypeStructure}
+var schemaGetAuthorizersOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetAuthorizersResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetAuthorizersOutput_Items, &memberGetAuthorizersOutput_NextToken}}
 
-var memberGetAuthorizersOutput_Items = smithy.Member{Name: "Items", Index: 0, JSONName: "items"}
+var memberGetAuthorizersOutput_Items = smithy.Member{Name: "Items", Index: 0, Target: &schema__listOfAuthorizer, JSONName: "items"}
 
-var memberGetAuthorizersOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, JSONName: "nextToken"}
+var memberGetAuthorizersOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schemaNextToken, JSONName: "nextToken"}
 
-var schemaGetDeploymentInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetDeploymentRequest", Type: smithy.TypeStructure}
+var schemaGetDeploymentInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetDeploymentRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetDeploymentInput_ApiId, &memberGetDeploymentInput_DeploymentId}}
 
-var memberGetDeploymentInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberGetDeploymentInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberGetDeploymentInput_DeploymentId = smithy.Member{Name: "DeploymentId", Index: 1, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberGetDeploymentInput_DeploymentId = smithy.Member{Name: "DeploymentId", Index: 1, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaGetDeploymentOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetDeploymentResponse", Type: smithy.TypeStructure}
+var schemaGetDeploymentOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetDeploymentResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetDeploymentOutput_AutoDeployed, &memberGetDeploymentOutput_CreatedDate, &memberGetDeploymentOutput_DeploymentId, &memberGetDeploymentOutput_DeploymentStatus, &memberGetDeploymentOutput_DeploymentStatusMessage, &memberGetDeploymentOutput_Description}}
 
-var memberGetDeploymentOutput_AutoDeployed = smithy.Member{Name: "AutoDeployed", Index: 0, JSONName: "autoDeployed"}
+var memberGetDeploymentOutput_AutoDeployed = smithy.Member{Name: "AutoDeployed", Index: 0, Target: &schema__boolean, JSONName: "autoDeployed"}
 
-var memberGetDeploymentOutput_CreatedDate = smithy.Member{Name: "CreatedDate", Index: 1, JSONName: "createdDate", TimestampFormat: smithy.DateTime}
+var memberGetDeploymentOutput_CreatedDate = smithy.Member{Name: "CreatedDate", Index: 1, Target: &schema__timestampIso8601, JSONName: "createdDate", TimestampFormat: smithy.DateTime}
 
-var memberGetDeploymentOutput_DeploymentId = smithy.Member{Name: "DeploymentId", Index: 2, JSONName: "deploymentId"}
+var memberGetDeploymentOutput_DeploymentId = smithy.Member{Name: "DeploymentId", Index: 2, Target: &schemaId, JSONName: "deploymentId"}
 
-var memberGetDeploymentOutput_DeploymentStatus = smithy.Member{Name: "DeploymentStatus", Index: 3, JSONName: "deploymentStatus"}
+var memberGetDeploymentOutput_DeploymentStatus = smithy.Member{Name: "DeploymentStatus", Index: 3, Target: &schemaDeploymentStatus, JSONName: "deploymentStatus"}
 
-var memberGetDeploymentOutput_DeploymentStatusMessage = smithy.Member{Name: "DeploymentStatusMessage", Index: 4, JSONName: "deploymentStatusMessage"}
+var memberGetDeploymentOutput_DeploymentStatusMessage = smithy.Member{Name: "DeploymentStatusMessage", Index: 4, Target: &schema__string, JSONName: "deploymentStatusMessage"}
 
-var memberGetDeploymentOutput_Description = smithy.Member{Name: "Description", Index: 5, JSONName: "description"}
+var memberGetDeploymentOutput_Description = smithy.Member{Name: "Description", Index: 5, Target: &schemaStringWithLengthBetween0And1024, JSONName: "description"}
 
-var schemaGetDeploymentsInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetDeploymentsRequest", Type: smithy.TypeStructure}
+var schemaGetDeploymentsInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetDeploymentsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetDeploymentsInput_ApiId, &memberGetDeploymentsInput_MaxResults, &memberGetDeploymentsInput_NextToken}}
 
-var memberGetDeploymentsInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberGetDeploymentsInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberGetDeploymentsInput_MaxResults = smithy.Member{Name: "MaxResults", Index: 1, HTTP: smithy.HTTPQuery{Name: "maxResults"}}
+var memberGetDeploymentsInput_MaxResults = smithy.Member{Name: "MaxResults", Index: 1, Target: &schema__string, HTTP: smithy.HTTPQuery{Name: "maxResults"}}
 
-var memberGetDeploymentsInput_NextToken = smithy.Member{Name: "NextToken", Index: 2, HTTP: smithy.HTTPQuery{Name: "nextToken"}}
+var memberGetDeploymentsInput_NextToken = smithy.Member{Name: "NextToken", Index: 2, Target: &schema__string, HTTP: smithy.HTTPQuery{Name: "nextToken"}}
 
-var schemaGetDeploymentsOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetDeploymentsResponse", Type: smithy.TypeStructure}
+var schemaGetDeploymentsOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetDeploymentsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetDeploymentsOutput_Items, &memberGetDeploymentsOutput_NextToken}}
 
-var memberGetDeploymentsOutput_Items = smithy.Member{Name: "Items", Index: 0, JSONName: "items"}
+var memberGetDeploymentsOutput_Items = smithy.Member{Name: "Items", Index: 0, Target: &schema__listOfDeployment, JSONName: "items"}
 
-var memberGetDeploymentsOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, JSONName: "nextToken"}
+var memberGetDeploymentsOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schemaNextToken, JSONName: "nextToken"}
 
-var schemaGetDomainNameInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetDomainNameRequest", Type: smithy.TypeStructure}
+var schemaGetDomainNameInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetDomainNameRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetDomainNameInput_DomainName}}
 
-var memberGetDomainNameInput_DomainName = smithy.Member{Name: "DomainName", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberGetDomainNameInput_DomainName = smithy.Member{Name: "DomainName", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaGetDomainNameOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetDomainNameResponse", Type: smithy.TypeStructure}
+var schemaGetDomainNameOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetDomainNameResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetDomainNameOutput_ApiMappingSelectionExpression, &memberGetDomainNameOutput_DomainName, &memberGetDomainNameOutput_DomainNameArn, &memberGetDomainNameOutput_DomainNameConfigurations, &memberGetDomainNameOutput_MutualTlsAuthentication, &memberGetDomainNameOutput_RoutingMode, &memberGetDomainNameOutput_Tags}}
 
-var memberGetDomainNameOutput_ApiMappingSelectionExpression = smithy.Member{Name: "ApiMappingSelectionExpression", Index: 0, JSONName: "apiMappingSelectionExpression"}
+var memberGetDomainNameOutput_ApiMappingSelectionExpression = smithy.Member{Name: "ApiMappingSelectionExpression", Index: 0, Target: &schemaSelectionExpression, JSONName: "apiMappingSelectionExpression"}
 
-var memberGetDomainNameOutput_DomainName = smithy.Member{Name: "DomainName", Index: 1, JSONName: "domainName"}
+var memberGetDomainNameOutput_DomainName = smithy.Member{Name: "DomainName", Index: 1, Target: &schemaStringWithLengthBetween1And512, JSONName: "domainName"}
 
-var memberGetDomainNameOutput_DomainNameArn = smithy.Member{Name: "DomainNameArn", Index: 2, JSONName: "domainNameArn"}
+var memberGetDomainNameOutput_DomainNameArn = smithy.Member{Name: "DomainNameArn", Index: 2, Target: &schemaArn, JSONName: "domainNameArn"}
 
-var memberGetDomainNameOutput_DomainNameConfigurations = smithy.Member{Name: "DomainNameConfigurations", Index: 3, JSONName: "domainNameConfigurations"}
+var memberGetDomainNameOutput_DomainNameConfigurations = smithy.Member{Name: "DomainNameConfigurations", Index: 3, Target: &schemaDomainNameConfigurations, JSONName: "domainNameConfigurations"}
 
-var memberGetDomainNameOutput_MutualTlsAuthentication = smithy.Member{Name: "MutualTlsAuthentication", Index: 4, JSONName: "mutualTlsAuthentication"}
+var memberGetDomainNameOutput_MutualTlsAuthentication = smithy.Member{Name: "MutualTlsAuthentication", Index: 4, Target: &schemaMutualTlsAuthentication, JSONName: "mutualTlsAuthentication"}
 
-var memberGetDomainNameOutput_RoutingMode = smithy.Member{Name: "RoutingMode", Index: 5, JSONName: "routingMode"}
+var memberGetDomainNameOutput_RoutingMode = smithy.Member{Name: "RoutingMode", Index: 5, Target: &schemaRoutingMode, JSONName: "routingMode"}
 
-var memberGetDomainNameOutput_Tags = smithy.Member{Name: "Tags", Index: 6, JSONName: "tags"}
+var memberGetDomainNameOutput_Tags = smithy.Member{Name: "Tags", Index: 6, Target: &schemaTags, JSONName: "tags"}
 
-var schemaGetDomainNamesInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetDomainNamesRequest", Type: smithy.TypeStructure}
+var schemaGetDomainNamesInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetDomainNamesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetDomainNamesInput_MaxResults, &memberGetDomainNamesInput_NextToken}}
 
-var memberGetDomainNamesInput_MaxResults = smithy.Member{Name: "MaxResults", Index: 0, HTTP: smithy.HTTPQuery{Name: "maxResults"}}
+var memberGetDomainNamesInput_MaxResults = smithy.Member{Name: "MaxResults", Index: 0, Target: &schema__string, HTTP: smithy.HTTPQuery{Name: "maxResults"}}
 
-var memberGetDomainNamesInput_NextToken = smithy.Member{Name: "NextToken", Index: 1, HTTP: smithy.HTTPQuery{Name: "nextToken"}}
+var memberGetDomainNamesInput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schema__string, HTTP: smithy.HTTPQuery{Name: "nextToken"}}
 
-var schemaGetDomainNamesOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetDomainNamesResponse", Type: smithy.TypeStructure}
+var schemaGetDomainNamesOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetDomainNamesResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetDomainNamesOutput_Items, &memberGetDomainNamesOutput_NextToken}}
 
-var memberGetDomainNamesOutput_Items = smithy.Member{Name: "Items", Index: 0, JSONName: "items"}
+var memberGetDomainNamesOutput_Items = smithy.Member{Name: "Items", Index: 0, Target: &schema__listOfDomainName, JSONName: "items"}
 
-var memberGetDomainNamesOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, JSONName: "nextToken"}
+var memberGetDomainNamesOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schemaNextToken, JSONName: "nextToken"}
 
-var schemaGetIntegrationInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetIntegrationRequest", Type: smithy.TypeStructure}
+var schemaGetIntegrationInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetIntegrationRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetIntegrationInput_ApiId, &memberGetIntegrationInput_IntegrationId}}
 
-var memberGetIntegrationInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberGetIntegrationInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberGetIntegrationInput_IntegrationId = smithy.Member{Name: "IntegrationId", Index: 1, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberGetIntegrationInput_IntegrationId = smithy.Member{Name: "IntegrationId", Index: 1, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaGetIntegrationOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetIntegrationResult", Type: smithy.TypeStructure}
+var schemaGetIntegrationOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetIntegrationResult", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetIntegrationOutput_ApiGatewayManaged, &memberGetIntegrationOutput_ConnectionId, &memberGetIntegrationOutput_ConnectionType, &memberGetIntegrationOutput_ContentHandlingStrategy, &memberGetIntegrationOutput_CredentialsArn, &memberGetIntegrationOutput_Description, &memberGetIntegrationOutput_IntegrationId, &memberGetIntegrationOutput_IntegrationMethod, &memberGetIntegrationOutput_IntegrationResponseSelectionExpression, &memberGetIntegrationOutput_IntegrationSubtype, &memberGetIntegrationOutput_IntegrationType, &memberGetIntegrationOutput_IntegrationUri, &memberGetIntegrationOutput_PassthroughBehavior, &memberGetIntegrationOutput_PayloadFormatVersion, &memberGetIntegrationOutput_RequestParameters, &memberGetIntegrationOutput_RequestTemplates, &memberGetIntegrationOutput_ResponseParameters, &memberGetIntegrationOutput_TemplateSelectionExpression, &memberGetIntegrationOutput_TimeoutInMillis, &memberGetIntegrationOutput_TlsConfig}}
 
-var memberGetIntegrationOutput_ApiGatewayManaged = smithy.Member{Name: "ApiGatewayManaged", Index: 0, JSONName: "apiGatewayManaged"}
+var memberGetIntegrationOutput_ApiGatewayManaged = smithy.Member{Name: "ApiGatewayManaged", Index: 0, Target: &schema__boolean, JSONName: "apiGatewayManaged"}
 
-var memberGetIntegrationOutput_ConnectionId = smithy.Member{Name: "ConnectionId", Index: 1, JSONName: "connectionId"}
+var memberGetIntegrationOutput_ConnectionId = smithy.Member{Name: "ConnectionId", Index: 1, Target: &schemaStringWithLengthBetween1And1024, JSONName: "connectionId"}
 
-var memberGetIntegrationOutput_ConnectionType = smithy.Member{Name: "ConnectionType", Index: 2, JSONName: "connectionType"}
+var memberGetIntegrationOutput_ConnectionType = smithy.Member{Name: "ConnectionType", Index: 2, Target: &schemaConnectionType, JSONName: "connectionType"}
 
-var memberGetIntegrationOutput_ContentHandlingStrategy = smithy.Member{Name: "ContentHandlingStrategy", Index: 3, JSONName: "contentHandlingStrategy"}
+var memberGetIntegrationOutput_ContentHandlingStrategy = smithy.Member{Name: "ContentHandlingStrategy", Index: 3, Target: &schemaContentHandlingStrategy, JSONName: "contentHandlingStrategy"}
 
-var memberGetIntegrationOutput_CredentialsArn = smithy.Member{Name: "CredentialsArn", Index: 4, JSONName: "credentialsArn"}
+var memberGetIntegrationOutput_CredentialsArn = smithy.Member{Name: "CredentialsArn", Index: 4, Target: &schemaArn, JSONName: "credentialsArn"}
 
-var memberGetIntegrationOutput_Description = smithy.Member{Name: "Description", Index: 5, JSONName: "description"}
+var memberGetIntegrationOutput_Description = smithy.Member{Name: "Description", Index: 5, Target: &schemaStringWithLengthBetween0And1024, JSONName: "description"}
 
-var memberGetIntegrationOutput_IntegrationId = smithy.Member{Name: "IntegrationId", Index: 6, JSONName: "integrationId"}
+var memberGetIntegrationOutput_IntegrationId = smithy.Member{Name: "IntegrationId", Index: 6, Target: &schemaId, JSONName: "integrationId"}
 
-var memberGetIntegrationOutput_IntegrationMethod = smithy.Member{Name: "IntegrationMethod", Index: 7, JSONName: "integrationMethod"}
+var memberGetIntegrationOutput_IntegrationMethod = smithy.Member{Name: "IntegrationMethod", Index: 7, Target: &schemaStringWithLengthBetween1And64, JSONName: "integrationMethod"}
 
-var memberGetIntegrationOutput_IntegrationResponseSelectionExpression = smithy.Member{Name: "IntegrationResponseSelectionExpression", Index: 8, JSONName: "integrationResponseSelectionExpression"}
+var memberGetIntegrationOutput_IntegrationResponseSelectionExpression = smithy.Member{Name: "IntegrationResponseSelectionExpression", Index: 8, Target: &schemaSelectionExpression, JSONName: "integrationResponseSelectionExpression"}
 
-var memberGetIntegrationOutput_IntegrationSubtype = smithy.Member{Name: "IntegrationSubtype", Index: 9, JSONName: "integrationSubtype"}
+var memberGetIntegrationOutput_IntegrationSubtype = smithy.Member{Name: "IntegrationSubtype", Index: 9, Target: &schemaStringWithLengthBetween1And128, JSONName: "integrationSubtype"}
 
-var memberGetIntegrationOutput_IntegrationType = smithy.Member{Name: "IntegrationType", Index: 10, JSONName: "integrationType"}
+var memberGetIntegrationOutput_IntegrationType = smithy.Member{Name: "IntegrationType", Index: 10, Target: &schemaIntegrationType, JSONName: "integrationType"}
 
-var memberGetIntegrationOutput_IntegrationUri = smithy.Member{Name: "IntegrationUri", Index: 11, JSONName: "integrationUri"}
+var memberGetIntegrationOutput_IntegrationUri = smithy.Member{Name: "IntegrationUri", Index: 11, Target: &schemaUriWithLengthBetween1And2048, JSONName: "integrationUri"}
 
-var memberGetIntegrationOutput_PassthroughBehavior = smithy.Member{Name: "PassthroughBehavior", Index: 12, JSONName: "passthroughBehavior"}
+var memberGetIntegrationOutput_PassthroughBehavior = smithy.Member{Name: "PassthroughBehavior", Index: 12, Target: &schemaPassthroughBehavior, JSONName: "passthroughBehavior"}
 
-var memberGetIntegrationOutput_PayloadFormatVersion = smithy.Member{Name: "PayloadFormatVersion", Index: 13, JSONName: "payloadFormatVersion"}
+var memberGetIntegrationOutput_PayloadFormatVersion = smithy.Member{Name: "PayloadFormatVersion", Index: 13, Target: &schemaStringWithLengthBetween1And64, JSONName: "payloadFormatVersion"}
 
-var memberGetIntegrationOutput_RequestParameters = smithy.Member{Name: "RequestParameters", Index: 14, JSONName: "requestParameters"}
+var memberGetIntegrationOutput_RequestParameters = smithy.Member{Name: "RequestParameters", Index: 14, Target: &schemaIntegrationParameters, JSONName: "requestParameters"}
 
-var memberGetIntegrationOutput_RequestTemplates = smithy.Member{Name: "RequestTemplates", Index: 15, JSONName: "requestTemplates"}
+var memberGetIntegrationOutput_RequestTemplates = smithy.Member{Name: "RequestTemplates", Index: 15, Target: &schemaTemplateMap, JSONName: "requestTemplates"}
 
-var memberGetIntegrationOutput_ResponseParameters = smithy.Member{Name: "ResponseParameters", Index: 16, JSONName: "responseParameters"}
+var memberGetIntegrationOutput_ResponseParameters = smithy.Member{Name: "ResponseParameters", Index: 16, Target: &schemaResponseParameters, JSONName: "responseParameters"}
 
-var memberGetIntegrationOutput_TemplateSelectionExpression = smithy.Member{Name: "TemplateSelectionExpression", Index: 17, JSONName: "templateSelectionExpression"}
+var memberGetIntegrationOutput_TemplateSelectionExpression = smithy.Member{Name: "TemplateSelectionExpression", Index: 17, Target: &schemaSelectionExpression, JSONName: "templateSelectionExpression"}
 
-var memberGetIntegrationOutput_TimeoutInMillis = smithy.Member{Name: "TimeoutInMillis", Index: 18, JSONName: "timeoutInMillis"}
+var memberGetIntegrationOutput_TimeoutInMillis = smithy.Member{Name: "TimeoutInMillis", Index: 18, Target: &schemaIntegerWithLengthBetween50And30000, JSONName: "timeoutInMillis"}
 
-var memberGetIntegrationOutput_TlsConfig = smithy.Member{Name: "TlsConfig", Index: 19, JSONName: "tlsConfig"}
+var memberGetIntegrationOutput_TlsConfig = smithy.Member{Name: "TlsConfig", Index: 19, Target: &schemaTlsConfig, JSONName: "tlsConfig"}
 
-var schemaGetIntegrationResponseInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetIntegrationResponseRequest", Type: smithy.TypeStructure}
+var schemaGetIntegrationResponseInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetIntegrationResponseRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetIntegrationResponseInput_ApiId, &memberGetIntegrationResponseInput_IntegrationId, &memberGetIntegrationResponseInput_IntegrationResponseId}}
 
-var memberGetIntegrationResponseInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberGetIntegrationResponseInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberGetIntegrationResponseInput_IntegrationId = smithy.Member{Name: "IntegrationId", Index: 1, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberGetIntegrationResponseInput_IntegrationId = smithy.Member{Name: "IntegrationId", Index: 1, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberGetIntegrationResponseInput_IntegrationResponseId = smithy.Member{Name: "IntegrationResponseId", Index: 2, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberGetIntegrationResponseInput_IntegrationResponseId = smithy.Member{Name: "IntegrationResponseId", Index: 2, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaGetIntegrationResponseOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetIntegrationResponseResponse", Type: smithy.TypeStructure}
+var schemaGetIntegrationResponseOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetIntegrationResponseResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetIntegrationResponseOutput_ContentHandlingStrategy, &memberGetIntegrationResponseOutput_IntegrationResponseId, &memberGetIntegrationResponseOutput_IntegrationResponseKey, &memberGetIntegrationResponseOutput_ResponseParameters, &memberGetIntegrationResponseOutput_ResponseTemplates, &memberGetIntegrationResponseOutput_TemplateSelectionExpression}}
 
-var memberGetIntegrationResponseOutput_ContentHandlingStrategy = smithy.Member{Name: "ContentHandlingStrategy", Index: 0, JSONName: "contentHandlingStrategy"}
+var memberGetIntegrationResponseOutput_ContentHandlingStrategy = smithy.Member{Name: "ContentHandlingStrategy", Index: 0, Target: &schemaContentHandlingStrategy, JSONName: "contentHandlingStrategy"}
 
-var memberGetIntegrationResponseOutput_IntegrationResponseId = smithy.Member{Name: "IntegrationResponseId", Index: 1, JSONName: "integrationResponseId"}
+var memberGetIntegrationResponseOutput_IntegrationResponseId = smithy.Member{Name: "IntegrationResponseId", Index: 1, Target: &schemaId, JSONName: "integrationResponseId"}
 
-var memberGetIntegrationResponseOutput_IntegrationResponseKey = smithy.Member{Name: "IntegrationResponseKey", Index: 2, JSONName: "integrationResponseKey"}
+var memberGetIntegrationResponseOutput_IntegrationResponseKey = smithy.Member{Name: "IntegrationResponseKey", Index: 2, Target: &schemaSelectionKey, JSONName: "integrationResponseKey"}
 
-var memberGetIntegrationResponseOutput_ResponseParameters = smithy.Member{Name: "ResponseParameters", Index: 3, JSONName: "responseParameters"}
+var memberGetIntegrationResponseOutput_ResponseParameters = smithy.Member{Name: "ResponseParameters", Index: 3, Target: &schemaIntegrationParameters, JSONName: "responseParameters"}
 
-var memberGetIntegrationResponseOutput_ResponseTemplates = smithy.Member{Name: "ResponseTemplates", Index: 4, JSONName: "responseTemplates"}
+var memberGetIntegrationResponseOutput_ResponseTemplates = smithy.Member{Name: "ResponseTemplates", Index: 4, Target: &schemaTemplateMap, JSONName: "responseTemplates"}
 
-var memberGetIntegrationResponseOutput_TemplateSelectionExpression = smithy.Member{Name: "TemplateSelectionExpression", Index: 5, JSONName: "templateSelectionExpression"}
+var memberGetIntegrationResponseOutput_TemplateSelectionExpression = smithy.Member{Name: "TemplateSelectionExpression", Index: 5, Target: &schemaSelectionExpression, JSONName: "templateSelectionExpression"}
 
-var schemaGetIntegrationResponsesInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetIntegrationResponsesRequest", Type: smithy.TypeStructure}
+var schemaGetIntegrationResponsesInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetIntegrationResponsesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetIntegrationResponsesInput_ApiId, &memberGetIntegrationResponsesInput_IntegrationId, &memberGetIntegrationResponsesInput_MaxResults, &memberGetIntegrationResponsesInput_NextToken}}
 
-var memberGetIntegrationResponsesInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberGetIntegrationResponsesInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberGetIntegrationResponsesInput_IntegrationId = smithy.Member{Name: "IntegrationId", Index: 1, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberGetIntegrationResponsesInput_IntegrationId = smithy.Member{Name: "IntegrationId", Index: 1, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberGetIntegrationResponsesInput_MaxResults = smithy.Member{Name: "MaxResults", Index: 2, HTTP: smithy.HTTPQuery{Name: "maxResults"}}
+var memberGetIntegrationResponsesInput_MaxResults = smithy.Member{Name: "MaxResults", Index: 2, Target: &schema__string, HTTP: smithy.HTTPQuery{Name: "maxResults"}}
 
-var memberGetIntegrationResponsesInput_NextToken = smithy.Member{Name: "NextToken", Index: 3, HTTP: smithy.HTTPQuery{Name: "nextToken"}}
+var memberGetIntegrationResponsesInput_NextToken = smithy.Member{Name: "NextToken", Index: 3, Target: &schema__string, HTTP: smithy.HTTPQuery{Name: "nextToken"}}
 
-var schemaGetIntegrationResponsesOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetIntegrationResponsesResponse", Type: smithy.TypeStructure}
+var schemaGetIntegrationResponsesOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetIntegrationResponsesResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetIntegrationResponsesOutput_Items, &memberGetIntegrationResponsesOutput_NextToken}}
 
-var memberGetIntegrationResponsesOutput_Items = smithy.Member{Name: "Items", Index: 0, JSONName: "items"}
+var memberGetIntegrationResponsesOutput_Items = smithy.Member{Name: "Items", Index: 0, Target: &schema__listOfIntegrationResponse, JSONName: "items"}
 
-var memberGetIntegrationResponsesOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, JSONName: "nextToken"}
+var memberGetIntegrationResponsesOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schemaNextToken, JSONName: "nextToken"}
 
-var schemaGetIntegrationsInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetIntegrationsRequest", Type: smithy.TypeStructure}
+var schemaGetIntegrationsInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetIntegrationsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetIntegrationsInput_ApiId, &memberGetIntegrationsInput_MaxResults, &memberGetIntegrationsInput_NextToken}}
 
-var memberGetIntegrationsInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberGetIntegrationsInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberGetIntegrationsInput_MaxResults = smithy.Member{Name: "MaxResults", Index: 1, HTTP: smithy.HTTPQuery{Name: "maxResults"}}
+var memberGetIntegrationsInput_MaxResults = smithy.Member{Name: "MaxResults", Index: 1, Target: &schema__string, HTTP: smithy.HTTPQuery{Name: "maxResults"}}
 
-var memberGetIntegrationsInput_NextToken = smithy.Member{Name: "NextToken", Index: 2, HTTP: smithy.HTTPQuery{Name: "nextToken"}}
+var memberGetIntegrationsInput_NextToken = smithy.Member{Name: "NextToken", Index: 2, Target: &schema__string, HTTP: smithy.HTTPQuery{Name: "nextToken"}}
 
-var schemaGetIntegrationsOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetIntegrationsResponse", Type: smithy.TypeStructure}
+var schemaGetIntegrationsOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetIntegrationsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetIntegrationsOutput_Items, &memberGetIntegrationsOutput_NextToken}}
 
-var memberGetIntegrationsOutput_Items = smithy.Member{Name: "Items", Index: 0, JSONName: "items"}
+var memberGetIntegrationsOutput_Items = smithy.Member{Name: "Items", Index: 0, Target: &schema__listOfIntegration, JSONName: "items"}
 
-var memberGetIntegrationsOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, JSONName: "nextToken"}
+var memberGetIntegrationsOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schemaNextToken, JSONName: "nextToken"}
 
-var schemaGetModelInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetModelRequest", Type: smithy.TypeStructure}
+var schemaGetModelInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetModelRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetModelInput_ApiId, &memberGetModelInput_ModelId}}
 
-var memberGetModelInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberGetModelInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberGetModelInput_ModelId = smithy.Member{Name: "ModelId", Index: 1, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberGetModelInput_ModelId = smithy.Member{Name: "ModelId", Index: 1, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaGetModelOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetModelResponse", Type: smithy.TypeStructure}
+var schemaGetModelOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetModelResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetModelOutput_ContentType, &memberGetModelOutput_Description, &memberGetModelOutput_ModelId, &memberGetModelOutput_Name, &memberGetModelOutput_Schema}}
 
-var memberGetModelOutput_ContentType = smithy.Member{Name: "ContentType", Index: 0, JSONName: "contentType"}
+var memberGetModelOutput_ContentType = smithy.Member{Name: "ContentType", Index: 0, Target: &schemaStringWithLengthBetween1And256, JSONName: "contentType"}
 
-var memberGetModelOutput_Description = smithy.Member{Name: "Description", Index: 1, JSONName: "description"}
+var memberGetModelOutput_Description = smithy.Member{Name: "Description", Index: 1, Target: &schemaStringWithLengthBetween0And1024, JSONName: "description"}
 
-var memberGetModelOutput_ModelId = smithy.Member{Name: "ModelId", Index: 2, JSONName: "modelId"}
+var memberGetModelOutput_ModelId = smithy.Member{Name: "ModelId", Index: 2, Target: &schemaId, JSONName: "modelId"}
 
-var memberGetModelOutput_Name = smithy.Member{Name: "Name", Index: 3, JSONName: "name"}
+var memberGetModelOutput_Name = smithy.Member{Name: "Name", Index: 3, Target: &schemaStringWithLengthBetween1And128, JSONName: "name"}
 
-var memberGetModelOutput_Schema = smithy.Member{Name: "Schema", Index: 4, JSONName: "schema"}
+var memberGetModelOutput_Schema = smithy.Member{Name: "Schema", Index: 4, Target: &schemaStringWithLengthBetween0And32K, JSONName: "schema"}
 
-var schemaGetModelTemplateInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetModelTemplateRequest", Type: smithy.TypeStructure}
+var schemaGetModelTemplateInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetModelTemplateRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetModelTemplateInput_ApiId, &memberGetModelTemplateInput_ModelId}}
 
-var memberGetModelTemplateInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberGetModelTemplateInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberGetModelTemplateInput_ModelId = smithy.Member{Name: "ModelId", Index: 1, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberGetModelTemplateInput_ModelId = smithy.Member{Name: "ModelId", Index: 1, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaGetModelTemplateOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetModelTemplateResponse", Type: smithy.TypeStructure}
+var schemaGetModelTemplateOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetModelTemplateResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetModelTemplateOutput_Value}}
 
-var memberGetModelTemplateOutput_Value = smithy.Member{Name: "Value", Index: 0, JSONName: "value"}
+var memberGetModelTemplateOutput_Value = smithy.Member{Name: "Value", Index: 0, Target: &schema__string, JSONName: "value"}
 
-var schemaGetModelsInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetModelsRequest", Type: smithy.TypeStructure}
+var schemaGetModelsInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetModelsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetModelsInput_ApiId, &memberGetModelsInput_MaxResults, &memberGetModelsInput_NextToken}}
 
-var memberGetModelsInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberGetModelsInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberGetModelsInput_MaxResults = smithy.Member{Name: "MaxResults", Index: 1, HTTP: smithy.HTTPQuery{Name: "maxResults"}}
+var memberGetModelsInput_MaxResults = smithy.Member{Name: "MaxResults", Index: 1, Target: &schema__string, HTTP: smithy.HTTPQuery{Name: "maxResults"}}
 
-var memberGetModelsInput_NextToken = smithy.Member{Name: "NextToken", Index: 2, HTTP: smithy.HTTPQuery{Name: "nextToken"}}
+var memberGetModelsInput_NextToken = smithy.Member{Name: "NextToken", Index: 2, Target: &schema__string, HTTP: smithy.HTTPQuery{Name: "nextToken"}}
 
-var schemaGetModelsOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetModelsResponse", Type: smithy.TypeStructure}
+var schemaGetModelsOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetModelsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetModelsOutput_Items, &memberGetModelsOutput_NextToken}}
 
-var memberGetModelsOutput_Items = smithy.Member{Name: "Items", Index: 0, JSONName: "items"}
+var memberGetModelsOutput_Items = smithy.Member{Name: "Items", Index: 0, Target: &schema__listOfModel, JSONName: "items"}
 
-var memberGetModelsOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, JSONName: "nextToken"}
+var memberGetModelsOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schemaNextToken, JSONName: "nextToken"}
 
-var schemaGetPortalInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetPortalRequest", Type: smithy.TypeStructure}
+var schemaGetPortalInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetPortalRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetPortalInput_PortalId}}
 
-var memberGetPortalInput_PortalId = smithy.Member{Name: "PortalId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberGetPortalInput_PortalId = smithy.Member{Name: "PortalId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaGetPortalOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetPortalResponse", Type: smithy.TypeStructure}
+var schemaGetPortalOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetPortalResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetPortalOutput_Authorization, &memberGetPortalOutput_EndpointConfiguration, &memberGetPortalOutput_IncludedPortalProductArns, &memberGetPortalOutput_LastModified, &memberGetPortalOutput_LastPublished, &memberGetPortalOutput_LastPublishedDescription, &memberGetPortalOutput_PortalArn, &memberGetPortalOutput_PortalContent, &memberGetPortalOutput_PortalId, &memberGetPortalOutput_Preview, &memberGetPortalOutput_PublishStatus, &memberGetPortalOutput_RumAppMonitorName, &memberGetPortalOutput_StatusException, &memberGetPortalOutput_Tags}}
 
-var memberGetPortalOutput_Authorization = smithy.Member{Name: "Authorization", Index: 0, JSONName: "authorization"}
+var memberGetPortalOutput_Authorization = smithy.Member{Name: "Authorization", Index: 0, Target: &schemaAuthorization, JSONName: "authorization"}
 
-var memberGetPortalOutput_EndpointConfiguration = smithy.Member{Name: "EndpointConfiguration", Index: 1, JSONName: "endpointConfiguration"}
+var memberGetPortalOutput_EndpointConfiguration = smithy.Member{Name: "EndpointConfiguration", Index: 1, Target: &schemaEndpointConfigurationResponse, JSONName: "endpointConfiguration"}
 
-var memberGetPortalOutput_IncludedPortalProductArns = smithy.Member{Name: "IncludedPortalProductArns", Index: 2, JSONName: "includedPortalProductArns"}
+var memberGetPortalOutput_IncludedPortalProductArns = smithy.Member{Name: "IncludedPortalProductArns", Index: 2, Target: &schema__listOf__stringMin20Max2048, JSONName: "includedPortalProductArns"}
 
-var memberGetPortalOutput_LastModified = smithy.Member{Name: "LastModified", Index: 3, JSONName: "lastModified", TimestampFormat: smithy.DateTime}
+var memberGetPortalOutput_LastModified = smithy.Member{Name: "LastModified", Index: 3, Target: &schema__timestampIso8601, JSONName: "lastModified", TimestampFormat: smithy.DateTime}
 
-var memberGetPortalOutput_LastPublished = smithy.Member{Name: "LastPublished", Index: 4, JSONName: "lastPublished", TimestampFormat: smithy.DateTime}
+var memberGetPortalOutput_LastPublished = smithy.Member{Name: "LastPublished", Index: 4, Target: &schema__timestampIso8601, JSONName: "lastPublished", TimestampFormat: smithy.DateTime}
 
-var memberGetPortalOutput_LastPublishedDescription = smithy.Member{Name: "LastPublishedDescription", Index: 5, JSONName: "lastPublishedDescription"}
+var memberGetPortalOutput_LastPublishedDescription = smithy.Member{Name: "LastPublishedDescription", Index: 5, Target: &schema__stringMin0Max1024, JSONName: "lastPublishedDescription"}
 
-var memberGetPortalOutput_PortalArn = smithy.Member{Name: "PortalArn", Index: 6, JSONName: "portalArn"}
+var memberGetPortalOutput_PortalArn = smithy.Member{Name: "PortalArn", Index: 6, Target: &schema__stringMin20Max2048, JSONName: "portalArn"}
 
-var memberGetPortalOutput_PortalContent = smithy.Member{Name: "PortalContent", Index: 7, JSONName: "portalContent"}
+var memberGetPortalOutput_PortalContent = smithy.Member{Name: "PortalContent", Index: 7, Target: &schemaPortalContent, JSONName: "portalContent"}
 
-var memberGetPortalOutput_PortalId = smithy.Member{Name: "PortalId", Index: 8, JSONName: "portalId"}
+var memberGetPortalOutput_PortalId = smithy.Member{Name: "PortalId", Index: 8, Target: &schema__stringMin10Max30PatternAZ09, JSONName: "portalId"}
 
-var memberGetPortalOutput_Preview = smithy.Member{Name: "Preview", Index: 9, JSONName: "preview"}
+var memberGetPortalOutput_Preview = smithy.Member{Name: "Preview", Index: 9, Target: &schemaPreview, JSONName: "preview"}
 
-var memberGetPortalOutput_PublishStatus = smithy.Member{Name: "PublishStatus", Index: 10, JSONName: "publishStatus"}
+var memberGetPortalOutput_PublishStatus = smithy.Member{Name: "PublishStatus", Index: 10, Target: &schemaPublishStatus, JSONName: "publishStatus"}
 
-var memberGetPortalOutput_RumAppMonitorName = smithy.Member{Name: "RumAppMonitorName", Index: 11, JSONName: "rumAppMonitorName"}
+var memberGetPortalOutput_RumAppMonitorName = smithy.Member{Name: "RumAppMonitorName", Index: 11, Target: &schema__stringMin0Max255, JSONName: "rumAppMonitorName"}
 
-var memberGetPortalOutput_StatusException = smithy.Member{Name: "StatusException", Index: 12, JSONName: "statusException"}
+var memberGetPortalOutput_StatusException = smithy.Member{Name: "StatusException", Index: 12, Target: &schemaStatusException, JSONName: "statusException"}
 
-var memberGetPortalOutput_Tags = smithy.Member{Name: "Tags", Index: 13, JSONName: "tags"}
+var memberGetPortalOutput_Tags = smithy.Member{Name: "Tags", Index: 13, Target: &schemaTags, JSONName: "tags"}
 
-var schemaGetPortalProductInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetPortalProductRequest", Type: smithy.TypeStructure}
+var schemaGetPortalProductInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetPortalProductRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetPortalProductInput_PortalProductId, &memberGetPortalProductInput_ResourceOwnerAccountId}}
 
-var memberGetPortalProductInput_PortalProductId = smithy.Member{Name: "PortalProductId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberGetPortalProductInput_PortalProductId = smithy.Member{Name: "PortalProductId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberGetPortalProductInput_ResourceOwnerAccountId = smithy.Member{Name: "ResourceOwnerAccountId", Index: 1, HTTP: smithy.HTTPQuery{Name: "resourceOwnerAccountId"}}
+var memberGetPortalProductInput_ResourceOwnerAccountId = smithy.Member{Name: "ResourceOwnerAccountId", Index: 1, Target: &schema__string, HTTP: smithy.HTTPQuery{Name: "resourceOwnerAccountId"}}
 
-var schemaGetPortalProductOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetPortalProductResponse", Type: smithy.TypeStructure}
+var schemaGetPortalProductOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetPortalProductResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetPortalProductOutput_Description, &memberGetPortalProductOutput_DisplayName, &memberGetPortalProductOutput_DisplayOrder, &memberGetPortalProductOutput_LastModified, &memberGetPortalProductOutput_PortalProductArn, &memberGetPortalProductOutput_PortalProductId, &memberGetPortalProductOutput_Tags}}
 
-var memberGetPortalProductOutput_Description = smithy.Member{Name: "Description", Index: 0, JSONName: "description"}
+var memberGetPortalProductOutput_Description = smithy.Member{Name: "Description", Index: 0, Target: &schema__stringMin0Max1024, JSONName: "description"}
 
-var memberGetPortalProductOutput_DisplayName = smithy.Member{Name: "DisplayName", Index: 1, JSONName: "displayName"}
+var memberGetPortalProductOutput_DisplayName = smithy.Member{Name: "DisplayName", Index: 1, Target: &schema__stringMin1Max255, JSONName: "displayName"}
 
-var memberGetPortalProductOutput_DisplayOrder = smithy.Member{Name: "DisplayOrder", Index: 2, JSONName: "displayOrder"}
+var memberGetPortalProductOutput_DisplayOrder = smithy.Member{Name: "DisplayOrder", Index: 2, Target: &schemaDisplayOrder, JSONName: "displayOrder"}
 
-var memberGetPortalProductOutput_LastModified = smithy.Member{Name: "LastModified", Index: 3, JSONName: "lastModified", TimestampFormat: smithy.DateTime}
+var memberGetPortalProductOutput_LastModified = smithy.Member{Name: "LastModified", Index: 3, Target: &schema__timestampIso8601, JSONName: "lastModified", TimestampFormat: smithy.DateTime}
 
-var memberGetPortalProductOutput_PortalProductArn = smithy.Member{Name: "PortalProductArn", Index: 4, JSONName: "portalProductArn"}
+var memberGetPortalProductOutput_PortalProductArn = smithy.Member{Name: "PortalProductArn", Index: 4, Target: &schema__stringMin20Max2048, JSONName: "portalProductArn"}
 
-var memberGetPortalProductOutput_PortalProductId = smithy.Member{Name: "PortalProductId", Index: 5, JSONName: "portalProductId"}
+var memberGetPortalProductOutput_PortalProductId = smithy.Member{Name: "PortalProductId", Index: 5, Target: &schema__stringMin10Max30PatternAZ09, JSONName: "portalProductId"}
 
-var memberGetPortalProductOutput_Tags = smithy.Member{Name: "Tags", Index: 6, JSONName: "tags"}
+var memberGetPortalProductOutput_Tags = smithy.Member{Name: "Tags", Index: 6, Target: &schemaTags, JSONName: "tags"}
 
-var schemaGetPortalProductSharingPolicyInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetPortalProductSharingPolicyRequest", Type: smithy.TypeStructure}
+var schemaGetPortalProductSharingPolicyInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetPortalProductSharingPolicyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetPortalProductSharingPolicyInput_PortalProductId}}
 
-var memberGetPortalProductSharingPolicyInput_PortalProductId = smithy.Member{Name: "PortalProductId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberGetPortalProductSharingPolicyInput_PortalProductId = smithy.Member{Name: "PortalProductId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaGetPortalProductSharingPolicyOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetPortalProductSharingPolicyResponse", Type: smithy.TypeStructure}
+var schemaGetPortalProductSharingPolicyOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetPortalProductSharingPolicyResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetPortalProductSharingPolicyOutput_PolicyDocument, &memberGetPortalProductSharingPolicyOutput_PortalProductId}}
 
-var memberGetPortalProductSharingPolicyOutput_PolicyDocument = smithy.Member{Name: "PolicyDocument", Index: 0, JSONName: "policyDocument"}
+var memberGetPortalProductSharingPolicyOutput_PolicyDocument = smithy.Member{Name: "PolicyDocument", Index: 0, Target: &schema__stringMin1Max307200, JSONName: "policyDocument"}
 
-var memberGetPortalProductSharingPolicyOutput_PortalProductId = smithy.Member{Name: "PortalProductId", Index: 1, JSONName: "portalProductId"}
+var memberGetPortalProductSharingPolicyOutput_PortalProductId = smithy.Member{Name: "PortalProductId", Index: 1, Target: &schema__stringMin10Max30PatternAZ09, JSONName: "portalProductId"}
 
-var schemaGetProductPageInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetProductPageRequest", Type: smithy.TypeStructure}
+var schemaGetProductPageInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetProductPageRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetProductPageInput_PortalProductId, &memberGetProductPageInput_ProductPageId, &memberGetProductPageInput_ResourceOwnerAccountId}}
 
-var memberGetProductPageInput_PortalProductId = smithy.Member{Name: "PortalProductId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberGetProductPageInput_PortalProductId = smithy.Member{Name: "PortalProductId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberGetProductPageInput_ProductPageId = smithy.Member{Name: "ProductPageId", Index: 1, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberGetProductPageInput_ProductPageId = smithy.Member{Name: "ProductPageId", Index: 1, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberGetProductPageInput_ResourceOwnerAccountId = smithy.Member{Name: "ResourceOwnerAccountId", Index: 2, HTTP: smithy.HTTPQuery{Name: "resourceOwnerAccountId"}}
+var memberGetProductPageInput_ResourceOwnerAccountId = smithy.Member{Name: "ResourceOwnerAccountId", Index: 2, Target: &schema__string, HTTP: smithy.HTTPQuery{Name: "resourceOwnerAccountId"}}
 
-var schemaGetProductPageOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetProductPageResponse", Type: smithy.TypeStructure}
+var schemaGetProductPageOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetProductPageResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetProductPageOutput_DisplayContent, &memberGetProductPageOutput_LastModified, &memberGetProductPageOutput_ProductPageArn, &memberGetProductPageOutput_ProductPageId}}
 
-var memberGetProductPageOutput_DisplayContent = smithy.Member{Name: "DisplayContent", Index: 0, JSONName: "displayContent"}
+var memberGetProductPageOutput_DisplayContent = smithy.Member{Name: "DisplayContent", Index: 0, Target: &schemaDisplayContent, JSONName: "displayContent"}
 
-var memberGetProductPageOutput_LastModified = smithy.Member{Name: "LastModified", Index: 1, JSONName: "lastModified", TimestampFormat: smithy.DateTime}
+var memberGetProductPageOutput_LastModified = smithy.Member{Name: "LastModified", Index: 1, Target: &schema__timestampIso8601, JSONName: "lastModified", TimestampFormat: smithy.DateTime}
 
-var memberGetProductPageOutput_ProductPageArn = smithy.Member{Name: "ProductPageArn", Index: 2, JSONName: "productPageArn"}
+var memberGetProductPageOutput_ProductPageArn = smithy.Member{Name: "ProductPageArn", Index: 2, Target: &schema__stringMin20Max2048, JSONName: "productPageArn"}
 
-var memberGetProductPageOutput_ProductPageId = smithy.Member{Name: "ProductPageId", Index: 3, JSONName: "productPageId"}
+var memberGetProductPageOutput_ProductPageId = smithy.Member{Name: "ProductPageId", Index: 3, Target: &schema__stringMin10Max30PatternAZ09, JSONName: "productPageId"}
 
-var schemaGetProductRestEndpointPageInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetProductRestEndpointPageRequest", Type: smithy.TypeStructure}
+var schemaGetProductRestEndpointPageInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetProductRestEndpointPageRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetProductRestEndpointPageInput_IncludeRawDisplayContent, &memberGetProductRestEndpointPageInput_PortalProductId, &memberGetProductRestEndpointPageInput_ProductRestEndpointPageId, &memberGetProductRestEndpointPageInput_ResourceOwnerAccountId}}
 
-var memberGetProductRestEndpointPageInput_IncludeRawDisplayContent = smithy.Member{Name: "IncludeRawDisplayContent", Index: 0, HTTP: smithy.HTTPQuery{Name: "includeRawDisplayContent"}}
+var memberGetProductRestEndpointPageInput_IncludeRawDisplayContent = smithy.Member{Name: "IncludeRawDisplayContent", Index: 0, Target: &schema__string, HTTP: smithy.HTTPQuery{Name: "includeRawDisplayContent"}}
 
-var memberGetProductRestEndpointPageInput_PortalProductId = smithy.Member{Name: "PortalProductId", Index: 1, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberGetProductRestEndpointPageInput_PortalProductId = smithy.Member{Name: "PortalProductId", Index: 1, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberGetProductRestEndpointPageInput_ProductRestEndpointPageId = smithy.Member{Name: "ProductRestEndpointPageId", Index: 2, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberGetProductRestEndpointPageInput_ProductRestEndpointPageId = smithy.Member{Name: "ProductRestEndpointPageId", Index: 2, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberGetProductRestEndpointPageInput_ResourceOwnerAccountId = smithy.Member{Name: "ResourceOwnerAccountId", Index: 3, HTTP: smithy.HTTPQuery{Name: "resourceOwnerAccountId"}}
+var memberGetProductRestEndpointPageInput_ResourceOwnerAccountId = smithy.Member{Name: "ResourceOwnerAccountId", Index: 3, Target: &schema__string, HTTP: smithy.HTTPQuery{Name: "resourceOwnerAccountId"}}
 
-var schemaGetProductRestEndpointPageOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetProductRestEndpointPageResponse", Type: smithy.TypeStructure}
+var schemaGetProductRestEndpointPageOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetProductRestEndpointPageResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetProductRestEndpointPageOutput_DisplayContent, &memberGetProductRestEndpointPageOutput_LastModified, &memberGetProductRestEndpointPageOutput_ProductRestEndpointPageArn, &memberGetProductRestEndpointPageOutput_ProductRestEndpointPageId, &memberGetProductRestEndpointPageOutput_RawDisplayContent, &memberGetProductRestEndpointPageOutput_RestEndpointIdentifier, &memberGetProductRestEndpointPageOutput_Status, &memberGetProductRestEndpointPageOutput_StatusException, &memberGetProductRestEndpointPageOutput_TryItState}}
 
-var memberGetProductRestEndpointPageOutput_DisplayContent = smithy.Member{Name: "DisplayContent", Index: 0, JSONName: "displayContent"}
+var memberGetProductRestEndpointPageOutput_DisplayContent = smithy.Member{Name: "DisplayContent", Index: 0, Target: &schemaEndpointDisplayContentResponse, JSONName: "displayContent"}
 
-var memberGetProductRestEndpointPageOutput_LastModified = smithy.Member{Name: "LastModified", Index: 1, JSONName: "lastModified", TimestampFormat: smithy.DateTime}
+var memberGetProductRestEndpointPageOutput_LastModified = smithy.Member{Name: "LastModified", Index: 1, Target: &schema__timestampIso8601, JSONName: "lastModified", TimestampFormat: smithy.DateTime}
 
-var memberGetProductRestEndpointPageOutput_ProductRestEndpointPageArn = smithy.Member{Name: "ProductRestEndpointPageArn", Index: 2, JSONName: "productRestEndpointPageArn"}
+var memberGetProductRestEndpointPageOutput_ProductRestEndpointPageArn = smithy.Member{Name: "ProductRestEndpointPageArn", Index: 2, Target: &schema__stringMin20Max2048, JSONName: "productRestEndpointPageArn"}
 
-var memberGetProductRestEndpointPageOutput_ProductRestEndpointPageId = smithy.Member{Name: "ProductRestEndpointPageId", Index: 3, JSONName: "productRestEndpointPageId"}
+var memberGetProductRestEndpointPageOutput_ProductRestEndpointPageId = smithy.Member{Name: "ProductRestEndpointPageId", Index: 3, Target: &schema__stringMin10Max30PatternAZ09, JSONName: "productRestEndpointPageId"}
 
-var memberGetProductRestEndpointPageOutput_RawDisplayContent = smithy.Member{Name: "RawDisplayContent", Index: 4, JSONName: "rawDisplayContent"}
+var memberGetProductRestEndpointPageOutput_RawDisplayContent = smithy.Member{Name: "RawDisplayContent", Index: 4, Target: &schema__string, JSONName: "rawDisplayContent"}
 
-var memberGetProductRestEndpointPageOutput_RestEndpointIdentifier = smithy.Member{Name: "RestEndpointIdentifier", Index: 5, JSONName: "restEndpointIdentifier"}
+var memberGetProductRestEndpointPageOutput_RestEndpointIdentifier = smithy.Member{Name: "RestEndpointIdentifier", Index: 5, Target: &schemaRestEndpointIdentifier, JSONName: "restEndpointIdentifier"}
 
-var memberGetProductRestEndpointPageOutput_Status = smithy.Member{Name: "Status", Index: 6, JSONName: "status"}
+var memberGetProductRestEndpointPageOutput_Status = smithy.Member{Name: "Status", Index: 6, Target: &schemaStatus, JSONName: "status"}
 
-var memberGetProductRestEndpointPageOutput_StatusException = smithy.Member{Name: "StatusException", Index: 7, JSONName: "statusException"}
+var memberGetProductRestEndpointPageOutput_StatusException = smithy.Member{Name: "StatusException", Index: 7, Target: &schemaStatusException, JSONName: "statusException"}
 
-var memberGetProductRestEndpointPageOutput_TryItState = smithy.Member{Name: "TryItState", Index: 8, JSONName: "tryItState"}
+var memberGetProductRestEndpointPageOutput_TryItState = smithy.Member{Name: "TryItState", Index: 8, Target: &schemaTryItState, JSONName: "tryItState"}
 
-var schemaGetRouteInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetRouteRequest", Type: smithy.TypeStructure}
+var schemaGetRouteInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetRouteRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetRouteInput_ApiId, &memberGetRouteInput_RouteId}}
 
-var memberGetRouteInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberGetRouteInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberGetRouteInput_RouteId = smithy.Member{Name: "RouteId", Index: 1, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberGetRouteInput_RouteId = smithy.Member{Name: "RouteId", Index: 1, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaGetRouteOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetRouteResult", Type: smithy.TypeStructure}
+var schemaGetRouteOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetRouteResult", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetRouteOutput_ApiGatewayManaged, &memberGetRouteOutput_ApiKeyRequired, &memberGetRouteOutput_AuthorizationScopes, &memberGetRouteOutput_AuthorizationType, &memberGetRouteOutput_AuthorizerId, &memberGetRouteOutput_ModelSelectionExpression, &memberGetRouteOutput_OperationName, &memberGetRouteOutput_RequestModels, &memberGetRouteOutput_RequestParameters, &memberGetRouteOutput_RouteId, &memberGetRouteOutput_RouteKey, &memberGetRouteOutput_RouteResponseSelectionExpression, &memberGetRouteOutput_Target}}
 
-var memberGetRouteOutput_ApiGatewayManaged = smithy.Member{Name: "ApiGatewayManaged", Index: 0, JSONName: "apiGatewayManaged"}
+var memberGetRouteOutput_ApiGatewayManaged = smithy.Member{Name: "ApiGatewayManaged", Index: 0, Target: &schema__boolean, JSONName: "apiGatewayManaged"}
 
-var memberGetRouteOutput_ApiKeyRequired = smithy.Member{Name: "ApiKeyRequired", Index: 1, JSONName: "apiKeyRequired"}
+var memberGetRouteOutput_ApiKeyRequired = smithy.Member{Name: "ApiKeyRequired", Index: 1, Target: &schema__boolean, JSONName: "apiKeyRequired"}
 
-var memberGetRouteOutput_AuthorizationScopes = smithy.Member{Name: "AuthorizationScopes", Index: 2, JSONName: "authorizationScopes"}
+var memberGetRouteOutput_AuthorizationScopes = smithy.Member{Name: "AuthorizationScopes", Index: 2, Target: &schemaAuthorizationScopes, JSONName: "authorizationScopes"}
 
-var memberGetRouteOutput_AuthorizationType = smithy.Member{Name: "AuthorizationType", Index: 3, JSONName: "authorizationType"}
+var memberGetRouteOutput_AuthorizationType = smithy.Member{Name: "AuthorizationType", Index: 3, Target: &schemaAuthorizationType, JSONName: "authorizationType"}
 
-var memberGetRouteOutput_AuthorizerId = smithy.Member{Name: "AuthorizerId", Index: 4, JSONName: "authorizerId"}
+var memberGetRouteOutput_AuthorizerId = smithy.Member{Name: "AuthorizerId", Index: 4, Target: &schemaId, JSONName: "authorizerId"}
 
-var memberGetRouteOutput_ModelSelectionExpression = smithy.Member{Name: "ModelSelectionExpression", Index: 5, JSONName: "modelSelectionExpression"}
+var memberGetRouteOutput_ModelSelectionExpression = smithy.Member{Name: "ModelSelectionExpression", Index: 5, Target: &schemaSelectionExpression, JSONName: "modelSelectionExpression"}
 
-var memberGetRouteOutput_OperationName = smithy.Member{Name: "OperationName", Index: 6, JSONName: "operationName"}
+var memberGetRouteOutput_OperationName = smithy.Member{Name: "OperationName", Index: 6, Target: &schemaStringWithLengthBetween1And64, JSONName: "operationName"}
 
-var memberGetRouteOutput_RequestModels = smithy.Member{Name: "RequestModels", Index: 7, JSONName: "requestModels"}
+var memberGetRouteOutput_RequestModels = smithy.Member{Name: "RequestModels", Index: 7, Target: &schemaRouteModels, JSONName: "requestModels"}
 
-var memberGetRouteOutput_RequestParameters = smithy.Member{Name: "RequestParameters", Index: 8, JSONName: "requestParameters"}
+var memberGetRouteOutput_RequestParameters = smithy.Member{Name: "RequestParameters", Index: 8, Target: &schemaRouteParameters, JSONName: "requestParameters"}
 
-var memberGetRouteOutput_RouteId = smithy.Member{Name: "RouteId", Index: 9, JSONName: "routeId"}
+var memberGetRouteOutput_RouteId = smithy.Member{Name: "RouteId", Index: 9, Target: &schemaId, JSONName: "routeId"}
 
-var memberGetRouteOutput_RouteKey = smithy.Member{Name: "RouteKey", Index: 10, JSONName: "routeKey"}
+var memberGetRouteOutput_RouteKey = smithy.Member{Name: "RouteKey", Index: 10, Target: &schemaSelectionKey, JSONName: "routeKey"}
 
-var memberGetRouteOutput_RouteResponseSelectionExpression = smithy.Member{Name: "RouteResponseSelectionExpression", Index: 11, JSONName: "routeResponseSelectionExpression"}
+var memberGetRouteOutput_RouteResponseSelectionExpression = smithy.Member{Name: "RouteResponseSelectionExpression", Index: 11, Target: &schemaSelectionExpression, JSONName: "routeResponseSelectionExpression"}
 
-var memberGetRouteOutput_Target = smithy.Member{Name: "Target", Index: 12, JSONName: "target"}
+var memberGetRouteOutput_Target = smithy.Member{Name: "Target", Index: 12, Target: &schemaStringWithLengthBetween1And128, JSONName: "target"}
 
-var schemaGetRouteResponseInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetRouteResponseRequest", Type: smithy.TypeStructure}
+var schemaGetRouteResponseInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetRouteResponseRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetRouteResponseInput_ApiId, &memberGetRouteResponseInput_RouteId, &memberGetRouteResponseInput_RouteResponseId}}
 
-var memberGetRouteResponseInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberGetRouteResponseInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberGetRouteResponseInput_RouteId = smithy.Member{Name: "RouteId", Index: 1, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberGetRouteResponseInput_RouteId = smithy.Member{Name: "RouteId", Index: 1, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberGetRouteResponseInput_RouteResponseId = smithy.Member{Name: "RouteResponseId", Index: 2, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberGetRouteResponseInput_RouteResponseId = smithy.Member{Name: "RouteResponseId", Index: 2, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaGetRouteResponseOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetRouteResponseResponse", Type: smithy.TypeStructure}
+var schemaGetRouteResponseOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetRouteResponseResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetRouteResponseOutput_ModelSelectionExpression, &memberGetRouteResponseOutput_ResponseModels, &memberGetRouteResponseOutput_ResponseParameters, &memberGetRouteResponseOutput_RouteResponseId, &memberGetRouteResponseOutput_RouteResponseKey}}
 
-var memberGetRouteResponseOutput_ModelSelectionExpression = smithy.Member{Name: "ModelSelectionExpression", Index: 0, JSONName: "modelSelectionExpression"}
+var memberGetRouteResponseOutput_ModelSelectionExpression = smithy.Member{Name: "ModelSelectionExpression", Index: 0, Target: &schemaSelectionExpression, JSONName: "modelSelectionExpression"}
 
-var memberGetRouteResponseOutput_ResponseModels = smithy.Member{Name: "ResponseModels", Index: 1, JSONName: "responseModels"}
+var memberGetRouteResponseOutput_ResponseModels = smithy.Member{Name: "ResponseModels", Index: 1, Target: &schemaRouteModels, JSONName: "responseModels"}
 
-var memberGetRouteResponseOutput_ResponseParameters = smithy.Member{Name: "ResponseParameters", Index: 2, JSONName: "responseParameters"}
+var memberGetRouteResponseOutput_ResponseParameters = smithy.Member{Name: "ResponseParameters", Index: 2, Target: &schemaRouteParameters, JSONName: "responseParameters"}
 
-var memberGetRouteResponseOutput_RouteResponseId = smithy.Member{Name: "RouteResponseId", Index: 3, JSONName: "routeResponseId"}
+var memberGetRouteResponseOutput_RouteResponseId = smithy.Member{Name: "RouteResponseId", Index: 3, Target: &schemaId, JSONName: "routeResponseId"}
 
-var memberGetRouteResponseOutput_RouteResponseKey = smithy.Member{Name: "RouteResponseKey", Index: 4, JSONName: "routeResponseKey"}
+var memberGetRouteResponseOutput_RouteResponseKey = smithy.Member{Name: "RouteResponseKey", Index: 4, Target: &schemaSelectionKey, JSONName: "routeResponseKey"}
 
-var schemaGetRouteResponsesInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetRouteResponsesRequest", Type: smithy.TypeStructure}
+var schemaGetRouteResponsesInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetRouteResponsesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetRouteResponsesInput_ApiId, &memberGetRouteResponsesInput_MaxResults, &memberGetRouteResponsesInput_NextToken, &memberGetRouteResponsesInput_RouteId}}
 
-var memberGetRouteResponsesInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberGetRouteResponsesInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberGetRouteResponsesInput_MaxResults = smithy.Member{Name: "MaxResults", Index: 1, HTTP: smithy.HTTPQuery{Name: "maxResults"}}
+var memberGetRouteResponsesInput_MaxResults = smithy.Member{Name: "MaxResults", Index: 1, Target: &schema__string, HTTP: smithy.HTTPQuery{Name: "maxResults"}}
 
-var memberGetRouteResponsesInput_NextToken = smithy.Member{Name: "NextToken", Index: 2, HTTP: smithy.HTTPQuery{Name: "nextToken"}}
+var memberGetRouteResponsesInput_NextToken = smithy.Member{Name: "NextToken", Index: 2, Target: &schema__string, HTTP: smithy.HTTPQuery{Name: "nextToken"}}
 
-var memberGetRouteResponsesInput_RouteId = smithy.Member{Name: "RouteId", Index: 3, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberGetRouteResponsesInput_RouteId = smithy.Member{Name: "RouteId", Index: 3, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaGetRouteResponsesOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetRouteResponsesResponse", Type: smithy.TypeStructure}
+var schemaGetRouteResponsesOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetRouteResponsesResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetRouteResponsesOutput_Items, &memberGetRouteResponsesOutput_NextToken}}
 
-var memberGetRouteResponsesOutput_Items = smithy.Member{Name: "Items", Index: 0, JSONName: "items"}
+var memberGetRouteResponsesOutput_Items = smithy.Member{Name: "Items", Index: 0, Target: &schema__listOfRouteResponse, JSONName: "items"}
 
-var memberGetRouteResponsesOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, JSONName: "nextToken"}
+var memberGetRouteResponsesOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schemaNextToken, JSONName: "nextToken"}
 
-var schemaGetRoutesInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetRoutesRequest", Type: smithy.TypeStructure}
+var schemaGetRoutesInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetRoutesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetRoutesInput_ApiId, &memberGetRoutesInput_MaxResults, &memberGetRoutesInput_NextToken}}
 
-var memberGetRoutesInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberGetRoutesInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberGetRoutesInput_MaxResults = smithy.Member{Name: "MaxResults", Index: 1, HTTP: smithy.HTTPQuery{Name: "maxResults"}}
+var memberGetRoutesInput_MaxResults = smithy.Member{Name: "MaxResults", Index: 1, Target: &schema__string, HTTP: smithy.HTTPQuery{Name: "maxResults"}}
 
-var memberGetRoutesInput_NextToken = smithy.Member{Name: "NextToken", Index: 2, HTTP: smithy.HTTPQuery{Name: "nextToken"}}
+var memberGetRoutesInput_NextToken = smithy.Member{Name: "NextToken", Index: 2, Target: &schema__string, HTTP: smithy.HTTPQuery{Name: "nextToken"}}
 
-var schemaGetRoutesOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetRoutesResponse", Type: smithy.TypeStructure}
+var schemaGetRoutesOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetRoutesResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetRoutesOutput_Items, &memberGetRoutesOutput_NextToken}}
 
-var memberGetRoutesOutput_Items = smithy.Member{Name: "Items", Index: 0, JSONName: "items"}
+var memberGetRoutesOutput_Items = smithy.Member{Name: "Items", Index: 0, Target: &schema__listOfRoute, JSONName: "items"}
 
-var memberGetRoutesOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, JSONName: "nextToken"}
+var memberGetRoutesOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schemaNextToken, JSONName: "nextToken"}
 
-var schemaGetRoutingRuleInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetRoutingRuleRequest", Type: smithy.TypeStructure}
+var schemaGetRoutingRuleInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetRoutingRuleRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetRoutingRuleInput_DomainName, &memberGetRoutingRuleInput_DomainNameId, &memberGetRoutingRuleInput_RoutingRuleId}}
 
-var memberGetRoutingRuleInput_DomainName = smithy.Member{Name: "DomainName", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberGetRoutingRuleInput_DomainName = smithy.Member{Name: "DomainName", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberGetRoutingRuleInput_DomainNameId = smithy.Member{Name: "DomainNameId", Index: 1, HTTP: smithy.HTTPQuery{Name: "domainNameId"}}
+var memberGetRoutingRuleInput_DomainNameId = smithy.Member{Name: "DomainNameId", Index: 1, Target: &schema__string, HTTP: smithy.HTTPQuery{Name: "domainNameId"}}
 
-var memberGetRoutingRuleInput_RoutingRuleId = smithy.Member{Name: "RoutingRuleId", Index: 2, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberGetRoutingRuleInput_RoutingRuleId = smithy.Member{Name: "RoutingRuleId", Index: 2, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaGetRoutingRuleOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetRoutingRuleResponse", Type: smithy.TypeStructure}
+var schemaGetRoutingRuleOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetRoutingRuleResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetRoutingRuleOutput_Actions, &memberGetRoutingRuleOutput_Conditions, &memberGetRoutingRuleOutput_Priority, &memberGetRoutingRuleOutput_RoutingRuleArn, &memberGetRoutingRuleOutput_RoutingRuleId}}
 
-var memberGetRoutingRuleOutput_Actions = smithy.Member{Name: "Actions", Index: 0, JSONName: "actions"}
+var memberGetRoutingRuleOutput_Actions = smithy.Member{Name: "Actions", Index: 0, Target: &schema__listOfRoutingRuleAction, JSONName: "actions"}
 
-var memberGetRoutingRuleOutput_Conditions = smithy.Member{Name: "Conditions", Index: 1, JSONName: "conditions"}
+var memberGetRoutingRuleOutput_Conditions = smithy.Member{Name: "Conditions", Index: 1, Target: &schema__listOfRoutingRuleCondition, JSONName: "conditions"}
 
-var memberGetRoutingRuleOutput_Priority = smithy.Member{Name: "Priority", Index: 2, JSONName: "priority"}
+var memberGetRoutingRuleOutput_Priority = smithy.Member{Name: "Priority", Index: 2, Target: &schemaRoutingRulePriority, JSONName: "priority"}
 
-var memberGetRoutingRuleOutput_RoutingRuleArn = smithy.Member{Name: "RoutingRuleArn", Index: 3, JSONName: "routingRuleArn"}
+var memberGetRoutingRuleOutput_RoutingRuleArn = smithy.Member{Name: "RoutingRuleArn", Index: 3, Target: &schemaArn, JSONName: "routingRuleArn"}
 
-var memberGetRoutingRuleOutput_RoutingRuleId = smithy.Member{Name: "RoutingRuleId", Index: 4, JSONName: "routingRuleId"}
+var memberGetRoutingRuleOutput_RoutingRuleId = smithy.Member{Name: "RoutingRuleId", Index: 4, Target: &schemaId, JSONName: "routingRuleId"}
 
-var schemaGetStageInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetStageRequest", Type: smithy.TypeStructure}
+var schemaGetStageInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetStageRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetStageInput_ApiId, &memberGetStageInput_StageName}}
 
-var memberGetStageInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberGetStageInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberGetStageInput_StageName = smithy.Member{Name: "StageName", Index: 1, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberGetStageInput_StageName = smithy.Member{Name: "StageName", Index: 1, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaGetStageOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetStageResponse", Type: smithy.TypeStructure}
+var schemaGetStageOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetStageResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetStageOutput_AccessLogSettings, &memberGetStageOutput_ApiGatewayManaged, &memberGetStageOutput_AutoDeploy, &memberGetStageOutput_ClientCertificateId, &memberGetStageOutput_CreatedDate, &memberGetStageOutput_DefaultRouteSettings, &memberGetStageOutput_DeploymentId, &memberGetStageOutput_Description, &memberGetStageOutput_LastDeploymentStatusMessage, &memberGetStageOutput_LastUpdatedDate, &memberGetStageOutput_RouteSettings, &memberGetStageOutput_StageName, &memberGetStageOutput_StageVariables, &memberGetStageOutput_Tags}}
 
-var memberGetStageOutput_AccessLogSettings = smithy.Member{Name: "AccessLogSettings", Index: 0, JSONName: "accessLogSettings"}
+var memberGetStageOutput_AccessLogSettings = smithy.Member{Name: "AccessLogSettings", Index: 0, Target: &schemaAccessLogSettings, JSONName: "accessLogSettings"}
 
-var memberGetStageOutput_ApiGatewayManaged = smithy.Member{Name: "ApiGatewayManaged", Index: 1, JSONName: "apiGatewayManaged"}
+var memberGetStageOutput_ApiGatewayManaged = smithy.Member{Name: "ApiGatewayManaged", Index: 1, Target: &schema__boolean, JSONName: "apiGatewayManaged"}
 
-var memberGetStageOutput_AutoDeploy = smithy.Member{Name: "AutoDeploy", Index: 2, JSONName: "autoDeploy"}
+var memberGetStageOutput_AutoDeploy = smithy.Member{Name: "AutoDeploy", Index: 2, Target: &schema__boolean, JSONName: "autoDeploy"}
 
-var memberGetStageOutput_ClientCertificateId = smithy.Member{Name: "ClientCertificateId", Index: 3, JSONName: "clientCertificateId"}
+var memberGetStageOutput_ClientCertificateId = smithy.Member{Name: "ClientCertificateId", Index: 3, Target: &schemaId, JSONName: "clientCertificateId"}
 
-var memberGetStageOutput_CreatedDate = smithy.Member{Name: "CreatedDate", Index: 4, JSONName: "createdDate", TimestampFormat: smithy.DateTime}
+var memberGetStageOutput_CreatedDate = smithy.Member{Name: "CreatedDate", Index: 4, Target: &schema__timestampIso8601, JSONName: "createdDate", TimestampFormat: smithy.DateTime}
 
-var memberGetStageOutput_DefaultRouteSettings = smithy.Member{Name: "DefaultRouteSettings", Index: 5, JSONName: "defaultRouteSettings"}
+var memberGetStageOutput_DefaultRouteSettings = smithy.Member{Name: "DefaultRouteSettings", Index: 5, Target: &schemaRouteSettings, JSONName: "defaultRouteSettings"}
 
-var memberGetStageOutput_DeploymentId = smithy.Member{Name: "DeploymentId", Index: 6, JSONName: "deploymentId"}
+var memberGetStageOutput_DeploymentId = smithy.Member{Name: "DeploymentId", Index: 6, Target: &schemaId, JSONName: "deploymentId"}
 
-var memberGetStageOutput_Description = smithy.Member{Name: "Description", Index: 7, JSONName: "description"}
+var memberGetStageOutput_Description = smithy.Member{Name: "Description", Index: 7, Target: &schemaStringWithLengthBetween0And1024, JSONName: "description"}
 
-var memberGetStageOutput_LastDeploymentStatusMessage = smithy.Member{Name: "LastDeploymentStatusMessage", Index: 8, JSONName: "lastDeploymentStatusMessage"}
+var memberGetStageOutput_LastDeploymentStatusMessage = smithy.Member{Name: "LastDeploymentStatusMessage", Index: 8, Target: &schema__string, JSONName: "lastDeploymentStatusMessage"}
 
-var memberGetStageOutput_LastUpdatedDate = smithy.Member{Name: "LastUpdatedDate", Index: 9, JSONName: "lastUpdatedDate", TimestampFormat: smithy.DateTime}
+var memberGetStageOutput_LastUpdatedDate = smithy.Member{Name: "LastUpdatedDate", Index: 9, Target: &schema__timestampIso8601, JSONName: "lastUpdatedDate", TimestampFormat: smithy.DateTime}
 
-var memberGetStageOutput_RouteSettings = smithy.Member{Name: "RouteSettings", Index: 10, JSONName: "routeSettings"}
+var memberGetStageOutput_RouteSettings = smithy.Member{Name: "RouteSettings", Index: 10, Target: &schemaRouteSettingsMap, JSONName: "routeSettings"}
 
-var memberGetStageOutput_StageName = smithy.Member{Name: "StageName", Index: 11, JSONName: "stageName"}
+var memberGetStageOutput_StageName = smithy.Member{Name: "StageName", Index: 11, Target: &schemaStringWithLengthBetween1And128, JSONName: "stageName"}
 
-var memberGetStageOutput_StageVariables = smithy.Member{Name: "StageVariables", Index: 12, JSONName: "stageVariables"}
+var memberGetStageOutput_StageVariables = smithy.Member{Name: "StageVariables", Index: 12, Target: &schemaStageVariablesMap, JSONName: "stageVariables"}
 
-var memberGetStageOutput_Tags = smithy.Member{Name: "Tags", Index: 13, JSONName: "tags"}
+var memberGetStageOutput_Tags = smithy.Member{Name: "Tags", Index: 13, Target: &schemaTags, JSONName: "tags"}
 
-var schemaGetStagesInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetStagesRequest", Type: smithy.TypeStructure}
+var schemaGetStagesInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetStagesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetStagesInput_ApiId, &memberGetStagesInput_MaxResults, &memberGetStagesInput_NextToken}}
 
-var memberGetStagesInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberGetStagesInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberGetStagesInput_MaxResults = smithy.Member{Name: "MaxResults", Index: 1, HTTP: smithy.HTTPQuery{Name: "maxResults"}}
+var memberGetStagesInput_MaxResults = smithy.Member{Name: "MaxResults", Index: 1, Target: &schema__string, HTTP: smithy.HTTPQuery{Name: "maxResults"}}
 
-var memberGetStagesInput_NextToken = smithy.Member{Name: "NextToken", Index: 2, HTTP: smithy.HTTPQuery{Name: "nextToken"}}
+var memberGetStagesInput_NextToken = smithy.Member{Name: "NextToken", Index: 2, Target: &schema__string, HTTP: smithy.HTTPQuery{Name: "nextToken"}}
 
-var schemaGetStagesOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetStagesResponse", Type: smithy.TypeStructure}
+var schemaGetStagesOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetStagesResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetStagesOutput_Items, &memberGetStagesOutput_NextToken}}
 
-var memberGetStagesOutput_Items = smithy.Member{Name: "Items", Index: 0, JSONName: "items"}
+var memberGetStagesOutput_Items = smithy.Member{Name: "Items", Index: 0, Target: &schema__listOfStage, JSONName: "items"}
 
-var memberGetStagesOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, JSONName: "nextToken"}
+var memberGetStagesOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schemaNextToken, JSONName: "nextToken"}
 
-var schemaGetTagsInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetTagsRequest", Type: smithy.TypeStructure}
+var schemaGetTagsInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetTagsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetTagsInput_ResourceArn}}
 
-var memberGetTagsInput_ResourceArn = smithy.Member{Name: "ResourceArn", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberGetTagsInput_ResourceArn = smithy.Member{Name: "ResourceArn", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaGetTagsOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetTagsResponse", Type: smithy.TypeStructure}
+var schemaGetTagsOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetTagsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetTagsOutput_Tags}}
 
-var memberGetTagsOutput_Tags = smithy.Member{Name: "Tags", Index: 0, JSONName: "tags"}
+var memberGetTagsOutput_Tags = smithy.Member{Name: "Tags", Index: 0, Target: &schemaTags, JSONName: "tags"}
 
-var schemaGetVpcLinkInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetVpcLinkRequest", Type: smithy.TypeStructure}
+var schemaGetVpcLinkInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetVpcLinkRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetVpcLinkInput_VpcLinkId}}
 
-var memberGetVpcLinkInput_VpcLinkId = smithy.Member{Name: "VpcLinkId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberGetVpcLinkInput_VpcLinkId = smithy.Member{Name: "VpcLinkId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaGetVpcLinkOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetVpcLinkResponse", Type: smithy.TypeStructure}
+var schemaGetVpcLinkOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetVpcLinkResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetVpcLinkOutput_CreatedDate, &memberGetVpcLinkOutput_Name, &memberGetVpcLinkOutput_SecurityGroupIds, &memberGetVpcLinkOutput_SubnetIds, &memberGetVpcLinkOutput_Tags, &memberGetVpcLinkOutput_VpcLinkId, &memberGetVpcLinkOutput_VpcLinkStatus, &memberGetVpcLinkOutput_VpcLinkStatusMessage, &memberGetVpcLinkOutput_VpcLinkVersion}}
 
-var memberGetVpcLinkOutput_CreatedDate = smithy.Member{Name: "CreatedDate", Index: 0, JSONName: "createdDate", TimestampFormat: smithy.DateTime}
+var memberGetVpcLinkOutput_CreatedDate = smithy.Member{Name: "CreatedDate", Index: 0, Target: &schema__timestampIso8601, JSONName: "createdDate", TimestampFormat: smithy.DateTime}
 
-var memberGetVpcLinkOutput_Name = smithy.Member{Name: "Name", Index: 1, JSONName: "name"}
+var memberGetVpcLinkOutput_Name = smithy.Member{Name: "Name", Index: 1, Target: &schemaStringWithLengthBetween1And128, JSONName: "name"}
 
-var memberGetVpcLinkOutput_SecurityGroupIds = smithy.Member{Name: "SecurityGroupIds", Index: 2, JSONName: "securityGroupIds"}
+var memberGetVpcLinkOutput_SecurityGroupIds = smithy.Member{Name: "SecurityGroupIds", Index: 2, Target: &schemaSecurityGroupIdList, JSONName: "securityGroupIds"}
 
-var memberGetVpcLinkOutput_SubnetIds = smithy.Member{Name: "SubnetIds", Index: 3, JSONName: "subnetIds"}
+var memberGetVpcLinkOutput_SubnetIds = smithy.Member{Name: "SubnetIds", Index: 3, Target: &schemaSubnetIdList, JSONName: "subnetIds"}
 
-var memberGetVpcLinkOutput_Tags = smithy.Member{Name: "Tags", Index: 4, JSONName: "tags"}
+var memberGetVpcLinkOutput_Tags = smithy.Member{Name: "Tags", Index: 4, Target: &schemaTags, JSONName: "tags"}
 
-var memberGetVpcLinkOutput_VpcLinkId = smithy.Member{Name: "VpcLinkId", Index: 5, JSONName: "vpcLinkId"}
+var memberGetVpcLinkOutput_VpcLinkId = smithy.Member{Name: "VpcLinkId", Index: 5, Target: &schemaId, JSONName: "vpcLinkId"}
 
-var memberGetVpcLinkOutput_VpcLinkStatus = smithy.Member{Name: "VpcLinkStatus", Index: 6, JSONName: "vpcLinkStatus"}
+var memberGetVpcLinkOutput_VpcLinkStatus = smithy.Member{Name: "VpcLinkStatus", Index: 6, Target: &schemaVpcLinkStatus, JSONName: "vpcLinkStatus"}
 
-var memberGetVpcLinkOutput_VpcLinkStatusMessage = smithy.Member{Name: "VpcLinkStatusMessage", Index: 7, JSONName: "vpcLinkStatusMessage"}
+var memberGetVpcLinkOutput_VpcLinkStatusMessage = smithy.Member{Name: "VpcLinkStatusMessage", Index: 7, Target: &schemaStringWithLengthBetween0And1024, JSONName: "vpcLinkStatusMessage"}
 
-var memberGetVpcLinkOutput_VpcLinkVersion = smithy.Member{Name: "VpcLinkVersion", Index: 8, JSONName: "vpcLinkVersion"}
+var memberGetVpcLinkOutput_VpcLinkVersion = smithy.Member{Name: "VpcLinkVersion", Index: 8, Target: &schemaVpcLinkVersion, JSONName: "vpcLinkVersion"}
 
-var schemaGetVpcLinksInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetVpcLinksRequest", Type: smithy.TypeStructure}
+var schemaGetVpcLinksInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetVpcLinksRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetVpcLinksInput_MaxResults, &memberGetVpcLinksInput_NextToken}}
 
-var memberGetVpcLinksInput_MaxResults = smithy.Member{Name: "MaxResults", Index: 0, HTTP: smithy.HTTPQuery{Name: "maxResults"}}
+var memberGetVpcLinksInput_MaxResults = smithy.Member{Name: "MaxResults", Index: 0, Target: &schema__string, HTTP: smithy.HTTPQuery{Name: "maxResults"}}
 
-var memberGetVpcLinksInput_NextToken = smithy.Member{Name: "NextToken", Index: 1, HTTP: smithy.HTTPQuery{Name: "nextToken"}}
+var memberGetVpcLinksInput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schema__string, HTTP: smithy.HTTPQuery{Name: "nextToken"}}
 
-var schemaGetVpcLinksOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetVpcLinksResponse", Type: smithy.TypeStructure}
+var schemaGetVpcLinksOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#GetVpcLinksResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetVpcLinksOutput_Items, &memberGetVpcLinksOutput_NextToken}}
 
-var memberGetVpcLinksOutput_Items = smithy.Member{Name: "Items", Index: 0, JSONName: "items"}
+var memberGetVpcLinksOutput_Items = smithy.Member{Name: "Items", Index: 0, Target: &schema__listOfVpcLink, JSONName: "items"}
 
-var memberGetVpcLinksOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, JSONName: "nextToken"}
+var memberGetVpcLinksOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schemaNextToken, JSONName: "nextToken"}
 
 var schemaId = smithy.Schema{ID: "com.amazonaws.apigatewayv2#Id", Type: smithy.TypeString}
 
-var schemaIdentifierParts = smithy.Schema{ID: "com.amazonaws.apigatewayv2#IdentifierParts", Type: smithy.TypeStructure}
+var schemaIdentifierParts = smithy.Schema{ID: "com.amazonaws.apigatewayv2#IdentifierParts", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberIdentifierParts_Method, &memberIdentifierParts_Path, &memberIdentifierParts_RestApiId, &memberIdentifierParts_Stage}}
 
-var memberIdentifierParts_Method = smithy.Member{Name: "Method", Index: 0, Required: true, JSONName: "method"}
+var memberIdentifierParts_Method = smithy.Member{Name: "Method", Index: 0, Target: &schema__stringMin1Max20, Required: true, JSONName: "method"}
 
-var memberIdentifierParts_Path = smithy.Member{Name: "Path", Index: 1, Required: true, JSONName: "path"}
+var memberIdentifierParts_Path = smithy.Member{Name: "Path", Index: 1, Target: &schema__stringMin1Max4096, Required: true, JSONName: "path"}
 
-var memberIdentifierParts_RestApiId = smithy.Member{Name: "RestApiId", Index: 2, Required: true, JSONName: "restApiId"}
+var memberIdentifierParts_RestApiId = smithy.Member{Name: "RestApiId", Index: 2, Target: &schema__stringMin1Max50, Required: true, JSONName: "restApiId"}
 
-var memberIdentifierParts_Stage = smithy.Member{Name: "Stage", Index: 3, Required: true, JSONName: "stage"}
+var memberIdentifierParts_Stage = smithy.Member{Name: "Stage", Index: 3, Target: &schema__stringMin1Max128, Required: true, JSONName: "stage"}
 
-var schemaIdentitySourceList = smithy.Schema{ID: "com.amazonaws.apigatewayv2#IdentitySourceList", Type: smithy.TypeList}
+var schemaIdentitySourceList = smithy.Schema{ID: "com.amazonaws.apigatewayv2#IdentitySourceList", Type: smithy.TypeList, Members: []*smithy.Member{&memberIdentitySourceList_member}}
 
-var memberIdentitySourceList_member = smithy.Member{Name: "member", Index: 0}
+var memberIdentitySourceList_member = smithy.Member{Name: "member", Index: 0, Target: &schema__string}
 
-var schemaImportApiInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#ImportApiRequest", Type: smithy.TypeStructure}
+var schemaImportApiInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#ImportApiRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberImportApiInput_Basepath, &memberImportApiInput_Body, &memberImportApiInput_FailOnWarnings}}
 
-var memberImportApiInput_Basepath = smithy.Member{Name: "Basepath", Index: 0, HTTP: smithy.HTTPQuery{Name: "basepath"}}
+var memberImportApiInput_Basepath = smithy.Member{Name: "Basepath", Index: 0, Target: &schema__string, HTTP: smithy.HTTPQuery{Name: "basepath"}}
 
-var memberImportApiInput_Body = smithy.Member{Name: "Body", Index: 1, Required: true, JSONName: "body"}
+var memberImportApiInput_Body = smithy.Member{Name: "Body", Index: 1, Target: &schema__string, Required: true, JSONName: "body"}
 
-var memberImportApiInput_FailOnWarnings = smithy.Member{Name: "FailOnWarnings", Index: 2, HTTP: smithy.HTTPQuery{Name: "failOnWarnings"}}
+var memberImportApiInput_FailOnWarnings = smithy.Member{Name: "FailOnWarnings", Index: 2, Target: &schema__boolean, HTTP: smithy.HTTPQuery{Name: "failOnWarnings"}}
 
-var schemaImportApiOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#ImportApiResponse", Type: smithy.TypeStructure}
+var schemaImportApiOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#ImportApiResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberImportApiOutput_ApiEndpoint, &memberImportApiOutput_ApiGatewayManaged, &memberImportApiOutput_ApiId, &memberImportApiOutput_ApiKeySelectionExpression, &memberImportApiOutput_CorsConfiguration, &memberImportApiOutput_CreatedDate, &memberImportApiOutput_Description, &memberImportApiOutput_DisableSchemaValidation, &memberImportApiOutput_DisableExecuteApiEndpoint, &memberImportApiOutput_ImportInfo, &memberImportApiOutput_IpAddressType, &memberImportApiOutput_Name, &memberImportApiOutput_ProtocolType, &memberImportApiOutput_RouteSelectionExpression, &memberImportApiOutput_Tags, &memberImportApiOutput_Version, &memberImportApiOutput_Warnings}}
 
-var memberImportApiOutput_ApiEndpoint = smithy.Member{Name: "ApiEndpoint", Index: 0, JSONName: "apiEndpoint"}
+var memberImportApiOutput_ApiEndpoint = smithy.Member{Name: "ApiEndpoint", Index: 0, Target: &schema__string, JSONName: "apiEndpoint"}
 
-var memberImportApiOutput_ApiGatewayManaged = smithy.Member{Name: "ApiGatewayManaged", Index: 1, JSONName: "apiGatewayManaged"}
+var memberImportApiOutput_ApiGatewayManaged = smithy.Member{Name: "ApiGatewayManaged", Index: 1, Target: &schema__boolean, JSONName: "apiGatewayManaged"}
 
-var memberImportApiOutput_ApiId = smithy.Member{Name: "ApiId", Index: 2, JSONName: "apiId"}
+var memberImportApiOutput_ApiId = smithy.Member{Name: "ApiId", Index: 2, Target: &schemaId, JSONName: "apiId"}
 
-var memberImportApiOutput_ApiKeySelectionExpression = smithy.Member{Name: "ApiKeySelectionExpression", Index: 3, JSONName: "apiKeySelectionExpression"}
+var memberImportApiOutput_ApiKeySelectionExpression = smithy.Member{Name: "ApiKeySelectionExpression", Index: 3, Target: &schemaSelectionExpression, JSONName: "apiKeySelectionExpression"}
 
-var memberImportApiOutput_CorsConfiguration = smithy.Member{Name: "CorsConfiguration", Index: 4, JSONName: "corsConfiguration"}
+var memberImportApiOutput_CorsConfiguration = smithy.Member{Name: "CorsConfiguration", Index: 4, Target: &schemaCors, JSONName: "corsConfiguration"}
 
-var memberImportApiOutput_CreatedDate = smithy.Member{Name: "CreatedDate", Index: 5, JSONName: "createdDate", TimestampFormat: smithy.DateTime}
+var memberImportApiOutput_CreatedDate = smithy.Member{Name: "CreatedDate", Index: 5, Target: &schema__timestampIso8601, JSONName: "createdDate", TimestampFormat: smithy.DateTime}
 
-var memberImportApiOutput_Description = smithy.Member{Name: "Description", Index: 6, JSONName: "description"}
+var memberImportApiOutput_Description = smithy.Member{Name: "Description", Index: 6, Target: &schemaStringWithLengthBetween0And1024, JSONName: "description"}
 
-var memberImportApiOutput_DisableSchemaValidation = smithy.Member{Name: "DisableSchemaValidation", Index: 7, JSONName: "disableSchemaValidation"}
+var memberImportApiOutput_DisableSchemaValidation = smithy.Member{Name: "DisableSchemaValidation", Index: 7, Target: &schema__boolean, JSONName: "disableSchemaValidation"}
 
-var memberImportApiOutput_DisableExecuteApiEndpoint = smithy.Member{Name: "DisableExecuteApiEndpoint", Index: 8, JSONName: "disableExecuteApiEndpoint"}
+var memberImportApiOutput_DisableExecuteApiEndpoint = smithy.Member{Name: "DisableExecuteApiEndpoint", Index: 8, Target: &schema__boolean, JSONName: "disableExecuteApiEndpoint"}
 
-var memberImportApiOutput_ImportInfo = smithy.Member{Name: "ImportInfo", Index: 9, JSONName: "importInfo"}
+var memberImportApiOutput_ImportInfo = smithy.Member{Name: "ImportInfo", Index: 9, Target: &schema__listOf__string, JSONName: "importInfo"}
 
-var memberImportApiOutput_IpAddressType = smithy.Member{Name: "IpAddressType", Index: 10, JSONName: "ipAddressType"}
+var memberImportApiOutput_IpAddressType = smithy.Member{Name: "IpAddressType", Index: 10, Target: &schemaIpAddressType, JSONName: "ipAddressType"}
 
-var memberImportApiOutput_Name = smithy.Member{Name: "Name", Index: 11, JSONName: "name"}
+var memberImportApiOutput_Name = smithy.Member{Name: "Name", Index: 11, Target: &schemaStringWithLengthBetween1And128, JSONName: "name"}
 
-var memberImportApiOutput_ProtocolType = smithy.Member{Name: "ProtocolType", Index: 12, JSONName: "protocolType"}
+var memberImportApiOutput_ProtocolType = smithy.Member{Name: "ProtocolType", Index: 12, Target: &schemaProtocolType, JSONName: "protocolType"}
 
-var memberImportApiOutput_RouteSelectionExpression = smithy.Member{Name: "RouteSelectionExpression", Index: 13, JSONName: "routeSelectionExpression"}
+var memberImportApiOutput_RouteSelectionExpression = smithy.Member{Name: "RouteSelectionExpression", Index: 13, Target: &schemaSelectionExpression, JSONName: "routeSelectionExpression"}
 
-var memberImportApiOutput_Tags = smithy.Member{Name: "Tags", Index: 14, JSONName: "tags"}
+var memberImportApiOutput_Tags = smithy.Member{Name: "Tags", Index: 14, Target: &schemaTags, JSONName: "tags"}
 
-var memberImportApiOutput_Version = smithy.Member{Name: "Version", Index: 15, JSONName: "version"}
+var memberImportApiOutput_Version = smithy.Member{Name: "Version", Index: 15, Target: &schemaStringWithLengthBetween1And64, JSONName: "version"}
 
-var memberImportApiOutput_Warnings = smithy.Member{Name: "Warnings", Index: 16, JSONName: "warnings"}
+var memberImportApiOutput_Warnings = smithy.Member{Name: "Warnings", Index: 16, Target: &schema__listOf__string, JSONName: "warnings"}
 
-var schemaIncompleteSignatureException = smithy.Schema{ID: "com.amazon.coral.service#IncompleteSignatureException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaIncompleteSignatureException = smithy.Schema{ID: "com.amazon.coral.service#IncompleteSignatureException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberIncompleteSignatureException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberIncompleteSignatureException_message = smithy.Member{Name: "message", Index: 0}
+var memberIncompleteSignatureException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
 var schemaIntegerWithLengthBetween0And3600 = smithy.Schema{ID: "com.amazonaws.apigatewayv2#IntegerWithLengthBetween0And3600", Type: smithy.TypeInteger}
 
@@ -1780,557 +1780,557 @@ var schemaIntegerWithLengthBetween50And30000 = smithy.Schema{ID: "com.amazonaws.
 
 var schemaIntegerWithLengthBetweenMinus1And86400 = smithy.Schema{ID: "com.amazonaws.apigatewayv2#IntegerWithLengthBetweenMinus1And86400", Type: smithy.TypeInteger}
 
-var schemaIntegration = smithy.Schema{ID: "com.amazonaws.apigatewayv2#Integration", Type: smithy.TypeStructure}
+var schemaIntegration = smithy.Schema{ID: "com.amazonaws.apigatewayv2#Integration", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberIntegration_ApiGatewayManaged, &memberIntegration_ConnectionId, &memberIntegration_ConnectionType, &memberIntegration_ContentHandlingStrategy, &memberIntegration_CredentialsArn, &memberIntegration_Description, &memberIntegration_IntegrationId, &memberIntegration_IntegrationMethod, &memberIntegration_IntegrationResponseSelectionExpression, &memberIntegration_IntegrationSubtype, &memberIntegration_IntegrationType, &memberIntegration_IntegrationUri, &memberIntegration_PassthroughBehavior, &memberIntegration_PayloadFormatVersion, &memberIntegration_RequestParameters, &memberIntegration_RequestTemplates, &memberIntegration_ResponseParameters, &memberIntegration_TemplateSelectionExpression, &memberIntegration_TimeoutInMillis, &memberIntegration_TlsConfig}}
 
-var memberIntegration_ApiGatewayManaged = smithy.Member{Name: "ApiGatewayManaged", Index: 0, JSONName: "apiGatewayManaged"}
+var memberIntegration_ApiGatewayManaged = smithy.Member{Name: "ApiGatewayManaged", Index: 0, Target: &schema__boolean, JSONName: "apiGatewayManaged"}
 
-var memberIntegration_ConnectionId = smithy.Member{Name: "ConnectionId", Index: 1, JSONName: "connectionId"}
+var memberIntegration_ConnectionId = smithy.Member{Name: "ConnectionId", Index: 1, Target: &schemaStringWithLengthBetween1And1024, JSONName: "connectionId"}
 
-var memberIntegration_ConnectionType = smithy.Member{Name: "ConnectionType", Index: 2, JSONName: "connectionType"}
+var memberIntegration_ConnectionType = smithy.Member{Name: "ConnectionType", Index: 2, Target: &schemaConnectionType, JSONName: "connectionType"}
 
-var memberIntegration_ContentHandlingStrategy = smithy.Member{Name: "ContentHandlingStrategy", Index: 3, JSONName: "contentHandlingStrategy"}
+var memberIntegration_ContentHandlingStrategy = smithy.Member{Name: "ContentHandlingStrategy", Index: 3, Target: &schemaContentHandlingStrategy, JSONName: "contentHandlingStrategy"}
 
-var memberIntegration_CredentialsArn = smithy.Member{Name: "CredentialsArn", Index: 4, JSONName: "credentialsArn"}
+var memberIntegration_CredentialsArn = smithy.Member{Name: "CredentialsArn", Index: 4, Target: &schemaArn, JSONName: "credentialsArn"}
 
-var memberIntegration_Description = smithy.Member{Name: "Description", Index: 5, JSONName: "description"}
+var memberIntegration_Description = smithy.Member{Name: "Description", Index: 5, Target: &schemaStringWithLengthBetween0And1024, JSONName: "description"}
 
-var memberIntegration_IntegrationId = smithy.Member{Name: "IntegrationId", Index: 6, JSONName: "integrationId"}
+var memberIntegration_IntegrationId = smithy.Member{Name: "IntegrationId", Index: 6, Target: &schemaId, JSONName: "integrationId"}
 
-var memberIntegration_IntegrationMethod = smithy.Member{Name: "IntegrationMethod", Index: 7, JSONName: "integrationMethod"}
+var memberIntegration_IntegrationMethod = smithy.Member{Name: "IntegrationMethod", Index: 7, Target: &schemaStringWithLengthBetween1And64, JSONName: "integrationMethod"}
 
-var memberIntegration_IntegrationResponseSelectionExpression = smithy.Member{Name: "IntegrationResponseSelectionExpression", Index: 8, JSONName: "integrationResponseSelectionExpression"}
+var memberIntegration_IntegrationResponseSelectionExpression = smithy.Member{Name: "IntegrationResponseSelectionExpression", Index: 8, Target: &schemaSelectionExpression, JSONName: "integrationResponseSelectionExpression"}
 
-var memberIntegration_IntegrationSubtype = smithy.Member{Name: "IntegrationSubtype", Index: 9, JSONName: "integrationSubtype"}
+var memberIntegration_IntegrationSubtype = smithy.Member{Name: "IntegrationSubtype", Index: 9, Target: &schemaStringWithLengthBetween1And128, JSONName: "integrationSubtype"}
 
-var memberIntegration_IntegrationType = smithy.Member{Name: "IntegrationType", Index: 10, JSONName: "integrationType"}
+var memberIntegration_IntegrationType = smithy.Member{Name: "IntegrationType", Index: 10, Target: &schemaIntegrationType, JSONName: "integrationType"}
 
-var memberIntegration_IntegrationUri = smithy.Member{Name: "IntegrationUri", Index: 11, JSONName: "integrationUri"}
+var memberIntegration_IntegrationUri = smithy.Member{Name: "IntegrationUri", Index: 11, Target: &schemaUriWithLengthBetween1And2048, JSONName: "integrationUri"}
 
-var memberIntegration_PassthroughBehavior = smithy.Member{Name: "PassthroughBehavior", Index: 12, JSONName: "passthroughBehavior"}
+var memberIntegration_PassthroughBehavior = smithy.Member{Name: "PassthroughBehavior", Index: 12, Target: &schemaPassthroughBehavior, JSONName: "passthroughBehavior"}
 
-var memberIntegration_PayloadFormatVersion = smithy.Member{Name: "PayloadFormatVersion", Index: 13, JSONName: "payloadFormatVersion"}
+var memberIntegration_PayloadFormatVersion = smithy.Member{Name: "PayloadFormatVersion", Index: 13, Target: &schemaStringWithLengthBetween1And64, JSONName: "payloadFormatVersion"}
 
-var memberIntegration_RequestParameters = smithy.Member{Name: "RequestParameters", Index: 14, JSONName: "requestParameters"}
+var memberIntegration_RequestParameters = smithy.Member{Name: "RequestParameters", Index: 14, Target: &schemaIntegrationParameters, JSONName: "requestParameters"}
 
-var memberIntegration_RequestTemplates = smithy.Member{Name: "RequestTemplates", Index: 15, JSONName: "requestTemplates"}
+var memberIntegration_RequestTemplates = smithy.Member{Name: "RequestTemplates", Index: 15, Target: &schemaTemplateMap, JSONName: "requestTemplates"}
 
-var memberIntegration_ResponseParameters = smithy.Member{Name: "ResponseParameters", Index: 16, JSONName: "responseParameters"}
+var memberIntegration_ResponseParameters = smithy.Member{Name: "ResponseParameters", Index: 16, Target: &schemaResponseParameters, JSONName: "responseParameters"}
 
-var memberIntegration_TemplateSelectionExpression = smithy.Member{Name: "TemplateSelectionExpression", Index: 17, JSONName: "templateSelectionExpression"}
+var memberIntegration_TemplateSelectionExpression = smithy.Member{Name: "TemplateSelectionExpression", Index: 17, Target: &schemaSelectionExpression, JSONName: "templateSelectionExpression"}
 
-var memberIntegration_TimeoutInMillis = smithy.Member{Name: "TimeoutInMillis", Index: 18, JSONName: "timeoutInMillis"}
+var memberIntegration_TimeoutInMillis = smithy.Member{Name: "TimeoutInMillis", Index: 18, Target: &schemaIntegerWithLengthBetween50And30000, JSONName: "timeoutInMillis"}
 
-var memberIntegration_TlsConfig = smithy.Member{Name: "TlsConfig", Index: 19, JSONName: "tlsConfig"}
+var memberIntegration_TlsConfig = smithy.Member{Name: "TlsConfig", Index: 19, Target: &schemaTlsConfig, JSONName: "tlsConfig"}
 
-var schemaIntegrationParameters = smithy.Schema{ID: "com.amazonaws.apigatewayv2#IntegrationParameters", Type: smithy.TypeMap}
+var schemaIntegrationParameters = smithy.Schema{ID: "com.amazonaws.apigatewayv2#IntegrationParameters", Type: smithy.TypeMap, Members: []*smithy.Member{&memberIntegrationParameters_key, &memberIntegrationParameters_value}}
 
-var memberIntegrationParameters_key = smithy.Member{Name: "key", Index: 0}
+var memberIntegrationParameters_key = smithy.Member{Name: "key", Index: 0, Target: &schema__string}
 
-var memberIntegrationParameters_value = smithy.Member{Name: "value", Index: 1}
+var memberIntegrationParameters_value = smithy.Member{Name: "value", Index: 1, Target: &schemaStringWithLengthBetween1And512}
 
-var schemaIntegrationResponse = smithy.Schema{ID: "com.amazonaws.apigatewayv2#IntegrationResponse", Type: smithy.TypeStructure}
+var schemaIntegrationResponse = smithy.Schema{ID: "com.amazonaws.apigatewayv2#IntegrationResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberIntegrationResponse_ContentHandlingStrategy, &memberIntegrationResponse_IntegrationResponseId, &memberIntegrationResponse_IntegrationResponseKey, &memberIntegrationResponse_ResponseParameters, &memberIntegrationResponse_ResponseTemplates, &memberIntegrationResponse_TemplateSelectionExpression}}
 
-var memberIntegrationResponse_ContentHandlingStrategy = smithy.Member{Name: "ContentHandlingStrategy", Index: 0, JSONName: "contentHandlingStrategy"}
+var memberIntegrationResponse_ContentHandlingStrategy = smithy.Member{Name: "ContentHandlingStrategy", Index: 0, Target: &schemaContentHandlingStrategy, JSONName: "contentHandlingStrategy"}
 
-var memberIntegrationResponse_IntegrationResponseId = smithy.Member{Name: "IntegrationResponseId", Index: 1, JSONName: "integrationResponseId"}
+var memberIntegrationResponse_IntegrationResponseId = smithy.Member{Name: "IntegrationResponseId", Index: 1, Target: &schemaId, JSONName: "integrationResponseId"}
 
-var memberIntegrationResponse_IntegrationResponseKey = smithy.Member{Name: "IntegrationResponseKey", Index: 2, Required: true, JSONName: "integrationResponseKey"}
+var memberIntegrationResponse_IntegrationResponseKey = smithy.Member{Name: "IntegrationResponseKey", Index: 2, Target: &schemaSelectionKey, Required: true, JSONName: "integrationResponseKey"}
 
-var memberIntegrationResponse_ResponseParameters = smithy.Member{Name: "ResponseParameters", Index: 3, JSONName: "responseParameters"}
+var memberIntegrationResponse_ResponseParameters = smithy.Member{Name: "ResponseParameters", Index: 3, Target: &schemaIntegrationParameters, JSONName: "responseParameters"}
 
-var memberIntegrationResponse_ResponseTemplates = smithy.Member{Name: "ResponseTemplates", Index: 4, JSONName: "responseTemplates"}
+var memberIntegrationResponse_ResponseTemplates = smithy.Member{Name: "ResponseTemplates", Index: 4, Target: &schemaTemplateMap, JSONName: "responseTemplates"}
 
-var memberIntegrationResponse_TemplateSelectionExpression = smithy.Member{Name: "TemplateSelectionExpression", Index: 5, JSONName: "templateSelectionExpression"}
+var memberIntegrationResponse_TemplateSelectionExpression = smithy.Member{Name: "TemplateSelectionExpression", Index: 5, Target: &schemaSelectionExpression, JSONName: "templateSelectionExpression"}
 
 var schemaIntegrationType = smithy.Schema{ID: "com.amazonaws.apigatewayv2#IntegrationType", Type: smithy.TypeEnum}
 
-var schemaInternalFailure = smithy.Schema{ID: "com.amazon.coral.service#InternalFailure", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ServerFault, HTTPError: 500}}
+var schemaInternalFailure = smithy.Schema{ID: "com.amazon.coral.service#InternalFailure", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberInternalFailure_message}, Error: &smithy.ErrorTrait{Fault: smithy.ServerFault, HTTPError: 500}}
 
-var memberInternalFailure_message = smithy.Member{Name: "message", Index: 0}
+var memberInternalFailure_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaInvalidSignatureException = smithy.Schema{ID: "com.amazon.coral.service#InvalidSignatureException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaInvalidSignatureException = smithy.Schema{ID: "com.amazon.coral.service#InvalidSignatureException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberInvalidSignatureException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberInvalidSignatureException_message = smithy.Member{Name: "message", Index: 0}
+var memberInvalidSignatureException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
 var schemaIpAddressType = smithy.Schema{ID: "com.amazonaws.apigatewayv2#IpAddressType", Type: smithy.TypeEnum}
 
-var schemaJWTConfiguration = smithy.Schema{ID: "com.amazonaws.apigatewayv2#JWTConfiguration", Type: smithy.TypeStructure}
+var schemaJWTConfiguration = smithy.Schema{ID: "com.amazonaws.apigatewayv2#JWTConfiguration", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberJWTConfiguration_Audience, &memberJWTConfiguration_Issuer}}
 
-var memberJWTConfiguration_Audience = smithy.Member{Name: "Audience", Index: 0, JSONName: "audience"}
+var memberJWTConfiguration_Audience = smithy.Member{Name: "Audience", Index: 0, Target: &schema__listOf__string, JSONName: "audience"}
 
-var memberJWTConfiguration_Issuer = smithy.Member{Name: "Issuer", Index: 1, JSONName: "issuer"}
+var memberJWTConfiguration_Issuer = smithy.Member{Name: "Issuer", Index: 1, Target: &schemaUriWithLengthBetween1And2048, JSONName: "issuer"}
 
-var schemaListPortalProductsInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#ListPortalProductsRequest", Type: smithy.TypeStructure}
+var schemaListPortalProductsInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#ListPortalProductsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListPortalProductsInput_MaxResults, &memberListPortalProductsInput_NextToken, &memberListPortalProductsInput_ResourceOwner}}
 
-var memberListPortalProductsInput_MaxResults = smithy.Member{Name: "MaxResults", Index: 0, HTTP: smithy.HTTPQuery{Name: "maxResults"}}
+var memberListPortalProductsInput_MaxResults = smithy.Member{Name: "MaxResults", Index: 0, Target: &schema__string, HTTP: smithy.HTTPQuery{Name: "maxResults"}}
 
-var memberListPortalProductsInput_NextToken = smithy.Member{Name: "NextToken", Index: 1, HTTP: smithy.HTTPQuery{Name: "nextToken"}}
+var memberListPortalProductsInput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schema__string, HTTP: smithy.HTTPQuery{Name: "nextToken"}}
 
-var memberListPortalProductsInput_ResourceOwner = smithy.Member{Name: "ResourceOwner", Index: 2, HTTP: smithy.HTTPQuery{Name: "resourceOwner"}}
+var memberListPortalProductsInput_ResourceOwner = smithy.Member{Name: "ResourceOwner", Index: 2, Target: &schema__string, HTTP: smithy.HTTPQuery{Name: "resourceOwner"}}
 
-var schemaListPortalProductsOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#ListPortalProductsResponse", Type: smithy.TypeStructure}
+var schemaListPortalProductsOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#ListPortalProductsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListPortalProductsOutput_Items, &memberListPortalProductsOutput_NextToken}}
 
-var memberListPortalProductsOutput_Items = smithy.Member{Name: "Items", Index: 0, JSONName: "items"}
+var memberListPortalProductsOutput_Items = smithy.Member{Name: "Items", Index: 0, Target: &schema__listOfPortalProductSummary, JSONName: "items"}
 
-var memberListPortalProductsOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, JSONName: "nextToken"}
+var memberListPortalProductsOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schema__stringMin1Max2048, JSONName: "nextToken"}
 
-var schemaListPortalsInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#ListPortalsRequest", Type: smithy.TypeStructure}
+var schemaListPortalsInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#ListPortalsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListPortalsInput_MaxResults, &memberListPortalsInput_NextToken}}
 
-var memberListPortalsInput_MaxResults = smithy.Member{Name: "MaxResults", Index: 0, HTTP: smithy.HTTPQuery{Name: "maxResults"}}
+var memberListPortalsInput_MaxResults = smithy.Member{Name: "MaxResults", Index: 0, Target: &schema__string, HTTP: smithy.HTTPQuery{Name: "maxResults"}}
 
-var memberListPortalsInput_NextToken = smithy.Member{Name: "NextToken", Index: 1, HTTP: smithy.HTTPQuery{Name: "nextToken"}}
+var memberListPortalsInput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schema__string, HTTP: smithy.HTTPQuery{Name: "nextToken"}}
 
-var schemaListPortalsOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#ListPortalsResponse", Type: smithy.TypeStructure}
+var schemaListPortalsOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#ListPortalsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListPortalsOutput_Items, &memberListPortalsOutput_NextToken}}
 
-var memberListPortalsOutput_Items = smithy.Member{Name: "Items", Index: 0, JSONName: "items"}
+var memberListPortalsOutput_Items = smithy.Member{Name: "Items", Index: 0, Target: &schema__listOfPortalSummary, JSONName: "items"}
 
-var memberListPortalsOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, JSONName: "nextToken"}
+var memberListPortalsOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schema__stringMin1Max2048, JSONName: "nextToken"}
 
-var schemaListProductPagesInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#ListProductPagesRequest", Type: smithy.TypeStructure}
+var schemaListProductPagesInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#ListProductPagesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListProductPagesInput_MaxResults, &memberListProductPagesInput_NextToken, &memberListProductPagesInput_PortalProductId, &memberListProductPagesInput_ResourceOwnerAccountId}}
 
-var memberListProductPagesInput_MaxResults = smithy.Member{Name: "MaxResults", Index: 0, HTTP: smithy.HTTPQuery{Name: "maxResults"}}
+var memberListProductPagesInput_MaxResults = smithy.Member{Name: "MaxResults", Index: 0, Target: &schema__string, HTTP: smithy.HTTPQuery{Name: "maxResults"}}
 
-var memberListProductPagesInput_NextToken = smithy.Member{Name: "NextToken", Index: 1, HTTP: smithy.HTTPQuery{Name: "nextToken"}}
+var memberListProductPagesInput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schema__string, HTTP: smithy.HTTPQuery{Name: "nextToken"}}
 
-var memberListProductPagesInput_PortalProductId = smithy.Member{Name: "PortalProductId", Index: 2, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberListProductPagesInput_PortalProductId = smithy.Member{Name: "PortalProductId", Index: 2, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberListProductPagesInput_ResourceOwnerAccountId = smithy.Member{Name: "ResourceOwnerAccountId", Index: 3, HTTP: smithy.HTTPQuery{Name: "resourceOwnerAccountId"}}
+var memberListProductPagesInput_ResourceOwnerAccountId = smithy.Member{Name: "ResourceOwnerAccountId", Index: 3, Target: &schema__string, HTTP: smithy.HTTPQuery{Name: "resourceOwnerAccountId"}}
 
-var schemaListProductPagesOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#ListProductPagesResponse", Type: smithy.TypeStructure}
+var schemaListProductPagesOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#ListProductPagesResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListProductPagesOutput_Items, &memberListProductPagesOutput_NextToken}}
 
-var memberListProductPagesOutput_Items = smithy.Member{Name: "Items", Index: 0, JSONName: "items"}
+var memberListProductPagesOutput_Items = smithy.Member{Name: "Items", Index: 0, Target: &schema__listOfProductPageSummaryNoBody, JSONName: "items"}
 
-var memberListProductPagesOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, JSONName: "nextToken"}
+var memberListProductPagesOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schema__stringMin1Max2048, JSONName: "nextToken"}
 
-var schemaListProductRestEndpointPagesInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#ListProductRestEndpointPagesRequest", Type: smithy.TypeStructure}
+var schemaListProductRestEndpointPagesInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#ListProductRestEndpointPagesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListProductRestEndpointPagesInput_MaxResults, &memberListProductRestEndpointPagesInput_NextToken, &memberListProductRestEndpointPagesInput_PortalProductId, &memberListProductRestEndpointPagesInput_ResourceOwnerAccountId}}
 
-var memberListProductRestEndpointPagesInput_MaxResults = smithy.Member{Name: "MaxResults", Index: 0, HTTP: smithy.HTTPQuery{Name: "maxResults"}}
+var memberListProductRestEndpointPagesInput_MaxResults = smithy.Member{Name: "MaxResults", Index: 0, Target: &schema__string, HTTP: smithy.HTTPQuery{Name: "maxResults"}}
 
-var memberListProductRestEndpointPagesInput_NextToken = smithy.Member{Name: "NextToken", Index: 1, HTTP: smithy.HTTPQuery{Name: "nextToken"}}
+var memberListProductRestEndpointPagesInput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schema__string, HTTP: smithy.HTTPQuery{Name: "nextToken"}}
 
-var memberListProductRestEndpointPagesInput_PortalProductId = smithy.Member{Name: "PortalProductId", Index: 2, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberListProductRestEndpointPagesInput_PortalProductId = smithy.Member{Name: "PortalProductId", Index: 2, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberListProductRestEndpointPagesInput_ResourceOwnerAccountId = smithy.Member{Name: "ResourceOwnerAccountId", Index: 3, HTTP: smithy.HTTPQuery{Name: "resourceOwnerAccountId"}}
+var memberListProductRestEndpointPagesInput_ResourceOwnerAccountId = smithy.Member{Name: "ResourceOwnerAccountId", Index: 3, Target: &schema__string, HTTP: smithy.HTTPQuery{Name: "resourceOwnerAccountId"}}
 
-var schemaListProductRestEndpointPagesOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#ListProductRestEndpointPagesResponse", Type: smithy.TypeStructure}
+var schemaListProductRestEndpointPagesOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#ListProductRestEndpointPagesResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListProductRestEndpointPagesOutput_Items, &memberListProductRestEndpointPagesOutput_NextToken}}
 
-var memberListProductRestEndpointPagesOutput_Items = smithy.Member{Name: "Items", Index: 0, JSONName: "items"}
+var memberListProductRestEndpointPagesOutput_Items = smithy.Member{Name: "Items", Index: 0, Target: &schema__listOfProductRestEndpointPageSummaryNoBody, JSONName: "items"}
 
-var memberListProductRestEndpointPagesOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, JSONName: "nextToken"}
+var memberListProductRestEndpointPagesOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schema__string, JSONName: "nextToken"}
 
-var schemaListRoutingRulesInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#ListRoutingRulesRequest", Type: smithy.TypeStructure}
+var schemaListRoutingRulesInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#ListRoutingRulesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListRoutingRulesInput_DomainName, &memberListRoutingRulesInput_DomainNameId, &memberListRoutingRulesInput_MaxResults, &memberListRoutingRulesInput_NextToken}}
 
-var memberListRoutingRulesInput_DomainName = smithy.Member{Name: "DomainName", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberListRoutingRulesInput_DomainName = smithy.Member{Name: "DomainName", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberListRoutingRulesInput_DomainNameId = smithy.Member{Name: "DomainNameId", Index: 1, HTTP: smithy.HTTPQuery{Name: "domainNameId"}}
+var memberListRoutingRulesInput_DomainNameId = smithy.Member{Name: "DomainNameId", Index: 1, Target: &schema__string, HTTP: smithy.HTTPQuery{Name: "domainNameId"}}
 
-var memberListRoutingRulesInput_MaxResults = smithy.Member{Name: "MaxResults", Index: 2, HTTP: smithy.HTTPQuery{Name: "maxResults"}}
+var memberListRoutingRulesInput_MaxResults = smithy.Member{Name: "MaxResults", Index: 2, Target: &schemaMaxResults, HTTP: smithy.HTTPQuery{Name: "maxResults"}}
 
-var memberListRoutingRulesInput_NextToken = smithy.Member{Name: "NextToken", Index: 3, HTTP: smithy.HTTPQuery{Name: "nextToken"}}
+var memberListRoutingRulesInput_NextToken = smithy.Member{Name: "NextToken", Index: 3, Target: &schema__string, HTTP: smithy.HTTPQuery{Name: "nextToken"}}
 
-var schemaListRoutingRulesOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#ListRoutingRulesResponse", Type: smithy.TypeStructure}
+var schemaListRoutingRulesOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#ListRoutingRulesResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListRoutingRulesOutput_NextToken, &memberListRoutingRulesOutput_RoutingRules}}
 
-var memberListRoutingRulesOutput_NextToken = smithy.Member{Name: "NextToken", Index: 0, JSONName: "nextToken"}
+var memberListRoutingRulesOutput_NextToken = smithy.Member{Name: "NextToken", Index: 0, Target: &schemaNextToken, JSONName: "nextToken"}
 
-var memberListRoutingRulesOutput_RoutingRules = smithy.Member{Name: "RoutingRules", Index: 1, JSONName: "routingRules"}
+var memberListRoutingRulesOutput_RoutingRules = smithy.Member{Name: "RoutingRules", Index: 1, Target: &schema__listOfRoutingRule, JSONName: "routingRules"}
 
 var schemaLoggingLevel = smithy.Schema{ID: "com.amazonaws.apigatewayv2#LoggingLevel", Type: smithy.TypeEnum}
 
 var schemaMaxResults = smithy.Schema{ID: "com.amazonaws.apigatewayv2#MaxResults", Type: smithy.TypeInteger}
 
-var schemaMissingAuthenticationTokenException = smithy.Schema{ID: "com.amazon.coral.service#MissingAuthenticationTokenException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaMissingAuthenticationTokenException = smithy.Schema{ID: "com.amazon.coral.service#MissingAuthenticationTokenException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberMissingAuthenticationTokenException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberMissingAuthenticationTokenException_message = smithy.Member{Name: "message", Index: 0}
+var memberMissingAuthenticationTokenException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaModel = smithy.Schema{ID: "com.amazonaws.apigatewayv2#Model", Type: smithy.TypeStructure}
+var schemaModel = smithy.Schema{ID: "com.amazonaws.apigatewayv2#Model", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberModel_ContentType, &memberModel_Description, &memberModel_ModelId, &memberModel_Name, &memberModel_Schema}}
 
-var memberModel_ContentType = smithy.Member{Name: "ContentType", Index: 0, JSONName: "contentType"}
+var memberModel_ContentType = smithy.Member{Name: "ContentType", Index: 0, Target: &schemaStringWithLengthBetween1And256, JSONName: "contentType"}
 
-var memberModel_Description = smithy.Member{Name: "Description", Index: 1, JSONName: "description"}
+var memberModel_Description = smithy.Member{Name: "Description", Index: 1, Target: &schemaStringWithLengthBetween0And1024, JSONName: "description"}
 
-var memberModel_ModelId = smithy.Member{Name: "ModelId", Index: 2, JSONName: "modelId"}
+var memberModel_ModelId = smithy.Member{Name: "ModelId", Index: 2, Target: &schemaId, JSONName: "modelId"}
 
-var memberModel_Name = smithy.Member{Name: "Name", Index: 3, Required: true, JSONName: "name"}
+var memberModel_Name = smithy.Member{Name: "Name", Index: 3, Target: &schemaStringWithLengthBetween1And128, Required: true, JSONName: "name"}
 
-var memberModel_Schema = smithy.Member{Name: "Schema", Index: 4, JSONName: "schema"}
+var memberModel_Schema = smithy.Member{Name: "Schema", Index: 4, Target: &schemaStringWithLengthBetween0And32K, JSONName: "schema"}
 
-var schemaMutualTlsAuthentication = smithy.Schema{ID: "com.amazonaws.apigatewayv2#MutualTlsAuthentication", Type: smithy.TypeStructure}
+var schemaMutualTlsAuthentication = smithy.Schema{ID: "com.amazonaws.apigatewayv2#MutualTlsAuthentication", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberMutualTlsAuthentication_TruststoreUri, &memberMutualTlsAuthentication_TruststoreVersion, &memberMutualTlsAuthentication_TruststoreWarnings}}
 
-var memberMutualTlsAuthentication_TruststoreUri = smithy.Member{Name: "TruststoreUri", Index: 0, JSONName: "truststoreUri"}
+var memberMutualTlsAuthentication_TruststoreUri = smithy.Member{Name: "TruststoreUri", Index: 0, Target: &schemaUriWithLengthBetween1And2048, JSONName: "truststoreUri"}
 
-var memberMutualTlsAuthentication_TruststoreVersion = smithy.Member{Name: "TruststoreVersion", Index: 1, JSONName: "truststoreVersion"}
+var memberMutualTlsAuthentication_TruststoreVersion = smithy.Member{Name: "TruststoreVersion", Index: 1, Target: &schemaStringWithLengthBetween1And64, JSONName: "truststoreVersion"}
 
-var memberMutualTlsAuthentication_TruststoreWarnings = smithy.Member{Name: "TruststoreWarnings", Index: 2, JSONName: "truststoreWarnings"}
+var memberMutualTlsAuthentication_TruststoreWarnings = smithy.Member{Name: "TruststoreWarnings", Index: 2, Target: &schema__listOf__string, JSONName: "truststoreWarnings"}
 
-var schemaMutualTlsAuthenticationInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#MutualTlsAuthenticationInput", Type: smithy.TypeStructure}
+var schemaMutualTlsAuthenticationInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#MutualTlsAuthenticationInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberMutualTlsAuthenticationInput_TruststoreUri, &memberMutualTlsAuthenticationInput_TruststoreVersion}}
 
-var memberMutualTlsAuthenticationInput_TruststoreUri = smithy.Member{Name: "TruststoreUri", Index: 0, JSONName: "truststoreUri"}
+var memberMutualTlsAuthenticationInput_TruststoreUri = smithy.Member{Name: "TruststoreUri", Index: 0, Target: &schemaUriWithLengthBetween1And2048, JSONName: "truststoreUri"}
 
-var memberMutualTlsAuthenticationInput_TruststoreVersion = smithy.Member{Name: "TruststoreVersion", Index: 1, JSONName: "truststoreVersion"}
+var memberMutualTlsAuthenticationInput_TruststoreVersion = smithy.Member{Name: "TruststoreVersion", Index: 1, Target: &schemaStringWithLengthBetween1And64, JSONName: "truststoreVersion"}
 
 var schemaNextToken = smithy.Schema{ID: "com.amazonaws.apigatewayv2#NextToken", Type: smithy.TypeString}
 
 var schemaNone = smithy.Schema{ID: "com.amazonaws.apigatewayv2#None", Type: smithy.TypeStructure}
 
-var schemaNotFoundException = smithy.Schema{ID: "com.amazonaws.apigatewayv2#NotFoundException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 404}}
+var schemaNotFoundException = smithy.Schema{ID: "com.amazonaws.apigatewayv2#NotFoundException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberNotFoundException_Message, &memberNotFoundException_ResourceType}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 404}}
 
-var memberNotFoundException_Message = smithy.Member{Name: "Message", Index: 0, JSONName: "message"}
+var memberNotFoundException_Message = smithy.Member{Name: "Message", Index: 0, Target: &schema__string, JSONName: "message"}
 
-var memberNotFoundException_ResourceType = smithy.Member{Name: "ResourceType", Index: 1, JSONName: "resourceType"}
+var memberNotFoundException_ResourceType = smithy.Member{Name: "ResourceType", Index: 1, Target: &schema__string, JSONName: "resourceType"}
 
-var schemaNotImplemented = smithy.Schema{ID: "dev.understudy#NotImplemented", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ServerFault, HTTPError: 501}}
+var schemaNotImplemented = smithy.Schema{ID: "dev.understudy#NotImplemented", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberNotImplemented_message}, Error: &smithy.ErrorTrait{Fault: smithy.ServerFault, HTTPError: 501}}
 
-var memberNotImplemented_message = smithy.Member{Name: "message", Index: 0}
+var memberNotImplemented_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaParameterConstraints = smithy.Schema{ID: "com.amazonaws.apigatewayv2#ParameterConstraints", Type: smithy.TypeStructure}
+var schemaParameterConstraints = smithy.Schema{ID: "com.amazonaws.apigatewayv2#ParameterConstraints", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberParameterConstraints_Required}}
 
-var memberParameterConstraints_Required = smithy.Member{Name: "Required", Index: 0, JSONName: "required"}
+var memberParameterConstraints_Required = smithy.Member{Name: "Required", Index: 0, Target: &schema__boolean, JSONName: "required"}
 
 var schemaPassthroughBehavior = smithy.Schema{ID: "com.amazonaws.apigatewayv2#PassthroughBehavior", Type: smithy.TypeEnum}
 
-var schemaPortalContent = smithy.Schema{ID: "com.amazonaws.apigatewayv2#PortalContent", Type: smithy.TypeStructure}
+var schemaPortalContent = smithy.Schema{ID: "com.amazonaws.apigatewayv2#PortalContent", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPortalContent_Description, &memberPortalContent_DisplayName, &memberPortalContent_Theme}}
 
-var memberPortalContent_Description = smithy.Member{Name: "Description", Index: 0, JSONName: "description"}
+var memberPortalContent_Description = smithy.Member{Name: "Description", Index: 0, Target: &schema__stringMin0Max1024, JSONName: "description"}
 
-var memberPortalContent_DisplayName = smithy.Member{Name: "DisplayName", Index: 1, Required: true, JSONName: "displayName"}
+var memberPortalContent_DisplayName = smithy.Member{Name: "DisplayName", Index: 1, Target: &schema__stringMin3Max255, Required: true, JSONName: "displayName"}
 
-var memberPortalContent_Theme = smithy.Member{Name: "Theme", Index: 2, Required: true, JSONName: "theme"}
+var memberPortalContent_Theme = smithy.Member{Name: "Theme", Index: 2, Target: &schemaPortalTheme, Required: true, JSONName: "theme"}
 
-var schemaPortalProductSummary = smithy.Schema{ID: "com.amazonaws.apigatewayv2#PortalProductSummary", Type: smithy.TypeStructure}
+var schemaPortalProductSummary = smithy.Schema{ID: "com.amazonaws.apigatewayv2#PortalProductSummary", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPortalProductSummary_Description, &memberPortalProductSummary_DisplayName, &memberPortalProductSummary_LastModified, &memberPortalProductSummary_PortalProductArn, &memberPortalProductSummary_PortalProductId, &memberPortalProductSummary_Tags}}
 
-var memberPortalProductSummary_Description = smithy.Member{Name: "Description", Index: 0, Required: true, JSONName: "description"}
+var memberPortalProductSummary_Description = smithy.Member{Name: "Description", Index: 0, Target: &schema__stringMin0Max1024, Required: true, JSONName: "description"}
 
-var memberPortalProductSummary_DisplayName = smithy.Member{Name: "DisplayName", Index: 1, Required: true, JSONName: "displayName"}
+var memberPortalProductSummary_DisplayName = smithy.Member{Name: "DisplayName", Index: 1, Target: &schema__stringMin1Max255, Required: true, JSONName: "displayName"}
 
-var memberPortalProductSummary_LastModified = smithy.Member{Name: "LastModified", Index: 2, Required: true, JSONName: "lastModified", TimestampFormat: smithy.DateTime}
+var memberPortalProductSummary_LastModified = smithy.Member{Name: "LastModified", Index: 2, Target: &schema__timestampIso8601, Required: true, JSONName: "lastModified", TimestampFormat: smithy.DateTime}
 
-var memberPortalProductSummary_PortalProductArn = smithy.Member{Name: "PortalProductArn", Index: 3, Required: true, JSONName: "portalProductArn"}
+var memberPortalProductSummary_PortalProductArn = smithy.Member{Name: "PortalProductArn", Index: 3, Target: &schema__stringMin20Max2048, Required: true, JSONName: "portalProductArn"}
 
-var memberPortalProductSummary_PortalProductId = smithy.Member{Name: "PortalProductId", Index: 4, Required: true, JSONName: "portalProductId"}
+var memberPortalProductSummary_PortalProductId = smithy.Member{Name: "PortalProductId", Index: 4, Target: &schema__stringMin10Max30PatternAZ09, Required: true, JSONName: "portalProductId"}
 
-var memberPortalProductSummary_Tags = smithy.Member{Name: "Tags", Index: 5, JSONName: "tags"}
+var memberPortalProductSummary_Tags = smithy.Member{Name: "Tags", Index: 5, Target: &schemaTags, JSONName: "tags"}
 
-var schemaPortalSummary = smithy.Schema{ID: "com.amazonaws.apigatewayv2#PortalSummary", Type: smithy.TypeStructure}
+var schemaPortalSummary = smithy.Schema{ID: "com.amazonaws.apigatewayv2#PortalSummary", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPortalSummary_Authorization, &memberPortalSummary_EndpointConfiguration, &memberPortalSummary_IncludedPortalProductArns, &memberPortalSummary_LastModified, &memberPortalSummary_LastPublished, &memberPortalSummary_LastPublishedDescription, &memberPortalSummary_PortalArn, &memberPortalSummary_PortalContent, &memberPortalSummary_PortalId, &memberPortalSummary_Preview, &memberPortalSummary_PublishStatus, &memberPortalSummary_RumAppMonitorName, &memberPortalSummary_StatusException, &memberPortalSummary_Tags}}
 
-var memberPortalSummary_Authorization = smithy.Member{Name: "Authorization", Index: 0, Required: true, JSONName: "authorization"}
+var memberPortalSummary_Authorization = smithy.Member{Name: "Authorization", Index: 0, Target: &schemaAuthorization, Required: true, JSONName: "authorization"}
 
-var memberPortalSummary_EndpointConfiguration = smithy.Member{Name: "EndpointConfiguration", Index: 1, Required: true, JSONName: "endpointConfiguration"}
+var memberPortalSummary_EndpointConfiguration = smithy.Member{Name: "EndpointConfiguration", Index: 1, Target: &schemaEndpointConfigurationResponse, Required: true, JSONName: "endpointConfiguration"}
 
-var memberPortalSummary_IncludedPortalProductArns = smithy.Member{Name: "IncludedPortalProductArns", Index: 2, Required: true, JSONName: "includedPortalProductArns"}
+var memberPortalSummary_IncludedPortalProductArns = smithy.Member{Name: "IncludedPortalProductArns", Index: 2, Target: &schema__listOf__stringMin20Max2048, Required: true, JSONName: "includedPortalProductArns"}
 
-var memberPortalSummary_LastModified = smithy.Member{Name: "LastModified", Index: 3, Required: true, JSONName: "lastModified", TimestampFormat: smithy.DateTime}
+var memberPortalSummary_LastModified = smithy.Member{Name: "LastModified", Index: 3, Target: &schema__timestampIso8601, Required: true, JSONName: "lastModified", TimestampFormat: smithy.DateTime}
 
-var memberPortalSummary_LastPublished = smithy.Member{Name: "LastPublished", Index: 4, JSONName: "lastPublished", TimestampFormat: smithy.DateTime}
+var memberPortalSummary_LastPublished = smithy.Member{Name: "LastPublished", Index: 4, Target: &schema__timestampIso8601, JSONName: "lastPublished", TimestampFormat: smithy.DateTime}
 
-var memberPortalSummary_LastPublishedDescription = smithy.Member{Name: "LastPublishedDescription", Index: 5, JSONName: "lastPublishedDescription"}
+var memberPortalSummary_LastPublishedDescription = smithy.Member{Name: "LastPublishedDescription", Index: 5, Target: &schema__stringMin0Max1024, JSONName: "lastPublishedDescription"}
 
-var memberPortalSummary_PortalArn = smithy.Member{Name: "PortalArn", Index: 6, Required: true, JSONName: "portalArn"}
+var memberPortalSummary_PortalArn = smithy.Member{Name: "PortalArn", Index: 6, Target: &schema__stringMin20Max2048, Required: true, JSONName: "portalArn"}
 
-var memberPortalSummary_PortalContent = smithy.Member{Name: "PortalContent", Index: 7, Required: true, JSONName: "portalContent"}
+var memberPortalSummary_PortalContent = smithy.Member{Name: "PortalContent", Index: 7, Target: &schemaPortalContent, Required: true, JSONName: "portalContent"}
 
-var memberPortalSummary_PortalId = smithy.Member{Name: "PortalId", Index: 8, Required: true, JSONName: "portalId"}
+var memberPortalSummary_PortalId = smithy.Member{Name: "PortalId", Index: 8, Target: &schema__stringMin10Max30PatternAZ09, Required: true, JSONName: "portalId"}
 
-var memberPortalSummary_Preview = smithy.Member{Name: "Preview", Index: 9, JSONName: "preview"}
+var memberPortalSummary_Preview = smithy.Member{Name: "Preview", Index: 9, Target: &schemaPreview, JSONName: "preview"}
 
-var memberPortalSummary_PublishStatus = smithy.Member{Name: "PublishStatus", Index: 10, JSONName: "publishStatus"}
+var memberPortalSummary_PublishStatus = smithy.Member{Name: "PublishStatus", Index: 10, Target: &schemaPublishStatus, JSONName: "publishStatus"}
 
-var memberPortalSummary_RumAppMonitorName = smithy.Member{Name: "RumAppMonitorName", Index: 11, JSONName: "rumAppMonitorName"}
+var memberPortalSummary_RumAppMonitorName = smithy.Member{Name: "RumAppMonitorName", Index: 11, Target: &schema__stringMin0Max255, JSONName: "rumAppMonitorName"}
 
-var memberPortalSummary_StatusException = smithy.Member{Name: "StatusException", Index: 12, JSONName: "statusException"}
+var memberPortalSummary_StatusException = smithy.Member{Name: "StatusException", Index: 12, Target: &schemaStatusException, JSONName: "statusException"}
 
-var memberPortalSummary_Tags = smithy.Member{Name: "Tags", Index: 13, JSONName: "tags"}
+var memberPortalSummary_Tags = smithy.Member{Name: "Tags", Index: 13, Target: &schemaTags, JSONName: "tags"}
 
-var schemaPortalTheme = smithy.Schema{ID: "com.amazonaws.apigatewayv2#PortalTheme", Type: smithy.TypeStructure}
+var schemaPortalTheme = smithy.Schema{ID: "com.amazonaws.apigatewayv2#PortalTheme", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPortalTheme_CustomColors, &memberPortalTheme_LogoLastUploaded}}
 
-var memberPortalTheme_CustomColors = smithy.Member{Name: "CustomColors", Index: 0, Required: true, JSONName: "customColors"}
+var memberPortalTheme_CustomColors = smithy.Member{Name: "CustomColors", Index: 0, Target: &schemaCustomColors, Required: true, JSONName: "customColors"}
 
-var memberPortalTheme_LogoLastUploaded = smithy.Member{Name: "LogoLastUploaded", Index: 1, JSONName: "logoLastUploaded", TimestampFormat: smithy.DateTime}
+var memberPortalTheme_LogoLastUploaded = smithy.Member{Name: "LogoLastUploaded", Index: 1, Target: &schema__timestampIso8601, JSONName: "logoLastUploaded", TimestampFormat: smithy.DateTime}
 
-var schemaPreview = smithy.Schema{ID: "com.amazonaws.apigatewayv2#Preview", Type: smithy.TypeStructure}
+var schemaPreview = smithy.Schema{ID: "com.amazonaws.apigatewayv2#Preview", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPreview_PreviewStatus, &memberPreview_PreviewUrl, &memberPreview_StatusException}}
 
-var memberPreview_PreviewStatus = smithy.Member{Name: "PreviewStatus", Index: 0, Required: true, JSONName: "previewStatus"}
+var memberPreview_PreviewStatus = smithy.Member{Name: "PreviewStatus", Index: 0, Target: &schemaPreviewStatus, Required: true, JSONName: "previewStatus"}
 
-var memberPreview_PreviewUrl = smithy.Member{Name: "PreviewUrl", Index: 1, JSONName: "previewUrl"}
+var memberPreview_PreviewUrl = smithy.Member{Name: "PreviewUrl", Index: 1, Target: &schema__string, JSONName: "previewUrl"}
 
-var memberPreview_StatusException = smithy.Member{Name: "StatusException", Index: 2, JSONName: "statusException"}
+var memberPreview_StatusException = smithy.Member{Name: "StatusException", Index: 2, Target: &schemaStatusException, JSONName: "statusException"}
 
-var schemaPreviewPortalInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#PreviewPortalRequest", Type: smithy.TypeStructure}
+var schemaPreviewPortalInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#PreviewPortalRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPreviewPortalInput_PortalId}}
 
-var memberPreviewPortalInput_PortalId = smithy.Member{Name: "PortalId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberPreviewPortalInput_PortalId = smithy.Member{Name: "PortalId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
 var schemaPreviewPortalOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#PreviewPortalResponse", Type: smithy.TypeStructure}
 
 var schemaPreviewStatus = smithy.Schema{ID: "com.amazonaws.apigatewayv2#PreviewStatus", Type: smithy.TypeEnum}
 
-var schemaProductPageSummaryNoBody = smithy.Schema{ID: "com.amazonaws.apigatewayv2#ProductPageSummaryNoBody", Type: smithy.TypeStructure}
+var schemaProductPageSummaryNoBody = smithy.Schema{ID: "com.amazonaws.apigatewayv2#ProductPageSummaryNoBody", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberProductPageSummaryNoBody_LastModified, &memberProductPageSummaryNoBody_PageTitle, &memberProductPageSummaryNoBody_ProductPageArn, &memberProductPageSummaryNoBody_ProductPageId}}
 
-var memberProductPageSummaryNoBody_LastModified = smithy.Member{Name: "LastModified", Index: 0, Required: true, JSONName: "lastModified", TimestampFormat: smithy.DateTime}
+var memberProductPageSummaryNoBody_LastModified = smithy.Member{Name: "LastModified", Index: 0, Target: &schema__timestampIso8601, Required: true, JSONName: "lastModified", TimestampFormat: smithy.DateTime}
 
-var memberProductPageSummaryNoBody_PageTitle = smithy.Member{Name: "PageTitle", Index: 1, Required: true, JSONName: "pageTitle"}
+var memberProductPageSummaryNoBody_PageTitle = smithy.Member{Name: "PageTitle", Index: 1, Target: &schema__stringMin1Max255, Required: true, JSONName: "pageTitle"}
 
-var memberProductPageSummaryNoBody_ProductPageArn = smithy.Member{Name: "ProductPageArn", Index: 2, Required: true, JSONName: "productPageArn"}
+var memberProductPageSummaryNoBody_ProductPageArn = smithy.Member{Name: "ProductPageArn", Index: 2, Target: &schema__stringMin20Max2048, Required: true, JSONName: "productPageArn"}
 
-var memberProductPageSummaryNoBody_ProductPageId = smithy.Member{Name: "ProductPageId", Index: 3, Required: true, JSONName: "productPageId"}
+var memberProductPageSummaryNoBody_ProductPageId = smithy.Member{Name: "ProductPageId", Index: 3, Target: &schema__stringMin10Max30PatternAZ09, Required: true, JSONName: "productPageId"}
 
-var schemaProductRestEndpointPageSummaryNoBody = smithy.Schema{ID: "com.amazonaws.apigatewayv2#ProductRestEndpointPageSummaryNoBody", Type: smithy.TypeStructure}
+var schemaProductRestEndpointPageSummaryNoBody = smithy.Schema{ID: "com.amazonaws.apigatewayv2#ProductRestEndpointPageSummaryNoBody", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberProductRestEndpointPageSummaryNoBody_Endpoint, &memberProductRestEndpointPageSummaryNoBody_LastModified, &memberProductRestEndpointPageSummaryNoBody_OperationName, &memberProductRestEndpointPageSummaryNoBody_ProductRestEndpointPageArn, &memberProductRestEndpointPageSummaryNoBody_ProductRestEndpointPageId, &memberProductRestEndpointPageSummaryNoBody_RestEndpointIdentifier, &memberProductRestEndpointPageSummaryNoBody_Status, &memberProductRestEndpointPageSummaryNoBody_StatusException, &memberProductRestEndpointPageSummaryNoBody_TryItState}}
 
-var memberProductRestEndpointPageSummaryNoBody_Endpoint = smithy.Member{Name: "Endpoint", Index: 0, Required: true, JSONName: "endpoint"}
+var memberProductRestEndpointPageSummaryNoBody_Endpoint = smithy.Member{Name: "Endpoint", Index: 0, Target: &schema__stringMin1Max1024, Required: true, JSONName: "endpoint"}
 
-var memberProductRestEndpointPageSummaryNoBody_LastModified = smithy.Member{Name: "LastModified", Index: 1, Required: true, JSONName: "lastModified", TimestampFormat: smithy.DateTime}
+var memberProductRestEndpointPageSummaryNoBody_LastModified = smithy.Member{Name: "LastModified", Index: 1, Target: &schema__timestampIso8601, Required: true, JSONName: "lastModified", TimestampFormat: smithy.DateTime}
 
-var memberProductRestEndpointPageSummaryNoBody_OperationName = smithy.Member{Name: "OperationName", Index: 2, JSONName: "operationName"}
+var memberProductRestEndpointPageSummaryNoBody_OperationName = smithy.Member{Name: "OperationName", Index: 2, Target: &schema__stringMin1Max255, JSONName: "operationName"}
 
-var memberProductRestEndpointPageSummaryNoBody_ProductRestEndpointPageArn = smithy.Member{Name: "ProductRestEndpointPageArn", Index: 3, Required: true, JSONName: "productRestEndpointPageArn"}
+var memberProductRestEndpointPageSummaryNoBody_ProductRestEndpointPageArn = smithy.Member{Name: "ProductRestEndpointPageArn", Index: 3, Target: &schema__stringMin20Max2048, Required: true, JSONName: "productRestEndpointPageArn"}
 
-var memberProductRestEndpointPageSummaryNoBody_ProductRestEndpointPageId = smithy.Member{Name: "ProductRestEndpointPageId", Index: 4, Required: true, JSONName: "productRestEndpointPageId"}
+var memberProductRestEndpointPageSummaryNoBody_ProductRestEndpointPageId = smithy.Member{Name: "ProductRestEndpointPageId", Index: 4, Target: &schema__stringMin10Max30PatternAZ09, Required: true, JSONName: "productRestEndpointPageId"}
 
-var memberProductRestEndpointPageSummaryNoBody_RestEndpointIdentifier = smithy.Member{Name: "RestEndpointIdentifier", Index: 5, Required: true, JSONName: "restEndpointIdentifier"}
+var memberProductRestEndpointPageSummaryNoBody_RestEndpointIdentifier = smithy.Member{Name: "RestEndpointIdentifier", Index: 5, Target: &schemaRestEndpointIdentifier, Required: true, JSONName: "restEndpointIdentifier"}
 
-var memberProductRestEndpointPageSummaryNoBody_Status = smithy.Member{Name: "Status", Index: 6, Required: true, JSONName: "status"}
+var memberProductRestEndpointPageSummaryNoBody_Status = smithy.Member{Name: "Status", Index: 6, Target: &schemaStatus, Required: true, JSONName: "status"}
 
-var memberProductRestEndpointPageSummaryNoBody_StatusException = smithy.Member{Name: "StatusException", Index: 7, JSONName: "statusException"}
+var memberProductRestEndpointPageSummaryNoBody_StatusException = smithy.Member{Name: "StatusException", Index: 7, Target: &schemaStatusException, JSONName: "statusException"}
 
-var memberProductRestEndpointPageSummaryNoBody_TryItState = smithy.Member{Name: "TryItState", Index: 8, Required: true, JSONName: "tryItState"}
+var memberProductRestEndpointPageSummaryNoBody_TryItState = smithy.Member{Name: "TryItState", Index: 8, Target: &schemaTryItState, Required: true, JSONName: "tryItState"}
 
 var schemaProtocolType = smithy.Schema{ID: "com.amazonaws.apigatewayv2#ProtocolType", Type: smithy.TypeEnum}
 
-var schemaPublishPortalInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#PublishPortalRequest", Type: smithy.TypeStructure}
+var schemaPublishPortalInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#PublishPortalRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPublishPortalInput_Description, &memberPublishPortalInput_PortalId}}
 
-var memberPublishPortalInput_Description = smithy.Member{Name: "Description", Index: 0, JSONName: "description"}
+var memberPublishPortalInput_Description = smithy.Member{Name: "Description", Index: 0, Target: &schema__stringMin0Max1024, JSONName: "description"}
 
-var memberPublishPortalInput_PortalId = smithy.Member{Name: "PortalId", Index: 1, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberPublishPortalInput_PortalId = smithy.Member{Name: "PortalId", Index: 1, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
 var schemaPublishPortalOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#PublishPortalResponse", Type: smithy.TypeStructure}
 
 var schemaPublishStatus = smithy.Schema{ID: "com.amazonaws.apigatewayv2#PublishStatus", Type: smithy.TypeEnum}
 
-var schemaPutPortalProductSharingPolicyInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#PutPortalProductSharingPolicyRequest", Type: smithy.TypeStructure}
+var schemaPutPortalProductSharingPolicyInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#PutPortalProductSharingPolicyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutPortalProductSharingPolicyInput_PolicyDocument, &memberPutPortalProductSharingPolicyInput_PortalProductId}}
 
-var memberPutPortalProductSharingPolicyInput_PolicyDocument = smithy.Member{Name: "PolicyDocument", Index: 0, Required: true, JSONName: "policyDocument"}
+var memberPutPortalProductSharingPolicyInput_PolicyDocument = smithy.Member{Name: "PolicyDocument", Index: 0, Target: &schema__stringMin1Max307200, Required: true, JSONName: "policyDocument"}
 
-var memberPutPortalProductSharingPolicyInput_PortalProductId = smithy.Member{Name: "PortalProductId", Index: 1, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberPutPortalProductSharingPolicyInput_PortalProductId = smithy.Member{Name: "PortalProductId", Index: 1, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
 var schemaPutPortalProductSharingPolicyOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#PutPortalProductSharingPolicyResponse", Type: smithy.TypeStructure}
 
-var schemaPutRoutingRuleInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#PutRoutingRuleRequest", Type: smithy.TypeStructure}
+var schemaPutRoutingRuleInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#PutRoutingRuleRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutRoutingRuleInput_Actions, &memberPutRoutingRuleInput_Conditions, &memberPutRoutingRuleInput_DomainName, &memberPutRoutingRuleInput_DomainNameId, &memberPutRoutingRuleInput_Priority, &memberPutRoutingRuleInput_RoutingRuleId}}
 
-var memberPutRoutingRuleInput_Actions = smithy.Member{Name: "Actions", Index: 0, Required: true, JSONName: "actions"}
+var memberPutRoutingRuleInput_Actions = smithy.Member{Name: "Actions", Index: 0, Target: &schema__listOfRoutingRuleAction, Required: true, JSONName: "actions"}
 
-var memberPutRoutingRuleInput_Conditions = smithy.Member{Name: "Conditions", Index: 1, Required: true, JSONName: "conditions"}
+var memberPutRoutingRuleInput_Conditions = smithy.Member{Name: "Conditions", Index: 1, Target: &schema__listOfRoutingRuleCondition, Required: true, JSONName: "conditions"}
 
-var memberPutRoutingRuleInput_DomainName = smithy.Member{Name: "DomainName", Index: 2, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberPutRoutingRuleInput_DomainName = smithy.Member{Name: "DomainName", Index: 2, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberPutRoutingRuleInput_DomainNameId = smithy.Member{Name: "DomainNameId", Index: 3, HTTP: smithy.HTTPQuery{Name: "domainNameId"}}
+var memberPutRoutingRuleInput_DomainNameId = smithy.Member{Name: "DomainNameId", Index: 3, Target: &schema__string, HTTP: smithy.HTTPQuery{Name: "domainNameId"}}
 
-var memberPutRoutingRuleInput_Priority = smithy.Member{Name: "Priority", Index: 4, Required: true, JSONName: "priority"}
+var memberPutRoutingRuleInput_Priority = smithy.Member{Name: "Priority", Index: 4, Target: &schemaRoutingRulePriority, Required: true, JSONName: "priority"}
 
-var memberPutRoutingRuleInput_RoutingRuleId = smithy.Member{Name: "RoutingRuleId", Index: 5, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberPutRoutingRuleInput_RoutingRuleId = smithy.Member{Name: "RoutingRuleId", Index: 5, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaPutRoutingRuleOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#PutRoutingRuleResponse", Type: smithy.TypeStructure}
+var schemaPutRoutingRuleOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#PutRoutingRuleResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutRoutingRuleOutput_Actions, &memberPutRoutingRuleOutput_Conditions, &memberPutRoutingRuleOutput_Priority, &memberPutRoutingRuleOutput_RoutingRuleArn, &memberPutRoutingRuleOutput_RoutingRuleId}}
 
-var memberPutRoutingRuleOutput_Actions = smithy.Member{Name: "Actions", Index: 0, JSONName: "actions"}
+var memberPutRoutingRuleOutput_Actions = smithy.Member{Name: "Actions", Index: 0, Target: &schema__listOfRoutingRuleAction, JSONName: "actions"}
 
-var memberPutRoutingRuleOutput_Conditions = smithy.Member{Name: "Conditions", Index: 1, JSONName: "conditions"}
+var memberPutRoutingRuleOutput_Conditions = smithy.Member{Name: "Conditions", Index: 1, Target: &schema__listOfRoutingRuleCondition, JSONName: "conditions"}
 
-var memberPutRoutingRuleOutput_Priority = smithy.Member{Name: "Priority", Index: 2, JSONName: "priority"}
+var memberPutRoutingRuleOutput_Priority = smithy.Member{Name: "Priority", Index: 2, Target: &schemaRoutingRulePriority, JSONName: "priority"}
 
-var memberPutRoutingRuleOutput_RoutingRuleArn = smithy.Member{Name: "RoutingRuleArn", Index: 3, JSONName: "routingRuleArn"}
+var memberPutRoutingRuleOutput_RoutingRuleArn = smithy.Member{Name: "RoutingRuleArn", Index: 3, Target: &schemaArn, JSONName: "routingRuleArn"}
 
-var memberPutRoutingRuleOutput_RoutingRuleId = smithy.Member{Name: "RoutingRuleId", Index: 4, JSONName: "routingRuleId"}
+var memberPutRoutingRuleOutput_RoutingRuleId = smithy.Member{Name: "RoutingRuleId", Index: 4, Target: &schemaId, JSONName: "routingRuleId"}
 
-var schemaReimportApiInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#ReimportApiRequest", Type: smithy.TypeStructure}
+var schemaReimportApiInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#ReimportApiRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberReimportApiInput_ApiId, &memberReimportApiInput_Basepath, &memberReimportApiInput_Body, &memberReimportApiInput_FailOnWarnings}}
 
-var memberReimportApiInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberReimportApiInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberReimportApiInput_Basepath = smithy.Member{Name: "Basepath", Index: 1, HTTP: smithy.HTTPQuery{Name: "basepath"}}
+var memberReimportApiInput_Basepath = smithy.Member{Name: "Basepath", Index: 1, Target: &schema__string, HTTP: smithy.HTTPQuery{Name: "basepath"}}
 
-var memberReimportApiInput_Body = smithy.Member{Name: "Body", Index: 2, Required: true, JSONName: "body"}
+var memberReimportApiInput_Body = smithy.Member{Name: "Body", Index: 2, Target: &schema__string, Required: true, JSONName: "body"}
 
-var memberReimportApiInput_FailOnWarnings = smithy.Member{Name: "FailOnWarnings", Index: 3, HTTP: smithy.HTTPQuery{Name: "failOnWarnings"}}
+var memberReimportApiInput_FailOnWarnings = smithy.Member{Name: "FailOnWarnings", Index: 3, Target: &schema__boolean, HTTP: smithy.HTTPQuery{Name: "failOnWarnings"}}
 
-var schemaReimportApiOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#ReimportApiResponse", Type: smithy.TypeStructure}
+var schemaReimportApiOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#ReimportApiResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberReimportApiOutput_ApiEndpoint, &memberReimportApiOutput_ApiGatewayManaged, &memberReimportApiOutput_ApiId, &memberReimportApiOutput_ApiKeySelectionExpression, &memberReimportApiOutput_CorsConfiguration, &memberReimportApiOutput_CreatedDate, &memberReimportApiOutput_Description, &memberReimportApiOutput_DisableSchemaValidation, &memberReimportApiOutput_DisableExecuteApiEndpoint, &memberReimportApiOutput_ImportInfo, &memberReimportApiOutput_IpAddressType, &memberReimportApiOutput_Name, &memberReimportApiOutput_ProtocolType, &memberReimportApiOutput_RouteSelectionExpression, &memberReimportApiOutput_Tags, &memberReimportApiOutput_Version, &memberReimportApiOutput_Warnings}}
 
-var memberReimportApiOutput_ApiEndpoint = smithy.Member{Name: "ApiEndpoint", Index: 0, JSONName: "apiEndpoint"}
+var memberReimportApiOutput_ApiEndpoint = smithy.Member{Name: "ApiEndpoint", Index: 0, Target: &schema__string, JSONName: "apiEndpoint"}
 
-var memberReimportApiOutput_ApiGatewayManaged = smithy.Member{Name: "ApiGatewayManaged", Index: 1, JSONName: "apiGatewayManaged"}
+var memberReimportApiOutput_ApiGatewayManaged = smithy.Member{Name: "ApiGatewayManaged", Index: 1, Target: &schema__boolean, JSONName: "apiGatewayManaged"}
 
-var memberReimportApiOutput_ApiId = smithy.Member{Name: "ApiId", Index: 2, JSONName: "apiId"}
+var memberReimportApiOutput_ApiId = smithy.Member{Name: "ApiId", Index: 2, Target: &schemaId, JSONName: "apiId"}
 
-var memberReimportApiOutput_ApiKeySelectionExpression = smithy.Member{Name: "ApiKeySelectionExpression", Index: 3, JSONName: "apiKeySelectionExpression"}
+var memberReimportApiOutput_ApiKeySelectionExpression = smithy.Member{Name: "ApiKeySelectionExpression", Index: 3, Target: &schemaSelectionExpression, JSONName: "apiKeySelectionExpression"}
 
-var memberReimportApiOutput_CorsConfiguration = smithy.Member{Name: "CorsConfiguration", Index: 4, JSONName: "corsConfiguration"}
+var memberReimportApiOutput_CorsConfiguration = smithy.Member{Name: "CorsConfiguration", Index: 4, Target: &schemaCors, JSONName: "corsConfiguration"}
 
-var memberReimportApiOutput_CreatedDate = smithy.Member{Name: "CreatedDate", Index: 5, JSONName: "createdDate", TimestampFormat: smithy.DateTime}
+var memberReimportApiOutput_CreatedDate = smithy.Member{Name: "CreatedDate", Index: 5, Target: &schema__timestampIso8601, JSONName: "createdDate", TimestampFormat: smithy.DateTime}
 
-var memberReimportApiOutput_Description = smithy.Member{Name: "Description", Index: 6, JSONName: "description"}
+var memberReimportApiOutput_Description = smithy.Member{Name: "Description", Index: 6, Target: &schemaStringWithLengthBetween0And1024, JSONName: "description"}
 
-var memberReimportApiOutput_DisableSchemaValidation = smithy.Member{Name: "DisableSchemaValidation", Index: 7, JSONName: "disableSchemaValidation"}
+var memberReimportApiOutput_DisableSchemaValidation = smithy.Member{Name: "DisableSchemaValidation", Index: 7, Target: &schema__boolean, JSONName: "disableSchemaValidation"}
 
-var memberReimportApiOutput_DisableExecuteApiEndpoint = smithy.Member{Name: "DisableExecuteApiEndpoint", Index: 8, JSONName: "disableExecuteApiEndpoint"}
+var memberReimportApiOutput_DisableExecuteApiEndpoint = smithy.Member{Name: "DisableExecuteApiEndpoint", Index: 8, Target: &schema__boolean, JSONName: "disableExecuteApiEndpoint"}
 
-var memberReimportApiOutput_ImportInfo = smithy.Member{Name: "ImportInfo", Index: 9, JSONName: "importInfo"}
+var memberReimportApiOutput_ImportInfo = smithy.Member{Name: "ImportInfo", Index: 9, Target: &schema__listOf__string, JSONName: "importInfo"}
 
-var memberReimportApiOutput_IpAddressType = smithy.Member{Name: "IpAddressType", Index: 10, JSONName: "ipAddressType"}
+var memberReimportApiOutput_IpAddressType = smithy.Member{Name: "IpAddressType", Index: 10, Target: &schemaIpAddressType, JSONName: "ipAddressType"}
 
-var memberReimportApiOutput_Name = smithy.Member{Name: "Name", Index: 11, JSONName: "name"}
+var memberReimportApiOutput_Name = smithy.Member{Name: "Name", Index: 11, Target: &schemaStringWithLengthBetween1And128, JSONName: "name"}
 
-var memberReimportApiOutput_ProtocolType = smithy.Member{Name: "ProtocolType", Index: 12, JSONName: "protocolType"}
+var memberReimportApiOutput_ProtocolType = smithy.Member{Name: "ProtocolType", Index: 12, Target: &schemaProtocolType, JSONName: "protocolType"}
 
-var memberReimportApiOutput_RouteSelectionExpression = smithy.Member{Name: "RouteSelectionExpression", Index: 13, JSONName: "routeSelectionExpression"}
+var memberReimportApiOutput_RouteSelectionExpression = smithy.Member{Name: "RouteSelectionExpression", Index: 13, Target: &schemaSelectionExpression, JSONName: "routeSelectionExpression"}
 
-var memberReimportApiOutput_Tags = smithy.Member{Name: "Tags", Index: 14, JSONName: "tags"}
+var memberReimportApiOutput_Tags = smithy.Member{Name: "Tags", Index: 14, Target: &schemaTags, JSONName: "tags"}
 
-var memberReimportApiOutput_Version = smithy.Member{Name: "Version", Index: 15, JSONName: "version"}
+var memberReimportApiOutput_Version = smithy.Member{Name: "Version", Index: 15, Target: &schemaStringWithLengthBetween1And64, JSONName: "version"}
 
-var memberReimportApiOutput_Warnings = smithy.Member{Name: "Warnings", Index: 16, JSONName: "warnings"}
+var memberReimportApiOutput_Warnings = smithy.Member{Name: "Warnings", Index: 16, Target: &schema__listOf__string, JSONName: "warnings"}
 
-var schemaRequestEntityTooLargeException = smithy.Schema{ID: "com.amazon.coral.service#RequestEntityTooLargeException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 413}}
+var schemaRequestEntityTooLargeException = smithy.Schema{ID: "com.amazon.coral.service#RequestEntityTooLargeException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRequestEntityTooLargeException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 413}}
 
-var memberRequestEntityTooLargeException_message = smithy.Member{Name: "message", Index: 0}
+var memberRequestEntityTooLargeException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaResetAuthorizersCacheInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#ResetAuthorizersCacheRequest", Type: smithy.TypeStructure}
+var schemaResetAuthorizersCacheInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#ResetAuthorizersCacheRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberResetAuthorizersCacheInput_ApiId, &memberResetAuthorizersCacheInput_StageName}}
 
-var memberResetAuthorizersCacheInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberResetAuthorizersCacheInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberResetAuthorizersCacheInput_StageName = smithy.Member{Name: "StageName", Index: 1, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberResetAuthorizersCacheInput_StageName = smithy.Member{Name: "StageName", Index: 1, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaResponseParameters = smithy.Schema{ID: "com.amazonaws.apigatewayv2#ResponseParameters", Type: smithy.TypeMap}
+var schemaResponseParameters = smithy.Schema{ID: "com.amazonaws.apigatewayv2#ResponseParameters", Type: smithy.TypeMap, Members: []*smithy.Member{&memberResponseParameters_key, &memberResponseParameters_value}}
 
-var memberResponseParameters_key = smithy.Member{Name: "key", Index: 0}
+var memberResponseParameters_key = smithy.Member{Name: "key", Index: 0, Target: &schema__string}
 
-var memberResponseParameters_value = smithy.Member{Name: "value", Index: 1}
+var memberResponseParameters_value = smithy.Member{Name: "value", Index: 1, Target: &schemaIntegrationParameters}
 
-var schemaRestEndpointIdentifier = smithy.Schema{ID: "com.amazonaws.apigatewayv2#RestEndpointIdentifier", Type: smithy.TypeStructure}
+var schemaRestEndpointIdentifier = smithy.Schema{ID: "com.amazonaws.apigatewayv2#RestEndpointIdentifier", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRestEndpointIdentifier_IdentifierParts}}
 
-var memberRestEndpointIdentifier_IdentifierParts = smithy.Member{Name: "IdentifierParts", Index: 0, JSONName: "identifierParts"}
+var memberRestEndpointIdentifier_IdentifierParts = smithy.Member{Name: "IdentifierParts", Index: 0, Target: &schemaIdentifierParts, JSONName: "identifierParts"}
 
-var schemaRoute = smithy.Schema{ID: "com.amazonaws.apigatewayv2#Route", Type: smithy.TypeStructure}
+var schemaRoute = smithy.Schema{ID: "com.amazonaws.apigatewayv2#Route", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRoute_ApiGatewayManaged, &memberRoute_ApiKeyRequired, &memberRoute_AuthorizationScopes, &memberRoute_AuthorizationType, &memberRoute_AuthorizerId, &memberRoute_ModelSelectionExpression, &memberRoute_OperationName, &memberRoute_RequestModels, &memberRoute_RequestParameters, &memberRoute_RouteId, &memberRoute_RouteKey, &memberRoute_RouteResponseSelectionExpression, &memberRoute_Target}}
 
-var memberRoute_ApiGatewayManaged = smithy.Member{Name: "ApiGatewayManaged", Index: 0, JSONName: "apiGatewayManaged"}
+var memberRoute_ApiGatewayManaged = smithy.Member{Name: "ApiGatewayManaged", Index: 0, Target: &schema__boolean, JSONName: "apiGatewayManaged"}
 
-var memberRoute_ApiKeyRequired = smithy.Member{Name: "ApiKeyRequired", Index: 1, JSONName: "apiKeyRequired"}
+var memberRoute_ApiKeyRequired = smithy.Member{Name: "ApiKeyRequired", Index: 1, Target: &schema__boolean, JSONName: "apiKeyRequired"}
 
-var memberRoute_AuthorizationScopes = smithy.Member{Name: "AuthorizationScopes", Index: 2, JSONName: "authorizationScopes"}
+var memberRoute_AuthorizationScopes = smithy.Member{Name: "AuthorizationScopes", Index: 2, Target: &schemaAuthorizationScopes, JSONName: "authorizationScopes"}
 
-var memberRoute_AuthorizationType = smithy.Member{Name: "AuthorizationType", Index: 3, JSONName: "authorizationType"}
+var memberRoute_AuthorizationType = smithy.Member{Name: "AuthorizationType", Index: 3, Target: &schemaAuthorizationType, JSONName: "authorizationType"}
 
-var memberRoute_AuthorizerId = smithy.Member{Name: "AuthorizerId", Index: 4, JSONName: "authorizerId"}
+var memberRoute_AuthorizerId = smithy.Member{Name: "AuthorizerId", Index: 4, Target: &schemaId, JSONName: "authorizerId"}
 
-var memberRoute_ModelSelectionExpression = smithy.Member{Name: "ModelSelectionExpression", Index: 5, JSONName: "modelSelectionExpression"}
+var memberRoute_ModelSelectionExpression = smithy.Member{Name: "ModelSelectionExpression", Index: 5, Target: &schemaSelectionExpression, JSONName: "modelSelectionExpression"}
 
-var memberRoute_OperationName = smithy.Member{Name: "OperationName", Index: 6, JSONName: "operationName"}
+var memberRoute_OperationName = smithy.Member{Name: "OperationName", Index: 6, Target: &schemaStringWithLengthBetween1And64, JSONName: "operationName"}
 
-var memberRoute_RequestModels = smithy.Member{Name: "RequestModels", Index: 7, JSONName: "requestModels"}
+var memberRoute_RequestModels = smithy.Member{Name: "RequestModels", Index: 7, Target: &schemaRouteModels, JSONName: "requestModels"}
 
-var memberRoute_RequestParameters = smithy.Member{Name: "RequestParameters", Index: 8, JSONName: "requestParameters"}
+var memberRoute_RequestParameters = smithy.Member{Name: "RequestParameters", Index: 8, Target: &schemaRouteParameters, JSONName: "requestParameters"}
 
-var memberRoute_RouteId = smithy.Member{Name: "RouteId", Index: 9, JSONName: "routeId"}
+var memberRoute_RouteId = smithy.Member{Name: "RouteId", Index: 9, Target: &schemaId, JSONName: "routeId"}
 
-var memberRoute_RouteKey = smithy.Member{Name: "RouteKey", Index: 10, Required: true, JSONName: "routeKey"}
+var memberRoute_RouteKey = smithy.Member{Name: "RouteKey", Index: 10, Target: &schemaSelectionKey, Required: true, JSONName: "routeKey"}
 
-var memberRoute_RouteResponseSelectionExpression = smithy.Member{Name: "RouteResponseSelectionExpression", Index: 11, JSONName: "routeResponseSelectionExpression"}
+var memberRoute_RouteResponseSelectionExpression = smithy.Member{Name: "RouteResponseSelectionExpression", Index: 11, Target: &schemaSelectionExpression, JSONName: "routeResponseSelectionExpression"}
 
-var memberRoute_Target = smithy.Member{Name: "Target", Index: 12, JSONName: "target"}
+var memberRoute_Target = smithy.Member{Name: "Target", Index: 12, Target: &schemaStringWithLengthBetween1And128, JSONName: "target"}
 
-var schemaRouteModels = smithy.Schema{ID: "com.amazonaws.apigatewayv2#RouteModels", Type: smithy.TypeMap}
+var schemaRouteModels = smithy.Schema{ID: "com.amazonaws.apigatewayv2#RouteModels", Type: smithy.TypeMap, Members: []*smithy.Member{&memberRouteModels_key, &memberRouteModels_value}}
 
-var memberRouteModels_key = smithy.Member{Name: "key", Index: 0}
+var memberRouteModels_key = smithy.Member{Name: "key", Index: 0, Target: &schema__string}
 
-var memberRouteModels_value = smithy.Member{Name: "value", Index: 1}
+var memberRouteModels_value = smithy.Member{Name: "value", Index: 1, Target: &schemaStringWithLengthBetween1And128}
 
-var schemaRouteParameters = smithy.Schema{ID: "com.amazonaws.apigatewayv2#RouteParameters", Type: smithy.TypeMap}
+var schemaRouteParameters = smithy.Schema{ID: "com.amazonaws.apigatewayv2#RouteParameters", Type: smithy.TypeMap, Members: []*smithy.Member{&memberRouteParameters_key, &memberRouteParameters_value}}
 
-var memberRouteParameters_key = smithy.Member{Name: "key", Index: 0}
+var memberRouteParameters_key = smithy.Member{Name: "key", Index: 0, Target: &schema__string}
 
-var memberRouteParameters_value = smithy.Member{Name: "value", Index: 1}
+var memberRouteParameters_value = smithy.Member{Name: "value", Index: 1, Target: &schemaParameterConstraints}
 
-var schemaRouteResponse = smithy.Schema{ID: "com.amazonaws.apigatewayv2#RouteResponse", Type: smithy.TypeStructure}
+var schemaRouteResponse = smithy.Schema{ID: "com.amazonaws.apigatewayv2#RouteResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRouteResponse_ModelSelectionExpression, &memberRouteResponse_ResponseModels, &memberRouteResponse_ResponseParameters, &memberRouteResponse_RouteResponseId, &memberRouteResponse_RouteResponseKey}}
 
-var memberRouteResponse_ModelSelectionExpression = smithy.Member{Name: "ModelSelectionExpression", Index: 0, JSONName: "modelSelectionExpression"}
+var memberRouteResponse_ModelSelectionExpression = smithy.Member{Name: "ModelSelectionExpression", Index: 0, Target: &schemaSelectionExpression, JSONName: "modelSelectionExpression"}
 
-var memberRouteResponse_ResponseModels = smithy.Member{Name: "ResponseModels", Index: 1, JSONName: "responseModels"}
+var memberRouteResponse_ResponseModels = smithy.Member{Name: "ResponseModels", Index: 1, Target: &schemaRouteModels, JSONName: "responseModels"}
 
-var memberRouteResponse_ResponseParameters = smithy.Member{Name: "ResponseParameters", Index: 2, JSONName: "responseParameters"}
+var memberRouteResponse_ResponseParameters = smithy.Member{Name: "ResponseParameters", Index: 2, Target: &schemaRouteParameters, JSONName: "responseParameters"}
 
-var memberRouteResponse_RouteResponseId = smithy.Member{Name: "RouteResponseId", Index: 3, JSONName: "routeResponseId"}
+var memberRouteResponse_RouteResponseId = smithy.Member{Name: "RouteResponseId", Index: 3, Target: &schemaId, JSONName: "routeResponseId"}
 
-var memberRouteResponse_RouteResponseKey = smithy.Member{Name: "RouteResponseKey", Index: 4, Required: true, JSONName: "routeResponseKey"}
+var memberRouteResponse_RouteResponseKey = smithy.Member{Name: "RouteResponseKey", Index: 4, Target: &schemaSelectionKey, Required: true, JSONName: "routeResponseKey"}
 
-var schemaRouteSettings = smithy.Schema{ID: "com.amazonaws.apigatewayv2#RouteSettings", Type: smithy.TypeStructure}
+var schemaRouteSettings = smithy.Schema{ID: "com.amazonaws.apigatewayv2#RouteSettings", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRouteSettings_DataTraceEnabled, &memberRouteSettings_DetailedMetricsEnabled, &memberRouteSettings_LoggingLevel, &memberRouteSettings_ThrottlingBurstLimit, &memberRouteSettings_ThrottlingRateLimit}}
 
-var memberRouteSettings_DataTraceEnabled = smithy.Member{Name: "DataTraceEnabled", Index: 0, JSONName: "dataTraceEnabled"}
+var memberRouteSettings_DataTraceEnabled = smithy.Member{Name: "DataTraceEnabled", Index: 0, Target: &schema__boolean, JSONName: "dataTraceEnabled"}
 
-var memberRouteSettings_DetailedMetricsEnabled = smithy.Member{Name: "DetailedMetricsEnabled", Index: 1, JSONName: "detailedMetricsEnabled"}
+var memberRouteSettings_DetailedMetricsEnabled = smithy.Member{Name: "DetailedMetricsEnabled", Index: 1, Target: &schema__boolean, JSONName: "detailedMetricsEnabled"}
 
-var memberRouteSettings_LoggingLevel = smithy.Member{Name: "LoggingLevel", Index: 2, JSONName: "loggingLevel"}
+var memberRouteSettings_LoggingLevel = smithy.Member{Name: "LoggingLevel", Index: 2, Target: &schemaLoggingLevel, JSONName: "loggingLevel"}
 
-var memberRouteSettings_ThrottlingBurstLimit = smithy.Member{Name: "ThrottlingBurstLimit", Index: 3, JSONName: "throttlingBurstLimit"}
+var memberRouteSettings_ThrottlingBurstLimit = smithy.Member{Name: "ThrottlingBurstLimit", Index: 3, Target: &schema__integer, JSONName: "throttlingBurstLimit"}
 
-var memberRouteSettings_ThrottlingRateLimit = smithy.Member{Name: "ThrottlingRateLimit", Index: 4, JSONName: "throttlingRateLimit"}
+var memberRouteSettings_ThrottlingRateLimit = smithy.Member{Name: "ThrottlingRateLimit", Index: 4, Target: &schema__double, JSONName: "throttlingRateLimit"}
 
-var schemaRouteSettingsMap = smithy.Schema{ID: "com.amazonaws.apigatewayv2#RouteSettingsMap", Type: smithy.TypeMap}
+var schemaRouteSettingsMap = smithy.Schema{ID: "com.amazonaws.apigatewayv2#RouteSettingsMap", Type: smithy.TypeMap, Members: []*smithy.Member{&memberRouteSettingsMap_key, &memberRouteSettingsMap_value}}
 
-var memberRouteSettingsMap_key = smithy.Member{Name: "key", Index: 0}
+var memberRouteSettingsMap_key = smithy.Member{Name: "key", Index: 0, Target: &schema__string}
 
-var memberRouteSettingsMap_value = smithy.Member{Name: "value", Index: 1}
+var memberRouteSettingsMap_value = smithy.Member{Name: "value", Index: 1, Target: &schemaRouteSettings}
 
 var schemaRoutingMode = smithy.Schema{ID: "com.amazonaws.apigatewayv2#RoutingMode", Type: smithy.TypeEnum}
 
-var schemaRoutingRule = smithy.Schema{ID: "com.amazonaws.apigatewayv2#RoutingRule", Type: smithy.TypeStructure}
+var schemaRoutingRule = smithy.Schema{ID: "com.amazonaws.apigatewayv2#RoutingRule", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRoutingRule_Actions, &memberRoutingRule_Conditions, &memberRoutingRule_Priority, &memberRoutingRule_RoutingRuleArn, &memberRoutingRule_RoutingRuleId}}
 
-var memberRoutingRule_Actions = smithy.Member{Name: "Actions", Index: 0, JSONName: "actions"}
+var memberRoutingRule_Actions = smithy.Member{Name: "Actions", Index: 0, Target: &schema__listOfRoutingRuleAction, JSONName: "actions"}
 
-var memberRoutingRule_Conditions = smithy.Member{Name: "Conditions", Index: 1, JSONName: "conditions"}
+var memberRoutingRule_Conditions = smithy.Member{Name: "Conditions", Index: 1, Target: &schema__listOfRoutingRuleCondition, JSONName: "conditions"}
 
-var memberRoutingRule_Priority = smithy.Member{Name: "Priority", Index: 2, JSONName: "priority"}
+var memberRoutingRule_Priority = smithy.Member{Name: "Priority", Index: 2, Target: &schemaRoutingRulePriority, JSONName: "priority"}
 
-var memberRoutingRule_RoutingRuleArn = smithy.Member{Name: "RoutingRuleArn", Index: 3, JSONName: "routingRuleArn"}
+var memberRoutingRule_RoutingRuleArn = smithy.Member{Name: "RoutingRuleArn", Index: 3, Target: &schemaArn, JSONName: "routingRuleArn"}
 
-var memberRoutingRule_RoutingRuleId = smithy.Member{Name: "RoutingRuleId", Index: 4, JSONName: "routingRuleId"}
+var memberRoutingRule_RoutingRuleId = smithy.Member{Name: "RoutingRuleId", Index: 4, Target: &schemaId, JSONName: "routingRuleId"}
 
-var schemaRoutingRuleAction = smithy.Schema{ID: "com.amazonaws.apigatewayv2#RoutingRuleAction", Type: smithy.TypeStructure}
+var schemaRoutingRuleAction = smithy.Schema{ID: "com.amazonaws.apigatewayv2#RoutingRuleAction", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRoutingRuleAction_InvokeApi}}
 
-var memberRoutingRuleAction_InvokeApi = smithy.Member{Name: "InvokeApi", Index: 0, Required: true, JSONName: "invokeApi"}
+var memberRoutingRuleAction_InvokeApi = smithy.Member{Name: "InvokeApi", Index: 0, Target: &schemaRoutingRuleActionInvokeApi, Required: true, JSONName: "invokeApi"}
 
-var schemaRoutingRuleActionInvokeApi = smithy.Schema{ID: "com.amazonaws.apigatewayv2#RoutingRuleActionInvokeApi", Type: smithy.TypeStructure}
+var schemaRoutingRuleActionInvokeApi = smithy.Schema{ID: "com.amazonaws.apigatewayv2#RoutingRuleActionInvokeApi", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRoutingRuleActionInvokeApi_ApiId, &memberRoutingRuleActionInvokeApi_Stage, &memberRoutingRuleActionInvokeApi_StripBasePath}}
 
-var memberRoutingRuleActionInvokeApi_ApiId = smithy.Member{Name: "ApiId", Index: 0, Required: true, JSONName: "apiId"}
+var memberRoutingRuleActionInvokeApi_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schemaId, Required: true, JSONName: "apiId"}
 
-var memberRoutingRuleActionInvokeApi_Stage = smithy.Member{Name: "Stage", Index: 1, Required: true, JSONName: "stage"}
+var memberRoutingRuleActionInvokeApi_Stage = smithy.Member{Name: "Stage", Index: 1, Target: &schemaStringWithLengthBetween1And128, Required: true, JSONName: "stage"}
 
-var memberRoutingRuleActionInvokeApi_StripBasePath = smithy.Member{Name: "StripBasePath", Index: 2, JSONName: "stripBasePath"}
+var memberRoutingRuleActionInvokeApi_StripBasePath = smithy.Member{Name: "StripBasePath", Index: 2, Target: &schema__boolean, JSONName: "stripBasePath"}
 
-var schemaRoutingRuleCondition = smithy.Schema{ID: "com.amazonaws.apigatewayv2#RoutingRuleCondition", Type: smithy.TypeStructure}
+var schemaRoutingRuleCondition = smithy.Schema{ID: "com.amazonaws.apigatewayv2#RoutingRuleCondition", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRoutingRuleCondition_MatchBasePaths, &memberRoutingRuleCondition_MatchHeaders}}
 
-var memberRoutingRuleCondition_MatchBasePaths = smithy.Member{Name: "MatchBasePaths", Index: 0, JSONName: "matchBasePaths"}
+var memberRoutingRuleCondition_MatchBasePaths = smithy.Member{Name: "MatchBasePaths", Index: 0, Target: &schemaRoutingRuleMatchBasePaths, JSONName: "matchBasePaths"}
 
-var memberRoutingRuleCondition_MatchHeaders = smithy.Member{Name: "MatchHeaders", Index: 1, JSONName: "matchHeaders"}
+var memberRoutingRuleCondition_MatchHeaders = smithy.Member{Name: "MatchHeaders", Index: 1, Target: &schemaRoutingRuleMatchHeaders, JSONName: "matchHeaders"}
 
-var schemaRoutingRuleMatchBasePaths = smithy.Schema{ID: "com.amazonaws.apigatewayv2#RoutingRuleMatchBasePaths", Type: smithy.TypeStructure}
+var schemaRoutingRuleMatchBasePaths = smithy.Schema{ID: "com.amazonaws.apigatewayv2#RoutingRuleMatchBasePaths", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRoutingRuleMatchBasePaths_AnyOf}}
 
-var memberRoutingRuleMatchBasePaths_AnyOf = smithy.Member{Name: "AnyOf", Index: 0, Required: true, JSONName: "anyOf"}
+var memberRoutingRuleMatchBasePaths_AnyOf = smithy.Member{Name: "AnyOf", Index: 0, Target: &schema__listOfSelectionKey, Required: true, JSONName: "anyOf"}
 
-var schemaRoutingRuleMatchHeaderValue = smithy.Schema{ID: "com.amazonaws.apigatewayv2#RoutingRuleMatchHeaderValue", Type: smithy.TypeStructure}
+var schemaRoutingRuleMatchHeaderValue = smithy.Schema{ID: "com.amazonaws.apigatewayv2#RoutingRuleMatchHeaderValue", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRoutingRuleMatchHeaderValue_Header, &memberRoutingRuleMatchHeaderValue_ValueGlob}}
 
-var memberRoutingRuleMatchHeaderValue_Header = smithy.Member{Name: "Header", Index: 0, Required: true, JSONName: "header"}
+var memberRoutingRuleMatchHeaderValue_Header = smithy.Member{Name: "Header", Index: 0, Target: &schemaSelectionKey, Required: true, JSONName: "header"}
 
-var memberRoutingRuleMatchHeaderValue_ValueGlob = smithy.Member{Name: "ValueGlob", Index: 1, Required: true, JSONName: "valueGlob"}
+var memberRoutingRuleMatchHeaderValue_ValueGlob = smithy.Member{Name: "ValueGlob", Index: 1, Target: &schemaSelectionExpression, Required: true, JSONName: "valueGlob"}
 
-var schemaRoutingRuleMatchHeaders = smithy.Schema{ID: "com.amazonaws.apigatewayv2#RoutingRuleMatchHeaders", Type: smithy.TypeStructure}
+var schemaRoutingRuleMatchHeaders = smithy.Schema{ID: "com.amazonaws.apigatewayv2#RoutingRuleMatchHeaders", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRoutingRuleMatchHeaders_AnyOf}}
 
-var memberRoutingRuleMatchHeaders_AnyOf = smithy.Member{Name: "AnyOf", Index: 0, Required: true, JSONName: "anyOf"}
+var memberRoutingRuleMatchHeaders_AnyOf = smithy.Member{Name: "AnyOf", Index: 0, Target: &schema__listOfRoutingRuleMatchHeaderValue, Required: true, JSONName: "anyOf"}
 
 var schemaRoutingRulePriority = smithy.Schema{ID: "com.amazonaws.apigatewayv2#RoutingRulePriority", Type: smithy.TypeInteger}
 
-var schemaSection = smithy.Schema{ID: "com.amazonaws.apigatewayv2#Section", Type: smithy.TypeStructure}
+var schemaSection = smithy.Schema{ID: "com.amazonaws.apigatewayv2#Section", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSection_ProductRestEndpointPageArns, &memberSection_SectionName}}
 
-var memberSection_ProductRestEndpointPageArns = smithy.Member{Name: "ProductRestEndpointPageArns", Index: 0, Required: true, JSONName: "productRestEndpointPageArns"}
+var memberSection_ProductRestEndpointPageArns = smithy.Member{Name: "ProductRestEndpointPageArns", Index: 0, Target: &schema__listOf__stringMin20Max2048, Required: true, JSONName: "productRestEndpointPageArns"}
 
-var memberSection_SectionName = smithy.Member{Name: "SectionName", Index: 1, Required: true, JSONName: "sectionName"}
+var memberSection_SectionName = smithy.Member{Name: "SectionName", Index: 1, Target: &schema__string, Required: true, JSONName: "sectionName"}
 
-var schemaSecurityGroupIdList = smithy.Schema{ID: "com.amazonaws.apigatewayv2#SecurityGroupIdList", Type: smithy.TypeList}
+var schemaSecurityGroupIdList = smithy.Schema{ID: "com.amazonaws.apigatewayv2#SecurityGroupIdList", Type: smithy.TypeList, Members: []*smithy.Member{&memberSecurityGroupIdList_member}}
 
-var memberSecurityGroupIdList_member = smithy.Member{Name: "member", Index: 0}
+var memberSecurityGroupIdList_member = smithy.Member{Name: "member", Index: 0, Target: &schema__string}
 
 var schemaSecurityPolicy = smithy.Schema{ID: "com.amazonaws.apigatewayv2#SecurityPolicy", Type: smithy.TypeEnum}
 
@@ -2338,57 +2338,57 @@ var schemaSelectionExpression = smithy.Schema{ID: "com.amazonaws.apigatewayv2#Se
 
 var schemaSelectionKey = smithy.Schema{ID: "com.amazonaws.apigatewayv2#SelectionKey", Type: smithy.TypeString}
 
-var schemaSerializationException = smithy.Schema{ID: "com.amazon.coral.service#SerializationException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaSerializationException = smithy.Schema{ID: "com.amazon.coral.service#SerializationException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSerializationException_Message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberSerializationException_Message = smithy.Member{Name: "Message", Index: 0}
+var memberSerializationException_Message = smithy.Member{Name: "Message", Index: 0, Target: &schemaSmithyString}
 
 var schemaSmithyString = smithy.Schema{ID: "smithy.api#String", Type: smithy.TypeString}
 
 var schemaSmithyUnit = smithy.Schema{ID: "smithy.api#Unit", Type: smithy.TypeUnit}
 
-var schemaStage = smithy.Schema{ID: "com.amazonaws.apigatewayv2#Stage", Type: smithy.TypeStructure}
+var schemaStage = smithy.Schema{ID: "com.amazonaws.apigatewayv2#Stage", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberStage_AccessLogSettings, &memberStage_ApiGatewayManaged, &memberStage_AutoDeploy, &memberStage_ClientCertificateId, &memberStage_CreatedDate, &memberStage_DefaultRouteSettings, &memberStage_DeploymentId, &memberStage_Description, &memberStage_LastDeploymentStatusMessage, &memberStage_LastUpdatedDate, &memberStage_RouteSettings, &memberStage_StageName, &memberStage_StageVariables, &memberStage_Tags}}
 
-var memberStage_AccessLogSettings = smithy.Member{Name: "AccessLogSettings", Index: 0, JSONName: "accessLogSettings"}
+var memberStage_AccessLogSettings = smithy.Member{Name: "AccessLogSettings", Index: 0, Target: &schemaAccessLogSettings, JSONName: "accessLogSettings"}
 
-var memberStage_ApiGatewayManaged = smithy.Member{Name: "ApiGatewayManaged", Index: 1, JSONName: "apiGatewayManaged"}
+var memberStage_ApiGatewayManaged = smithy.Member{Name: "ApiGatewayManaged", Index: 1, Target: &schema__boolean, JSONName: "apiGatewayManaged"}
 
-var memberStage_AutoDeploy = smithy.Member{Name: "AutoDeploy", Index: 2, JSONName: "autoDeploy"}
+var memberStage_AutoDeploy = smithy.Member{Name: "AutoDeploy", Index: 2, Target: &schema__boolean, JSONName: "autoDeploy"}
 
-var memberStage_ClientCertificateId = smithy.Member{Name: "ClientCertificateId", Index: 3, JSONName: "clientCertificateId"}
+var memberStage_ClientCertificateId = smithy.Member{Name: "ClientCertificateId", Index: 3, Target: &schemaId, JSONName: "clientCertificateId"}
 
-var memberStage_CreatedDate = smithy.Member{Name: "CreatedDate", Index: 4, JSONName: "createdDate", TimestampFormat: smithy.DateTime}
+var memberStage_CreatedDate = smithy.Member{Name: "CreatedDate", Index: 4, Target: &schema__timestampIso8601, JSONName: "createdDate", TimestampFormat: smithy.DateTime}
 
-var memberStage_DefaultRouteSettings = smithy.Member{Name: "DefaultRouteSettings", Index: 5, JSONName: "defaultRouteSettings"}
+var memberStage_DefaultRouteSettings = smithy.Member{Name: "DefaultRouteSettings", Index: 5, Target: &schemaRouteSettings, JSONName: "defaultRouteSettings"}
 
-var memberStage_DeploymentId = smithy.Member{Name: "DeploymentId", Index: 6, JSONName: "deploymentId"}
+var memberStage_DeploymentId = smithy.Member{Name: "DeploymentId", Index: 6, Target: &schemaId, JSONName: "deploymentId"}
 
-var memberStage_Description = smithy.Member{Name: "Description", Index: 7, JSONName: "description"}
+var memberStage_Description = smithy.Member{Name: "Description", Index: 7, Target: &schemaStringWithLengthBetween0And1024, JSONName: "description"}
 
-var memberStage_LastDeploymentStatusMessage = smithy.Member{Name: "LastDeploymentStatusMessage", Index: 8, JSONName: "lastDeploymentStatusMessage"}
+var memberStage_LastDeploymentStatusMessage = smithy.Member{Name: "LastDeploymentStatusMessage", Index: 8, Target: &schema__string, JSONName: "lastDeploymentStatusMessage"}
 
-var memberStage_LastUpdatedDate = smithy.Member{Name: "LastUpdatedDate", Index: 9, JSONName: "lastUpdatedDate", TimestampFormat: smithy.DateTime}
+var memberStage_LastUpdatedDate = smithy.Member{Name: "LastUpdatedDate", Index: 9, Target: &schema__timestampIso8601, JSONName: "lastUpdatedDate", TimestampFormat: smithy.DateTime}
 
-var memberStage_RouteSettings = smithy.Member{Name: "RouteSettings", Index: 10, JSONName: "routeSettings"}
+var memberStage_RouteSettings = smithy.Member{Name: "RouteSettings", Index: 10, Target: &schemaRouteSettingsMap, JSONName: "routeSettings"}
 
-var memberStage_StageName = smithy.Member{Name: "StageName", Index: 11, Required: true, JSONName: "stageName"}
+var memberStage_StageName = smithy.Member{Name: "StageName", Index: 11, Target: &schemaStringWithLengthBetween1And128, Required: true, JSONName: "stageName"}
 
-var memberStage_StageVariables = smithy.Member{Name: "StageVariables", Index: 12, JSONName: "stageVariables"}
+var memberStage_StageVariables = smithy.Member{Name: "StageVariables", Index: 12, Target: &schemaStageVariablesMap, JSONName: "stageVariables"}
 
-var memberStage_Tags = smithy.Member{Name: "Tags", Index: 13, JSONName: "tags"}
+var memberStage_Tags = smithy.Member{Name: "Tags", Index: 13, Target: &schemaTags, JSONName: "tags"}
 
-var schemaStageVariablesMap = smithy.Schema{ID: "com.amazonaws.apigatewayv2#StageVariablesMap", Type: smithy.TypeMap}
+var schemaStageVariablesMap = smithy.Schema{ID: "com.amazonaws.apigatewayv2#StageVariablesMap", Type: smithy.TypeMap, Members: []*smithy.Member{&memberStageVariablesMap_key, &memberStageVariablesMap_value}}
 
-var memberStageVariablesMap_key = smithy.Member{Name: "key", Index: 0}
+var memberStageVariablesMap_key = smithy.Member{Name: "key", Index: 0, Target: &schema__string}
 
-var memberStageVariablesMap_value = smithy.Member{Name: "value", Index: 1}
+var memberStageVariablesMap_value = smithy.Member{Name: "value", Index: 1, Target: &schemaStringWithLengthBetween0And2048}
 
 var schemaStatus = smithy.Schema{ID: "com.amazonaws.apigatewayv2#Status", Type: smithy.TypeEnum}
 
-var schemaStatusException = smithy.Schema{ID: "com.amazonaws.apigatewayv2#StatusException", Type: smithy.TypeStructure}
+var schemaStatusException = smithy.Schema{ID: "com.amazonaws.apigatewayv2#StatusException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberStatusException_Exception, &memberStatusException_Message}}
 
-var memberStatusException_Exception = smithy.Member{Name: "Exception", Index: 0, JSONName: "exception"}
+var memberStatusException_Exception = smithy.Member{Name: "Exception", Index: 0, Target: &schema__stringMin1Max256, JSONName: "exception"}
 
-var memberStatusException_Message = smithy.Member{Name: "Message", Index: 1, JSONName: "message"}
+var memberStatusException_Message = smithy.Member{Name: "Message", Index: 1, Target: &schema__stringMin1Max2048, JSONName: "message"}
 
 var schemaStringWithLengthBetween0And1024 = smithy.Schema{ID: "com.amazonaws.apigatewayv2#StringWithLengthBetween0And1024", Type: smithy.TypeString}
 
@@ -2408,689 +2408,689 @@ var schemaStringWithLengthBetween1And512 = smithy.Schema{ID: "com.amazonaws.apig
 
 var schemaStringWithLengthBetween1And64 = smithy.Schema{ID: "com.amazonaws.apigatewayv2#StringWithLengthBetween1And64", Type: smithy.TypeString}
 
-var schemaSubnetIdList = smithy.Schema{ID: "com.amazonaws.apigatewayv2#SubnetIdList", Type: smithy.TypeList}
+var schemaSubnetIdList = smithy.Schema{ID: "com.amazonaws.apigatewayv2#SubnetIdList", Type: smithy.TypeList, Members: []*smithy.Member{&memberSubnetIdList_member}}
 
-var memberSubnetIdList_member = smithy.Member{Name: "member", Index: 0}
+var memberSubnetIdList_member = smithy.Member{Name: "member", Index: 0, Target: &schema__string}
 
-var schemaTagResourceInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#TagResourceRequest", Type: smithy.TypeStructure}
+var schemaTagResourceInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#TagResourceRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberTagResourceInput_ResourceArn, &memberTagResourceInput_Tags}}
 
-var memberTagResourceInput_ResourceArn = smithy.Member{Name: "ResourceArn", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberTagResourceInput_ResourceArn = smithy.Member{Name: "ResourceArn", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberTagResourceInput_Tags = smithy.Member{Name: "Tags", Index: 1, JSONName: "tags"}
+var memberTagResourceInput_Tags = smithy.Member{Name: "Tags", Index: 1, Target: &schemaTags, JSONName: "tags"}
 
 var schemaTagResourceOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#TagResourceResponse", Type: smithy.TypeStructure}
 
-var schemaTags = smithy.Schema{ID: "com.amazonaws.apigatewayv2#Tags", Type: smithy.TypeMap}
+var schemaTags = smithy.Schema{ID: "com.amazonaws.apigatewayv2#Tags", Type: smithy.TypeMap, Members: []*smithy.Member{&memberTags_key, &memberTags_value}}
 
-var memberTags_key = smithy.Member{Name: "key", Index: 0}
+var memberTags_key = smithy.Member{Name: "key", Index: 0, Target: &schema__string}
 
-var memberTags_value = smithy.Member{Name: "value", Index: 1}
+var memberTags_value = smithy.Member{Name: "value", Index: 1, Target: &schemaStringWithLengthBetween1And1600}
 
-var schemaTemplateMap = smithy.Schema{ID: "com.amazonaws.apigatewayv2#TemplateMap", Type: smithy.TypeMap}
+var schemaTemplateMap = smithy.Schema{ID: "com.amazonaws.apigatewayv2#TemplateMap", Type: smithy.TypeMap, Members: []*smithy.Member{&memberTemplateMap_key, &memberTemplateMap_value}}
 
-var memberTemplateMap_key = smithy.Member{Name: "key", Index: 0}
+var memberTemplateMap_key = smithy.Member{Name: "key", Index: 0, Target: &schema__string}
 
-var memberTemplateMap_value = smithy.Member{Name: "value", Index: 1}
+var memberTemplateMap_value = smithy.Member{Name: "value", Index: 1, Target: &schemaStringWithLengthBetween0And32K}
 
-var schemaThrottlingException = smithy.Schema{ID: "com.amazon.coral.service#ThrottlingException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaThrottlingException = smithy.Schema{ID: "com.amazon.coral.service#ThrottlingException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberThrottlingException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberThrottlingException_message = smithy.Member{Name: "message", Index: 0}
+var memberThrottlingException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaTlsConfig = smithy.Schema{ID: "com.amazonaws.apigatewayv2#TlsConfig", Type: smithy.TypeStructure}
+var schemaTlsConfig = smithy.Schema{ID: "com.amazonaws.apigatewayv2#TlsConfig", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberTlsConfig_ServerNameToVerify}}
 
-var memberTlsConfig_ServerNameToVerify = smithy.Member{Name: "ServerNameToVerify", Index: 0, JSONName: "serverNameToVerify"}
+var memberTlsConfig_ServerNameToVerify = smithy.Member{Name: "ServerNameToVerify", Index: 0, Target: &schemaStringWithLengthBetween1And512, JSONName: "serverNameToVerify"}
 
-var schemaTlsConfigInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#TlsConfigInput", Type: smithy.TypeStructure}
+var schemaTlsConfigInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#TlsConfigInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberTlsConfigInput_ServerNameToVerify}}
 
-var memberTlsConfigInput_ServerNameToVerify = smithy.Member{Name: "ServerNameToVerify", Index: 0, JSONName: "serverNameToVerify"}
+var memberTlsConfigInput_ServerNameToVerify = smithy.Member{Name: "ServerNameToVerify", Index: 0, Target: &schemaStringWithLengthBetween1And512, JSONName: "serverNameToVerify"}
 
-var schemaTooManyRequestsException = smithy.Schema{ID: "com.amazonaws.apigatewayv2#TooManyRequestsException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 429}}
+var schemaTooManyRequestsException = smithy.Schema{ID: "com.amazonaws.apigatewayv2#TooManyRequestsException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberTooManyRequestsException_LimitType, &memberTooManyRequestsException_Message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 429}}
 
-var memberTooManyRequestsException_LimitType = smithy.Member{Name: "LimitType", Index: 0, JSONName: "limitType"}
+var memberTooManyRequestsException_LimitType = smithy.Member{Name: "LimitType", Index: 0, Target: &schema__string, JSONName: "limitType"}
 
-var memberTooManyRequestsException_Message = smithy.Member{Name: "Message", Index: 1, JSONName: "message"}
+var memberTooManyRequestsException_Message = smithy.Member{Name: "Message", Index: 1, Target: &schema__string, JSONName: "message"}
 
 var schemaTryItState = smithy.Schema{ID: "com.amazonaws.apigatewayv2#TryItState", Type: smithy.TypeEnum}
 
-var schemaUnknownOperationException = smithy.Schema{ID: "com.amazon.coral.service#UnknownOperationException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaUnknownOperationException = smithy.Schema{ID: "com.amazon.coral.service#UnknownOperationException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUnknownOperationException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberUnknownOperationException_message = smithy.Member{Name: "message", Index: 0}
+var memberUnknownOperationException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaUnrecognizedClientException = smithy.Schema{ID: "com.amazon.coral.service#UnrecognizedClientException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaUnrecognizedClientException = smithy.Schema{ID: "com.amazon.coral.service#UnrecognizedClientException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUnrecognizedClientException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberUnrecognizedClientException_message = smithy.Member{Name: "message", Index: 0}
+var memberUnrecognizedClientException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaUntagResourceInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UntagResourceRequest", Type: smithy.TypeStructure}
+var schemaUntagResourceInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UntagResourceRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUntagResourceInput_ResourceArn, &memberUntagResourceInput_TagKeys}}
 
-var memberUntagResourceInput_ResourceArn = smithy.Member{Name: "ResourceArn", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberUntagResourceInput_ResourceArn = smithy.Member{Name: "ResourceArn", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberUntagResourceInput_TagKeys = smithy.Member{Name: "TagKeys", Index: 1, Required: true, HTTP: smithy.HTTPQuery{Name: "tagKeys"}}
+var memberUntagResourceInput_TagKeys = smithy.Member{Name: "TagKeys", Index: 1, Target: &schema__listOf__string, Required: true, HTTP: smithy.HTTPQuery{Name: "tagKeys"}}
 
-var schemaUpdateApiInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateApiRequest", Type: smithy.TypeStructure}
+var schemaUpdateApiInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateApiRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateApiInput_ApiId, &memberUpdateApiInput_ApiKeySelectionExpression, &memberUpdateApiInput_CorsConfiguration, &memberUpdateApiInput_CredentialsArn, &memberUpdateApiInput_Description, &memberUpdateApiInput_DisableSchemaValidation, &memberUpdateApiInput_DisableExecuteApiEndpoint, &memberUpdateApiInput_IpAddressType, &memberUpdateApiInput_Name, &memberUpdateApiInput_RouteKey, &memberUpdateApiInput_RouteSelectionExpression, &memberUpdateApiInput_Target, &memberUpdateApiInput_Version}}
 
-var memberUpdateApiInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberUpdateApiInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberUpdateApiInput_ApiKeySelectionExpression = smithy.Member{Name: "ApiKeySelectionExpression", Index: 1, JSONName: "apiKeySelectionExpression"}
+var memberUpdateApiInput_ApiKeySelectionExpression = smithy.Member{Name: "ApiKeySelectionExpression", Index: 1, Target: &schemaSelectionExpression, JSONName: "apiKeySelectionExpression"}
 
-var memberUpdateApiInput_CorsConfiguration = smithy.Member{Name: "CorsConfiguration", Index: 2, JSONName: "corsConfiguration"}
+var memberUpdateApiInput_CorsConfiguration = smithy.Member{Name: "CorsConfiguration", Index: 2, Target: &schemaCors, JSONName: "corsConfiguration"}
 
-var memberUpdateApiInput_CredentialsArn = smithy.Member{Name: "CredentialsArn", Index: 3, JSONName: "credentialsArn"}
+var memberUpdateApiInput_CredentialsArn = smithy.Member{Name: "CredentialsArn", Index: 3, Target: &schemaArn, JSONName: "credentialsArn"}
 
-var memberUpdateApiInput_Description = smithy.Member{Name: "Description", Index: 4, JSONName: "description"}
+var memberUpdateApiInput_Description = smithy.Member{Name: "Description", Index: 4, Target: &schemaStringWithLengthBetween0And1024, JSONName: "description"}
 
-var memberUpdateApiInput_DisableSchemaValidation = smithy.Member{Name: "DisableSchemaValidation", Index: 5, JSONName: "disableSchemaValidation"}
+var memberUpdateApiInput_DisableSchemaValidation = smithy.Member{Name: "DisableSchemaValidation", Index: 5, Target: &schema__boolean, JSONName: "disableSchemaValidation"}
 
-var memberUpdateApiInput_DisableExecuteApiEndpoint = smithy.Member{Name: "DisableExecuteApiEndpoint", Index: 6, JSONName: "disableExecuteApiEndpoint"}
+var memberUpdateApiInput_DisableExecuteApiEndpoint = smithy.Member{Name: "DisableExecuteApiEndpoint", Index: 6, Target: &schema__boolean, JSONName: "disableExecuteApiEndpoint"}
 
-var memberUpdateApiInput_IpAddressType = smithy.Member{Name: "IpAddressType", Index: 7, JSONName: "ipAddressType"}
+var memberUpdateApiInput_IpAddressType = smithy.Member{Name: "IpAddressType", Index: 7, Target: &schemaIpAddressType, JSONName: "ipAddressType"}
 
-var memberUpdateApiInput_Name = smithy.Member{Name: "Name", Index: 8, JSONName: "name"}
+var memberUpdateApiInput_Name = smithy.Member{Name: "Name", Index: 8, Target: &schemaStringWithLengthBetween1And128, JSONName: "name"}
 
-var memberUpdateApiInput_RouteKey = smithy.Member{Name: "RouteKey", Index: 9, JSONName: "routeKey"}
+var memberUpdateApiInput_RouteKey = smithy.Member{Name: "RouteKey", Index: 9, Target: &schemaSelectionKey, JSONName: "routeKey"}
 
-var memberUpdateApiInput_RouteSelectionExpression = smithy.Member{Name: "RouteSelectionExpression", Index: 10, JSONName: "routeSelectionExpression"}
+var memberUpdateApiInput_RouteSelectionExpression = smithy.Member{Name: "RouteSelectionExpression", Index: 10, Target: &schemaSelectionExpression, JSONName: "routeSelectionExpression"}
 
-var memberUpdateApiInput_Target = smithy.Member{Name: "Target", Index: 11, JSONName: "target"}
+var memberUpdateApiInput_Target = smithy.Member{Name: "Target", Index: 11, Target: &schemaUriWithLengthBetween1And2048, JSONName: "target"}
 
-var memberUpdateApiInput_Version = smithy.Member{Name: "Version", Index: 12, JSONName: "version"}
+var memberUpdateApiInput_Version = smithy.Member{Name: "Version", Index: 12, Target: &schemaStringWithLengthBetween1And64, JSONName: "version"}
 
-var schemaUpdateApiMappingInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateApiMappingRequest", Type: smithy.TypeStructure}
+var schemaUpdateApiMappingInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateApiMappingRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateApiMappingInput_ApiId, &memberUpdateApiMappingInput_ApiMappingId, &memberUpdateApiMappingInput_ApiMappingKey, &memberUpdateApiMappingInput_DomainName, &memberUpdateApiMappingInput_Stage}}
 
-var memberUpdateApiMappingInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Required: true, JSONName: "apiId"}
+var memberUpdateApiMappingInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schemaId, Required: true, JSONName: "apiId"}
 
-var memberUpdateApiMappingInput_ApiMappingId = smithy.Member{Name: "ApiMappingId", Index: 1, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberUpdateApiMappingInput_ApiMappingId = smithy.Member{Name: "ApiMappingId", Index: 1, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberUpdateApiMappingInput_ApiMappingKey = smithy.Member{Name: "ApiMappingKey", Index: 2, JSONName: "apiMappingKey"}
+var memberUpdateApiMappingInput_ApiMappingKey = smithy.Member{Name: "ApiMappingKey", Index: 2, Target: &schemaSelectionKey, JSONName: "apiMappingKey"}
 
-var memberUpdateApiMappingInput_DomainName = smithy.Member{Name: "DomainName", Index: 3, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberUpdateApiMappingInput_DomainName = smithy.Member{Name: "DomainName", Index: 3, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberUpdateApiMappingInput_Stage = smithy.Member{Name: "Stage", Index: 4, JSONName: "stage"}
+var memberUpdateApiMappingInput_Stage = smithy.Member{Name: "Stage", Index: 4, Target: &schemaStringWithLengthBetween1And128, JSONName: "stage"}
 
-var schemaUpdateApiMappingOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateApiMappingResponse", Type: smithy.TypeStructure}
+var schemaUpdateApiMappingOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateApiMappingResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateApiMappingOutput_ApiId, &memberUpdateApiMappingOutput_ApiMappingId, &memberUpdateApiMappingOutput_ApiMappingKey, &memberUpdateApiMappingOutput_Stage}}
 
-var memberUpdateApiMappingOutput_ApiId = smithy.Member{Name: "ApiId", Index: 0, JSONName: "apiId"}
+var memberUpdateApiMappingOutput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schemaId, JSONName: "apiId"}
 
-var memberUpdateApiMappingOutput_ApiMappingId = smithy.Member{Name: "ApiMappingId", Index: 1, JSONName: "apiMappingId"}
+var memberUpdateApiMappingOutput_ApiMappingId = smithy.Member{Name: "ApiMappingId", Index: 1, Target: &schemaId, JSONName: "apiMappingId"}
 
-var memberUpdateApiMappingOutput_ApiMappingKey = smithy.Member{Name: "ApiMappingKey", Index: 2, JSONName: "apiMappingKey"}
+var memberUpdateApiMappingOutput_ApiMappingKey = smithy.Member{Name: "ApiMappingKey", Index: 2, Target: &schemaSelectionKey, JSONName: "apiMappingKey"}
 
-var memberUpdateApiMappingOutput_Stage = smithy.Member{Name: "Stage", Index: 3, JSONName: "stage"}
+var memberUpdateApiMappingOutput_Stage = smithy.Member{Name: "Stage", Index: 3, Target: &schemaStringWithLengthBetween1And128, JSONName: "stage"}
 
-var schemaUpdateApiOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateApiResponse", Type: smithy.TypeStructure}
+var schemaUpdateApiOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateApiResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateApiOutput_ApiEndpoint, &memberUpdateApiOutput_ApiGatewayManaged, &memberUpdateApiOutput_ApiId, &memberUpdateApiOutput_ApiKeySelectionExpression, &memberUpdateApiOutput_CorsConfiguration, &memberUpdateApiOutput_CreatedDate, &memberUpdateApiOutput_Description, &memberUpdateApiOutput_DisableSchemaValidation, &memberUpdateApiOutput_DisableExecuteApiEndpoint, &memberUpdateApiOutput_ImportInfo, &memberUpdateApiOutput_IpAddressType, &memberUpdateApiOutput_Name, &memberUpdateApiOutput_ProtocolType, &memberUpdateApiOutput_RouteSelectionExpression, &memberUpdateApiOutput_Tags, &memberUpdateApiOutput_Version, &memberUpdateApiOutput_Warnings}}
 
-var memberUpdateApiOutput_ApiEndpoint = smithy.Member{Name: "ApiEndpoint", Index: 0, JSONName: "apiEndpoint"}
+var memberUpdateApiOutput_ApiEndpoint = smithy.Member{Name: "ApiEndpoint", Index: 0, Target: &schema__string, JSONName: "apiEndpoint"}
 
-var memberUpdateApiOutput_ApiGatewayManaged = smithy.Member{Name: "ApiGatewayManaged", Index: 1, JSONName: "apiGatewayManaged"}
+var memberUpdateApiOutput_ApiGatewayManaged = smithy.Member{Name: "ApiGatewayManaged", Index: 1, Target: &schema__boolean, JSONName: "apiGatewayManaged"}
 
-var memberUpdateApiOutput_ApiId = smithy.Member{Name: "ApiId", Index: 2, JSONName: "apiId"}
+var memberUpdateApiOutput_ApiId = smithy.Member{Name: "ApiId", Index: 2, Target: &schemaId, JSONName: "apiId"}
 
-var memberUpdateApiOutput_ApiKeySelectionExpression = smithy.Member{Name: "ApiKeySelectionExpression", Index: 3, JSONName: "apiKeySelectionExpression"}
+var memberUpdateApiOutput_ApiKeySelectionExpression = smithy.Member{Name: "ApiKeySelectionExpression", Index: 3, Target: &schemaSelectionExpression, JSONName: "apiKeySelectionExpression"}
 
-var memberUpdateApiOutput_CorsConfiguration = smithy.Member{Name: "CorsConfiguration", Index: 4, JSONName: "corsConfiguration"}
+var memberUpdateApiOutput_CorsConfiguration = smithy.Member{Name: "CorsConfiguration", Index: 4, Target: &schemaCors, JSONName: "corsConfiguration"}
 
-var memberUpdateApiOutput_CreatedDate = smithy.Member{Name: "CreatedDate", Index: 5, JSONName: "createdDate", TimestampFormat: smithy.DateTime}
+var memberUpdateApiOutput_CreatedDate = smithy.Member{Name: "CreatedDate", Index: 5, Target: &schema__timestampIso8601, JSONName: "createdDate", TimestampFormat: smithy.DateTime}
 
-var memberUpdateApiOutput_Description = smithy.Member{Name: "Description", Index: 6, JSONName: "description"}
+var memberUpdateApiOutput_Description = smithy.Member{Name: "Description", Index: 6, Target: &schemaStringWithLengthBetween0And1024, JSONName: "description"}
 
-var memberUpdateApiOutput_DisableSchemaValidation = smithy.Member{Name: "DisableSchemaValidation", Index: 7, JSONName: "disableSchemaValidation"}
+var memberUpdateApiOutput_DisableSchemaValidation = smithy.Member{Name: "DisableSchemaValidation", Index: 7, Target: &schema__boolean, JSONName: "disableSchemaValidation"}
 
-var memberUpdateApiOutput_DisableExecuteApiEndpoint = smithy.Member{Name: "DisableExecuteApiEndpoint", Index: 8, JSONName: "disableExecuteApiEndpoint"}
+var memberUpdateApiOutput_DisableExecuteApiEndpoint = smithy.Member{Name: "DisableExecuteApiEndpoint", Index: 8, Target: &schema__boolean, JSONName: "disableExecuteApiEndpoint"}
 
-var memberUpdateApiOutput_ImportInfo = smithy.Member{Name: "ImportInfo", Index: 9, JSONName: "importInfo"}
+var memberUpdateApiOutput_ImportInfo = smithy.Member{Name: "ImportInfo", Index: 9, Target: &schema__listOf__string, JSONName: "importInfo"}
 
-var memberUpdateApiOutput_IpAddressType = smithy.Member{Name: "IpAddressType", Index: 10, JSONName: "ipAddressType"}
+var memberUpdateApiOutput_IpAddressType = smithy.Member{Name: "IpAddressType", Index: 10, Target: &schemaIpAddressType, JSONName: "ipAddressType"}
 
-var memberUpdateApiOutput_Name = smithy.Member{Name: "Name", Index: 11, JSONName: "name"}
+var memberUpdateApiOutput_Name = smithy.Member{Name: "Name", Index: 11, Target: &schemaStringWithLengthBetween1And128, JSONName: "name"}
 
-var memberUpdateApiOutput_ProtocolType = smithy.Member{Name: "ProtocolType", Index: 12, JSONName: "protocolType"}
+var memberUpdateApiOutput_ProtocolType = smithy.Member{Name: "ProtocolType", Index: 12, Target: &schemaProtocolType, JSONName: "protocolType"}
 
-var memberUpdateApiOutput_RouteSelectionExpression = smithy.Member{Name: "RouteSelectionExpression", Index: 13, JSONName: "routeSelectionExpression"}
+var memberUpdateApiOutput_RouteSelectionExpression = smithy.Member{Name: "RouteSelectionExpression", Index: 13, Target: &schemaSelectionExpression, JSONName: "routeSelectionExpression"}
 
-var memberUpdateApiOutput_Tags = smithy.Member{Name: "Tags", Index: 14, JSONName: "tags"}
+var memberUpdateApiOutput_Tags = smithy.Member{Name: "Tags", Index: 14, Target: &schemaTags, JSONName: "tags"}
 
-var memberUpdateApiOutput_Version = smithy.Member{Name: "Version", Index: 15, JSONName: "version"}
+var memberUpdateApiOutput_Version = smithy.Member{Name: "Version", Index: 15, Target: &schemaStringWithLengthBetween1And64, JSONName: "version"}
 
-var memberUpdateApiOutput_Warnings = smithy.Member{Name: "Warnings", Index: 16, JSONName: "warnings"}
+var memberUpdateApiOutput_Warnings = smithy.Member{Name: "Warnings", Index: 16, Target: &schema__listOf__string, JSONName: "warnings"}
 
-var schemaUpdateAuthorizerInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateAuthorizerRequest", Type: smithy.TypeStructure}
+var schemaUpdateAuthorizerInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateAuthorizerRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateAuthorizerInput_ApiId, &memberUpdateAuthorizerInput_AuthorizerCredentialsArn, &memberUpdateAuthorizerInput_AuthorizerId, &memberUpdateAuthorizerInput_AuthorizerPayloadFormatVersion, &memberUpdateAuthorizerInput_AuthorizerResultTtlInSeconds, &memberUpdateAuthorizerInput_AuthorizerType, &memberUpdateAuthorizerInput_AuthorizerUri, &memberUpdateAuthorizerInput_EnableSimpleResponses, &memberUpdateAuthorizerInput_IdentitySource, &memberUpdateAuthorizerInput_IdentityValidationExpression, &memberUpdateAuthorizerInput_JwtConfiguration, &memberUpdateAuthorizerInput_Name}}
 
-var memberUpdateAuthorizerInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberUpdateAuthorizerInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberUpdateAuthorizerInput_AuthorizerCredentialsArn = smithy.Member{Name: "AuthorizerCredentialsArn", Index: 1, JSONName: "authorizerCredentialsArn"}
+var memberUpdateAuthorizerInput_AuthorizerCredentialsArn = smithy.Member{Name: "AuthorizerCredentialsArn", Index: 1, Target: &schemaArn, JSONName: "authorizerCredentialsArn"}
 
-var memberUpdateAuthorizerInput_AuthorizerId = smithy.Member{Name: "AuthorizerId", Index: 2, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberUpdateAuthorizerInput_AuthorizerId = smithy.Member{Name: "AuthorizerId", Index: 2, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberUpdateAuthorizerInput_AuthorizerPayloadFormatVersion = smithy.Member{Name: "AuthorizerPayloadFormatVersion", Index: 3, JSONName: "authorizerPayloadFormatVersion"}
+var memberUpdateAuthorizerInput_AuthorizerPayloadFormatVersion = smithy.Member{Name: "AuthorizerPayloadFormatVersion", Index: 3, Target: &schemaStringWithLengthBetween1And64, JSONName: "authorizerPayloadFormatVersion"}
 
-var memberUpdateAuthorizerInput_AuthorizerResultTtlInSeconds = smithy.Member{Name: "AuthorizerResultTtlInSeconds", Index: 4, JSONName: "authorizerResultTtlInSeconds"}
+var memberUpdateAuthorizerInput_AuthorizerResultTtlInSeconds = smithy.Member{Name: "AuthorizerResultTtlInSeconds", Index: 4, Target: &schemaIntegerWithLengthBetween0And3600, JSONName: "authorizerResultTtlInSeconds"}
 
-var memberUpdateAuthorizerInput_AuthorizerType = smithy.Member{Name: "AuthorizerType", Index: 5, JSONName: "authorizerType"}
+var memberUpdateAuthorizerInput_AuthorizerType = smithy.Member{Name: "AuthorizerType", Index: 5, Target: &schemaAuthorizerType, JSONName: "authorizerType"}
 
-var memberUpdateAuthorizerInput_AuthorizerUri = smithy.Member{Name: "AuthorizerUri", Index: 6, JSONName: "authorizerUri"}
+var memberUpdateAuthorizerInput_AuthorizerUri = smithy.Member{Name: "AuthorizerUri", Index: 6, Target: &schemaUriWithLengthBetween1And2048, JSONName: "authorizerUri"}
 
-var memberUpdateAuthorizerInput_EnableSimpleResponses = smithy.Member{Name: "EnableSimpleResponses", Index: 7, JSONName: "enableSimpleResponses"}
+var memberUpdateAuthorizerInput_EnableSimpleResponses = smithy.Member{Name: "EnableSimpleResponses", Index: 7, Target: &schema__boolean, JSONName: "enableSimpleResponses"}
 
-var memberUpdateAuthorizerInput_IdentitySource = smithy.Member{Name: "IdentitySource", Index: 8, JSONName: "identitySource"}
+var memberUpdateAuthorizerInput_IdentitySource = smithy.Member{Name: "IdentitySource", Index: 8, Target: &schemaIdentitySourceList, JSONName: "identitySource"}
 
-var memberUpdateAuthorizerInput_IdentityValidationExpression = smithy.Member{Name: "IdentityValidationExpression", Index: 9, JSONName: "identityValidationExpression"}
+var memberUpdateAuthorizerInput_IdentityValidationExpression = smithy.Member{Name: "IdentityValidationExpression", Index: 9, Target: &schemaStringWithLengthBetween0And1024, JSONName: "identityValidationExpression"}
 
-var memberUpdateAuthorizerInput_JwtConfiguration = smithy.Member{Name: "JwtConfiguration", Index: 10, JSONName: "jwtConfiguration"}
+var memberUpdateAuthorizerInput_JwtConfiguration = smithy.Member{Name: "JwtConfiguration", Index: 10, Target: &schemaJWTConfiguration, JSONName: "jwtConfiguration"}
 
-var memberUpdateAuthorizerInput_Name = smithy.Member{Name: "Name", Index: 11, JSONName: "name"}
+var memberUpdateAuthorizerInput_Name = smithy.Member{Name: "Name", Index: 11, Target: &schemaStringWithLengthBetween1And128, JSONName: "name"}
 
-var schemaUpdateAuthorizerOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateAuthorizerResponse", Type: smithy.TypeStructure}
+var schemaUpdateAuthorizerOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateAuthorizerResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateAuthorizerOutput_AuthorizerCredentialsArn, &memberUpdateAuthorizerOutput_AuthorizerId, &memberUpdateAuthorizerOutput_AuthorizerPayloadFormatVersion, &memberUpdateAuthorizerOutput_AuthorizerResultTtlInSeconds, &memberUpdateAuthorizerOutput_AuthorizerType, &memberUpdateAuthorizerOutput_AuthorizerUri, &memberUpdateAuthorizerOutput_EnableSimpleResponses, &memberUpdateAuthorizerOutput_IdentitySource, &memberUpdateAuthorizerOutput_IdentityValidationExpression, &memberUpdateAuthorizerOutput_JwtConfiguration, &memberUpdateAuthorizerOutput_Name}}
 
-var memberUpdateAuthorizerOutput_AuthorizerCredentialsArn = smithy.Member{Name: "AuthorizerCredentialsArn", Index: 0, JSONName: "authorizerCredentialsArn"}
+var memberUpdateAuthorizerOutput_AuthorizerCredentialsArn = smithy.Member{Name: "AuthorizerCredentialsArn", Index: 0, Target: &schemaArn, JSONName: "authorizerCredentialsArn"}
 
-var memberUpdateAuthorizerOutput_AuthorizerId = smithy.Member{Name: "AuthorizerId", Index: 1, JSONName: "authorizerId"}
+var memberUpdateAuthorizerOutput_AuthorizerId = smithy.Member{Name: "AuthorizerId", Index: 1, Target: &schemaId, JSONName: "authorizerId"}
 
-var memberUpdateAuthorizerOutput_AuthorizerPayloadFormatVersion = smithy.Member{Name: "AuthorizerPayloadFormatVersion", Index: 2, JSONName: "authorizerPayloadFormatVersion"}
+var memberUpdateAuthorizerOutput_AuthorizerPayloadFormatVersion = smithy.Member{Name: "AuthorizerPayloadFormatVersion", Index: 2, Target: &schemaStringWithLengthBetween1And64, JSONName: "authorizerPayloadFormatVersion"}
 
-var memberUpdateAuthorizerOutput_AuthorizerResultTtlInSeconds = smithy.Member{Name: "AuthorizerResultTtlInSeconds", Index: 3, JSONName: "authorizerResultTtlInSeconds"}
+var memberUpdateAuthorizerOutput_AuthorizerResultTtlInSeconds = smithy.Member{Name: "AuthorizerResultTtlInSeconds", Index: 3, Target: &schemaIntegerWithLengthBetween0And3600, JSONName: "authorizerResultTtlInSeconds"}
 
-var memberUpdateAuthorizerOutput_AuthorizerType = smithy.Member{Name: "AuthorizerType", Index: 4, JSONName: "authorizerType"}
+var memberUpdateAuthorizerOutput_AuthorizerType = smithy.Member{Name: "AuthorizerType", Index: 4, Target: &schemaAuthorizerType, JSONName: "authorizerType"}
 
-var memberUpdateAuthorizerOutput_AuthorizerUri = smithy.Member{Name: "AuthorizerUri", Index: 5, JSONName: "authorizerUri"}
+var memberUpdateAuthorizerOutput_AuthorizerUri = smithy.Member{Name: "AuthorizerUri", Index: 5, Target: &schemaUriWithLengthBetween1And2048, JSONName: "authorizerUri"}
 
-var memberUpdateAuthorizerOutput_EnableSimpleResponses = smithy.Member{Name: "EnableSimpleResponses", Index: 6, JSONName: "enableSimpleResponses"}
+var memberUpdateAuthorizerOutput_EnableSimpleResponses = smithy.Member{Name: "EnableSimpleResponses", Index: 6, Target: &schema__boolean, JSONName: "enableSimpleResponses"}
 
-var memberUpdateAuthorizerOutput_IdentitySource = smithy.Member{Name: "IdentitySource", Index: 7, JSONName: "identitySource"}
+var memberUpdateAuthorizerOutput_IdentitySource = smithy.Member{Name: "IdentitySource", Index: 7, Target: &schemaIdentitySourceList, JSONName: "identitySource"}
 
-var memberUpdateAuthorizerOutput_IdentityValidationExpression = smithy.Member{Name: "IdentityValidationExpression", Index: 8, JSONName: "identityValidationExpression"}
+var memberUpdateAuthorizerOutput_IdentityValidationExpression = smithy.Member{Name: "IdentityValidationExpression", Index: 8, Target: &schemaStringWithLengthBetween0And1024, JSONName: "identityValidationExpression"}
 
-var memberUpdateAuthorizerOutput_JwtConfiguration = smithy.Member{Name: "JwtConfiguration", Index: 9, JSONName: "jwtConfiguration"}
+var memberUpdateAuthorizerOutput_JwtConfiguration = smithy.Member{Name: "JwtConfiguration", Index: 9, Target: &schemaJWTConfiguration, JSONName: "jwtConfiguration"}
 
-var memberUpdateAuthorizerOutput_Name = smithy.Member{Name: "Name", Index: 10, JSONName: "name"}
+var memberUpdateAuthorizerOutput_Name = smithy.Member{Name: "Name", Index: 10, Target: &schemaStringWithLengthBetween1And128, JSONName: "name"}
 
-var schemaUpdateDeploymentInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateDeploymentRequest", Type: smithy.TypeStructure}
+var schemaUpdateDeploymentInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateDeploymentRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateDeploymentInput_ApiId, &memberUpdateDeploymentInput_DeploymentId, &memberUpdateDeploymentInput_Description}}
 
-var memberUpdateDeploymentInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberUpdateDeploymentInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberUpdateDeploymentInput_DeploymentId = smithy.Member{Name: "DeploymentId", Index: 1, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberUpdateDeploymentInput_DeploymentId = smithy.Member{Name: "DeploymentId", Index: 1, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberUpdateDeploymentInput_Description = smithy.Member{Name: "Description", Index: 2, JSONName: "description"}
+var memberUpdateDeploymentInput_Description = smithy.Member{Name: "Description", Index: 2, Target: &schemaStringWithLengthBetween0And1024, JSONName: "description"}
 
-var schemaUpdateDeploymentOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateDeploymentResponse", Type: smithy.TypeStructure}
+var schemaUpdateDeploymentOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateDeploymentResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateDeploymentOutput_AutoDeployed, &memberUpdateDeploymentOutput_CreatedDate, &memberUpdateDeploymentOutput_DeploymentId, &memberUpdateDeploymentOutput_DeploymentStatus, &memberUpdateDeploymentOutput_DeploymentStatusMessage, &memberUpdateDeploymentOutput_Description}}
 
-var memberUpdateDeploymentOutput_AutoDeployed = smithy.Member{Name: "AutoDeployed", Index: 0, JSONName: "autoDeployed"}
+var memberUpdateDeploymentOutput_AutoDeployed = smithy.Member{Name: "AutoDeployed", Index: 0, Target: &schema__boolean, JSONName: "autoDeployed"}
 
-var memberUpdateDeploymentOutput_CreatedDate = smithy.Member{Name: "CreatedDate", Index: 1, JSONName: "createdDate", TimestampFormat: smithy.DateTime}
+var memberUpdateDeploymentOutput_CreatedDate = smithy.Member{Name: "CreatedDate", Index: 1, Target: &schema__timestampIso8601, JSONName: "createdDate", TimestampFormat: smithy.DateTime}
 
-var memberUpdateDeploymentOutput_DeploymentId = smithy.Member{Name: "DeploymentId", Index: 2, JSONName: "deploymentId"}
+var memberUpdateDeploymentOutput_DeploymentId = smithy.Member{Name: "DeploymentId", Index: 2, Target: &schemaId, JSONName: "deploymentId"}
 
-var memberUpdateDeploymentOutput_DeploymentStatus = smithy.Member{Name: "DeploymentStatus", Index: 3, JSONName: "deploymentStatus"}
+var memberUpdateDeploymentOutput_DeploymentStatus = smithy.Member{Name: "DeploymentStatus", Index: 3, Target: &schemaDeploymentStatus, JSONName: "deploymentStatus"}
 
-var memberUpdateDeploymentOutput_DeploymentStatusMessage = smithy.Member{Name: "DeploymentStatusMessage", Index: 4, JSONName: "deploymentStatusMessage"}
+var memberUpdateDeploymentOutput_DeploymentStatusMessage = smithy.Member{Name: "DeploymentStatusMessage", Index: 4, Target: &schema__string, JSONName: "deploymentStatusMessage"}
 
-var memberUpdateDeploymentOutput_Description = smithy.Member{Name: "Description", Index: 5, JSONName: "description"}
+var memberUpdateDeploymentOutput_Description = smithy.Member{Name: "Description", Index: 5, Target: &schemaStringWithLengthBetween0And1024, JSONName: "description"}
 
-var schemaUpdateDomainNameInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateDomainNameRequest", Type: smithy.TypeStructure}
+var schemaUpdateDomainNameInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateDomainNameRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateDomainNameInput_DomainName, &memberUpdateDomainNameInput_DomainNameConfigurations, &memberUpdateDomainNameInput_MutualTlsAuthentication, &memberUpdateDomainNameInput_RoutingMode}}
 
-var memberUpdateDomainNameInput_DomainName = smithy.Member{Name: "DomainName", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberUpdateDomainNameInput_DomainName = smithy.Member{Name: "DomainName", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberUpdateDomainNameInput_DomainNameConfigurations = smithy.Member{Name: "DomainNameConfigurations", Index: 1, JSONName: "domainNameConfigurations"}
+var memberUpdateDomainNameInput_DomainNameConfigurations = smithy.Member{Name: "DomainNameConfigurations", Index: 1, Target: &schemaDomainNameConfigurations, JSONName: "domainNameConfigurations"}
 
-var memberUpdateDomainNameInput_MutualTlsAuthentication = smithy.Member{Name: "MutualTlsAuthentication", Index: 2, JSONName: "mutualTlsAuthentication"}
+var memberUpdateDomainNameInput_MutualTlsAuthentication = smithy.Member{Name: "MutualTlsAuthentication", Index: 2, Target: &schemaMutualTlsAuthenticationInput, JSONName: "mutualTlsAuthentication"}
 
-var memberUpdateDomainNameInput_RoutingMode = smithy.Member{Name: "RoutingMode", Index: 3, JSONName: "routingMode"}
+var memberUpdateDomainNameInput_RoutingMode = smithy.Member{Name: "RoutingMode", Index: 3, Target: &schemaRoutingMode, JSONName: "routingMode"}
 
-var schemaUpdateDomainNameOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateDomainNameResponse", Type: smithy.TypeStructure}
+var schemaUpdateDomainNameOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateDomainNameResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateDomainNameOutput_ApiMappingSelectionExpression, &memberUpdateDomainNameOutput_DomainName, &memberUpdateDomainNameOutput_DomainNameArn, &memberUpdateDomainNameOutput_DomainNameConfigurations, &memberUpdateDomainNameOutput_MutualTlsAuthentication, &memberUpdateDomainNameOutput_RoutingMode, &memberUpdateDomainNameOutput_Tags}}
 
-var memberUpdateDomainNameOutput_ApiMappingSelectionExpression = smithy.Member{Name: "ApiMappingSelectionExpression", Index: 0, JSONName: "apiMappingSelectionExpression"}
+var memberUpdateDomainNameOutput_ApiMappingSelectionExpression = smithy.Member{Name: "ApiMappingSelectionExpression", Index: 0, Target: &schemaSelectionExpression, JSONName: "apiMappingSelectionExpression"}
 
-var memberUpdateDomainNameOutput_DomainName = smithy.Member{Name: "DomainName", Index: 1, JSONName: "domainName"}
+var memberUpdateDomainNameOutput_DomainName = smithy.Member{Name: "DomainName", Index: 1, Target: &schemaStringWithLengthBetween1And512, JSONName: "domainName"}
 
-var memberUpdateDomainNameOutput_DomainNameArn = smithy.Member{Name: "DomainNameArn", Index: 2, JSONName: "domainNameArn"}
+var memberUpdateDomainNameOutput_DomainNameArn = smithy.Member{Name: "DomainNameArn", Index: 2, Target: &schemaArn, JSONName: "domainNameArn"}
 
-var memberUpdateDomainNameOutput_DomainNameConfigurations = smithy.Member{Name: "DomainNameConfigurations", Index: 3, JSONName: "domainNameConfigurations"}
+var memberUpdateDomainNameOutput_DomainNameConfigurations = smithy.Member{Name: "DomainNameConfigurations", Index: 3, Target: &schemaDomainNameConfigurations, JSONName: "domainNameConfigurations"}
 
-var memberUpdateDomainNameOutput_MutualTlsAuthentication = smithy.Member{Name: "MutualTlsAuthentication", Index: 4, JSONName: "mutualTlsAuthentication"}
+var memberUpdateDomainNameOutput_MutualTlsAuthentication = smithy.Member{Name: "MutualTlsAuthentication", Index: 4, Target: &schemaMutualTlsAuthentication, JSONName: "mutualTlsAuthentication"}
 
-var memberUpdateDomainNameOutput_RoutingMode = smithy.Member{Name: "RoutingMode", Index: 5, JSONName: "routingMode"}
+var memberUpdateDomainNameOutput_RoutingMode = smithy.Member{Name: "RoutingMode", Index: 5, Target: &schemaRoutingMode, JSONName: "routingMode"}
 
-var memberUpdateDomainNameOutput_Tags = smithy.Member{Name: "Tags", Index: 6, JSONName: "tags"}
+var memberUpdateDomainNameOutput_Tags = smithy.Member{Name: "Tags", Index: 6, Target: &schemaTags, JSONName: "tags"}
 
-var schemaUpdateIntegrationInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateIntegrationRequest", Type: smithy.TypeStructure}
+var schemaUpdateIntegrationInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateIntegrationRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateIntegrationInput_ApiId, &memberUpdateIntegrationInput_ConnectionId, &memberUpdateIntegrationInput_ConnectionType, &memberUpdateIntegrationInput_ContentHandlingStrategy, &memberUpdateIntegrationInput_CredentialsArn, &memberUpdateIntegrationInput_Description, &memberUpdateIntegrationInput_IntegrationId, &memberUpdateIntegrationInput_IntegrationMethod, &memberUpdateIntegrationInput_IntegrationSubtype, &memberUpdateIntegrationInput_IntegrationType, &memberUpdateIntegrationInput_IntegrationUri, &memberUpdateIntegrationInput_PassthroughBehavior, &memberUpdateIntegrationInput_PayloadFormatVersion, &memberUpdateIntegrationInput_RequestParameters, &memberUpdateIntegrationInput_RequestTemplates, &memberUpdateIntegrationInput_ResponseParameters, &memberUpdateIntegrationInput_TemplateSelectionExpression, &memberUpdateIntegrationInput_TimeoutInMillis, &memberUpdateIntegrationInput_TlsConfig}}
 
-var memberUpdateIntegrationInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberUpdateIntegrationInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberUpdateIntegrationInput_ConnectionId = smithy.Member{Name: "ConnectionId", Index: 1, JSONName: "connectionId"}
+var memberUpdateIntegrationInput_ConnectionId = smithy.Member{Name: "ConnectionId", Index: 1, Target: &schemaStringWithLengthBetween1And1024, JSONName: "connectionId"}
 
-var memberUpdateIntegrationInput_ConnectionType = smithy.Member{Name: "ConnectionType", Index: 2, JSONName: "connectionType"}
+var memberUpdateIntegrationInput_ConnectionType = smithy.Member{Name: "ConnectionType", Index: 2, Target: &schemaConnectionType, JSONName: "connectionType"}
 
-var memberUpdateIntegrationInput_ContentHandlingStrategy = smithy.Member{Name: "ContentHandlingStrategy", Index: 3, JSONName: "contentHandlingStrategy"}
+var memberUpdateIntegrationInput_ContentHandlingStrategy = smithy.Member{Name: "ContentHandlingStrategy", Index: 3, Target: &schemaContentHandlingStrategy, JSONName: "contentHandlingStrategy"}
 
-var memberUpdateIntegrationInput_CredentialsArn = smithy.Member{Name: "CredentialsArn", Index: 4, JSONName: "credentialsArn"}
+var memberUpdateIntegrationInput_CredentialsArn = smithy.Member{Name: "CredentialsArn", Index: 4, Target: &schemaArn, JSONName: "credentialsArn"}
 
-var memberUpdateIntegrationInput_Description = smithy.Member{Name: "Description", Index: 5, JSONName: "description"}
+var memberUpdateIntegrationInput_Description = smithy.Member{Name: "Description", Index: 5, Target: &schemaStringWithLengthBetween0And1024, JSONName: "description"}
 
-var memberUpdateIntegrationInput_IntegrationId = smithy.Member{Name: "IntegrationId", Index: 6, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberUpdateIntegrationInput_IntegrationId = smithy.Member{Name: "IntegrationId", Index: 6, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberUpdateIntegrationInput_IntegrationMethod = smithy.Member{Name: "IntegrationMethod", Index: 7, JSONName: "integrationMethod"}
+var memberUpdateIntegrationInput_IntegrationMethod = smithy.Member{Name: "IntegrationMethod", Index: 7, Target: &schemaStringWithLengthBetween1And64, JSONName: "integrationMethod"}
 
-var memberUpdateIntegrationInput_IntegrationSubtype = smithy.Member{Name: "IntegrationSubtype", Index: 8, JSONName: "integrationSubtype"}
+var memberUpdateIntegrationInput_IntegrationSubtype = smithy.Member{Name: "IntegrationSubtype", Index: 8, Target: &schemaStringWithLengthBetween1And128, JSONName: "integrationSubtype"}
 
-var memberUpdateIntegrationInput_IntegrationType = smithy.Member{Name: "IntegrationType", Index: 9, JSONName: "integrationType"}
+var memberUpdateIntegrationInput_IntegrationType = smithy.Member{Name: "IntegrationType", Index: 9, Target: &schemaIntegrationType, JSONName: "integrationType"}
 
-var memberUpdateIntegrationInput_IntegrationUri = smithy.Member{Name: "IntegrationUri", Index: 10, JSONName: "integrationUri"}
+var memberUpdateIntegrationInput_IntegrationUri = smithy.Member{Name: "IntegrationUri", Index: 10, Target: &schemaUriWithLengthBetween1And2048, JSONName: "integrationUri"}
 
-var memberUpdateIntegrationInput_PassthroughBehavior = smithy.Member{Name: "PassthroughBehavior", Index: 11, JSONName: "passthroughBehavior"}
+var memberUpdateIntegrationInput_PassthroughBehavior = smithy.Member{Name: "PassthroughBehavior", Index: 11, Target: &schemaPassthroughBehavior, JSONName: "passthroughBehavior"}
 
-var memberUpdateIntegrationInput_PayloadFormatVersion = smithy.Member{Name: "PayloadFormatVersion", Index: 12, JSONName: "payloadFormatVersion"}
+var memberUpdateIntegrationInput_PayloadFormatVersion = smithy.Member{Name: "PayloadFormatVersion", Index: 12, Target: &schemaStringWithLengthBetween1And64, JSONName: "payloadFormatVersion"}
 
-var memberUpdateIntegrationInput_RequestParameters = smithy.Member{Name: "RequestParameters", Index: 13, JSONName: "requestParameters"}
+var memberUpdateIntegrationInput_RequestParameters = smithy.Member{Name: "RequestParameters", Index: 13, Target: &schemaIntegrationParameters, JSONName: "requestParameters"}
 
-var memberUpdateIntegrationInput_RequestTemplates = smithy.Member{Name: "RequestTemplates", Index: 14, JSONName: "requestTemplates"}
+var memberUpdateIntegrationInput_RequestTemplates = smithy.Member{Name: "RequestTemplates", Index: 14, Target: &schemaTemplateMap, JSONName: "requestTemplates"}
 
-var memberUpdateIntegrationInput_ResponseParameters = smithy.Member{Name: "ResponseParameters", Index: 15, JSONName: "responseParameters"}
+var memberUpdateIntegrationInput_ResponseParameters = smithy.Member{Name: "ResponseParameters", Index: 15, Target: &schemaResponseParameters, JSONName: "responseParameters"}
 
-var memberUpdateIntegrationInput_TemplateSelectionExpression = smithy.Member{Name: "TemplateSelectionExpression", Index: 16, JSONName: "templateSelectionExpression"}
+var memberUpdateIntegrationInput_TemplateSelectionExpression = smithy.Member{Name: "TemplateSelectionExpression", Index: 16, Target: &schemaSelectionExpression, JSONName: "templateSelectionExpression"}
 
-var memberUpdateIntegrationInput_TimeoutInMillis = smithy.Member{Name: "TimeoutInMillis", Index: 17, JSONName: "timeoutInMillis"}
+var memberUpdateIntegrationInput_TimeoutInMillis = smithy.Member{Name: "TimeoutInMillis", Index: 17, Target: &schemaIntegerWithLengthBetween50And30000, JSONName: "timeoutInMillis"}
 
-var memberUpdateIntegrationInput_TlsConfig = smithy.Member{Name: "TlsConfig", Index: 18, JSONName: "tlsConfig"}
+var memberUpdateIntegrationInput_TlsConfig = smithy.Member{Name: "TlsConfig", Index: 18, Target: &schemaTlsConfigInput, JSONName: "tlsConfig"}
 
-var schemaUpdateIntegrationOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateIntegrationResult", Type: smithy.TypeStructure}
+var schemaUpdateIntegrationOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateIntegrationResult", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateIntegrationOutput_ApiGatewayManaged, &memberUpdateIntegrationOutput_ConnectionId, &memberUpdateIntegrationOutput_ConnectionType, &memberUpdateIntegrationOutput_ContentHandlingStrategy, &memberUpdateIntegrationOutput_CredentialsArn, &memberUpdateIntegrationOutput_Description, &memberUpdateIntegrationOutput_IntegrationId, &memberUpdateIntegrationOutput_IntegrationMethod, &memberUpdateIntegrationOutput_IntegrationResponseSelectionExpression, &memberUpdateIntegrationOutput_IntegrationSubtype, &memberUpdateIntegrationOutput_IntegrationType, &memberUpdateIntegrationOutput_IntegrationUri, &memberUpdateIntegrationOutput_PassthroughBehavior, &memberUpdateIntegrationOutput_PayloadFormatVersion, &memberUpdateIntegrationOutput_RequestParameters, &memberUpdateIntegrationOutput_RequestTemplates, &memberUpdateIntegrationOutput_ResponseParameters, &memberUpdateIntegrationOutput_TemplateSelectionExpression, &memberUpdateIntegrationOutput_TimeoutInMillis, &memberUpdateIntegrationOutput_TlsConfig}}
 
-var memberUpdateIntegrationOutput_ApiGatewayManaged = smithy.Member{Name: "ApiGatewayManaged", Index: 0, JSONName: "apiGatewayManaged"}
+var memberUpdateIntegrationOutput_ApiGatewayManaged = smithy.Member{Name: "ApiGatewayManaged", Index: 0, Target: &schema__boolean, JSONName: "apiGatewayManaged"}
 
-var memberUpdateIntegrationOutput_ConnectionId = smithy.Member{Name: "ConnectionId", Index: 1, JSONName: "connectionId"}
+var memberUpdateIntegrationOutput_ConnectionId = smithy.Member{Name: "ConnectionId", Index: 1, Target: &schemaStringWithLengthBetween1And1024, JSONName: "connectionId"}
 
-var memberUpdateIntegrationOutput_ConnectionType = smithy.Member{Name: "ConnectionType", Index: 2, JSONName: "connectionType"}
+var memberUpdateIntegrationOutput_ConnectionType = smithy.Member{Name: "ConnectionType", Index: 2, Target: &schemaConnectionType, JSONName: "connectionType"}
 
-var memberUpdateIntegrationOutput_ContentHandlingStrategy = smithy.Member{Name: "ContentHandlingStrategy", Index: 3, JSONName: "contentHandlingStrategy"}
+var memberUpdateIntegrationOutput_ContentHandlingStrategy = smithy.Member{Name: "ContentHandlingStrategy", Index: 3, Target: &schemaContentHandlingStrategy, JSONName: "contentHandlingStrategy"}
 
-var memberUpdateIntegrationOutput_CredentialsArn = smithy.Member{Name: "CredentialsArn", Index: 4, JSONName: "credentialsArn"}
+var memberUpdateIntegrationOutput_CredentialsArn = smithy.Member{Name: "CredentialsArn", Index: 4, Target: &schemaArn, JSONName: "credentialsArn"}
 
-var memberUpdateIntegrationOutput_Description = smithy.Member{Name: "Description", Index: 5, JSONName: "description"}
+var memberUpdateIntegrationOutput_Description = smithy.Member{Name: "Description", Index: 5, Target: &schemaStringWithLengthBetween0And1024, JSONName: "description"}
 
-var memberUpdateIntegrationOutput_IntegrationId = smithy.Member{Name: "IntegrationId", Index: 6, JSONName: "integrationId"}
+var memberUpdateIntegrationOutput_IntegrationId = smithy.Member{Name: "IntegrationId", Index: 6, Target: &schemaId, JSONName: "integrationId"}
 
-var memberUpdateIntegrationOutput_IntegrationMethod = smithy.Member{Name: "IntegrationMethod", Index: 7, JSONName: "integrationMethod"}
+var memberUpdateIntegrationOutput_IntegrationMethod = smithy.Member{Name: "IntegrationMethod", Index: 7, Target: &schemaStringWithLengthBetween1And64, JSONName: "integrationMethod"}
 
-var memberUpdateIntegrationOutput_IntegrationResponseSelectionExpression = smithy.Member{Name: "IntegrationResponseSelectionExpression", Index: 8, JSONName: "integrationResponseSelectionExpression"}
+var memberUpdateIntegrationOutput_IntegrationResponseSelectionExpression = smithy.Member{Name: "IntegrationResponseSelectionExpression", Index: 8, Target: &schemaSelectionExpression, JSONName: "integrationResponseSelectionExpression"}
 
-var memberUpdateIntegrationOutput_IntegrationSubtype = smithy.Member{Name: "IntegrationSubtype", Index: 9, JSONName: "integrationSubtype"}
+var memberUpdateIntegrationOutput_IntegrationSubtype = smithy.Member{Name: "IntegrationSubtype", Index: 9, Target: &schemaStringWithLengthBetween1And128, JSONName: "integrationSubtype"}
 
-var memberUpdateIntegrationOutput_IntegrationType = smithy.Member{Name: "IntegrationType", Index: 10, JSONName: "integrationType"}
+var memberUpdateIntegrationOutput_IntegrationType = smithy.Member{Name: "IntegrationType", Index: 10, Target: &schemaIntegrationType, JSONName: "integrationType"}
 
-var memberUpdateIntegrationOutput_IntegrationUri = smithy.Member{Name: "IntegrationUri", Index: 11, JSONName: "integrationUri"}
+var memberUpdateIntegrationOutput_IntegrationUri = smithy.Member{Name: "IntegrationUri", Index: 11, Target: &schemaUriWithLengthBetween1And2048, JSONName: "integrationUri"}
 
-var memberUpdateIntegrationOutput_PassthroughBehavior = smithy.Member{Name: "PassthroughBehavior", Index: 12, JSONName: "passthroughBehavior"}
+var memberUpdateIntegrationOutput_PassthroughBehavior = smithy.Member{Name: "PassthroughBehavior", Index: 12, Target: &schemaPassthroughBehavior, JSONName: "passthroughBehavior"}
 
-var memberUpdateIntegrationOutput_PayloadFormatVersion = smithy.Member{Name: "PayloadFormatVersion", Index: 13, JSONName: "payloadFormatVersion"}
+var memberUpdateIntegrationOutput_PayloadFormatVersion = smithy.Member{Name: "PayloadFormatVersion", Index: 13, Target: &schemaStringWithLengthBetween1And64, JSONName: "payloadFormatVersion"}
 
-var memberUpdateIntegrationOutput_RequestParameters = smithy.Member{Name: "RequestParameters", Index: 14, JSONName: "requestParameters"}
+var memberUpdateIntegrationOutput_RequestParameters = smithy.Member{Name: "RequestParameters", Index: 14, Target: &schemaIntegrationParameters, JSONName: "requestParameters"}
 
-var memberUpdateIntegrationOutput_RequestTemplates = smithy.Member{Name: "RequestTemplates", Index: 15, JSONName: "requestTemplates"}
+var memberUpdateIntegrationOutput_RequestTemplates = smithy.Member{Name: "RequestTemplates", Index: 15, Target: &schemaTemplateMap, JSONName: "requestTemplates"}
 
-var memberUpdateIntegrationOutput_ResponseParameters = smithy.Member{Name: "ResponseParameters", Index: 16, JSONName: "responseParameters"}
+var memberUpdateIntegrationOutput_ResponseParameters = smithy.Member{Name: "ResponseParameters", Index: 16, Target: &schemaResponseParameters, JSONName: "responseParameters"}
 
-var memberUpdateIntegrationOutput_TemplateSelectionExpression = smithy.Member{Name: "TemplateSelectionExpression", Index: 17, JSONName: "templateSelectionExpression"}
+var memberUpdateIntegrationOutput_TemplateSelectionExpression = smithy.Member{Name: "TemplateSelectionExpression", Index: 17, Target: &schemaSelectionExpression, JSONName: "templateSelectionExpression"}
 
-var memberUpdateIntegrationOutput_TimeoutInMillis = smithy.Member{Name: "TimeoutInMillis", Index: 18, JSONName: "timeoutInMillis"}
+var memberUpdateIntegrationOutput_TimeoutInMillis = smithy.Member{Name: "TimeoutInMillis", Index: 18, Target: &schemaIntegerWithLengthBetween50And30000, JSONName: "timeoutInMillis"}
 
-var memberUpdateIntegrationOutput_TlsConfig = smithy.Member{Name: "TlsConfig", Index: 19, JSONName: "tlsConfig"}
+var memberUpdateIntegrationOutput_TlsConfig = smithy.Member{Name: "TlsConfig", Index: 19, Target: &schemaTlsConfig, JSONName: "tlsConfig"}
 
-var schemaUpdateIntegrationResponseInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateIntegrationResponseRequest", Type: smithy.TypeStructure}
+var schemaUpdateIntegrationResponseInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateIntegrationResponseRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateIntegrationResponseInput_ApiId, &memberUpdateIntegrationResponseInput_ContentHandlingStrategy, &memberUpdateIntegrationResponseInput_IntegrationId, &memberUpdateIntegrationResponseInput_IntegrationResponseId, &memberUpdateIntegrationResponseInput_IntegrationResponseKey, &memberUpdateIntegrationResponseInput_ResponseParameters, &memberUpdateIntegrationResponseInput_ResponseTemplates, &memberUpdateIntegrationResponseInput_TemplateSelectionExpression}}
 
-var memberUpdateIntegrationResponseInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberUpdateIntegrationResponseInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberUpdateIntegrationResponseInput_ContentHandlingStrategy = smithy.Member{Name: "ContentHandlingStrategy", Index: 1, JSONName: "contentHandlingStrategy"}
+var memberUpdateIntegrationResponseInput_ContentHandlingStrategy = smithy.Member{Name: "ContentHandlingStrategy", Index: 1, Target: &schemaContentHandlingStrategy, JSONName: "contentHandlingStrategy"}
 
-var memberUpdateIntegrationResponseInput_IntegrationId = smithy.Member{Name: "IntegrationId", Index: 2, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberUpdateIntegrationResponseInput_IntegrationId = smithy.Member{Name: "IntegrationId", Index: 2, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberUpdateIntegrationResponseInput_IntegrationResponseId = smithy.Member{Name: "IntegrationResponseId", Index: 3, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberUpdateIntegrationResponseInput_IntegrationResponseId = smithy.Member{Name: "IntegrationResponseId", Index: 3, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberUpdateIntegrationResponseInput_IntegrationResponseKey = smithy.Member{Name: "IntegrationResponseKey", Index: 4, JSONName: "integrationResponseKey"}
+var memberUpdateIntegrationResponseInput_IntegrationResponseKey = smithy.Member{Name: "IntegrationResponseKey", Index: 4, Target: &schemaSelectionKey, JSONName: "integrationResponseKey"}
 
-var memberUpdateIntegrationResponseInput_ResponseParameters = smithy.Member{Name: "ResponseParameters", Index: 5, JSONName: "responseParameters"}
+var memberUpdateIntegrationResponseInput_ResponseParameters = smithy.Member{Name: "ResponseParameters", Index: 5, Target: &schemaIntegrationParameters, JSONName: "responseParameters"}
 
-var memberUpdateIntegrationResponseInput_ResponseTemplates = smithy.Member{Name: "ResponseTemplates", Index: 6, JSONName: "responseTemplates"}
+var memberUpdateIntegrationResponseInput_ResponseTemplates = smithy.Member{Name: "ResponseTemplates", Index: 6, Target: &schemaTemplateMap, JSONName: "responseTemplates"}
 
-var memberUpdateIntegrationResponseInput_TemplateSelectionExpression = smithy.Member{Name: "TemplateSelectionExpression", Index: 7, JSONName: "templateSelectionExpression"}
+var memberUpdateIntegrationResponseInput_TemplateSelectionExpression = smithy.Member{Name: "TemplateSelectionExpression", Index: 7, Target: &schemaSelectionExpression, JSONName: "templateSelectionExpression"}
 
-var schemaUpdateIntegrationResponseOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateIntegrationResponseResponse", Type: smithy.TypeStructure}
+var schemaUpdateIntegrationResponseOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateIntegrationResponseResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateIntegrationResponseOutput_ContentHandlingStrategy, &memberUpdateIntegrationResponseOutput_IntegrationResponseId, &memberUpdateIntegrationResponseOutput_IntegrationResponseKey, &memberUpdateIntegrationResponseOutput_ResponseParameters, &memberUpdateIntegrationResponseOutput_ResponseTemplates, &memberUpdateIntegrationResponseOutput_TemplateSelectionExpression}}
 
-var memberUpdateIntegrationResponseOutput_ContentHandlingStrategy = smithy.Member{Name: "ContentHandlingStrategy", Index: 0, JSONName: "contentHandlingStrategy"}
+var memberUpdateIntegrationResponseOutput_ContentHandlingStrategy = smithy.Member{Name: "ContentHandlingStrategy", Index: 0, Target: &schemaContentHandlingStrategy, JSONName: "contentHandlingStrategy"}
 
-var memberUpdateIntegrationResponseOutput_IntegrationResponseId = smithy.Member{Name: "IntegrationResponseId", Index: 1, JSONName: "integrationResponseId"}
+var memberUpdateIntegrationResponseOutput_IntegrationResponseId = smithy.Member{Name: "IntegrationResponseId", Index: 1, Target: &schemaId, JSONName: "integrationResponseId"}
 
-var memberUpdateIntegrationResponseOutput_IntegrationResponseKey = smithy.Member{Name: "IntegrationResponseKey", Index: 2, JSONName: "integrationResponseKey"}
+var memberUpdateIntegrationResponseOutput_IntegrationResponseKey = smithy.Member{Name: "IntegrationResponseKey", Index: 2, Target: &schemaSelectionKey, JSONName: "integrationResponseKey"}
 
-var memberUpdateIntegrationResponseOutput_ResponseParameters = smithy.Member{Name: "ResponseParameters", Index: 3, JSONName: "responseParameters"}
+var memberUpdateIntegrationResponseOutput_ResponseParameters = smithy.Member{Name: "ResponseParameters", Index: 3, Target: &schemaIntegrationParameters, JSONName: "responseParameters"}
 
-var memberUpdateIntegrationResponseOutput_ResponseTemplates = smithy.Member{Name: "ResponseTemplates", Index: 4, JSONName: "responseTemplates"}
+var memberUpdateIntegrationResponseOutput_ResponseTemplates = smithy.Member{Name: "ResponseTemplates", Index: 4, Target: &schemaTemplateMap, JSONName: "responseTemplates"}
 
-var memberUpdateIntegrationResponseOutput_TemplateSelectionExpression = smithy.Member{Name: "TemplateSelectionExpression", Index: 5, JSONName: "templateSelectionExpression"}
+var memberUpdateIntegrationResponseOutput_TemplateSelectionExpression = smithy.Member{Name: "TemplateSelectionExpression", Index: 5, Target: &schemaSelectionExpression, JSONName: "templateSelectionExpression"}
 
-var schemaUpdateModelInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateModelRequest", Type: smithy.TypeStructure}
+var schemaUpdateModelInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateModelRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateModelInput_ApiId, &memberUpdateModelInput_ContentType, &memberUpdateModelInput_Description, &memberUpdateModelInput_ModelId, &memberUpdateModelInput_Name, &memberUpdateModelInput_Schema}}
 
-var memberUpdateModelInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberUpdateModelInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberUpdateModelInput_ContentType = smithy.Member{Name: "ContentType", Index: 1, JSONName: "contentType"}
+var memberUpdateModelInput_ContentType = smithy.Member{Name: "ContentType", Index: 1, Target: &schemaStringWithLengthBetween1And256, JSONName: "contentType"}
 
-var memberUpdateModelInput_Description = smithy.Member{Name: "Description", Index: 2, JSONName: "description"}
+var memberUpdateModelInput_Description = smithy.Member{Name: "Description", Index: 2, Target: &schemaStringWithLengthBetween0And1024, JSONName: "description"}
 
-var memberUpdateModelInput_ModelId = smithy.Member{Name: "ModelId", Index: 3, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberUpdateModelInput_ModelId = smithy.Member{Name: "ModelId", Index: 3, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberUpdateModelInput_Name = smithy.Member{Name: "Name", Index: 4, JSONName: "name"}
+var memberUpdateModelInput_Name = smithy.Member{Name: "Name", Index: 4, Target: &schemaStringWithLengthBetween1And128, JSONName: "name"}
 
-var memberUpdateModelInput_Schema = smithy.Member{Name: "Schema", Index: 5, JSONName: "schema"}
+var memberUpdateModelInput_Schema = smithy.Member{Name: "Schema", Index: 5, Target: &schemaStringWithLengthBetween0And32K, JSONName: "schema"}
 
-var schemaUpdateModelOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateModelResponse", Type: smithy.TypeStructure}
+var schemaUpdateModelOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateModelResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateModelOutput_ContentType, &memberUpdateModelOutput_Description, &memberUpdateModelOutput_ModelId, &memberUpdateModelOutput_Name, &memberUpdateModelOutput_Schema}}
 
-var memberUpdateModelOutput_ContentType = smithy.Member{Name: "ContentType", Index: 0, JSONName: "contentType"}
+var memberUpdateModelOutput_ContentType = smithy.Member{Name: "ContentType", Index: 0, Target: &schemaStringWithLengthBetween1And256, JSONName: "contentType"}
 
-var memberUpdateModelOutput_Description = smithy.Member{Name: "Description", Index: 1, JSONName: "description"}
+var memberUpdateModelOutput_Description = smithy.Member{Name: "Description", Index: 1, Target: &schemaStringWithLengthBetween0And1024, JSONName: "description"}
 
-var memberUpdateModelOutput_ModelId = smithy.Member{Name: "ModelId", Index: 2, JSONName: "modelId"}
+var memberUpdateModelOutput_ModelId = smithy.Member{Name: "ModelId", Index: 2, Target: &schemaId, JSONName: "modelId"}
 
-var memberUpdateModelOutput_Name = smithy.Member{Name: "Name", Index: 3, JSONName: "name"}
+var memberUpdateModelOutput_Name = smithy.Member{Name: "Name", Index: 3, Target: &schemaStringWithLengthBetween1And128, JSONName: "name"}
 
-var memberUpdateModelOutput_Schema = smithy.Member{Name: "Schema", Index: 4, JSONName: "schema"}
+var memberUpdateModelOutput_Schema = smithy.Member{Name: "Schema", Index: 4, Target: &schemaStringWithLengthBetween0And32K, JSONName: "schema"}
 
-var schemaUpdatePortalInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdatePortalRequest", Type: smithy.TypeStructure}
+var schemaUpdatePortalInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdatePortalRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdatePortalInput_Authorization, &memberUpdatePortalInput_EndpointConfiguration, &memberUpdatePortalInput_IncludedPortalProductArns, &memberUpdatePortalInput_LogoUri, &memberUpdatePortalInput_PortalContent, &memberUpdatePortalInput_PortalId, &memberUpdatePortalInput_RumAppMonitorName}}
 
-var memberUpdatePortalInput_Authorization = smithy.Member{Name: "Authorization", Index: 0, JSONName: "authorization"}
+var memberUpdatePortalInput_Authorization = smithy.Member{Name: "Authorization", Index: 0, Target: &schemaAuthorization, JSONName: "authorization"}
 
-var memberUpdatePortalInput_EndpointConfiguration = smithy.Member{Name: "EndpointConfiguration", Index: 1, JSONName: "endpointConfiguration"}
+var memberUpdatePortalInput_EndpointConfiguration = smithy.Member{Name: "EndpointConfiguration", Index: 1, Target: &schemaEndpointConfigurationRequest, JSONName: "endpointConfiguration"}
 
-var memberUpdatePortalInput_IncludedPortalProductArns = smithy.Member{Name: "IncludedPortalProductArns", Index: 2, JSONName: "includedPortalProductArns"}
+var memberUpdatePortalInput_IncludedPortalProductArns = smithy.Member{Name: "IncludedPortalProductArns", Index: 2, Target: &schema__listOf__stringMin20Max2048, JSONName: "includedPortalProductArns"}
 
-var memberUpdatePortalInput_LogoUri = smithy.Member{Name: "LogoUri", Index: 3, JSONName: "logoUri"}
+var memberUpdatePortalInput_LogoUri = smithy.Member{Name: "LogoUri", Index: 3, Target: &schema__stringMin0Max1092, JSONName: "logoUri"}
 
-var memberUpdatePortalInput_PortalContent = smithy.Member{Name: "PortalContent", Index: 4, JSONName: "portalContent"}
+var memberUpdatePortalInput_PortalContent = smithy.Member{Name: "PortalContent", Index: 4, Target: &schemaPortalContent, JSONName: "portalContent"}
 
-var memberUpdatePortalInput_PortalId = smithy.Member{Name: "PortalId", Index: 5, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberUpdatePortalInput_PortalId = smithy.Member{Name: "PortalId", Index: 5, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberUpdatePortalInput_RumAppMonitorName = smithy.Member{Name: "RumAppMonitorName", Index: 6, JSONName: "rumAppMonitorName"}
+var memberUpdatePortalInput_RumAppMonitorName = smithy.Member{Name: "RumAppMonitorName", Index: 6, Target: &schema__stringMin0Max255, JSONName: "rumAppMonitorName"}
 
-var schemaUpdatePortalOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdatePortalResponse", Type: smithy.TypeStructure}
+var schemaUpdatePortalOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdatePortalResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdatePortalOutput_Authorization, &memberUpdatePortalOutput_EndpointConfiguration, &memberUpdatePortalOutput_IncludedPortalProductArns, &memberUpdatePortalOutput_LastModified, &memberUpdatePortalOutput_LastPublished, &memberUpdatePortalOutput_LastPublishedDescription, &memberUpdatePortalOutput_PortalArn, &memberUpdatePortalOutput_PortalContent, &memberUpdatePortalOutput_PortalId, &memberUpdatePortalOutput_Preview, &memberUpdatePortalOutput_PublishStatus, &memberUpdatePortalOutput_RumAppMonitorName, &memberUpdatePortalOutput_StatusException, &memberUpdatePortalOutput_Tags}}
 
-var memberUpdatePortalOutput_Authorization = smithy.Member{Name: "Authorization", Index: 0, JSONName: "authorization"}
+var memberUpdatePortalOutput_Authorization = smithy.Member{Name: "Authorization", Index: 0, Target: &schemaAuthorization, JSONName: "authorization"}
 
-var memberUpdatePortalOutput_EndpointConfiguration = smithy.Member{Name: "EndpointConfiguration", Index: 1, JSONName: "endpointConfiguration"}
+var memberUpdatePortalOutput_EndpointConfiguration = smithy.Member{Name: "EndpointConfiguration", Index: 1, Target: &schemaEndpointConfigurationResponse, JSONName: "endpointConfiguration"}
 
-var memberUpdatePortalOutput_IncludedPortalProductArns = smithy.Member{Name: "IncludedPortalProductArns", Index: 2, JSONName: "includedPortalProductArns"}
+var memberUpdatePortalOutput_IncludedPortalProductArns = smithy.Member{Name: "IncludedPortalProductArns", Index: 2, Target: &schema__listOf__stringMin20Max2048, JSONName: "includedPortalProductArns"}
 
-var memberUpdatePortalOutput_LastModified = smithy.Member{Name: "LastModified", Index: 3, JSONName: "lastModified", TimestampFormat: smithy.DateTime}
+var memberUpdatePortalOutput_LastModified = smithy.Member{Name: "LastModified", Index: 3, Target: &schema__timestampIso8601, JSONName: "lastModified", TimestampFormat: smithy.DateTime}
 
-var memberUpdatePortalOutput_LastPublished = smithy.Member{Name: "LastPublished", Index: 4, JSONName: "lastPublished", TimestampFormat: smithy.DateTime}
+var memberUpdatePortalOutput_LastPublished = smithy.Member{Name: "LastPublished", Index: 4, Target: &schema__timestampIso8601, JSONName: "lastPublished", TimestampFormat: smithy.DateTime}
 
-var memberUpdatePortalOutput_LastPublishedDescription = smithy.Member{Name: "LastPublishedDescription", Index: 5, JSONName: "lastPublishedDescription"}
+var memberUpdatePortalOutput_LastPublishedDescription = smithy.Member{Name: "LastPublishedDescription", Index: 5, Target: &schema__stringMin0Max1024, JSONName: "lastPublishedDescription"}
 
-var memberUpdatePortalOutput_PortalArn = smithy.Member{Name: "PortalArn", Index: 6, JSONName: "portalArn"}
+var memberUpdatePortalOutput_PortalArn = smithy.Member{Name: "PortalArn", Index: 6, Target: &schema__stringMin20Max2048, JSONName: "portalArn"}
 
-var memberUpdatePortalOutput_PortalContent = smithy.Member{Name: "PortalContent", Index: 7, JSONName: "portalContent"}
+var memberUpdatePortalOutput_PortalContent = smithy.Member{Name: "PortalContent", Index: 7, Target: &schemaPortalContent, JSONName: "portalContent"}
 
-var memberUpdatePortalOutput_PortalId = smithy.Member{Name: "PortalId", Index: 8, JSONName: "portalId"}
+var memberUpdatePortalOutput_PortalId = smithy.Member{Name: "PortalId", Index: 8, Target: &schema__stringMin10Max30PatternAZ09, JSONName: "portalId"}
 
-var memberUpdatePortalOutput_Preview = smithy.Member{Name: "Preview", Index: 9, JSONName: "preview"}
+var memberUpdatePortalOutput_Preview = smithy.Member{Name: "Preview", Index: 9, Target: &schemaPreview, JSONName: "preview"}
 
-var memberUpdatePortalOutput_PublishStatus = smithy.Member{Name: "PublishStatus", Index: 10, JSONName: "publishStatus"}
+var memberUpdatePortalOutput_PublishStatus = smithy.Member{Name: "PublishStatus", Index: 10, Target: &schemaPublishStatus, JSONName: "publishStatus"}
 
-var memberUpdatePortalOutput_RumAppMonitorName = smithy.Member{Name: "RumAppMonitorName", Index: 11, JSONName: "rumAppMonitorName"}
+var memberUpdatePortalOutput_RumAppMonitorName = smithy.Member{Name: "RumAppMonitorName", Index: 11, Target: &schema__stringMin0Max255, JSONName: "rumAppMonitorName"}
 
-var memberUpdatePortalOutput_StatusException = smithy.Member{Name: "StatusException", Index: 12, JSONName: "statusException"}
+var memberUpdatePortalOutput_StatusException = smithy.Member{Name: "StatusException", Index: 12, Target: &schemaStatusException, JSONName: "statusException"}
 
-var memberUpdatePortalOutput_Tags = smithy.Member{Name: "Tags", Index: 13, JSONName: "tags"}
+var memberUpdatePortalOutput_Tags = smithy.Member{Name: "Tags", Index: 13, Target: &schemaTags, JSONName: "tags"}
 
-var schemaUpdatePortalProductInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdatePortalProductRequest", Type: smithy.TypeStructure}
+var schemaUpdatePortalProductInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdatePortalProductRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdatePortalProductInput_Description, &memberUpdatePortalProductInput_DisplayName, &memberUpdatePortalProductInput_DisplayOrder, &memberUpdatePortalProductInput_PortalProductId}}
 
-var memberUpdatePortalProductInput_Description = smithy.Member{Name: "Description", Index: 0, JSONName: "description"}
+var memberUpdatePortalProductInput_Description = smithy.Member{Name: "Description", Index: 0, Target: &schema__stringMin0Max1024, JSONName: "description"}
 
-var memberUpdatePortalProductInput_DisplayName = smithy.Member{Name: "DisplayName", Index: 1, JSONName: "displayName"}
+var memberUpdatePortalProductInput_DisplayName = smithy.Member{Name: "DisplayName", Index: 1, Target: &schema__stringMin1Max255, JSONName: "displayName"}
 
-var memberUpdatePortalProductInput_DisplayOrder = smithy.Member{Name: "DisplayOrder", Index: 2, JSONName: "displayOrder"}
+var memberUpdatePortalProductInput_DisplayOrder = smithy.Member{Name: "DisplayOrder", Index: 2, Target: &schemaDisplayOrder, JSONName: "displayOrder"}
 
-var memberUpdatePortalProductInput_PortalProductId = smithy.Member{Name: "PortalProductId", Index: 3, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberUpdatePortalProductInput_PortalProductId = smithy.Member{Name: "PortalProductId", Index: 3, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaUpdatePortalProductOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdatePortalProductResponse", Type: smithy.TypeStructure}
+var schemaUpdatePortalProductOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdatePortalProductResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdatePortalProductOutput_Description, &memberUpdatePortalProductOutput_DisplayName, &memberUpdatePortalProductOutput_DisplayOrder, &memberUpdatePortalProductOutput_LastModified, &memberUpdatePortalProductOutput_PortalProductArn, &memberUpdatePortalProductOutput_PortalProductId, &memberUpdatePortalProductOutput_Tags}}
 
-var memberUpdatePortalProductOutput_Description = smithy.Member{Name: "Description", Index: 0, JSONName: "description"}
+var memberUpdatePortalProductOutput_Description = smithy.Member{Name: "Description", Index: 0, Target: &schema__stringMin0Max1024, JSONName: "description"}
 
-var memberUpdatePortalProductOutput_DisplayName = smithy.Member{Name: "DisplayName", Index: 1, JSONName: "displayName"}
+var memberUpdatePortalProductOutput_DisplayName = smithy.Member{Name: "DisplayName", Index: 1, Target: &schema__stringMin1Max255, JSONName: "displayName"}
 
-var memberUpdatePortalProductOutput_DisplayOrder = smithy.Member{Name: "DisplayOrder", Index: 2, JSONName: "displayOrder"}
+var memberUpdatePortalProductOutput_DisplayOrder = smithy.Member{Name: "DisplayOrder", Index: 2, Target: &schemaDisplayOrder, JSONName: "displayOrder"}
 
-var memberUpdatePortalProductOutput_LastModified = smithy.Member{Name: "LastModified", Index: 3, JSONName: "lastModified", TimestampFormat: smithy.DateTime}
+var memberUpdatePortalProductOutput_LastModified = smithy.Member{Name: "LastModified", Index: 3, Target: &schema__timestampIso8601, JSONName: "lastModified", TimestampFormat: smithy.DateTime}
 
-var memberUpdatePortalProductOutput_PortalProductArn = smithy.Member{Name: "PortalProductArn", Index: 4, JSONName: "portalProductArn"}
+var memberUpdatePortalProductOutput_PortalProductArn = smithy.Member{Name: "PortalProductArn", Index: 4, Target: &schema__stringMin20Max2048, JSONName: "portalProductArn"}
 
-var memberUpdatePortalProductOutput_PortalProductId = smithy.Member{Name: "PortalProductId", Index: 5, JSONName: "portalProductId"}
+var memberUpdatePortalProductOutput_PortalProductId = smithy.Member{Name: "PortalProductId", Index: 5, Target: &schema__stringMin10Max30PatternAZ09, JSONName: "portalProductId"}
 
-var memberUpdatePortalProductOutput_Tags = smithy.Member{Name: "Tags", Index: 6, JSONName: "tags"}
+var memberUpdatePortalProductOutput_Tags = smithy.Member{Name: "Tags", Index: 6, Target: &schemaTags, JSONName: "tags"}
 
-var schemaUpdateProductPageInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateProductPageRequest", Type: smithy.TypeStructure}
+var schemaUpdateProductPageInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateProductPageRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateProductPageInput_DisplayContent, &memberUpdateProductPageInput_PortalProductId, &memberUpdateProductPageInput_ProductPageId}}
 
-var memberUpdateProductPageInput_DisplayContent = smithy.Member{Name: "DisplayContent", Index: 0, JSONName: "displayContent"}
+var memberUpdateProductPageInput_DisplayContent = smithy.Member{Name: "DisplayContent", Index: 0, Target: &schemaDisplayContent, JSONName: "displayContent"}
 
-var memberUpdateProductPageInput_PortalProductId = smithy.Member{Name: "PortalProductId", Index: 1, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberUpdateProductPageInput_PortalProductId = smithy.Member{Name: "PortalProductId", Index: 1, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberUpdateProductPageInput_ProductPageId = smithy.Member{Name: "ProductPageId", Index: 2, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberUpdateProductPageInput_ProductPageId = smithy.Member{Name: "ProductPageId", Index: 2, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaUpdateProductPageOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateProductPageResponse", Type: smithy.TypeStructure}
+var schemaUpdateProductPageOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateProductPageResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateProductPageOutput_DisplayContent, &memberUpdateProductPageOutput_LastModified, &memberUpdateProductPageOutput_ProductPageArn, &memberUpdateProductPageOutput_ProductPageId}}
 
-var memberUpdateProductPageOutput_DisplayContent = smithy.Member{Name: "DisplayContent", Index: 0, JSONName: "displayContent"}
+var memberUpdateProductPageOutput_DisplayContent = smithy.Member{Name: "DisplayContent", Index: 0, Target: &schemaDisplayContent, JSONName: "displayContent"}
 
-var memberUpdateProductPageOutput_LastModified = smithy.Member{Name: "LastModified", Index: 1, JSONName: "lastModified", TimestampFormat: smithy.DateTime}
+var memberUpdateProductPageOutput_LastModified = smithy.Member{Name: "LastModified", Index: 1, Target: &schema__timestampIso8601, JSONName: "lastModified", TimestampFormat: smithy.DateTime}
 
-var memberUpdateProductPageOutput_ProductPageArn = smithy.Member{Name: "ProductPageArn", Index: 2, JSONName: "productPageArn"}
+var memberUpdateProductPageOutput_ProductPageArn = smithy.Member{Name: "ProductPageArn", Index: 2, Target: &schema__stringMin20Max2048, JSONName: "productPageArn"}
 
-var memberUpdateProductPageOutput_ProductPageId = smithy.Member{Name: "ProductPageId", Index: 3, JSONName: "productPageId"}
+var memberUpdateProductPageOutput_ProductPageId = smithy.Member{Name: "ProductPageId", Index: 3, Target: &schema__stringMin10Max30PatternAZ09, JSONName: "productPageId"}
 
-var schemaUpdateProductRestEndpointPageInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateProductRestEndpointPageRequest", Type: smithy.TypeStructure}
+var schemaUpdateProductRestEndpointPageInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateProductRestEndpointPageRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateProductRestEndpointPageInput_DisplayContent, &memberUpdateProductRestEndpointPageInput_PortalProductId, &memberUpdateProductRestEndpointPageInput_ProductRestEndpointPageId, &memberUpdateProductRestEndpointPageInput_TryItState}}
 
-var memberUpdateProductRestEndpointPageInput_DisplayContent = smithy.Member{Name: "DisplayContent", Index: 0, JSONName: "displayContent"}
+var memberUpdateProductRestEndpointPageInput_DisplayContent = smithy.Member{Name: "DisplayContent", Index: 0, Target: &schemaEndpointDisplayContent, JSONName: "displayContent"}
 
-var memberUpdateProductRestEndpointPageInput_PortalProductId = smithy.Member{Name: "PortalProductId", Index: 1, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberUpdateProductRestEndpointPageInput_PortalProductId = smithy.Member{Name: "PortalProductId", Index: 1, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberUpdateProductRestEndpointPageInput_ProductRestEndpointPageId = smithy.Member{Name: "ProductRestEndpointPageId", Index: 2, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberUpdateProductRestEndpointPageInput_ProductRestEndpointPageId = smithy.Member{Name: "ProductRestEndpointPageId", Index: 2, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberUpdateProductRestEndpointPageInput_TryItState = smithy.Member{Name: "TryItState", Index: 3, JSONName: "tryItState"}
+var memberUpdateProductRestEndpointPageInput_TryItState = smithy.Member{Name: "TryItState", Index: 3, Target: &schemaTryItState, JSONName: "tryItState"}
 
-var schemaUpdateProductRestEndpointPageOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateProductRestEndpointPageResponse", Type: smithy.TypeStructure}
+var schemaUpdateProductRestEndpointPageOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateProductRestEndpointPageResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateProductRestEndpointPageOutput_DisplayContent, &memberUpdateProductRestEndpointPageOutput_LastModified, &memberUpdateProductRestEndpointPageOutput_ProductRestEndpointPageArn, &memberUpdateProductRestEndpointPageOutput_ProductRestEndpointPageId, &memberUpdateProductRestEndpointPageOutput_RestEndpointIdentifier, &memberUpdateProductRestEndpointPageOutput_Status, &memberUpdateProductRestEndpointPageOutput_StatusException, &memberUpdateProductRestEndpointPageOutput_TryItState}}
 
-var memberUpdateProductRestEndpointPageOutput_DisplayContent = smithy.Member{Name: "DisplayContent", Index: 0, JSONName: "displayContent"}
+var memberUpdateProductRestEndpointPageOutput_DisplayContent = smithy.Member{Name: "DisplayContent", Index: 0, Target: &schemaEndpointDisplayContentResponse, JSONName: "displayContent"}
 
-var memberUpdateProductRestEndpointPageOutput_LastModified = smithy.Member{Name: "LastModified", Index: 1, JSONName: "lastModified", TimestampFormat: smithy.DateTime}
+var memberUpdateProductRestEndpointPageOutput_LastModified = smithy.Member{Name: "LastModified", Index: 1, Target: &schema__timestampIso8601, JSONName: "lastModified", TimestampFormat: smithy.DateTime}
 
-var memberUpdateProductRestEndpointPageOutput_ProductRestEndpointPageArn = smithy.Member{Name: "ProductRestEndpointPageArn", Index: 2, JSONName: "productRestEndpointPageArn"}
+var memberUpdateProductRestEndpointPageOutput_ProductRestEndpointPageArn = smithy.Member{Name: "ProductRestEndpointPageArn", Index: 2, Target: &schema__stringMin20Max2048, JSONName: "productRestEndpointPageArn"}
 
-var memberUpdateProductRestEndpointPageOutput_ProductRestEndpointPageId = smithy.Member{Name: "ProductRestEndpointPageId", Index: 3, JSONName: "productRestEndpointPageId"}
+var memberUpdateProductRestEndpointPageOutput_ProductRestEndpointPageId = smithy.Member{Name: "ProductRestEndpointPageId", Index: 3, Target: &schema__stringMin10Max30PatternAZ09, JSONName: "productRestEndpointPageId"}
 
-var memberUpdateProductRestEndpointPageOutput_RestEndpointIdentifier = smithy.Member{Name: "RestEndpointIdentifier", Index: 4, JSONName: "restEndpointIdentifier"}
+var memberUpdateProductRestEndpointPageOutput_RestEndpointIdentifier = smithy.Member{Name: "RestEndpointIdentifier", Index: 4, Target: &schemaRestEndpointIdentifier, JSONName: "restEndpointIdentifier"}
 
-var memberUpdateProductRestEndpointPageOutput_Status = smithy.Member{Name: "Status", Index: 5, JSONName: "status"}
+var memberUpdateProductRestEndpointPageOutput_Status = smithy.Member{Name: "Status", Index: 5, Target: &schemaStatus, JSONName: "status"}
 
-var memberUpdateProductRestEndpointPageOutput_StatusException = smithy.Member{Name: "StatusException", Index: 6, JSONName: "statusException"}
+var memberUpdateProductRestEndpointPageOutput_StatusException = smithy.Member{Name: "StatusException", Index: 6, Target: &schemaStatusException, JSONName: "statusException"}
 
-var memberUpdateProductRestEndpointPageOutput_TryItState = smithy.Member{Name: "TryItState", Index: 7, JSONName: "tryItState"}
+var memberUpdateProductRestEndpointPageOutput_TryItState = smithy.Member{Name: "TryItState", Index: 7, Target: &schemaTryItState, JSONName: "tryItState"}
 
-var schemaUpdateRouteInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateRouteRequest", Type: smithy.TypeStructure}
+var schemaUpdateRouteInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateRouteRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateRouteInput_ApiId, &memberUpdateRouteInput_ApiKeyRequired, &memberUpdateRouteInput_AuthorizationScopes, &memberUpdateRouteInput_AuthorizationType, &memberUpdateRouteInput_AuthorizerId, &memberUpdateRouteInput_ModelSelectionExpression, &memberUpdateRouteInput_OperationName, &memberUpdateRouteInput_RequestModels, &memberUpdateRouteInput_RequestParameters, &memberUpdateRouteInput_RouteId, &memberUpdateRouteInput_RouteKey, &memberUpdateRouteInput_RouteResponseSelectionExpression, &memberUpdateRouteInput_Target}}
 
-var memberUpdateRouteInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberUpdateRouteInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberUpdateRouteInput_ApiKeyRequired = smithy.Member{Name: "ApiKeyRequired", Index: 1, JSONName: "apiKeyRequired"}
+var memberUpdateRouteInput_ApiKeyRequired = smithy.Member{Name: "ApiKeyRequired", Index: 1, Target: &schema__boolean, JSONName: "apiKeyRequired"}
 
-var memberUpdateRouteInput_AuthorizationScopes = smithy.Member{Name: "AuthorizationScopes", Index: 2, JSONName: "authorizationScopes"}
+var memberUpdateRouteInput_AuthorizationScopes = smithy.Member{Name: "AuthorizationScopes", Index: 2, Target: &schemaAuthorizationScopes, JSONName: "authorizationScopes"}
 
-var memberUpdateRouteInput_AuthorizationType = smithy.Member{Name: "AuthorizationType", Index: 3, JSONName: "authorizationType"}
+var memberUpdateRouteInput_AuthorizationType = smithy.Member{Name: "AuthorizationType", Index: 3, Target: &schemaAuthorizationType, JSONName: "authorizationType"}
 
-var memberUpdateRouteInput_AuthorizerId = smithy.Member{Name: "AuthorizerId", Index: 4, JSONName: "authorizerId"}
+var memberUpdateRouteInput_AuthorizerId = smithy.Member{Name: "AuthorizerId", Index: 4, Target: &schemaId, JSONName: "authorizerId"}
 
-var memberUpdateRouteInput_ModelSelectionExpression = smithy.Member{Name: "ModelSelectionExpression", Index: 5, JSONName: "modelSelectionExpression"}
+var memberUpdateRouteInput_ModelSelectionExpression = smithy.Member{Name: "ModelSelectionExpression", Index: 5, Target: &schemaSelectionExpression, JSONName: "modelSelectionExpression"}
 
-var memberUpdateRouteInput_OperationName = smithy.Member{Name: "OperationName", Index: 6, JSONName: "operationName"}
+var memberUpdateRouteInput_OperationName = smithy.Member{Name: "OperationName", Index: 6, Target: &schemaStringWithLengthBetween1And64, JSONName: "operationName"}
 
-var memberUpdateRouteInput_RequestModels = smithy.Member{Name: "RequestModels", Index: 7, JSONName: "requestModels"}
+var memberUpdateRouteInput_RequestModels = smithy.Member{Name: "RequestModels", Index: 7, Target: &schemaRouteModels, JSONName: "requestModels"}
 
-var memberUpdateRouteInput_RequestParameters = smithy.Member{Name: "RequestParameters", Index: 8, JSONName: "requestParameters"}
+var memberUpdateRouteInput_RequestParameters = smithy.Member{Name: "RequestParameters", Index: 8, Target: &schemaRouteParameters, JSONName: "requestParameters"}
 
-var memberUpdateRouteInput_RouteId = smithy.Member{Name: "RouteId", Index: 9, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberUpdateRouteInput_RouteId = smithy.Member{Name: "RouteId", Index: 9, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberUpdateRouteInput_RouteKey = smithy.Member{Name: "RouteKey", Index: 10, JSONName: "routeKey"}
+var memberUpdateRouteInput_RouteKey = smithy.Member{Name: "RouteKey", Index: 10, Target: &schemaSelectionKey, JSONName: "routeKey"}
 
-var memberUpdateRouteInput_RouteResponseSelectionExpression = smithy.Member{Name: "RouteResponseSelectionExpression", Index: 11, JSONName: "routeResponseSelectionExpression"}
+var memberUpdateRouteInput_RouteResponseSelectionExpression = smithy.Member{Name: "RouteResponseSelectionExpression", Index: 11, Target: &schemaSelectionExpression, JSONName: "routeResponseSelectionExpression"}
 
-var memberUpdateRouteInput_Target = smithy.Member{Name: "Target", Index: 12, JSONName: "target"}
+var memberUpdateRouteInput_Target = smithy.Member{Name: "Target", Index: 12, Target: &schemaStringWithLengthBetween1And128, JSONName: "target"}
 
-var schemaUpdateRouteOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateRouteResult", Type: smithy.TypeStructure}
+var schemaUpdateRouteOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateRouteResult", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateRouteOutput_ApiGatewayManaged, &memberUpdateRouteOutput_ApiKeyRequired, &memberUpdateRouteOutput_AuthorizationScopes, &memberUpdateRouteOutput_AuthorizationType, &memberUpdateRouteOutput_AuthorizerId, &memberUpdateRouteOutput_ModelSelectionExpression, &memberUpdateRouteOutput_OperationName, &memberUpdateRouteOutput_RequestModels, &memberUpdateRouteOutput_RequestParameters, &memberUpdateRouteOutput_RouteId, &memberUpdateRouteOutput_RouteKey, &memberUpdateRouteOutput_RouteResponseSelectionExpression, &memberUpdateRouteOutput_Target}}
 
-var memberUpdateRouteOutput_ApiGatewayManaged = smithy.Member{Name: "ApiGatewayManaged", Index: 0, JSONName: "apiGatewayManaged"}
+var memberUpdateRouteOutput_ApiGatewayManaged = smithy.Member{Name: "ApiGatewayManaged", Index: 0, Target: &schema__boolean, JSONName: "apiGatewayManaged"}
 
-var memberUpdateRouteOutput_ApiKeyRequired = smithy.Member{Name: "ApiKeyRequired", Index: 1, JSONName: "apiKeyRequired"}
+var memberUpdateRouteOutput_ApiKeyRequired = smithy.Member{Name: "ApiKeyRequired", Index: 1, Target: &schema__boolean, JSONName: "apiKeyRequired"}
 
-var memberUpdateRouteOutput_AuthorizationScopes = smithy.Member{Name: "AuthorizationScopes", Index: 2, JSONName: "authorizationScopes"}
+var memberUpdateRouteOutput_AuthorizationScopes = smithy.Member{Name: "AuthorizationScopes", Index: 2, Target: &schemaAuthorizationScopes, JSONName: "authorizationScopes"}
 
-var memberUpdateRouteOutput_AuthorizationType = smithy.Member{Name: "AuthorizationType", Index: 3, JSONName: "authorizationType"}
+var memberUpdateRouteOutput_AuthorizationType = smithy.Member{Name: "AuthorizationType", Index: 3, Target: &schemaAuthorizationType, JSONName: "authorizationType"}
 
-var memberUpdateRouteOutput_AuthorizerId = smithy.Member{Name: "AuthorizerId", Index: 4, JSONName: "authorizerId"}
+var memberUpdateRouteOutput_AuthorizerId = smithy.Member{Name: "AuthorizerId", Index: 4, Target: &schemaId, JSONName: "authorizerId"}
 
-var memberUpdateRouteOutput_ModelSelectionExpression = smithy.Member{Name: "ModelSelectionExpression", Index: 5, JSONName: "modelSelectionExpression"}
+var memberUpdateRouteOutput_ModelSelectionExpression = smithy.Member{Name: "ModelSelectionExpression", Index: 5, Target: &schemaSelectionExpression, JSONName: "modelSelectionExpression"}
 
-var memberUpdateRouteOutput_OperationName = smithy.Member{Name: "OperationName", Index: 6, JSONName: "operationName"}
+var memberUpdateRouteOutput_OperationName = smithy.Member{Name: "OperationName", Index: 6, Target: &schemaStringWithLengthBetween1And64, JSONName: "operationName"}
 
-var memberUpdateRouteOutput_RequestModels = smithy.Member{Name: "RequestModels", Index: 7, JSONName: "requestModels"}
+var memberUpdateRouteOutput_RequestModels = smithy.Member{Name: "RequestModels", Index: 7, Target: &schemaRouteModels, JSONName: "requestModels"}
 
-var memberUpdateRouteOutput_RequestParameters = smithy.Member{Name: "RequestParameters", Index: 8, JSONName: "requestParameters"}
+var memberUpdateRouteOutput_RequestParameters = smithy.Member{Name: "RequestParameters", Index: 8, Target: &schemaRouteParameters, JSONName: "requestParameters"}
 
-var memberUpdateRouteOutput_RouteId = smithy.Member{Name: "RouteId", Index: 9, JSONName: "routeId"}
+var memberUpdateRouteOutput_RouteId = smithy.Member{Name: "RouteId", Index: 9, Target: &schemaId, JSONName: "routeId"}
 
-var memberUpdateRouteOutput_RouteKey = smithy.Member{Name: "RouteKey", Index: 10, JSONName: "routeKey"}
+var memberUpdateRouteOutput_RouteKey = smithy.Member{Name: "RouteKey", Index: 10, Target: &schemaSelectionKey, JSONName: "routeKey"}
 
-var memberUpdateRouteOutput_RouteResponseSelectionExpression = smithy.Member{Name: "RouteResponseSelectionExpression", Index: 11, JSONName: "routeResponseSelectionExpression"}
+var memberUpdateRouteOutput_RouteResponseSelectionExpression = smithy.Member{Name: "RouteResponseSelectionExpression", Index: 11, Target: &schemaSelectionExpression, JSONName: "routeResponseSelectionExpression"}
 
-var memberUpdateRouteOutput_Target = smithy.Member{Name: "Target", Index: 12, JSONName: "target"}
+var memberUpdateRouteOutput_Target = smithy.Member{Name: "Target", Index: 12, Target: &schemaStringWithLengthBetween1And128, JSONName: "target"}
 
-var schemaUpdateRouteResponseInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateRouteResponseRequest", Type: smithy.TypeStructure}
+var schemaUpdateRouteResponseInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateRouteResponseRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateRouteResponseInput_ApiId, &memberUpdateRouteResponseInput_ModelSelectionExpression, &memberUpdateRouteResponseInput_ResponseModels, &memberUpdateRouteResponseInput_ResponseParameters, &memberUpdateRouteResponseInput_RouteId, &memberUpdateRouteResponseInput_RouteResponseId, &memberUpdateRouteResponseInput_RouteResponseKey}}
 
-var memberUpdateRouteResponseInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberUpdateRouteResponseInput_ApiId = smithy.Member{Name: "ApiId", Index: 0, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberUpdateRouteResponseInput_ModelSelectionExpression = smithy.Member{Name: "ModelSelectionExpression", Index: 1, JSONName: "modelSelectionExpression"}
+var memberUpdateRouteResponseInput_ModelSelectionExpression = smithy.Member{Name: "ModelSelectionExpression", Index: 1, Target: &schemaSelectionExpression, JSONName: "modelSelectionExpression"}
 
-var memberUpdateRouteResponseInput_ResponseModels = smithy.Member{Name: "ResponseModels", Index: 2, JSONName: "responseModels"}
+var memberUpdateRouteResponseInput_ResponseModels = smithy.Member{Name: "ResponseModels", Index: 2, Target: &schemaRouteModels, JSONName: "responseModels"}
 
-var memberUpdateRouteResponseInput_ResponseParameters = smithy.Member{Name: "ResponseParameters", Index: 3, JSONName: "responseParameters"}
+var memberUpdateRouteResponseInput_ResponseParameters = smithy.Member{Name: "ResponseParameters", Index: 3, Target: &schemaRouteParameters, JSONName: "responseParameters"}
 
-var memberUpdateRouteResponseInput_RouteId = smithy.Member{Name: "RouteId", Index: 4, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberUpdateRouteResponseInput_RouteId = smithy.Member{Name: "RouteId", Index: 4, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberUpdateRouteResponseInput_RouteResponseId = smithy.Member{Name: "RouteResponseId", Index: 5, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberUpdateRouteResponseInput_RouteResponseId = smithy.Member{Name: "RouteResponseId", Index: 5, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberUpdateRouteResponseInput_RouteResponseKey = smithy.Member{Name: "RouteResponseKey", Index: 6, JSONName: "routeResponseKey"}
+var memberUpdateRouteResponseInput_RouteResponseKey = smithy.Member{Name: "RouteResponseKey", Index: 6, Target: &schemaSelectionKey, JSONName: "routeResponseKey"}
 
-var schemaUpdateRouteResponseOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateRouteResponseResponse", Type: smithy.TypeStructure}
+var schemaUpdateRouteResponseOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateRouteResponseResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateRouteResponseOutput_ModelSelectionExpression, &memberUpdateRouteResponseOutput_ResponseModels, &memberUpdateRouteResponseOutput_ResponseParameters, &memberUpdateRouteResponseOutput_RouteResponseId, &memberUpdateRouteResponseOutput_RouteResponseKey}}
 
-var memberUpdateRouteResponseOutput_ModelSelectionExpression = smithy.Member{Name: "ModelSelectionExpression", Index: 0, JSONName: "modelSelectionExpression"}
+var memberUpdateRouteResponseOutput_ModelSelectionExpression = smithy.Member{Name: "ModelSelectionExpression", Index: 0, Target: &schemaSelectionExpression, JSONName: "modelSelectionExpression"}
 
-var memberUpdateRouteResponseOutput_ResponseModels = smithy.Member{Name: "ResponseModels", Index: 1, JSONName: "responseModels"}
+var memberUpdateRouteResponseOutput_ResponseModels = smithy.Member{Name: "ResponseModels", Index: 1, Target: &schemaRouteModels, JSONName: "responseModels"}
 
-var memberUpdateRouteResponseOutput_ResponseParameters = smithy.Member{Name: "ResponseParameters", Index: 2, JSONName: "responseParameters"}
+var memberUpdateRouteResponseOutput_ResponseParameters = smithy.Member{Name: "ResponseParameters", Index: 2, Target: &schemaRouteParameters, JSONName: "responseParameters"}
 
-var memberUpdateRouteResponseOutput_RouteResponseId = smithy.Member{Name: "RouteResponseId", Index: 3, JSONName: "routeResponseId"}
+var memberUpdateRouteResponseOutput_RouteResponseId = smithy.Member{Name: "RouteResponseId", Index: 3, Target: &schemaId, JSONName: "routeResponseId"}
 
-var memberUpdateRouteResponseOutput_RouteResponseKey = smithy.Member{Name: "RouteResponseKey", Index: 4, JSONName: "routeResponseKey"}
+var memberUpdateRouteResponseOutput_RouteResponseKey = smithy.Member{Name: "RouteResponseKey", Index: 4, Target: &schemaSelectionKey, JSONName: "routeResponseKey"}
 
-var schemaUpdateStageInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateStageRequest", Type: smithy.TypeStructure}
+var schemaUpdateStageInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateStageRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateStageInput_AccessLogSettings, &memberUpdateStageInput_ApiId, &memberUpdateStageInput_AutoDeploy, &memberUpdateStageInput_ClientCertificateId, &memberUpdateStageInput_DefaultRouteSettings, &memberUpdateStageInput_DeploymentId, &memberUpdateStageInput_Description, &memberUpdateStageInput_RouteSettings, &memberUpdateStageInput_StageName, &memberUpdateStageInput_StageVariables}}
 
-var memberUpdateStageInput_AccessLogSettings = smithy.Member{Name: "AccessLogSettings", Index: 0, JSONName: "accessLogSettings"}
+var memberUpdateStageInput_AccessLogSettings = smithy.Member{Name: "AccessLogSettings", Index: 0, Target: &schemaAccessLogSettings, JSONName: "accessLogSettings"}
 
-var memberUpdateStageInput_ApiId = smithy.Member{Name: "ApiId", Index: 1, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberUpdateStageInput_ApiId = smithy.Member{Name: "ApiId", Index: 1, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberUpdateStageInput_AutoDeploy = smithy.Member{Name: "AutoDeploy", Index: 2, JSONName: "autoDeploy"}
+var memberUpdateStageInput_AutoDeploy = smithy.Member{Name: "AutoDeploy", Index: 2, Target: &schema__boolean, JSONName: "autoDeploy"}
 
-var memberUpdateStageInput_ClientCertificateId = smithy.Member{Name: "ClientCertificateId", Index: 3, JSONName: "clientCertificateId"}
+var memberUpdateStageInput_ClientCertificateId = smithy.Member{Name: "ClientCertificateId", Index: 3, Target: &schemaId, JSONName: "clientCertificateId"}
 
-var memberUpdateStageInput_DefaultRouteSettings = smithy.Member{Name: "DefaultRouteSettings", Index: 4, JSONName: "defaultRouteSettings"}
+var memberUpdateStageInput_DefaultRouteSettings = smithy.Member{Name: "DefaultRouteSettings", Index: 4, Target: &schemaRouteSettings, JSONName: "defaultRouteSettings"}
 
-var memberUpdateStageInput_DeploymentId = smithy.Member{Name: "DeploymentId", Index: 5, JSONName: "deploymentId"}
+var memberUpdateStageInput_DeploymentId = smithy.Member{Name: "DeploymentId", Index: 5, Target: &schemaId, JSONName: "deploymentId"}
 
-var memberUpdateStageInput_Description = smithy.Member{Name: "Description", Index: 6, JSONName: "description"}
+var memberUpdateStageInput_Description = smithy.Member{Name: "Description", Index: 6, Target: &schemaStringWithLengthBetween0And1024, JSONName: "description"}
 
-var memberUpdateStageInput_RouteSettings = smithy.Member{Name: "RouteSettings", Index: 7, JSONName: "routeSettings"}
+var memberUpdateStageInput_RouteSettings = smithy.Member{Name: "RouteSettings", Index: 7, Target: &schemaRouteSettingsMap, JSONName: "routeSettings"}
 
-var memberUpdateStageInput_StageName = smithy.Member{Name: "StageName", Index: 8, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberUpdateStageInput_StageName = smithy.Member{Name: "StageName", Index: 8, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberUpdateStageInput_StageVariables = smithy.Member{Name: "StageVariables", Index: 9, JSONName: "stageVariables"}
+var memberUpdateStageInput_StageVariables = smithy.Member{Name: "StageVariables", Index: 9, Target: &schemaStageVariablesMap, JSONName: "stageVariables"}
 
-var schemaUpdateStageOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateStageResponse", Type: smithy.TypeStructure}
+var schemaUpdateStageOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateStageResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateStageOutput_AccessLogSettings, &memberUpdateStageOutput_ApiGatewayManaged, &memberUpdateStageOutput_AutoDeploy, &memberUpdateStageOutput_ClientCertificateId, &memberUpdateStageOutput_CreatedDate, &memberUpdateStageOutput_DefaultRouteSettings, &memberUpdateStageOutput_DeploymentId, &memberUpdateStageOutput_Description, &memberUpdateStageOutput_LastDeploymentStatusMessage, &memberUpdateStageOutput_LastUpdatedDate, &memberUpdateStageOutput_RouteSettings, &memberUpdateStageOutput_StageName, &memberUpdateStageOutput_StageVariables, &memberUpdateStageOutput_Tags}}
 
-var memberUpdateStageOutput_AccessLogSettings = smithy.Member{Name: "AccessLogSettings", Index: 0, JSONName: "accessLogSettings"}
+var memberUpdateStageOutput_AccessLogSettings = smithy.Member{Name: "AccessLogSettings", Index: 0, Target: &schemaAccessLogSettings, JSONName: "accessLogSettings"}
 
-var memberUpdateStageOutput_ApiGatewayManaged = smithy.Member{Name: "ApiGatewayManaged", Index: 1, JSONName: "apiGatewayManaged"}
+var memberUpdateStageOutput_ApiGatewayManaged = smithy.Member{Name: "ApiGatewayManaged", Index: 1, Target: &schema__boolean, JSONName: "apiGatewayManaged"}
 
-var memberUpdateStageOutput_AutoDeploy = smithy.Member{Name: "AutoDeploy", Index: 2, JSONName: "autoDeploy"}
+var memberUpdateStageOutput_AutoDeploy = smithy.Member{Name: "AutoDeploy", Index: 2, Target: &schema__boolean, JSONName: "autoDeploy"}
 
-var memberUpdateStageOutput_ClientCertificateId = smithy.Member{Name: "ClientCertificateId", Index: 3, JSONName: "clientCertificateId"}
+var memberUpdateStageOutput_ClientCertificateId = smithy.Member{Name: "ClientCertificateId", Index: 3, Target: &schemaId, JSONName: "clientCertificateId"}
 
-var memberUpdateStageOutput_CreatedDate = smithy.Member{Name: "CreatedDate", Index: 4, JSONName: "createdDate", TimestampFormat: smithy.DateTime}
+var memberUpdateStageOutput_CreatedDate = smithy.Member{Name: "CreatedDate", Index: 4, Target: &schema__timestampIso8601, JSONName: "createdDate", TimestampFormat: smithy.DateTime}
 
-var memberUpdateStageOutput_DefaultRouteSettings = smithy.Member{Name: "DefaultRouteSettings", Index: 5, JSONName: "defaultRouteSettings"}
+var memberUpdateStageOutput_DefaultRouteSettings = smithy.Member{Name: "DefaultRouteSettings", Index: 5, Target: &schemaRouteSettings, JSONName: "defaultRouteSettings"}
 
-var memberUpdateStageOutput_DeploymentId = smithy.Member{Name: "DeploymentId", Index: 6, JSONName: "deploymentId"}
+var memberUpdateStageOutput_DeploymentId = smithy.Member{Name: "DeploymentId", Index: 6, Target: &schemaId, JSONName: "deploymentId"}
 
-var memberUpdateStageOutput_Description = smithy.Member{Name: "Description", Index: 7, JSONName: "description"}
+var memberUpdateStageOutput_Description = smithy.Member{Name: "Description", Index: 7, Target: &schemaStringWithLengthBetween0And1024, JSONName: "description"}
 
-var memberUpdateStageOutput_LastDeploymentStatusMessage = smithy.Member{Name: "LastDeploymentStatusMessage", Index: 8, JSONName: "lastDeploymentStatusMessage"}
+var memberUpdateStageOutput_LastDeploymentStatusMessage = smithy.Member{Name: "LastDeploymentStatusMessage", Index: 8, Target: &schema__string, JSONName: "lastDeploymentStatusMessage"}
 
-var memberUpdateStageOutput_LastUpdatedDate = smithy.Member{Name: "LastUpdatedDate", Index: 9, JSONName: "lastUpdatedDate", TimestampFormat: smithy.DateTime}
+var memberUpdateStageOutput_LastUpdatedDate = smithy.Member{Name: "LastUpdatedDate", Index: 9, Target: &schema__timestampIso8601, JSONName: "lastUpdatedDate", TimestampFormat: smithy.DateTime}
 
-var memberUpdateStageOutput_RouteSettings = smithy.Member{Name: "RouteSettings", Index: 10, JSONName: "routeSettings"}
+var memberUpdateStageOutput_RouteSettings = smithy.Member{Name: "RouteSettings", Index: 10, Target: &schemaRouteSettingsMap, JSONName: "routeSettings"}
 
-var memberUpdateStageOutput_StageName = smithy.Member{Name: "StageName", Index: 11, JSONName: "stageName"}
+var memberUpdateStageOutput_StageName = smithy.Member{Name: "StageName", Index: 11, Target: &schemaStringWithLengthBetween1And128, JSONName: "stageName"}
 
-var memberUpdateStageOutput_StageVariables = smithy.Member{Name: "StageVariables", Index: 12, JSONName: "stageVariables"}
+var memberUpdateStageOutput_StageVariables = smithy.Member{Name: "StageVariables", Index: 12, Target: &schemaStageVariablesMap, JSONName: "stageVariables"}
 
-var memberUpdateStageOutput_Tags = smithy.Member{Name: "Tags", Index: 13, JSONName: "tags"}
+var memberUpdateStageOutput_Tags = smithy.Member{Name: "Tags", Index: 13, Target: &schemaTags, JSONName: "tags"}
 
-var schemaUpdateVpcLinkInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateVpcLinkRequest", Type: smithy.TypeStructure}
+var schemaUpdateVpcLinkInput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateVpcLinkRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateVpcLinkInput_Name, &memberUpdateVpcLinkInput_VpcLinkId}}
 
-var memberUpdateVpcLinkInput_Name = smithy.Member{Name: "Name", Index: 0, JSONName: "name"}
+var memberUpdateVpcLinkInput_Name = smithy.Member{Name: "Name", Index: 0, Target: &schemaStringWithLengthBetween1And128, JSONName: "name"}
 
-var memberUpdateVpcLinkInput_VpcLinkId = smithy.Member{Name: "VpcLinkId", Index: 1, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberUpdateVpcLinkInput_VpcLinkId = smithy.Member{Name: "VpcLinkId", Index: 1, Target: &schema__string, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaUpdateVpcLinkOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateVpcLinkResponse", Type: smithy.TypeStructure}
+var schemaUpdateVpcLinkOutput = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UpdateVpcLinkResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateVpcLinkOutput_CreatedDate, &memberUpdateVpcLinkOutput_Name, &memberUpdateVpcLinkOutput_SecurityGroupIds, &memberUpdateVpcLinkOutput_SubnetIds, &memberUpdateVpcLinkOutput_Tags, &memberUpdateVpcLinkOutput_VpcLinkId, &memberUpdateVpcLinkOutput_VpcLinkStatus, &memberUpdateVpcLinkOutput_VpcLinkStatusMessage, &memberUpdateVpcLinkOutput_VpcLinkVersion}}
 
-var memberUpdateVpcLinkOutput_CreatedDate = smithy.Member{Name: "CreatedDate", Index: 0, JSONName: "createdDate", TimestampFormat: smithy.DateTime}
+var memberUpdateVpcLinkOutput_CreatedDate = smithy.Member{Name: "CreatedDate", Index: 0, Target: &schema__timestampIso8601, JSONName: "createdDate", TimestampFormat: smithy.DateTime}
 
-var memberUpdateVpcLinkOutput_Name = smithy.Member{Name: "Name", Index: 1, JSONName: "name"}
+var memberUpdateVpcLinkOutput_Name = smithy.Member{Name: "Name", Index: 1, Target: &schemaStringWithLengthBetween1And128, JSONName: "name"}
 
-var memberUpdateVpcLinkOutput_SecurityGroupIds = smithy.Member{Name: "SecurityGroupIds", Index: 2, JSONName: "securityGroupIds"}
+var memberUpdateVpcLinkOutput_SecurityGroupIds = smithy.Member{Name: "SecurityGroupIds", Index: 2, Target: &schemaSecurityGroupIdList, JSONName: "securityGroupIds"}
 
-var memberUpdateVpcLinkOutput_SubnetIds = smithy.Member{Name: "SubnetIds", Index: 3, JSONName: "subnetIds"}
+var memberUpdateVpcLinkOutput_SubnetIds = smithy.Member{Name: "SubnetIds", Index: 3, Target: &schemaSubnetIdList, JSONName: "subnetIds"}
 
-var memberUpdateVpcLinkOutput_Tags = smithy.Member{Name: "Tags", Index: 4, JSONName: "tags"}
+var memberUpdateVpcLinkOutput_Tags = smithy.Member{Name: "Tags", Index: 4, Target: &schemaTags, JSONName: "tags"}
 
-var memberUpdateVpcLinkOutput_VpcLinkId = smithy.Member{Name: "VpcLinkId", Index: 5, JSONName: "vpcLinkId"}
+var memberUpdateVpcLinkOutput_VpcLinkId = smithy.Member{Name: "VpcLinkId", Index: 5, Target: &schemaId, JSONName: "vpcLinkId"}
 
-var memberUpdateVpcLinkOutput_VpcLinkStatus = smithy.Member{Name: "VpcLinkStatus", Index: 6, JSONName: "vpcLinkStatus"}
+var memberUpdateVpcLinkOutput_VpcLinkStatus = smithy.Member{Name: "VpcLinkStatus", Index: 6, Target: &schemaVpcLinkStatus, JSONName: "vpcLinkStatus"}
 
-var memberUpdateVpcLinkOutput_VpcLinkStatusMessage = smithy.Member{Name: "VpcLinkStatusMessage", Index: 7, JSONName: "vpcLinkStatusMessage"}
+var memberUpdateVpcLinkOutput_VpcLinkStatusMessage = smithy.Member{Name: "VpcLinkStatusMessage", Index: 7, Target: &schemaStringWithLengthBetween0And1024, JSONName: "vpcLinkStatusMessage"}
 
-var memberUpdateVpcLinkOutput_VpcLinkVersion = smithy.Member{Name: "VpcLinkVersion", Index: 8, JSONName: "vpcLinkVersion"}
+var memberUpdateVpcLinkOutput_VpcLinkVersion = smithy.Member{Name: "VpcLinkVersion", Index: 8, Target: &schemaVpcLinkVersion, JSONName: "vpcLinkVersion"}
 
 var schemaUriWithLengthBetween1And2048 = smithy.Schema{ID: "com.amazonaws.apigatewayv2#UriWithLengthBetween1And2048", Type: smithy.TypeString}
 
-var schemaVpcLink = smithy.Schema{ID: "com.amazonaws.apigatewayv2#VpcLink", Type: smithy.TypeStructure}
+var schemaVpcLink = smithy.Schema{ID: "com.amazonaws.apigatewayv2#VpcLink", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberVpcLink_CreatedDate, &memberVpcLink_Name, &memberVpcLink_SecurityGroupIds, &memberVpcLink_SubnetIds, &memberVpcLink_Tags, &memberVpcLink_VpcLinkId, &memberVpcLink_VpcLinkStatus, &memberVpcLink_VpcLinkStatusMessage, &memberVpcLink_VpcLinkVersion}}
 
-var memberVpcLink_CreatedDate = smithy.Member{Name: "CreatedDate", Index: 0, JSONName: "createdDate", TimestampFormat: smithy.DateTime}
+var memberVpcLink_CreatedDate = smithy.Member{Name: "CreatedDate", Index: 0, Target: &schema__timestampIso8601, JSONName: "createdDate", TimestampFormat: smithy.DateTime}
 
-var memberVpcLink_Name = smithy.Member{Name: "Name", Index: 1, Required: true, JSONName: "name"}
+var memberVpcLink_Name = smithy.Member{Name: "Name", Index: 1, Target: &schemaStringWithLengthBetween1And128, Required: true, JSONName: "name"}
 
-var memberVpcLink_SecurityGroupIds = smithy.Member{Name: "SecurityGroupIds", Index: 2, Required: true, JSONName: "securityGroupIds"}
+var memberVpcLink_SecurityGroupIds = smithy.Member{Name: "SecurityGroupIds", Index: 2, Target: &schemaSecurityGroupIdList, Required: true, JSONName: "securityGroupIds"}
 
-var memberVpcLink_SubnetIds = smithy.Member{Name: "SubnetIds", Index: 3, Required: true, JSONName: "subnetIds"}
+var memberVpcLink_SubnetIds = smithy.Member{Name: "SubnetIds", Index: 3, Target: &schemaSubnetIdList, Required: true, JSONName: "subnetIds"}
 
-var memberVpcLink_Tags = smithy.Member{Name: "Tags", Index: 4, JSONName: "tags"}
+var memberVpcLink_Tags = smithy.Member{Name: "Tags", Index: 4, Target: &schemaTags, JSONName: "tags"}
 
-var memberVpcLink_VpcLinkId = smithy.Member{Name: "VpcLinkId", Index: 5, Required: true, JSONName: "vpcLinkId"}
+var memberVpcLink_VpcLinkId = smithy.Member{Name: "VpcLinkId", Index: 5, Target: &schemaId, Required: true, JSONName: "vpcLinkId"}
 
-var memberVpcLink_VpcLinkStatus = smithy.Member{Name: "VpcLinkStatus", Index: 6, JSONName: "vpcLinkStatus"}
+var memberVpcLink_VpcLinkStatus = smithy.Member{Name: "VpcLinkStatus", Index: 6, Target: &schemaVpcLinkStatus, JSONName: "vpcLinkStatus"}
 
-var memberVpcLink_VpcLinkStatusMessage = smithy.Member{Name: "VpcLinkStatusMessage", Index: 7, JSONName: "vpcLinkStatusMessage"}
+var memberVpcLink_VpcLinkStatusMessage = smithy.Member{Name: "VpcLinkStatusMessage", Index: 7, Target: &schemaStringWithLengthBetween0And1024, JSONName: "vpcLinkStatusMessage"}
 
-var memberVpcLink_VpcLinkVersion = smithy.Member{Name: "VpcLinkVersion", Index: 8, JSONName: "vpcLinkVersion"}
+var memberVpcLink_VpcLinkVersion = smithy.Member{Name: "VpcLinkVersion", Index: 8, Target: &schemaVpcLinkVersion, JSONName: "vpcLinkVersion"}
 
 var schemaVpcLinkStatus = smithy.Schema{ID: "com.amazonaws.apigatewayv2#VpcLinkStatus", Type: smithy.TypeEnum}
 
@@ -3102,101 +3102,101 @@ var schema__double = smithy.Schema{ID: "com.amazonaws.apigatewayv2#__double", Ty
 
 var schema__integer = smithy.Schema{ID: "com.amazonaws.apigatewayv2#__integer", Type: smithy.TypeInteger}
 
-var schema__listOfApi = smithy.Schema{ID: "com.amazonaws.apigatewayv2#__listOfApi", Type: smithy.TypeList}
+var schema__listOfApi = smithy.Schema{ID: "com.amazonaws.apigatewayv2#__listOfApi", Type: smithy.TypeList, Members: []*smithy.Member{&member__listOfApi_member}}
 
-var member__listOfApi_member = smithy.Member{Name: "member", Index: 0}
+var member__listOfApi_member = smithy.Member{Name: "member", Index: 0, Target: &schemaApi}
 
-var schema__listOfApiMapping = smithy.Schema{ID: "com.amazonaws.apigatewayv2#__listOfApiMapping", Type: smithy.TypeList}
+var schema__listOfApiMapping = smithy.Schema{ID: "com.amazonaws.apigatewayv2#__listOfApiMapping", Type: smithy.TypeList, Members: []*smithy.Member{&member__listOfApiMapping_member}}
 
-var member__listOfApiMapping_member = smithy.Member{Name: "member", Index: 0}
+var member__listOfApiMapping_member = smithy.Member{Name: "member", Index: 0, Target: &schemaApiMapping}
 
-var schema__listOfAuthorizer = smithy.Schema{ID: "com.amazonaws.apigatewayv2#__listOfAuthorizer", Type: smithy.TypeList}
+var schema__listOfAuthorizer = smithy.Schema{ID: "com.amazonaws.apigatewayv2#__listOfAuthorizer", Type: smithy.TypeList, Members: []*smithy.Member{&member__listOfAuthorizer_member}}
 
-var member__listOfAuthorizer_member = smithy.Member{Name: "member", Index: 0}
+var member__listOfAuthorizer_member = smithy.Member{Name: "member", Index: 0, Target: &schemaAuthorizer}
 
-var schema__listOfDeployment = smithy.Schema{ID: "com.amazonaws.apigatewayv2#__listOfDeployment", Type: smithy.TypeList}
+var schema__listOfDeployment = smithy.Schema{ID: "com.amazonaws.apigatewayv2#__listOfDeployment", Type: smithy.TypeList, Members: []*smithy.Member{&member__listOfDeployment_member}}
 
-var member__listOfDeployment_member = smithy.Member{Name: "member", Index: 0}
+var member__listOfDeployment_member = smithy.Member{Name: "member", Index: 0, Target: &schemaDeployment}
 
-var schema__listOfDomainName = smithy.Schema{ID: "com.amazonaws.apigatewayv2#__listOfDomainName", Type: smithy.TypeList}
+var schema__listOfDomainName = smithy.Schema{ID: "com.amazonaws.apigatewayv2#__listOfDomainName", Type: smithy.TypeList, Members: []*smithy.Member{&member__listOfDomainName_member}}
 
-var member__listOfDomainName_member = smithy.Member{Name: "member", Index: 0}
+var member__listOfDomainName_member = smithy.Member{Name: "member", Index: 0, Target: &schemaDomainName}
 
-var schema__listOfIntegration = smithy.Schema{ID: "com.amazonaws.apigatewayv2#__listOfIntegration", Type: smithy.TypeList}
+var schema__listOfIntegration = smithy.Schema{ID: "com.amazonaws.apigatewayv2#__listOfIntegration", Type: smithy.TypeList, Members: []*smithy.Member{&member__listOfIntegration_member}}
 
-var member__listOfIntegration_member = smithy.Member{Name: "member", Index: 0}
+var member__listOfIntegration_member = smithy.Member{Name: "member", Index: 0, Target: &schemaIntegration}
 
-var schema__listOfIntegrationResponse = smithy.Schema{ID: "com.amazonaws.apigatewayv2#__listOfIntegrationResponse", Type: smithy.TypeList}
+var schema__listOfIntegrationResponse = smithy.Schema{ID: "com.amazonaws.apigatewayv2#__listOfIntegrationResponse", Type: smithy.TypeList, Members: []*smithy.Member{&member__listOfIntegrationResponse_member}}
 
-var member__listOfIntegrationResponse_member = smithy.Member{Name: "member", Index: 0}
+var member__listOfIntegrationResponse_member = smithy.Member{Name: "member", Index: 0, Target: &schemaIntegrationResponse}
 
-var schema__listOfModel = smithy.Schema{ID: "com.amazonaws.apigatewayv2#__listOfModel", Type: smithy.TypeList}
+var schema__listOfModel = smithy.Schema{ID: "com.amazonaws.apigatewayv2#__listOfModel", Type: smithy.TypeList, Members: []*smithy.Member{&member__listOfModel_member}}
 
-var member__listOfModel_member = smithy.Member{Name: "member", Index: 0}
+var member__listOfModel_member = smithy.Member{Name: "member", Index: 0, Target: &schemaModel}
 
-var schema__listOfPortalProductSummary = smithy.Schema{ID: "com.amazonaws.apigatewayv2#__listOfPortalProductSummary", Type: smithy.TypeList}
+var schema__listOfPortalProductSummary = smithy.Schema{ID: "com.amazonaws.apigatewayv2#__listOfPortalProductSummary", Type: smithy.TypeList, Members: []*smithy.Member{&member__listOfPortalProductSummary_member}}
 
-var member__listOfPortalProductSummary_member = smithy.Member{Name: "member", Index: 0}
+var member__listOfPortalProductSummary_member = smithy.Member{Name: "member", Index: 0, Target: &schemaPortalProductSummary}
 
-var schema__listOfPortalSummary = smithy.Schema{ID: "com.amazonaws.apigatewayv2#__listOfPortalSummary", Type: smithy.TypeList}
+var schema__listOfPortalSummary = smithy.Schema{ID: "com.amazonaws.apigatewayv2#__listOfPortalSummary", Type: smithy.TypeList, Members: []*smithy.Member{&member__listOfPortalSummary_member}}
 
-var member__listOfPortalSummary_member = smithy.Member{Name: "member", Index: 0}
+var member__listOfPortalSummary_member = smithy.Member{Name: "member", Index: 0, Target: &schemaPortalSummary}
 
-var schema__listOfProductPageSummaryNoBody = smithy.Schema{ID: "com.amazonaws.apigatewayv2#__listOfProductPageSummaryNoBody", Type: smithy.TypeList}
+var schema__listOfProductPageSummaryNoBody = smithy.Schema{ID: "com.amazonaws.apigatewayv2#__listOfProductPageSummaryNoBody", Type: smithy.TypeList, Members: []*smithy.Member{&member__listOfProductPageSummaryNoBody_member}}
 
-var member__listOfProductPageSummaryNoBody_member = smithy.Member{Name: "member", Index: 0}
+var member__listOfProductPageSummaryNoBody_member = smithy.Member{Name: "member", Index: 0, Target: &schemaProductPageSummaryNoBody}
 
-var schema__listOfProductRestEndpointPageSummaryNoBody = smithy.Schema{ID: "com.amazonaws.apigatewayv2#__listOfProductRestEndpointPageSummaryNoBody", Type: smithy.TypeList}
+var schema__listOfProductRestEndpointPageSummaryNoBody = smithy.Schema{ID: "com.amazonaws.apigatewayv2#__listOfProductRestEndpointPageSummaryNoBody", Type: smithy.TypeList, Members: []*smithy.Member{&member__listOfProductRestEndpointPageSummaryNoBody_member}}
 
-var member__listOfProductRestEndpointPageSummaryNoBody_member = smithy.Member{Name: "member", Index: 0}
+var member__listOfProductRestEndpointPageSummaryNoBody_member = smithy.Member{Name: "member", Index: 0, Target: &schemaProductRestEndpointPageSummaryNoBody}
 
-var schema__listOfRoute = smithy.Schema{ID: "com.amazonaws.apigatewayv2#__listOfRoute", Type: smithy.TypeList}
+var schema__listOfRoute = smithy.Schema{ID: "com.amazonaws.apigatewayv2#__listOfRoute", Type: smithy.TypeList, Members: []*smithy.Member{&member__listOfRoute_member}}
 
-var member__listOfRoute_member = smithy.Member{Name: "member", Index: 0}
+var member__listOfRoute_member = smithy.Member{Name: "member", Index: 0, Target: &schemaRoute}
 
-var schema__listOfRouteResponse = smithy.Schema{ID: "com.amazonaws.apigatewayv2#__listOfRouteResponse", Type: smithy.TypeList}
+var schema__listOfRouteResponse = smithy.Schema{ID: "com.amazonaws.apigatewayv2#__listOfRouteResponse", Type: smithy.TypeList, Members: []*smithy.Member{&member__listOfRouteResponse_member}}
 
-var member__listOfRouteResponse_member = smithy.Member{Name: "member", Index: 0}
+var member__listOfRouteResponse_member = smithy.Member{Name: "member", Index: 0, Target: &schemaRouteResponse}
 
-var schema__listOfRoutingRule = smithy.Schema{ID: "com.amazonaws.apigatewayv2#__listOfRoutingRule", Type: smithy.TypeList}
+var schema__listOfRoutingRule = smithy.Schema{ID: "com.amazonaws.apigatewayv2#__listOfRoutingRule", Type: smithy.TypeList, Members: []*smithy.Member{&member__listOfRoutingRule_member}}
 
-var member__listOfRoutingRule_member = smithy.Member{Name: "member", Index: 0}
+var member__listOfRoutingRule_member = smithy.Member{Name: "member", Index: 0, Target: &schemaRoutingRule}
 
-var schema__listOfRoutingRuleAction = smithy.Schema{ID: "com.amazonaws.apigatewayv2#__listOfRoutingRuleAction", Type: smithy.TypeList}
+var schema__listOfRoutingRuleAction = smithy.Schema{ID: "com.amazonaws.apigatewayv2#__listOfRoutingRuleAction", Type: smithy.TypeList, Members: []*smithy.Member{&member__listOfRoutingRuleAction_member}}
 
-var member__listOfRoutingRuleAction_member = smithy.Member{Name: "member", Index: 0}
+var member__listOfRoutingRuleAction_member = smithy.Member{Name: "member", Index: 0, Target: &schemaRoutingRuleAction}
 
-var schema__listOfRoutingRuleCondition = smithy.Schema{ID: "com.amazonaws.apigatewayv2#__listOfRoutingRuleCondition", Type: smithy.TypeList}
+var schema__listOfRoutingRuleCondition = smithy.Schema{ID: "com.amazonaws.apigatewayv2#__listOfRoutingRuleCondition", Type: smithy.TypeList, Members: []*smithy.Member{&member__listOfRoutingRuleCondition_member}}
 
-var member__listOfRoutingRuleCondition_member = smithy.Member{Name: "member", Index: 0}
+var member__listOfRoutingRuleCondition_member = smithy.Member{Name: "member", Index: 0, Target: &schemaRoutingRuleCondition}
 
-var schema__listOfRoutingRuleMatchHeaderValue = smithy.Schema{ID: "com.amazonaws.apigatewayv2#__listOfRoutingRuleMatchHeaderValue", Type: smithy.TypeList}
+var schema__listOfRoutingRuleMatchHeaderValue = smithy.Schema{ID: "com.amazonaws.apigatewayv2#__listOfRoutingRuleMatchHeaderValue", Type: smithy.TypeList, Members: []*smithy.Member{&member__listOfRoutingRuleMatchHeaderValue_member}}
 
-var member__listOfRoutingRuleMatchHeaderValue_member = smithy.Member{Name: "member", Index: 0}
+var member__listOfRoutingRuleMatchHeaderValue_member = smithy.Member{Name: "member", Index: 0, Target: &schemaRoutingRuleMatchHeaderValue}
 
-var schema__listOfSection = smithy.Schema{ID: "com.amazonaws.apigatewayv2#__listOfSection", Type: smithy.TypeList}
+var schema__listOfSection = smithy.Schema{ID: "com.amazonaws.apigatewayv2#__listOfSection", Type: smithy.TypeList, Members: []*smithy.Member{&member__listOfSection_member}}
 
-var member__listOfSection_member = smithy.Member{Name: "member", Index: 0}
+var member__listOfSection_member = smithy.Member{Name: "member", Index: 0, Target: &schemaSection}
 
-var schema__listOfSelectionKey = smithy.Schema{ID: "com.amazonaws.apigatewayv2#__listOfSelectionKey", Type: smithy.TypeList}
+var schema__listOfSelectionKey = smithy.Schema{ID: "com.amazonaws.apigatewayv2#__listOfSelectionKey", Type: smithy.TypeList, Members: []*smithy.Member{&member__listOfSelectionKey_member}}
 
-var member__listOfSelectionKey_member = smithy.Member{Name: "member", Index: 0}
+var member__listOfSelectionKey_member = smithy.Member{Name: "member", Index: 0, Target: &schemaSelectionKey}
 
-var schema__listOfStage = smithy.Schema{ID: "com.amazonaws.apigatewayv2#__listOfStage", Type: smithy.TypeList}
+var schema__listOfStage = smithy.Schema{ID: "com.amazonaws.apigatewayv2#__listOfStage", Type: smithy.TypeList, Members: []*smithy.Member{&member__listOfStage_member}}
 
-var member__listOfStage_member = smithy.Member{Name: "member", Index: 0}
+var member__listOfStage_member = smithy.Member{Name: "member", Index: 0, Target: &schemaStage}
 
-var schema__listOfVpcLink = smithy.Schema{ID: "com.amazonaws.apigatewayv2#__listOfVpcLink", Type: smithy.TypeList}
+var schema__listOfVpcLink = smithy.Schema{ID: "com.amazonaws.apigatewayv2#__listOfVpcLink", Type: smithy.TypeList, Members: []*smithy.Member{&member__listOfVpcLink_member}}
 
-var member__listOfVpcLink_member = smithy.Member{Name: "member", Index: 0}
+var member__listOfVpcLink_member = smithy.Member{Name: "member", Index: 0, Target: &schemaVpcLink}
 
-var schema__listOf__string = smithy.Schema{ID: "com.amazonaws.apigatewayv2#__listOf__string", Type: smithy.TypeList}
+var schema__listOf__string = smithy.Schema{ID: "com.amazonaws.apigatewayv2#__listOf__string", Type: smithy.TypeList, Members: []*smithy.Member{&member__listOf__string_member}}
 
-var member__listOf__string_member = smithy.Member{Name: "member", Index: 0}
+var member__listOf__string_member = smithy.Member{Name: "member", Index: 0, Target: &schema__string}
 
-var schema__listOf__stringMin20Max2048 = smithy.Schema{ID: "com.amazonaws.apigatewayv2#__listOf__stringMin20Max2048", Type: smithy.TypeList}
+var schema__listOf__stringMin20Max2048 = smithy.Schema{ID: "com.amazonaws.apigatewayv2#__listOf__stringMin20Max2048", Type: smithy.TypeList, Members: []*smithy.Member{&member__listOf__stringMin20Max2048_member}}
 
-var member__listOf__stringMin20Max2048_member = smithy.Member{Name: "member", Index: 0}
+var member__listOf__stringMin20Max2048_member = smithy.Member{Name: "member", Index: 0, Target: &schema__stringMin20Max2048}
 
 var schema__string = smithy.Schema{ID: "com.amazonaws.apigatewayv2#__string", Type: smithy.TypeString}
 
@@ -3241,1550 +3241,3 @@ var schema__stringMin3Max255 = smithy.Schema{ID: "com.amazonaws.apigatewayv2#__s
 var schema__stringMin3Max256 = smithy.Schema{ID: "com.amazonaws.apigatewayv2#__stringMin3Max256", Type: smithy.TypeString}
 
 var schema__timestampIso8601 = smithy.Schema{ID: "com.amazonaws.apigatewayv2#__timestampIso8601", Type: smithy.TypeTimestamp, TimestampFormat: smithy.DateTime}
-
-func init() {
-	memberACMManaged_CertificateArn.Target = &schema__stringMin10Max2048
-	memberACMManaged_DomainName.Target = &schema__stringMin3Max256
-	schemaACMManaged.Members = []*smithy.Member{&memberACMManaged_CertificateArn, &memberACMManaged_DomainName}
-	memberAccessDeniedException_Message.Target = &schema__string
-	schemaAccessDeniedException.Members = []*smithy.Member{&memberAccessDeniedException_Message}
-	memberAccessLogSettings_DestinationArn.Target = &schemaArn
-	memberAccessLogSettings_Format.Target = &schemaStringWithLengthBetween1And1024
-	schemaAccessLogSettings.Members = []*smithy.Member{&memberAccessLogSettings_DestinationArn, &memberAccessLogSettings_Format}
-	memberApi_ApiEndpoint.Target = &schema__string
-	memberApi_ApiGatewayManaged.Target = &schema__boolean
-	memberApi_ApiId.Target = &schemaId
-	memberApi_ApiKeySelectionExpression.Target = &schemaSelectionExpression
-	memberApi_CorsConfiguration.Target = &schemaCors
-	memberApi_CreatedDate.Target = &schema__timestampIso8601
-	memberApi_Description.Target = &schemaStringWithLengthBetween0And1024
-	memberApi_DisableSchemaValidation.Target = &schema__boolean
-	memberApi_DisableExecuteApiEndpoint.Target = &schema__boolean
-	memberApi_ImportInfo.Target = &schema__listOf__string
-	memberApi_IpAddressType.Target = &schemaIpAddressType
-	memberApi_Name.Target = &schemaStringWithLengthBetween1And128
-	memberApi_ProtocolType.Target = &schemaProtocolType
-	memberApi_RouteSelectionExpression.Target = &schemaSelectionExpression
-	memberApi_Tags.Target = &schemaTags
-	memberApi_Version.Target = &schemaStringWithLengthBetween1And64
-	memberApi_Warnings.Target = &schema__listOf__string
-	schemaApi.Members = []*smithy.Member{&memberApi_ApiEndpoint, &memberApi_ApiGatewayManaged, &memberApi_ApiId, &memberApi_ApiKeySelectionExpression, &memberApi_CorsConfiguration, &memberApi_CreatedDate, &memberApi_Description, &memberApi_DisableSchemaValidation, &memberApi_DisableExecuteApiEndpoint, &memberApi_ImportInfo, &memberApi_IpAddressType, &memberApi_Name, &memberApi_ProtocolType, &memberApi_RouteSelectionExpression, &memberApi_Tags, &memberApi_Version, &memberApi_Warnings}
-	memberApiMapping_ApiId.Target = &schemaId
-	memberApiMapping_ApiMappingId.Target = &schemaId
-	memberApiMapping_ApiMappingKey.Target = &schemaSelectionKey
-	memberApiMapping_Stage.Target = &schemaStringWithLengthBetween1And128
-	schemaApiMapping.Members = []*smithy.Member{&memberApiMapping_ApiId, &memberApiMapping_ApiMappingId, &memberApiMapping_ApiMappingKey, &memberApiMapping_Stage}
-	memberAuthorization_CognitoConfig.Target = &schemaCognitoConfig
-	memberAuthorization_None.Target = &schemaNone
-	schemaAuthorization.Members = []*smithy.Member{&memberAuthorization_CognitoConfig, &memberAuthorization_None}
-	memberAuthorizationScopes_member.Target = &schemaStringWithLengthBetween1And64
-	schemaAuthorizationScopes.Members = []*smithy.Member{&memberAuthorizationScopes_member}
-	memberAuthorizer_AuthorizerCredentialsArn.Target = &schemaArn
-	memberAuthorizer_AuthorizerId.Target = &schemaId
-	memberAuthorizer_AuthorizerPayloadFormatVersion.Target = &schemaStringWithLengthBetween1And64
-	memberAuthorizer_AuthorizerResultTtlInSeconds.Target = &schemaIntegerWithLengthBetween0And3600
-	memberAuthorizer_AuthorizerType.Target = &schemaAuthorizerType
-	memberAuthorizer_AuthorizerUri.Target = &schemaUriWithLengthBetween1And2048
-	memberAuthorizer_EnableSimpleResponses.Target = &schema__boolean
-	memberAuthorizer_IdentitySource.Target = &schemaIdentitySourceList
-	memberAuthorizer_IdentityValidationExpression.Target = &schemaStringWithLengthBetween0And1024
-	memberAuthorizer_JwtConfiguration.Target = &schemaJWTConfiguration
-	memberAuthorizer_Name.Target = &schemaStringWithLengthBetween1And128
-	schemaAuthorizer.Members = []*smithy.Member{&memberAuthorizer_AuthorizerCredentialsArn, &memberAuthorizer_AuthorizerId, &memberAuthorizer_AuthorizerPayloadFormatVersion, &memberAuthorizer_AuthorizerResultTtlInSeconds, &memberAuthorizer_AuthorizerType, &memberAuthorizer_AuthorizerUri, &memberAuthorizer_EnableSimpleResponses, &memberAuthorizer_IdentitySource, &memberAuthorizer_IdentityValidationExpression, &memberAuthorizer_JwtConfiguration, &memberAuthorizer_Name}
-	memberBadRequestException_Message.Target = &schema__string
-	schemaBadRequestException.Members = []*smithy.Member{&memberBadRequestException_Message}
-	memberCognitoConfig_AppClientId.Target = &schema__stringMin1Max256
-	memberCognitoConfig_UserPoolArn.Target = &schema__stringMin20Max2048
-	memberCognitoConfig_UserPoolDomain.Target = &schema__stringMin20Max2048
-	schemaCognitoConfig.Members = []*smithy.Member{&memberCognitoConfig_AppClientId, &memberCognitoConfig_UserPoolArn, &memberCognitoConfig_UserPoolDomain}
-	memberConflictException_Message.Target = &schema__string
-	schemaConflictException.Members = []*smithy.Member{&memberConflictException_Message}
-	memberCoralServiceAccessDeniedException_message.Target = &schemaSmithyString
-	schemaCoralServiceAccessDeniedException.Members = []*smithy.Member{&memberCoralServiceAccessDeniedException_message}
-	memberCors_AllowCredentials.Target = &schema__boolean
-	memberCors_AllowHeaders.Target = &schemaCorsHeaderList
-	memberCors_AllowMethods.Target = &schemaCorsMethodList
-	memberCors_AllowOrigins.Target = &schemaCorsOriginList
-	memberCors_ExposeHeaders.Target = &schemaCorsHeaderList
-	memberCors_MaxAge.Target = &schemaIntegerWithLengthBetweenMinus1And86400
-	schemaCors.Members = []*smithy.Member{&memberCors_AllowCredentials, &memberCors_AllowHeaders, &memberCors_AllowMethods, &memberCors_AllowOrigins, &memberCors_ExposeHeaders, &memberCors_MaxAge}
-	memberCorsHeaderList_member.Target = &schema__string
-	schemaCorsHeaderList.Members = []*smithy.Member{&memberCorsHeaderList_member}
-	memberCorsMethodList_member.Target = &schemaStringWithLengthBetween1And64
-	schemaCorsMethodList.Members = []*smithy.Member{&memberCorsMethodList_member}
-	memberCorsOriginList_member.Target = &schema__string
-	schemaCorsOriginList.Members = []*smithy.Member{&memberCorsOriginList_member}
-	memberCreateApiInput_ApiKeySelectionExpression.Target = &schemaSelectionExpression
-	memberCreateApiInput_CorsConfiguration.Target = &schemaCors
-	memberCreateApiInput_CredentialsArn.Target = &schemaArn
-	memberCreateApiInput_Description.Target = &schemaStringWithLengthBetween0And1024
-	memberCreateApiInput_DisableSchemaValidation.Target = &schema__boolean
-	memberCreateApiInput_DisableExecuteApiEndpoint.Target = &schema__boolean
-	memberCreateApiInput_IpAddressType.Target = &schemaIpAddressType
-	memberCreateApiInput_Name.Target = &schemaStringWithLengthBetween1And128
-	memberCreateApiInput_ProtocolType.Target = &schemaProtocolType
-	memberCreateApiInput_RouteKey.Target = &schemaSelectionKey
-	memberCreateApiInput_RouteSelectionExpression.Target = &schemaSelectionExpression
-	memberCreateApiInput_Tags.Target = &schemaTags
-	memberCreateApiInput_Target.Target = &schemaUriWithLengthBetween1And2048
-	memberCreateApiInput_Version.Target = &schemaStringWithLengthBetween1And64
-	schemaCreateApiInput.Members = []*smithy.Member{&memberCreateApiInput_ApiKeySelectionExpression, &memberCreateApiInput_CorsConfiguration, &memberCreateApiInput_CredentialsArn, &memberCreateApiInput_Description, &memberCreateApiInput_DisableSchemaValidation, &memberCreateApiInput_DisableExecuteApiEndpoint, &memberCreateApiInput_IpAddressType, &memberCreateApiInput_Name, &memberCreateApiInput_ProtocolType, &memberCreateApiInput_RouteKey, &memberCreateApiInput_RouteSelectionExpression, &memberCreateApiInput_Tags, &memberCreateApiInput_Target, &memberCreateApiInput_Version}
-	memberCreateApiMappingInput_ApiId.Target = &schemaId
-	memberCreateApiMappingInput_ApiMappingKey.Target = &schemaSelectionKey
-	memberCreateApiMappingInput_DomainName.Target = &schema__string
-	memberCreateApiMappingInput_Stage.Target = &schemaStringWithLengthBetween1And128
-	schemaCreateApiMappingInput.Members = []*smithy.Member{&memberCreateApiMappingInput_ApiId, &memberCreateApiMappingInput_ApiMappingKey, &memberCreateApiMappingInput_DomainName, &memberCreateApiMappingInput_Stage}
-	memberCreateApiMappingOutput_ApiId.Target = &schemaId
-	memberCreateApiMappingOutput_ApiMappingId.Target = &schemaId
-	memberCreateApiMappingOutput_ApiMappingKey.Target = &schemaSelectionKey
-	memberCreateApiMappingOutput_Stage.Target = &schemaStringWithLengthBetween1And128
-	schemaCreateApiMappingOutput.Members = []*smithy.Member{&memberCreateApiMappingOutput_ApiId, &memberCreateApiMappingOutput_ApiMappingId, &memberCreateApiMappingOutput_ApiMappingKey, &memberCreateApiMappingOutput_Stage}
-	memberCreateApiOutput_ApiEndpoint.Target = &schema__string
-	memberCreateApiOutput_ApiGatewayManaged.Target = &schema__boolean
-	memberCreateApiOutput_ApiId.Target = &schemaId
-	memberCreateApiOutput_ApiKeySelectionExpression.Target = &schemaSelectionExpression
-	memberCreateApiOutput_CorsConfiguration.Target = &schemaCors
-	memberCreateApiOutput_CreatedDate.Target = &schema__timestampIso8601
-	memberCreateApiOutput_Description.Target = &schemaStringWithLengthBetween0And1024
-	memberCreateApiOutput_DisableSchemaValidation.Target = &schema__boolean
-	memberCreateApiOutput_DisableExecuteApiEndpoint.Target = &schema__boolean
-	memberCreateApiOutput_ImportInfo.Target = &schema__listOf__string
-	memberCreateApiOutput_IpAddressType.Target = &schemaIpAddressType
-	memberCreateApiOutput_Name.Target = &schemaStringWithLengthBetween1And128
-	memberCreateApiOutput_ProtocolType.Target = &schemaProtocolType
-	memberCreateApiOutput_RouteSelectionExpression.Target = &schemaSelectionExpression
-	memberCreateApiOutput_Tags.Target = &schemaTags
-	memberCreateApiOutput_Version.Target = &schemaStringWithLengthBetween1And64
-	memberCreateApiOutput_Warnings.Target = &schema__listOf__string
-	schemaCreateApiOutput.Members = []*smithy.Member{&memberCreateApiOutput_ApiEndpoint, &memberCreateApiOutput_ApiGatewayManaged, &memberCreateApiOutput_ApiId, &memberCreateApiOutput_ApiKeySelectionExpression, &memberCreateApiOutput_CorsConfiguration, &memberCreateApiOutput_CreatedDate, &memberCreateApiOutput_Description, &memberCreateApiOutput_DisableSchemaValidation, &memberCreateApiOutput_DisableExecuteApiEndpoint, &memberCreateApiOutput_ImportInfo, &memberCreateApiOutput_IpAddressType, &memberCreateApiOutput_Name, &memberCreateApiOutput_ProtocolType, &memberCreateApiOutput_RouteSelectionExpression, &memberCreateApiOutput_Tags, &memberCreateApiOutput_Version, &memberCreateApiOutput_Warnings}
-	memberCreateAuthorizerInput_ApiId.Target = &schema__string
-	memberCreateAuthorizerInput_AuthorizerCredentialsArn.Target = &schemaArn
-	memberCreateAuthorizerInput_AuthorizerPayloadFormatVersion.Target = &schemaStringWithLengthBetween1And64
-	memberCreateAuthorizerInput_AuthorizerResultTtlInSeconds.Target = &schemaIntegerWithLengthBetween0And3600
-	memberCreateAuthorizerInput_AuthorizerType.Target = &schemaAuthorizerType
-	memberCreateAuthorizerInput_AuthorizerUri.Target = &schemaUriWithLengthBetween1And2048
-	memberCreateAuthorizerInput_EnableSimpleResponses.Target = &schema__boolean
-	memberCreateAuthorizerInput_IdentitySource.Target = &schemaIdentitySourceList
-	memberCreateAuthorizerInput_IdentityValidationExpression.Target = &schemaStringWithLengthBetween0And1024
-	memberCreateAuthorizerInput_JwtConfiguration.Target = &schemaJWTConfiguration
-	memberCreateAuthorizerInput_Name.Target = &schemaStringWithLengthBetween1And128
-	schemaCreateAuthorizerInput.Members = []*smithy.Member{&memberCreateAuthorizerInput_ApiId, &memberCreateAuthorizerInput_AuthorizerCredentialsArn, &memberCreateAuthorizerInput_AuthorizerPayloadFormatVersion, &memberCreateAuthorizerInput_AuthorizerResultTtlInSeconds, &memberCreateAuthorizerInput_AuthorizerType, &memberCreateAuthorizerInput_AuthorizerUri, &memberCreateAuthorizerInput_EnableSimpleResponses, &memberCreateAuthorizerInput_IdentitySource, &memberCreateAuthorizerInput_IdentityValidationExpression, &memberCreateAuthorizerInput_JwtConfiguration, &memberCreateAuthorizerInput_Name}
-	memberCreateAuthorizerOutput_AuthorizerCredentialsArn.Target = &schemaArn
-	memberCreateAuthorizerOutput_AuthorizerId.Target = &schemaId
-	memberCreateAuthorizerOutput_AuthorizerPayloadFormatVersion.Target = &schemaStringWithLengthBetween1And64
-	memberCreateAuthorizerOutput_AuthorizerResultTtlInSeconds.Target = &schemaIntegerWithLengthBetween0And3600
-	memberCreateAuthorizerOutput_AuthorizerType.Target = &schemaAuthorizerType
-	memberCreateAuthorizerOutput_AuthorizerUri.Target = &schemaUriWithLengthBetween1And2048
-	memberCreateAuthorizerOutput_EnableSimpleResponses.Target = &schema__boolean
-	memberCreateAuthorizerOutput_IdentitySource.Target = &schemaIdentitySourceList
-	memberCreateAuthorizerOutput_IdentityValidationExpression.Target = &schemaStringWithLengthBetween0And1024
-	memberCreateAuthorizerOutput_JwtConfiguration.Target = &schemaJWTConfiguration
-	memberCreateAuthorizerOutput_Name.Target = &schemaStringWithLengthBetween1And128
-	schemaCreateAuthorizerOutput.Members = []*smithy.Member{&memberCreateAuthorizerOutput_AuthorizerCredentialsArn, &memberCreateAuthorizerOutput_AuthorizerId, &memberCreateAuthorizerOutput_AuthorizerPayloadFormatVersion, &memberCreateAuthorizerOutput_AuthorizerResultTtlInSeconds, &memberCreateAuthorizerOutput_AuthorizerType, &memberCreateAuthorizerOutput_AuthorizerUri, &memberCreateAuthorizerOutput_EnableSimpleResponses, &memberCreateAuthorizerOutput_IdentitySource, &memberCreateAuthorizerOutput_IdentityValidationExpression, &memberCreateAuthorizerOutput_JwtConfiguration, &memberCreateAuthorizerOutput_Name}
-	memberCreateDeploymentInput_ApiId.Target = &schema__string
-	memberCreateDeploymentInput_Description.Target = &schemaStringWithLengthBetween0And1024
-	memberCreateDeploymentInput_StageName.Target = &schemaStringWithLengthBetween1And128
-	schemaCreateDeploymentInput.Members = []*smithy.Member{&memberCreateDeploymentInput_ApiId, &memberCreateDeploymentInput_Description, &memberCreateDeploymentInput_StageName}
-	memberCreateDeploymentOutput_AutoDeployed.Target = &schema__boolean
-	memberCreateDeploymentOutput_CreatedDate.Target = &schema__timestampIso8601
-	memberCreateDeploymentOutput_DeploymentId.Target = &schemaId
-	memberCreateDeploymentOutput_DeploymentStatus.Target = &schemaDeploymentStatus
-	memberCreateDeploymentOutput_DeploymentStatusMessage.Target = &schema__string
-	memberCreateDeploymentOutput_Description.Target = &schemaStringWithLengthBetween0And1024
-	schemaCreateDeploymentOutput.Members = []*smithy.Member{&memberCreateDeploymentOutput_AutoDeployed, &memberCreateDeploymentOutput_CreatedDate, &memberCreateDeploymentOutput_DeploymentId, &memberCreateDeploymentOutput_DeploymentStatus, &memberCreateDeploymentOutput_DeploymentStatusMessage, &memberCreateDeploymentOutput_Description}
-	memberCreateDomainNameInput_DomainName.Target = &schemaStringWithLengthBetween1And512
-	memberCreateDomainNameInput_DomainNameConfigurations.Target = &schemaDomainNameConfigurations
-	memberCreateDomainNameInput_MutualTlsAuthentication.Target = &schemaMutualTlsAuthenticationInput
-	memberCreateDomainNameInput_RoutingMode.Target = &schemaRoutingMode
-	memberCreateDomainNameInput_Tags.Target = &schemaTags
-	schemaCreateDomainNameInput.Members = []*smithy.Member{&memberCreateDomainNameInput_DomainName, &memberCreateDomainNameInput_DomainNameConfigurations, &memberCreateDomainNameInput_MutualTlsAuthentication, &memberCreateDomainNameInput_RoutingMode, &memberCreateDomainNameInput_Tags}
-	memberCreateDomainNameOutput_ApiMappingSelectionExpression.Target = &schemaSelectionExpression
-	memberCreateDomainNameOutput_DomainName.Target = &schemaStringWithLengthBetween1And512
-	memberCreateDomainNameOutput_DomainNameArn.Target = &schemaArn
-	memberCreateDomainNameOutput_DomainNameConfigurations.Target = &schemaDomainNameConfigurations
-	memberCreateDomainNameOutput_MutualTlsAuthentication.Target = &schemaMutualTlsAuthentication
-	memberCreateDomainNameOutput_RoutingMode.Target = &schemaRoutingMode
-	memberCreateDomainNameOutput_Tags.Target = &schemaTags
-	schemaCreateDomainNameOutput.Members = []*smithy.Member{&memberCreateDomainNameOutput_ApiMappingSelectionExpression, &memberCreateDomainNameOutput_DomainName, &memberCreateDomainNameOutput_DomainNameArn, &memberCreateDomainNameOutput_DomainNameConfigurations, &memberCreateDomainNameOutput_MutualTlsAuthentication, &memberCreateDomainNameOutput_RoutingMode, &memberCreateDomainNameOutput_Tags}
-	memberCreateIntegrationInput_ApiId.Target = &schema__string
-	memberCreateIntegrationInput_ConnectionId.Target = &schemaStringWithLengthBetween1And1024
-	memberCreateIntegrationInput_ConnectionType.Target = &schemaConnectionType
-	memberCreateIntegrationInput_ContentHandlingStrategy.Target = &schemaContentHandlingStrategy
-	memberCreateIntegrationInput_CredentialsArn.Target = &schemaArn
-	memberCreateIntegrationInput_Description.Target = &schemaStringWithLengthBetween0And1024
-	memberCreateIntegrationInput_IntegrationMethod.Target = &schemaStringWithLengthBetween1And64
-	memberCreateIntegrationInput_IntegrationSubtype.Target = &schemaStringWithLengthBetween1And128
-	memberCreateIntegrationInput_IntegrationType.Target = &schemaIntegrationType
-	memberCreateIntegrationInput_IntegrationUri.Target = &schemaUriWithLengthBetween1And2048
-	memberCreateIntegrationInput_PassthroughBehavior.Target = &schemaPassthroughBehavior
-	memberCreateIntegrationInput_PayloadFormatVersion.Target = &schemaStringWithLengthBetween1And64
-	memberCreateIntegrationInput_RequestParameters.Target = &schemaIntegrationParameters
-	memberCreateIntegrationInput_RequestTemplates.Target = &schemaTemplateMap
-	memberCreateIntegrationInput_ResponseParameters.Target = &schemaResponseParameters
-	memberCreateIntegrationInput_TemplateSelectionExpression.Target = &schemaSelectionExpression
-	memberCreateIntegrationInput_TimeoutInMillis.Target = &schemaIntegerWithLengthBetween50And30000
-	memberCreateIntegrationInput_TlsConfig.Target = &schemaTlsConfigInput
-	schemaCreateIntegrationInput.Members = []*smithy.Member{&memberCreateIntegrationInput_ApiId, &memberCreateIntegrationInput_ConnectionId, &memberCreateIntegrationInput_ConnectionType, &memberCreateIntegrationInput_ContentHandlingStrategy, &memberCreateIntegrationInput_CredentialsArn, &memberCreateIntegrationInput_Description, &memberCreateIntegrationInput_IntegrationMethod, &memberCreateIntegrationInput_IntegrationSubtype, &memberCreateIntegrationInput_IntegrationType, &memberCreateIntegrationInput_IntegrationUri, &memberCreateIntegrationInput_PassthroughBehavior, &memberCreateIntegrationInput_PayloadFormatVersion, &memberCreateIntegrationInput_RequestParameters, &memberCreateIntegrationInput_RequestTemplates, &memberCreateIntegrationInput_ResponseParameters, &memberCreateIntegrationInput_TemplateSelectionExpression, &memberCreateIntegrationInput_TimeoutInMillis, &memberCreateIntegrationInput_TlsConfig}
-	memberCreateIntegrationOutput_ApiGatewayManaged.Target = &schema__boolean
-	memberCreateIntegrationOutput_ConnectionId.Target = &schemaStringWithLengthBetween1And1024
-	memberCreateIntegrationOutput_ConnectionType.Target = &schemaConnectionType
-	memberCreateIntegrationOutput_ContentHandlingStrategy.Target = &schemaContentHandlingStrategy
-	memberCreateIntegrationOutput_CredentialsArn.Target = &schemaArn
-	memberCreateIntegrationOutput_Description.Target = &schemaStringWithLengthBetween0And1024
-	memberCreateIntegrationOutput_IntegrationId.Target = &schemaId
-	memberCreateIntegrationOutput_IntegrationMethod.Target = &schemaStringWithLengthBetween1And64
-	memberCreateIntegrationOutput_IntegrationResponseSelectionExpression.Target = &schemaSelectionExpression
-	memberCreateIntegrationOutput_IntegrationSubtype.Target = &schemaStringWithLengthBetween1And128
-	memberCreateIntegrationOutput_IntegrationType.Target = &schemaIntegrationType
-	memberCreateIntegrationOutput_IntegrationUri.Target = &schemaUriWithLengthBetween1And2048
-	memberCreateIntegrationOutput_PassthroughBehavior.Target = &schemaPassthroughBehavior
-	memberCreateIntegrationOutput_PayloadFormatVersion.Target = &schemaStringWithLengthBetween1And64
-	memberCreateIntegrationOutput_RequestParameters.Target = &schemaIntegrationParameters
-	memberCreateIntegrationOutput_RequestTemplates.Target = &schemaTemplateMap
-	memberCreateIntegrationOutput_ResponseParameters.Target = &schemaResponseParameters
-	memberCreateIntegrationOutput_TemplateSelectionExpression.Target = &schemaSelectionExpression
-	memberCreateIntegrationOutput_TimeoutInMillis.Target = &schemaIntegerWithLengthBetween50And30000
-	memberCreateIntegrationOutput_TlsConfig.Target = &schemaTlsConfig
-	schemaCreateIntegrationOutput.Members = []*smithy.Member{&memberCreateIntegrationOutput_ApiGatewayManaged, &memberCreateIntegrationOutput_ConnectionId, &memberCreateIntegrationOutput_ConnectionType, &memberCreateIntegrationOutput_ContentHandlingStrategy, &memberCreateIntegrationOutput_CredentialsArn, &memberCreateIntegrationOutput_Description, &memberCreateIntegrationOutput_IntegrationId, &memberCreateIntegrationOutput_IntegrationMethod, &memberCreateIntegrationOutput_IntegrationResponseSelectionExpression, &memberCreateIntegrationOutput_IntegrationSubtype, &memberCreateIntegrationOutput_IntegrationType, &memberCreateIntegrationOutput_IntegrationUri, &memberCreateIntegrationOutput_PassthroughBehavior, &memberCreateIntegrationOutput_PayloadFormatVersion, &memberCreateIntegrationOutput_RequestParameters, &memberCreateIntegrationOutput_RequestTemplates, &memberCreateIntegrationOutput_ResponseParameters, &memberCreateIntegrationOutput_TemplateSelectionExpression, &memberCreateIntegrationOutput_TimeoutInMillis, &memberCreateIntegrationOutput_TlsConfig}
-	memberCreateIntegrationResponseInput_ApiId.Target = &schema__string
-	memberCreateIntegrationResponseInput_ContentHandlingStrategy.Target = &schemaContentHandlingStrategy
-	memberCreateIntegrationResponseInput_IntegrationId.Target = &schema__string
-	memberCreateIntegrationResponseInput_IntegrationResponseKey.Target = &schemaSelectionKey
-	memberCreateIntegrationResponseInput_ResponseParameters.Target = &schemaIntegrationParameters
-	memberCreateIntegrationResponseInput_ResponseTemplates.Target = &schemaTemplateMap
-	memberCreateIntegrationResponseInput_TemplateSelectionExpression.Target = &schemaSelectionExpression
-	schemaCreateIntegrationResponseInput.Members = []*smithy.Member{&memberCreateIntegrationResponseInput_ApiId, &memberCreateIntegrationResponseInput_ContentHandlingStrategy, &memberCreateIntegrationResponseInput_IntegrationId, &memberCreateIntegrationResponseInput_IntegrationResponseKey, &memberCreateIntegrationResponseInput_ResponseParameters, &memberCreateIntegrationResponseInput_ResponseTemplates, &memberCreateIntegrationResponseInput_TemplateSelectionExpression}
-	memberCreateIntegrationResponseOutput_ContentHandlingStrategy.Target = &schemaContentHandlingStrategy
-	memberCreateIntegrationResponseOutput_IntegrationResponseId.Target = &schemaId
-	memberCreateIntegrationResponseOutput_IntegrationResponseKey.Target = &schemaSelectionKey
-	memberCreateIntegrationResponseOutput_ResponseParameters.Target = &schemaIntegrationParameters
-	memberCreateIntegrationResponseOutput_ResponseTemplates.Target = &schemaTemplateMap
-	memberCreateIntegrationResponseOutput_TemplateSelectionExpression.Target = &schemaSelectionExpression
-	schemaCreateIntegrationResponseOutput.Members = []*smithy.Member{&memberCreateIntegrationResponseOutput_ContentHandlingStrategy, &memberCreateIntegrationResponseOutput_IntegrationResponseId, &memberCreateIntegrationResponseOutput_IntegrationResponseKey, &memberCreateIntegrationResponseOutput_ResponseParameters, &memberCreateIntegrationResponseOutput_ResponseTemplates, &memberCreateIntegrationResponseOutput_TemplateSelectionExpression}
-	memberCreateModelInput_ApiId.Target = &schema__string
-	memberCreateModelInput_ContentType.Target = &schemaStringWithLengthBetween1And256
-	memberCreateModelInput_Description.Target = &schemaStringWithLengthBetween0And1024
-	memberCreateModelInput_Name.Target = &schemaStringWithLengthBetween1And128
-	memberCreateModelInput_Schema.Target = &schemaStringWithLengthBetween0And32K
-	schemaCreateModelInput.Members = []*smithy.Member{&memberCreateModelInput_ApiId, &memberCreateModelInput_ContentType, &memberCreateModelInput_Description, &memberCreateModelInput_Name, &memberCreateModelInput_Schema}
-	memberCreateModelOutput_ContentType.Target = &schemaStringWithLengthBetween1And256
-	memberCreateModelOutput_Description.Target = &schemaStringWithLengthBetween0And1024
-	memberCreateModelOutput_ModelId.Target = &schemaId
-	memberCreateModelOutput_Name.Target = &schemaStringWithLengthBetween1And128
-	memberCreateModelOutput_Schema.Target = &schemaStringWithLengthBetween0And32K
-	schemaCreateModelOutput.Members = []*smithy.Member{&memberCreateModelOutput_ContentType, &memberCreateModelOutput_Description, &memberCreateModelOutput_ModelId, &memberCreateModelOutput_Name, &memberCreateModelOutput_Schema}
-	memberCreatePortalInput_Authorization.Target = &schemaAuthorization
-	memberCreatePortalInput_EndpointConfiguration.Target = &schemaEndpointConfigurationRequest
-	memberCreatePortalInput_IncludedPortalProductArns.Target = &schema__listOf__stringMin20Max2048
-	memberCreatePortalInput_LogoUri.Target = &schema__stringMin0Max1092
-	memberCreatePortalInput_PortalContent.Target = &schemaPortalContent
-	memberCreatePortalInput_RumAppMonitorName.Target = &schema__stringMin0Max255
-	memberCreatePortalInput_Tags.Target = &schemaTags
-	schemaCreatePortalInput.Members = []*smithy.Member{&memberCreatePortalInput_Authorization, &memberCreatePortalInput_EndpointConfiguration, &memberCreatePortalInput_IncludedPortalProductArns, &memberCreatePortalInput_LogoUri, &memberCreatePortalInput_PortalContent, &memberCreatePortalInput_RumAppMonitorName, &memberCreatePortalInput_Tags}
-	memberCreatePortalOutput_Authorization.Target = &schemaAuthorization
-	memberCreatePortalOutput_EndpointConfiguration.Target = &schemaEndpointConfigurationResponse
-	memberCreatePortalOutput_IncludedPortalProductArns.Target = &schema__listOf__stringMin20Max2048
-	memberCreatePortalOutput_LastModified.Target = &schema__timestampIso8601
-	memberCreatePortalOutput_LastPublished.Target = &schema__timestampIso8601
-	memberCreatePortalOutput_LastPublishedDescription.Target = &schema__stringMin0Max1024
-	memberCreatePortalOutput_PortalArn.Target = &schema__stringMin20Max2048
-	memberCreatePortalOutput_PortalContent.Target = &schemaPortalContent
-	memberCreatePortalOutput_PortalId.Target = &schema__stringMin10Max30PatternAZ09
-	memberCreatePortalOutput_PublishStatus.Target = &schemaPublishStatus
-	memberCreatePortalOutput_RumAppMonitorName.Target = &schema__stringMin0Max255
-	memberCreatePortalOutput_StatusException.Target = &schemaStatusException
-	memberCreatePortalOutput_Tags.Target = &schemaTags
-	schemaCreatePortalOutput.Members = []*smithy.Member{&memberCreatePortalOutput_Authorization, &memberCreatePortalOutput_EndpointConfiguration, &memberCreatePortalOutput_IncludedPortalProductArns, &memberCreatePortalOutput_LastModified, &memberCreatePortalOutput_LastPublished, &memberCreatePortalOutput_LastPublishedDescription, &memberCreatePortalOutput_PortalArn, &memberCreatePortalOutput_PortalContent, &memberCreatePortalOutput_PortalId, &memberCreatePortalOutput_PublishStatus, &memberCreatePortalOutput_RumAppMonitorName, &memberCreatePortalOutput_StatusException, &memberCreatePortalOutput_Tags}
-	memberCreatePortalProductInput_Description.Target = &schema__stringMin0Max1024
-	memberCreatePortalProductInput_DisplayName.Target = &schema__stringMin1Max255
-	memberCreatePortalProductInput_Tags.Target = &schemaTags
-	schemaCreatePortalProductInput.Members = []*smithy.Member{&memberCreatePortalProductInput_Description, &memberCreatePortalProductInput_DisplayName, &memberCreatePortalProductInput_Tags}
-	memberCreatePortalProductOutput_Description.Target = &schema__stringMin0Max1024
-	memberCreatePortalProductOutput_DisplayName.Target = &schema__stringMin1Max255
-	memberCreatePortalProductOutput_DisplayOrder.Target = &schemaDisplayOrder
-	memberCreatePortalProductOutput_LastModified.Target = &schema__timestampIso8601
-	memberCreatePortalProductOutput_PortalProductArn.Target = &schema__stringMin20Max2048
-	memberCreatePortalProductOutput_PortalProductId.Target = &schema__stringMin10Max30PatternAZ09
-	memberCreatePortalProductOutput_Tags.Target = &schemaTags
-	schemaCreatePortalProductOutput.Members = []*smithy.Member{&memberCreatePortalProductOutput_Description, &memberCreatePortalProductOutput_DisplayName, &memberCreatePortalProductOutput_DisplayOrder, &memberCreatePortalProductOutput_LastModified, &memberCreatePortalProductOutput_PortalProductArn, &memberCreatePortalProductOutput_PortalProductId, &memberCreatePortalProductOutput_Tags}
-	memberCreateProductPageInput_DisplayContent.Target = &schemaDisplayContent
-	memberCreateProductPageInput_PortalProductId.Target = &schema__string
-	schemaCreateProductPageInput.Members = []*smithy.Member{&memberCreateProductPageInput_DisplayContent, &memberCreateProductPageInput_PortalProductId}
-	memberCreateProductPageOutput_DisplayContent.Target = &schemaDisplayContent
-	memberCreateProductPageOutput_LastModified.Target = &schema__timestampIso8601
-	memberCreateProductPageOutput_ProductPageArn.Target = &schema__stringMin20Max2048
-	memberCreateProductPageOutput_ProductPageId.Target = &schema__stringMin10Max30PatternAZ09
-	schemaCreateProductPageOutput.Members = []*smithy.Member{&memberCreateProductPageOutput_DisplayContent, &memberCreateProductPageOutput_LastModified, &memberCreateProductPageOutput_ProductPageArn, &memberCreateProductPageOutput_ProductPageId}
-	memberCreateProductRestEndpointPageInput_DisplayContent.Target = &schemaEndpointDisplayContent
-	memberCreateProductRestEndpointPageInput_PortalProductId.Target = &schema__string
-	memberCreateProductRestEndpointPageInput_RestEndpointIdentifier.Target = &schemaRestEndpointIdentifier
-	memberCreateProductRestEndpointPageInput_TryItState.Target = &schemaTryItState
-	schemaCreateProductRestEndpointPageInput.Members = []*smithy.Member{&memberCreateProductRestEndpointPageInput_DisplayContent, &memberCreateProductRestEndpointPageInput_PortalProductId, &memberCreateProductRestEndpointPageInput_RestEndpointIdentifier, &memberCreateProductRestEndpointPageInput_TryItState}
-	memberCreateProductRestEndpointPageOutput_DisplayContent.Target = &schemaEndpointDisplayContentResponse
-	memberCreateProductRestEndpointPageOutput_LastModified.Target = &schema__timestampIso8601
-	memberCreateProductRestEndpointPageOutput_ProductRestEndpointPageArn.Target = &schema__stringMin20Max2048
-	memberCreateProductRestEndpointPageOutput_ProductRestEndpointPageId.Target = &schema__stringMin10Max30PatternAZ09
-	memberCreateProductRestEndpointPageOutput_RestEndpointIdentifier.Target = &schemaRestEndpointIdentifier
-	memberCreateProductRestEndpointPageOutput_Status.Target = &schemaStatus
-	memberCreateProductRestEndpointPageOutput_StatusException.Target = &schemaStatusException
-	memberCreateProductRestEndpointPageOutput_TryItState.Target = &schemaTryItState
-	schemaCreateProductRestEndpointPageOutput.Members = []*smithy.Member{&memberCreateProductRestEndpointPageOutput_DisplayContent, &memberCreateProductRestEndpointPageOutput_LastModified, &memberCreateProductRestEndpointPageOutput_ProductRestEndpointPageArn, &memberCreateProductRestEndpointPageOutput_ProductRestEndpointPageId, &memberCreateProductRestEndpointPageOutput_RestEndpointIdentifier, &memberCreateProductRestEndpointPageOutput_Status, &memberCreateProductRestEndpointPageOutput_StatusException, &memberCreateProductRestEndpointPageOutput_TryItState}
-	memberCreateRouteInput_ApiId.Target = &schema__string
-	memberCreateRouteInput_ApiKeyRequired.Target = &schema__boolean
-	memberCreateRouteInput_AuthorizationScopes.Target = &schemaAuthorizationScopes
-	memberCreateRouteInput_AuthorizationType.Target = &schemaAuthorizationType
-	memberCreateRouteInput_AuthorizerId.Target = &schemaId
-	memberCreateRouteInput_ModelSelectionExpression.Target = &schemaSelectionExpression
-	memberCreateRouteInput_OperationName.Target = &schemaStringWithLengthBetween1And64
-	memberCreateRouteInput_RequestModels.Target = &schemaRouteModels
-	memberCreateRouteInput_RequestParameters.Target = &schemaRouteParameters
-	memberCreateRouteInput_RouteKey.Target = &schemaSelectionKey
-	memberCreateRouteInput_RouteResponseSelectionExpression.Target = &schemaSelectionExpression
-	memberCreateRouteInput_Target.Target = &schemaStringWithLengthBetween1And128
-	schemaCreateRouteInput.Members = []*smithy.Member{&memberCreateRouteInput_ApiId, &memberCreateRouteInput_ApiKeyRequired, &memberCreateRouteInput_AuthorizationScopes, &memberCreateRouteInput_AuthorizationType, &memberCreateRouteInput_AuthorizerId, &memberCreateRouteInput_ModelSelectionExpression, &memberCreateRouteInput_OperationName, &memberCreateRouteInput_RequestModels, &memberCreateRouteInput_RequestParameters, &memberCreateRouteInput_RouteKey, &memberCreateRouteInput_RouteResponseSelectionExpression, &memberCreateRouteInput_Target}
-	memberCreateRouteOutput_ApiGatewayManaged.Target = &schema__boolean
-	memberCreateRouteOutput_ApiKeyRequired.Target = &schema__boolean
-	memberCreateRouteOutput_AuthorizationScopes.Target = &schemaAuthorizationScopes
-	memberCreateRouteOutput_AuthorizationType.Target = &schemaAuthorizationType
-	memberCreateRouteOutput_AuthorizerId.Target = &schemaId
-	memberCreateRouteOutput_ModelSelectionExpression.Target = &schemaSelectionExpression
-	memberCreateRouteOutput_OperationName.Target = &schemaStringWithLengthBetween1And64
-	memberCreateRouteOutput_RequestModels.Target = &schemaRouteModels
-	memberCreateRouteOutput_RequestParameters.Target = &schemaRouteParameters
-	memberCreateRouteOutput_RouteId.Target = &schemaId
-	memberCreateRouteOutput_RouteKey.Target = &schemaSelectionKey
-	memberCreateRouteOutput_RouteResponseSelectionExpression.Target = &schemaSelectionExpression
-	memberCreateRouteOutput_Target.Target = &schemaStringWithLengthBetween1And128
-	schemaCreateRouteOutput.Members = []*smithy.Member{&memberCreateRouteOutput_ApiGatewayManaged, &memberCreateRouteOutput_ApiKeyRequired, &memberCreateRouteOutput_AuthorizationScopes, &memberCreateRouteOutput_AuthorizationType, &memberCreateRouteOutput_AuthorizerId, &memberCreateRouteOutput_ModelSelectionExpression, &memberCreateRouteOutput_OperationName, &memberCreateRouteOutput_RequestModels, &memberCreateRouteOutput_RequestParameters, &memberCreateRouteOutput_RouteId, &memberCreateRouteOutput_RouteKey, &memberCreateRouteOutput_RouteResponseSelectionExpression, &memberCreateRouteOutput_Target}
-	memberCreateRouteResponseInput_ApiId.Target = &schema__string
-	memberCreateRouteResponseInput_ModelSelectionExpression.Target = &schemaSelectionExpression
-	memberCreateRouteResponseInput_ResponseModels.Target = &schemaRouteModels
-	memberCreateRouteResponseInput_ResponseParameters.Target = &schemaRouteParameters
-	memberCreateRouteResponseInput_RouteId.Target = &schema__string
-	memberCreateRouteResponseInput_RouteResponseKey.Target = &schemaSelectionKey
-	schemaCreateRouteResponseInput.Members = []*smithy.Member{&memberCreateRouteResponseInput_ApiId, &memberCreateRouteResponseInput_ModelSelectionExpression, &memberCreateRouteResponseInput_ResponseModels, &memberCreateRouteResponseInput_ResponseParameters, &memberCreateRouteResponseInput_RouteId, &memberCreateRouteResponseInput_RouteResponseKey}
-	memberCreateRouteResponseOutput_ModelSelectionExpression.Target = &schemaSelectionExpression
-	memberCreateRouteResponseOutput_ResponseModels.Target = &schemaRouteModels
-	memberCreateRouteResponseOutput_ResponseParameters.Target = &schemaRouteParameters
-	memberCreateRouteResponseOutput_RouteResponseId.Target = &schemaId
-	memberCreateRouteResponseOutput_RouteResponseKey.Target = &schemaSelectionKey
-	schemaCreateRouteResponseOutput.Members = []*smithy.Member{&memberCreateRouteResponseOutput_ModelSelectionExpression, &memberCreateRouteResponseOutput_ResponseModels, &memberCreateRouteResponseOutput_ResponseParameters, &memberCreateRouteResponseOutput_RouteResponseId, &memberCreateRouteResponseOutput_RouteResponseKey}
-	memberCreateRoutingRuleInput_Actions.Target = &schema__listOfRoutingRuleAction
-	memberCreateRoutingRuleInput_Conditions.Target = &schema__listOfRoutingRuleCondition
-	memberCreateRoutingRuleInput_DomainName.Target = &schema__string
-	memberCreateRoutingRuleInput_DomainNameId.Target = &schema__string
-	memberCreateRoutingRuleInput_Priority.Target = &schemaRoutingRulePriority
-	schemaCreateRoutingRuleInput.Members = []*smithy.Member{&memberCreateRoutingRuleInput_Actions, &memberCreateRoutingRuleInput_Conditions, &memberCreateRoutingRuleInput_DomainName, &memberCreateRoutingRuleInput_DomainNameId, &memberCreateRoutingRuleInput_Priority}
-	memberCreateRoutingRuleOutput_Actions.Target = &schema__listOfRoutingRuleAction
-	memberCreateRoutingRuleOutput_Conditions.Target = &schema__listOfRoutingRuleCondition
-	memberCreateRoutingRuleOutput_Priority.Target = &schemaRoutingRulePriority
-	memberCreateRoutingRuleOutput_RoutingRuleArn.Target = &schemaArn
-	memberCreateRoutingRuleOutput_RoutingRuleId.Target = &schemaId
-	schemaCreateRoutingRuleOutput.Members = []*smithy.Member{&memberCreateRoutingRuleOutput_Actions, &memberCreateRoutingRuleOutput_Conditions, &memberCreateRoutingRuleOutput_Priority, &memberCreateRoutingRuleOutput_RoutingRuleArn, &memberCreateRoutingRuleOutput_RoutingRuleId}
-	memberCreateStageInput_AccessLogSettings.Target = &schemaAccessLogSettings
-	memberCreateStageInput_ApiId.Target = &schema__string
-	memberCreateStageInput_AutoDeploy.Target = &schema__boolean
-	memberCreateStageInput_ClientCertificateId.Target = &schemaId
-	memberCreateStageInput_DefaultRouteSettings.Target = &schemaRouteSettings
-	memberCreateStageInput_DeploymentId.Target = &schemaId
-	memberCreateStageInput_Description.Target = &schemaStringWithLengthBetween0And1024
-	memberCreateStageInput_RouteSettings.Target = &schemaRouteSettingsMap
-	memberCreateStageInput_StageName.Target = &schemaStringWithLengthBetween1And128
-	memberCreateStageInput_StageVariables.Target = &schemaStageVariablesMap
-	memberCreateStageInput_Tags.Target = &schemaTags
-	schemaCreateStageInput.Members = []*smithy.Member{&memberCreateStageInput_AccessLogSettings, &memberCreateStageInput_ApiId, &memberCreateStageInput_AutoDeploy, &memberCreateStageInput_ClientCertificateId, &memberCreateStageInput_DefaultRouteSettings, &memberCreateStageInput_DeploymentId, &memberCreateStageInput_Description, &memberCreateStageInput_RouteSettings, &memberCreateStageInput_StageName, &memberCreateStageInput_StageVariables, &memberCreateStageInput_Tags}
-	memberCreateStageOutput_AccessLogSettings.Target = &schemaAccessLogSettings
-	memberCreateStageOutput_ApiGatewayManaged.Target = &schema__boolean
-	memberCreateStageOutput_AutoDeploy.Target = &schema__boolean
-	memberCreateStageOutput_ClientCertificateId.Target = &schemaId
-	memberCreateStageOutput_CreatedDate.Target = &schema__timestampIso8601
-	memberCreateStageOutput_DefaultRouteSettings.Target = &schemaRouteSettings
-	memberCreateStageOutput_DeploymentId.Target = &schemaId
-	memberCreateStageOutput_Description.Target = &schemaStringWithLengthBetween0And1024
-	memberCreateStageOutput_LastDeploymentStatusMessage.Target = &schema__string
-	memberCreateStageOutput_LastUpdatedDate.Target = &schema__timestampIso8601
-	memberCreateStageOutput_RouteSettings.Target = &schemaRouteSettingsMap
-	memberCreateStageOutput_StageName.Target = &schemaStringWithLengthBetween1And128
-	memberCreateStageOutput_StageVariables.Target = &schemaStageVariablesMap
-	memberCreateStageOutput_Tags.Target = &schemaTags
-	schemaCreateStageOutput.Members = []*smithy.Member{&memberCreateStageOutput_AccessLogSettings, &memberCreateStageOutput_ApiGatewayManaged, &memberCreateStageOutput_AutoDeploy, &memberCreateStageOutput_ClientCertificateId, &memberCreateStageOutput_CreatedDate, &memberCreateStageOutput_DefaultRouteSettings, &memberCreateStageOutput_DeploymentId, &memberCreateStageOutput_Description, &memberCreateStageOutput_LastDeploymentStatusMessage, &memberCreateStageOutput_LastUpdatedDate, &memberCreateStageOutput_RouteSettings, &memberCreateStageOutput_StageName, &memberCreateStageOutput_StageVariables, &memberCreateStageOutput_Tags}
-	memberCreateVpcLinkInput_Name.Target = &schemaStringWithLengthBetween1And128
-	memberCreateVpcLinkInput_SecurityGroupIds.Target = &schemaSecurityGroupIdList
-	memberCreateVpcLinkInput_SubnetIds.Target = &schemaSubnetIdList
-	memberCreateVpcLinkInput_Tags.Target = &schemaTags
-	schemaCreateVpcLinkInput.Members = []*smithy.Member{&memberCreateVpcLinkInput_Name, &memberCreateVpcLinkInput_SecurityGroupIds, &memberCreateVpcLinkInput_SubnetIds, &memberCreateVpcLinkInput_Tags}
-	memberCreateVpcLinkOutput_CreatedDate.Target = &schema__timestampIso8601
-	memberCreateVpcLinkOutput_Name.Target = &schemaStringWithLengthBetween1And128
-	memberCreateVpcLinkOutput_SecurityGroupIds.Target = &schemaSecurityGroupIdList
-	memberCreateVpcLinkOutput_SubnetIds.Target = &schemaSubnetIdList
-	memberCreateVpcLinkOutput_Tags.Target = &schemaTags
-	memberCreateVpcLinkOutput_VpcLinkId.Target = &schemaId
-	memberCreateVpcLinkOutput_VpcLinkStatus.Target = &schemaVpcLinkStatus
-	memberCreateVpcLinkOutput_VpcLinkStatusMessage.Target = &schemaStringWithLengthBetween0And1024
-	memberCreateVpcLinkOutput_VpcLinkVersion.Target = &schemaVpcLinkVersion
-	schemaCreateVpcLinkOutput.Members = []*smithy.Member{&memberCreateVpcLinkOutput_CreatedDate, &memberCreateVpcLinkOutput_Name, &memberCreateVpcLinkOutput_SecurityGroupIds, &memberCreateVpcLinkOutput_SubnetIds, &memberCreateVpcLinkOutput_Tags, &memberCreateVpcLinkOutput_VpcLinkId, &memberCreateVpcLinkOutput_VpcLinkStatus, &memberCreateVpcLinkOutput_VpcLinkStatusMessage, &memberCreateVpcLinkOutput_VpcLinkVersion}
-	memberCustomColors_AccentColor.Target = &schema__stringMin1Max16
-	memberCustomColors_BackgroundColor.Target = &schema__stringMin1Max16
-	memberCustomColors_ErrorValidationColor.Target = &schema__stringMin1Max16
-	memberCustomColors_HeaderColor.Target = &schema__stringMin1Max16
-	memberCustomColors_NavigationColor.Target = &schema__stringMin1Max16
-	memberCustomColors_TextColor.Target = &schema__stringMin1Max16
-	schemaCustomColors.Members = []*smithy.Member{&memberCustomColors_AccentColor, &memberCustomColors_BackgroundColor, &memberCustomColors_ErrorValidationColor, &memberCustomColors_HeaderColor, &memberCustomColors_NavigationColor, &memberCustomColors_TextColor}
-	memberDeleteAccessLogSettingsInput_ApiId.Target = &schema__string
-	memberDeleteAccessLogSettingsInput_StageName.Target = &schema__string
-	schemaDeleteAccessLogSettingsInput.Members = []*smithy.Member{&memberDeleteAccessLogSettingsInput_ApiId, &memberDeleteAccessLogSettingsInput_StageName}
-	memberDeleteApiInput_ApiId.Target = &schema__string
-	schemaDeleteApiInput.Members = []*smithy.Member{&memberDeleteApiInput_ApiId}
-	memberDeleteApiMappingInput_ApiMappingId.Target = &schema__string
-	memberDeleteApiMappingInput_DomainName.Target = &schema__string
-	schemaDeleteApiMappingInput.Members = []*smithy.Member{&memberDeleteApiMappingInput_ApiMappingId, &memberDeleteApiMappingInput_DomainName}
-	memberDeleteAuthorizerInput_ApiId.Target = &schema__string
-	memberDeleteAuthorizerInput_AuthorizerId.Target = &schema__string
-	schemaDeleteAuthorizerInput.Members = []*smithy.Member{&memberDeleteAuthorizerInput_ApiId, &memberDeleteAuthorizerInput_AuthorizerId}
-	memberDeleteCorsConfigurationInput_ApiId.Target = &schema__string
-	schemaDeleteCorsConfigurationInput.Members = []*smithy.Member{&memberDeleteCorsConfigurationInput_ApiId}
-	memberDeleteDeploymentInput_ApiId.Target = &schema__string
-	memberDeleteDeploymentInput_DeploymentId.Target = &schema__string
-	schemaDeleteDeploymentInput.Members = []*smithy.Member{&memberDeleteDeploymentInput_ApiId, &memberDeleteDeploymentInput_DeploymentId}
-	memberDeleteDomainNameInput_DomainName.Target = &schema__string
-	schemaDeleteDomainNameInput.Members = []*smithy.Member{&memberDeleteDomainNameInput_DomainName}
-	memberDeleteIntegrationInput_ApiId.Target = &schema__string
-	memberDeleteIntegrationInput_IntegrationId.Target = &schema__string
-	schemaDeleteIntegrationInput.Members = []*smithy.Member{&memberDeleteIntegrationInput_ApiId, &memberDeleteIntegrationInput_IntegrationId}
-	memberDeleteIntegrationResponseInput_ApiId.Target = &schema__string
-	memberDeleteIntegrationResponseInput_IntegrationId.Target = &schema__string
-	memberDeleteIntegrationResponseInput_IntegrationResponseId.Target = &schema__string
-	schemaDeleteIntegrationResponseInput.Members = []*smithy.Member{&memberDeleteIntegrationResponseInput_ApiId, &memberDeleteIntegrationResponseInput_IntegrationId, &memberDeleteIntegrationResponseInput_IntegrationResponseId}
-	memberDeleteModelInput_ApiId.Target = &schema__string
-	memberDeleteModelInput_ModelId.Target = &schema__string
-	schemaDeleteModelInput.Members = []*smithy.Member{&memberDeleteModelInput_ApiId, &memberDeleteModelInput_ModelId}
-	memberDeletePortalInput_PortalId.Target = &schema__string
-	schemaDeletePortalInput.Members = []*smithy.Member{&memberDeletePortalInput_PortalId}
-	memberDeletePortalProductInput_PortalProductId.Target = &schema__string
-	schemaDeletePortalProductInput.Members = []*smithy.Member{&memberDeletePortalProductInput_PortalProductId}
-	memberDeletePortalProductSharingPolicyInput_PortalProductId.Target = &schema__string
-	schemaDeletePortalProductSharingPolicyInput.Members = []*smithy.Member{&memberDeletePortalProductSharingPolicyInput_PortalProductId}
-	memberDeleteProductPageInput_PortalProductId.Target = &schema__string
-	memberDeleteProductPageInput_ProductPageId.Target = &schema__string
-	schemaDeleteProductPageInput.Members = []*smithy.Member{&memberDeleteProductPageInput_PortalProductId, &memberDeleteProductPageInput_ProductPageId}
-	memberDeleteProductRestEndpointPageInput_PortalProductId.Target = &schema__string
-	memberDeleteProductRestEndpointPageInput_ProductRestEndpointPageId.Target = &schema__string
-	schemaDeleteProductRestEndpointPageInput.Members = []*smithy.Member{&memberDeleteProductRestEndpointPageInput_PortalProductId, &memberDeleteProductRestEndpointPageInput_ProductRestEndpointPageId}
-	memberDeleteRouteInput_ApiId.Target = &schema__string
-	memberDeleteRouteInput_RouteId.Target = &schema__string
-	schemaDeleteRouteInput.Members = []*smithy.Member{&memberDeleteRouteInput_ApiId, &memberDeleteRouteInput_RouteId}
-	memberDeleteRouteRequestParameterInput_ApiId.Target = &schema__string
-	memberDeleteRouteRequestParameterInput_RequestParameterKey.Target = &schema__string
-	memberDeleteRouteRequestParameterInput_RouteId.Target = &schema__string
-	schemaDeleteRouteRequestParameterInput.Members = []*smithy.Member{&memberDeleteRouteRequestParameterInput_ApiId, &memberDeleteRouteRequestParameterInput_RequestParameterKey, &memberDeleteRouteRequestParameterInput_RouteId}
-	memberDeleteRouteResponseInput_ApiId.Target = &schema__string
-	memberDeleteRouteResponseInput_RouteId.Target = &schema__string
-	memberDeleteRouteResponseInput_RouteResponseId.Target = &schema__string
-	schemaDeleteRouteResponseInput.Members = []*smithy.Member{&memberDeleteRouteResponseInput_ApiId, &memberDeleteRouteResponseInput_RouteId, &memberDeleteRouteResponseInput_RouteResponseId}
-	memberDeleteRouteSettingsInput_ApiId.Target = &schema__string
-	memberDeleteRouteSettingsInput_RouteKey.Target = &schema__string
-	memberDeleteRouteSettingsInput_StageName.Target = &schema__string
-	schemaDeleteRouteSettingsInput.Members = []*smithy.Member{&memberDeleteRouteSettingsInput_ApiId, &memberDeleteRouteSettingsInput_RouteKey, &memberDeleteRouteSettingsInput_StageName}
-	memberDeleteRoutingRuleInput_DomainName.Target = &schema__string
-	memberDeleteRoutingRuleInput_DomainNameId.Target = &schema__string
-	memberDeleteRoutingRuleInput_RoutingRuleId.Target = &schema__string
-	schemaDeleteRoutingRuleInput.Members = []*smithy.Member{&memberDeleteRoutingRuleInput_DomainName, &memberDeleteRoutingRuleInput_DomainNameId, &memberDeleteRoutingRuleInput_RoutingRuleId}
-	memberDeleteStageInput_ApiId.Target = &schema__string
-	memberDeleteStageInput_StageName.Target = &schema__string
-	schemaDeleteStageInput.Members = []*smithy.Member{&memberDeleteStageInput_ApiId, &memberDeleteStageInput_StageName}
-	memberDeleteVpcLinkInput_VpcLinkId.Target = &schema__string
-	schemaDeleteVpcLinkInput.Members = []*smithy.Member{&memberDeleteVpcLinkInput_VpcLinkId}
-	memberDeployment_AutoDeployed.Target = &schema__boolean
-	memberDeployment_CreatedDate.Target = &schema__timestampIso8601
-	memberDeployment_DeploymentId.Target = &schemaId
-	memberDeployment_DeploymentStatus.Target = &schemaDeploymentStatus
-	memberDeployment_DeploymentStatusMessage.Target = &schema__string
-	memberDeployment_Description.Target = &schemaStringWithLengthBetween0And1024
-	schemaDeployment.Members = []*smithy.Member{&memberDeployment_AutoDeployed, &memberDeployment_CreatedDate, &memberDeployment_DeploymentId, &memberDeployment_DeploymentStatus, &memberDeployment_DeploymentStatusMessage, &memberDeployment_Description}
-	memberDisablePortalInput_PortalId.Target = &schema__string
-	schemaDisablePortalInput.Members = []*smithy.Member{&memberDisablePortalInput_PortalId}
-	memberDisplayContent_Body.Target = &schema__stringMin1Max32768
-	memberDisplayContent_Title.Target = &schema__stringMin1Max255
-	schemaDisplayContent.Members = []*smithy.Member{&memberDisplayContent_Body, &memberDisplayContent_Title}
-	memberDisplayContentOverrides_Body.Target = &schema__stringMin1Max32768
-	memberDisplayContentOverrides_Endpoint.Target = &schema__stringMin1Max1024
-	memberDisplayContentOverrides_OperationName.Target = &schema__stringMin1Max255
-	schemaDisplayContentOverrides.Members = []*smithy.Member{&memberDisplayContentOverrides_Body, &memberDisplayContentOverrides_Endpoint, &memberDisplayContentOverrides_OperationName}
-	memberDisplayOrder_Contents.Target = &schema__listOfSection
-	memberDisplayOrder_OverviewPageArn.Target = &schema__stringMin20Max2048
-	memberDisplayOrder_ProductPageArns.Target = &schema__listOf__stringMin20Max2048
-	schemaDisplayOrder.Members = []*smithy.Member{&memberDisplayOrder_Contents, &memberDisplayOrder_OverviewPageArn, &memberDisplayOrder_ProductPageArns}
-	memberDomainName_ApiMappingSelectionExpression.Target = &schemaSelectionExpression
-	memberDomainName_DomainName.Target = &schemaStringWithLengthBetween1And512
-	memberDomainName_DomainNameArn.Target = &schemaArn
-	memberDomainName_DomainNameConfigurations.Target = &schemaDomainNameConfigurations
-	memberDomainName_MutualTlsAuthentication.Target = &schemaMutualTlsAuthentication
-	memberDomainName_RoutingMode.Target = &schemaRoutingMode
-	memberDomainName_Tags.Target = &schemaTags
-	schemaDomainName.Members = []*smithy.Member{&memberDomainName_ApiMappingSelectionExpression, &memberDomainName_DomainName, &memberDomainName_DomainNameArn, &memberDomainName_DomainNameConfigurations, &memberDomainName_MutualTlsAuthentication, &memberDomainName_RoutingMode, &memberDomainName_Tags}
-	memberDomainNameConfiguration_ApiGatewayDomainName.Target = &schema__string
-	memberDomainNameConfiguration_CertificateArn.Target = &schemaArn
-	memberDomainNameConfiguration_CertificateName.Target = &schemaStringWithLengthBetween1And128
-	memberDomainNameConfiguration_CertificateUploadDate.Target = &schema__timestampIso8601
-	memberDomainNameConfiguration_DomainNameStatus.Target = &schemaDomainNameStatus
-	memberDomainNameConfiguration_DomainNameStatusMessage.Target = &schema__string
-	memberDomainNameConfiguration_EndpointType.Target = &schemaEndpointType
-	memberDomainNameConfiguration_HostedZoneId.Target = &schema__string
-	memberDomainNameConfiguration_IpAddressType.Target = &schemaIpAddressType
-	memberDomainNameConfiguration_SecurityPolicy.Target = &schemaSecurityPolicy
-	memberDomainNameConfiguration_OwnershipVerificationCertificateArn.Target = &schemaArn
-	schemaDomainNameConfiguration.Members = []*smithy.Member{&memberDomainNameConfiguration_ApiGatewayDomainName, &memberDomainNameConfiguration_CertificateArn, &memberDomainNameConfiguration_CertificateName, &memberDomainNameConfiguration_CertificateUploadDate, &memberDomainNameConfiguration_DomainNameStatus, &memberDomainNameConfiguration_DomainNameStatusMessage, &memberDomainNameConfiguration_EndpointType, &memberDomainNameConfiguration_HostedZoneId, &memberDomainNameConfiguration_IpAddressType, &memberDomainNameConfiguration_SecurityPolicy, &memberDomainNameConfiguration_OwnershipVerificationCertificateArn}
-	memberDomainNameConfigurations_member.Target = &schemaDomainNameConfiguration
-	schemaDomainNameConfigurations.Members = []*smithy.Member{&memberDomainNameConfigurations_member}
-	memberEndpointConfigurationRequest_AcmManaged.Target = &schemaACMManaged
-	memberEndpointConfigurationRequest_None.Target = &schemaNone
-	schemaEndpointConfigurationRequest.Members = []*smithy.Member{&memberEndpointConfigurationRequest_AcmManaged, &memberEndpointConfigurationRequest_None}
-	memberEndpointConfigurationResponse_CertificateArn.Target = &schema__stringMin10Max2048
-	memberEndpointConfigurationResponse_DomainName.Target = &schema__stringMin3Max256
-	memberEndpointConfigurationResponse_PortalDefaultDomainName.Target = &schema__stringMin3Max256
-	memberEndpointConfigurationResponse_PortalDomainHostedZoneId.Target = &schema__stringMin1Max64
-	schemaEndpointConfigurationResponse.Members = []*smithy.Member{&memberEndpointConfigurationResponse_CertificateArn, &memberEndpointConfigurationResponse_DomainName, &memberEndpointConfigurationResponse_PortalDefaultDomainName, &memberEndpointConfigurationResponse_PortalDomainHostedZoneId}
-	memberEndpointDisplayContent_None.Target = &schemaNone
-	memberEndpointDisplayContent_Overrides.Target = &schemaDisplayContentOverrides
-	schemaEndpointDisplayContent.Members = []*smithy.Member{&memberEndpointDisplayContent_None, &memberEndpointDisplayContent_Overrides}
-	memberEndpointDisplayContentResponse_Body.Target = &schema__stringMin1Max32768
-	memberEndpointDisplayContentResponse_Endpoint.Target = &schema__stringMin1Max1024
-	memberEndpointDisplayContentResponse_OperationName.Target = &schema__stringMin1Max255
-	schemaEndpointDisplayContentResponse.Members = []*smithy.Member{&memberEndpointDisplayContentResponse_Body, &memberEndpointDisplayContentResponse_Endpoint, &memberEndpointDisplayContentResponse_OperationName}
-	memberExpiredTokenException_message.Target = &schemaSmithyString
-	schemaExpiredTokenException.Members = []*smithy.Member{&memberExpiredTokenException_message}
-	memberExportApiInput_ApiId.Target = &schema__string
-	memberExportApiInput_ExportVersion.Target = &schema__string
-	memberExportApiInput_IncludeExtensions.Target = &schema__boolean
-	memberExportApiInput_OutputType.Target = &schema__string
-	memberExportApiInput_Specification.Target = &schema__string
-	memberExportApiInput_StageName.Target = &schema__string
-	schemaExportApiInput.Members = []*smithy.Member{&memberExportApiInput_ApiId, &memberExportApiInput_ExportVersion, &memberExportApiInput_IncludeExtensions, &memberExportApiInput_OutputType, &memberExportApiInput_Specification, &memberExportApiInput_StageName}
-	memberExportApiOutput_body.Target = &schemaExportedApi
-	schemaExportApiOutput.Members = []*smithy.Member{&memberExportApiOutput_body}
-	memberGetApiInput_ApiId.Target = &schema__string
-	schemaGetApiInput.Members = []*smithy.Member{&memberGetApiInput_ApiId}
-	memberGetApiMappingInput_ApiMappingId.Target = &schema__string
-	memberGetApiMappingInput_DomainName.Target = &schema__string
-	schemaGetApiMappingInput.Members = []*smithy.Member{&memberGetApiMappingInput_ApiMappingId, &memberGetApiMappingInput_DomainName}
-	memberGetApiMappingOutput_ApiId.Target = &schemaId
-	memberGetApiMappingOutput_ApiMappingId.Target = &schemaId
-	memberGetApiMappingOutput_ApiMappingKey.Target = &schemaSelectionKey
-	memberGetApiMappingOutput_Stage.Target = &schemaStringWithLengthBetween1And128
-	schemaGetApiMappingOutput.Members = []*smithy.Member{&memberGetApiMappingOutput_ApiId, &memberGetApiMappingOutput_ApiMappingId, &memberGetApiMappingOutput_ApiMappingKey, &memberGetApiMappingOutput_Stage}
-	memberGetApiMappingsInput_DomainName.Target = &schema__string
-	memberGetApiMappingsInput_MaxResults.Target = &schema__string
-	memberGetApiMappingsInput_NextToken.Target = &schema__string
-	schemaGetApiMappingsInput.Members = []*smithy.Member{&memberGetApiMappingsInput_DomainName, &memberGetApiMappingsInput_MaxResults, &memberGetApiMappingsInput_NextToken}
-	memberGetApiMappingsOutput_Items.Target = &schema__listOfApiMapping
-	memberGetApiMappingsOutput_NextToken.Target = &schemaNextToken
-	schemaGetApiMappingsOutput.Members = []*smithy.Member{&memberGetApiMappingsOutput_Items, &memberGetApiMappingsOutput_NextToken}
-	memberGetApiOutput_ApiEndpoint.Target = &schema__string
-	memberGetApiOutput_ApiGatewayManaged.Target = &schema__boolean
-	memberGetApiOutput_ApiId.Target = &schemaId
-	memberGetApiOutput_ApiKeySelectionExpression.Target = &schemaSelectionExpression
-	memberGetApiOutput_CorsConfiguration.Target = &schemaCors
-	memberGetApiOutput_CreatedDate.Target = &schema__timestampIso8601
-	memberGetApiOutput_Description.Target = &schemaStringWithLengthBetween0And1024
-	memberGetApiOutput_DisableSchemaValidation.Target = &schema__boolean
-	memberGetApiOutput_DisableExecuteApiEndpoint.Target = &schema__boolean
-	memberGetApiOutput_ImportInfo.Target = &schema__listOf__string
-	memberGetApiOutput_IpAddressType.Target = &schemaIpAddressType
-	memberGetApiOutput_Name.Target = &schemaStringWithLengthBetween1And128
-	memberGetApiOutput_ProtocolType.Target = &schemaProtocolType
-	memberGetApiOutput_RouteSelectionExpression.Target = &schemaSelectionExpression
-	memberGetApiOutput_Tags.Target = &schemaTags
-	memberGetApiOutput_Version.Target = &schemaStringWithLengthBetween1And64
-	memberGetApiOutput_Warnings.Target = &schema__listOf__string
-	schemaGetApiOutput.Members = []*smithy.Member{&memberGetApiOutput_ApiEndpoint, &memberGetApiOutput_ApiGatewayManaged, &memberGetApiOutput_ApiId, &memberGetApiOutput_ApiKeySelectionExpression, &memberGetApiOutput_CorsConfiguration, &memberGetApiOutput_CreatedDate, &memberGetApiOutput_Description, &memberGetApiOutput_DisableSchemaValidation, &memberGetApiOutput_DisableExecuteApiEndpoint, &memberGetApiOutput_ImportInfo, &memberGetApiOutput_IpAddressType, &memberGetApiOutput_Name, &memberGetApiOutput_ProtocolType, &memberGetApiOutput_RouteSelectionExpression, &memberGetApiOutput_Tags, &memberGetApiOutput_Version, &memberGetApiOutput_Warnings}
-	memberGetApisInput_MaxResults.Target = &schema__string
-	memberGetApisInput_NextToken.Target = &schema__string
-	schemaGetApisInput.Members = []*smithy.Member{&memberGetApisInput_MaxResults, &memberGetApisInput_NextToken}
-	memberGetApisOutput_Items.Target = &schema__listOfApi
-	memberGetApisOutput_NextToken.Target = &schemaNextToken
-	schemaGetApisOutput.Members = []*smithy.Member{&memberGetApisOutput_Items, &memberGetApisOutput_NextToken}
-	memberGetAuthorizerInput_ApiId.Target = &schema__string
-	memberGetAuthorizerInput_AuthorizerId.Target = &schema__string
-	schemaGetAuthorizerInput.Members = []*smithy.Member{&memberGetAuthorizerInput_ApiId, &memberGetAuthorizerInput_AuthorizerId}
-	memberGetAuthorizerOutput_AuthorizerCredentialsArn.Target = &schemaArn
-	memberGetAuthorizerOutput_AuthorizerId.Target = &schemaId
-	memberGetAuthorizerOutput_AuthorizerPayloadFormatVersion.Target = &schemaStringWithLengthBetween1And64
-	memberGetAuthorizerOutput_AuthorizerResultTtlInSeconds.Target = &schemaIntegerWithLengthBetween0And3600
-	memberGetAuthorizerOutput_AuthorizerType.Target = &schemaAuthorizerType
-	memberGetAuthorizerOutput_AuthorizerUri.Target = &schemaUriWithLengthBetween1And2048
-	memberGetAuthorizerOutput_EnableSimpleResponses.Target = &schema__boolean
-	memberGetAuthorizerOutput_IdentitySource.Target = &schemaIdentitySourceList
-	memberGetAuthorizerOutput_IdentityValidationExpression.Target = &schemaStringWithLengthBetween0And1024
-	memberGetAuthorizerOutput_JwtConfiguration.Target = &schemaJWTConfiguration
-	memberGetAuthorizerOutput_Name.Target = &schemaStringWithLengthBetween1And128
-	schemaGetAuthorizerOutput.Members = []*smithy.Member{&memberGetAuthorizerOutput_AuthorizerCredentialsArn, &memberGetAuthorizerOutput_AuthorizerId, &memberGetAuthorizerOutput_AuthorizerPayloadFormatVersion, &memberGetAuthorizerOutput_AuthorizerResultTtlInSeconds, &memberGetAuthorizerOutput_AuthorizerType, &memberGetAuthorizerOutput_AuthorizerUri, &memberGetAuthorizerOutput_EnableSimpleResponses, &memberGetAuthorizerOutput_IdentitySource, &memberGetAuthorizerOutput_IdentityValidationExpression, &memberGetAuthorizerOutput_JwtConfiguration, &memberGetAuthorizerOutput_Name}
-	memberGetAuthorizersInput_ApiId.Target = &schema__string
-	memberGetAuthorizersInput_MaxResults.Target = &schema__string
-	memberGetAuthorizersInput_NextToken.Target = &schema__string
-	schemaGetAuthorizersInput.Members = []*smithy.Member{&memberGetAuthorizersInput_ApiId, &memberGetAuthorizersInput_MaxResults, &memberGetAuthorizersInput_NextToken}
-	memberGetAuthorizersOutput_Items.Target = &schema__listOfAuthorizer
-	memberGetAuthorizersOutput_NextToken.Target = &schemaNextToken
-	schemaGetAuthorizersOutput.Members = []*smithy.Member{&memberGetAuthorizersOutput_Items, &memberGetAuthorizersOutput_NextToken}
-	memberGetDeploymentInput_ApiId.Target = &schema__string
-	memberGetDeploymentInput_DeploymentId.Target = &schema__string
-	schemaGetDeploymentInput.Members = []*smithy.Member{&memberGetDeploymentInput_ApiId, &memberGetDeploymentInput_DeploymentId}
-	memberGetDeploymentOutput_AutoDeployed.Target = &schema__boolean
-	memberGetDeploymentOutput_CreatedDate.Target = &schema__timestampIso8601
-	memberGetDeploymentOutput_DeploymentId.Target = &schemaId
-	memberGetDeploymentOutput_DeploymentStatus.Target = &schemaDeploymentStatus
-	memberGetDeploymentOutput_DeploymentStatusMessage.Target = &schema__string
-	memberGetDeploymentOutput_Description.Target = &schemaStringWithLengthBetween0And1024
-	schemaGetDeploymentOutput.Members = []*smithy.Member{&memberGetDeploymentOutput_AutoDeployed, &memberGetDeploymentOutput_CreatedDate, &memberGetDeploymentOutput_DeploymentId, &memberGetDeploymentOutput_DeploymentStatus, &memberGetDeploymentOutput_DeploymentStatusMessage, &memberGetDeploymentOutput_Description}
-	memberGetDeploymentsInput_ApiId.Target = &schema__string
-	memberGetDeploymentsInput_MaxResults.Target = &schema__string
-	memberGetDeploymentsInput_NextToken.Target = &schema__string
-	schemaGetDeploymentsInput.Members = []*smithy.Member{&memberGetDeploymentsInput_ApiId, &memberGetDeploymentsInput_MaxResults, &memberGetDeploymentsInput_NextToken}
-	memberGetDeploymentsOutput_Items.Target = &schema__listOfDeployment
-	memberGetDeploymentsOutput_NextToken.Target = &schemaNextToken
-	schemaGetDeploymentsOutput.Members = []*smithy.Member{&memberGetDeploymentsOutput_Items, &memberGetDeploymentsOutput_NextToken}
-	memberGetDomainNameInput_DomainName.Target = &schema__string
-	schemaGetDomainNameInput.Members = []*smithy.Member{&memberGetDomainNameInput_DomainName}
-	memberGetDomainNameOutput_ApiMappingSelectionExpression.Target = &schemaSelectionExpression
-	memberGetDomainNameOutput_DomainName.Target = &schemaStringWithLengthBetween1And512
-	memberGetDomainNameOutput_DomainNameArn.Target = &schemaArn
-	memberGetDomainNameOutput_DomainNameConfigurations.Target = &schemaDomainNameConfigurations
-	memberGetDomainNameOutput_MutualTlsAuthentication.Target = &schemaMutualTlsAuthentication
-	memberGetDomainNameOutput_RoutingMode.Target = &schemaRoutingMode
-	memberGetDomainNameOutput_Tags.Target = &schemaTags
-	schemaGetDomainNameOutput.Members = []*smithy.Member{&memberGetDomainNameOutput_ApiMappingSelectionExpression, &memberGetDomainNameOutput_DomainName, &memberGetDomainNameOutput_DomainNameArn, &memberGetDomainNameOutput_DomainNameConfigurations, &memberGetDomainNameOutput_MutualTlsAuthentication, &memberGetDomainNameOutput_RoutingMode, &memberGetDomainNameOutput_Tags}
-	memberGetDomainNamesInput_MaxResults.Target = &schema__string
-	memberGetDomainNamesInput_NextToken.Target = &schema__string
-	schemaGetDomainNamesInput.Members = []*smithy.Member{&memberGetDomainNamesInput_MaxResults, &memberGetDomainNamesInput_NextToken}
-	memberGetDomainNamesOutput_Items.Target = &schema__listOfDomainName
-	memberGetDomainNamesOutput_NextToken.Target = &schemaNextToken
-	schemaGetDomainNamesOutput.Members = []*smithy.Member{&memberGetDomainNamesOutput_Items, &memberGetDomainNamesOutput_NextToken}
-	memberGetIntegrationInput_ApiId.Target = &schema__string
-	memberGetIntegrationInput_IntegrationId.Target = &schema__string
-	schemaGetIntegrationInput.Members = []*smithy.Member{&memberGetIntegrationInput_ApiId, &memberGetIntegrationInput_IntegrationId}
-	memberGetIntegrationOutput_ApiGatewayManaged.Target = &schema__boolean
-	memberGetIntegrationOutput_ConnectionId.Target = &schemaStringWithLengthBetween1And1024
-	memberGetIntegrationOutput_ConnectionType.Target = &schemaConnectionType
-	memberGetIntegrationOutput_ContentHandlingStrategy.Target = &schemaContentHandlingStrategy
-	memberGetIntegrationOutput_CredentialsArn.Target = &schemaArn
-	memberGetIntegrationOutput_Description.Target = &schemaStringWithLengthBetween0And1024
-	memberGetIntegrationOutput_IntegrationId.Target = &schemaId
-	memberGetIntegrationOutput_IntegrationMethod.Target = &schemaStringWithLengthBetween1And64
-	memberGetIntegrationOutput_IntegrationResponseSelectionExpression.Target = &schemaSelectionExpression
-	memberGetIntegrationOutput_IntegrationSubtype.Target = &schemaStringWithLengthBetween1And128
-	memberGetIntegrationOutput_IntegrationType.Target = &schemaIntegrationType
-	memberGetIntegrationOutput_IntegrationUri.Target = &schemaUriWithLengthBetween1And2048
-	memberGetIntegrationOutput_PassthroughBehavior.Target = &schemaPassthroughBehavior
-	memberGetIntegrationOutput_PayloadFormatVersion.Target = &schemaStringWithLengthBetween1And64
-	memberGetIntegrationOutput_RequestParameters.Target = &schemaIntegrationParameters
-	memberGetIntegrationOutput_RequestTemplates.Target = &schemaTemplateMap
-	memberGetIntegrationOutput_ResponseParameters.Target = &schemaResponseParameters
-	memberGetIntegrationOutput_TemplateSelectionExpression.Target = &schemaSelectionExpression
-	memberGetIntegrationOutput_TimeoutInMillis.Target = &schemaIntegerWithLengthBetween50And30000
-	memberGetIntegrationOutput_TlsConfig.Target = &schemaTlsConfig
-	schemaGetIntegrationOutput.Members = []*smithy.Member{&memberGetIntegrationOutput_ApiGatewayManaged, &memberGetIntegrationOutput_ConnectionId, &memberGetIntegrationOutput_ConnectionType, &memberGetIntegrationOutput_ContentHandlingStrategy, &memberGetIntegrationOutput_CredentialsArn, &memberGetIntegrationOutput_Description, &memberGetIntegrationOutput_IntegrationId, &memberGetIntegrationOutput_IntegrationMethod, &memberGetIntegrationOutput_IntegrationResponseSelectionExpression, &memberGetIntegrationOutput_IntegrationSubtype, &memberGetIntegrationOutput_IntegrationType, &memberGetIntegrationOutput_IntegrationUri, &memberGetIntegrationOutput_PassthroughBehavior, &memberGetIntegrationOutput_PayloadFormatVersion, &memberGetIntegrationOutput_RequestParameters, &memberGetIntegrationOutput_RequestTemplates, &memberGetIntegrationOutput_ResponseParameters, &memberGetIntegrationOutput_TemplateSelectionExpression, &memberGetIntegrationOutput_TimeoutInMillis, &memberGetIntegrationOutput_TlsConfig}
-	memberGetIntegrationResponseInput_ApiId.Target = &schema__string
-	memberGetIntegrationResponseInput_IntegrationId.Target = &schema__string
-	memberGetIntegrationResponseInput_IntegrationResponseId.Target = &schema__string
-	schemaGetIntegrationResponseInput.Members = []*smithy.Member{&memberGetIntegrationResponseInput_ApiId, &memberGetIntegrationResponseInput_IntegrationId, &memberGetIntegrationResponseInput_IntegrationResponseId}
-	memberGetIntegrationResponseOutput_ContentHandlingStrategy.Target = &schemaContentHandlingStrategy
-	memberGetIntegrationResponseOutput_IntegrationResponseId.Target = &schemaId
-	memberGetIntegrationResponseOutput_IntegrationResponseKey.Target = &schemaSelectionKey
-	memberGetIntegrationResponseOutput_ResponseParameters.Target = &schemaIntegrationParameters
-	memberGetIntegrationResponseOutput_ResponseTemplates.Target = &schemaTemplateMap
-	memberGetIntegrationResponseOutput_TemplateSelectionExpression.Target = &schemaSelectionExpression
-	schemaGetIntegrationResponseOutput.Members = []*smithy.Member{&memberGetIntegrationResponseOutput_ContentHandlingStrategy, &memberGetIntegrationResponseOutput_IntegrationResponseId, &memberGetIntegrationResponseOutput_IntegrationResponseKey, &memberGetIntegrationResponseOutput_ResponseParameters, &memberGetIntegrationResponseOutput_ResponseTemplates, &memberGetIntegrationResponseOutput_TemplateSelectionExpression}
-	memberGetIntegrationResponsesInput_ApiId.Target = &schema__string
-	memberGetIntegrationResponsesInput_IntegrationId.Target = &schema__string
-	memberGetIntegrationResponsesInput_MaxResults.Target = &schema__string
-	memberGetIntegrationResponsesInput_NextToken.Target = &schema__string
-	schemaGetIntegrationResponsesInput.Members = []*smithy.Member{&memberGetIntegrationResponsesInput_ApiId, &memberGetIntegrationResponsesInput_IntegrationId, &memberGetIntegrationResponsesInput_MaxResults, &memberGetIntegrationResponsesInput_NextToken}
-	memberGetIntegrationResponsesOutput_Items.Target = &schema__listOfIntegrationResponse
-	memberGetIntegrationResponsesOutput_NextToken.Target = &schemaNextToken
-	schemaGetIntegrationResponsesOutput.Members = []*smithy.Member{&memberGetIntegrationResponsesOutput_Items, &memberGetIntegrationResponsesOutput_NextToken}
-	memberGetIntegrationsInput_ApiId.Target = &schema__string
-	memberGetIntegrationsInput_MaxResults.Target = &schema__string
-	memberGetIntegrationsInput_NextToken.Target = &schema__string
-	schemaGetIntegrationsInput.Members = []*smithy.Member{&memberGetIntegrationsInput_ApiId, &memberGetIntegrationsInput_MaxResults, &memberGetIntegrationsInput_NextToken}
-	memberGetIntegrationsOutput_Items.Target = &schema__listOfIntegration
-	memberGetIntegrationsOutput_NextToken.Target = &schemaNextToken
-	schemaGetIntegrationsOutput.Members = []*smithy.Member{&memberGetIntegrationsOutput_Items, &memberGetIntegrationsOutput_NextToken}
-	memberGetModelInput_ApiId.Target = &schema__string
-	memberGetModelInput_ModelId.Target = &schema__string
-	schemaGetModelInput.Members = []*smithy.Member{&memberGetModelInput_ApiId, &memberGetModelInput_ModelId}
-	memberGetModelOutput_ContentType.Target = &schemaStringWithLengthBetween1And256
-	memberGetModelOutput_Description.Target = &schemaStringWithLengthBetween0And1024
-	memberGetModelOutput_ModelId.Target = &schemaId
-	memberGetModelOutput_Name.Target = &schemaStringWithLengthBetween1And128
-	memberGetModelOutput_Schema.Target = &schemaStringWithLengthBetween0And32K
-	schemaGetModelOutput.Members = []*smithy.Member{&memberGetModelOutput_ContentType, &memberGetModelOutput_Description, &memberGetModelOutput_ModelId, &memberGetModelOutput_Name, &memberGetModelOutput_Schema}
-	memberGetModelTemplateInput_ApiId.Target = &schema__string
-	memberGetModelTemplateInput_ModelId.Target = &schema__string
-	schemaGetModelTemplateInput.Members = []*smithy.Member{&memberGetModelTemplateInput_ApiId, &memberGetModelTemplateInput_ModelId}
-	memberGetModelTemplateOutput_Value.Target = &schema__string
-	schemaGetModelTemplateOutput.Members = []*smithy.Member{&memberGetModelTemplateOutput_Value}
-	memberGetModelsInput_ApiId.Target = &schema__string
-	memberGetModelsInput_MaxResults.Target = &schema__string
-	memberGetModelsInput_NextToken.Target = &schema__string
-	schemaGetModelsInput.Members = []*smithy.Member{&memberGetModelsInput_ApiId, &memberGetModelsInput_MaxResults, &memberGetModelsInput_NextToken}
-	memberGetModelsOutput_Items.Target = &schema__listOfModel
-	memberGetModelsOutput_NextToken.Target = &schemaNextToken
-	schemaGetModelsOutput.Members = []*smithy.Member{&memberGetModelsOutput_Items, &memberGetModelsOutput_NextToken}
-	memberGetPortalInput_PortalId.Target = &schema__string
-	schemaGetPortalInput.Members = []*smithy.Member{&memberGetPortalInput_PortalId}
-	memberGetPortalOutput_Authorization.Target = &schemaAuthorization
-	memberGetPortalOutput_EndpointConfiguration.Target = &schemaEndpointConfigurationResponse
-	memberGetPortalOutput_IncludedPortalProductArns.Target = &schema__listOf__stringMin20Max2048
-	memberGetPortalOutput_LastModified.Target = &schema__timestampIso8601
-	memberGetPortalOutput_LastPublished.Target = &schema__timestampIso8601
-	memberGetPortalOutput_LastPublishedDescription.Target = &schema__stringMin0Max1024
-	memberGetPortalOutput_PortalArn.Target = &schema__stringMin20Max2048
-	memberGetPortalOutput_PortalContent.Target = &schemaPortalContent
-	memberGetPortalOutput_PortalId.Target = &schema__stringMin10Max30PatternAZ09
-	memberGetPortalOutput_Preview.Target = &schemaPreview
-	memberGetPortalOutput_PublishStatus.Target = &schemaPublishStatus
-	memberGetPortalOutput_RumAppMonitorName.Target = &schema__stringMin0Max255
-	memberGetPortalOutput_StatusException.Target = &schemaStatusException
-	memberGetPortalOutput_Tags.Target = &schemaTags
-	schemaGetPortalOutput.Members = []*smithy.Member{&memberGetPortalOutput_Authorization, &memberGetPortalOutput_EndpointConfiguration, &memberGetPortalOutput_IncludedPortalProductArns, &memberGetPortalOutput_LastModified, &memberGetPortalOutput_LastPublished, &memberGetPortalOutput_LastPublishedDescription, &memberGetPortalOutput_PortalArn, &memberGetPortalOutput_PortalContent, &memberGetPortalOutput_PortalId, &memberGetPortalOutput_Preview, &memberGetPortalOutput_PublishStatus, &memberGetPortalOutput_RumAppMonitorName, &memberGetPortalOutput_StatusException, &memberGetPortalOutput_Tags}
-	memberGetPortalProductInput_PortalProductId.Target = &schema__string
-	memberGetPortalProductInput_ResourceOwnerAccountId.Target = &schema__string
-	schemaGetPortalProductInput.Members = []*smithy.Member{&memberGetPortalProductInput_PortalProductId, &memberGetPortalProductInput_ResourceOwnerAccountId}
-	memberGetPortalProductOutput_Description.Target = &schema__stringMin0Max1024
-	memberGetPortalProductOutput_DisplayName.Target = &schema__stringMin1Max255
-	memberGetPortalProductOutput_DisplayOrder.Target = &schemaDisplayOrder
-	memberGetPortalProductOutput_LastModified.Target = &schema__timestampIso8601
-	memberGetPortalProductOutput_PortalProductArn.Target = &schema__stringMin20Max2048
-	memberGetPortalProductOutput_PortalProductId.Target = &schema__stringMin10Max30PatternAZ09
-	memberGetPortalProductOutput_Tags.Target = &schemaTags
-	schemaGetPortalProductOutput.Members = []*smithy.Member{&memberGetPortalProductOutput_Description, &memberGetPortalProductOutput_DisplayName, &memberGetPortalProductOutput_DisplayOrder, &memberGetPortalProductOutput_LastModified, &memberGetPortalProductOutput_PortalProductArn, &memberGetPortalProductOutput_PortalProductId, &memberGetPortalProductOutput_Tags}
-	memberGetPortalProductSharingPolicyInput_PortalProductId.Target = &schema__string
-	schemaGetPortalProductSharingPolicyInput.Members = []*smithy.Member{&memberGetPortalProductSharingPolicyInput_PortalProductId}
-	memberGetPortalProductSharingPolicyOutput_PolicyDocument.Target = &schema__stringMin1Max307200
-	memberGetPortalProductSharingPolicyOutput_PortalProductId.Target = &schema__stringMin10Max30PatternAZ09
-	schemaGetPortalProductSharingPolicyOutput.Members = []*smithy.Member{&memberGetPortalProductSharingPolicyOutput_PolicyDocument, &memberGetPortalProductSharingPolicyOutput_PortalProductId}
-	memberGetProductPageInput_PortalProductId.Target = &schema__string
-	memberGetProductPageInput_ProductPageId.Target = &schema__string
-	memberGetProductPageInput_ResourceOwnerAccountId.Target = &schema__string
-	schemaGetProductPageInput.Members = []*smithy.Member{&memberGetProductPageInput_PortalProductId, &memberGetProductPageInput_ProductPageId, &memberGetProductPageInput_ResourceOwnerAccountId}
-	memberGetProductPageOutput_DisplayContent.Target = &schemaDisplayContent
-	memberGetProductPageOutput_LastModified.Target = &schema__timestampIso8601
-	memberGetProductPageOutput_ProductPageArn.Target = &schema__stringMin20Max2048
-	memberGetProductPageOutput_ProductPageId.Target = &schema__stringMin10Max30PatternAZ09
-	schemaGetProductPageOutput.Members = []*smithy.Member{&memberGetProductPageOutput_DisplayContent, &memberGetProductPageOutput_LastModified, &memberGetProductPageOutput_ProductPageArn, &memberGetProductPageOutput_ProductPageId}
-	memberGetProductRestEndpointPageInput_IncludeRawDisplayContent.Target = &schema__string
-	memberGetProductRestEndpointPageInput_PortalProductId.Target = &schema__string
-	memberGetProductRestEndpointPageInput_ProductRestEndpointPageId.Target = &schema__string
-	memberGetProductRestEndpointPageInput_ResourceOwnerAccountId.Target = &schema__string
-	schemaGetProductRestEndpointPageInput.Members = []*smithy.Member{&memberGetProductRestEndpointPageInput_IncludeRawDisplayContent, &memberGetProductRestEndpointPageInput_PortalProductId, &memberGetProductRestEndpointPageInput_ProductRestEndpointPageId, &memberGetProductRestEndpointPageInput_ResourceOwnerAccountId}
-	memberGetProductRestEndpointPageOutput_DisplayContent.Target = &schemaEndpointDisplayContentResponse
-	memberGetProductRestEndpointPageOutput_LastModified.Target = &schema__timestampIso8601
-	memberGetProductRestEndpointPageOutput_ProductRestEndpointPageArn.Target = &schema__stringMin20Max2048
-	memberGetProductRestEndpointPageOutput_ProductRestEndpointPageId.Target = &schema__stringMin10Max30PatternAZ09
-	memberGetProductRestEndpointPageOutput_RawDisplayContent.Target = &schema__string
-	memberGetProductRestEndpointPageOutput_RestEndpointIdentifier.Target = &schemaRestEndpointIdentifier
-	memberGetProductRestEndpointPageOutput_Status.Target = &schemaStatus
-	memberGetProductRestEndpointPageOutput_StatusException.Target = &schemaStatusException
-	memberGetProductRestEndpointPageOutput_TryItState.Target = &schemaTryItState
-	schemaGetProductRestEndpointPageOutput.Members = []*smithy.Member{&memberGetProductRestEndpointPageOutput_DisplayContent, &memberGetProductRestEndpointPageOutput_LastModified, &memberGetProductRestEndpointPageOutput_ProductRestEndpointPageArn, &memberGetProductRestEndpointPageOutput_ProductRestEndpointPageId, &memberGetProductRestEndpointPageOutput_RawDisplayContent, &memberGetProductRestEndpointPageOutput_RestEndpointIdentifier, &memberGetProductRestEndpointPageOutput_Status, &memberGetProductRestEndpointPageOutput_StatusException, &memberGetProductRestEndpointPageOutput_TryItState}
-	memberGetRouteInput_ApiId.Target = &schema__string
-	memberGetRouteInput_RouteId.Target = &schema__string
-	schemaGetRouteInput.Members = []*smithy.Member{&memberGetRouteInput_ApiId, &memberGetRouteInput_RouteId}
-	memberGetRouteOutput_ApiGatewayManaged.Target = &schema__boolean
-	memberGetRouteOutput_ApiKeyRequired.Target = &schema__boolean
-	memberGetRouteOutput_AuthorizationScopes.Target = &schemaAuthorizationScopes
-	memberGetRouteOutput_AuthorizationType.Target = &schemaAuthorizationType
-	memberGetRouteOutput_AuthorizerId.Target = &schemaId
-	memberGetRouteOutput_ModelSelectionExpression.Target = &schemaSelectionExpression
-	memberGetRouteOutput_OperationName.Target = &schemaStringWithLengthBetween1And64
-	memberGetRouteOutput_RequestModels.Target = &schemaRouteModels
-	memberGetRouteOutput_RequestParameters.Target = &schemaRouteParameters
-	memberGetRouteOutput_RouteId.Target = &schemaId
-	memberGetRouteOutput_RouteKey.Target = &schemaSelectionKey
-	memberGetRouteOutput_RouteResponseSelectionExpression.Target = &schemaSelectionExpression
-	memberGetRouteOutput_Target.Target = &schemaStringWithLengthBetween1And128
-	schemaGetRouteOutput.Members = []*smithy.Member{&memberGetRouteOutput_ApiGatewayManaged, &memberGetRouteOutput_ApiKeyRequired, &memberGetRouteOutput_AuthorizationScopes, &memberGetRouteOutput_AuthorizationType, &memberGetRouteOutput_AuthorizerId, &memberGetRouteOutput_ModelSelectionExpression, &memberGetRouteOutput_OperationName, &memberGetRouteOutput_RequestModels, &memberGetRouteOutput_RequestParameters, &memberGetRouteOutput_RouteId, &memberGetRouteOutput_RouteKey, &memberGetRouteOutput_RouteResponseSelectionExpression, &memberGetRouteOutput_Target}
-	memberGetRouteResponseInput_ApiId.Target = &schema__string
-	memberGetRouteResponseInput_RouteId.Target = &schema__string
-	memberGetRouteResponseInput_RouteResponseId.Target = &schema__string
-	schemaGetRouteResponseInput.Members = []*smithy.Member{&memberGetRouteResponseInput_ApiId, &memberGetRouteResponseInput_RouteId, &memberGetRouteResponseInput_RouteResponseId}
-	memberGetRouteResponseOutput_ModelSelectionExpression.Target = &schemaSelectionExpression
-	memberGetRouteResponseOutput_ResponseModels.Target = &schemaRouteModels
-	memberGetRouteResponseOutput_ResponseParameters.Target = &schemaRouteParameters
-	memberGetRouteResponseOutput_RouteResponseId.Target = &schemaId
-	memberGetRouteResponseOutput_RouteResponseKey.Target = &schemaSelectionKey
-	schemaGetRouteResponseOutput.Members = []*smithy.Member{&memberGetRouteResponseOutput_ModelSelectionExpression, &memberGetRouteResponseOutput_ResponseModels, &memberGetRouteResponseOutput_ResponseParameters, &memberGetRouteResponseOutput_RouteResponseId, &memberGetRouteResponseOutput_RouteResponseKey}
-	memberGetRouteResponsesInput_ApiId.Target = &schema__string
-	memberGetRouteResponsesInput_MaxResults.Target = &schema__string
-	memberGetRouteResponsesInput_NextToken.Target = &schema__string
-	memberGetRouteResponsesInput_RouteId.Target = &schema__string
-	schemaGetRouteResponsesInput.Members = []*smithy.Member{&memberGetRouteResponsesInput_ApiId, &memberGetRouteResponsesInput_MaxResults, &memberGetRouteResponsesInput_NextToken, &memberGetRouteResponsesInput_RouteId}
-	memberGetRouteResponsesOutput_Items.Target = &schema__listOfRouteResponse
-	memberGetRouteResponsesOutput_NextToken.Target = &schemaNextToken
-	schemaGetRouteResponsesOutput.Members = []*smithy.Member{&memberGetRouteResponsesOutput_Items, &memberGetRouteResponsesOutput_NextToken}
-	memberGetRoutesInput_ApiId.Target = &schema__string
-	memberGetRoutesInput_MaxResults.Target = &schema__string
-	memberGetRoutesInput_NextToken.Target = &schema__string
-	schemaGetRoutesInput.Members = []*smithy.Member{&memberGetRoutesInput_ApiId, &memberGetRoutesInput_MaxResults, &memberGetRoutesInput_NextToken}
-	memberGetRoutesOutput_Items.Target = &schema__listOfRoute
-	memberGetRoutesOutput_NextToken.Target = &schemaNextToken
-	schemaGetRoutesOutput.Members = []*smithy.Member{&memberGetRoutesOutput_Items, &memberGetRoutesOutput_NextToken}
-	memberGetRoutingRuleInput_DomainName.Target = &schema__string
-	memberGetRoutingRuleInput_DomainNameId.Target = &schema__string
-	memberGetRoutingRuleInput_RoutingRuleId.Target = &schema__string
-	schemaGetRoutingRuleInput.Members = []*smithy.Member{&memberGetRoutingRuleInput_DomainName, &memberGetRoutingRuleInput_DomainNameId, &memberGetRoutingRuleInput_RoutingRuleId}
-	memberGetRoutingRuleOutput_Actions.Target = &schema__listOfRoutingRuleAction
-	memberGetRoutingRuleOutput_Conditions.Target = &schema__listOfRoutingRuleCondition
-	memberGetRoutingRuleOutput_Priority.Target = &schemaRoutingRulePriority
-	memberGetRoutingRuleOutput_RoutingRuleArn.Target = &schemaArn
-	memberGetRoutingRuleOutput_RoutingRuleId.Target = &schemaId
-	schemaGetRoutingRuleOutput.Members = []*smithy.Member{&memberGetRoutingRuleOutput_Actions, &memberGetRoutingRuleOutput_Conditions, &memberGetRoutingRuleOutput_Priority, &memberGetRoutingRuleOutput_RoutingRuleArn, &memberGetRoutingRuleOutput_RoutingRuleId}
-	memberGetStageInput_ApiId.Target = &schema__string
-	memberGetStageInput_StageName.Target = &schema__string
-	schemaGetStageInput.Members = []*smithy.Member{&memberGetStageInput_ApiId, &memberGetStageInput_StageName}
-	memberGetStageOutput_AccessLogSettings.Target = &schemaAccessLogSettings
-	memberGetStageOutput_ApiGatewayManaged.Target = &schema__boolean
-	memberGetStageOutput_AutoDeploy.Target = &schema__boolean
-	memberGetStageOutput_ClientCertificateId.Target = &schemaId
-	memberGetStageOutput_CreatedDate.Target = &schema__timestampIso8601
-	memberGetStageOutput_DefaultRouteSettings.Target = &schemaRouteSettings
-	memberGetStageOutput_DeploymentId.Target = &schemaId
-	memberGetStageOutput_Description.Target = &schemaStringWithLengthBetween0And1024
-	memberGetStageOutput_LastDeploymentStatusMessage.Target = &schema__string
-	memberGetStageOutput_LastUpdatedDate.Target = &schema__timestampIso8601
-	memberGetStageOutput_RouteSettings.Target = &schemaRouteSettingsMap
-	memberGetStageOutput_StageName.Target = &schemaStringWithLengthBetween1And128
-	memberGetStageOutput_StageVariables.Target = &schemaStageVariablesMap
-	memberGetStageOutput_Tags.Target = &schemaTags
-	schemaGetStageOutput.Members = []*smithy.Member{&memberGetStageOutput_AccessLogSettings, &memberGetStageOutput_ApiGatewayManaged, &memberGetStageOutput_AutoDeploy, &memberGetStageOutput_ClientCertificateId, &memberGetStageOutput_CreatedDate, &memberGetStageOutput_DefaultRouteSettings, &memberGetStageOutput_DeploymentId, &memberGetStageOutput_Description, &memberGetStageOutput_LastDeploymentStatusMessage, &memberGetStageOutput_LastUpdatedDate, &memberGetStageOutput_RouteSettings, &memberGetStageOutput_StageName, &memberGetStageOutput_StageVariables, &memberGetStageOutput_Tags}
-	memberGetStagesInput_ApiId.Target = &schema__string
-	memberGetStagesInput_MaxResults.Target = &schema__string
-	memberGetStagesInput_NextToken.Target = &schema__string
-	schemaGetStagesInput.Members = []*smithy.Member{&memberGetStagesInput_ApiId, &memberGetStagesInput_MaxResults, &memberGetStagesInput_NextToken}
-	memberGetStagesOutput_Items.Target = &schema__listOfStage
-	memberGetStagesOutput_NextToken.Target = &schemaNextToken
-	schemaGetStagesOutput.Members = []*smithy.Member{&memberGetStagesOutput_Items, &memberGetStagesOutput_NextToken}
-	memberGetTagsInput_ResourceArn.Target = &schema__string
-	schemaGetTagsInput.Members = []*smithy.Member{&memberGetTagsInput_ResourceArn}
-	memberGetTagsOutput_Tags.Target = &schemaTags
-	schemaGetTagsOutput.Members = []*smithy.Member{&memberGetTagsOutput_Tags}
-	memberGetVpcLinkInput_VpcLinkId.Target = &schema__string
-	schemaGetVpcLinkInput.Members = []*smithy.Member{&memberGetVpcLinkInput_VpcLinkId}
-	memberGetVpcLinkOutput_CreatedDate.Target = &schema__timestampIso8601
-	memberGetVpcLinkOutput_Name.Target = &schemaStringWithLengthBetween1And128
-	memberGetVpcLinkOutput_SecurityGroupIds.Target = &schemaSecurityGroupIdList
-	memberGetVpcLinkOutput_SubnetIds.Target = &schemaSubnetIdList
-	memberGetVpcLinkOutput_Tags.Target = &schemaTags
-	memberGetVpcLinkOutput_VpcLinkId.Target = &schemaId
-	memberGetVpcLinkOutput_VpcLinkStatus.Target = &schemaVpcLinkStatus
-	memberGetVpcLinkOutput_VpcLinkStatusMessage.Target = &schemaStringWithLengthBetween0And1024
-	memberGetVpcLinkOutput_VpcLinkVersion.Target = &schemaVpcLinkVersion
-	schemaGetVpcLinkOutput.Members = []*smithy.Member{&memberGetVpcLinkOutput_CreatedDate, &memberGetVpcLinkOutput_Name, &memberGetVpcLinkOutput_SecurityGroupIds, &memberGetVpcLinkOutput_SubnetIds, &memberGetVpcLinkOutput_Tags, &memberGetVpcLinkOutput_VpcLinkId, &memberGetVpcLinkOutput_VpcLinkStatus, &memberGetVpcLinkOutput_VpcLinkStatusMessage, &memberGetVpcLinkOutput_VpcLinkVersion}
-	memberGetVpcLinksInput_MaxResults.Target = &schema__string
-	memberGetVpcLinksInput_NextToken.Target = &schema__string
-	schemaGetVpcLinksInput.Members = []*smithy.Member{&memberGetVpcLinksInput_MaxResults, &memberGetVpcLinksInput_NextToken}
-	memberGetVpcLinksOutput_Items.Target = &schema__listOfVpcLink
-	memberGetVpcLinksOutput_NextToken.Target = &schemaNextToken
-	schemaGetVpcLinksOutput.Members = []*smithy.Member{&memberGetVpcLinksOutput_Items, &memberGetVpcLinksOutput_NextToken}
-	memberIdentifierParts_Method.Target = &schema__stringMin1Max20
-	memberIdentifierParts_Path.Target = &schema__stringMin1Max4096
-	memberIdentifierParts_RestApiId.Target = &schema__stringMin1Max50
-	memberIdentifierParts_Stage.Target = &schema__stringMin1Max128
-	schemaIdentifierParts.Members = []*smithy.Member{&memberIdentifierParts_Method, &memberIdentifierParts_Path, &memberIdentifierParts_RestApiId, &memberIdentifierParts_Stage}
-	memberIdentitySourceList_member.Target = &schema__string
-	schemaIdentitySourceList.Members = []*smithy.Member{&memberIdentitySourceList_member}
-	memberImportApiInput_Basepath.Target = &schema__string
-	memberImportApiInput_Body.Target = &schema__string
-	memberImportApiInput_FailOnWarnings.Target = &schema__boolean
-	schemaImportApiInput.Members = []*smithy.Member{&memberImportApiInput_Basepath, &memberImportApiInput_Body, &memberImportApiInput_FailOnWarnings}
-	memberImportApiOutput_ApiEndpoint.Target = &schema__string
-	memberImportApiOutput_ApiGatewayManaged.Target = &schema__boolean
-	memberImportApiOutput_ApiId.Target = &schemaId
-	memberImportApiOutput_ApiKeySelectionExpression.Target = &schemaSelectionExpression
-	memberImportApiOutput_CorsConfiguration.Target = &schemaCors
-	memberImportApiOutput_CreatedDate.Target = &schema__timestampIso8601
-	memberImportApiOutput_Description.Target = &schemaStringWithLengthBetween0And1024
-	memberImportApiOutput_DisableSchemaValidation.Target = &schema__boolean
-	memberImportApiOutput_DisableExecuteApiEndpoint.Target = &schema__boolean
-	memberImportApiOutput_ImportInfo.Target = &schema__listOf__string
-	memberImportApiOutput_IpAddressType.Target = &schemaIpAddressType
-	memberImportApiOutput_Name.Target = &schemaStringWithLengthBetween1And128
-	memberImportApiOutput_ProtocolType.Target = &schemaProtocolType
-	memberImportApiOutput_RouteSelectionExpression.Target = &schemaSelectionExpression
-	memberImportApiOutput_Tags.Target = &schemaTags
-	memberImportApiOutput_Version.Target = &schemaStringWithLengthBetween1And64
-	memberImportApiOutput_Warnings.Target = &schema__listOf__string
-	schemaImportApiOutput.Members = []*smithy.Member{&memberImportApiOutput_ApiEndpoint, &memberImportApiOutput_ApiGatewayManaged, &memberImportApiOutput_ApiId, &memberImportApiOutput_ApiKeySelectionExpression, &memberImportApiOutput_CorsConfiguration, &memberImportApiOutput_CreatedDate, &memberImportApiOutput_Description, &memberImportApiOutput_DisableSchemaValidation, &memberImportApiOutput_DisableExecuteApiEndpoint, &memberImportApiOutput_ImportInfo, &memberImportApiOutput_IpAddressType, &memberImportApiOutput_Name, &memberImportApiOutput_ProtocolType, &memberImportApiOutput_RouteSelectionExpression, &memberImportApiOutput_Tags, &memberImportApiOutput_Version, &memberImportApiOutput_Warnings}
-	memberIncompleteSignatureException_message.Target = &schemaSmithyString
-	schemaIncompleteSignatureException.Members = []*smithy.Member{&memberIncompleteSignatureException_message}
-	memberIntegration_ApiGatewayManaged.Target = &schema__boolean
-	memberIntegration_ConnectionId.Target = &schemaStringWithLengthBetween1And1024
-	memberIntegration_ConnectionType.Target = &schemaConnectionType
-	memberIntegration_ContentHandlingStrategy.Target = &schemaContentHandlingStrategy
-	memberIntegration_CredentialsArn.Target = &schemaArn
-	memberIntegration_Description.Target = &schemaStringWithLengthBetween0And1024
-	memberIntegration_IntegrationId.Target = &schemaId
-	memberIntegration_IntegrationMethod.Target = &schemaStringWithLengthBetween1And64
-	memberIntegration_IntegrationResponseSelectionExpression.Target = &schemaSelectionExpression
-	memberIntegration_IntegrationSubtype.Target = &schemaStringWithLengthBetween1And128
-	memberIntegration_IntegrationType.Target = &schemaIntegrationType
-	memberIntegration_IntegrationUri.Target = &schemaUriWithLengthBetween1And2048
-	memberIntegration_PassthroughBehavior.Target = &schemaPassthroughBehavior
-	memberIntegration_PayloadFormatVersion.Target = &schemaStringWithLengthBetween1And64
-	memberIntegration_RequestParameters.Target = &schemaIntegrationParameters
-	memberIntegration_RequestTemplates.Target = &schemaTemplateMap
-	memberIntegration_ResponseParameters.Target = &schemaResponseParameters
-	memberIntegration_TemplateSelectionExpression.Target = &schemaSelectionExpression
-	memberIntegration_TimeoutInMillis.Target = &schemaIntegerWithLengthBetween50And30000
-	memberIntegration_TlsConfig.Target = &schemaTlsConfig
-	schemaIntegration.Members = []*smithy.Member{&memberIntegration_ApiGatewayManaged, &memberIntegration_ConnectionId, &memberIntegration_ConnectionType, &memberIntegration_ContentHandlingStrategy, &memberIntegration_CredentialsArn, &memberIntegration_Description, &memberIntegration_IntegrationId, &memberIntegration_IntegrationMethod, &memberIntegration_IntegrationResponseSelectionExpression, &memberIntegration_IntegrationSubtype, &memberIntegration_IntegrationType, &memberIntegration_IntegrationUri, &memberIntegration_PassthroughBehavior, &memberIntegration_PayloadFormatVersion, &memberIntegration_RequestParameters, &memberIntegration_RequestTemplates, &memberIntegration_ResponseParameters, &memberIntegration_TemplateSelectionExpression, &memberIntegration_TimeoutInMillis, &memberIntegration_TlsConfig}
-	memberIntegrationParameters_key.Target = &schema__string
-	memberIntegrationParameters_value.Target = &schemaStringWithLengthBetween1And512
-	schemaIntegrationParameters.Members = []*smithy.Member{&memberIntegrationParameters_key, &memberIntegrationParameters_value}
-	memberIntegrationResponse_ContentHandlingStrategy.Target = &schemaContentHandlingStrategy
-	memberIntegrationResponse_IntegrationResponseId.Target = &schemaId
-	memberIntegrationResponse_IntegrationResponseKey.Target = &schemaSelectionKey
-	memberIntegrationResponse_ResponseParameters.Target = &schemaIntegrationParameters
-	memberIntegrationResponse_ResponseTemplates.Target = &schemaTemplateMap
-	memberIntegrationResponse_TemplateSelectionExpression.Target = &schemaSelectionExpression
-	schemaIntegrationResponse.Members = []*smithy.Member{&memberIntegrationResponse_ContentHandlingStrategy, &memberIntegrationResponse_IntegrationResponseId, &memberIntegrationResponse_IntegrationResponseKey, &memberIntegrationResponse_ResponseParameters, &memberIntegrationResponse_ResponseTemplates, &memberIntegrationResponse_TemplateSelectionExpression}
-	memberInternalFailure_message.Target = &schemaSmithyString
-	schemaInternalFailure.Members = []*smithy.Member{&memberInternalFailure_message}
-	memberInvalidSignatureException_message.Target = &schemaSmithyString
-	schemaInvalidSignatureException.Members = []*smithy.Member{&memberInvalidSignatureException_message}
-	memberJWTConfiguration_Audience.Target = &schema__listOf__string
-	memberJWTConfiguration_Issuer.Target = &schemaUriWithLengthBetween1And2048
-	schemaJWTConfiguration.Members = []*smithy.Member{&memberJWTConfiguration_Audience, &memberJWTConfiguration_Issuer}
-	memberListPortalProductsInput_MaxResults.Target = &schema__string
-	memberListPortalProductsInput_NextToken.Target = &schema__string
-	memberListPortalProductsInput_ResourceOwner.Target = &schema__string
-	schemaListPortalProductsInput.Members = []*smithy.Member{&memberListPortalProductsInput_MaxResults, &memberListPortalProductsInput_NextToken, &memberListPortalProductsInput_ResourceOwner}
-	memberListPortalProductsOutput_Items.Target = &schema__listOfPortalProductSummary
-	memberListPortalProductsOutput_NextToken.Target = &schema__stringMin1Max2048
-	schemaListPortalProductsOutput.Members = []*smithy.Member{&memberListPortalProductsOutput_Items, &memberListPortalProductsOutput_NextToken}
-	memberListPortalsInput_MaxResults.Target = &schema__string
-	memberListPortalsInput_NextToken.Target = &schema__string
-	schemaListPortalsInput.Members = []*smithy.Member{&memberListPortalsInput_MaxResults, &memberListPortalsInput_NextToken}
-	memberListPortalsOutput_Items.Target = &schema__listOfPortalSummary
-	memberListPortalsOutput_NextToken.Target = &schema__stringMin1Max2048
-	schemaListPortalsOutput.Members = []*smithy.Member{&memberListPortalsOutput_Items, &memberListPortalsOutput_NextToken}
-	memberListProductPagesInput_MaxResults.Target = &schema__string
-	memberListProductPagesInput_NextToken.Target = &schema__string
-	memberListProductPagesInput_PortalProductId.Target = &schema__string
-	memberListProductPagesInput_ResourceOwnerAccountId.Target = &schema__string
-	schemaListProductPagesInput.Members = []*smithy.Member{&memberListProductPagesInput_MaxResults, &memberListProductPagesInput_NextToken, &memberListProductPagesInput_PortalProductId, &memberListProductPagesInput_ResourceOwnerAccountId}
-	memberListProductPagesOutput_Items.Target = &schema__listOfProductPageSummaryNoBody
-	memberListProductPagesOutput_NextToken.Target = &schema__stringMin1Max2048
-	schemaListProductPagesOutput.Members = []*smithy.Member{&memberListProductPagesOutput_Items, &memberListProductPagesOutput_NextToken}
-	memberListProductRestEndpointPagesInput_MaxResults.Target = &schema__string
-	memberListProductRestEndpointPagesInput_NextToken.Target = &schema__string
-	memberListProductRestEndpointPagesInput_PortalProductId.Target = &schema__string
-	memberListProductRestEndpointPagesInput_ResourceOwnerAccountId.Target = &schema__string
-	schemaListProductRestEndpointPagesInput.Members = []*smithy.Member{&memberListProductRestEndpointPagesInput_MaxResults, &memberListProductRestEndpointPagesInput_NextToken, &memberListProductRestEndpointPagesInput_PortalProductId, &memberListProductRestEndpointPagesInput_ResourceOwnerAccountId}
-	memberListProductRestEndpointPagesOutput_Items.Target = &schema__listOfProductRestEndpointPageSummaryNoBody
-	memberListProductRestEndpointPagesOutput_NextToken.Target = &schema__string
-	schemaListProductRestEndpointPagesOutput.Members = []*smithy.Member{&memberListProductRestEndpointPagesOutput_Items, &memberListProductRestEndpointPagesOutput_NextToken}
-	memberListRoutingRulesInput_DomainName.Target = &schema__string
-	memberListRoutingRulesInput_DomainNameId.Target = &schema__string
-	memberListRoutingRulesInput_MaxResults.Target = &schemaMaxResults
-	memberListRoutingRulesInput_NextToken.Target = &schema__string
-	schemaListRoutingRulesInput.Members = []*smithy.Member{&memberListRoutingRulesInput_DomainName, &memberListRoutingRulesInput_DomainNameId, &memberListRoutingRulesInput_MaxResults, &memberListRoutingRulesInput_NextToken}
-	memberListRoutingRulesOutput_NextToken.Target = &schemaNextToken
-	memberListRoutingRulesOutput_RoutingRules.Target = &schema__listOfRoutingRule
-	schemaListRoutingRulesOutput.Members = []*smithy.Member{&memberListRoutingRulesOutput_NextToken, &memberListRoutingRulesOutput_RoutingRules}
-	memberMissingAuthenticationTokenException_message.Target = &schemaSmithyString
-	schemaMissingAuthenticationTokenException.Members = []*smithy.Member{&memberMissingAuthenticationTokenException_message}
-	memberModel_ContentType.Target = &schemaStringWithLengthBetween1And256
-	memberModel_Description.Target = &schemaStringWithLengthBetween0And1024
-	memberModel_ModelId.Target = &schemaId
-	memberModel_Name.Target = &schemaStringWithLengthBetween1And128
-	memberModel_Schema.Target = &schemaStringWithLengthBetween0And32K
-	schemaModel.Members = []*smithy.Member{&memberModel_ContentType, &memberModel_Description, &memberModel_ModelId, &memberModel_Name, &memberModel_Schema}
-	memberMutualTlsAuthentication_TruststoreUri.Target = &schemaUriWithLengthBetween1And2048
-	memberMutualTlsAuthentication_TruststoreVersion.Target = &schemaStringWithLengthBetween1And64
-	memberMutualTlsAuthentication_TruststoreWarnings.Target = &schema__listOf__string
-	schemaMutualTlsAuthentication.Members = []*smithy.Member{&memberMutualTlsAuthentication_TruststoreUri, &memberMutualTlsAuthentication_TruststoreVersion, &memberMutualTlsAuthentication_TruststoreWarnings}
-	memberMutualTlsAuthenticationInput_TruststoreUri.Target = &schemaUriWithLengthBetween1And2048
-	memberMutualTlsAuthenticationInput_TruststoreVersion.Target = &schemaStringWithLengthBetween1And64
-	schemaMutualTlsAuthenticationInput.Members = []*smithy.Member{&memberMutualTlsAuthenticationInput_TruststoreUri, &memberMutualTlsAuthenticationInput_TruststoreVersion}
-	memberNotFoundException_Message.Target = &schema__string
-	memberNotFoundException_ResourceType.Target = &schema__string
-	schemaNotFoundException.Members = []*smithy.Member{&memberNotFoundException_Message, &memberNotFoundException_ResourceType}
-	memberNotImplemented_message.Target = &schemaSmithyString
-	schemaNotImplemented.Members = []*smithy.Member{&memberNotImplemented_message}
-	memberParameterConstraints_Required.Target = &schema__boolean
-	schemaParameterConstraints.Members = []*smithy.Member{&memberParameterConstraints_Required}
-	memberPortalContent_Description.Target = &schema__stringMin0Max1024
-	memberPortalContent_DisplayName.Target = &schema__stringMin3Max255
-	memberPortalContent_Theme.Target = &schemaPortalTheme
-	schemaPortalContent.Members = []*smithy.Member{&memberPortalContent_Description, &memberPortalContent_DisplayName, &memberPortalContent_Theme}
-	memberPortalProductSummary_Description.Target = &schema__stringMin0Max1024
-	memberPortalProductSummary_DisplayName.Target = &schema__stringMin1Max255
-	memberPortalProductSummary_LastModified.Target = &schema__timestampIso8601
-	memberPortalProductSummary_PortalProductArn.Target = &schema__stringMin20Max2048
-	memberPortalProductSummary_PortalProductId.Target = &schema__stringMin10Max30PatternAZ09
-	memberPortalProductSummary_Tags.Target = &schemaTags
-	schemaPortalProductSummary.Members = []*smithy.Member{&memberPortalProductSummary_Description, &memberPortalProductSummary_DisplayName, &memberPortalProductSummary_LastModified, &memberPortalProductSummary_PortalProductArn, &memberPortalProductSummary_PortalProductId, &memberPortalProductSummary_Tags}
-	memberPortalSummary_Authorization.Target = &schemaAuthorization
-	memberPortalSummary_EndpointConfiguration.Target = &schemaEndpointConfigurationResponse
-	memberPortalSummary_IncludedPortalProductArns.Target = &schema__listOf__stringMin20Max2048
-	memberPortalSummary_LastModified.Target = &schema__timestampIso8601
-	memberPortalSummary_LastPublished.Target = &schema__timestampIso8601
-	memberPortalSummary_LastPublishedDescription.Target = &schema__stringMin0Max1024
-	memberPortalSummary_PortalArn.Target = &schema__stringMin20Max2048
-	memberPortalSummary_PortalContent.Target = &schemaPortalContent
-	memberPortalSummary_PortalId.Target = &schema__stringMin10Max30PatternAZ09
-	memberPortalSummary_Preview.Target = &schemaPreview
-	memberPortalSummary_PublishStatus.Target = &schemaPublishStatus
-	memberPortalSummary_RumAppMonitorName.Target = &schema__stringMin0Max255
-	memberPortalSummary_StatusException.Target = &schemaStatusException
-	memberPortalSummary_Tags.Target = &schemaTags
-	schemaPortalSummary.Members = []*smithy.Member{&memberPortalSummary_Authorization, &memberPortalSummary_EndpointConfiguration, &memberPortalSummary_IncludedPortalProductArns, &memberPortalSummary_LastModified, &memberPortalSummary_LastPublished, &memberPortalSummary_LastPublishedDescription, &memberPortalSummary_PortalArn, &memberPortalSummary_PortalContent, &memberPortalSummary_PortalId, &memberPortalSummary_Preview, &memberPortalSummary_PublishStatus, &memberPortalSummary_RumAppMonitorName, &memberPortalSummary_StatusException, &memberPortalSummary_Tags}
-	memberPortalTheme_CustomColors.Target = &schemaCustomColors
-	memberPortalTheme_LogoLastUploaded.Target = &schema__timestampIso8601
-	schemaPortalTheme.Members = []*smithy.Member{&memberPortalTheme_CustomColors, &memberPortalTheme_LogoLastUploaded}
-	memberPreview_PreviewStatus.Target = &schemaPreviewStatus
-	memberPreview_PreviewUrl.Target = &schema__string
-	memberPreview_StatusException.Target = &schemaStatusException
-	schemaPreview.Members = []*smithy.Member{&memberPreview_PreviewStatus, &memberPreview_PreviewUrl, &memberPreview_StatusException}
-	memberPreviewPortalInput_PortalId.Target = &schema__string
-	schemaPreviewPortalInput.Members = []*smithy.Member{&memberPreviewPortalInput_PortalId}
-	memberProductPageSummaryNoBody_LastModified.Target = &schema__timestampIso8601
-	memberProductPageSummaryNoBody_PageTitle.Target = &schema__stringMin1Max255
-	memberProductPageSummaryNoBody_ProductPageArn.Target = &schema__stringMin20Max2048
-	memberProductPageSummaryNoBody_ProductPageId.Target = &schema__stringMin10Max30PatternAZ09
-	schemaProductPageSummaryNoBody.Members = []*smithy.Member{&memberProductPageSummaryNoBody_LastModified, &memberProductPageSummaryNoBody_PageTitle, &memberProductPageSummaryNoBody_ProductPageArn, &memberProductPageSummaryNoBody_ProductPageId}
-	memberProductRestEndpointPageSummaryNoBody_Endpoint.Target = &schema__stringMin1Max1024
-	memberProductRestEndpointPageSummaryNoBody_LastModified.Target = &schema__timestampIso8601
-	memberProductRestEndpointPageSummaryNoBody_OperationName.Target = &schema__stringMin1Max255
-	memberProductRestEndpointPageSummaryNoBody_ProductRestEndpointPageArn.Target = &schema__stringMin20Max2048
-	memberProductRestEndpointPageSummaryNoBody_ProductRestEndpointPageId.Target = &schema__stringMin10Max30PatternAZ09
-	memberProductRestEndpointPageSummaryNoBody_RestEndpointIdentifier.Target = &schemaRestEndpointIdentifier
-	memberProductRestEndpointPageSummaryNoBody_Status.Target = &schemaStatus
-	memberProductRestEndpointPageSummaryNoBody_StatusException.Target = &schemaStatusException
-	memberProductRestEndpointPageSummaryNoBody_TryItState.Target = &schemaTryItState
-	schemaProductRestEndpointPageSummaryNoBody.Members = []*smithy.Member{&memberProductRestEndpointPageSummaryNoBody_Endpoint, &memberProductRestEndpointPageSummaryNoBody_LastModified, &memberProductRestEndpointPageSummaryNoBody_OperationName, &memberProductRestEndpointPageSummaryNoBody_ProductRestEndpointPageArn, &memberProductRestEndpointPageSummaryNoBody_ProductRestEndpointPageId, &memberProductRestEndpointPageSummaryNoBody_RestEndpointIdentifier, &memberProductRestEndpointPageSummaryNoBody_Status, &memberProductRestEndpointPageSummaryNoBody_StatusException, &memberProductRestEndpointPageSummaryNoBody_TryItState}
-	memberPublishPortalInput_Description.Target = &schema__stringMin0Max1024
-	memberPublishPortalInput_PortalId.Target = &schema__string
-	schemaPublishPortalInput.Members = []*smithy.Member{&memberPublishPortalInput_Description, &memberPublishPortalInput_PortalId}
-	memberPutPortalProductSharingPolicyInput_PolicyDocument.Target = &schema__stringMin1Max307200
-	memberPutPortalProductSharingPolicyInput_PortalProductId.Target = &schema__string
-	schemaPutPortalProductSharingPolicyInput.Members = []*smithy.Member{&memberPutPortalProductSharingPolicyInput_PolicyDocument, &memberPutPortalProductSharingPolicyInput_PortalProductId}
-	memberPutRoutingRuleInput_Actions.Target = &schema__listOfRoutingRuleAction
-	memberPutRoutingRuleInput_Conditions.Target = &schema__listOfRoutingRuleCondition
-	memberPutRoutingRuleInput_DomainName.Target = &schema__string
-	memberPutRoutingRuleInput_DomainNameId.Target = &schema__string
-	memberPutRoutingRuleInput_Priority.Target = &schemaRoutingRulePriority
-	memberPutRoutingRuleInput_RoutingRuleId.Target = &schema__string
-	schemaPutRoutingRuleInput.Members = []*smithy.Member{&memberPutRoutingRuleInput_Actions, &memberPutRoutingRuleInput_Conditions, &memberPutRoutingRuleInput_DomainName, &memberPutRoutingRuleInput_DomainNameId, &memberPutRoutingRuleInput_Priority, &memberPutRoutingRuleInput_RoutingRuleId}
-	memberPutRoutingRuleOutput_Actions.Target = &schema__listOfRoutingRuleAction
-	memberPutRoutingRuleOutput_Conditions.Target = &schema__listOfRoutingRuleCondition
-	memberPutRoutingRuleOutput_Priority.Target = &schemaRoutingRulePriority
-	memberPutRoutingRuleOutput_RoutingRuleArn.Target = &schemaArn
-	memberPutRoutingRuleOutput_RoutingRuleId.Target = &schemaId
-	schemaPutRoutingRuleOutput.Members = []*smithy.Member{&memberPutRoutingRuleOutput_Actions, &memberPutRoutingRuleOutput_Conditions, &memberPutRoutingRuleOutput_Priority, &memberPutRoutingRuleOutput_RoutingRuleArn, &memberPutRoutingRuleOutput_RoutingRuleId}
-	memberReimportApiInput_ApiId.Target = &schema__string
-	memberReimportApiInput_Basepath.Target = &schema__string
-	memberReimportApiInput_Body.Target = &schema__string
-	memberReimportApiInput_FailOnWarnings.Target = &schema__boolean
-	schemaReimportApiInput.Members = []*smithy.Member{&memberReimportApiInput_ApiId, &memberReimportApiInput_Basepath, &memberReimportApiInput_Body, &memberReimportApiInput_FailOnWarnings}
-	memberReimportApiOutput_ApiEndpoint.Target = &schema__string
-	memberReimportApiOutput_ApiGatewayManaged.Target = &schema__boolean
-	memberReimportApiOutput_ApiId.Target = &schemaId
-	memberReimportApiOutput_ApiKeySelectionExpression.Target = &schemaSelectionExpression
-	memberReimportApiOutput_CorsConfiguration.Target = &schemaCors
-	memberReimportApiOutput_CreatedDate.Target = &schema__timestampIso8601
-	memberReimportApiOutput_Description.Target = &schemaStringWithLengthBetween0And1024
-	memberReimportApiOutput_DisableSchemaValidation.Target = &schema__boolean
-	memberReimportApiOutput_DisableExecuteApiEndpoint.Target = &schema__boolean
-	memberReimportApiOutput_ImportInfo.Target = &schema__listOf__string
-	memberReimportApiOutput_IpAddressType.Target = &schemaIpAddressType
-	memberReimportApiOutput_Name.Target = &schemaStringWithLengthBetween1And128
-	memberReimportApiOutput_ProtocolType.Target = &schemaProtocolType
-	memberReimportApiOutput_RouteSelectionExpression.Target = &schemaSelectionExpression
-	memberReimportApiOutput_Tags.Target = &schemaTags
-	memberReimportApiOutput_Version.Target = &schemaStringWithLengthBetween1And64
-	memberReimportApiOutput_Warnings.Target = &schema__listOf__string
-	schemaReimportApiOutput.Members = []*smithy.Member{&memberReimportApiOutput_ApiEndpoint, &memberReimportApiOutput_ApiGatewayManaged, &memberReimportApiOutput_ApiId, &memberReimportApiOutput_ApiKeySelectionExpression, &memberReimportApiOutput_CorsConfiguration, &memberReimportApiOutput_CreatedDate, &memberReimportApiOutput_Description, &memberReimportApiOutput_DisableSchemaValidation, &memberReimportApiOutput_DisableExecuteApiEndpoint, &memberReimportApiOutput_ImportInfo, &memberReimportApiOutput_IpAddressType, &memberReimportApiOutput_Name, &memberReimportApiOutput_ProtocolType, &memberReimportApiOutput_RouteSelectionExpression, &memberReimportApiOutput_Tags, &memberReimportApiOutput_Version, &memberReimportApiOutput_Warnings}
-	memberRequestEntityTooLargeException_message.Target = &schemaSmithyString
-	schemaRequestEntityTooLargeException.Members = []*smithy.Member{&memberRequestEntityTooLargeException_message}
-	memberResetAuthorizersCacheInput_ApiId.Target = &schema__string
-	memberResetAuthorizersCacheInput_StageName.Target = &schema__string
-	schemaResetAuthorizersCacheInput.Members = []*smithy.Member{&memberResetAuthorizersCacheInput_ApiId, &memberResetAuthorizersCacheInput_StageName}
-	memberResponseParameters_key.Target = &schema__string
-	memberResponseParameters_value.Target = &schemaIntegrationParameters
-	schemaResponseParameters.Members = []*smithy.Member{&memberResponseParameters_key, &memberResponseParameters_value}
-	memberRestEndpointIdentifier_IdentifierParts.Target = &schemaIdentifierParts
-	schemaRestEndpointIdentifier.Members = []*smithy.Member{&memberRestEndpointIdentifier_IdentifierParts}
-	memberRoute_ApiGatewayManaged.Target = &schema__boolean
-	memberRoute_ApiKeyRequired.Target = &schema__boolean
-	memberRoute_AuthorizationScopes.Target = &schemaAuthorizationScopes
-	memberRoute_AuthorizationType.Target = &schemaAuthorizationType
-	memberRoute_AuthorizerId.Target = &schemaId
-	memberRoute_ModelSelectionExpression.Target = &schemaSelectionExpression
-	memberRoute_OperationName.Target = &schemaStringWithLengthBetween1And64
-	memberRoute_RequestModels.Target = &schemaRouteModels
-	memberRoute_RequestParameters.Target = &schemaRouteParameters
-	memberRoute_RouteId.Target = &schemaId
-	memberRoute_RouteKey.Target = &schemaSelectionKey
-	memberRoute_RouteResponseSelectionExpression.Target = &schemaSelectionExpression
-	memberRoute_Target.Target = &schemaStringWithLengthBetween1And128
-	schemaRoute.Members = []*smithy.Member{&memberRoute_ApiGatewayManaged, &memberRoute_ApiKeyRequired, &memberRoute_AuthorizationScopes, &memberRoute_AuthorizationType, &memberRoute_AuthorizerId, &memberRoute_ModelSelectionExpression, &memberRoute_OperationName, &memberRoute_RequestModels, &memberRoute_RequestParameters, &memberRoute_RouteId, &memberRoute_RouteKey, &memberRoute_RouteResponseSelectionExpression, &memberRoute_Target}
-	memberRouteModels_key.Target = &schema__string
-	memberRouteModels_value.Target = &schemaStringWithLengthBetween1And128
-	schemaRouteModels.Members = []*smithy.Member{&memberRouteModels_key, &memberRouteModels_value}
-	memberRouteParameters_key.Target = &schema__string
-	memberRouteParameters_value.Target = &schemaParameterConstraints
-	schemaRouteParameters.Members = []*smithy.Member{&memberRouteParameters_key, &memberRouteParameters_value}
-	memberRouteResponse_ModelSelectionExpression.Target = &schemaSelectionExpression
-	memberRouteResponse_ResponseModels.Target = &schemaRouteModels
-	memberRouteResponse_ResponseParameters.Target = &schemaRouteParameters
-	memberRouteResponse_RouteResponseId.Target = &schemaId
-	memberRouteResponse_RouteResponseKey.Target = &schemaSelectionKey
-	schemaRouteResponse.Members = []*smithy.Member{&memberRouteResponse_ModelSelectionExpression, &memberRouteResponse_ResponseModels, &memberRouteResponse_ResponseParameters, &memberRouteResponse_RouteResponseId, &memberRouteResponse_RouteResponseKey}
-	memberRouteSettings_DataTraceEnabled.Target = &schema__boolean
-	memberRouteSettings_DetailedMetricsEnabled.Target = &schema__boolean
-	memberRouteSettings_LoggingLevel.Target = &schemaLoggingLevel
-	memberRouteSettings_ThrottlingBurstLimit.Target = &schema__integer
-	memberRouteSettings_ThrottlingRateLimit.Target = &schema__double
-	schemaRouteSettings.Members = []*smithy.Member{&memberRouteSettings_DataTraceEnabled, &memberRouteSettings_DetailedMetricsEnabled, &memberRouteSettings_LoggingLevel, &memberRouteSettings_ThrottlingBurstLimit, &memberRouteSettings_ThrottlingRateLimit}
-	memberRouteSettingsMap_key.Target = &schema__string
-	memberRouteSettingsMap_value.Target = &schemaRouteSettings
-	schemaRouteSettingsMap.Members = []*smithy.Member{&memberRouteSettingsMap_key, &memberRouteSettingsMap_value}
-	memberRoutingRule_Actions.Target = &schema__listOfRoutingRuleAction
-	memberRoutingRule_Conditions.Target = &schema__listOfRoutingRuleCondition
-	memberRoutingRule_Priority.Target = &schemaRoutingRulePriority
-	memberRoutingRule_RoutingRuleArn.Target = &schemaArn
-	memberRoutingRule_RoutingRuleId.Target = &schemaId
-	schemaRoutingRule.Members = []*smithy.Member{&memberRoutingRule_Actions, &memberRoutingRule_Conditions, &memberRoutingRule_Priority, &memberRoutingRule_RoutingRuleArn, &memberRoutingRule_RoutingRuleId}
-	memberRoutingRuleAction_InvokeApi.Target = &schemaRoutingRuleActionInvokeApi
-	schemaRoutingRuleAction.Members = []*smithy.Member{&memberRoutingRuleAction_InvokeApi}
-	memberRoutingRuleActionInvokeApi_ApiId.Target = &schemaId
-	memberRoutingRuleActionInvokeApi_Stage.Target = &schemaStringWithLengthBetween1And128
-	memberRoutingRuleActionInvokeApi_StripBasePath.Target = &schema__boolean
-	schemaRoutingRuleActionInvokeApi.Members = []*smithy.Member{&memberRoutingRuleActionInvokeApi_ApiId, &memberRoutingRuleActionInvokeApi_Stage, &memberRoutingRuleActionInvokeApi_StripBasePath}
-	memberRoutingRuleCondition_MatchBasePaths.Target = &schemaRoutingRuleMatchBasePaths
-	memberRoutingRuleCondition_MatchHeaders.Target = &schemaRoutingRuleMatchHeaders
-	schemaRoutingRuleCondition.Members = []*smithy.Member{&memberRoutingRuleCondition_MatchBasePaths, &memberRoutingRuleCondition_MatchHeaders}
-	memberRoutingRuleMatchBasePaths_AnyOf.Target = &schema__listOfSelectionKey
-	schemaRoutingRuleMatchBasePaths.Members = []*smithy.Member{&memberRoutingRuleMatchBasePaths_AnyOf}
-	memberRoutingRuleMatchHeaderValue_Header.Target = &schemaSelectionKey
-	memberRoutingRuleMatchHeaderValue_ValueGlob.Target = &schemaSelectionExpression
-	schemaRoutingRuleMatchHeaderValue.Members = []*smithy.Member{&memberRoutingRuleMatchHeaderValue_Header, &memberRoutingRuleMatchHeaderValue_ValueGlob}
-	memberRoutingRuleMatchHeaders_AnyOf.Target = &schema__listOfRoutingRuleMatchHeaderValue
-	schemaRoutingRuleMatchHeaders.Members = []*smithy.Member{&memberRoutingRuleMatchHeaders_AnyOf}
-	memberSection_ProductRestEndpointPageArns.Target = &schema__listOf__stringMin20Max2048
-	memberSection_SectionName.Target = &schema__string
-	schemaSection.Members = []*smithy.Member{&memberSection_ProductRestEndpointPageArns, &memberSection_SectionName}
-	memberSecurityGroupIdList_member.Target = &schema__string
-	schemaSecurityGroupIdList.Members = []*smithy.Member{&memberSecurityGroupIdList_member}
-	memberSerializationException_Message.Target = &schemaSmithyString
-	schemaSerializationException.Members = []*smithy.Member{&memberSerializationException_Message}
-	memberStage_AccessLogSettings.Target = &schemaAccessLogSettings
-	memberStage_ApiGatewayManaged.Target = &schema__boolean
-	memberStage_AutoDeploy.Target = &schema__boolean
-	memberStage_ClientCertificateId.Target = &schemaId
-	memberStage_CreatedDate.Target = &schema__timestampIso8601
-	memberStage_DefaultRouteSettings.Target = &schemaRouteSettings
-	memberStage_DeploymentId.Target = &schemaId
-	memberStage_Description.Target = &schemaStringWithLengthBetween0And1024
-	memberStage_LastDeploymentStatusMessage.Target = &schema__string
-	memberStage_LastUpdatedDate.Target = &schema__timestampIso8601
-	memberStage_RouteSettings.Target = &schemaRouteSettingsMap
-	memberStage_StageName.Target = &schemaStringWithLengthBetween1And128
-	memberStage_StageVariables.Target = &schemaStageVariablesMap
-	memberStage_Tags.Target = &schemaTags
-	schemaStage.Members = []*smithy.Member{&memberStage_AccessLogSettings, &memberStage_ApiGatewayManaged, &memberStage_AutoDeploy, &memberStage_ClientCertificateId, &memberStage_CreatedDate, &memberStage_DefaultRouteSettings, &memberStage_DeploymentId, &memberStage_Description, &memberStage_LastDeploymentStatusMessage, &memberStage_LastUpdatedDate, &memberStage_RouteSettings, &memberStage_StageName, &memberStage_StageVariables, &memberStage_Tags}
-	memberStageVariablesMap_key.Target = &schema__string
-	memberStageVariablesMap_value.Target = &schemaStringWithLengthBetween0And2048
-	schemaStageVariablesMap.Members = []*smithy.Member{&memberStageVariablesMap_key, &memberStageVariablesMap_value}
-	memberStatusException_Exception.Target = &schema__stringMin1Max256
-	memberStatusException_Message.Target = &schema__stringMin1Max2048
-	schemaStatusException.Members = []*smithy.Member{&memberStatusException_Exception, &memberStatusException_Message}
-	memberSubnetIdList_member.Target = &schema__string
-	schemaSubnetIdList.Members = []*smithy.Member{&memberSubnetIdList_member}
-	memberTagResourceInput_ResourceArn.Target = &schema__string
-	memberTagResourceInput_Tags.Target = &schemaTags
-	schemaTagResourceInput.Members = []*smithy.Member{&memberTagResourceInput_ResourceArn, &memberTagResourceInput_Tags}
-	memberTags_key.Target = &schema__string
-	memberTags_value.Target = &schemaStringWithLengthBetween1And1600
-	schemaTags.Members = []*smithy.Member{&memberTags_key, &memberTags_value}
-	memberTemplateMap_key.Target = &schema__string
-	memberTemplateMap_value.Target = &schemaStringWithLengthBetween0And32K
-	schemaTemplateMap.Members = []*smithy.Member{&memberTemplateMap_key, &memberTemplateMap_value}
-	memberThrottlingException_message.Target = &schemaSmithyString
-	schemaThrottlingException.Members = []*smithy.Member{&memberThrottlingException_message}
-	memberTlsConfig_ServerNameToVerify.Target = &schemaStringWithLengthBetween1And512
-	schemaTlsConfig.Members = []*smithy.Member{&memberTlsConfig_ServerNameToVerify}
-	memberTlsConfigInput_ServerNameToVerify.Target = &schemaStringWithLengthBetween1And512
-	schemaTlsConfigInput.Members = []*smithy.Member{&memberTlsConfigInput_ServerNameToVerify}
-	memberTooManyRequestsException_LimitType.Target = &schema__string
-	memberTooManyRequestsException_Message.Target = &schema__string
-	schemaTooManyRequestsException.Members = []*smithy.Member{&memberTooManyRequestsException_LimitType, &memberTooManyRequestsException_Message}
-	memberUnknownOperationException_message.Target = &schemaSmithyString
-	schemaUnknownOperationException.Members = []*smithy.Member{&memberUnknownOperationException_message}
-	memberUnrecognizedClientException_message.Target = &schemaSmithyString
-	schemaUnrecognizedClientException.Members = []*smithy.Member{&memberUnrecognizedClientException_message}
-	memberUntagResourceInput_ResourceArn.Target = &schema__string
-	memberUntagResourceInput_TagKeys.Target = &schema__listOf__string
-	schemaUntagResourceInput.Members = []*smithy.Member{&memberUntagResourceInput_ResourceArn, &memberUntagResourceInput_TagKeys}
-	memberUpdateApiInput_ApiId.Target = &schema__string
-	memberUpdateApiInput_ApiKeySelectionExpression.Target = &schemaSelectionExpression
-	memberUpdateApiInput_CorsConfiguration.Target = &schemaCors
-	memberUpdateApiInput_CredentialsArn.Target = &schemaArn
-	memberUpdateApiInput_Description.Target = &schemaStringWithLengthBetween0And1024
-	memberUpdateApiInput_DisableSchemaValidation.Target = &schema__boolean
-	memberUpdateApiInput_DisableExecuteApiEndpoint.Target = &schema__boolean
-	memberUpdateApiInput_IpAddressType.Target = &schemaIpAddressType
-	memberUpdateApiInput_Name.Target = &schemaStringWithLengthBetween1And128
-	memberUpdateApiInput_RouteKey.Target = &schemaSelectionKey
-	memberUpdateApiInput_RouteSelectionExpression.Target = &schemaSelectionExpression
-	memberUpdateApiInput_Target.Target = &schemaUriWithLengthBetween1And2048
-	memberUpdateApiInput_Version.Target = &schemaStringWithLengthBetween1And64
-	schemaUpdateApiInput.Members = []*smithy.Member{&memberUpdateApiInput_ApiId, &memberUpdateApiInput_ApiKeySelectionExpression, &memberUpdateApiInput_CorsConfiguration, &memberUpdateApiInput_CredentialsArn, &memberUpdateApiInput_Description, &memberUpdateApiInput_DisableSchemaValidation, &memberUpdateApiInput_DisableExecuteApiEndpoint, &memberUpdateApiInput_IpAddressType, &memberUpdateApiInput_Name, &memberUpdateApiInput_RouteKey, &memberUpdateApiInput_RouteSelectionExpression, &memberUpdateApiInput_Target, &memberUpdateApiInput_Version}
-	memberUpdateApiMappingInput_ApiId.Target = &schemaId
-	memberUpdateApiMappingInput_ApiMappingId.Target = &schema__string
-	memberUpdateApiMappingInput_ApiMappingKey.Target = &schemaSelectionKey
-	memberUpdateApiMappingInput_DomainName.Target = &schema__string
-	memberUpdateApiMappingInput_Stage.Target = &schemaStringWithLengthBetween1And128
-	schemaUpdateApiMappingInput.Members = []*smithy.Member{&memberUpdateApiMappingInput_ApiId, &memberUpdateApiMappingInput_ApiMappingId, &memberUpdateApiMappingInput_ApiMappingKey, &memberUpdateApiMappingInput_DomainName, &memberUpdateApiMappingInput_Stage}
-	memberUpdateApiMappingOutput_ApiId.Target = &schemaId
-	memberUpdateApiMappingOutput_ApiMappingId.Target = &schemaId
-	memberUpdateApiMappingOutput_ApiMappingKey.Target = &schemaSelectionKey
-	memberUpdateApiMappingOutput_Stage.Target = &schemaStringWithLengthBetween1And128
-	schemaUpdateApiMappingOutput.Members = []*smithy.Member{&memberUpdateApiMappingOutput_ApiId, &memberUpdateApiMappingOutput_ApiMappingId, &memberUpdateApiMappingOutput_ApiMappingKey, &memberUpdateApiMappingOutput_Stage}
-	memberUpdateApiOutput_ApiEndpoint.Target = &schema__string
-	memberUpdateApiOutput_ApiGatewayManaged.Target = &schema__boolean
-	memberUpdateApiOutput_ApiId.Target = &schemaId
-	memberUpdateApiOutput_ApiKeySelectionExpression.Target = &schemaSelectionExpression
-	memberUpdateApiOutput_CorsConfiguration.Target = &schemaCors
-	memberUpdateApiOutput_CreatedDate.Target = &schema__timestampIso8601
-	memberUpdateApiOutput_Description.Target = &schemaStringWithLengthBetween0And1024
-	memberUpdateApiOutput_DisableSchemaValidation.Target = &schema__boolean
-	memberUpdateApiOutput_DisableExecuteApiEndpoint.Target = &schema__boolean
-	memberUpdateApiOutput_ImportInfo.Target = &schema__listOf__string
-	memberUpdateApiOutput_IpAddressType.Target = &schemaIpAddressType
-	memberUpdateApiOutput_Name.Target = &schemaStringWithLengthBetween1And128
-	memberUpdateApiOutput_ProtocolType.Target = &schemaProtocolType
-	memberUpdateApiOutput_RouteSelectionExpression.Target = &schemaSelectionExpression
-	memberUpdateApiOutput_Tags.Target = &schemaTags
-	memberUpdateApiOutput_Version.Target = &schemaStringWithLengthBetween1And64
-	memberUpdateApiOutput_Warnings.Target = &schema__listOf__string
-	schemaUpdateApiOutput.Members = []*smithy.Member{&memberUpdateApiOutput_ApiEndpoint, &memberUpdateApiOutput_ApiGatewayManaged, &memberUpdateApiOutput_ApiId, &memberUpdateApiOutput_ApiKeySelectionExpression, &memberUpdateApiOutput_CorsConfiguration, &memberUpdateApiOutput_CreatedDate, &memberUpdateApiOutput_Description, &memberUpdateApiOutput_DisableSchemaValidation, &memberUpdateApiOutput_DisableExecuteApiEndpoint, &memberUpdateApiOutput_ImportInfo, &memberUpdateApiOutput_IpAddressType, &memberUpdateApiOutput_Name, &memberUpdateApiOutput_ProtocolType, &memberUpdateApiOutput_RouteSelectionExpression, &memberUpdateApiOutput_Tags, &memberUpdateApiOutput_Version, &memberUpdateApiOutput_Warnings}
-	memberUpdateAuthorizerInput_ApiId.Target = &schema__string
-	memberUpdateAuthorizerInput_AuthorizerCredentialsArn.Target = &schemaArn
-	memberUpdateAuthorizerInput_AuthorizerId.Target = &schema__string
-	memberUpdateAuthorizerInput_AuthorizerPayloadFormatVersion.Target = &schemaStringWithLengthBetween1And64
-	memberUpdateAuthorizerInput_AuthorizerResultTtlInSeconds.Target = &schemaIntegerWithLengthBetween0And3600
-	memberUpdateAuthorizerInput_AuthorizerType.Target = &schemaAuthorizerType
-	memberUpdateAuthorizerInput_AuthorizerUri.Target = &schemaUriWithLengthBetween1And2048
-	memberUpdateAuthorizerInput_EnableSimpleResponses.Target = &schema__boolean
-	memberUpdateAuthorizerInput_IdentitySource.Target = &schemaIdentitySourceList
-	memberUpdateAuthorizerInput_IdentityValidationExpression.Target = &schemaStringWithLengthBetween0And1024
-	memberUpdateAuthorizerInput_JwtConfiguration.Target = &schemaJWTConfiguration
-	memberUpdateAuthorizerInput_Name.Target = &schemaStringWithLengthBetween1And128
-	schemaUpdateAuthorizerInput.Members = []*smithy.Member{&memberUpdateAuthorizerInput_ApiId, &memberUpdateAuthorizerInput_AuthorizerCredentialsArn, &memberUpdateAuthorizerInput_AuthorizerId, &memberUpdateAuthorizerInput_AuthorizerPayloadFormatVersion, &memberUpdateAuthorizerInput_AuthorizerResultTtlInSeconds, &memberUpdateAuthorizerInput_AuthorizerType, &memberUpdateAuthorizerInput_AuthorizerUri, &memberUpdateAuthorizerInput_EnableSimpleResponses, &memberUpdateAuthorizerInput_IdentitySource, &memberUpdateAuthorizerInput_IdentityValidationExpression, &memberUpdateAuthorizerInput_JwtConfiguration, &memberUpdateAuthorizerInput_Name}
-	memberUpdateAuthorizerOutput_AuthorizerCredentialsArn.Target = &schemaArn
-	memberUpdateAuthorizerOutput_AuthorizerId.Target = &schemaId
-	memberUpdateAuthorizerOutput_AuthorizerPayloadFormatVersion.Target = &schemaStringWithLengthBetween1And64
-	memberUpdateAuthorizerOutput_AuthorizerResultTtlInSeconds.Target = &schemaIntegerWithLengthBetween0And3600
-	memberUpdateAuthorizerOutput_AuthorizerType.Target = &schemaAuthorizerType
-	memberUpdateAuthorizerOutput_AuthorizerUri.Target = &schemaUriWithLengthBetween1And2048
-	memberUpdateAuthorizerOutput_EnableSimpleResponses.Target = &schema__boolean
-	memberUpdateAuthorizerOutput_IdentitySource.Target = &schemaIdentitySourceList
-	memberUpdateAuthorizerOutput_IdentityValidationExpression.Target = &schemaStringWithLengthBetween0And1024
-	memberUpdateAuthorizerOutput_JwtConfiguration.Target = &schemaJWTConfiguration
-	memberUpdateAuthorizerOutput_Name.Target = &schemaStringWithLengthBetween1And128
-	schemaUpdateAuthorizerOutput.Members = []*smithy.Member{&memberUpdateAuthorizerOutput_AuthorizerCredentialsArn, &memberUpdateAuthorizerOutput_AuthorizerId, &memberUpdateAuthorizerOutput_AuthorizerPayloadFormatVersion, &memberUpdateAuthorizerOutput_AuthorizerResultTtlInSeconds, &memberUpdateAuthorizerOutput_AuthorizerType, &memberUpdateAuthorizerOutput_AuthorizerUri, &memberUpdateAuthorizerOutput_EnableSimpleResponses, &memberUpdateAuthorizerOutput_IdentitySource, &memberUpdateAuthorizerOutput_IdentityValidationExpression, &memberUpdateAuthorizerOutput_JwtConfiguration, &memberUpdateAuthorizerOutput_Name}
-	memberUpdateDeploymentInput_ApiId.Target = &schema__string
-	memberUpdateDeploymentInput_DeploymentId.Target = &schema__string
-	memberUpdateDeploymentInput_Description.Target = &schemaStringWithLengthBetween0And1024
-	schemaUpdateDeploymentInput.Members = []*smithy.Member{&memberUpdateDeploymentInput_ApiId, &memberUpdateDeploymentInput_DeploymentId, &memberUpdateDeploymentInput_Description}
-	memberUpdateDeploymentOutput_AutoDeployed.Target = &schema__boolean
-	memberUpdateDeploymentOutput_CreatedDate.Target = &schema__timestampIso8601
-	memberUpdateDeploymentOutput_DeploymentId.Target = &schemaId
-	memberUpdateDeploymentOutput_DeploymentStatus.Target = &schemaDeploymentStatus
-	memberUpdateDeploymentOutput_DeploymentStatusMessage.Target = &schema__string
-	memberUpdateDeploymentOutput_Description.Target = &schemaStringWithLengthBetween0And1024
-	schemaUpdateDeploymentOutput.Members = []*smithy.Member{&memberUpdateDeploymentOutput_AutoDeployed, &memberUpdateDeploymentOutput_CreatedDate, &memberUpdateDeploymentOutput_DeploymentId, &memberUpdateDeploymentOutput_DeploymentStatus, &memberUpdateDeploymentOutput_DeploymentStatusMessage, &memberUpdateDeploymentOutput_Description}
-	memberUpdateDomainNameInput_DomainName.Target = &schema__string
-	memberUpdateDomainNameInput_DomainNameConfigurations.Target = &schemaDomainNameConfigurations
-	memberUpdateDomainNameInput_MutualTlsAuthentication.Target = &schemaMutualTlsAuthenticationInput
-	memberUpdateDomainNameInput_RoutingMode.Target = &schemaRoutingMode
-	schemaUpdateDomainNameInput.Members = []*smithy.Member{&memberUpdateDomainNameInput_DomainName, &memberUpdateDomainNameInput_DomainNameConfigurations, &memberUpdateDomainNameInput_MutualTlsAuthentication, &memberUpdateDomainNameInput_RoutingMode}
-	memberUpdateDomainNameOutput_ApiMappingSelectionExpression.Target = &schemaSelectionExpression
-	memberUpdateDomainNameOutput_DomainName.Target = &schemaStringWithLengthBetween1And512
-	memberUpdateDomainNameOutput_DomainNameArn.Target = &schemaArn
-	memberUpdateDomainNameOutput_DomainNameConfigurations.Target = &schemaDomainNameConfigurations
-	memberUpdateDomainNameOutput_MutualTlsAuthentication.Target = &schemaMutualTlsAuthentication
-	memberUpdateDomainNameOutput_RoutingMode.Target = &schemaRoutingMode
-	memberUpdateDomainNameOutput_Tags.Target = &schemaTags
-	schemaUpdateDomainNameOutput.Members = []*smithy.Member{&memberUpdateDomainNameOutput_ApiMappingSelectionExpression, &memberUpdateDomainNameOutput_DomainName, &memberUpdateDomainNameOutput_DomainNameArn, &memberUpdateDomainNameOutput_DomainNameConfigurations, &memberUpdateDomainNameOutput_MutualTlsAuthentication, &memberUpdateDomainNameOutput_RoutingMode, &memberUpdateDomainNameOutput_Tags}
-	memberUpdateIntegrationInput_ApiId.Target = &schema__string
-	memberUpdateIntegrationInput_ConnectionId.Target = &schemaStringWithLengthBetween1And1024
-	memberUpdateIntegrationInput_ConnectionType.Target = &schemaConnectionType
-	memberUpdateIntegrationInput_ContentHandlingStrategy.Target = &schemaContentHandlingStrategy
-	memberUpdateIntegrationInput_CredentialsArn.Target = &schemaArn
-	memberUpdateIntegrationInput_Description.Target = &schemaStringWithLengthBetween0And1024
-	memberUpdateIntegrationInput_IntegrationId.Target = &schema__string
-	memberUpdateIntegrationInput_IntegrationMethod.Target = &schemaStringWithLengthBetween1And64
-	memberUpdateIntegrationInput_IntegrationSubtype.Target = &schemaStringWithLengthBetween1And128
-	memberUpdateIntegrationInput_IntegrationType.Target = &schemaIntegrationType
-	memberUpdateIntegrationInput_IntegrationUri.Target = &schemaUriWithLengthBetween1And2048
-	memberUpdateIntegrationInput_PassthroughBehavior.Target = &schemaPassthroughBehavior
-	memberUpdateIntegrationInput_PayloadFormatVersion.Target = &schemaStringWithLengthBetween1And64
-	memberUpdateIntegrationInput_RequestParameters.Target = &schemaIntegrationParameters
-	memberUpdateIntegrationInput_RequestTemplates.Target = &schemaTemplateMap
-	memberUpdateIntegrationInput_ResponseParameters.Target = &schemaResponseParameters
-	memberUpdateIntegrationInput_TemplateSelectionExpression.Target = &schemaSelectionExpression
-	memberUpdateIntegrationInput_TimeoutInMillis.Target = &schemaIntegerWithLengthBetween50And30000
-	memberUpdateIntegrationInput_TlsConfig.Target = &schemaTlsConfigInput
-	schemaUpdateIntegrationInput.Members = []*smithy.Member{&memberUpdateIntegrationInput_ApiId, &memberUpdateIntegrationInput_ConnectionId, &memberUpdateIntegrationInput_ConnectionType, &memberUpdateIntegrationInput_ContentHandlingStrategy, &memberUpdateIntegrationInput_CredentialsArn, &memberUpdateIntegrationInput_Description, &memberUpdateIntegrationInput_IntegrationId, &memberUpdateIntegrationInput_IntegrationMethod, &memberUpdateIntegrationInput_IntegrationSubtype, &memberUpdateIntegrationInput_IntegrationType, &memberUpdateIntegrationInput_IntegrationUri, &memberUpdateIntegrationInput_PassthroughBehavior, &memberUpdateIntegrationInput_PayloadFormatVersion, &memberUpdateIntegrationInput_RequestParameters, &memberUpdateIntegrationInput_RequestTemplates, &memberUpdateIntegrationInput_ResponseParameters, &memberUpdateIntegrationInput_TemplateSelectionExpression, &memberUpdateIntegrationInput_TimeoutInMillis, &memberUpdateIntegrationInput_TlsConfig}
-	memberUpdateIntegrationOutput_ApiGatewayManaged.Target = &schema__boolean
-	memberUpdateIntegrationOutput_ConnectionId.Target = &schemaStringWithLengthBetween1And1024
-	memberUpdateIntegrationOutput_ConnectionType.Target = &schemaConnectionType
-	memberUpdateIntegrationOutput_ContentHandlingStrategy.Target = &schemaContentHandlingStrategy
-	memberUpdateIntegrationOutput_CredentialsArn.Target = &schemaArn
-	memberUpdateIntegrationOutput_Description.Target = &schemaStringWithLengthBetween0And1024
-	memberUpdateIntegrationOutput_IntegrationId.Target = &schemaId
-	memberUpdateIntegrationOutput_IntegrationMethod.Target = &schemaStringWithLengthBetween1And64
-	memberUpdateIntegrationOutput_IntegrationResponseSelectionExpression.Target = &schemaSelectionExpression
-	memberUpdateIntegrationOutput_IntegrationSubtype.Target = &schemaStringWithLengthBetween1And128
-	memberUpdateIntegrationOutput_IntegrationType.Target = &schemaIntegrationType
-	memberUpdateIntegrationOutput_IntegrationUri.Target = &schemaUriWithLengthBetween1And2048
-	memberUpdateIntegrationOutput_PassthroughBehavior.Target = &schemaPassthroughBehavior
-	memberUpdateIntegrationOutput_PayloadFormatVersion.Target = &schemaStringWithLengthBetween1And64
-	memberUpdateIntegrationOutput_RequestParameters.Target = &schemaIntegrationParameters
-	memberUpdateIntegrationOutput_RequestTemplates.Target = &schemaTemplateMap
-	memberUpdateIntegrationOutput_ResponseParameters.Target = &schemaResponseParameters
-	memberUpdateIntegrationOutput_TemplateSelectionExpression.Target = &schemaSelectionExpression
-	memberUpdateIntegrationOutput_TimeoutInMillis.Target = &schemaIntegerWithLengthBetween50And30000
-	memberUpdateIntegrationOutput_TlsConfig.Target = &schemaTlsConfig
-	schemaUpdateIntegrationOutput.Members = []*smithy.Member{&memberUpdateIntegrationOutput_ApiGatewayManaged, &memberUpdateIntegrationOutput_ConnectionId, &memberUpdateIntegrationOutput_ConnectionType, &memberUpdateIntegrationOutput_ContentHandlingStrategy, &memberUpdateIntegrationOutput_CredentialsArn, &memberUpdateIntegrationOutput_Description, &memberUpdateIntegrationOutput_IntegrationId, &memberUpdateIntegrationOutput_IntegrationMethod, &memberUpdateIntegrationOutput_IntegrationResponseSelectionExpression, &memberUpdateIntegrationOutput_IntegrationSubtype, &memberUpdateIntegrationOutput_IntegrationType, &memberUpdateIntegrationOutput_IntegrationUri, &memberUpdateIntegrationOutput_PassthroughBehavior, &memberUpdateIntegrationOutput_PayloadFormatVersion, &memberUpdateIntegrationOutput_RequestParameters, &memberUpdateIntegrationOutput_RequestTemplates, &memberUpdateIntegrationOutput_ResponseParameters, &memberUpdateIntegrationOutput_TemplateSelectionExpression, &memberUpdateIntegrationOutput_TimeoutInMillis, &memberUpdateIntegrationOutput_TlsConfig}
-	memberUpdateIntegrationResponseInput_ApiId.Target = &schema__string
-	memberUpdateIntegrationResponseInput_ContentHandlingStrategy.Target = &schemaContentHandlingStrategy
-	memberUpdateIntegrationResponseInput_IntegrationId.Target = &schema__string
-	memberUpdateIntegrationResponseInput_IntegrationResponseId.Target = &schema__string
-	memberUpdateIntegrationResponseInput_IntegrationResponseKey.Target = &schemaSelectionKey
-	memberUpdateIntegrationResponseInput_ResponseParameters.Target = &schemaIntegrationParameters
-	memberUpdateIntegrationResponseInput_ResponseTemplates.Target = &schemaTemplateMap
-	memberUpdateIntegrationResponseInput_TemplateSelectionExpression.Target = &schemaSelectionExpression
-	schemaUpdateIntegrationResponseInput.Members = []*smithy.Member{&memberUpdateIntegrationResponseInput_ApiId, &memberUpdateIntegrationResponseInput_ContentHandlingStrategy, &memberUpdateIntegrationResponseInput_IntegrationId, &memberUpdateIntegrationResponseInput_IntegrationResponseId, &memberUpdateIntegrationResponseInput_IntegrationResponseKey, &memberUpdateIntegrationResponseInput_ResponseParameters, &memberUpdateIntegrationResponseInput_ResponseTemplates, &memberUpdateIntegrationResponseInput_TemplateSelectionExpression}
-	memberUpdateIntegrationResponseOutput_ContentHandlingStrategy.Target = &schemaContentHandlingStrategy
-	memberUpdateIntegrationResponseOutput_IntegrationResponseId.Target = &schemaId
-	memberUpdateIntegrationResponseOutput_IntegrationResponseKey.Target = &schemaSelectionKey
-	memberUpdateIntegrationResponseOutput_ResponseParameters.Target = &schemaIntegrationParameters
-	memberUpdateIntegrationResponseOutput_ResponseTemplates.Target = &schemaTemplateMap
-	memberUpdateIntegrationResponseOutput_TemplateSelectionExpression.Target = &schemaSelectionExpression
-	schemaUpdateIntegrationResponseOutput.Members = []*smithy.Member{&memberUpdateIntegrationResponseOutput_ContentHandlingStrategy, &memberUpdateIntegrationResponseOutput_IntegrationResponseId, &memberUpdateIntegrationResponseOutput_IntegrationResponseKey, &memberUpdateIntegrationResponseOutput_ResponseParameters, &memberUpdateIntegrationResponseOutput_ResponseTemplates, &memberUpdateIntegrationResponseOutput_TemplateSelectionExpression}
-	memberUpdateModelInput_ApiId.Target = &schema__string
-	memberUpdateModelInput_ContentType.Target = &schemaStringWithLengthBetween1And256
-	memberUpdateModelInput_Description.Target = &schemaStringWithLengthBetween0And1024
-	memberUpdateModelInput_ModelId.Target = &schema__string
-	memberUpdateModelInput_Name.Target = &schemaStringWithLengthBetween1And128
-	memberUpdateModelInput_Schema.Target = &schemaStringWithLengthBetween0And32K
-	schemaUpdateModelInput.Members = []*smithy.Member{&memberUpdateModelInput_ApiId, &memberUpdateModelInput_ContentType, &memberUpdateModelInput_Description, &memberUpdateModelInput_ModelId, &memberUpdateModelInput_Name, &memberUpdateModelInput_Schema}
-	memberUpdateModelOutput_ContentType.Target = &schemaStringWithLengthBetween1And256
-	memberUpdateModelOutput_Description.Target = &schemaStringWithLengthBetween0And1024
-	memberUpdateModelOutput_ModelId.Target = &schemaId
-	memberUpdateModelOutput_Name.Target = &schemaStringWithLengthBetween1And128
-	memberUpdateModelOutput_Schema.Target = &schemaStringWithLengthBetween0And32K
-	schemaUpdateModelOutput.Members = []*smithy.Member{&memberUpdateModelOutput_ContentType, &memberUpdateModelOutput_Description, &memberUpdateModelOutput_ModelId, &memberUpdateModelOutput_Name, &memberUpdateModelOutput_Schema}
-	memberUpdatePortalInput_Authorization.Target = &schemaAuthorization
-	memberUpdatePortalInput_EndpointConfiguration.Target = &schemaEndpointConfigurationRequest
-	memberUpdatePortalInput_IncludedPortalProductArns.Target = &schema__listOf__stringMin20Max2048
-	memberUpdatePortalInput_LogoUri.Target = &schema__stringMin0Max1092
-	memberUpdatePortalInput_PortalContent.Target = &schemaPortalContent
-	memberUpdatePortalInput_PortalId.Target = &schema__string
-	memberUpdatePortalInput_RumAppMonitorName.Target = &schema__stringMin0Max255
-	schemaUpdatePortalInput.Members = []*smithy.Member{&memberUpdatePortalInput_Authorization, &memberUpdatePortalInput_EndpointConfiguration, &memberUpdatePortalInput_IncludedPortalProductArns, &memberUpdatePortalInput_LogoUri, &memberUpdatePortalInput_PortalContent, &memberUpdatePortalInput_PortalId, &memberUpdatePortalInput_RumAppMonitorName}
-	memberUpdatePortalOutput_Authorization.Target = &schemaAuthorization
-	memberUpdatePortalOutput_EndpointConfiguration.Target = &schemaEndpointConfigurationResponse
-	memberUpdatePortalOutput_IncludedPortalProductArns.Target = &schema__listOf__stringMin20Max2048
-	memberUpdatePortalOutput_LastModified.Target = &schema__timestampIso8601
-	memberUpdatePortalOutput_LastPublished.Target = &schema__timestampIso8601
-	memberUpdatePortalOutput_LastPublishedDescription.Target = &schema__stringMin0Max1024
-	memberUpdatePortalOutput_PortalArn.Target = &schema__stringMin20Max2048
-	memberUpdatePortalOutput_PortalContent.Target = &schemaPortalContent
-	memberUpdatePortalOutput_PortalId.Target = &schema__stringMin10Max30PatternAZ09
-	memberUpdatePortalOutput_Preview.Target = &schemaPreview
-	memberUpdatePortalOutput_PublishStatus.Target = &schemaPublishStatus
-	memberUpdatePortalOutput_RumAppMonitorName.Target = &schema__stringMin0Max255
-	memberUpdatePortalOutput_StatusException.Target = &schemaStatusException
-	memberUpdatePortalOutput_Tags.Target = &schemaTags
-	schemaUpdatePortalOutput.Members = []*smithy.Member{&memberUpdatePortalOutput_Authorization, &memberUpdatePortalOutput_EndpointConfiguration, &memberUpdatePortalOutput_IncludedPortalProductArns, &memberUpdatePortalOutput_LastModified, &memberUpdatePortalOutput_LastPublished, &memberUpdatePortalOutput_LastPublishedDescription, &memberUpdatePortalOutput_PortalArn, &memberUpdatePortalOutput_PortalContent, &memberUpdatePortalOutput_PortalId, &memberUpdatePortalOutput_Preview, &memberUpdatePortalOutput_PublishStatus, &memberUpdatePortalOutput_RumAppMonitorName, &memberUpdatePortalOutput_StatusException, &memberUpdatePortalOutput_Tags}
-	memberUpdatePortalProductInput_Description.Target = &schema__stringMin0Max1024
-	memberUpdatePortalProductInput_DisplayName.Target = &schema__stringMin1Max255
-	memberUpdatePortalProductInput_DisplayOrder.Target = &schemaDisplayOrder
-	memberUpdatePortalProductInput_PortalProductId.Target = &schema__string
-	schemaUpdatePortalProductInput.Members = []*smithy.Member{&memberUpdatePortalProductInput_Description, &memberUpdatePortalProductInput_DisplayName, &memberUpdatePortalProductInput_DisplayOrder, &memberUpdatePortalProductInput_PortalProductId}
-	memberUpdatePortalProductOutput_Description.Target = &schema__stringMin0Max1024
-	memberUpdatePortalProductOutput_DisplayName.Target = &schema__stringMin1Max255
-	memberUpdatePortalProductOutput_DisplayOrder.Target = &schemaDisplayOrder
-	memberUpdatePortalProductOutput_LastModified.Target = &schema__timestampIso8601
-	memberUpdatePortalProductOutput_PortalProductArn.Target = &schema__stringMin20Max2048
-	memberUpdatePortalProductOutput_PortalProductId.Target = &schema__stringMin10Max30PatternAZ09
-	memberUpdatePortalProductOutput_Tags.Target = &schemaTags
-	schemaUpdatePortalProductOutput.Members = []*smithy.Member{&memberUpdatePortalProductOutput_Description, &memberUpdatePortalProductOutput_DisplayName, &memberUpdatePortalProductOutput_DisplayOrder, &memberUpdatePortalProductOutput_LastModified, &memberUpdatePortalProductOutput_PortalProductArn, &memberUpdatePortalProductOutput_PortalProductId, &memberUpdatePortalProductOutput_Tags}
-	memberUpdateProductPageInput_DisplayContent.Target = &schemaDisplayContent
-	memberUpdateProductPageInput_PortalProductId.Target = &schema__string
-	memberUpdateProductPageInput_ProductPageId.Target = &schema__string
-	schemaUpdateProductPageInput.Members = []*smithy.Member{&memberUpdateProductPageInput_DisplayContent, &memberUpdateProductPageInput_PortalProductId, &memberUpdateProductPageInput_ProductPageId}
-	memberUpdateProductPageOutput_DisplayContent.Target = &schemaDisplayContent
-	memberUpdateProductPageOutput_LastModified.Target = &schema__timestampIso8601
-	memberUpdateProductPageOutput_ProductPageArn.Target = &schema__stringMin20Max2048
-	memberUpdateProductPageOutput_ProductPageId.Target = &schema__stringMin10Max30PatternAZ09
-	schemaUpdateProductPageOutput.Members = []*smithy.Member{&memberUpdateProductPageOutput_DisplayContent, &memberUpdateProductPageOutput_LastModified, &memberUpdateProductPageOutput_ProductPageArn, &memberUpdateProductPageOutput_ProductPageId}
-	memberUpdateProductRestEndpointPageInput_DisplayContent.Target = &schemaEndpointDisplayContent
-	memberUpdateProductRestEndpointPageInput_PortalProductId.Target = &schema__string
-	memberUpdateProductRestEndpointPageInput_ProductRestEndpointPageId.Target = &schema__string
-	memberUpdateProductRestEndpointPageInput_TryItState.Target = &schemaTryItState
-	schemaUpdateProductRestEndpointPageInput.Members = []*smithy.Member{&memberUpdateProductRestEndpointPageInput_DisplayContent, &memberUpdateProductRestEndpointPageInput_PortalProductId, &memberUpdateProductRestEndpointPageInput_ProductRestEndpointPageId, &memberUpdateProductRestEndpointPageInput_TryItState}
-	memberUpdateProductRestEndpointPageOutput_DisplayContent.Target = &schemaEndpointDisplayContentResponse
-	memberUpdateProductRestEndpointPageOutput_LastModified.Target = &schema__timestampIso8601
-	memberUpdateProductRestEndpointPageOutput_ProductRestEndpointPageArn.Target = &schema__stringMin20Max2048
-	memberUpdateProductRestEndpointPageOutput_ProductRestEndpointPageId.Target = &schema__stringMin10Max30PatternAZ09
-	memberUpdateProductRestEndpointPageOutput_RestEndpointIdentifier.Target = &schemaRestEndpointIdentifier
-	memberUpdateProductRestEndpointPageOutput_Status.Target = &schemaStatus
-	memberUpdateProductRestEndpointPageOutput_StatusException.Target = &schemaStatusException
-	memberUpdateProductRestEndpointPageOutput_TryItState.Target = &schemaTryItState
-	schemaUpdateProductRestEndpointPageOutput.Members = []*smithy.Member{&memberUpdateProductRestEndpointPageOutput_DisplayContent, &memberUpdateProductRestEndpointPageOutput_LastModified, &memberUpdateProductRestEndpointPageOutput_ProductRestEndpointPageArn, &memberUpdateProductRestEndpointPageOutput_ProductRestEndpointPageId, &memberUpdateProductRestEndpointPageOutput_RestEndpointIdentifier, &memberUpdateProductRestEndpointPageOutput_Status, &memberUpdateProductRestEndpointPageOutput_StatusException, &memberUpdateProductRestEndpointPageOutput_TryItState}
-	memberUpdateRouteInput_ApiId.Target = &schema__string
-	memberUpdateRouteInput_ApiKeyRequired.Target = &schema__boolean
-	memberUpdateRouteInput_AuthorizationScopes.Target = &schemaAuthorizationScopes
-	memberUpdateRouteInput_AuthorizationType.Target = &schemaAuthorizationType
-	memberUpdateRouteInput_AuthorizerId.Target = &schemaId
-	memberUpdateRouteInput_ModelSelectionExpression.Target = &schemaSelectionExpression
-	memberUpdateRouteInput_OperationName.Target = &schemaStringWithLengthBetween1And64
-	memberUpdateRouteInput_RequestModels.Target = &schemaRouteModels
-	memberUpdateRouteInput_RequestParameters.Target = &schemaRouteParameters
-	memberUpdateRouteInput_RouteId.Target = &schema__string
-	memberUpdateRouteInput_RouteKey.Target = &schemaSelectionKey
-	memberUpdateRouteInput_RouteResponseSelectionExpression.Target = &schemaSelectionExpression
-	memberUpdateRouteInput_Target.Target = &schemaStringWithLengthBetween1And128
-	schemaUpdateRouteInput.Members = []*smithy.Member{&memberUpdateRouteInput_ApiId, &memberUpdateRouteInput_ApiKeyRequired, &memberUpdateRouteInput_AuthorizationScopes, &memberUpdateRouteInput_AuthorizationType, &memberUpdateRouteInput_AuthorizerId, &memberUpdateRouteInput_ModelSelectionExpression, &memberUpdateRouteInput_OperationName, &memberUpdateRouteInput_RequestModels, &memberUpdateRouteInput_RequestParameters, &memberUpdateRouteInput_RouteId, &memberUpdateRouteInput_RouteKey, &memberUpdateRouteInput_RouteResponseSelectionExpression, &memberUpdateRouteInput_Target}
-	memberUpdateRouteOutput_ApiGatewayManaged.Target = &schema__boolean
-	memberUpdateRouteOutput_ApiKeyRequired.Target = &schema__boolean
-	memberUpdateRouteOutput_AuthorizationScopes.Target = &schemaAuthorizationScopes
-	memberUpdateRouteOutput_AuthorizationType.Target = &schemaAuthorizationType
-	memberUpdateRouteOutput_AuthorizerId.Target = &schemaId
-	memberUpdateRouteOutput_ModelSelectionExpression.Target = &schemaSelectionExpression
-	memberUpdateRouteOutput_OperationName.Target = &schemaStringWithLengthBetween1And64
-	memberUpdateRouteOutput_RequestModels.Target = &schemaRouteModels
-	memberUpdateRouteOutput_RequestParameters.Target = &schemaRouteParameters
-	memberUpdateRouteOutput_RouteId.Target = &schemaId
-	memberUpdateRouteOutput_RouteKey.Target = &schemaSelectionKey
-	memberUpdateRouteOutput_RouteResponseSelectionExpression.Target = &schemaSelectionExpression
-	memberUpdateRouteOutput_Target.Target = &schemaStringWithLengthBetween1And128
-	schemaUpdateRouteOutput.Members = []*smithy.Member{&memberUpdateRouteOutput_ApiGatewayManaged, &memberUpdateRouteOutput_ApiKeyRequired, &memberUpdateRouteOutput_AuthorizationScopes, &memberUpdateRouteOutput_AuthorizationType, &memberUpdateRouteOutput_AuthorizerId, &memberUpdateRouteOutput_ModelSelectionExpression, &memberUpdateRouteOutput_OperationName, &memberUpdateRouteOutput_RequestModels, &memberUpdateRouteOutput_RequestParameters, &memberUpdateRouteOutput_RouteId, &memberUpdateRouteOutput_RouteKey, &memberUpdateRouteOutput_RouteResponseSelectionExpression, &memberUpdateRouteOutput_Target}
-	memberUpdateRouteResponseInput_ApiId.Target = &schema__string
-	memberUpdateRouteResponseInput_ModelSelectionExpression.Target = &schemaSelectionExpression
-	memberUpdateRouteResponseInput_ResponseModels.Target = &schemaRouteModels
-	memberUpdateRouteResponseInput_ResponseParameters.Target = &schemaRouteParameters
-	memberUpdateRouteResponseInput_RouteId.Target = &schema__string
-	memberUpdateRouteResponseInput_RouteResponseId.Target = &schema__string
-	memberUpdateRouteResponseInput_RouteResponseKey.Target = &schemaSelectionKey
-	schemaUpdateRouteResponseInput.Members = []*smithy.Member{&memberUpdateRouteResponseInput_ApiId, &memberUpdateRouteResponseInput_ModelSelectionExpression, &memberUpdateRouteResponseInput_ResponseModels, &memberUpdateRouteResponseInput_ResponseParameters, &memberUpdateRouteResponseInput_RouteId, &memberUpdateRouteResponseInput_RouteResponseId, &memberUpdateRouteResponseInput_RouteResponseKey}
-	memberUpdateRouteResponseOutput_ModelSelectionExpression.Target = &schemaSelectionExpression
-	memberUpdateRouteResponseOutput_ResponseModels.Target = &schemaRouteModels
-	memberUpdateRouteResponseOutput_ResponseParameters.Target = &schemaRouteParameters
-	memberUpdateRouteResponseOutput_RouteResponseId.Target = &schemaId
-	memberUpdateRouteResponseOutput_RouteResponseKey.Target = &schemaSelectionKey
-	schemaUpdateRouteResponseOutput.Members = []*smithy.Member{&memberUpdateRouteResponseOutput_ModelSelectionExpression, &memberUpdateRouteResponseOutput_ResponseModels, &memberUpdateRouteResponseOutput_ResponseParameters, &memberUpdateRouteResponseOutput_RouteResponseId, &memberUpdateRouteResponseOutput_RouteResponseKey}
-	memberUpdateStageInput_AccessLogSettings.Target = &schemaAccessLogSettings
-	memberUpdateStageInput_ApiId.Target = &schema__string
-	memberUpdateStageInput_AutoDeploy.Target = &schema__boolean
-	memberUpdateStageInput_ClientCertificateId.Target = &schemaId
-	memberUpdateStageInput_DefaultRouteSettings.Target = &schemaRouteSettings
-	memberUpdateStageInput_DeploymentId.Target = &schemaId
-	memberUpdateStageInput_Description.Target = &schemaStringWithLengthBetween0And1024
-	memberUpdateStageInput_RouteSettings.Target = &schemaRouteSettingsMap
-	memberUpdateStageInput_StageName.Target = &schema__string
-	memberUpdateStageInput_StageVariables.Target = &schemaStageVariablesMap
-	schemaUpdateStageInput.Members = []*smithy.Member{&memberUpdateStageInput_AccessLogSettings, &memberUpdateStageInput_ApiId, &memberUpdateStageInput_AutoDeploy, &memberUpdateStageInput_ClientCertificateId, &memberUpdateStageInput_DefaultRouteSettings, &memberUpdateStageInput_DeploymentId, &memberUpdateStageInput_Description, &memberUpdateStageInput_RouteSettings, &memberUpdateStageInput_StageName, &memberUpdateStageInput_StageVariables}
-	memberUpdateStageOutput_AccessLogSettings.Target = &schemaAccessLogSettings
-	memberUpdateStageOutput_ApiGatewayManaged.Target = &schema__boolean
-	memberUpdateStageOutput_AutoDeploy.Target = &schema__boolean
-	memberUpdateStageOutput_ClientCertificateId.Target = &schemaId
-	memberUpdateStageOutput_CreatedDate.Target = &schema__timestampIso8601
-	memberUpdateStageOutput_DefaultRouteSettings.Target = &schemaRouteSettings
-	memberUpdateStageOutput_DeploymentId.Target = &schemaId
-	memberUpdateStageOutput_Description.Target = &schemaStringWithLengthBetween0And1024
-	memberUpdateStageOutput_LastDeploymentStatusMessage.Target = &schema__string
-	memberUpdateStageOutput_LastUpdatedDate.Target = &schema__timestampIso8601
-	memberUpdateStageOutput_RouteSettings.Target = &schemaRouteSettingsMap
-	memberUpdateStageOutput_StageName.Target = &schemaStringWithLengthBetween1And128
-	memberUpdateStageOutput_StageVariables.Target = &schemaStageVariablesMap
-	memberUpdateStageOutput_Tags.Target = &schemaTags
-	schemaUpdateStageOutput.Members = []*smithy.Member{&memberUpdateStageOutput_AccessLogSettings, &memberUpdateStageOutput_ApiGatewayManaged, &memberUpdateStageOutput_AutoDeploy, &memberUpdateStageOutput_ClientCertificateId, &memberUpdateStageOutput_CreatedDate, &memberUpdateStageOutput_DefaultRouteSettings, &memberUpdateStageOutput_DeploymentId, &memberUpdateStageOutput_Description, &memberUpdateStageOutput_LastDeploymentStatusMessage, &memberUpdateStageOutput_LastUpdatedDate, &memberUpdateStageOutput_RouteSettings, &memberUpdateStageOutput_StageName, &memberUpdateStageOutput_StageVariables, &memberUpdateStageOutput_Tags}
-	memberUpdateVpcLinkInput_Name.Target = &schemaStringWithLengthBetween1And128
-	memberUpdateVpcLinkInput_VpcLinkId.Target = &schema__string
-	schemaUpdateVpcLinkInput.Members = []*smithy.Member{&memberUpdateVpcLinkInput_Name, &memberUpdateVpcLinkInput_VpcLinkId}
-	memberUpdateVpcLinkOutput_CreatedDate.Target = &schema__timestampIso8601
-	memberUpdateVpcLinkOutput_Name.Target = &schemaStringWithLengthBetween1And128
-	memberUpdateVpcLinkOutput_SecurityGroupIds.Target = &schemaSecurityGroupIdList
-	memberUpdateVpcLinkOutput_SubnetIds.Target = &schemaSubnetIdList
-	memberUpdateVpcLinkOutput_Tags.Target = &schemaTags
-	memberUpdateVpcLinkOutput_VpcLinkId.Target = &schemaId
-	memberUpdateVpcLinkOutput_VpcLinkStatus.Target = &schemaVpcLinkStatus
-	memberUpdateVpcLinkOutput_VpcLinkStatusMessage.Target = &schemaStringWithLengthBetween0And1024
-	memberUpdateVpcLinkOutput_VpcLinkVersion.Target = &schemaVpcLinkVersion
-	schemaUpdateVpcLinkOutput.Members = []*smithy.Member{&memberUpdateVpcLinkOutput_CreatedDate, &memberUpdateVpcLinkOutput_Name, &memberUpdateVpcLinkOutput_SecurityGroupIds, &memberUpdateVpcLinkOutput_SubnetIds, &memberUpdateVpcLinkOutput_Tags, &memberUpdateVpcLinkOutput_VpcLinkId, &memberUpdateVpcLinkOutput_VpcLinkStatus, &memberUpdateVpcLinkOutput_VpcLinkStatusMessage, &memberUpdateVpcLinkOutput_VpcLinkVersion}
-	memberVpcLink_CreatedDate.Target = &schema__timestampIso8601
-	memberVpcLink_Name.Target = &schemaStringWithLengthBetween1And128
-	memberVpcLink_SecurityGroupIds.Target = &schemaSecurityGroupIdList
-	memberVpcLink_SubnetIds.Target = &schemaSubnetIdList
-	memberVpcLink_Tags.Target = &schemaTags
-	memberVpcLink_VpcLinkId.Target = &schemaId
-	memberVpcLink_VpcLinkStatus.Target = &schemaVpcLinkStatus
-	memberVpcLink_VpcLinkStatusMessage.Target = &schemaStringWithLengthBetween0And1024
-	memberVpcLink_VpcLinkVersion.Target = &schemaVpcLinkVersion
-	schemaVpcLink.Members = []*smithy.Member{&memberVpcLink_CreatedDate, &memberVpcLink_Name, &memberVpcLink_SecurityGroupIds, &memberVpcLink_SubnetIds, &memberVpcLink_Tags, &memberVpcLink_VpcLinkId, &memberVpcLink_VpcLinkStatus, &memberVpcLink_VpcLinkStatusMessage, &memberVpcLink_VpcLinkVersion}
-	member__listOfApi_member.Target = &schemaApi
-	schema__listOfApi.Members = []*smithy.Member{&member__listOfApi_member}
-	member__listOfApiMapping_member.Target = &schemaApiMapping
-	schema__listOfApiMapping.Members = []*smithy.Member{&member__listOfApiMapping_member}
-	member__listOfAuthorizer_member.Target = &schemaAuthorizer
-	schema__listOfAuthorizer.Members = []*smithy.Member{&member__listOfAuthorizer_member}
-	member__listOfDeployment_member.Target = &schemaDeployment
-	schema__listOfDeployment.Members = []*smithy.Member{&member__listOfDeployment_member}
-	member__listOfDomainName_member.Target = &schemaDomainName
-	schema__listOfDomainName.Members = []*smithy.Member{&member__listOfDomainName_member}
-	member__listOfIntegration_member.Target = &schemaIntegration
-	schema__listOfIntegration.Members = []*smithy.Member{&member__listOfIntegration_member}
-	member__listOfIntegrationResponse_member.Target = &schemaIntegrationResponse
-	schema__listOfIntegrationResponse.Members = []*smithy.Member{&member__listOfIntegrationResponse_member}
-	member__listOfModel_member.Target = &schemaModel
-	schema__listOfModel.Members = []*smithy.Member{&member__listOfModel_member}
-	member__listOfPortalProductSummary_member.Target = &schemaPortalProductSummary
-	schema__listOfPortalProductSummary.Members = []*smithy.Member{&member__listOfPortalProductSummary_member}
-	member__listOfPortalSummary_member.Target = &schemaPortalSummary
-	schema__listOfPortalSummary.Members = []*smithy.Member{&member__listOfPortalSummary_member}
-	member__listOfProductPageSummaryNoBody_member.Target = &schemaProductPageSummaryNoBody
-	schema__listOfProductPageSummaryNoBody.Members = []*smithy.Member{&member__listOfProductPageSummaryNoBody_member}
-	member__listOfProductRestEndpointPageSummaryNoBody_member.Target = &schemaProductRestEndpointPageSummaryNoBody
-	schema__listOfProductRestEndpointPageSummaryNoBody.Members = []*smithy.Member{&member__listOfProductRestEndpointPageSummaryNoBody_member}
-	member__listOfRoute_member.Target = &schemaRoute
-	schema__listOfRoute.Members = []*smithy.Member{&member__listOfRoute_member}
-	member__listOfRouteResponse_member.Target = &schemaRouteResponse
-	schema__listOfRouteResponse.Members = []*smithy.Member{&member__listOfRouteResponse_member}
-	member__listOfRoutingRule_member.Target = &schemaRoutingRule
-	schema__listOfRoutingRule.Members = []*smithy.Member{&member__listOfRoutingRule_member}
-	member__listOfRoutingRuleAction_member.Target = &schemaRoutingRuleAction
-	schema__listOfRoutingRuleAction.Members = []*smithy.Member{&member__listOfRoutingRuleAction_member}
-	member__listOfRoutingRuleCondition_member.Target = &schemaRoutingRuleCondition
-	schema__listOfRoutingRuleCondition.Members = []*smithy.Member{&member__listOfRoutingRuleCondition_member}
-	member__listOfRoutingRuleMatchHeaderValue_member.Target = &schemaRoutingRuleMatchHeaderValue
-	schema__listOfRoutingRuleMatchHeaderValue.Members = []*smithy.Member{&member__listOfRoutingRuleMatchHeaderValue_member}
-	member__listOfSection_member.Target = &schemaSection
-	schema__listOfSection.Members = []*smithy.Member{&member__listOfSection_member}
-	member__listOfSelectionKey_member.Target = &schemaSelectionKey
-	schema__listOfSelectionKey.Members = []*smithy.Member{&member__listOfSelectionKey_member}
-	member__listOfStage_member.Target = &schemaStage
-	schema__listOfStage.Members = []*smithy.Member{&member__listOfStage_member}
-	member__listOfVpcLink_member.Target = &schemaVpcLink
-	schema__listOfVpcLink.Members = []*smithy.Member{&member__listOfVpcLink_member}
-	member__listOf__string_member.Target = &schema__string
-	schema__listOf__string.Members = []*smithy.Member{&member__listOf__string_member}
-	member__listOf__stringMin20Max2048_member.Target = &schema__stringMin20Max2048
-	schema__listOf__stringMin20Max2048.Members = []*smithy.Member{&member__listOf__stringMin20Max2048_member}
-}

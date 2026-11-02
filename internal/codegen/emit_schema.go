@@ -13,31 +13,39 @@ import (
 )
 
 // emitSchema writes schema_gen.go: one immutable smithy.Schema per shape and
-// one smithy.Member per member, linked in init because shapes may refer to
-// each other in cycles a variable initializer cannot express.
+// one smithy.Member per member, linked statically: a member's Target and a
+// schema's Members are fields of the variables' literals, so the linker lays
+// the graph out as data rather than as init code. A recursive shape is the
+// exception: a variable initializer cannot reach its own variable, so its
+// Members are assigned in init.
 func emitSchema(ir *ServiceIR) ([]byte, error) {
 	f := newFile(ir, "schema_gen.go")
 	f.use("smithy")
+	shapes := slices.DeleteFunc(sortedShapes(ir), func(s *ShapeIR) bool { return s.Unit })
+	recursive := recursiveShapes(shapes)
 	var links []string
-	for _, s := range sortedShapes(ir) {
-		if s.Unit {
-			continue
-		}
-		f.p("var %s = smithy.Schema{%s}\n", s.SchemaVar, f.schemaFields(s))
-		if len(s.Members) == 0 {
-			continue
-		}
+	for _, s := range shapes {
 		vars := make([]string, len(s.Members))
 		for i, m := range s.Members {
+			vars[i] = "&" + m.Var
+		}
+		members := ""
+		if len(vars) > 0 {
+			members = "[]*smithy.Member{" + strings.Join(vars, ", ") + "}"
+		}
+		static := members
+		if recursive[s] {
+			links = append(links, s.SchemaVar+".Members = "+members)
+			static = ""
+		}
+		f.p("var %s = smithy.Schema{%s}\n", s.SchemaVar, f.schemaFields(s, static))
+		for _, m := range s.Members {
 			fields, err := f.memberFields(m)
 			if err != nil {
 				return nil, err
 			}
 			f.p("var %s = smithy.Member{%s}\n", m.Var, fields)
-			vars[i] = "&" + m.Var
-			links = append(links, fmt.Sprintf("%s.Target = &%s", m.Var, m.Target.SchemaVar))
 		}
-		links = append(links, fmt.Sprintf("%s.Members = []*smithy.Member{%s}", s.SchemaVar, strings.Join(vars, ", ")))
 	}
 	if len(links) > 0 {
 		f.p("func init() {")
@@ -49,8 +57,62 @@ func emitSchema(ir *ServiceIR) ([]byte, error) {
 	return f.bytes()
 }
 
-func (f *file) schemaFields(s *ShapeIR) string {
+// recursiveShapes reports the shapes on a cycle of the schema graph, whose
+// edges run from a shape to its members' targets: the shapes of a strongly
+// connected component (Tarjan) with more than one shape, and the shapes that
+// target themselves. Every cycle runs only through such shapes, so leaving
+// their Members out of the literals leaves no initialization cycle.
+func recursiveShapes(shapes []*ShapeIR) map[*ShapeIR]bool {
+	index := map[*ShapeIR]int{}
+	low := map[*ShapeIR]int{}
+	onStack := map[*ShapeIR]bool{}
+	var stack []*ShapeIR
+	out := map[*ShapeIR]bool{}
+	var visit func(s *ShapeIR)
+	visit = func(s *ShapeIR) {
+		index[s], low[s] = len(index), len(index)
+		stack = append(stack, s)
+		onStack[s] = true
+		for _, m := range s.Members {
+			t := m.Target
+			if t == s {
+				out[s] = true
+			}
+			if _, seen := index[t]; !seen {
+				visit(t)
+				low[s] = min(low[s], low[t])
+			} else if onStack[t] {
+				low[s] = min(low[s], index[t])
+			}
+		}
+		if low[s] != index[s] {
+			return
+		}
+		i := slices.Index(stack, s)
+		component := stack[i:]
+		stack = stack[:i]
+		for _, c := range component {
+			onStack[c] = false
+			if len(component) > 1 {
+				out[c] = true
+			}
+		}
+	}
+	for _, s := range shapes {
+		if _, seen := index[s]; !seen {
+			visit(s)
+		}
+	}
+	return out
+}
+
+// schemaFields is the literal of s's smithy.Schema; members is the literal
+// of its Members, empty to leave them out.
+func (f *file) schemaFields(s *ShapeIR, members string) string {
 	parts := []string{"ID: " + goString(string(s.ID)), "Type: smithy." + typeConst(s.Type)}
+	if members != "" {
+		parts = append(parts, "Members: "+members)
+	}
 	if s.XMLName != "" {
 		parts = append(parts, "XMLName: "+goString(s.XMLName))
 	}
@@ -87,7 +149,7 @@ func (f *file) schemaFields(s *ShapeIR) string {
 }
 
 func (f *file) memberFields(m *MemberIR) (string, error) {
-	parts := []string{"Name: " + goString(m.Name), fmt.Sprintf("Index: %d", m.Index)}
+	parts := []string{"Name: " + goString(m.Name), fmt.Sprintf("Index: %d", m.Index), "Target: &" + m.Target.SchemaVar}
 	if m.Required {
 		parts = append(parts, "Required: true")
 	}

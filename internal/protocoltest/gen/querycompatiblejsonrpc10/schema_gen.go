@@ -6,39 +6,26 @@ import (
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 )
 
-var schemaCustomCodeError = smithy.Schema{ID: "aws.protocoltests.json10#CustomCodeError", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
+var schemaCustomCodeError = smithy.Schema{ID: "aws.protocoltests.json10#CustomCodeError", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCustomCodeError_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
 
-var memberCustomCodeError_message = smithy.Member{Name: "message", Index: 0}
+var memberCustomCodeError_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaNoCustomCodeError = smithy.Schema{ID: "aws.protocoltests.json10#NoCustomCodeError", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
+var schemaNoCustomCodeError = smithy.Schema{ID: "aws.protocoltests.json10#NoCustomCodeError", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberNoCustomCodeError_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
 
-var memberNoCustomCodeError_message = smithy.Member{Name: "message", Index: 0}
+var memberNoCustomCodeError_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaSerializationException = smithy.Schema{ID: "com.amazon.coral.service#SerializationException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaSerializationException = smithy.Schema{ID: "com.amazon.coral.service#SerializationException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSerializationException_Message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberSerializationException_Message = smithy.Member{Name: "Message", Index: 0}
+var memberSerializationException_Message = smithy.Member{Name: "Message", Index: 0, Target: &schemaSmithyString}
 
 var schemaSmithyString = smithy.Schema{ID: "smithy.api#String", Type: smithy.TypeString}
 
 var schemaSmithyUnit = smithy.Schema{ID: "smithy.api#Unit", Type: smithy.TypeUnit}
 
-var schemaUnknownOperationException = smithy.Schema{ID: "com.amazon.coral.service#UnknownOperationException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaUnknownOperationException = smithy.Schema{ID: "com.amazon.coral.service#UnknownOperationException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUnknownOperationException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberUnknownOperationException_message = smithy.Member{Name: "message", Index: 0}
+var memberUnknownOperationException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaValidationException = smithy.Schema{ID: "com.amazon.coral.validate#ValidationException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaValidationException = smithy.Schema{ID: "com.amazon.coral.validate#ValidationException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberValidationException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberValidationException_message = smithy.Member{Name: "message", Index: 0}
-
-func init() {
-	memberCustomCodeError_message.Target = &schemaSmithyString
-	schemaCustomCodeError.Members = []*smithy.Member{&memberCustomCodeError_message}
-	memberNoCustomCodeError_message.Target = &schemaSmithyString
-	schemaNoCustomCodeError.Members = []*smithy.Member{&memberNoCustomCodeError_message}
-	memberSerializationException_Message.Target = &schemaSmithyString
-	schemaSerializationException.Members = []*smithy.Member{&memberSerializationException_Message}
-	memberUnknownOperationException_message.Target = &schemaSmithyString
-	schemaUnknownOperationException.Members = []*smithy.Member{&memberUnknownOperationException_message}
-	memberValidationException_message.Target = &schemaSmithyString
-	schemaValidationException.Members = []*smithy.Member{&memberValidationException_message}
-}
+var memberValidationException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}

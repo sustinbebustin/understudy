@@ -15,13 +15,13 @@ var schemaBoolean = smithy.Schema{ID: "com.example.golden#Boolean", Type: smithy
 
 var schemaByte = smithy.Schema{ID: "com.example.golden#Byte", Type: smithy.TypeByte}
 
-var schemaChoice = smithy.Schema{ID: "com.example.golden#Choice", Type: smithy.TypeUnion}
+var schemaChoice = smithy.Schema{ID: "com.example.golden#Choice", Type: smithy.TypeUnion, Members: []*smithy.Member{&memberChoice_Text, &memberChoice_Number, &memberChoice_Empty}}
 
-var memberChoice_Text = smithy.Member{Name: "Text", Index: 0}
+var memberChoice_Text = smithy.Member{Name: "Text", Index: 0, Target: &schemaString}
 
-var memberChoice_Number = smithy.Member{Name: "Number", Index: 1}
+var memberChoice_Number = smithy.Member{Name: "Number", Index: 1, Target: &schemaInteger}
 
-var memberChoice_Empty = smithy.Member{Name: "Empty", Index: 2}
+var memberChoice_Empty = smithy.Member{Name: "Empty", Index: 2, Target: &schemaSmithyUnit}
 
 var schemaCode = smithy.Schema{ID: "com.example.golden#Code", Type: smithy.TypeString}
 
@@ -37,135 +37,135 @@ var schemaDouble = smithy.Schema{ID: "com.example.golden#Double", Type: smithy.T
 
 var schemaFloat = smithy.Schema{ID: "com.example.golden#Float", Type: smithy.TypeFloat}
 
-var schemaGetThingInput = smithy.Schema{ID: "com.example.golden#GetThingRequest", Type: smithy.TypeStructure}
+var schemaGetThingInput = smithy.Schema{ID: "com.example.golden#GetThingRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetThingInput_ThingId}}
 
-var memberGetThingInput_ThingId = smithy.Member{Name: "ThingId", Index: 0, Required: true}
+var memberGetThingInput_ThingId = smithy.Member{Name: "ThingId", Index: 0, Target: &schemaString, Required: true}
 
-var schemaGetThingOutput = smithy.Schema{ID: "com.example.golden#GetThingResponse", Type: smithy.TypeStructure}
+var schemaGetThingOutput = smithy.Schema{ID: "com.example.golden#GetThingResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetThingOutput_Name, &memberGetThingOutput_Created}}
 
-var memberGetThingOutput_Name = smithy.Member{Name: "Name", Index: 0}
+var memberGetThingOutput_Name = smithy.Member{Name: "Name", Index: 0, Target: &schemaString}
 
-var memberGetThingOutput_Created = smithy.Member{Name: "Created", Index: 1}
+var memberGetThingOutput_Created = smithy.Member{Name: "Created", Index: 1, Target: &schemaTimestamp}
 
 var schemaInteger = smithy.Schema{ID: "com.example.golden#Integer", Type: smithy.TypeInteger}
 
-var schemaInvalidInput = smithy.Schema{ID: "com.example.golden#InvalidInput", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaInvalidInput = smithy.Schema{ID: "com.example.golden#InvalidInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberInvalidInput_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberInvalidInput_message = smithy.Member{Name: "message", Index: 0}
+var memberInvalidInput_message = smithy.Member{Name: "message", Index: 0, Target: &schemaString}
 
-var schemaKindsFault = smithy.Schema{ID: "com.example.golden#KindsFault", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 409}}
+var schemaKindsFault = smithy.Schema{ID: "com.example.golden#KindsFault", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberKindsFault_Message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 409}}
 
-var memberKindsFault_Message = smithy.Member{Name: "Message", Index: 0}
+var memberKindsFault_Message = smithy.Member{Name: "Message", Index: 0, Target: &schemaString}
 
-var schemaLabelMap = smithy.Schema{ID: "com.example.golden#LabelMap", Type: smithy.TypeMap}
+var schemaLabelMap = smithy.Schema{ID: "com.example.golden#LabelMap", Type: smithy.TypeMap, Members: []*smithy.Member{&memberLabelMap_key, &memberLabelMap_value}}
 
-var memberLabelMap_key = smithy.Member{Name: "key", Index: 0}
+var memberLabelMap_key = smithy.Member{Name: "key", Index: 0, Target: &schemaString}
 
-var memberLabelMap_value = smithy.Member{Name: "value", Index: 1}
+var memberLabelMap_value = smithy.Member{Name: "value", Index: 1, Target: &schemaString}
 
 var schemaLevel = smithy.Schema{ID: "com.example.golden#Level", Type: smithy.TypeIntEnum}
 
-var schemaListPartsInput = smithy.Schema{ID: "com.example.golden#ListPartsRequest", Type: smithy.TypeStructure}
+var schemaListPartsInput = smithy.Schema{ID: "com.example.golden#ListPartsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListPartsInput_ThingId, &memberListPartsInput_NextToken}}
 
-var memberListPartsInput_ThingId = smithy.Member{Name: "ThingId", Index: 0, Required: true}
+var memberListPartsInput_ThingId = smithy.Member{Name: "ThingId", Index: 0, Target: &schemaString, Required: true}
 
-var memberListPartsInput_NextToken = smithy.Member{Name: "NextToken", Index: 1}
+var memberListPartsInput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schemaString}
 
-var schemaListPartsOutput = smithy.Schema{ID: "com.example.golden#ListPartsResponse", Type: smithy.TypeStructure}
+var schemaListPartsOutput = smithy.Schema{ID: "com.example.golden#ListPartsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListPartsOutput_Parts, &memberListPartsOutput_NextToken}}
 
-var memberListPartsOutput_Parts = smithy.Member{Name: "Parts", Index: 0}
+var memberListPartsOutput_Parts = smithy.Member{Name: "Parts", Index: 0, Target: &schemaNestedList}
 
-var memberListPartsOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1}
+var memberListPartsOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schemaString}
 
 var schemaLong = smithy.Schema{ID: "com.example.golden#Long", Type: smithy.TypeLong}
 
 var schemaName = smithy.Schema{ID: "com.example.golden#Name", Type: smithy.TypeString}
 
-var schemaNested = smithy.Schema{ID: "com.example.golden#Nested", Type: smithy.TypeStructure}
+var schemaNested = smithy.Schema{ID: "com.example.golden#Nested", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberNested_Code, &memberNested_Weight}}
 
-var memberNested_Code = smithy.Member{Name: "Code", Index: 0, Required: true}
+var memberNested_Code = smithy.Member{Name: "Code", Index: 0, Target: &schemaCode, Required: true}
 
-var memberNested_Weight = smithy.Member{Name: "Weight", Index: 1}
+var memberNested_Weight = smithy.Member{Name: "Weight", Index: 1, Target: &schemaDouble}
 
-var schemaNestedList = smithy.Schema{ID: "com.example.golden#NestedList", Type: smithy.TypeList}
+var schemaNestedList = smithy.Schema{ID: "com.example.golden#NestedList", Type: smithy.TypeList, Members: []*smithy.Member{&memberNestedList_member}}
 
-var memberNestedList_member = smithy.Member{Name: "member", Index: 0}
+var memberNestedList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaNested}
 
-var schemaPutKindsInput = smithy.Schema{ID: "com.example.golden#PutKindsRequest", Type: smithy.TypeStructure}
+var schemaPutKindsInput = smithy.Schema{ID: "com.example.golden#PutKindsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutKindsInput_Name, &memberPutKindsInput_Flag, &memberPutKindsInput_Tiny, &memberPutKindsInput_Small, &memberPutKindsInput_Count, &memberPutKindsInput_Total, &memberPutKindsInput_Retries, &memberPutKindsInput_Ratio, &memberPutKindsInput_Score, &memberPutKindsInput_Huge, &memberPutKindsInput_Exact, &memberPutKindsInput_At, &memberPutKindsInput_Data, &memberPutKindsInput_Doc, &memberPutKindsInput_Color, &memberPutKindsInput_Level, &memberPutKindsInput_Tags, &memberPutKindsInput_Sparse, &memberPutKindsInput_Labels, &memberPutKindsInput_Nested, &memberPutKindsInput_Choice, &memberPutKindsInput_Secret, &memberPutKindsInput_Vault, &memberPutKindsInput_Hints}}
 
-var memberPutKindsInput_Name = smithy.Member{Name: "Name", Index: 0, Required: true}
+var memberPutKindsInput_Name = smithy.Member{Name: "Name", Index: 0, Target: &schemaName, Required: true}
 
-var memberPutKindsInput_Flag = smithy.Member{Name: "Flag", Index: 1}
+var memberPutKindsInput_Flag = smithy.Member{Name: "Flag", Index: 1, Target: &schemaBoolean}
 
-var memberPutKindsInput_Tiny = smithy.Member{Name: "Tiny", Index: 2}
+var memberPutKindsInput_Tiny = smithy.Member{Name: "Tiny", Index: 2, Target: &schemaByte}
 
-var memberPutKindsInput_Small = smithy.Member{Name: "Small", Index: 3}
+var memberPutKindsInput_Small = smithy.Member{Name: "Small", Index: 3, Target: &schemaShort}
 
-var memberPutKindsInput_Count = smithy.Member{Name: "Count", Index: 4}
+var memberPutKindsInput_Count = smithy.Member{Name: "Count", Index: 4, Target: &schemaCount}
 
-var memberPutKindsInput_Total = smithy.Member{Name: "Total", Index: 5, Default: document.Number("0")}
+var memberPutKindsInput_Total = smithy.Member{Name: "Total", Index: 5, Target: &schemaLong, Default: document.Number("0")}
 
-var memberPutKindsInput_Retries = smithy.Member{Name: "Retries", Index: 6, Default: document.Number("3")}
+var memberPutKindsInput_Retries = smithy.Member{Name: "Retries", Index: 6, Target: &schemaInteger, Default: document.Number("3")}
 
-var memberPutKindsInput_Ratio = smithy.Member{Name: "Ratio", Index: 7}
+var memberPutKindsInput_Ratio = smithy.Member{Name: "Ratio", Index: 7, Target: &schemaFloat}
 
-var memberPutKindsInput_Score = smithy.Member{Name: "Score", Index: 8}
+var memberPutKindsInput_Score = smithy.Member{Name: "Score", Index: 8, Target: &schemaScore}
 
-var memberPutKindsInput_Huge = smithy.Member{Name: "Huge", Index: 9}
+var memberPutKindsInput_Huge = smithy.Member{Name: "Huge", Index: 9, Target: &schemaBigInteger}
 
-var memberPutKindsInput_Exact = smithy.Member{Name: "Exact", Index: 10}
+var memberPutKindsInput_Exact = smithy.Member{Name: "Exact", Index: 10, Target: &schemaBigDecimal}
 
-var memberPutKindsInput_At = smithy.Member{Name: "At", Index: 11, TimestampFormat: smithy.DateTime}
+var memberPutKindsInput_At = smithy.Member{Name: "At", Index: 11, Target: &schemaTimestamp, TimestampFormat: smithy.DateTime}
 
-var memberPutKindsInput_Data = smithy.Member{Name: "Data", Index: 12}
+var memberPutKindsInput_Data = smithy.Member{Name: "Data", Index: 12, Target: &schemaData}
 
-var memberPutKindsInput_Doc = smithy.Member{Name: "Doc", Index: 13}
+var memberPutKindsInput_Doc = smithy.Member{Name: "Doc", Index: 13, Target: &schemaDocument}
 
-var memberPutKindsInput_Color = smithy.Member{Name: "Color", Index: 14}
+var memberPutKindsInput_Color = smithy.Member{Name: "Color", Index: 14, Target: &schemaColor}
 
-var memberPutKindsInput_Level = smithy.Member{Name: "Level", Index: 15}
+var memberPutKindsInput_Level = smithy.Member{Name: "Level", Index: 15, Target: &schemaLevel}
 
-var memberPutKindsInput_Tags = smithy.Member{Name: "Tags", Index: 16}
+var memberPutKindsInput_Tags = smithy.Member{Name: "Tags", Index: 16, Target: &schemaTagList}
 
-var memberPutKindsInput_Sparse = smithy.Member{Name: "Sparse", Index: 17}
+var memberPutKindsInput_Sparse = smithy.Member{Name: "Sparse", Index: 17, Target: &schemaSparseCounts}
 
-var memberPutKindsInput_Labels = smithy.Member{Name: "Labels", Index: 18}
+var memberPutKindsInput_Labels = smithy.Member{Name: "Labels", Index: 18, Target: &schemaLabelMap}
 
-var memberPutKindsInput_Nested = smithy.Member{Name: "Nested", Index: 19, Required: true}
+var memberPutKindsInput_Nested = smithy.Member{Name: "Nested", Index: 19, Target: &schemaNested, Required: true}
 
-var memberPutKindsInput_Choice = smithy.Member{Name: "Choice", Index: 20}
+var memberPutKindsInput_Choice = smithy.Member{Name: "Choice", Index: 20, Target: &schemaChoice}
 
-var memberPutKindsInput_Secret = smithy.Member{Name: "Secret", Index: 21, Sensitive: true}
+var memberPutKindsInput_Secret = smithy.Member{Name: "Secret", Index: 21, Target: &schemaSecret, Sensitive: true}
 
-var memberPutKindsInput_Vault = smithy.Member{Name: "Vault", Index: 22}
+var memberPutKindsInput_Vault = smithy.Member{Name: "Vault", Index: 22, Target: &schemaSecretMap}
 
-var memberPutKindsInput_Hints = smithy.Member{Name: "Hints", Index: 23}
+var memberPutKindsInput_Hints = smithy.Member{Name: "Hints", Index: 23, Target: &schemaSparseSecrets}
 
-var schemaPutKindsOutput = smithy.Schema{ID: "com.example.golden#PutKindsResponse", Type: smithy.TypeStructure}
+var schemaPutKindsOutput = smithy.Schema{ID: "com.example.golden#PutKindsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutKindsOutput_Id, &memberPutKindsOutput_Count, &memberPutKindsOutput_Items, &memberPutKindsOutput_Choice, &memberPutKindsOutput_Secret}}
 
-var memberPutKindsOutput_Id = smithy.Member{Name: "Id", Index: 0, Required: true}
+var memberPutKindsOutput_Id = smithy.Member{Name: "Id", Index: 0, Target: &schemaString, Required: true}
 
-var memberPutKindsOutput_Count = smithy.Member{Name: "Count", Index: 1}
+var memberPutKindsOutput_Count = smithy.Member{Name: "Count", Index: 1, Target: &schemaInteger}
 
-var memberPutKindsOutput_Items = smithy.Member{Name: "Items", Index: 2}
+var memberPutKindsOutput_Items = smithy.Member{Name: "Items", Index: 2, Target: &schemaNestedList}
 
-var memberPutKindsOutput_Choice = smithy.Member{Name: "Choice", Index: 3}
+var memberPutKindsOutput_Choice = smithy.Member{Name: "Choice", Index: 3, Target: &schemaChoice}
 
-var memberPutKindsOutput_Secret = smithy.Member{Name: "Secret", Index: 4, Sensitive: true}
+var memberPutKindsOutput_Secret = smithy.Member{Name: "Secret", Index: 4, Target: &schemaSecret, Sensitive: true}
 
 var schemaScore = smithy.Schema{ID: "com.example.golden#Score", Type: smithy.TypeDouble}
 
 var schemaSecret = smithy.Schema{ID: "com.example.golden#Secret", Type: smithy.TypeString, Sensitive: true}
 
-var schemaSecretMap = smithy.Schema{ID: "com.example.golden#SecretMap", Type: smithy.TypeMap}
+var schemaSecretMap = smithy.Schema{ID: "com.example.golden#SecretMap", Type: smithy.TypeMap, Members: []*smithy.Member{&memberSecretMap_key, &memberSecretMap_value}}
 
-var memberSecretMap_key = smithy.Member{Name: "key", Index: 0}
+var memberSecretMap_key = smithy.Member{Name: "key", Index: 0, Target: &schemaString}
 
-var memberSecretMap_value = smithy.Member{Name: "value", Index: 1, Sensitive: true}
+var memberSecretMap_value = smithy.Member{Name: "value", Index: 1, Target: &schemaSecret, Sensitive: true}
 
-var schemaSerializationException = smithy.Schema{ID: "com.amazon.coral.service#SerializationException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
+var schemaSerializationException = smithy.Schema{ID: "com.amazon.coral.service#SerializationException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSerializationException_Message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
 
-var memberSerializationException_Message = smithy.Member{Name: "Message", Index: 0}
+var memberSerializationException_Message = smithy.Member{Name: "Message", Index: 0, Target: &schemaSmithyString}
 
 var schemaShort = smithy.Schema{ID: "com.example.golden#Short", Type: smithy.TypeShort}
 
@@ -173,107 +173,30 @@ var schemaSmithyString = smithy.Schema{ID: "smithy.api#String", Type: smithy.Typ
 
 var schemaSmithyUnit = smithy.Schema{ID: "smithy.api#Unit", Type: smithy.TypeUnit}
 
-var schemaSparseCounts = smithy.Schema{ID: "com.example.golden#SparseCounts", Type: smithy.TypeList, Sparse: true}
+var schemaSparseCounts = smithy.Schema{ID: "com.example.golden#SparseCounts", Type: smithy.TypeList, Members: []*smithy.Member{&memberSparseCounts_member}, Sparse: true}
 
-var memberSparseCounts_member = smithy.Member{Name: "member", Index: 0}
+var memberSparseCounts_member = smithy.Member{Name: "member", Index: 0, Target: &schemaInteger}
 
-var schemaSparseSecrets = smithy.Schema{ID: "com.example.golden#SparseSecrets", Type: smithy.TypeList, Sparse: true}
+var schemaSparseSecrets = smithy.Schema{ID: "com.example.golden#SparseSecrets", Type: smithy.TypeList, Members: []*smithy.Member{&memberSparseSecrets_member}, Sparse: true}
 
-var memberSparseSecrets_member = smithy.Member{Name: "member", Index: 0, Sensitive: true}
+var memberSparseSecrets_member = smithy.Member{Name: "member", Index: 0, Target: &schemaSecret, Sensitive: true}
 
 var schemaString = smithy.Schema{ID: "com.example.golden#String", Type: smithy.TypeString}
 
-var schemaSweepInput = smithy.Schema{ID: "com.example.golden#SweepRequest", Type: smithy.TypeStructure}
+var schemaSweepInput = smithy.Schema{ID: "com.example.golden#SweepRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSweepInput_Before, &memberSweepInput_Ids}}
 
-var memberSweepInput_Before = smithy.Member{Name: "Before", Index: 0, Required: true}
+var memberSweepInput_Before = smithy.Member{Name: "Before", Index: 0, Target: &schemaTimestamp, Required: true}
 
-var memberSweepInput_Ids = smithy.Member{Name: "Ids", Index: 1, Required: true}
+var memberSweepInput_Ids = smithy.Member{Name: "Ids", Index: 1, Target: &schemaTagList, Required: true}
 
-var schemaTagList = smithy.Schema{ID: "com.example.golden#TagList", Type: smithy.TypeList}
+var schemaTagList = smithy.Schema{ID: "com.example.golden#TagList", Type: smithy.TypeList, Members: []*smithy.Member{&memberTagList_member}}
 
-var memberTagList_member = smithy.Member{Name: "member", Index: 0}
+var memberTagList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaString}
 
 var schemaThrottled = smithy.Schema{ID: "com.example.golden#Throttled", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ServerFault, HTTPError: 503}}
 
 var schemaTimestamp = smithy.Schema{ID: "com.example.golden#Timestamp", Type: smithy.TypeTimestamp}
 
-var schemaUnknownOperationException = smithy.Schema{ID: "com.amazon.coral.service#UnknownOperationException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaUnknownOperationException = smithy.Schema{ID: "com.amazon.coral.service#UnknownOperationException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUnknownOperationException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberUnknownOperationException_message = smithy.Member{Name: "message", Index: 0}
-
-func init() {
-	memberChoice_Text.Target = &schemaString
-	memberChoice_Number.Target = &schemaInteger
-	memberChoice_Empty.Target = &schemaSmithyUnit
-	schemaChoice.Members = []*smithy.Member{&memberChoice_Text, &memberChoice_Number, &memberChoice_Empty}
-	memberGetThingInput_ThingId.Target = &schemaString
-	schemaGetThingInput.Members = []*smithy.Member{&memberGetThingInput_ThingId}
-	memberGetThingOutput_Name.Target = &schemaString
-	memberGetThingOutput_Created.Target = &schemaTimestamp
-	schemaGetThingOutput.Members = []*smithy.Member{&memberGetThingOutput_Name, &memberGetThingOutput_Created}
-	memberInvalidInput_message.Target = &schemaString
-	schemaInvalidInput.Members = []*smithy.Member{&memberInvalidInput_message}
-	memberKindsFault_Message.Target = &schemaString
-	schemaKindsFault.Members = []*smithy.Member{&memberKindsFault_Message}
-	memberLabelMap_key.Target = &schemaString
-	memberLabelMap_value.Target = &schemaString
-	schemaLabelMap.Members = []*smithy.Member{&memberLabelMap_key, &memberLabelMap_value}
-	memberListPartsInput_ThingId.Target = &schemaString
-	memberListPartsInput_NextToken.Target = &schemaString
-	schemaListPartsInput.Members = []*smithy.Member{&memberListPartsInput_ThingId, &memberListPartsInput_NextToken}
-	memberListPartsOutput_Parts.Target = &schemaNestedList
-	memberListPartsOutput_NextToken.Target = &schemaString
-	schemaListPartsOutput.Members = []*smithy.Member{&memberListPartsOutput_Parts, &memberListPartsOutput_NextToken}
-	memberNested_Code.Target = &schemaCode
-	memberNested_Weight.Target = &schemaDouble
-	schemaNested.Members = []*smithy.Member{&memberNested_Code, &memberNested_Weight}
-	memberNestedList_member.Target = &schemaNested
-	schemaNestedList.Members = []*smithy.Member{&memberNestedList_member}
-	memberPutKindsInput_Name.Target = &schemaName
-	memberPutKindsInput_Flag.Target = &schemaBoolean
-	memberPutKindsInput_Tiny.Target = &schemaByte
-	memberPutKindsInput_Small.Target = &schemaShort
-	memberPutKindsInput_Count.Target = &schemaCount
-	memberPutKindsInput_Total.Target = &schemaLong
-	memberPutKindsInput_Retries.Target = &schemaInteger
-	memberPutKindsInput_Ratio.Target = &schemaFloat
-	memberPutKindsInput_Score.Target = &schemaScore
-	memberPutKindsInput_Huge.Target = &schemaBigInteger
-	memberPutKindsInput_Exact.Target = &schemaBigDecimal
-	memberPutKindsInput_At.Target = &schemaTimestamp
-	memberPutKindsInput_Data.Target = &schemaData
-	memberPutKindsInput_Doc.Target = &schemaDocument
-	memberPutKindsInput_Color.Target = &schemaColor
-	memberPutKindsInput_Level.Target = &schemaLevel
-	memberPutKindsInput_Tags.Target = &schemaTagList
-	memberPutKindsInput_Sparse.Target = &schemaSparseCounts
-	memberPutKindsInput_Labels.Target = &schemaLabelMap
-	memberPutKindsInput_Nested.Target = &schemaNested
-	memberPutKindsInput_Choice.Target = &schemaChoice
-	memberPutKindsInput_Secret.Target = &schemaSecret
-	memberPutKindsInput_Vault.Target = &schemaSecretMap
-	memberPutKindsInput_Hints.Target = &schemaSparseSecrets
-	schemaPutKindsInput.Members = []*smithy.Member{&memberPutKindsInput_Name, &memberPutKindsInput_Flag, &memberPutKindsInput_Tiny, &memberPutKindsInput_Small, &memberPutKindsInput_Count, &memberPutKindsInput_Total, &memberPutKindsInput_Retries, &memberPutKindsInput_Ratio, &memberPutKindsInput_Score, &memberPutKindsInput_Huge, &memberPutKindsInput_Exact, &memberPutKindsInput_At, &memberPutKindsInput_Data, &memberPutKindsInput_Doc, &memberPutKindsInput_Color, &memberPutKindsInput_Level, &memberPutKindsInput_Tags, &memberPutKindsInput_Sparse, &memberPutKindsInput_Labels, &memberPutKindsInput_Nested, &memberPutKindsInput_Choice, &memberPutKindsInput_Secret, &memberPutKindsInput_Vault, &memberPutKindsInput_Hints}
-	memberPutKindsOutput_Id.Target = &schemaString
-	memberPutKindsOutput_Count.Target = &schemaInteger
-	memberPutKindsOutput_Items.Target = &schemaNestedList
-	memberPutKindsOutput_Choice.Target = &schemaChoice
-	memberPutKindsOutput_Secret.Target = &schemaSecret
-	schemaPutKindsOutput.Members = []*smithy.Member{&memberPutKindsOutput_Id, &memberPutKindsOutput_Count, &memberPutKindsOutput_Items, &memberPutKindsOutput_Choice, &memberPutKindsOutput_Secret}
-	memberSecretMap_key.Target = &schemaString
-	memberSecretMap_value.Target = &schemaSecret
-	schemaSecretMap.Members = []*smithy.Member{&memberSecretMap_key, &memberSecretMap_value}
-	memberSerializationException_Message.Target = &schemaSmithyString
-	schemaSerializationException.Members = []*smithy.Member{&memberSerializationException_Message}
-	memberSparseCounts_member.Target = &schemaInteger
-	schemaSparseCounts.Members = []*smithy.Member{&memberSparseCounts_member}
-	memberSparseSecrets_member.Target = &schemaSecret
-	schemaSparseSecrets.Members = []*smithy.Member{&memberSparseSecrets_member}
-	memberSweepInput_Before.Target = &schemaTimestamp
-	memberSweepInput_Ids.Target = &schemaTagList
-	schemaSweepInput.Members = []*smithy.Member{&memberSweepInput_Before, &memberSweepInput_Ids}
-	memberTagList_member.Target = &schemaString
-	schemaTagList.Members = []*smithy.Member{&memberTagList_member}
-	memberUnknownOperationException_message.Target = &schemaSmithyString
-	schemaUnknownOperationException.Members = []*smithy.Member{&memberUnknownOperationException_message}
-}
+var memberUnknownOperationException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
