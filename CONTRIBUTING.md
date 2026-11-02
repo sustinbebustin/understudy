@@ -30,7 +30,7 @@ just verify
 
 ## Adding an operation
 
-Every operation of each vendored model (`codegen/services/`, `internal/api/<service>api`), served services and not-yet-served ones alike, already has generated types, serialization, validation and a binder method, so adding one needs no generator run.
+Every operation of each vendored model (`codegen/services/`, `internal/api/<service>api`), served services and not-yet-served ones alike, already has generated types, serialization, validation and a binder method, so adding one needs no generator run unless the service lists `boundOperations` (step 3).
 
 1. **Read the research.** Find the operation in `docs/research/<service>.md`: its errors, limits and edge cases. If something you need is not there, record what you found and where.
 2. **Write the handler** in the service package, next to its resource family:
@@ -59,6 +59,8 @@ Every operation of each vendored model (`codegen/services/`, `internal/api/<serv
    ```
 
    The note is what `understudy coverage` and `docs/coverage.md` show users. Bind options add a typed validator (`kernel.WithValidator`), a check (`kernel.WithCheck`) or the ARNs the call touches (`kernel.WithResources`), which fault rules, the journal and the access recorder use.
+
+   If `codegen/services/<service>.json` has a `boundOperations` list, add the operation's name to it, keeping it sorted, and run `just generate`: the schemas of operations it leaves out are generated without members (ADR 0001), and `internal/server` tests fail until the list matches what the kernel binds.
 4. **Constraints the model lacks.** If AWS enforces a limit or an error the Smithy model does not declare, add an entry to `codegen/overlays/<service>.json` with its `dev.understudy#evidence` (label and source), then `just generate`. Limits that depend on state belong in the handler.
 5. **Unsettled behavior.** Where the research leaves a choice open, make it a `fidelity.Switch` with its evidence label and research reference, and return its `Entry()` from the service's `Switches` method.
 6. **Test it** through the kernel, in a `kerneltest` bubble, so timers and long polls run on the emulator clock with no sleeps:

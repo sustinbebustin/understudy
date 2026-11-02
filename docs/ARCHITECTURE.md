@@ -743,7 +743,7 @@ String `length` counts Unicode scalar values (`utf8.RuneCountInString`). `jsonx`
 |---|---|
 | `service_gen.go` | `registry.Service` descriptor with every operation |
 | `types_gen.go` | structures, enums (string type, constants, `Known()`), unions (sealed interfaces), error structs |
-| `schema_gen.go` | static `smithy.Schema` values: wire names, `xmlName`, `xmlFlattened`, `xmlNamespace`, `timestampFormat`, HTTP bindings, defaults, `sensitive` |
+| `schema_gen.go` | static `smithy.Schema` values: wire names, `xmlName`, `xmlFlattened`, `xmlNamespace`, `timestampFormat`, HTTP bindings, defaults, `sensitive`; members linked in the literals (recursive shapes in `init`), and only for bound operations' closures and error shapes when `codegen/services/<svc>.json` lists `boundOperations` (ADR 0001) |
 | `serde_gen.go` | `Serialize(smithy.Serializer)` and `Deserialize(smithy.Deserializer) error` per the shape's role (5.4); streaming members as `smithy.Body` |
 | `validate_gen.go` | constraint checks emitting `awserr.Violation` in AWS's per-member order (pattern, then max length; `error-matrix.md 4`) |
 | `errors_gen.go` | `Identity` constants and constructors per error shape; per-operation error lists |

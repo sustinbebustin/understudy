@@ -57,6 +57,12 @@
 //     third_party/api-models-aws/UPSTREAM.json ("model"). An overlay
 //     operation without internalOperation fails generation, since no
 //     service would reach it.
+//   - codegen/services/<svc>.json may list the operations the kernel binds
+//     ("boundOperations"); schema_gen.go then gives members only to the
+//     error shapes and those operations' closures (ADR 0001 amendment
+//     2026-11-02). It is stated rather than derived because the bound set
+//     exists only once internal/server, which imports the generated
+//     packages, wires the services; a server test ties the two.
 //   - dev.understudy#queryKeyAlias is emitted as smithy.Member.QueryKeyAlias,
 //     which the awsQuery decoder applies; an alias naming a key other than
 //     the member's own fails generation.
