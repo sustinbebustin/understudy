@@ -1266,3 +1266,36 @@ SVC=ssm enf_curl IAM-ENF/41-raw -H "$J11" -H 'X-Amz-Target: AmazonSSM.DescribePa
 ```
 
 Cost: free, 10 minutes. Teardown: none.
+
+### 13.36 IAM-ENF-42. Logs group-level actions under a `log-group:<name>:*` statement
+
+Settles secrets-logs-events-alarms.md 3.10 (Q14): whether a statement on `log-group:<name>:*` allows the group-level actions, or only the stream-level ones. Role `wild` holds `logs:*` on the `:*` form only, role `bare` on the group ARN only. Each step is noted `allowed` or `denied`.
+
+```sh
+G="/$P/r28"
+for form in wild bare; do
+  res="arn:aws:logs:$R:$A:log-group:$G"; [ "$form" = wild ] && res="$res:*"
+  aws iam create-role --role-name "$P-enf-lg-$form" --assume-role-policy-document "$TRUST_ACCT"
+  aws iam put-role-policy --role-name "$P-enf-lg-$form" --policy-name lg --policy-document "$(jq -nc --arg r "$res" \
+    '{Version:"2012-10-17",Statement:[{Effect:"Allow",Action:"logs:*",Resource:$r}]}')"
+done
+sleep 15
+for form in wild bare; do
+  enf_assume "$P-enf-lg-$form"
+  rec IAM-ENF/42-$form-create-group as_role logs create-log-group --log-group-name "$G"
+  aws logs create-log-group --log-group-name "$G" 2>/dev/null
+  rec IAM-ENF/42-$form-describe-streams as_role logs describe-log-streams --log-group-name "$G"
+  rec IAM-ENF/42-$form-retention as_role logs put-retention-policy --log-group-name "$G" --retention-in-days 1
+  rec IAM-ENF/42-$form-filter as_role logs filter-log-events --log-group-name "$G"
+  rec IAM-ENF/42-$form-create-stream as_role logs create-log-stream --log-group-name "$G" --log-stream-name s
+  rec IAM-ENF/42-$form-put-events as_role logs put-log-events --log-group-name "$G" --log-stream-name s \
+    --log-events "timestamp=$(($(date +%s) * 1000)),message=x"
+  rec IAM-ENF/42-$form-delete-group as_role logs delete-log-group --log-group-name "$G"
+  aws logs delete-log-group --log-group-name "$G" 2>/dev/null
+done
+enf_assume "$P-enf-none"
+```
+
+Then the Lambda path: create a function `$P-enf-lg-fn` whose execution role trusts `lambda.amazonaws.com` and holds only `logs:*` on `arn:aws:logs:$R:$A:log-group:/aws/lambda/$P-enf-lg-fn:*`, invoke it once, wait one minute, and note whether `aws logs describe-log-groups --log-group-name-prefix "/aws/lambda/$P-enf-lg-fn"` lists the group.
+
+Cost: free, 10 minutes. Teardown: `aws lambda delete-function --function-name "$P-enf-lg-fn"; aws logs delete-log-group --log-group-name "/aws/lambda/$P-enf-lg-fn"; aws logs delete-log-group --log-group-name "/$P/r28"`, then for each of `wild`, `bare` and the function's role: `aws iam delete-role-policy` and `aws iam delete-role`.

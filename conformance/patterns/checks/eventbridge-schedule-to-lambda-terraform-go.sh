@@ -52,3 +52,16 @@ pattern_check() {
   echo "no line '$eventbridge_schedule_line' in $eventbridge_schedule_group after advancing 5 minutes; its events: $(head -c 2000 <<<"${events:-none}")"
   return 1
 }
+
+# pattern_expected_denials prints the denials AWS makes too, for the
+# no-denials step under CONFORMANCE_IAM_ENFORCE=enforce.
+pattern_expected_denials() {
+  # The function's execution role (main.tf PublishLogsPolicy) grants logs:*
+  # only on log-group:/aws/lambda/EventBridgeScheduleTarget:*, which matches
+  # the group's streams but not the group ARN CreateLogGroup is authorized
+  # on, so Lambda cannot create the group and the check finds no line.
+  # That follows the current AWS documents; whether AWS still accepts the
+  # :* form for group-level actions is UNVERIFIED until IAM-ENF-42
+  # (secrets-logs-events-alarms.md 3.10, Q14).
+  printf '%s\n' 'for arn:aws:sts::[0-9]{12}:assumed-role/LambdaExecutionRole/[^ ]+ calling logs:CreateLogGroup on arn:aws:logs:[^ ]+:log-group:/aws/lambda/EventBridgeScheduleTarget$'
+}

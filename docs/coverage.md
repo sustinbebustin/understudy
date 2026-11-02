@@ -1001,7 +1001,7 @@ Raw operations:
 | PutLogGroupDeletionProtection | full | third-party-recorded, 1 of 1 claim |  |
 | TagLogGroup | full | third-party-recorded, 1 of 1 claim |  |
 | UntagLogGroup | full | third-party-recorded, 1 of 1 claim |  |
-| CreateLogGroup | partial | aws-doc, 1 of 2 claims | kmsKeyId must name an enabled KMS key and is stored and echoed; events are not encrypted with it |
+| CreateLogGroup | partial | aws-doc, 1 of 2 claims | kmsKeyId must name an enabled KMS key and is stored and echoed; events are not encrypted with it; IAM authorizes it on the group ARN without :*, so a statement on log-group:<name>:* does not allow it, per the current AWS documents; whether AWS accepts that form is unknown (secrets-logs-events-alarms.md 3.10) |
 | DescribeLogGroups | partial | aws-doc, 1 of 2 claims | no linked accounts: accountIdentifiers and includeLinkedAccounts select nothing more |
 | FilterLogEvents | partial | inferred, 2 of 4 claims | unmask is ignored: no data protection policies; logStreamNames that name no stream are skipped |
 | GetLogEvents | partial | aws-doc, 1 of 2 claims | unmask is ignored: no data protection policies |
