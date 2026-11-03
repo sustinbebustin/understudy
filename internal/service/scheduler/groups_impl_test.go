@@ -1,6 +1,7 @@
 package scheduler_test
 
 import (
+	"bytes"
 	"fmt"
 	"slices"
 	"testing"
@@ -48,8 +49,9 @@ func TestGroupQuotaCountsDefault(t *testing.T) {
 	})
 }
 
-// ListScheduleGroups lists default first, then by name, across pages.
-// UNVERIFIED (SCH-06), scheduler.md 3.1, 3.2.
+// ListScheduleGroups lists default first, then by name, across pages
+// (scheduler.md 3.1, 3.2). Default first is recorded (SCH-06 06-list,
+// 2026-11-03); the others' order and the paging are unrecorded.
 func TestListScheduleGroupsOrderAndPages(t *testing.T) {
 	run(t, func(h *harness) {
 		for _, name := range []string{"b", "a", "d-x"} {
@@ -131,6 +133,34 @@ func TestTagOrderAndAbsentKeys(t *testing.T) {
 		must(h, schedulerapi.OpUntagResource, &schedulerapi.UntagResourceInput{ResourceArn: h.groupArn("g"), TagKeys: []string{"absent", "k2", "k0"}})
 		if got := listTags(h, "g"); !slices.Equal(got, []schedulerapi.Tag{{Key: "k1", Value: "new"}, {Key: "k3", Value: "v3"}}) {
 			h.Errorf("tags after untag = %+v", got)
+		}
+	})
+}
+
+// Tags a snapshot stored out of key order, as one written before tags
+// were sorted would, still list sorted by key (SCH-06 06-tags, recorded
+// 2026-11-03; scheduler.md 3.4).
+func TestTagsFromAnUnsortedSnapshotListByKey(t *testing.T) {
+	run(t, func(h *harness) {
+		must(h, schedulerapi.OpCreateScheduleGroup, &schedulerapi.CreateScheduleGroupInput{Name: "g", Tags: []schedulerapi.Tag{{Key: "k0", Value: "v0"}, {Key: "k1", Value: "v1"}}})
+		sections, err := h.svc.Export()
+		if err != nil || len(sections) != 1 {
+			h.Fatalf("Export = %d sections, %v; want the one scope", len(sections), err)
+		}
+		// Renaming the first stored tag k0 to k2 leaves the stored list as
+		// [k2, k1], the insertion order an older snapshot kept.
+		old := []byte(`{"key":"k0","value":"v0"}`)
+		if !bytes.Contains(sections[0].Data, old) {
+			h.Fatalf("section %s holds no %s", sections[0].Data, old)
+		}
+		sections[0].Data = bytes.Replace(sections[0].Data, old, []byte(`{"key":"k2","value":"v2"}`), 1)
+		h.svc.Reset(kernel.ResetScope{})
+		if err := h.svc.Import(sections); err != nil {
+			h.Fatal(err)
+		}
+		want := []schedulerapi.Tag{{Key: "k1", Value: "v1"}, {Key: "k2", Value: "v2"}}
+		if got := listTags(h, "g"); !slices.Equal(got, want) {
+			h.Errorf("tags = %+v, want %+v", got, want)
 		}
 	})
 }
