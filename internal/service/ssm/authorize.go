@@ -19,7 +19,7 @@ import (
 // selector) an input addresses.
 func byName[In any](nameOf func(*In) string) kernel.BindOption {
 	return kernel.WithResources(func(c *kernel.Call, in *In) []aws.ARN {
-		return resourcesOf(c.Scope(), nameOf(in))
+		return resourcesOf(askerOf(c), nameOf(in))
 	})
 }
 
@@ -27,29 +27,31 @@ func byName[In any](nameOf func(*In) string) kernel.BindOption {
 // DeleteParameters.
 func byNames[In any](namesOf func(*In) []string) kernel.BindOption {
 	return kernel.WithResources(func(c *kernel.Call, in *In) []aws.ARN {
-		return resourcesOf(c.Scope(), namesOf(in)...)
+		return resourcesOf(askerOf(c), namesOf(in)...)
 	})
 }
 
 // resourcesOf is the parameter ARN of each raw name, ARN or selected name.
-// An ARN of another account or Region keeps its account and Region, so
-// step 8 asks about the parameter the caller named (spec enforce matrix).
-func resourcesOf(scope aws.Scope, raws ...string) []aws.ARN {
+// An ARN of another account keeps its account, so step 8 asks about the
+// parameter the caller named (spec enforce matrix); one of another Region
+// or resource type names nothing, the handler refusing it as malformed
+// (SSM-29).
+func resourcesOf(a asker, raws ...string) []aws.ARN {
 	out := make([]aws.ARN, 0, len(raws))
 	for _, raw := range raws {
 		base, _, err := splitSelector(raw)
 		if err != nil {
 			continue
 		}
-		n, aerr := parseNameOrARN(base, scope)
+		n, aerr := parseNameOrARN(base, a)
 		switch {
 		case aerr == nil:
-			out = append(out, parameterARN(scope, n.canonical))
-		case aerr.ID == ssmapi.IdentityParameterNotFound():
-			// parseNameOrARN answers ParameterNotFound only for a valid
-			// parameter ARN of another account or Region.
-			if a, err := aws.ParseARN(base); err == nil {
-				out = append(out, a)
+			out = append(out, parameterARN(a.scope, n.canonical))
+		case aerr.ID == ssmapi.IdentityAccessDeniedException():
+			// A parameter ARN the caller may not reach: another account's,
+			// or one past the length limit.
+			if arn, err := aws.ParseARN(strings.Trim(base, " ")); err == nil {
+				out = append(out, arn)
 			}
 		}
 	}
@@ -57,32 +59,28 @@ func resourcesOf(scope aws.Scope, raws ...string) []aws.ARN {
 }
 
 // byPath names the path ARN GetParametersByPath is authorized on
-// (ssm-parameters.md 7.4): the path without its leading and trailing
-// slash, so Path / is parameter/. UNVERIFIED (SSM-35 steps 02-03),
-// ssm-parameters.md 7.4: AWS checks the path, in a form no source gives.
+// (ssm-parameters.md 7.4): parameter/ and the path as given without its
+// leading slash, a trailing slash kept, so Path / is parameter/ and /a/b/
+// is parameter/a/b/ (SSM-35 steps 02-03).
 func byPath() kernel.BindOption {
 	return kernel.WithResources(func(c *kernel.Call, in *ssmapi.GetParametersByPathInput) []aws.ARN {
-		p, err := parsePath(in.Path, c.Scope())
-		if err != nil {
+		if _, err := parsePath(in.Path, askerOf(c)); err != nil {
 			return nil
 		}
-		return []aws.ARN{parameterARN(c.Scope(), strings.TrimSuffix(string(p), "/"))}
+		return []aws.ARN{parameterARN(c.Scope(), strings.Trim(in.Path, " "))}
 	})
 }
 
-// byTagTarget names the parameter a tag operation addresses; a resource
-// type other than Parameter names nothing understudy stores.
+// byTagTarget names the parameter a tag operation addresses, by name or
+// ARN; a resource type other than Parameter names nothing understudy
+// stores.
 func byTagTarget[In any](target func(*In) (ssmapi.ResourceTypeForTagging, string)) kernel.BindOption {
 	return kernel.WithResources(func(c *kernel.Call, in *In) []aws.ARN {
 		rt, id := target(in)
 		if rt != ssmapi.ResourceTypeForTaggingParameter {
 			return nil
 		}
-		n, err := parseName(id, c.Scope())
-		if err != nil {
-			return nil
-		}
-		return []aws.ARN{parameterARN(c.Scope(), n.canonical)}
+		return resourcesOf(askerOf(c), id)
 	})
 }
 

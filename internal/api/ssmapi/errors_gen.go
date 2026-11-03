@@ -815,12 +815,12 @@ func (*InvalidFilter) ErrorIdentity() awserr.Identity { return IdentityInvalidFi
 
 // IdentityInvalidFilterKey returns the identity of com.amazonaws.ssm#InvalidFilterKey.
 func IdentityInvalidFilterKey() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazonaws.ssm#InvalidFilterKey", JSONType: "InvalidFilterKey", QueryCode: "InvalidFilterKey", Status: 400, Fault: awserr.Sender, MessageKey: awserr.NoMessage}
+	return awserr.Identity{Shape: "com.amazonaws.ssm#InvalidFilterKey", JSONType: "InvalidFilterKey", QueryCode: "InvalidFilterKey", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
 }
 
-// ErrInvalidFilterKey returns an InvalidFilterKey error; the shape carries no message.
-func ErrInvalidFilterKey() *awserr.Error {
-	return &awserr.Error{ID: IdentityInvalidFilterKey(), Origin: awserr.Modeled{}}
+// ErrInvalidFilterKey returns an InvalidFilterKey error with message.
+func ErrInvalidFilterKey(message string) *awserr.Error {
+	return &awserr.Error{ID: IdentityInvalidFilterKey(), Message: message, Origin: awserr.Modeled{}}
 }
 
 // ErrorIdentity returns the identity of com.amazonaws.ssm#InvalidFilterKey.
@@ -2330,7 +2330,7 @@ func (*UnsupportedPlatformType) ErrorIdentity() awserr.Identity {
 
 // IdentityValidationException returns the identity of com.amazonaws.ssm#ValidationException.
 func IdentityValidationException() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazonaws.ssm#ValidationException", JSONType: "ValidationException", QueryCode: "ValidationException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
+	return awserr.Identity{Shape: "com.amazonaws.ssm#ValidationException", JSONType: "ValidationException", QueryCode: "ValidationException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
 }
 
 // ErrValidationException returns a ValidationException error with message.

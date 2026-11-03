@@ -18,11 +18,12 @@ import (
 // 3.1, aws-doc
 // https://docs.aws.amazon.com/systems-manager/latest/userguide/what-is-a-parameter.html#sysman-parameter-name-constraints):
 // the aws/ssm prefixes, any character outside a-zA-Z0-9_.- and /, an inner
-// space, and a hierarchy without its leading slash.
+// space, and a hierarchy without its leading slash. The reserved first
+// level /aws/ is AccessDeniedException instead (SSM-04).
 func TestNameDefectsAreValidationExceptions(t *testing.T) {
 	run(t, func(h *harness) {
 		for _, name := range []string{
-			"awsTestParameter", "SSM-testparameter", "/aws/testparam1", // the doc's examples
+			"awsTestParameter", "SSM-testparameter", // the doc's examples
 			"/ssm/x",             // "can't be prefixed with aws or ssm (case-insensitive)"
 			"my param", "/a/b c", // inner spaces
 			"bad#name", "/a/b!", "a*", // characters outside the set
@@ -30,8 +31,9 @@ func TestNameDefectsAreValidationExceptions(t *testing.T) {
 		} {
 			_, err := call(h, ssmapi.OpPutParameter, &ssmapi.PutParameterInput{Name: name, Value: "v", Type: new(ssmapi.ParameterTypeString)})
 			wantCode(h.T, "PutParameter "+name, err, ssmapi.IdentityValidationException())
-			wantOwnMessage(h.T, "PutParameter "+name, err, "", strings.TrimSpace(name))
 		}
+		_, err := call(h, ssmapi.OpPutParameter, &ssmapi.PutParameterInput{Name: "/aws/testparam1", Value: "v", Type: new(ssmapi.ParameterTypeString)})
+		wantCode(h.T, "PutParameter /aws/testparam1", err, ssmapi.IdentityAccessDeniedException())
 		if got := h.svc.Resources(h.Scope); len(got) != 0 {
 			h.Errorf("refused names were stored: %+v", got)
 		}
@@ -92,8 +94,8 @@ func TestOuterSpacesAreTrimmed(t *testing.T) {
 // "Parameter hierarchies are limited to a maximum depth of fifteen
 // levels": 15 levels counting the name is valid, 17 fails with
 // HierarchyLevelLimitExceededException (ssm-parameters.md 3.4, aws-doc
-// name constraints), whose message begins with the model's documented text
-// "A hierarchy can have a maximum of 15 levels." [M].
+// name constraints), whose wire message is "Depth of the tree cannot
+// exceed 15", not the model's documented text (SSM-05 step 03).
 func TestHierarchyDepth(t *testing.T) {
 	run(t, func(h *harness) {
 		levels := func(n int) string {
@@ -105,19 +107,16 @@ func TestHierarchyDepth(t *testing.T) {
 		}
 		h.put(levels(15), "v")
 		_, err := call(h, ssmapi.OpPutParameter, &ssmapi.PutParameterInput{Name: levels(17), Value: "v", Type: new(ssmapi.ParameterTypeString)})
-		wantCode(h.T, "PutParameter of 17 levels", err, ssmapi.IdentityHierarchyLevelLimitExceededException())
-		if err != nil && !strings.HasPrefix(err.Message, "A hierarchy can have a maximum of 15 levels.") {
-			h.Errorf("message = %q, want it to begin with the model's text", err.Message)
-		}
+		wantError(h.T, "PutParameter of 17 levels", err, ssmapi.IdentityHierarchyLevelLimitExceededException(), "Depth of the tree cannot exceed 15")
 	})
 }
 
 // "The maximum length for a parameter name that you specify is 1011
 // characters. This count of 1011 characters includes the characters in the
 // ARN that precede the name" (ssm-parameters.md 3.4, aws-doc
-// API_PutParameter): the ARN is at most 1011 characters. The harness ARN
-// prefix is 45 characters, as the doc's example
-// arn:aws:ssm:us-east-2:111122223333:parameter/ is.
+// API_PutParameter): the ARN is at most 1011 characters, and a longer one
+// is AccessDeniedException (SSM-06). The harness ARN prefix is 45
+// characters, as the doc's example arn:aws:ssm:us-east-2:111122223333:parameter/ is.
 func TestNameLengthIsTheARNLength(t *testing.T) {
 	run(t, func(h *harness) {
 		if len(arnPrefix) != 45 {
@@ -130,8 +129,7 @@ func TestNameLengthIsTheARNLength(t *testing.T) {
 		}
 		long := strings.Repeat("n", 1012-len(arnPrefix))
 		_, err := call(h, ssmapi.OpPutParameter, &ssmapi.PutParameterInput{Name: long, Value: "v", Type: new(ssmapi.ParameterTypeString)})
-		wantCode(h.T, "PutParameter with a 1012-character ARN", err, ssmapi.IdentityValidationException())
-		wantOwnMessage(h.T, "PutParameter with a 1012-character ARN", err, "", "1011")
+		wantCode(h.T, "PutParameter with a 1012-character ARN", err, ssmapi.IdentityAccessDeniedException())
 	})
 }
 

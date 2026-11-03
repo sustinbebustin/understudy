@@ -10,20 +10,25 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 )
 
-// Under switch ssm.error.parameter-not-found-message (empty), the four
-// operations other than GetParameter answer a missing parameter with
-// ParameterNotFound, 400, and an empty message, as GetParameter does by
-// record (ssm-parameters.md 2.2; spec conflict 3).
+// Under switch ssm.error.parameter-not-found-message
+// (empty-except-label), DeleteParameter and GetParameterHistory answer a
+// missing parameter with ParameterNotFound, 400, and no message, as
+// GetParameter does, while LabelParameterVersion and
+// UnlabelParameterVersion name it (ssm-parameters.md 2.2; SSM-01 step 01,
+// SSM-02 steps 01-04).
 func TestParameterNotFoundMessage(t *testing.T) {
 	run(t, func(h *harness) {
-		h.follows("ssm.error.parameter-not-found-message", "empty")
-		for op, err := range map[string]*awserr.Error{
-			"DeleteParameter":         errOf(call(h, ssmapi.OpDeleteParameter, &ssmapi.DeleteParameterInput{Name: "/missing/a"})),
-			"GetParameterHistory":     errOf(call(h, ssmapi.OpGetParameterHistory, &ssmapi.GetParameterHistoryInput{Name: "/missing/a"})),
-			"LabelParameterVersion":   errOf(call(h, ssmapi.OpLabelParameterVersion, &ssmapi.LabelParameterVersionInput{Name: "/missing/a", Labels: []string{"l"}})),
-			"UnlabelParameterVersion": errOf(call(h, ssmapi.OpUnlabelParameterVersion, &ssmapi.UnlabelParameterVersionInput{Name: "/missing/a", ParameterVersion: 1, Labels: []string{"l"}})),
+		h.follows("ssm.error.parameter-not-found-message", "empty-except-label")
+		for op, c := range map[string]struct {
+			err  *awserr.Error
+			want string
+		}{
+			"DeleteParameter":         {errOf(call(h, ssmapi.OpDeleteParameter, &ssmapi.DeleteParameterInput{Name: "/missing/a"})), ""},
+			"GetParameterHistory":     {errOf(call(h, ssmapi.OpGetParameterHistory, &ssmapi.GetParameterHistoryInput{Name: "/missing/a"})), ""},
+			"LabelParameterVersion":   {errOf(call(h, ssmapi.OpLabelParameterVersion, &ssmapi.LabelParameterVersionInput{Name: "/missing/a", Labels: []string{"l"}})), "Parameter /missing/a not found."},
+			"UnlabelParameterVersion": {errOf(call(h, ssmapi.OpUnlabelParameterVersion, &ssmapi.UnlabelParameterVersionInput{Name: "/missing/a", ParameterVersion: 1, Labels: []string{"l"}})), "Parameter /missing/a not found."},
 		} {
-			wantError(h.T, op, err, ssmapi.IdentityParameterNotFound(), "")
+			wantError(h.T, op, c.err, ssmapi.IdentityParameterNotFound(), c.want)
 		}
 	})
 }

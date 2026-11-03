@@ -14,8 +14,9 @@ import (
 // a selector is dropped and a root name loses its slash in the ARN
 // (ssm-parameters.md 3.3); an ARN of another account keeps that account
 // (spec enforce matrix); GetParametersByPath asks about the path ARN
-// without its slashes, Path / being parameter/ (UNVERIFIED SSM-35 steps
-// 02-03); DescribeParameters names no resource; the tag operations name
+// without its leading slash and with a trailing slash kept, Path / being
+// parameter/ (ssm-parameters.md 7.4; SSM-35 steps 02-03);
+// DescribeParameters names no resource; the tag operations name
 // the parameter of a Parameter ResourceId; an untagged put declares no
 // ssm:AddTagsToResource.
 func TestStep8ResourcesOfEveryOperation(t *testing.T) {
@@ -42,7 +43,7 @@ func TestStep8ResourcesOfEveryOperation(t *testing.T) {
 		for op, want := range map[string][]string{
 			"PutParameter":            {"ssm:PutParameter " + arnPrefix + "iam/a", "ssm:PutParameter " + arnPrefix + "r"},
 			"GetParameter":            {"ssm:GetParameter " + arnPrefix + "iam/a", "ssm:GetParameter " + foreign},
-			"GetParametersByPath":     {"ssm:GetParametersByPath " + arnPrefix, "ssm:GetParametersByPath " + arnPrefix + "iam"},
+			"GetParametersByPath":     {"ssm:GetParametersByPath " + arnPrefix, "ssm:GetParametersByPath " + arnPrefix + "iam/"},
 			"DescribeParameters":      {"ssm:DescribeParameters *"},
 			"GetParameterHistory":     {"ssm:GetParameterHistory " + arnPrefix + "r"},
 			"LabelParameterVersion":   {"ssm:LabelParameterVersion " + arnPrefix + "iam/a"},

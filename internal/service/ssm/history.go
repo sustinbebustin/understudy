@@ -14,8 +14,9 @@ import (
 	"github.com/sustinbebustin/understudy/internal/paging"
 )
 
-// historyPageSize is GetParameterHistory's page without MaxResults.
-// UNVERIFIED (SSM-30), ssm-parameters.md 6.1: AWS's default is unrecorded.
+// historyPageSize is GetParameterHistory's page without MaxResults
+// (ssm-parameters.md 6.1; SSM-30 step 03, 50 of 100 versions and a
+// NextToken).
 const historyPageSize = 50
 
 // listingHistory is GetParameterHistory's listing, named inside the
@@ -30,8 +31,9 @@ const maxLabelsPerVersion = 10
 // is numeric order.
 func versionKey(v Version) string { return fmt.Sprintf("%020d", v.Number) }
 
-// labelsOf is the labels naming version n of p, sorted, [] when none.
-// UNVERIFIED (SSM-16), ssm-parameters.md 6.2: the order and the empty list.
+// labelsOf is the labels naming version n of p, sorted, [] when none
+// (ssm-parameters.md 6.2; SSM-16 step 04 records the empty list).
+// UNVERIFIED (SSM-16): the order of several labels.
 func (p *Parameter) labelsOf(n int64) []string {
 	out := []string{}
 	for l, v := range p.Labels {
@@ -49,14 +51,14 @@ func (p *Parameter) labelsOf(n int64) []string {
 // reported for a SecureString only (switch ssm.kms.key-id-echo). Values are
 // decrypted when asked, after the state is read, for the page's versions
 // only; a KMS failure fails the call. A missing parameter is
-// ParameterNotFound with an empty message (switch
+// ParameterNotFound with no message (switch
 // ssm.error.parameter-not-found-message).
 func (s *Service) getParameterHistory(ctx context.Context, c *kernel.Call, in *ssmapi.GetParameterHistoryInput) (*ssmapi.GetParameterHistoryOutput, *awserr.Error) {
 	if err := checkReserved("GetParameterHistory", in.Name); err != nil {
 		return nil, err
 	}
 	scope := c.Scope()
-	n, err := parseNameOrARN(in.Name, scope)
+	n, err := parseNameOrARN(in.Name, askerOf(c))
 	if err != nil {
 		return nil, err
 	}
@@ -92,8 +94,8 @@ func (s *Service) getParameterHistory(ctx context.Context, c *kernel.Call, in *s
 // (ssm-parameters.md 6.2 [D]): letters, digits, periods, hyphens and
 // underscores only, not beginning with a digit, aws or ssm (any case). The
 // generated @length(1, 100) has already refused the empty and the long.
-// UNVERIFIED (SSM-16), ssm-parameters.md 6.2: labels holding : or / are
-// refused by the character rule here; AWS's answer is unrecorded.
+// Labels holding : or / are refused by the character rule, as AWS lists
+// them in InvalidLabels (ssm-parameters.md 6.2; SSM-16 step 01).
 func validLabel(label string) bool {
 	lower := strings.ToLower(label)
 	switch {
@@ -117,13 +119,18 @@ func distinct(labels []string) []string {
 }
 
 // errLabelLimit is LabelParameterVersion's answer when a version would
-// carry more than ten labels (ssm-parameters.md 6.2 [M]). UNVERIFIED
-// (SSM-16), ssm-parameters.md 12.4: the text is understudy's own.
-func errLabelLimit(spelling string, version int64, would int) *awserr.Error {
-	return ssmapi.ErrParameterVersionLabelLimitExceeded(fmt.Sprintf(
-		"Version %d of %s would carry %d labels, and a parameter version can have a maximum of %d labels. "+
-			"No label was applied; remove labels with UnlabelParameterVersion or move them to another version, and try again.",
-		version, spelling, would, maxLabelsPerVersion))
+// carry more than ten labels, AWS's text with no space after its first
+// period (ssm-parameters.md 6.2; SSM-16 step 06).
+func errLabelLimit() *awserr.Error {
+	return ssmapi.ErrParameterVersionLabelLimitExceeded("A parameter version can have maximum 10 labels.Move one or more labels to another version and try again.")
+}
+
+// errLabelTargetNotFound is LabelParameterVersion's and
+// UnlabelParameterVersion's answer for a missing parameter, which names it
+// as the request spelled it (switch ssm.error.parameter-not-found-message;
+// ssm-parameters.md 2.2, SSM-02 steps 03-04).
+func errLabelTargetNotFound(spelling string) *awserr.Error {
+	return ssmapi.ErrParameterNotFound("Parameter " + spelling + " not found.")
 }
 
 // labelOutcome is what a label write did: the version it labeled and the
@@ -138,13 +145,13 @@ type labelOutcome struct {
 // is listed in InvalidLabels and not applied, with a 200; a valid label on
 // another version moves. When the version would then carry more than ten
 // labels nothing is applied. Labeling changes no LastModifiedDate
-// (UNVERIFIED (SSM-08), ssm-parameters.md 6.1).
+// (ssm-parameters.md 6.1; SSM-08 steps 02-03).
 func (s *Service) labelParameterVersion(_ context.Context, c *kernel.Call, in *ssmapi.LabelParameterVersionInput) (*ssmapi.LabelParameterVersionOutput, *awserr.Error) {
 	if err := checkReserved("LabelParameterVersion", in.Name); err != nil {
 		return nil, err
 	}
 	scope := c.Scope()
-	n, err := parseName(in.Name, scope)
+	n, err := parseName(in.Name, askerOf(c))
 	if err != nil {
 		return nil, err
 	}
@@ -152,7 +159,7 @@ func (s *Service) labelParameterVersion(_ context.Context, c *kernel.Call, in *s
 		prev, ok := st.Parameters[n.canonical]
 		if !ok {
 			tx.Unchanged()
-			return labelOutcome{}, errNotFound()
+			return labelOutcome{}, errLabelTargetNotFound(n.spelling)
 		}
 		p, out, err := withLabels(prev, n.spelling, in.ParameterVersion, in.Labels)
 		if err != nil || maps.Equal(p.Labels, prev.Labels) {
@@ -190,7 +197,7 @@ func withLabels(p Parameter, spelling string, version *int64, labels []string) (
 		p.Labels[l] = v.Number
 	}
 	if count := len(p.labelsOf(v.Number)); count > maxLabelsPerVersion {
-		return Parameter{}, labelOutcome{}, errLabelLimit(spelling, v.Number, count)
+		return Parameter{}, labelOutcome{}, errLabelLimit()
 	}
 	return p, out, nil
 }
@@ -207,7 +214,7 @@ func (s *Service) unlabelParameterVersion(_ context.Context, c *kernel.Call, in 
 		return nil, err
 	}
 	scope := c.Scope()
-	n, err := parseName(in.Name, scope)
+	n, err := parseName(in.Name, askerOf(c))
 	if err != nil {
 		return nil, err
 	}
@@ -215,7 +222,7 @@ func (s *Service) unlabelParameterVersion(_ context.Context, c *kernel.Call, in 
 		p, ok := st.Parameters[n.canonical]
 		if !ok {
 			tx.Unchanged()
-			return unlabelOutcome{}, errNotFound()
+			return unlabelOutcome{}, errLabelTargetNotFound(n.spelling)
 		}
 		sel := versionSelector{n: in.ParameterVersion}
 		v, ok := p.pick(sel)

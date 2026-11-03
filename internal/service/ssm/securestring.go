@@ -170,14 +170,21 @@ const (
 )
 
 // kmsFailure is Parameter Store's answer for a failed KMS call op made for
-// p: a KMS client error, an access denial included, is InvalidKeyId
-// carrying KMS's message (ssm-parameters.md 5.5, 12.3; inferred beyond the
-// documented disabled key); a KMS server error is InternalServerError
-// naming the call and what was left as it was; an understudy bug passes
-// through.
+// p: a KMS access denial is SSM's AccessDeniedException carrying KMS's
+// message (SSM-22 step 07); any other KMS client error is InvalidKeyId
+// carrying KMS's message (ssm-parameters.md 5.5, 12.3; SSM-22 steps 04-06
+// for a missing alias and a disabled key); a KMS server error is
+// InternalServerError naming the call and what was left as it was; an
+// understudy bug passes through. AWS appends to KMS's message the KMS
+// client's "(Service: AWSKMS; Status Code: 400; Error Code: <code>; Request
+// ID: <KMS request id>; Proxy: null)", which understudy does not, having no
+// KMS request id of its own to name.
 func kmsFailure(op string, p kmsPurpose, err *awserr.Error) *awserr.Error {
 	if _, internal := err.Origin.(awserr.Internal); internal {
 		return err
+	}
+	if err.ID.Shape == kmsapi.DenialError().Shape {
+		return ssmapi.ErrAccessDeniedException(err.Message)
 	}
 	if err.ID.Status >= 500 {
 		outcome := "Nothing was written; try the request again."

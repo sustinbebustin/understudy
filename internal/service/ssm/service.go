@@ -58,7 +58,7 @@ func New(d kernel.ServiceDeps, _ Options) *Service {
 			return in.ResourceType, in.ResourceId
 		}))
 	b.ListTagsForResource(s.listTagsForResource, registry.Partial{Note: reserved + "; " + parameterOnly +
-		"; unrecorded, understudy's choice: an untagged parameter answers TagList []"},
+		"; TagList lists tags in the order they were first set, where AWS's order is its own"},
 		byTagTarget(func(in *ssmapi.ListTagsForResourceInput) (ssmapi.ResourceTypeForTagging, string) {
 			return in.ResourceType, in.ResourceId
 		}))
@@ -78,88 +78,95 @@ const (
 	defaultKeyDecrypt = "under iam.enforce, a SecureString on the default key alias/aws/ssm is decrypted as SSM itself, " +
 		"so an explicit identity-policy deny of kms:Decrypt on that key is not applied"
 
+	// kmsMessage is how a KMS failure's message differs from AWS's
+	// (ssm-parameters.md 5.5; SSM-22).
+	kmsMessage = "a KMS failure carries KMS's message without the KMS client's \"(Service: AWSKMS; ...; Request ID: ...; Proxy: null)\" suffix AWS appends"
+
 	notePutParameter = reserved + "; parameter policies answer 501; DataType aws:ec2:image answers 501, since understudy has no EC2 to validate an AMI; " +
 		"an Advanced-tier SecureString, including an Intelligent-Tiering one that resolves to Advanced, answers 501; " +
-		"AllowedPattern is compiled as Go RE2: a pattern RE2 cannot compile answers 501, except an unbalanced bracket or parenthesis, " +
-		"a trailing backslash, a repetition without an argument or a reversed character range, which answer InvalidAllowedPatternException; " +
+		"AllowedPattern is compiled as Go RE2, where AWS's dialect is Java's: a pattern RE2 cannot compile, such as a lookahead or a possessive quantifier, " +
+		"answers 501, except an unbalanced bracket or parenthesis, a trailing backslash, a repetition without an argument or a reversed character range, " +
+		"which answer InvalidAllowedPatternException; " +
 		"no Parameter Store Change events are sent; the default tier is always Standard (the service setting is unbound); " +
-		"unrecorded, understudy's choice: an identical overwrite creates a version, Tags with Overwrite are refused for a new name too, " +
-		"an Intelligent-Tiering request answers with the resolved tier, an Advanced parameter written without Tier stays Advanced, " +
-		"an empty AllowedPattern on an overwrite clears the stored one, an empty Value is accepted, " +
-		"a deleted name can be created again at once with a fresh history, StringList values are stored verbatim, " +
-		"value size is counted in bytes and an oversize value answers ValidationException, " +
-		"a hierarchical parameter cannot change type (HierarchyTypeMismatchException) while a root parameter can, " +
-		"and the messages for name, depth, length, size, count, type-change, missing-Type, KeyId-on-String, AllowedPattern and {{...}} refusals are understudy's own; " +
+		"a {{...}} value's refusal leaves out the value AWS's message quotes; " + kmsMessage + "; " +
+		"unrecorded, understudy's choice: the count refusal's message is understudy's own; " +
 		defaultKeyEncrypt
-	noteGetParameter = "no AWS public parameters: names under /aws/service/ answer 501; " +
+	noteGetParameter = "no AWS public parameters: names under /aws/service/ answer 501, where AWS answers AccessDeniedException for a name it does not publish; " +
 		"Secrets Manager references (names under /aws/reference/secretsmanager/) answer 501; " +
 		"the legacy Query protocol (?Action= without X-Amz-Target), which AWS also serves, answers 501 for this and every SSM operation; " +
-		"unrecorded, understudy's choice: an ARN of another account or Region answers ParameterNotFound, except that under iam.enforce=enforce " +
-		"an ARN of another account is denied at step 8 first, and the ParameterVersionNotFound message is understudy's own; " +
+		kmsMessage + "; " +
 		defaultKeyDecrypt
 	noteGetParameters = "no AWS public parameters: a name under /aws/service/ makes the call answer 501; " +
 		"a Secrets Manager reference (a name under /aws/reference/secretsmanager/) makes the call answer 501; " +
-		"unrecorded, understudy's choice: a name given twice is answered once, and a name that is not valid, or whose version or label does not exist, is listed in InvalidParameters; " +
-		defaultKeyDecrypt
+		"unrecorded, understudy's choice: a parameter asked by name and by ARN is answered once per spelling; " +
+		kmsMessage + "; " + defaultKeyDecrypt
 	noteGetParametersByPath = "no AWS public parameters or Secrets Manager references: paths under /aws/service/ or /aws/reference/secretsmanager/ answer 501; " +
-		"unrecorded, understudy's choice: 10 results per page without MaxResults, Path / lists root parameters, and a Label filter's results carry no Selector; " +
-		defaultKeyDecrypt
+		"results come in name order across pages, where AWS's pages are ordered within but not across (switch ssm.list.order); " +
+		kmsMessage + "; " + defaultKeyDecrypt
 	noteDescribeParameters = "AWS public parameters and Secrets Manager references are never listed: " +
 		"a Name or Path filter value under /aws/service/ or /aws/reference/secretsmanager/ answers 501; " +
 		"Shared lists nothing, since no parameter can be shared (resource policies are unbound); " +
-		"the deprecated Filters member answers 501 (use ParameterFilters); " +
-		"unrecorded, understudy's choice: 50 results per page without MaxResults, a Path filter without Option is OneLevel, " +
-		"the values of one filter match any of them, a tag filter without Values matches any value of its key, " +
-		"BeginsWith and Contains are case-sensitive, and LastModifiedUser of a role session is the assumed-role session ARN"
-	noteGetParameterHistory = reserved + "; unrecorded, understudy's choice: 50 versions per page without MaxResults, " +
-		"version numbers keep counting after the oldest of 100 is dropped, and LastModifiedUser of a role session is the assumed-role session ARN; " +
-		defaultKeyDecrypt
-	noteDeleteParameters = reserved + "; no Parameter Store Change events are sent; " +
-		"unrecorded, understudy's choice: a name that is not valid is listed in InvalidParameters"
+		"the deprecated Filters member alone answers 501 (use ParameterFilters); " +
+		"results come in name order across pages, where AWS's pages are ordered within but not across (switch ssm.list.order); " +
+		"unrecorded, understudy's choice: the values of one filter match any of them"
+	noteGetParameterHistory   = reserved + "; " + kmsMessage + "; " + defaultKeyDecrypt
+	noteDeleteParameters      = reserved + "; no Parameter Store Change events are sent"
 	noteLabelParameterVersion = reserved + "; no Parameter Store Change events are sent; " +
-		"the ParameterVersionLabelLimitExceeded message is understudy's own (AWS's is unrecorded)"
+		"InvalidLabels lists the refused labels in request order, where AWS's order is its own"
 )
 
-// Switches lists the behaviors chosen without AWS-recorded evidence
-// (ssm-parameters.md 12.2).
+// Switches lists the behaviors chosen before AWS's were recorded
+// (ssm-parameters.md 12.2). Four are recorded as understudy behaves; a
+// success body's replay still differs from AWS's in JSON member order,
+// which AWS sorts by name, so those switches name their recording rather
+// than a parity step. ssm.list.order is the one AWS contradicts: its pages
+// are ordered by name within but not across pages (SSM-19, SSM-20), an
+// order understudy cannot reproduce, so understudy keeps the stable name
+// order Terraform's data sources need (10.2).
 func (*Service) Switches() []fidelity.Entry {
 	const ref = "docs/research/ssm-parameters.md#"
+	settledBy := func(item, step string) fidelity.SettledBy {
+		return fidelity.SettledBy{Step: fidelity.StepRef{Scenario: "ssm/" + item, Step: step}}
+	}
+	recorded := func(step string) fidelity.NoScenario {
+		return fidelity.NoScenario{Reason: "recorded as understudy behaves (" + step + "); the step's replay differs only in JSON member order, which AWS sorts by name"}
+	}
 	return []fidelity.Entry{
 		fidelity.Switch[string]{
 			Name:    "ssm.name.root-slash-echo",
 			Value:   "request-spelling",
-			Label:   evidence.Inferred,
+			Label:   evidence.AWSRecorded,
 			Ref:     ref + "32-root-parameters-and-the-leading-slash",
 			Record:  "SSM-07",
 			Ops:     []string{"ssm.GetParameter", "ssm.GetParameters", "ssm.DescribeParameters", "ssm.GetParameterHistory"},
-			Settles: fidelity.NoScenario{Reason: "unrecorded: SSM-07 not yet recorded"},
+			Settles: recorded("SSM-07 steps 01-07"),
 		}.Entry(),
 		fidelity.Switch[string]{
 			Name:    "ssm.error.parameter-not-found-message",
-			Value:   "empty",
-			Label:   evidence.Inferred,
+			Value:   "empty-except-label",
+			Label:   evidence.AWSRecorded,
 			Ref:     ref + "22-errors",
 			Record:  "SSM-02",
 			Ops:     []string{"ssm.DeleteParameter", "ssm.GetParameterHistory", "ssm.LabelParameterVersion", "ssm.UnlabelParameterVersion"},
-			Settles: fidelity.NoScenario{Reason: "unrecorded: SSM-02 not yet recorded"},
+			Settles: settledBy("SSM-02", "03-label"),
 		}.Entry(),
 		fidelity.Switch[string]{
 			Name:    "ssm.put.omitted-fields",
 			Value:   "preserved",
-			Label:   evidence.Inferred,
+			Label:   evidence.AWSRecorded,
 			Ref:     ref + "71-putparameter",
 			Record:  "SSM-10",
 			Ops:     []string{"ssm.PutParameter"},
-			Settles: fidelity.NoScenario{Reason: "unrecorded: SSM-10 not yet recorded"},
+			Settles: recorded("SSM-10 steps 02-03"),
 		}.Entry(),
 		fidelity.Switch[string]{
 			Name:    "ssm.kms.key-id-echo",
 			Value:   "verbatim",
-			Label:   evidence.Inferred,
+			Label:   evidence.AWSRecorded,
 			Ref:     ref + "54-keyid-in-metadata",
 			Record:  "SSM-22",
 			Ops:     []string{"ssm.PutParameter", "ssm.DescribeParameters", "ssm.GetParameterHistory"},
-			Settles: fidelity.NoScenario{Reason: "unrecorded: SSM-22 not yet recorded"},
+			Settles: recorded("SSM-22 steps 01-02"),
 		}.Entry(),
 		fidelity.Switch[string]{
 			Name:    "ssm.list.order",
@@ -168,7 +175,7 @@ func (*Service) Switches() []fidelity.Entry {
 			Ref:     ref + "74-getparametersbypath",
 			Record:  "SSM-19, SSM-20",
 			Ops:     []string{"ssm.GetParametersByPath", "ssm.DescribeParameters"},
-			Settles: fidelity.NoScenario{Reason: "unrecorded: SSM-19 and SSM-20 not yet recorded"},
+			Settles: settledBy("SSM-20", "01-default-page"),
 		}.Entry(),
 	}
 }

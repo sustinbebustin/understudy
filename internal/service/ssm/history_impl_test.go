@@ -89,9 +89,9 @@ func TestLabelTakesNoARN(t *testing.T) {
 	})
 }
 
-// The 11th label's refusal names the parameter, the version and the limit
-// (spec "Coverage marks": understudy-owned messages), and a refused call
-// applies none of its labels, the valid ones before the limit included.
+// The 11th label answers AWS's refusal (ssm-parameters.md 6.2; SSM-16 step
+// 06), and a refused call applies none of its labels, the valid ones
+// before the limit included.
 func TestLabelLimitAppliesNothing(t *testing.T) {
 	run(t, func(h *harness) {
 		h.put("/ll/a", "v")
@@ -102,7 +102,6 @@ func TestLabelLimitAppliesNothing(t *testing.T) {
 		must(h, ssmapi.OpLabelParameterVersion, &ssmapi.LabelParameterVersionInput{Name: "/ll/a", Labels: nine})
 		_, err := call(h, ssmapi.OpLabelParameterVersion, &ssmapi.LabelParameterVersionInput{Name: "/ll/a", Labels: []string{"tenth", "eleventh"}})
 		wantCode(h.T, "two labels past nine", err, ssmapi.IdentityParameterVersionLabelLimitExceeded())
-		wantOwnMessage(h.T, "two labels past nine", err, "", "/ll/a", "Version 1", "10")
 		if got := h.history("/ll/a")[0].Labels; len(got) != 9 {
 			h.Errorf("labels after the refusal = %v, want the nine", got)
 		}

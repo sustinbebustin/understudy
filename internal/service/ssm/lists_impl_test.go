@@ -3,14 +3,15 @@ package ssm_test
 import (
 	"fmt"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/sustinbebustin/understudy/internal/api/ssmapi"
 )
 
-// Without MaxResults GetParametersByPath answers pages of 10 and
-// DescribeParameters pages of 50; the last page carries no NextToken.
-// UNVERIFIED (SSM-19, SSM-20), ssm-parameters.md 7.4, 7.5.
+// Without MaxResults GetParametersByPath and DescribeParameters both answer
+// pages of 10; the last page carries no NextToken (ssm-parameters.md 7.4,
+// 7.5; SSM-19 and SSM-20 step 01).
 func TestDefaultPageSizes(t *testing.T) {
 	run(t, func(h *harness) {
 		for i := range 51 {
@@ -29,21 +30,27 @@ func TestDefaultPageSizes(t *testing.T) {
 		if want := []int{10, 10, 10, 10, 10, 1}; !slices.Equal(sizes, want) {
 			h.Errorf("GetParametersByPath page sizes = %v, want %v", sizes, want)
 		}
-		first := must(h, ssmapi.OpDescribeParameters, &ssmapi.DescribeParametersInput{})
-		if len(first.Parameters) != 50 || first.NextToken == nil {
-			h.Fatalf("DescribeParameters first page = %d entries, NextToken %v; want 50 and a token", len(first.Parameters), first.NextToken)
+		sizes = sizes[:0]
+		din := &ssmapi.DescribeParametersInput{}
+		for {
+			out := must(h, ssmapi.OpDescribeParameters, din)
+			sizes = append(sizes, len(out.Parameters))
+			if out.NextToken == nil {
+				break
+			}
+			din.NextToken = out.NextToken
 		}
-		last := must(h, ssmapi.OpDescribeParameters, &ssmapi.DescribeParametersInput{NextToken: first.NextToken})
-		if len(last.Parameters) != 1 || last.NextToken != nil {
-			h.Errorf("DescribeParameters last page = %d entries, NextToken %v; want 1 and none", len(last.Parameters), last.NextToken)
+		if want := []int{10, 10, 10, 10, 10, 1}; !slices.Equal(sizes, want) {
+			h.Errorf("DescribeParameters page sizes = %v, want %v", sizes, want)
 		}
 	})
 }
 
 // Path / lists the root parameters, and every parameter when recursive;
 // an empty listing answers Parameters [] on both operations; a token of one
-// listing is InvalidNextToken on the other. UNVERIFIED (SSM-19, SSM-20,
-// SSM-32), ssm-parameters.md 7.4, 7.10.
+// listing is InvalidNextToken on the other, naming it (ssm-parameters.md
+// 7.4, 7.10; SSM-07 step 07, SSM-19 step 05, SSM-20 step 02, SSM-32).
+// UNVERIFIED (SSM-19): what Path / lists recursively.
 func TestRootPathEmptyListingsAndForeignTokens(t *testing.T) {
 	run(t, func(h *harness) {
 		for _, n := range []string{"/root1", "root2", "/deep/a", "/deep/b/c"} {
@@ -72,28 +79,32 @@ func TestRootPathEmptyListingsAndForeignTokens(t *testing.T) {
 
 		byPath := must(h, ssmapi.OpGetParametersByPath, &ssmapi.GetParametersByPathInput{Path: "/", Recursive: new(true), MaxResults: new(int32(1))})
 		_, err := call(h, ssmapi.OpDescribeParameters, &ssmapi.DescribeParametersInput{NextToken: byPath.NextToken})
-		wantError(h.T, "DescribeParameters with a GetParametersByPath token", err, ssmapi.IdentityInvalidNextToken(), "The specified token isn't valid.")
+		wantError(h.T, "DescribeParameters with a GetParametersByPath token", err, ssmapi.IdentityInvalidNextToken(),
+			"The following token is invalid: "+val(byPath.NextToken)+".")
 	})
 }
 
-// A path without its leading slash is SSM's ValidationException, and a
-// path follows the naming rules otherwise. UNVERIFIED (SSM-19),
-// ssm-parameters.md 7.4.
+// A path without its leading slash is SSM's ValidationException with AWS's
+// path text (ssm-parameters.md 7.4; SSM-19 step 02), and a path breaking
+// the naming rules otherwise answers the same (UNVERIFIED SSM-19).
 func TestPathRules(t *testing.T) {
 	run(t, func(h *harness) {
 		for _, path := range []string{"x", "x/y", "/x//y", "/x/y//", "/x y"} {
 			_, err := call(h, ssmapi.OpGetParametersByPath, &ssmapi.GetParametersByPathInput{Path: path})
 			wantCode(h.T, "Path "+path, err, ssmapi.IdentityValidationException())
-			wantOwnMessage(h.T, "Path "+path, err, "", path)
+			if err != nil && !strings.HasPrefix(err.Message, "The parameter doesn't meet the parameter name requirements.") {
+				h.Errorf("Path %s message = %q, want AWS's path text", path, err.Message)
+			}
 		}
 	})
 }
 
-// DescribeParameters filter defaults: Path without Option is OneLevel; a
-// tag filter without Values matches any value of its key; another key
-// without Values is InvalidFilterValue; BeginsWith and Contains are
-// case-sensitive; Name values compare with or without the root slash.
-// UNVERIFIED (SSM-21), ssm-parameters.md 7.5.
+// DescribeParameters filter defaults: Path without Option is OneLevel and
+// Name without Option Equals (SSM-21 steps 01, 10); a tag filter without
+// Values matches any value of its key (SSM-21 step 06); BeginsWith is
+// case-sensitive and Contains is not (SSM-21 steps 07-08); Name values
+// compare with or without the root slash (ssm-parameters.md 7.5).
+// UNVERIFIED (SSM-21): another key without Values is InvalidFilterValue.
 func TestDescribeFilterDefaults(t *testing.T) {
 	run(t, func(h *harness) {
 		h.put("/d/one", "v")
@@ -116,7 +127,7 @@ func TestDescribeFilterDefaults(t *testing.T) {
 			{"Path without Option", f("Path", nil, "/d"), []string{"/d/one", "/d/tagged"}},
 			{"tag without Values", f("tag:team", nil), []string{"/d/tagged"}},
 			{"Name BeginsWith in another case", f("Name", new("BeginsWith"), "/D/"), nil},
-			{"Name Contains in another case", f("Name", new("Contains"), "ONE"), nil},
+			{"Name Contains in another case", f("Name", new("Contains"), "ONE"), []string{"/d/one"}},
 			{"Name Equals root with slash", f("Name", nil, "/rootname"), []string{"rootname"}},
 			{"Name BeginsWith root without slash", f("Name", new("BeginsWith"), "root"), []string{"rootname"}},
 		} {

@@ -19,11 +19,45 @@
             "covers": ["dev.understudy#throttleError"]
           },
           {
-            "label": "inferred",
-            "source": "docs/research/ssm-parameters.md#124-limits-and-validation-texts: no SSM capture shows a constraint violation; ValidationException with the Coral text is the cross-service rule of error-matrix.md 4; recording-queue SSM-16 step 02 and SSM-18 step 03 settle it",
+            "label": "aws-recorded",
+            "source": "testdata/parity/ssm/SSM-16/02-101-chars.json and testdata/parity/ssm/SSM-18/03-eleven.json: a constraint violation answers ValidationException, key message, with the Coral text (docs/research/ssm-parameters.md#124-limits-and-validation-texts)",
+            "validated": "2026-11-03",
             "covers": ["dev.understudy#validationError"]
           }
         ]
+      }
+    },
+    "com.amazonaws.ssm#InvalidFilterKey": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#messageKey": "Message",
+        "dev.understudy#evidence": {
+          "label": "aws-recorded",
+          "source": "testdata/parity/ssm/SSM-01/05-label-filter.json: the member-less shape answers \"Message\":\"The following filter key is not valid: Label. ...\" (docs/research/ssm-parameters.md#22-errors)",
+          "validated": "2026-11-03"
+        }
+      }
+    },
+    "com.amazonaws.ssm#PutParameterRequest$Value": {
+      "type": "apply",
+      "traits": {
+        "smithy.api#length": {"min": 1},
+        "dev.understudy#evidence": {
+          "label": "aws-recorded",
+          "source": "testdata/parity/ssm/SSM-11/03-empty-value.json: an empty Value answers the Coral length violation, the sensitive value omitted (docs/research/ssm-parameters.md#71-putparameter)",
+          "validated": "2026-11-03"
+        }
+      }
+    },
+    "com.amazonaws.ssm#ValidationException": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#messageKey": "message",
+        "dev.understudy#evidence": {
+          "label": "aws-recorded",
+          "source": "testdata/parity/ssm/SSM-01/03-get-bad-name.json: the model's member is Message, the wire key message (docs/research/ssm-parameters.md#22-errors)",
+          "validated": "2026-11-03"
+        }
       }
     },
     "com.amazonaws.ssm#AlarmName": {

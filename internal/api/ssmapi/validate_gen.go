@@ -6620,6 +6620,10 @@ func (v *PutParameterInput) validate(path awserr.Path, out *[]awserr.Violation) 
 	}
 	if v.missing&(1<<1) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "value"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
+	} else {
+		if utf8.RuneCountInString(v.Value) < 1 {
+			*out = append(*out, awserr.Violation{Path: at(path, "value"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
+		}
 	}
 	if v.Type != nil {
 		if !(*v.Type).Known() {

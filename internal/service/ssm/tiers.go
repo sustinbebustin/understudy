@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"regexp/syntax"
 	"slices"
+	"unicode/utf8"
 
 	"github.com/sustinbebustin/understudy/internal/api/ssmapi"
 	"github.com/sustinbebustin/understudy/internal/awserr"
@@ -20,9 +21,10 @@ const (
 // tierLimits is what one tier allows in an account and Region
 // (ssm-parameters.md 4.2, 9.3).
 type tierLimits struct {
-	// valueBytes is the largest value, counted in UTF-8 bytes. UNVERIFIED
-	// (SSM-12), ssm-parameters.md 4.2: bytes or characters.
-	valueBytes int
+	// valueChars is the largest value, counted in characters (Unicode code
+	// points): 2049 x U+00E9, 4098 bytes, is a valid Standard value
+	// (SSM-12 step 04).
+	valueChars int
 	// parameters is how many parameters of the tier a scope can hold.
 	parameters int
 }
@@ -30,23 +32,27 @@ type tierLimits struct {
 // limits is t's limits.
 func (t tier) limits() tierLimits {
 	if t == tierAdvanced {
-		return tierLimits{valueBytes: 8192, parameters: 100_000}
+		return tierLimits{valueChars: 8192, parameters: 100_000}
 	}
-	return tierLimits{valueBytes: 4096, parameters: 10_000}
+	return tierLimits{valueChars: 4096, parameters: 10_000}
 }
+
+// valueChars is the size of a value as the tier limits count it.
+func valueChars(value string) int { return utf8.RuneCountInString(value) }
 
 // resolveTier is the tier a write stores (ssm-parameters.md 4.2). current
 // is the parameter's tier, nil on a create.
 //
 //   - Omitted: Standard on a create (the default tier; the service setting
 //     that changes it is unbound), the current tier on an overwrite, so an
-//     Advanced parameter stays Advanced. UNVERIFIED (SSM-13),
-//     ssm-parameters.md 4.2.
+//     Advanced parameter stays Advanced (ssm-parameters.md 4.2; SSM-13
+//     step 05).
 //   - Standard on an Advanced parameter: refused, a tier is never
-//     downgraded (ssm-parameters.md 12.4 [T]).
+//     downgraded (ssm-parameters.md 12.4; SSM-13 step 04).
 //   - Intelligent-Tiering: Advanced when the value is over Standard's size,
 //     the parameter is already Advanced, or a new Standard parameter would
-//     not fit; Standard otherwise (ssm-parameters.md 4.2 [D][T]).
+//     not fit; Standard otherwise (ssm-parameters.md 4.2; SSM-13 steps 01,
+//     02, 06).
 func (w write) resolveTier(st *State, current *tier) (tier, *awserr.Error) {
 	requested := w.in.Tier
 	switch {
@@ -60,7 +66,7 @@ func (w write) resolveTier(st *State, current *tier) (tier, *awserr.Error) {
 		return tierAdvanced, nil
 	case ssmapi.ParameterTierIntelligentTiering:
 		switch {
-		case len(w.in.Value) > tierStandard.limits().valueBytes, current != nil && *current == tierAdvanced:
+		case valueChars(w.in.Value) > tierStandard.limits().valueChars, current != nil && *current == tierAdvanced:
 			return tierAdvanced, nil
 		case current != nil && *current == tierStandard:
 			return tierStandard, nil
@@ -73,26 +79,24 @@ func (w write) resolveTier(st *State, current *tier) (tier, *awserr.Error) {
 	if current != nil && *current == tierAdvanced {
 		return "", ssmapi.ErrValidationException("This parameter uses the advanced-parameter tier. " +
 			"You can't downgrade a parameter from the advanced-parameter tier to the standard-parameter tier. " +
-			"If necessary, you can delete the advanced parameter and recreate it as a standard parameter.")
+			"If necessary, you can delete the advanced parameter and recreate it as a standard parameter. " +
+			"Be aware that standard parameters have a value limit of 4096 characters.")
 	}
 	return tierStandard, nil
 }
 
-// checkSize refuses a value over t's size limit (ssm-parameters.md 4.2).
-// UNVERIFIED (SSM-12), ssm-parameters.md 4.2: the code and text; the
-// message names the measured size, never the value.
+// checkSize refuses a value over t's size limit in characters, with AWS's
+// texts (ssm-parameters.md 4.2; SSM-12 steps 02 and 06).
 func (w write) checkSize(t tier) *awserr.Error {
-	limit, size := t.limits().valueBytes, len(w.in.Value)
-	if size <= limit {
+	if valueChars(w.in.Value) <= t.limits().valueChars {
 		return nil
 	}
-	advice := "Write a shorter value."
-	if t == tierStandard {
-		advice = fmt.Sprintf("Write a shorter value, or write the parameter in the Advanced tier, which allows %d bytes.", tierAdvanced.limits().valueBytes)
+	if t == tierAdvanced {
+		return ssmapi.ErrValidationException("The specified parameter value is too large. Advanced-tier parameters support a maximum parameter value of 8192 characters.")
 	}
-	return ssmapi.ErrValidationException(fmt.Sprintf(
-		"Parameter %q was not written: its value is %d bytes, over the %d-byte limit of the %s tier. %s",
-		w.name.spelling, size, limit, t, advice))
+	return ssmapi.ErrValidationException("Standard tier parameters support a maximum parameter value of 4096 characters. " +
+		"To create a larger parameter value, upgrade the parameter to use the advanced-parameter tier. " +
+		"For more information, see https://docs.aws.amazon.com/systems-manager/latest/userguide/parameter-store-advanced-parameters.html")
 }
 
 // checkCount refuses a write that would put a parameter in tier t when the
@@ -150,9 +154,10 @@ func structuralPatternErrors() [6]syntax.ErrorCode {
 }
 
 // compilePattern compiles a non-empty AllowedPattern as Go RE2. A
-// structural error answers InvalidAllowedPatternException (UNVERIFIED
-// (SSM-15), ssm-parameters.md 4.4: the dialect and the text); any other
-// compile failure answers 501 (spec "Scope").
+// structural error answers InvalidAllowedPatternException with AWS's text
+// (ssm-parameters.md 4.4; SSM-15 step 04); any other compile failure
+// answers 501 (spec "Scope"), although AWS's Java dialect accepts a
+// lookahead and a possessive quantifier (SSM-15 steps 02-03).
 func (w write) compilePattern(op, source string) (allowedPattern, *awserr.Error) {
 	// The pattern compiles alone first: wrapped, a stray ")(" or a trailing
 	// backslash would pair with the anchoring group.
@@ -166,9 +171,7 @@ func (w write) compilePattern(op, source string) (allowedPattern, *awserr.Error)
 	if se, ok := errors.AsType[*syntax.Error](err); ok {
 		structural := structuralPatternErrors()
 		if slices.Contains(structural[:], se.Code) {
-			return allowedPattern{}, ssmapi.ErrInvalidAllowedPatternException(fmt.Sprintf(
-				"Parameter %q was not written: its AllowedPattern %q is not a valid regular expression (%s: %q). Correct the pattern and try again.",
-				w.name.spelling, source, se.Code, se.Expr))
+			return allowedPattern{}, ssmapi.ErrInvalidAllowedPatternException("The syntax of the allowedPattern parameter is invalid.")
 		}
 	}
 	return allowedPattern{}, errUnsupported(op, fmt.Sprintf(

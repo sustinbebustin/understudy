@@ -37,15 +37,15 @@ func TestTrimmedSpellingIsEchoed(t *testing.T) {
 	})
 }
 
-// 16 levels are refused like 17 (UNVERIFIED SSM-05, ssm-parameters.md
-// 3.4: the docs show only 15 accepted and 17 refused), and the refusal
-// names the name and the limit.
-func TestSixteenLevelsAreRefused(t *testing.T) {
+// 16 levels are accepted, a depth of 15 above the name, and read back
+// (ssm-parameters.md 3.4; SSM-05 step 02).
+func TestSixteenLevelsAreAccepted(t *testing.T) {
 	run(t, func(h *harness) {
 		name := strings.Repeat("/l", 15) + "/leaf"
-		_, err := call(h, ssmapi.OpPutParameter, &ssmapi.PutParameterInput{Name: name, Value: "secret-value", Type: new(ssmapi.ParameterTypeString)})
-		wantCode(h.T, "PutParameter of 16 levels", err, ssmapi.IdentityHierarchyLevelLimitExceededException())
-		wantOwnMessage(h.T, "PutParameter of 16 levels", err, "secret-value", name, "15", "16")
+		h.put(name, "v")
+		if got := h.mustGet(name, false); val(got.Name) != name {
+			h.Errorf("Name = %q, want %q", val(got.Name), name)
+		}
 	})
 }
 
@@ -63,19 +63,15 @@ func TestNameRulesOnEveryOperation(t *testing.T) {
 	})
 }
 
-// A parameter ARN of another account or Region names nothing this call can
-// see: ParameterNotFound with GetParameter's empty message (UNVERIFIED
-// SSM-29, ssm-parameters.md 3.3). An ARN of another service or SSM resource
-// type, or a malformed one, is SSM's ValidationException.
+// A parameter ARN of another account is denied, and one of another Region
+// or SSM resource type is SSM's ValidationException (ssm-parameters.md
+// 3.3; SSM-29); an ARN of another service, or a malformed one, is SSM's
+// ValidationException too (UNVERIFIED SSM-29).
 func TestForeignAndMalformedARNs(t *testing.T) {
 	run(t, func(h *harness) {
 		h.put("/arn/a", "v")
-		for _, arn := range []string{
-			"arn:aws:ssm:us-east-1:111111111111:parameter/arn/a",
-			"arn:aws:ssm:eu-west-1:000000000000:parameter/arn/a",
-		} {
-			wantError(h.T, "GetParameter "+arn, h.get(arn), ssmapi.IdentityParameterNotFound(), "")
-		}
+		wantCode(h.T, "GetParameter of another account's ARN", h.get("arn:aws:ssm:us-east-1:111111111111:parameter/arn/a"), ssmapi.IdentityAccessDeniedException())
+		wantCode(h.T, "GetParameter of another Region's ARN", h.get("arn:aws:ssm:eu-west-1:000000000000:parameter/arn/a"), ssmapi.IdentityValidationException())
 		for _, arn := range []string{
 			"arn:aws:ssm:us-east-1:000000000000:document/arn/a",
 			"arn:aws:sqs:us-east-1:000000000000:parameter/arn/a",

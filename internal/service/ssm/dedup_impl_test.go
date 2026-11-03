@@ -7,21 +7,26 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/ssmapi"
 )
 
-// UNVERIFIED (SSM-18), ssm-parameters.md 7.3: GetParameters answers a
-// parameter named twice once, and /r, r and r's ARN name one parameter
-// (3.2), so a call naming all three returns one entry, echoing the first
-// spelling (switch ssm.name.root-slash-echo). The same parameter with
-// different selectors is answered per selector.
-func TestGetParametersAnswersOneParameterOnce(t *testing.T) {
+// GetParameters answers each spelling asked once, with its own Name
+// (switch ssm.name.root-slash-echo): /r and r of one root parameter are two
+// entries (ssm-parameters.md 3.2, 7.3; SSM-07 step 03), and a spelling
+// given twice is one (SSM-18 step 01). UNVERIFIED (SSM-07): r's ARN is a
+// third entry, named r. The same parameter with a selector is answered per
+// selector.
+func TestGetParametersAnswersEachSpellingOnce(t *testing.T) {
 	run(t, func(h *harness) {
 		h.put("/r", "v1")
 		h.overwrite("/r", "v2")
-		out := must(h, ssmapi.OpGetParameters, &ssmapi.GetParametersInput{Names: []string{"/r", "r", arnPrefix + "r", "r:1"}})
-		if got := names(out.Parameters, paramName); !slices.Equal(got, []string{"/r", "r"}) {
-			h.Fatalf("Parameters = %v, want /r (latest) and r (:1)", got)
+		out := must(h, ssmapi.OpGetParameters, &ssmapi.GetParametersInput{Names: []string{"/r", "r", "/r", arnPrefix + "r", "r:1"}})
+		if got := names(out.Parameters, paramName); !slices.Equal(got, []string{"/r", "r", "r", "r"}) {
+			h.Fatalf("Parameters = %v, want /r, r, r (ARN) and r (:1)", got)
 		}
-		if out.Parameters[0].Selector != nil || val(out.Parameters[1].Selector) != ":1" {
-			h.Errorf("Selectors = %v %q, want none and :1", out.Parameters[0].Selector, val(out.Parameters[1].Selector))
+		selectors := make([]string, 0, len(out.Parameters))
+		for _, p := range out.Parameters {
+			selectors = append(selectors, val(p.Selector))
+		}
+		if !slices.Equal(selectors, []string{"", "", "", ":1"}) {
+			h.Errorf("Selectors = %q, want only the last :1", selectors)
 		}
 		if len(out.InvalidParameters) != 0 {
 			h.Errorf("InvalidParameters = %v, want []", out.InvalidParameters)

@@ -10,7 +10,7 @@ import (
 )
 
 // An untagged parameter lists TagList [], present and empty, which
-// Terraform reads tags from. UNVERIFIED (SSM-25), ssm-parameters.md 7.9.
+// Terraform reads tags from (ssm-parameters.md 7.9; SSM-25 step 01).
 func TestUntaggedParameterListsEmptyTagList(t *testing.T) {
 	run(t, func(h *harness) {
 		h.put("/choice/untagged", "v")
@@ -23,8 +23,8 @@ func TestUntaggedParameterListsEmptyTagList(t *testing.T) {
 	})
 }
 
-// An overwrite identical to the latest version still creates a version.
-// UNVERIFIED (SSM-08), ssm-parameters.md 6.1.
+// An overwrite identical to the latest version still creates a version
+// (ssm-parameters.md 6.1; SSM-08 step 01).
 func TestIdenticalOverwriteCreatesAVersion(t *testing.T) {
 	run(t, func(h *harness) {
 		h.put("/choice/same", "v")
@@ -35,7 +35,7 @@ func TestIdenticalOverwriteCreatesAVersion(t *testing.T) {
 }
 
 // Tags with Overwrite are refused for a name that does not exist yet too,
-// and nothing is created. UNVERIFIED (SSM-03), ssm-parameters.md 7.1.
+// and nothing is created (ssm-parameters.md 7.1; SSM-03 step 03).
 func TestTagsWithOverwriteRefusedForANewName(t *testing.T) {
 	run(t, func(h *harness) {
 		_, err := call(h, ssmapi.OpPutParameter, &ssmapi.PutParameterInput{
@@ -50,83 +50,77 @@ func TestTagsWithOverwriteRefusedForANewName(t *testing.T) {
 }
 
 // A create without Type, and KeyId on a String or StringList, on a create
-// or an overwrite, are SSM's ValidationException naming the parameter.
-// UNVERIFIED (SSM-11), ssm-parameters.md 7.1.
+// or an overwrite, are SSM's ValidationException with AWS's texts, and
+// nothing is written (ssm-parameters.md 7.1; SSM-11 steps 01-02).
 func TestCreateWithoutTypeAndKeyIDOnStringAreRefused(t *testing.T) {
 	run(t, func(h *harness) {
 		_, err := call(h, ssmapi.OpPutParameter, &ssmapi.PutParameterInput{Name: "/choice/untyped", Value: "secret-value"})
-		wantCode(h.T, "create without Type", err, ssmapi.IdentityValidationException())
-		wantOwnMessage(h.T, "create without Type", err, "secret-value", "/choice/untyped", "Type")
+		wantError(h.T, "create without Type", err, ssmapi.IdentityValidationException(), "A parameter type is required when you create a parameter.")
 		if err := h.get("/choice/untyped"); err == nil {
 			h.Error("the untyped create was stored")
 		}
 
+		const keyIDText = "KeyId is required for SecureString type parameter only."
 		_, err = call(h, ssmapi.OpPutParameter, &ssmapi.PutParameterInput{
 			Name: "/choice/kid", Value: "secret-value", Type: new(ssmapi.ParameterTypeStringList), KeyId: new("alias/aws/ssm"),
 		})
-		wantCode(h.T, "KeyId on a StringList create", err, ssmapi.IdentityValidationException())
-		wantOwnMessage(h.T, "KeyId on a StringList create", err, "secret-value", "/choice/kid", "KeyId")
+		wantError(h.T, "KeyId on a StringList create", err, ssmapi.IdentityValidationException(), keyIDText)
 
 		h.put("/choice/kid", "v")
 		_, err = call(h, ssmapi.OpPutParameter, &ssmapi.PutParameterInput{Name: "/choice/kid", Value: "w", Overwrite: new(true), KeyId: new("alias/aws/ssm")})
-		wantCode(h.T, "KeyId on a String overwrite", err, ssmapi.IdentityValidationException())
+		wantError(h.T, "KeyId on a String overwrite", err, ssmapi.IdentityValidationException(), keyIDText)
 		if got := h.mustGet("/choice/kid", false); val(got.Value) != "v" || got.Version != 1 {
 			h.Errorf("after the refusal = %q version %d, want v 1", val(got.Value), got.Version)
 		}
 	})
 }
 
-// An empty Value is accepted. UNVERIFIED (SSM-11 step 03),
-// ssm-parameters.md 7.1.
-func TestEmptyValueIsAccepted(t *testing.T) {
+// An empty Value is refused by the generated length check, the sensitive
+// value left out of the Coral text, and nothing is written
+// (ssm-parameters.md 7.1; SSM-11 step 03).
+func TestEmptyValueIsRefused(t *testing.T) {
 	run(t, func(h *harness) {
-		h.put("/choice/empty", "")
-		if got := h.mustGet("/choice/empty", false); got.Value == nil || *got.Value != "" {
-			h.Errorf("Value = %v, want \"\"", got.Value)
+		_, err := call(h, ssmapi.OpPutParameter, &ssmapi.PutParameterInput{Name: "/choice/empty", Value: "", Type: new(ssmapi.ParameterTypeString)})
+		coralValidation(h.T, "empty Value", err, "1 validation error detected: Value at 'value' failed to satisfy constraint: Member must have length greater than or equal to 1")
+		if err := h.get("/choice/empty"); err == nil {
+			h.Error("the empty value was stored")
 		}
 	})
 }
 
-// A value with {{...}} is SSM's ValidationException naming the parameter;
-// an unclosed or reversed pair is an ordinary value. UNVERIFIED (SSM-11
-// step 05), ssm-parameters.md 4.1.
+// A value with {{...}} is SSM's ValidationException without the value; an
+// unclosed or reversed pair is an ordinary value (ssm-parameters.md 4.1;
+// SSM-11 step 05).
 func TestDoubleBracesAreSSMValidationException(t *testing.T) {
 	run(t, func(h *harness) {
 		_, err := call(h, ssmapi.OpPutParameter, &ssmapi.PutParameterInput{Name: "/choice/braces", Value: "a{{b}}c", Type: new(ssmapi.ParameterTypeString)})
 		wantCode(h.T, "a value with {{b}}", err, ssmapi.IdentityValidationException())
-		wantOwnMessage(h.T, "a value with {{b}}", err, "a{{b}}c", "/choice/braces")
+		if err != nil && strings.Contains(err.Message, "a{{b}}c") {
+			h.Errorf("message %q holds the request's value", err.Message)
+		}
 		h.put("/choice/half", "only {{ opened")
 		h.put("/choice/reversed", "}} then {{")
 	})
 }
 
-// A hierarchical parameter can't change its type
-// (HierarchyTypeMismatchException, nothing written); a root parameter can.
-// UNVERIFIED (SSM-09), ssm-parameters.md 4.1.
+// A parameter changes type on overwrite, in a hierarchy as at the root
+// (ssm-parameters.md 4.1; SSM-09).
 func TestTypeChange(t *testing.T) {
 	run(t, func(h *harness) {
-		h.put("/choice/typed", "a")
-		_, err := call(h, ssmapi.OpPutParameter, &ssmapi.PutParameterInput{
-			Name: "/choice/typed", Value: "a,b", Type: new(ssmapi.ParameterTypeStringList), Overwrite: new(true),
-		})
-		wantCode(h.T, "hierarchical String to StringList", err, ssmapi.IdentityHierarchyTypeMismatchException())
-		wantOwnMessage(h.T, "hierarchical String to StringList", err, "a,b", "/choice/typed", "StringList")
-		if got := h.mustGet("/choice/typed", false); val(got.Type) != ssmapi.ParameterTypeString || got.Version != 1 {
-			h.Errorf("after the refusal = %s version %d, want String 1", val(got.Type), got.Version)
-		}
-
-		h.put("rootTyped", "a")
-		out := must(h, ssmapi.OpPutParameter, &ssmapi.PutParameterInput{
-			Name: "rootTyped", Value: "a,b", Type: new(ssmapi.ParameterTypeStringList), Overwrite: new(true),
-		})
-		if got := h.mustGet("rootTyped", false); out.Version != 2 || val(got.Type) != ssmapi.ParameterTypeStringList {
-			h.Errorf("root type change = version %d type %s, want 2 StringList", out.Version, val(got.Type))
+		for _, name := range []string{"/choice/typed", "rootTyped"} {
+			h.put(name, "a")
+			out := must(h, ssmapi.OpPutParameter, &ssmapi.PutParameterInput{
+				Name: name, Value: "a,b", Type: new(ssmapi.ParameterTypeStringList), Overwrite: new(true),
+			})
+			if got := h.mustGet(name, false); out.Version != 2 || val(got.Type) != ssmapi.ParameterTypeStringList {
+				h.Errorf("%s type change = version %d type %s, want 2 StringList", name, out.Version, val(got.Type))
+			}
 		}
 	})
 }
 
-// A StringList value is stored verbatim, spaces after commas included.
-// UNVERIFIED (SSM-28), ssm-parameters.md 4.1.
+// A StringList value is stored verbatim, spaces after commas included
+// (ssm-parameters.md 4.1; SSM-28).
 func TestStringListIsStoredVerbatim(t *testing.T) {
 	run(t, func(h *harness) {
 		must(h, ssmapi.OpPutParameter, &ssmapi.PutParameterInput{Name: "/choice/list", Value: "a, b,c", Type: new(ssmapi.ParameterTypeStringList)})
@@ -136,8 +130,8 @@ func TestStringListIsStoredVerbatim(t *testing.T) {
 	})
 }
 
-// A deleted name can be created again at once, at version 1 with no tags.
-// UNVERIFIED (SSM-26), ssm-parameters.md 7.7.
+// A deleted name can be created again at once, at version 1 with no tags
+// (ssm-parameters.md 7.7; SSM-26).
 func TestRecreateAfterDeleteStartsFresh(t *testing.T) {
 	run(t, func(h *harness) {
 		must(h, ssmapi.OpPutParameter, &ssmapi.PutParameterInput{
@@ -158,8 +152,8 @@ func TestRecreateAfterDeleteStartsFresh(t *testing.T) {
 }
 
 // Past 100 versions the oldest unlabeled one is dropped and numbering keeps
-// counting: the 101st write is version 101. UNVERIFIED (SSM-30),
-// ssm-parameters.md 6.1.
+// counting: the 101st write is version 101 (ssm-parameters.md 6.1; SSM-30
+// step 02).
 func TestVersionNumbersContinuePastTheCap(t *testing.T) {
 	run(t, func(h *harness) {
 		h.put("/choice/many", "v")
@@ -172,28 +166,25 @@ func TestVersionNumbersContinuePastTheCap(t *testing.T) {
 	})
 }
 
-// Value size is counted in UTF-8 bytes: 4096 bytes fit Standard, 4097 do
-// not, and 2049 two-byte characters (4098 bytes) do not either; Advanced
-// takes 8192 bytes, not 8193. An oversize value is SSM's
-// ValidationException naming the parameter, the limit and the measured
-// bytes, never the value, and nothing is written. UNVERIFIED (SSM-12),
-// ssm-parameters.md 4.2.
-func TestValueSizeIsCountedInBytes(t *testing.T) {
+// Value size is counted in characters: 4096 fit Standard, 4097 do not,
+// and 2049 two-byte characters (4098 bytes) do; Advanced takes 8192, not
+// 8193. An oversize value answers AWS's ValidationException, never naming
+// the value, and nothing is written (ssm-parameters.md 4.2; SSM-12).
+func TestValueSizeIsCountedInCharacters(t *testing.T) {
 	run(t, func(h *harness) {
 		std, adv := new(ssmapi.ParameterTierStandard), new(ssmapi.ParameterTierAdvanced)
 		must(h, ssmapi.OpPutParameter, &ssmapi.PutParameterInput{Name: "/size/std", Value: strings.Repeat("a", 4096), Type: new(ssmapi.ParameterTypeString), Tier: std})
+		must(h, ssmapi.OpPutParameter, &ssmapi.PutParameterInput{Name: "/size/std-utf8", Value: strings.Repeat("é", 2049), Type: new(ssmapi.ParameterTypeString), Tier: std})
 		must(h, ssmapi.OpPutParameter, &ssmapi.PutParameterInput{Name: "/size/adv", Value: strings.Repeat("a", 8192), Type: new(ssmapi.ParameterTypeString), Tier: adv})
 		for _, c := range []struct {
-			name, value, limit, size string
-			tier                     *ssmapi.ParameterTier
+			name, value string
+			tier        *ssmapi.ParameterTier
 		}{
-			{"/size/std-over", strings.Repeat("b", 4097), "4096", "4097", std},
-			{"/size/std-utf8", strings.Repeat("é", 2049), "4096", "4098", std},
-			{"/size/adv-over", strings.Repeat("c", 8193), "8192", "8193", adv},
+			{"/size/std-over", strings.Repeat("b", 4097), std},
+			{"/size/adv-over", strings.Repeat("c", 8193), adv},
 		} {
 			_, err := call(h, ssmapi.OpPutParameter, &ssmapi.PutParameterInput{Name: c.name, Value: c.value, Type: new(ssmapi.ParameterTypeString), Tier: c.tier})
 			wantCode(h.T, c.name, err, ssmapi.IdentityValidationException())
-			wantOwnMessage(h.T, c.name, err, c.value, c.name, c.limit, c.size)
 			if err := h.get(c.name); err == nil {
 				h.Errorf("%s was stored", c.name)
 			}
@@ -202,8 +193,8 @@ func TestValueSizeIsCountedInBytes(t *testing.T) {
 }
 
 // The six structural regexp errors no dialect accepts answer
-// InvalidAllowedPatternException naming the parameter and the pattern, and
-// nothing is written. UNVERIFIED (SSM-15), ssm-parameters.md 4.4.
+// InvalidAllowedPatternException with AWS's text, and nothing is written
+// (ssm-parameters.md 4.4; SSM-15 step 04).
 func TestStructuralAllowedPatternErrors(t *testing.T) {
 	run(t, func(h *harness) {
 		// Missing bracket, missing paren, unexpected paren, trailing
@@ -211,8 +202,7 @@ func TestStructuralAllowedPatternErrors(t *testing.T) {
 		// last two would pair with an anchoring group if wrapped first.
 		for _, p := range []string{`[a`, `(a`, `a)`, `a\`, `*a`, `[z-a]`, `a)(b`} {
 			_, err := call(h, ssmapi.OpPutParameter, &ssmapi.PutParameterInput{Name: "/pat/bad", Value: "secret-value", Type: new(ssmapi.ParameterTypeString), AllowedPattern: new(p)})
-			wantCode(h.T, "AllowedPattern "+p, err, ssmapi.IdentityInvalidAllowedPatternException())
-			wantOwnMessage(h.T, "AllowedPattern "+p, err, "secret-value", "/pat/bad", p)
+			wantError(h.T, "AllowedPattern "+p, err, ssmapi.IdentityInvalidAllowedPatternException(), "The syntax of the allowedPattern parameter is invalid.")
 		}
 		if err := h.get("/pat/bad"); err == nil {
 			h.Error("a parameter with an invalid pattern was stored")
@@ -222,8 +212,8 @@ func TestStructuralAllowedPatternErrors(t *testing.T) {
 
 // An Intelligent-Tiering request answers the resolved tier, never
 // Intelligent-Tiering; an Advanced parameter overwritten without Tier, or
-// with Intelligent-Tiering and a small value, stays Advanced. UNVERIFIED
-// (SSM-13), ssm-parameters.md 4.2.
+// with Intelligent-Tiering and a small value, stays Advanced
+// (ssm-parameters.md 4.2; SSM-13).
 func TestIntelligentTieringAnswersTheResolvedTier(t *testing.T) {
 	run(t, func(h *harness) {
 		it := new(ssmapi.ParameterTierIntelligentTiering)
@@ -233,7 +223,7 @@ func TestIntelligentTieringAnswersTheResolvedTier(t *testing.T) {
 		}
 		out = must(h, ssmapi.OpPutParameter, &ssmapi.PutParameterInput{Name: "/it/a", Value: strings.Repeat("x", 4097), Overwrite: new(true), Tier: it})
 		if val(out.Tier) != ssmapi.ParameterTierAdvanced {
-			h.Errorf("Intelligent-Tiering 4097 bytes response Tier = %q, want Advanced", val(out.Tier))
+			h.Errorf("Intelligent-Tiering 4097 characters response Tier = %q, want Advanced", val(out.Tier))
 		}
 		if out := h.overwrite("/it/a", "small"); val(out.Tier) != ssmapi.ParameterTierAdvanced {
 			h.Errorf("overwrite without Tier response Tier = %q, want Advanced", val(out.Tier))
@@ -249,8 +239,8 @@ func TestIntelligentTieringAnswersTheResolvedTier(t *testing.T) {
 }
 
 // An empty AllowedPattern on an overwrite clears the stored pattern, so a
-// value the old pattern refused is accepted. UNVERIFIED (SSM-10 step 04),
-// ssm-parameters.md 7.1.
+// value the old pattern refused is accepted (ssm-parameters.md 7.1; SSM-10
+// step 04).
 func TestEmptyAllowedPatternClears(t *testing.T) {
 	run(t, func(h *harness) {
 		must(h, ssmapi.OpPutParameter, &ssmapi.PutParameterInput{Name: "/pat/clear", Value: "12", Type: new(ssmapi.ParameterTypeString), AllowedPattern: new(`\d+`)})
@@ -294,10 +284,9 @@ func TestStandardParameterCount(t *testing.T) {
 }
 
 // GetParameters answers a name given twice once, and lists in
-// InvalidParameters, as the request gave them and in request order, a name
-// that is not valid, a selector naming no version and a malformed
-// selector, while answering the rest. UNVERIFIED (SSM-17, SSM-18),
-// ssm-parameters.md 6.3, 7.3.
+// InvalidParameters, as the request gave them and sorted, a name that is
+// not valid, a selector naming no version and a malformed selector, while
+// answering the rest (ssm-parameters.md 6.3, 7.3; SSM-17 step 08, SSM-18).
 func TestGetParametersDuplicatesAndInvalidNames(t *testing.T) {
 	run(t, func(h *harness) {
 		h.put("/gp/a", "a")
@@ -308,7 +297,7 @@ func TestGetParametersDuplicatesAndInvalidNames(t *testing.T) {
 		if got := names(out.Parameters, paramName); !slices.Equal(got, []string{"/gp/a", "/gp/a", "/gp/b"}) {
 			h.Errorf("Parameters = %v, want /gp/a (latest), /gp/a (:1), /gp/b once", got)
 		}
-		if want := []string{"bad name", "/gp//x", "/gp/a:7", "/gp/a:1:2"}; !slices.Equal(out.InvalidParameters, want) {
+		if want := []string{"/gp//x", "/gp/a:1:2", "/gp/a:7", "bad name"}; !slices.Equal(out.InvalidParameters, want) {
 			h.Errorf("InvalidParameters = %q, want %q", out.InvalidParameters, want)
 		}
 	})

@@ -25,9 +25,9 @@ func errAlreadyExists() *awserr.Error {
 	return ssmapi.ErrParameterAlreadyExists("The parameter already exists. To overwrite this value, set the overwrite option in the request to true.")
 }
 
-// errNotFound is ParameterNotFound with the empty message AWS sends
-// (ssm-parameters.md 2.2; localstack@8b9a79f
-// tests/aws/services/cloudformation/resources/test_ssm.snapshot.json:L105-L114).
+// errNotFound is ParameterNotFound with no message, as AWS sends it to
+// GetParameter, DeleteParameter and GetParameterHistory (ssm-parameters.md
+// 2.2; SSM-01 step 01, SSM-02 steps 01-02).
 func errNotFound() *awserr.Error { return ssmapi.ErrParameterNotFound("") }
 
 // readState runs fn on scope's state, or on an empty state when the scope
@@ -64,8 +64,8 @@ const (
 )
 
 // errTagsWithOverwrite is PutParameter's answer for Tags with Overwrite
-// true (ssm-parameters.md 7.1, 12.4). It is given for a name that does not
-// exist yet too. UNVERIFIED (SSM-03), ssm-parameters.md 7.1.
+// true (ssm-parameters.md 7.1, 12.4), for a name that does not exist yet
+// too (SSM-03 steps 02-03).
 func errTagsWithOverwrite() *awserr.Error {
 	return ssmapi.ErrValidationException("Invalid request: tags and overwrite can't be used together. " +
 		"To create a parameter with tags, please remove overwrite flag. " +
@@ -84,7 +84,7 @@ func (s *Service) putParameter(ctx context.Context, c *kernel.Call, in *ssmapi.P
 		return nil, err
 	}
 	scope := c.Scope()
-	n, err := parseName(in.Name, scope)
+	n, err := parseName(in.Name, askerOf(c))
 	if err != nil {
 		return nil, err
 	}
@@ -102,8 +102,8 @@ func (s *Service) putParameter(ctx context.Context, c *kernel.Call, in *ssmapi.P
 		return nil, ssmapi.ErrTooManyTagsError()
 	}
 	// LastModifiedUser is the caller's principal ARN as SigV4 resolved it,
-	// the assumed-role session ARN for a role session. UNVERIFIED (SSM-24),
-	// ssm-parameters.md 9.1.
+	// the assumed-role session ARN for a role session (ssm-parameters.md
+	// 9.1; SSM-24).
 	w := write{op: op, name: n, in: in, tags: tags, at: c.Admitted(), user: identity.Render(c.Principal())}
 	planned, err := readState(s, scope, func(st *State) planned { p, err := w.apply(st, overwrite); return planned{p, err} }).unpack()
 	if err != nil {
@@ -191,9 +191,8 @@ func (w write) fillSealed(v *Version, sealed *sealedValue) *awserr.Error {
 // unless given (ssm-parameters.md 4.3).
 func (w write) create(st *State) (Parameter, *awserr.Error) {
 	if w.in.Type == nil {
-		// UNVERIFIED (SSM-11), ssm-parameters.md 7.1: AWS's code and text.
-		return Parameter{}, ssmapi.ErrValidationException(fmt.Sprintf(
-			"Parameter %q does not exist, so this request creates it, and a create needs a Type: String, StringList or SecureString.", w.name.spelling))
+		// ssm-parameters.md 7.1; SSM-11 step 01.
+		return Parameter{}, ssmapi.ErrValidationException("A parameter type is required when you create a parameter.")
 	}
 	t, err := w.requestType()
 	if err != nil {
@@ -218,11 +217,11 @@ func (w write) requestType() (paramType, *awserr.Error) {
 }
 
 // next is prev with the overwrite's version appended. Every overwrite
-// creates a version, one identical to the latest included (UNVERIFIED
-// (SSM-08), ssm-parameters.md 6.1). Past 100 versions the oldest is
-// dropped, unless a label names it (ssm-parameters.md 6.1, 12.4); numbers
-// keep counting from LastVersion (UNVERIFIED (SSM-30), ssm-parameters.md
-// 6.1).
+// creates a version, one identical to the latest included
+// (ssm-parameters.md 6.1; SSM-08 step 01). Past 100 versions the oldest is
+// dropped, unless a label names it, which AWS refuses naming the parameter
+// without its leading slash and with a curly apostrophe; numbers keep
+// counting from LastVersion (ssm-parameters.md 6.1, 12.4; SSM-30).
 func (w write) next(st *State, prev Parameter) (Parameter, *awserr.Error) {
 	base := prev.latest()
 	base.Number = prev.LastVersion + 1
@@ -237,8 +236,8 @@ func (w write) next(st *State, prev Parameter) (Parameter, *awserr.Error) {
 			if labeled == oldest {
 				return Parameter{}, ssmapi.ErrParameterMaxVersionLimitExceeded(fmt.Sprintf(
 					"You attempted to create a new version of %s by calling the PutParameter API with the overwrite flag. "+
-						"Version %d, the oldest version, can't be deleted because it has a label associated with it. "+
-						"Move the label to another version of the parameter, and try again.", prev.Name, oldest))
+						"Version %d, the oldest version, can’t be deleted because it has a label associated with it. "+
+						"Move the label to another version of the parameter, and try again.", strings.TrimPrefix(prev.Name, "/"), oldest))
 			}
 		}
 		kept = kept[len(kept)-maxVersions+1:]
@@ -251,10 +250,12 @@ func (w write) next(st *State, prev Parameter) (Parameter, *awserr.Error) {
 
 // version is base with the request's fields applied, checked in the order
 // of contract 4.1. Under switch ssm.put.omitted-fields (preserved) a field
-// the request leaves out keeps base's value (ssm-parameters.md 7.1); an
-// empty Description or AllowedPattern clears it (UNVERIFIED (SSM-10),
-// ssm-parameters.md 7.1: Terraform sends AllowedPattern "" whenever none
-// is configured). current is the parameter's tier, nil on a create.
+// the request leaves out keeps base's value, and an empty AllowedPattern
+// clears it (ssm-parameters.md 7.1; SSM-10). UNVERIFIED (SSM-10),
+// ssm-parameters.md 7.1: an empty Description clears it too. current is the
+// parameter's tier, nil on a create. A type change is accepted in a
+// hierarchy as at the root (ssm-parameters.md 4.1; SSM-09), and the
+// generated length check has refused an empty Value (SSM-11 step 03).
 func (w write) version(st *State, base Version, current *tier) (Version, *awserr.Error) {
 	in := w.in
 	v := base
@@ -266,8 +267,6 @@ func (w write) version(st *State, base Version, current *tier) (Version, *awserr
 		}
 		v.Type = t
 	}
-	// An empty Value is accepted. UNVERIFIED (SSM-11 step 03),
-	// ssm-parameters.md 7.1.
 	v.Value = plainValue{Text: in.Value}
 	if v.Type == typeSecureString {
 		v.Value = sealedValue{KeyRef: keyRefFor(in.KeyId, base.Value)}
@@ -288,9 +287,8 @@ func (w write) version(st *State, base Version, current *tier) (Version, *awserr
 		v.DataType = *in.DataType
 	}
 	if in.KeyId != nil && v.Type != typeSecureString {
-		// UNVERIFIED (SSM-11), ssm-parameters.md 7.1: AWS's code and text.
-		return Version{}, ssmapi.ErrValidationException(fmt.Sprintf(
-			"Parameter %q is a %s, and KeyId applies only to a SecureString. Remove KeyId, or write the parameter as a SecureString.", w.name.spelling, v.Type))
+		// ssm-parameters.md 7.1; SSM-11 step 02.
+		return Version{}, ssmapi.ErrValidationException("KeyId is required for SecureString type parameter only.")
 	}
 	if in.DataType != nil {
 		if err := w.checkDataType(*in.DataType); err != nil {
@@ -298,19 +296,11 @@ func (w write) version(st *State, base Version, current *tier) (Version, *awserr
 		}
 	}
 	if hasReference(in.Value) {
-		// UNVERIFIED (SSM-11 step 05), ssm-parameters.md 4.1: the doc
-		// forbids such values; AWS's code and text are unrecorded.
-		return Version{}, ssmapi.ErrValidationException(fmt.Sprintf(
-			"Parameter %q was not written: its value holds text wrapped in double braces ({{...}}), "+
-				"and a parameter value can't reference or nest another parameter.", w.name.spelling))
-	}
-	if v.Type != base.Type && strings.HasPrefix(w.name.canonical, "/") {
-		// A hierarchical parameter keeps its type; a root parameter may
-		// change it, as Terraform does against AWS. UNVERIFIED (SSM-09),
-		// ssm-parameters.md 4.1.
-		return Version{}, ssmapi.ErrHierarchyTypeMismatchException(fmt.Sprintf(
-			"Parameter %q is a %s, and a parameter in a hierarchy can't change its type to %s. Create a new parameter with another name instead.",
-			w.name.spelling, base.Type, v.Type))
+		// AWS's text quotes the value after "Parameter value:" (SSM-11
+		// step 05); understudy leaves the value out, as it does from every
+		// message (ssm-parameters.md 4.1, 12.4).
+		return Version{}, ssmapi.ErrValidationException(
+			`Parameter value failed to satisfy constraint: Parameter value can't nest another parameter. Do not use "{{}}" in the value.`)
 	}
 	return w.valueRules(st, v, current)
 }
@@ -354,14 +344,14 @@ func hasReference(value string) bool {
 }
 
 // deleteParameter drops a parameter with its versions, labels and tags.
-// The name can be created again at once, as version 1 with no tags.
-// UNVERIFIED (SSM-26), ssm-parameters.md 7.7.
+// The name can be created again at once, as version 1 with no tags
+// (ssm-parameters.md 7.7; SSM-26).
 func (s *Service) deleteParameter(_ context.Context, c *kernel.Call, in *ssmapi.DeleteParameterInput) (*ssmapi.DeleteParameterOutput, *awserr.Error) {
 	if err := checkReserved("DeleteParameter", in.Name); err != nil {
 		return nil, err
 	}
 	scope := c.Scope()
-	n, err := parseName(in.Name, scope)
+	n, err := parseName(in.Name, askerOf(c))
 	if err != nil {
 		return nil, err
 	}
@@ -382,17 +372,16 @@ func (s *Service) deleteParameter(_ context.Context, c *kernel.Call, in *ssmapi.
 
 // deleteParameters deletes up to ten parameters by name
 // (ssm-parameters.md 7.7): those deleted, as the request spelled them
-// (trimmed), in byte order; those not found, as given, in
-// InvalidParameters. Both are [] rather than absent when empty (7.10).
-// UNVERIFIED (SSM-27), ssm-parameters.md 7.7: a name that is not valid is
-// listed in InvalidParameters rather than failing the call, and a
-// parameter named twice, under any of its spellings (3.2), is deleted and
-// listed once, as the first spelling asked.
+// (trimmed), in byte order; those not found or not valid names, as given,
+// in InvalidParameters, sorted. Both are [] rather than absent when empty
+// (7.10; SSM-27). UNVERIFIED (SSM-27), ssm-parameters.md 7.7: a parameter
+// named twice, under any of its spellings (3.2), is deleted and listed
+// once, as the first spelling asked.
 func (s *Service) deleteParameters(_ context.Context, c *kernel.Call, in *ssmapi.DeleteParametersInput) (*ssmapi.DeleteParametersOutput, *awserr.Error) {
 	if err := checkReserved("DeleteParameters", in.Names...); err != nil {
 		return nil, err
 	}
-	scope := c.Scope()
+	scope, a := c.Scope(), askerOf(c)
 	type outcome struct {
 		deleted []name
 		invalid []string
@@ -407,7 +396,7 @@ func (s *Service) deleteParameters(_ context.Context, c *kernel.Call, in *ssmapi
 				continue
 			}
 			seen[asked] = true
-			n, err := parseName(asked, scope)
+			n, err := parseName(asked, a)
 			if err == nil && gone[n.canonical] {
 				continue
 			}
@@ -433,5 +422,6 @@ func (s *Service) deleteParameters(_ context.Context, c *kernel.Call, in *ssmapi
 		c.Touch(parameterARN(scope, n.canonical))
 	}
 	slices.Sort(deleted)
+	slices.Sort(o.invalid)
 	return &ssmapi.DeleteParametersOutput{DeletedParameters: deleted, InvalidParameters: o.invalid}, nil
 }

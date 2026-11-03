@@ -3,11 +3,12 @@ package ssm
 import (
 	"fmt"
 	"strings"
-	"unicode/utf8"
 
 	"github.com/sustinbebustin/understudy/internal/api/ssmapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/identity"
+	"github.com/sustinbebustin/understudy/internal/kernel"
 )
 
 // name is a parameter name as one request gave it.
@@ -22,79 +23,106 @@ type name struct {
 	spelling string
 }
 
+// asker is who a name is read for: the call's scope, and the caller and
+// ssm: action that AWS names when it refuses a name as a denial
+// (ssm-parameters.md 3.3, 3.4).
+type asker struct {
+	scope  aws.Scope
+	caller identity.Principal
+	action string
+}
+
+// askerOf is the asker of call c.
+func askerOf(c *kernel.Call) asker {
+	return asker{scope: c.Scope(), caller: c.Principal(), action: "ssm:" + c.OperationID().Name}
+}
+
+// denied is the AccessDeniedException AWS answers for a parameter ARN the
+// caller may not reach whatever its policies say, in the IAM grammar with
+// the resource named and reason appended when there is one: none for an
+// ARN past the length limit, "because no resource-based policy allows the
+// <action> action" for another account's parameter (ssm-parameters.md 3.3,
+// 3.4; SSM-06 step 02, SSM-29 step 01).
+func (a asker) denied(arn, reason string) *awserr.Error {
+	return ssmapi.ErrAccessDeniedException("User: " + identity.Render(a.caller) + " is not authorized to perform: " +
+		a.action + " on resource: " + arn + reason)
+}
+
 // Name limits (ssm-parameters.md 3.4).
 const (
-	// maxLevels is the deepest hierarchy, counting the name's own level.
-	// A 16-level name is refused too. UNVERIFIED (SSM-05),
-	// ssm-parameters.md 3.4: the docs show only 15 accepted and 17 refused.
-	maxLevels = 15
+	// maxLevels is the deepest hierarchy, counting the name's own level:
+	// 16 levels are accepted and 17 refused (SSM-05), the "depth of the
+	// tree" of AWS's message being the levels above the name.
+	maxLevels = 16
 	// maxARNLength is the longest parameter ARN: the 1011 characters a
 	// name may have "includes the characters in the ARN that precede the
-	// name". UNVERIFIED (SSM-06), ssm-parameters.md 3.4.
+	// name" (SSM-06: 1011 accepted, 1012 denied).
 	maxARNLength = 1011
 )
 
-// pathRule is the text AWS answers for a path defect, as both emulators
-// render it (ssm-parameters.md 3.1 [E]; the R-weak assertion requires
-// "sub-paths divided by slash symbol").
-const pathRule = "If formed as a path, it can consist of sub-paths divided by slash symbol; " +
-	"each sub-path can be formed as a mix of letters, numbers and the following 3 symbols .-_"
+// AWS's texts for name defects (ssm-parameters.md 3.1; SSM-01 step 03,
+// SSM-04).
+const (
+	// textPath answers a character outside the set, an empty level and a
+	// hierarchical name whose first level begins with ssm.
+	textPath = `Parameter name: can't be prefixed with "ssm" (case-insensitive). If formed as a path, ` +
+		"it can consist of sub-paths divided by slash symbol; each sub-path can be formed as a mix of letters, numbers and the following 3 symbols .-_"
+	textNotQualified  = "Parameter name must be a fully qualified name."
+	textTrailingSlash = "Parameter name must not end with slash."
+	textPrefixed      = `Parameter name: can't be prefixed with "aws" or "ssm" (case-insensitive).`
+	textDepth         = "Depth of the tree cannot exceed 15"
+)
 
 // parseName applies the naming rules of ssm-parameters.md 3.1 and 3.4 to a
-// name, never an ARN, in this order: outer spaces trimmed, the character
-// set, the aws/ssm prefix of the first level, the hierarchy's form, its
-// depth, and the length of the parameter's ARN in scope. Every refusal is
-// SSM's own ValidationException (spec conflict 1), except the depth's
-// HierarchyLevelLimitExceededException. The message texts are understudy's
-// own. UNVERIFIED (SSM-04), ssm-parameters.md 3.1: AWS's code and text for
-// each defect, and that the trimmed form is stored and echoed.
-func parseName(raw string, scope aws.Scope) (name, *awserr.Error) {
+// name, never an ARN, with AWS's code and text for each defect recorded in
+// SSM-04, SSM-05 and SSM-06, in this order: outer spaces trimmed (stored
+// and echoed trimmed), the character set, a slash without a leading slash
+// (PutParameter's own text; the path text elsewhere),
+// the reserved first level /aws/ (AccessDeniedException), an aws or ssm
+// prefix of the first level, an empty level, a trailing slash, the depth
+// (HierarchyLevelLimitExceededException) and the length of the parameter's
+// ARN (AccessDeniedException). UNVERIFIED (SSM-04), ssm-parameters.md 3.1:
+// the order when a name has two defects, a name empty once trimmed (whose
+// text is understudy's own), and whether /AWS/ in another case is
+// reserved too; understudy reserves it in any case.
+func parseName(raw string, a asker) (name, *awserr.Error) {
 	spelling := strings.Trim(raw, " ")
 	if spelling == "" {
 		return name{}, ssmapi.ErrValidationException("Parameter name is empty once its outer spaces are trimmed. " +
 			"A parameter name can include only a-zA-Z0-9_.- and the slash that divides hierarchy levels.")
 	}
-	if i := strings.IndexFunc(spelling, func(r rune) bool { return !nameRune(r) }); i >= 0 {
-		bad, _ := utf8.DecodeRuneInString(spelling[i:])
-		why := fmt.Sprintf("it contains %q", bad)
-		if bad == ' ' {
-			why = "it contains a space between characters"
-		}
-		return name{}, ssmapi.ErrValidationException(fmt.Sprintf("Parameter name %q is not valid: %s. "+
-			"A parameter name can include only a-zA-Z0-9_.- and the slash that divides hierarchy levels.", spelling, why))
+	if strings.IndexFunc(spelling, func(r rune) bool { return !nameRune(r) }) >= 0 {
+		return name{}, ssmapi.ErrValidationException(textPath)
 	}
 	rest, rooted := strings.CutPrefix(spelling, "/")
-	first, _, _ := strings.Cut(rest, "/")
-	if l := strings.ToLower(first); strings.HasPrefix(l, "aws") || strings.HasPrefix(l, "ssm") {
-		// The prefix test on the first level is read literally from the
-		// docs, so awsome is refused too. UNVERIFIED (SSM-04),
-		// ssm-parameters.md 3.1.
-		return name{}, ssmapi.ErrValidationException(fmt.Sprintf(
-			"Parameter name %q is not valid: its first level %q begins with \"aws\" or \"ssm\" (case-insensitive), which Systems Manager reserves.",
-			spelling, first))
-	}
+	first, _, hierarchical := strings.Cut(rest, "/")
+	lower := strings.ToLower(first)
 	switch {
-	case !rooted && strings.Contains(rest, "/"):
-		return name{}, errPath(spelling, "a name with more than one level must begin with a slash")
+	case !rooted && hierarchical && a.action == "ssm:PutParameter":
+		return name{}, ssmapi.ErrValidationException(textNotQualified)
+	case !rooted && hierarchical:
+		// GetParameter and GetParameters answer the path text (3.1
+		// [R-weak]). UNVERIFIED (SSM-04): the other operations' answer.
+		return name{}, ssmapi.ErrValidationException(textPath)
+	case hierarchical && lower == "aws":
+		return name{}, ssmapi.ErrAccessDeniedException("No access to reserved parameter name: " + rest + ".")
+	case hierarchical && (strings.HasPrefix(lower, "aws") || strings.HasPrefix(lower, "ssm")):
+		return name{}, ssmapi.ErrValidationException(textPath)
+	case strings.HasPrefix(lower, "aws") || strings.HasPrefix(lower, "ssm"):
+		return name{}, ssmapi.ErrValidationException(textPrefixed)
 	case rest == "" || strings.Contains(rest, "//"):
-		return name{}, errPath(spelling, "it has an empty level")
+		return name{}, ssmapi.ErrValidationException(textPath)
 	case strings.HasSuffix(rest, "/"):
-		// A trailing slash is refused as an empty last level.
-		// UNVERIFIED (SSM-04), ssm-parameters.md 3.1.
-		return name{}, errPath(spelling, "it ends with a slash")
-	}
-	if levels := strings.Count(rest, "/") + 1; levels > maxLevels {
-		return name{}, ssmapi.ErrHierarchyLevelLimitExceededException(fmt.Sprintf(
-			"A hierarchy can have a maximum of %d levels. Parameter name %q has %d.", maxLevels, spelling, levels))
+		return name{}, ssmapi.ErrValidationException(textTrailingSlash)
+	case strings.Count(rest, "/") >= maxLevels: // the levels above the name's own
+		return name{}, ssmapi.ErrHierarchyLevelLimitExceededException(textDepth)
 	}
 	canonical := spelling
-	if !strings.Contains(rest, "/") {
+	if !hierarchical {
 		canonical = rest
 	}
-	if n := len(parameterARN(scope, canonical).String()); n > maxARNLength {
-		return name{}, ssmapi.ErrValidationException(fmt.Sprintf(
-			"Parameter name %q is too long: its ARN would be %d characters, and a parameter ARN can have at most %d.",
-			spelling, n, maxARNLength))
+	if arn := parameterARN(a.scope, canonical).String(); len(arn) > maxARNLength {
+		return name{}, a.denied(arn, "")
 	}
 	return name{canonical: canonical, spelling: spelling}, nil
 }
@@ -109,44 +137,44 @@ func nameRune(r rune) bool {
 	return strings.ContainsRune("_.-/", r)
 }
 
-func errPath(spelling, why string) *awserr.Error {
-	return ssmapi.ErrValidationException(fmt.Sprintf("Parameter name %q is not valid: %s. %s", spelling, why, pathRule))
-}
-
 // parseNameOrARN is parseName for the operations that also take a
-// parameter ARN (ssm-parameters.md 3.1): GetParameter, GetParameters and
-// GetParameterHistory. Of arn:<partition>:ssm:<region>:<account>:parameter/<rest>
-// the name is /<rest> when rest holds another slash, else rest
-// (ssm-parameters.md 3.3, Terraform's rule), and the reads echo that name,
-// not the ARN (localstack@8b9a79f
-// tests/aws/services/ssm/test_ssm.snapshot.json:L2-L15, L42-L56).
-func parseNameOrARN(raw string, scope aws.Scope) (name, *awserr.Error) {
+// parameter ARN (ssm-parameters.md 3.1): GetParameter, GetParameters,
+// GetParameterHistory and, as ResourceId, the tag operations. Of
+// arn:<partition>:ssm:<region>:<account>:parameter/<rest> the name is
+// /<rest> when rest holds another slash, else rest (ssm-parameters.md 3.3,
+// Terraform's rule), and the reads echo that name, not the ARN
+// (localstack@8b9a79f tests/aws/services/ssm/test_ssm.snapshot.json:L2-L15,
+// L42-L56). An ARN of another resource type or Region answers
+// ValidationException naming it, and one of another account
+// AccessDeniedException, whatever the caller's policies (SSM-29).
+// UNVERIFIED (SSM-29), ssm-parameters.md 3.3: the order of those checks, an
+// ARN of another partition (refused as of another Region), and the answer
+// to an ARN of another service or a malformed one (understudy's own text).
+func parseNameOrARN(raw string, a asker) (name, *awserr.Error) {
 	trimmed := strings.Trim(raw, " ")
 	if !strings.HasPrefix(trimmed, "arn:") {
-		return parseName(raw, scope)
+		return parseName(raw, a)
 	}
-	a, err := aws.ParseARN(trimmed)
-	rest, isParameter := strings.CutPrefix(a.Resource, "parameter/")
-	if err != nil || a.Service != "ssm" || !isParameter {
-		// UNVERIFIED (SSM-29), ssm-parameters.md 3.3: AWS's answer to an
-		// ARN of another SSM resource type or a malformed one.
+	arn, err := aws.ParseARN(trimmed)
+	if err != nil || arn.Service != "ssm" {
 		return name{}, ssmapi.ErrValidationException(fmt.Sprintf(
 			"%q is not a parameter ARN: the form is arn:<partition>:ssm:<region>:<account>:parameter/<name>.", trimmed))
+	}
+	kind, rest, _ := strings.Cut(arn.Resource, "/")
+	scope := a.scope
+	switch {
+	case kind != "parameter":
+		return name{}, ssmapi.ErrValidationException("Incorrect resource type " + kind + " in: " + trimmed)
+	case arn.Partition != scope.Partition.String() || arn.Region != scope.Region.String():
+		return name{}, ssmapi.ErrValidationException("Incorrect region in: " + trimmed)
+	case arn.Account != scope.Account.String():
+		return name{}, a.denied(trimmed, " because no resource-based policy allows the "+a.action+" action")
 	}
 	base := rest
 	if strings.Contains(rest, "/") {
 		base = "/" + rest
 	}
-	n, aerr := parseName(base, scope)
-	if aerr != nil {
-		return name{}, aerr
-	}
-	if a.Partition != scope.Partition.String() || a.Region != scope.Region.String() || a.Account != scope.Account.String() {
-		// An ARN of another account or Region names no parameter this
-		// call can see. UNVERIFIED (SSM-29), ssm-parameters.md 3.3.
-		return name{}, errNotFound()
-	}
-	return n, nil
+	return parseName(base, a)
 }
 
 // parameterARN is the ARN of the parameter canonical in scope:

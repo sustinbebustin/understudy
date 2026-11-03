@@ -50,10 +50,11 @@ func echo(sel selector) *string {
 // splitSelector cuts a :<version> or :<label> selector off a name or ARN
 // (ssm-parameters.md 6.3): an all-digit selector is a version, any other a
 // label. On an ARN the selector follows the resource. base keeps the
-// request's other characters for parseNameOrARN, which judges them.
-// UNVERIFIED (SSM-17), ssm-parameters.md 6.3: an empty selector (name:),
-// one with a second colon (name:1:2) and a version too large to be one are
-// understudy's ValidationException; AWS's answers are unrecorded.
+// request's other characters for parseNameOrARN, which judges them. A
+// second colon (name:1:2) answers AWS's ValidationException
+// (ssm-parameters.md 6.3; SSM-17 step 06, two spaces before <name> in
+// AWS's text). UNVERIFIED (SSM-17), ssm-parameters.md 6.3: an empty
+// selector (name:) and a version too large to be one answer the same.
 func splitSelector(raw string) (string, selector, *awserr.Error) {
 	trimmed := strings.Trim(raw, " ")
 	prefix, rest := "", trimmed
@@ -69,22 +70,16 @@ func splitSelector(raw string) (string, selector, *awserr.Error) {
 	if !found {
 		return trimmed, noSelector{}, nil
 	}
-	refuse := func(why string) (string, selector, *awserr.Error) {
-		return "", nil, ssmapi.ErrValidationException(fmt.Sprintf(
-			"Parameter %q has a selector that is not valid: %s. "+
-				"Add one selector after the name: :<version number> or :<label>.", trimmed, why))
-	}
+	refused := ssmapi.ErrValidationException("Invalid parameter name. Please use correct syntax for referencing a version/label  <name>:<version/label>")
 	switch {
-	case text == "":
-		return refuse("nothing follows the colon")
-	case strings.Contains(text, ":"):
-		return refuse("it holds more than one colon")
+	case text == "", strings.Contains(text, ":"):
+		return "", nil, refused
 	case strings.Trim(text, "0123456789") != "":
 		return prefix + base, labelSelector{label: text}, nil
 	}
 	n, err := strconv.ParseInt(text, 10, 64)
 	if err != nil {
-		return refuse(fmt.Sprintf("version %s is larger than any version number", text))
+		return "", nil, refused
 	}
 	return prefix + base, versionSelector{n: n}, nil
 }
@@ -112,21 +107,21 @@ func (p *Parameter) pick(sel selector) (Version, bool) {
 }
 
 // errVersionNotFound is the answer for a selector that names no retained
-// version of the parameter: never a fallback to the latest
-// (ssm-parameters.md 6.1, 6.3). UNVERIFIED (SSM-17), ssm-parameters.md
-// 6.3: the text is understudy's own, the version one after moto's.
+// version of the parameter, never a fallback to the latest, in AWS's text
+// naming the parameter as the request spelled it (ssm-parameters.md 6.1,
+// 6.3; SSM-17 steps 03-05, SSM-30 step 04). A missing latest version
+// cannot happen; its text is understudy's own.
 func errVersionNotFound(spelling string, sel selector) *awserr.Error {
-	what := "the version"
 	switch sel := sel.(type) {
 	case versionSelector:
-		what = fmt.Sprintf("version %d", sel.n)
+		return ssmapi.ErrParameterVersionNotFound(fmt.Sprintf(
+			"Systems Manager could not find version %d of %s. Verify the version and try again.", sel.n, spelling))
 	case labelSelector:
-		what = fmt.Sprintf("a version labeled %q", sel.label)
+		return ssmapi.ErrParameterVersionNotFound(fmt.Sprintf(
+			"Systems Manager could not find a version of %s that has the specified label, %s. Verify the parameter label and try again.", spelling, sel.label))
 	case noSelector:
 	}
-	return ssmapi.ErrParameterVersionNotFound(fmt.Sprintf(
-		"Systems Manager could not find %s of %s. Verify the selector and try again; GetParameterHistory lists the versions and their labels.",
-		what, spelling))
+	return ssmapi.ErrParameterVersionNotFound("Systems Manager could not find the latest version of " + spelling + ".")
 }
 
 // found is one name a read resolved: the parameter's canonical name, the
@@ -139,18 +134,18 @@ type found struct {
 
 // find resolves a GetParameter or GetParameters name, with its selector,
 // to a stored version, without touching KMS. A missing parameter is
-// ParameterNotFound with the empty message AWS sends (localstack@8b9a79f
-// tests/aws/services/cloudformation/resources/test_ssm.snapshot.json:L105-L114).
-func (s *Service) find(scope aws.Scope, raw string) (found, *awserr.Error) {
+// ParameterNotFound with no message (ssm-parameters.md 2.2; SSM-01 step
+// 01).
+func (s *Service) find(a asker, raw string) (found, *awserr.Error) {
 	base, sel, err := splitSelector(raw)
 	if err != nil {
 		return found{}, err
 	}
-	n, err := parseNameOrARN(base, scope)
+	n, err := parseNameOrARN(base, a)
 	if err != nil {
 		return found{}, err
 	}
-	p, ok := s.lookup(scope, n.canonical)
+	p, ok := s.lookup(a.scope, n.canonical)
 	if !ok {
 		return found{}, errNotFound()
 	}
@@ -184,12 +179,11 @@ func (s *Service) getParameter(ctx context.Context, c *kernel.Call, in *ssmapi.G
 	if err := checkReserved("GetParameter", in.Name); err != nil {
 		return nil, err
 	}
-	scope := c.Scope()
-	f, err := s.find(scope, in.Name)
+	f, err := s.find(askerOf(c), in.Name)
 	if err != nil {
 		return nil, err
 	}
-	p, err := s.render(ctx, c, scope, f, in.WithDecryption != nil && *in.WithDecryption)
+	p, err := s.render(ctx, c, c.Scope(), f, in.WithDecryption != nil && *in.WithDecryption)
 	if err != nil {
 		return nil, err
 	}
@@ -201,41 +195,32 @@ func (s *Service) getParameter(ctx context.Context, c *kernel.Call, in *ssmapi.G
 // request gave them, in InvalidParameters, which is [] rather than absent
 // when every name was found (localstack@8b9a79f
 // tests/aws/services/ssm/test_ssm.snapshot.json:L57-L74). A KMS failure
-// on a decrypting read fails the whole call.
-// UNVERIFIED (SSM-17, SSM-18), ssm-parameters.md 6.3, 7.3: a parameter
-// named twice with one selector, under any of its spellings (3.2), is
-// answered once, as the first spelling asked; and an invalid name or a
-// selector naming no version is listed in InvalidParameters rather than
-// failing the call.
+// on a decrypting read fails the whole call. A name given twice is answered
+// once, and each spelling of one parameter once with its own Name (SSM-18
+// step 01; SSM-07 step 03, /foo and foo); an invalid name or a selector
+// naming no version is listed in InvalidParameters, sorted, rather than
+// failing the call (SSM-17 step 08, SSM-18 step 02). UNVERIFIED (SSM-07),
+// ssm-parameters.md 3.2: a parameter asked by name and by ARN is answered
+// twice too.
 func (s *Service) getParameters(ctx context.Context, c *kernel.Call, in *ssmapi.GetParametersInput) (*ssmapi.GetParametersOutput, *awserr.Error) {
 	if err := checkReserved("GetParameters", in.Names...); err != nil {
 		return nil, err
 	}
-	scope := c.Scope()
+	scope, a := c.Scope(), askerOf(c)
 	decrypt := in.WithDecryption != nil && *in.WithDecryption
 	out := &ssmapi.GetParametersOutput{Parameters: []ssmapi.Parameter{}, InvalidParameters: []string{}}
-	type asking struct {
-		canonical string
-		sel       selector
-	}
 	seen := make(map[string]bool, len(in.Names))
-	answered := make(map[asking]bool, len(in.Names))
 	for _, raw := range in.Names {
 		asked := strings.Trim(raw, " ")
 		if seen[asked] {
 			continue
 		}
 		seen[asked] = true
-		f, err := s.find(scope, asked)
+		f, err := s.find(a, asked)
 		if err != nil {
 			out.InvalidParameters = append(out.InvalidParameters, asked)
 			continue
 		}
-		k := asking{f.name.canonical, f.sel}
-		if answered[k] {
-			continue
-		}
-		answered[k] = true
 		p, err := s.render(ctx, c, scope, f, decrypt)
 		if err != nil {
 			return nil, err
@@ -243,5 +228,6 @@ func (s *Service) getParameters(ctx context.Context, c *kernel.Call, in *ssmapi.
 		out.Parameters = append(out.Parameters, p)
 	}
 	slices.SortStableFunc(out.Parameters, func(a, b ssmapi.Parameter) int { return cmp.Compare(*a.Name, *b.Name) })
+	slices.Sort(out.InvalidParameters)
 	return out, nil
 }

@@ -38,9 +38,10 @@ func TestEnforceDefaultKeySecureStringIgnoresKMSDeny(t *testing.T) {
 // Under enforce, GetParameter by the ARN of another account's parameter is
 // denied at step 8 with SSM's denial identity before any lookup: the
 // resource is named by the request and SSM has no resource policy to grant
-// it (spec enforce matrix; AWS's answer is unrecorded, SSM-29). Under off
-// the same call answers ParameterNotFound, and another Region's ARN in the
-// caller's own account answers ParameterNotFound under enforce too.
+// it (spec enforce matrix). AWS denies it whatever the caller's policies
+// (ssm-parameters.md 3.3; SSM-29 step 01), so under off the handler denies
+// it too, and another Region's ARN answers ValidationException in both
+// modes (SSM-29 step 02).
 func TestEnforceForeignParameterARN(t *testing.T) {
 	const (
 		foreignAccount = `{"Name":"arn:aws:ssm:us-east-1:111111111111:parameter/x"}`
@@ -53,12 +54,12 @@ func TestEnforceForeignParameterARN(t *testing.T) {
 	if w := ssmCall(t, u, endpoint, "GetParameter", foreignAccount); w.status != deny.Status || jsonType(w) != shortName(deny) {
 		t.Errorf("enforce: GetParameter by another account's ARN = %d %q %s; want %d %q", w.status, jsonType(w), w.body, deny.Status, shortName(deny))
 	}
-	if w := ssmCall(t, u, endpoint, "GetParameter", foreignRegion); w.status != http.StatusBadRequest || jsonType(w) != "ParameterNotFound" {
-		t.Errorf("enforce: GetParameter by another Region's ARN = %d %q %s; want 400 ParameterNotFound", w.status, jsonType(w), w.body)
+	if w := ssmCall(t, u, endpoint, "GetParameter", foreignRegion); w.status != http.StatusBadRequest || jsonType(w) != "ValidationException" {
+		t.Errorf("enforce: GetParameter by another Region's ARN = %d %q %s; want 400 ValidationException", w.status, jsonType(w), w.body)
 	}
 
 	_, offEndpoint, offUser := enforced(t, server.IAMEnforceOff)
-	if w := ssmCall(t, offUser, offEndpoint, "GetParameter", foreignAccount); w.status != http.StatusBadRequest || jsonType(w) != "ParameterNotFound" {
-		t.Errorf("off: GetParameter by another account's ARN = %d %q %s; want 400 ParameterNotFound", w.status, jsonType(w), w.body)
+	if w := ssmCall(t, offUser, offEndpoint, "GetParameter", foreignAccount); w.status != deny.Status || jsonType(w) != shortName(deny) {
+		t.Errorf("off: GetParameter by another account's ARN = %d %q %s; want %d %q", w.status, jsonType(w), w.body, deny.Status, shortName(deny))
 	}
 }

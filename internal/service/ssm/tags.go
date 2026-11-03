@@ -3,9 +3,9 @@ package ssm
 import (
 	"context"
 	"slices"
+	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/api/ssmapi"
-	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
@@ -27,22 +27,32 @@ func addTags(tags []Tag, add []ssmapi.Tag) []Tag {
 }
 
 // tagTarget is the parameter a tag operation names (ssm-parameters.md 7.9):
-// ResourceType Parameter with a parameter name as ResourceId. Any other
-// resource type names nothing understudy stores (coverage note), and a
-// ResourceId that is not a valid name names no parameter; both are
-// InvalidResourceId, as a missing parameter is.
-func tagTarget(op string, rt ssmapi.ResourceTypeForTagging, id string, scope aws.Scope) (name, *awserr.Error) {
+// ResourceType Parameter with a parameter name or ARN as ResourceId (SSM-07
+// step 10, SSM-25 step 06). Any other resource type names nothing
+// understudy stores (coverage note), and a ResourceId that is not a valid
+// name names no parameter; both are InvalidResourceId, as a missing
+// parameter is. UNVERIFIED (SSM-25), ssm-parameters.md 7.9: AWS's answer
+// to a ResourceId that is not a valid name or a foreign ARN.
+func tagTarget(op string, rt ssmapi.ResourceTypeForTagging, id string, a asker) (name, *awserr.Error) {
 	if err := checkReserved(op, id); err != nil {
 		return name{}, err
 	}
 	if rt != ssmapi.ResourceTypeForTaggingParameter {
 		return name{}, ssmapi.ErrInvalidResourceId()
 	}
-	n, err := parseName(id, scope)
+	n, err := parseNameOrARN(id, a)
 	if err != nil {
 		return name{}, ssmapi.ErrInvalidResourceId()
 	}
 	return n, nil
+}
+
+// errSystemTag is AddTagsToResource's answer for a tag key beginning aws:,
+// which AWS reserves for itself (ssm-parameters.md 7.9; SSM-25 step 02).
+// UNVERIFIED (SSM-25): the case of the prefix, and whether PutParameter's
+// Tags and RemoveTagsFromResource refuse such keys too.
+func errSystemTag() *awserr.Error {
+	return ssmapi.ErrValidationException("Caller is an end user and not allowed to mutate system tags")
 }
 
 // retag replaces the tags of the parameter n with change's result. A
@@ -73,12 +83,16 @@ func (s *Service) retag(c *kernel.Call, n name, change func([]Tag) ([]Tag, *awse
 }
 
 // addTagsToResource adds tags to a parameter or overwrites the values of
-// keys it has (ssm-parameters.md 7.9). A result over 50 tags is
-// TooManyTagsError and nothing is applied.
+// keys it has (ssm-parameters.md 7.9). A key beginning aws: is refused,
+// and a result over 50 tags is TooManyTagsError (SSM-25 step 04); either
+// way nothing is applied.
 func (s *Service) addTagsToResource(_ context.Context, c *kernel.Call, in *ssmapi.AddTagsToResourceInput) (*ssmapi.AddTagsToResourceOutput, *awserr.Error) {
-	n, err := tagTarget("AddTagsToResource", in.ResourceType, in.ResourceId, c.Scope())
+	n, err := tagTarget("AddTagsToResource", in.ResourceType, in.ResourceId, askerOf(c))
 	if err != nil {
 		return nil, err
+	}
+	if slices.ContainsFunc(in.Tags, func(t ssmapi.Tag) bool { return strings.HasPrefix(t.Key, "aws:") }) {
+		return nil, errSystemTag()
 	}
 	err = s.retag(c, n, func(tags []Tag) ([]Tag, *awserr.Error) {
 		out := addTags(tags, in.Tags)
@@ -93,11 +107,11 @@ func (s *Service) addTagsToResource(_ context.Context, c *kernel.Call, in *ssmap
 	return &ssmapi.AddTagsToResourceOutput{}, nil
 }
 
-// removeTagsFromResource removes tag keys from a parameter.
-// UNVERIFIED (SSM-25), ssm-parameters.md 7.9: a key the parameter does not
-// carry is ignored.
+// removeTagsFromResource removes tag keys from a parameter; a key the
+// parameter does not carry is ignored (ssm-parameters.md 7.9; SSM-25 step
+// 07).
 func (s *Service) removeTagsFromResource(_ context.Context, c *kernel.Call, in *ssmapi.RemoveTagsFromResourceInput) (*ssmapi.RemoveTagsFromResourceOutput, *awserr.Error) {
-	n, err := tagTarget("RemoveTagsFromResource", in.ResourceType, in.ResourceId, c.Scope())
+	n, err := tagTarget("RemoveTagsFromResource", in.ResourceType, in.ResourceId, askerOf(c))
 	if err != nil {
 		return nil, err
 	}
@@ -111,11 +125,12 @@ func (s *Service) removeTagsFromResource(_ context.Context, c *kernel.Call, in *
 }
 
 // listTagsForResource lists a parameter's tags in the order they were
-// first set, [] when it has none. UNVERIFIED (SSM-25), ssm-parameters.md
-// 7.9: the empty list rather than an absent one.
+// first set, [] when it has none (ssm-parameters.md 7.9; SSM-25 step 01).
+// AWS's order is neither by key nor by insertion (SSM-25 step 06), so this
+// stable order is understudy's own.
 func (s *Service) listTagsForResource(_ context.Context, c *kernel.Call, in *ssmapi.ListTagsForResourceInput) (*ssmapi.ListTagsForResourceOutput, *awserr.Error) {
 	scope := c.Scope()
-	n, err := tagTarget("ListTagsForResource", in.ResourceType, in.ResourceId, scope)
+	n, err := tagTarget("ListTagsForResource", in.ResourceType, in.ResourceId, askerOf(c))
 	if err != nil {
 		return nil, err
 	}

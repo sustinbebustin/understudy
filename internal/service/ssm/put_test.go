@@ -8,12 +8,11 @@ import (
 )
 
 // The texts AWS gives for the overwrite refusals (ssm-parameters.md 7.1,
-// 12.4; [U] hashicorp/terraform-provider-aws#18550; tier [T]
-// parameter.go:L181-L185).
+// 12.4; SSM-03 steps 01-02, SSM-13 step 04).
 const (
 	alreadyExists   = "The parameter already exists. To overwrite this value, set the overwrite option in the request to true."
 	tagsAndOverride = "Invalid request: tags and overwrite can't be used together. To create a parameter with tags, please remove overwrite flag. To update tags for an existing parameter, please use AddTagsToResource or RemoveTagsFromResource."
-	noDowngrade     = "This parameter uses the advanced-parameter tier. You can't downgrade a parameter from the advanced-parameter tier to the standard-parameter tier. If necessary, you can delete the advanced parameter and recreate it as a standard parameter."
+	noDowngrade     = "This parameter uses the advanced-parameter tier. You can't downgrade a parameter from the advanced-parameter tier to the standard-parameter tier. If necessary, you can delete the advanced parameter and recreate it as a standard parameter. Be aware that standard parameters have a value limit of 4096 characters."
 )
 
 // A create answers version 1 and DataType text; a create of an existing
@@ -84,12 +83,11 @@ func TestTagsAndOverwrite(t *testing.T) {
 // "You can't include values wrapped in double brackets {{}} or
 // {{ssm:parameter-name}} in a parameter value" (ssm-parameters.md 4.1,
 // aws-doc API_PutParameter): such a value is refused as a client error and
-// nothing is stored; the code is understudy's choice (SSM-11 step 05), so
-// only the refusal is asserted, and the message never repeats the value
-// (spec "Coverage marks").
+// nothing is stored, and the message never repeats the value, which AWS's
+// does (SSM-11 step 05; spec "Coverage marks").
 func TestDoubleBracesAreRefused(t *testing.T) {
 	run(t, func(h *harness) {
-		for _, v := range []string{"{{}}", "x{{ssm:other}}y"} {
+		for _, v := range []string{"{{a}}", "x{{ssm:other}}y"} {
 			_, err := call(h, ssmapi.OpPutParameter, &ssmapi.PutParameterInput{Name: "/braces/a", Value: v, Type: new(ssmapi.ParameterTypeString)})
 			if err == nil || err.ID.Status != 400 {
 				h.Errorf("PutParameter of %q = %v, want a 400 refusal", v, err)
@@ -267,9 +265,10 @@ func TestAdvancedSecureStringAnswers501(t *testing.T) {
 // "After you have created 100 versions of a parameter, each time you create
 // a new version, the oldest version of the parameter is removed from
 // history"; when the oldest carries a label the write fails with
-// ParameterMaxVersionLimitExceeded and the model's text naming the
-// parameter and the version (ssm-parameters.md 6.1, 12.4 [M][D]). A
-// version that no longer exists is an error, never a fallback (6.1 [D]).
+// ParameterMaxVersionLimitExceeded naming the parameter without its
+// leading slash and the version, with a curly apostrophe (ssm-parameters.md
+// 6.1, 12.4; SSM-30 step 01). A version that no longer exists is an error,
+// never a fallback (6.1 [D]).
 func TestHundredVersionCap(t *testing.T) {
 	run(t, func(h *harness) {
 		h.put("/cap/labeled", "v1")
@@ -281,7 +280,7 @@ func TestHundredVersionCap(t *testing.T) {
 		must(h, ssmapi.OpLabelParameterVersion, &ssmapi.LabelParameterVersionInput{Name: "/cap/labeled", ParameterVersion: new(int64(1)), Labels: []string{"pinned"}})
 		_, err := call(h, ssmapi.OpPutParameter, &ssmapi.PutParameterInput{Name: "/cap/labeled", Value: "v101", Overwrite: new(true)})
 		wantError(h.T, "the 101st version with the oldest labeled", err, ssmapi.IdentityParameterMaxVersionLimitExceeded(),
-			"You attempted to create a new version of /cap/labeled by calling the PutParameter API with the overwrite flag. Version 1, the oldest version, can't be deleted because it has a label associated with it. Move the label to another version of the parameter, and try again.")
+			"You attempted to create a new version of cap/labeled by calling the PutParameter API with the overwrite flag. Version 1, the oldest version, can’t be deleted because it has a label associated with it. Move the label to another version of the parameter, and try again.")
 		if got := h.mustGet("/cap/labeled", false); got.Version != 100 {
 			h.Errorf("after the refusal Version = %d, want 100", got.Version)
 		}
