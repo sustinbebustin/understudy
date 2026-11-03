@@ -61,7 +61,8 @@ func (e evaluator) call(c Call) (document.Value, error) {
 	case "States.StringToJson":
 		return f.stringToJSON()
 	case "States.JsonToString":
-		return document.String(compactJSON(args[0])), nil
+		// Numbers as Java writes them (ASL-06, recorded 2026-11-03).
+		return document.String(compactJSON(javaNumbers(args[0]))), nil
 	case "States.Array":
 		return document.List(args), nil
 	case "States.ArrayPartition":
@@ -277,7 +278,7 @@ func javaString(v document.Value) string {
 	case document.String:
 		return string(v)
 	case document.Number:
-		return string(v)
+		return string(javaNumber(v))
 	case document.Bool:
 		return strconv.FormatBool(bool(v))
 	case document.Map:
@@ -296,6 +297,62 @@ func javaString(v document.Value) string {
 		return "null"
 	}
 	return "null"
+}
+
+// javaNumber is n as Java writes the number Jackson reads: an integer as
+// written, however long; a decimal as a double, through Double.toString:
+// at least one fraction digit, and scientific notation (1.0E21) outside
+// [10^-3, 10^7). Recorded for 1.0, 1e21, -0.0, 0.1 and 10^20 (ASL-06,
+// 2026-11-03).
+func javaNumber(n document.Number) document.Number {
+	if integral(n) {
+		return n
+	}
+	d, err := strconv.ParseFloat(string(n), 64)
+	if err != nil {
+		// Out of a double's range: Jackson's text is unrecorded.
+		return n
+	}
+	if a := math.Abs(d); a != 0 && (a < 1e-3 || a >= 1e7) {
+		mantissa, exponent, _ := strings.Cut(strconv.FormatFloat(d, 'e', -1, 64), "e")
+		if !strings.Contains(mantissa, ".") {
+			mantissa += ".0"
+		}
+		// FormatFloat's exponent is signed and at least two digits.
+		e, err := strconv.Atoi(exponent)
+		if err != nil {
+			return n
+		}
+		return document.Number(mantissa + "E" + strconv.Itoa(e))
+	}
+	s := strconv.FormatFloat(d, 'f', -1, 64)
+	if !strings.Contains(s, ".") {
+		s += ".0"
+	}
+	return document.Number(s)
+}
+
+// javaNumbers is v with every number as javaNumber writes it.
+func javaNumbers(v document.Value) document.Value {
+	switch v := v.(type) {
+	case document.Number:
+		return javaNumber(v)
+	case document.Map:
+		out := make(document.Map, 0, len(v))
+		for _, e := range v {
+			out = append(out, document.Entry{Key: e.Key, Value: javaNumbers(e.Value)})
+		}
+		return out
+	case document.List:
+		out := make(document.List, 0, len(v))
+		for _, x := range v {
+			out = append(out, javaNumbers(x))
+		}
+		return out
+	case document.String, document.Bool, document.Null:
+		return v
+	}
+	return v
 }
 
 // compactJSON is v as compact JSON text, member order kept.
@@ -386,7 +443,8 @@ func (f fn) arrayContains() (document.Value, error) {
 		return nil, err
 	}
 	for _, x := range arr {
-		if deepEqual(x, f.args[1]) {
+		// 1 is found in [1.0] (ASL-06, recorded 2026-11-03).
+		if deepEqual(x, f.args[1], sameValue) {
 			return document.Bool(true), nil
 		}
 	}
@@ -447,8 +505,10 @@ func (f fn) arrayGetItem() (document.Value, error) {
 	return arr[i], nil
 }
 
-// arrayUnique keeps the first of equal items. Equality is deepEqual: numbers
-// by value, objects as member sets (inferred, ASL-06).
+// arrayUnique keeps the first of equal items, objects compared as member
+// sets. An integer never equals a decimal, so 1 and 1.0 both stay (ASL-06,
+// recorded 2026-11-03). AWS's output order is a hash set's; understudy
+// keeps first-seen order.
 func (f fn) arrayUnique() (document.Value, error) {
 	arr, err := f.array()
 	if err != nil {
@@ -458,7 +518,7 @@ func (f fn) arrayUnique() (document.Value, error) {
 	for _, x := range arr {
 		seen := false
 		for _, y := range out {
-			if deepEqual(x, y) {
+			if deepEqual(x, y, sameNode) {
 				seen = true
 				break
 			}
@@ -649,32 +709,50 @@ func (f fn) stringSplit() (document.Value, error) {
 	return out, nil
 }
 
+// numberEquality says when two numbers are equal; the functions that
+// compare values differ in it (ASL-06, recorded 2026-11-03).
+type numberEquality func(a, b document.Number) bool
+
+// sameValue compares numbers by value: 1 equals 1.0.
+func sameValue(a, b document.Number) bool {
+	x, okx := new(big.Rat).SetString(string(a))
+	y, oky := new(big.Rat).SetString(string(b))
+	return okx && oky && x.Cmp(y) == 0
+}
+
+// sameNode compares numbers as Jackson's nodes do: an integer never equals
+// a decimal, so 1 and 1.0 differ.
+func sameNode(a, b document.Number) bool {
+	return integral(a) == integral(b) && sameValue(a, b)
+}
+
+// integral reports whether n is written as an integer: no fraction and no
+// exponent.
+func integral(n document.Number) bool {
+	return !strings.ContainsAny(string(n), ".eE")
+}
+
 // deepEqual compares JSON values: objects as member sets, arrays in order,
-// numbers by value (stepfunctions-asl.md 5.2, ArrayContains).
-func deepEqual(a, b document.Value) bool {
+// numbers as the numbers equality says (stepfunctions-asl.md 5.2).
+func deepEqual(a, b document.Value, numbers numberEquality) bool {
 	switch a := a.(type) {
 	case document.Map:
 		b, ok := b.(document.Map)
-		return ok && objectsEqual(a, b)
+		return ok && objectsEqual(a, b, numbers)
 	case document.List:
 		b, ok := b.(document.List)
 		if !ok || len(a) != len(b) {
 			return false
 		}
 		for i := range a {
-			if !deepEqual(a[i], b[i]) {
+			if !deepEqual(a[i], b[i], numbers) {
 				return false
 			}
 		}
 		return true
 	case document.Number:
 		b, ok := b.(document.Number)
-		if !ok {
-			return false
-		}
-		x, okx := new(big.Rat).SetString(string(a))
-		y, oky := new(big.Rat).SetString(string(b))
-		return okx && oky && x.Cmp(y) == 0
+		return ok && numbers(a, b)
 	case document.String:
 		b, ok := b.(document.String)
 		return ok && a == b
@@ -689,13 +767,13 @@ func deepEqual(a, b document.Value) bool {
 }
 
 // objectsEqual compares objects as member sets.
-func objectsEqual(a, b document.Map) bool {
+func objectsEqual(a, b document.Map, numbers numberEquality) bool {
 	if len(a) != len(b) {
 		return false
 	}
 	for _, ea := range a {
 		i := slices.IndexFunc(b, func(eb document.Entry) bool { return eb.Key == ea.Key })
-		if i < 0 || !deepEqual(ea.Value, b[i].Value) {
+		if i < 0 || !deepEqual(ea.Value, b[i].Value, numbers) {
 			return false
 		}
 	}

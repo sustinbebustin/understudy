@@ -2,6 +2,7 @@ package intrinsic_test
 
 import (
 	"errors"
+	"slices"
 	"strconv"
 	"testing"
 
@@ -57,15 +58,16 @@ func TestCallTextAsWritten(t *testing.T) {
 	}
 }
 
-// TestASL06EqualityAndRounding: how ArrayUnique and ArrayContains compare
-// 1 with 1.0, and objects, is unrecorded, as is rounding of non-integer
-// bounds outside MathAdd (stepfunctions-asl.md 5.2, 5.3). understudy
-// compares numbers by value and objects as member sets, and rounds half up
+// TestASL06EqualityAndRounding: ArrayUnique keeps 1 and 1.0 apart and
+// ArrayContains does not (ASL-06, recorded 2026-11-03); how both compare
+// objects with members in another order is unrecorded, as is rounding of
+// non-integer bounds outside MathAdd (stepfunctions-asl.md 5.2, 5.3).
+// understudy compares objects as member sets, and rounds half up
 // everywhere MathAdd does.
 func TestASL06EqualityAndRounding(t *testing.T) {
 	// inferred, ASL-06
 	tests := []struct{ expr, input, want string }{
-		{`States.ArrayUnique($.v)`, `{"v":[1,1.0,{"a":1,"b":2},{"b":2,"a":1},[1],[1.0]]}`, `[1,{"a":1,"b":2},[1]]`},
+		{`States.ArrayUnique($.v)`, `{"v":[1,1.0,{"a":1,"b":2},{"b":2,"a":1},[1],[1.0]]}`, `[1,1.0,{"a":1,"b":2},[1],[1.0]]`},
 		{`States.ArrayContains($.v, 2)`, `{"v":[2.00]}`, `true`},
 		{`States.ArrayPartition($.v, 1.5)`, `{"v":[1,2,3]}`, `[[1,2],[3]]`},
 		{`States.ArrayRange(0.5, 2.5, 1)`, `{}`, `[1,2,3]`},
@@ -85,12 +87,43 @@ func TestASL06EqualityAndRounding(t *testing.T) {
 	}
 }
 
+// ASL-06's recorded results (2026-11-03): ArrayUnique keeps 1 and 1.0
+// apart while ArrayContains finds 1 in [1.0], and Format and JsonToString
+// render numbers as Java does. AWS's ArrayUnique order is a hash set's, so
+// only its members are compared.
+func TestASL06RecordedResults(t *testing.T) {
+	input := decode(t, `{"tpl":"{} {} {} {} {}","u":[1,1.0,"1",[1],[1],{"a":1},{"a":1},null,null,true,true],"c":[1.0,"1"],"f":[1.0,1e21,-0.0,0.1,100000000000000000000]}`)
+	got, err := eval(t, `States.ArrayUnique($.u)`, input, nil, &source{})
+	unique, isList := got.(document.List)
+	if err != nil || !isList {
+		t.Fatalf("ArrayUnique = %v, %v; want a list", got, err)
+	}
+	members := make([]string, 0, len(unique))
+	for _, x := range unique {
+		members = append(members, encode(x))
+	}
+	slices.Sort(members)
+	if want := []string{`"1"`, `1`, `1.0`, `[1]`, `null`, `true`, `{"a":1}`}; !slices.Equal(members, want) {
+		t.Errorf("ArrayUnique members = %v, want %v", members, want)
+	}
+	for _, tt := range []struct{ expr, want string }{
+		{`States.ArrayContains($.c, 1)`, `true`},
+		{`States.Format($.tpl, $.f[0], $.f[1], $.f[2], $.f[3], $.f[4])`, `"1.0 1.0E21 -0.0 0.1 100000000000000000000"`},
+		{`States.JsonToString($.f)`, `"[1.0,1.0E21,-0.0,0.1,100000000000000000000]"`},
+	} {
+		if got, err := eval(t, tt.expr, input, nil, &source{}); err != nil || encode(got) != tt.want {
+			t.Errorf("%s = %s, %v; want %s", tt.expr, encode(got), err, tt.want)
+		}
+	}
+}
+
 // Behavior the blind tests leave open, each understudy's reading of
 // stepfunctions-asl.md 5.2.
 func TestFunctionResultsBeyondTheRecords(t *testing.T) {
 	tests := []struct{ name, expr, input, want string }{
 		{"Format renders arrays as Java lists", `States.Format('{}', $.v)`, `{"v":[1,"a",null,{"k":true}]}`, `"[1, a, null, {k=true}]"`},
 		{"Format reads its pattern from a path without escapes", `States.Format($.f, $.v)`, `{"f":"a\\{}b","v":"x"}`, `"a\\xb"`},
+		{"Format writes decimals as Java's Double.toString", `States.Format('{} {} {}', $.a, $.b, $.c)`, `{"a":0.0001,"b":12345678.9,"c":0e0}`, `"1.0E-4 1.23456789E7 0.0"`},
 		{"Format keeps a lone brace", `States.Format('{ {}', $.v)`, `{"v":"x"}`, `"{ x"`},
 		{"StringToJson rewrites a nested -0", `States.StringToJson($.v)`, `{"v":"{\"a\":[-0, -0.5]}"}`, `{"a":[0,-0.5]}`},
 		{"JsonMerge keeps the first object's order and appends", `States.JsonMerge($.a, $.b, false)`, `{"a":{"x":1,"y":2},"b":{"z":3,"x":4}}`, `{"x":4,"y":2,"z":3}`},
