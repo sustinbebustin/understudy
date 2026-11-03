@@ -51,7 +51,7 @@ func checkRouteMembers(op string, key, target *string, auth *apigatewayv2api.Aut
 	}
 	if key != nil {
 		if _, kerr := route.ParseKey(*key); kerr != nil {
-			return errBadRequest("%s", kerr.Error())
+			return errBadRequest("%s", kerr.Problem)
 		}
 	}
 	if target != nil {
@@ -204,7 +204,7 @@ func (s *Service) getRoutes(_ context.Context, c *kernel.Call, in *apigatewayv2a
 func (a *API) routeIndex(id string) (int, *awserr.Error) {
 	i := slices.IndexFunc(a.Routes, func(r Route) bool { return r.ID == id })
 	if i < 0 {
-		return 0, errNotFound("API %s has no route %s", a.ID, id)
+		return 0, errNotFound("Invalid route identifier specified") // APIGW2-01 step 03
 	}
 	return i, nil
 }
@@ -220,7 +220,8 @@ func (a *API) setTarget(r *Route, target *string) *awserr.Error {
 		return err
 	}
 	if _, ok := a.integration(id); !ok {
-		return errBadRequest("target %q names no integration of API %s", *target, a.ID)
+		// AWS's text (APIGW2-01 step 14).
+		return errBadRequest("Unable to find route target of type integrations with ID %s", id)
 	}
 	r.Integration = id
 	return nil
@@ -231,7 +232,7 @@ func (a *API) setTarget(r *Route, target *string) *awserr.Error {
 // 13.5), by string equality.
 func (a *API) checkKeyFree(r Route) *awserr.Error {
 	if slices.ContainsFunc(a.Routes, func(x Route) bool { return x.Key == r.Key && x.ID != r.ID }) {
-		return errConflict("API %s already has a route with route key %q", a.ID, r.Key)
+		return errConflict("Route with key %s already exists for this API", r.Key) // APIGW2-01 step 09
 	}
 	return nil
 }

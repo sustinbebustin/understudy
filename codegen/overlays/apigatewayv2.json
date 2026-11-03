@@ -19,11 +19,32 @@
             "covers": ["dev.understudy#throttleError"]
           },
           {
-            "label": "inferred",
-            "source": "docs/research/apigateway-http.md#135-limits-and-validation: every constraint failure is BadRequestException (400), resting only on the API Reference naming BadRequestException the 400 model, 'One of the parameters in the request is invalid' (https://docs.aws.amazon.com/apigatewayv2/latest/api-reference/apis-apiid.html, ReimportApi and UpdateApi); no v2 recording shows a model-constraint failure. UNVERIFIED: the identity, not only the message text. REST APIs share v2's signing name and host (apigateway-http.md finding 3) and their API Reference also lists only BadRequestException for 400 (https://docs.aws.amazon.com/apigateway/latest/api/API_PutIntegration.html), yet REST answers model enum and pattern failures with ValidationException and the Coral text: https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/apigateway/test_apigateway_api.snapshot.json#L3089 (IntegrationType 'HTTPS_PROXY' against the five-value enum v2 also has, AWS-validated 2024-04-15) and https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/apigateway/test_apigateway_api.snapshot.json#L4067 (a pattern failure, AWS-validated 2025-06-18), keeping BadRequestException for handler checks such as https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/apigateway/test_apigateway_api.snapshot.json#L169; that is why apigateway.json picks ValidationException. apigateway-http.md 12 item 11 records this conflict. Recordings APIGW2-01 case 17 (TimeoutInMillis 30001, a model range check) and case 17b (create-integration --integration-type HTTPS_PROXY, a model enum check) settle identity and text",
+            "label": "aws-recorded",
+            "source": "docs/research/apigateway-http.md#23-errors: a model constraint failure is BadRequestException 400, not REST's ValidationException: testdata/parity/apigatewayv2/APIGW2-01/17-timeout-over.json (TimeoutInMillis 30001, a model range) and 17b-enum-integration-type.json (IntegrationType HTTPS_PROXY, a model enum), recorded 2026-11-03. The texts are the handler's own, not Coral's; the two members below carry them",
             "covers": ["dev.understudy#validationError"]
           }
         ]
+      }
+    },
+    "com.amazonaws.apigatewayv2#CreateIntegrationRequest$TimeoutInMillis": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"code": "com.amazonaws.apigatewayv2#BadRequestException", "style": "fixed", "constraints": ["range"], "reason": "Timeout should be between 50 ms and 30000 ms"},
+        "dev.understudy#evidence": {"label": "aws-recorded", "source": "testdata/parity/apigatewayv2/APIGW2-01/17-timeout-over.json, recorded 2026-11-03 (apigateway-http.md 2.3): TimeoutInMillis 30001 answers BadRequestException 400 'Timeout should be between 50 ms and 30000 ms'"}
+      }
+    },
+    "com.amazonaws.apigatewayv2#UpdateIntegrationRequest$TimeoutInMillis": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"code": "com.amazonaws.apigatewayv2#BadRequestException", "style": "fixed", "constraints": ["range"], "reason": "Timeout should be between 50 ms and 30000 ms"},
+        "dev.understudy#evidence": {"label": "inferred", "source": "testdata/parity/apigatewayv2/APIGW2-01/17-timeout-over.json recorded CreateIntegration's text, 2026-11-03 (apigateway-http.md 2.3); UpdateIntegration is taken to check the same member alike"}
+      }
+    },
+    "com.amazonaws.apigatewayv2#CreateIntegrationRequest$IntegrationType": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"enumPolicy": "handler"},
+        "dev.understudy#evidence": {"label": "aws-recorded", "source": "testdata/parity/apigatewayv2/APIGW2-01/17b-enum-integration-type.json, recorded 2026-11-03 (apigateway-http.md 2.3): IntegrationType HTTPS_PROXY answers BadRequestException 400 'IntegrationType is a required parameter for creating integration.', the unknown value dropped, so the handler answers it"}
       }
     }
   }

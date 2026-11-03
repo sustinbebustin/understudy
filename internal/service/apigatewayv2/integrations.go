@@ -37,13 +37,9 @@ const maxIntegrations = 300
 // URI (apigateway-http.md 3.3).
 const stageVariableRef = "${stageVariables."
 
-// subtypes lists the integration subtypes, the only ten there are: no SNS
-// subtype exists (the subtype reference, apigateway-http.md 6.1).
-const subtypes = "AppConfig-GetConfiguration, EventBridge-PutEvents, Kinesis-PutRecord, SQS-DeleteMessage, SQS-PurgeQueue, " +
-	"SQS-ReceiveMessage, SQS-SendMessage, StepFunctions-StartExecution, StepFunctions-StartSyncExecution, StepFunctions-StopExecution"
-
 // subtypeRequired is the required request parameters of an integration
-// subtype, false for a name that is none of subtypes (6.1).
+// subtype, false for a name that is none of the ten there are: no SNS
+// subtype exists (the subtype reference, apigateway-http.md 6.1).
 func subtypeRequired(subtype string) ([]string, bool) {
 	switch subtype {
 	case "AppConfig-GetConfiguration":
@@ -100,11 +96,15 @@ func integrationIn(in *apigatewayv2api.CreateIntegrationInput) (Integration, *aw
 	if err := refuseWebSocketIntegrationMembers("CreateIntegration", in.RequestTemplates, in.TemplateSelectionExpression, in.ContentHandlingStrategy); err != nil {
 		return Integration{}, err
 	}
+	// A WebSocket integration type is refused before a missing payload
+	// format version (APIGW2-01 step 26 sent MOCK without one).
+	if err := checkType(in.IntegrationType); err != nil {
+		return Integration{}, err
+	}
 	if in.PayloadFormatVersion == nil {
 		// "Required for HTTP APIs" (the integrations API reference,
-		// apigateway-http.md 2.4); the identity is inferred (APIGW2-01 case
-		// 19).
-		return Integration{}, errBadRequest("payloadFormatVersion is required for an HTTP API: 1.0 or 2.0 for a Lambda integration, 1.0 for any other")
+		// apigateway-http.md 2.4); AWS's text (APIGW2-01 step 19).
+		return Integration{}, errBadRequest("PayloadFormatVersion is a required parameter for integration")
 	}
 	i := Integration{
 		Type: in.IntegrationType, Subtype: clonePtr(in.IntegrationSubtype),
@@ -136,18 +136,27 @@ func (i *Integration) lambda() bool {
 	return i.Type == apigatewayv2api.IntegrationTypeAwsProxy && i.Subtype == nil
 }
 
-// check refuses an integration an HTTP API cannot have (apigateway-http.md
-// 2.4, 3.3, 6.1, 13.5). The texts are inferred (APIGW2-01).
-func (i *Integration) check() *awserr.Error {
-	switch i.Type {
+// checkType refuses an integration type an HTTP API cannot have: AWS,
+// HTTP and MOCK are "Supported only for WebSocket APIs" (the model's
+// IntegrationType documentation, apigateway-http.md 2.4), refused with
+// AWS's text (APIGW2-01 step 26). A value outside the enum, which only
+// CreateIntegration's validation leaves to the handler, is dropped by AWS
+// and reported missing (step 17b).
+func checkType(t apigatewayv2api.IntegrationType) *awserr.Error {
+	switch t {
 	case apigatewayv2api.IntegrationTypeAwsProxy, apigatewayv2api.IntegrationTypeHttpProxy:
+		return nil
 	case apigatewayv2api.IntegrationTypeAws, apigatewayv2api.IntegrationTypeHttp, apigatewayv2api.IntegrationTypeMock:
-		// "Supported only for WebSocket APIs" (the model's IntegrationType
-		// documentation, 2.4); the identity is inferred (APIGW2-01 case 26).
-		return errBadRequest("integrationType %s is supported only for WebSocket APIs; an HTTP API takes AWS_PROXY or HTTP_PROXY", i.Type)
-	default:
-		// The generated validation refuses a type outside the enum first.
-		return errBadRequest("integrationType %q is not AWS_PROXY or HTTP_PROXY", i.Type)
+		return errBadRequest("Currently, an API with a protocol type of HTTP may only be associated with proxy integrations (AWS_PROXY, HTTP_PROXY)")
+	}
+	return errBadRequest("IntegrationType is a required parameter for creating integration.")
+}
+
+// check refuses an integration an HTTP API cannot have (apigateway-http.md
+// 2.4, 3.3, 6.1, 13.5), with AWS's text where APIGW2-01 recorded one.
+func (i *Integration) check() *awserr.Error {
+	if err := checkType(i.Type); err != nil {
+		return err
 	}
 	switch {
 	case i.Subtype != nil:
@@ -171,7 +180,7 @@ func (i *Integration) check() *awserr.Error {
 // stored and answers 501 when a request reaches it.
 func (i *Integration) checkLambda() *awserr.Error {
 	if v := i.PayloadFormatVersion; v != payloadV1 && v != payloadV2 {
-		return errBadRequest("payloadFormatVersion %q is not 1.0 or 2.0", v)
+		return errBadRequest("Unsupported PayloadFormatVersion: %s", v)
 	}
 	switch uri := i.URI; {
 	case uri == nil:
@@ -198,14 +207,16 @@ func (i *Integration) checkSubtype() *awserr.Error {
 	}
 	required, ok := subtypeRequired(*i.Subtype)
 	if !ok {
-		return errBadRequest("integrationSubtype %q is not one of %s", *i.Subtype, subtypes)
+		// AWS's text (APIGW2-01 step 21, SNS-Publish).
+		return errBadRequest("Operation: %s is not supported.", *i.Subtype)
 	}
 	if err := i.checkPayloadV1("an AWS service integration"); err != nil {
 		return err
 	}
 	for _, p := range required {
 		if _, ok := i.RequestParameters[p]; !ok {
-			return errBadRequest("integrationSubtype %s needs request parameter %s; it needs %s", *i.Subtype, p, strings.Join(required, ", "))
+			// AWS's text (APIGW2-01 step 20).
+			return errBadRequest("Operation: %s requires enabling passthrough, or defining all of the following parameters in the parameter mapping: [%s]", *i.Subtype, strings.Join(required, ", "))
 		}
 	}
 	return nil
@@ -393,7 +404,7 @@ func (s *Service) getIntegrations(_ context.Context, c *kernel.Call, in *apigate
 func (a *API) integrationIndex(id string) (int, *awserr.Error) {
 	k := slices.IndexFunc(a.Integrations, func(i Integration) bool { return i.ID == id })
 	if k < 0 {
-		return 0, errNotFound("API %s has no integration %s", a.ID, id)
+		return 0, errNotFound("Invalid Integration identifier specified") // APIGW2-01 step 04
 	}
 	return k, nil
 }

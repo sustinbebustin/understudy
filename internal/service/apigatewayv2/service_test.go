@@ -17,10 +17,11 @@ import (
 	"github.com/sustinbebustin/understudy/internal/service/apigatewayv2"
 )
 
-// baseNote heads every bound control-plane operation's coverage note: no
-// v2 error text is recorded and the id shapes are inferred
-// (apigateway-http.md 2.3, 2.5).
-const baseNote = "error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03)"
+// baseNote heads every bound control-plane operation's coverage note:
+// the refusal texts APIGW2-01 recorded are AWS's, the rest understudy's,
+// and AWS pretty-prints some error bodies (apigateway-http.md 2.3).
+const baseNote = "error texts are AWS's where APIGW2-01 recorded them and understudy's elsewhere; " +
+	"AWS pretty-prints some error bodies (GetApi, GetStage, CreateStage), which understudy sends compact"
 
 func partial(note string) registry.BindCoverage {
 	if note == "" {

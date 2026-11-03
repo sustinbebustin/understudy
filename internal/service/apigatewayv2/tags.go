@@ -152,7 +152,7 @@ func (s *Service) getTags(_ context.Context, c *kernel.Call, in *apigatewayv2api
 		}
 		stage, ok := a.stage(t.stage)
 		if !ok {
-			return found{err: errStageNotFound(t)}
+			return found{err: errStageNotFound()}
 		}
 		return found{tags: tagsOut(stage.Tags)}
 	})
@@ -175,7 +175,7 @@ func (a *API) retag(t tagged, change func(map[string]string) (map[string]string,
 	}
 	i := slices.IndexFunc(a.Stages, func(st Stage) bool { return st.Name == t.stage })
 	if i < 0 {
-		return errStageNotFound(t)
+		return errStageNotFound()
 	}
 	tags, err := change(a.Stages[i].Tags)
 	if err != nil {
@@ -186,7 +186,8 @@ func (a *API) retag(t tagged, change func(map[string]string) (map[string]string,
 	return nil
 }
 
-// errStageNotFound answers a stage the API does not have.
-func errStageNotFound(t tagged) *awserr.Error {
-	return errNotFound("API %s has no stage named %q", t.apiID, t.stage)
+// errStageNotFound answers a stage the API does not have, with AWS's text
+// (APIGW2-01 step 05).
+func errStageNotFound() *awserr.Error {
+	return errNotFound("Invalid stage identifier specified")
 }

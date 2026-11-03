@@ -48,10 +48,11 @@ type Service struct {
 // The service is the snapshot and reset view of its state.
 var _ kernel.Stateful = (*Service)(nil)
 
-// baseNote heads every bound control-plane operation's coverage note: no
-// v2 error text is recorded, and the id shapes are inferred
-// (apigateway-http.md 2.3, 2.5).
-const baseNote = "error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03)"
+// baseNote heads every bound control-plane operation's coverage note:
+// APIGW2-01 recorded the refusal texts understudy sends where it has them,
+// and APIGW2-03 the id shapes (apigateway-http.md 2.3, 2.5).
+const baseNote = "error texts are AWS's where APIGW2-01 recorded them and understudy's elsewhere; " +
+	"AWS pretty-prints some error bodies (GetApi, GetStage, CreateStage), which understudy sends compact"
 
 // Coverage notes of the operations bound so far: what each leaves out of
 // the documented behavior.

@@ -158,7 +158,7 @@ func (r DeploymentRule) answer(format string, args ...any) *awserr.Error {
 func (a *API) deploymentIndex(id string) (int, *awserr.Error) {
 	i := slices.IndexFunc(a.Deployments, func(d Deployment) bool { return d.ID == id })
 	if i < 0 {
-		return 0, errNotFound("API %s has no deployment %s", a.ID, id)
+		return 0, errNotFound("Invalid Deployment identifier specified") // APIGW2-01 step 06
 	}
 	return i, nil
 }

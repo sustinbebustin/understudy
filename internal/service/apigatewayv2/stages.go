@@ -52,7 +52,9 @@ func checkCreateStage(in *apigatewayv2api.CreateStageInput) *awserr.Error {
 		return err
 	}
 	if in.StageName != defaultStage && !stageName.MatchString(in.StageName) {
-		return errBadRequest("stageName %q is not $default or 1 to 128 letters, digits, '-' and '_'", in.StageName)
+		// AWS's text, which omits the hyphen the docs allow (APIGW2-01 step
+		// 15 sent bad.name; whether a hyphen is accepted is UNVERIFIED).
+		return errBadRequest("Stage name only allows a-zA-Z0-9_")
 	}
 	if len(in.StageVariables) > maxStageVariables {
 		return errBadRequest("a stage holds at most %d stage variables, not %d", maxStageVariables, len(in.StageVariables))
@@ -118,7 +120,7 @@ func (s *Service) createStage(_ context.Context, c *kernel.Call, in *apigatewayv
 	auto := deref(in.AutoDeploy, false)
 	st, err := writeAPI(s, c, in.ApiId, func(a *API, now clock.Instant) (Stage, *awserr.Error) {
 		if _, ok := a.stage(in.StageName); ok {
-			return Stage{}, errConflict("the API already has a stage named %q", in.StageName)
+			return Stage{}, errConflict("Stage already exists") // APIGW2-01 step 08
 		}
 		if len(a.Stages) >= maxStages {
 			return Stage{}, errBadRequest("the API already has %d stages, the most an HTTP API may have", maxStages)
@@ -347,7 +349,7 @@ func (s *Service) getStages(_ context.Context, c *kernel.Call, in *apigatewayv2a
 func (a *API) stageIndex(name string) (int, *awserr.Error) {
 	i := slices.IndexFunc(a.Stages, func(st Stage) bool { return st.Name == name })
 	if i < 0 {
-		return 0, errStageNotFound(tagged{apiID: a.ID, stage: name})
+		return 0, errStageNotFound()
 	}
 	return i, nil
 }
