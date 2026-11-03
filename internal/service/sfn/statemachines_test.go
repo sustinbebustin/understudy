@@ -229,8 +229,8 @@ func TestUnimplementedMembersAnswer501(t *testing.T) {
 	})
 }
 
-// CreateStateMachine and UpdateStateMachine answer InvalidDefinition with
-// the envelope of the first problem (aws-recorded localstack@8b9a79f
+// CreateStateMachine and UpdateStateMachine answer InvalidDefinition in
+// AWS's envelope (aws-recorded localstack@8b9a79f
 // v2/test_sfn_api.snapshot.json:L26-L32); a refused feature uses the same
 // envelope with code UNSUPPORTED_BY_UNDERSTUDY (stepfunctions-asl.md 10.4;
 // the JSONata refusal check of spec "Done checks").

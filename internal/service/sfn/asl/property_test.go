@@ -16,12 +16,15 @@ import (
 
 // machine draws a definition whose states only move forward, so every
 // execution ends: Pass, Wait, Choice, Parallel and inline Map states, the
-// last a Succeed, Fail or ending Pass. Parallel and Map keep the input
+// last a Succeed, Fail or ending Pass. Each state moves to the one after
+// it, and a Choice rule may skip ahead, so every state is reachable, as AWS
+// requires (ASL-01, recorded 2026-11-03). Parallel and Map keep the input
 // (ResultPath null) so later Choices still read $.k.
 func machine(t *rapid.T) string {
 	n := rapid.IntRange(1, 6).Draw(t, "states")
 	name := func(i int) string { return fmt.Sprintf("S%d", i) }
-	next := func(i int, label string) string {
+	next := func(i int) string { return name(i + 1) }
+	skip := func(i int, label string) string {
 		return name(rapid.IntRange(i+1, n-1).Draw(t, label))
 	}
 	states := make([]string, 0, n)
@@ -29,22 +32,22 @@ func machine(t *rapid.T) string {
 		var s string
 		switch rapid.IntRange(0, 4).Draw(t, fmt.Sprintf("kind%d", i)) {
 		case 0:
-			s = fmt.Sprintf(`{"Type":"Pass","Next":%q}`, next(i, fmt.Sprintf("next%d", i)))
+			s = fmt.Sprintf(`{"Type":"Pass","Next":%q}`, next(i))
 		case 1:
-			s = fmt.Sprintf(`{"Type":"Wait","Seconds":%d,"Next":%q}`, rapid.IntRange(0, 3).Draw(t, fmt.Sprintf("wait%d", i)), next(i, fmt.Sprintf("next%d", i)))
+			s = fmt.Sprintf(`{"Type":"Wait","Seconds":%d,"Next":%q}`, rapid.IntRange(0, 3).Draw(t, fmt.Sprintf("wait%d", i)), next(i))
 		case 2:
 			s = fmt.Sprintf(`{"Type":"Choice","Choices":[{"Variable":"$.k","NumericEquals":%d,"Next":%q}],"Default":%q}`,
-				rapid.IntRange(0, 2).Draw(t, fmt.Sprintf("eq%d", i)), next(i, fmt.Sprintf("yes%d", i)), next(i, fmt.Sprintf("no%d", i)))
+				rapid.IntRange(0, 2).Draw(t, fmt.Sprintf("eq%d", i)), skip(i, fmt.Sprintf("yes%d", i)), next(i))
 		case 3:
 			nb := rapid.IntRange(1, 3).Draw(t, fmt.Sprintf("branches%d", i))
 			branches := make([]string, nb)
 			for b := range nb {
 				branches[b] = fmt.Sprintf(`{"StartAt":"B%d_%d","States":{"B%d_%d":{"Type":"Pass","End":true}}}`, i, b, i, b)
 			}
-			s = fmt.Sprintf(`{"Type":"Parallel","ResultPath":null,"Branches":[%s],"Next":%q}`, strings.Join(branches, ","), next(i, fmt.Sprintf("next%d", i)))
+			s = fmt.Sprintf(`{"Type":"Parallel","ResultPath":null,"Branches":[%s],"Next":%q}`, strings.Join(branches, ","), next(i))
 		default:
 			s = fmt.Sprintf(`{"Type":"Map","ItemsPath":"$.items","ResultPath":null,"MaxConcurrency":%d,"ItemProcessor":{"StartAt":"M%d","States":{"M%d":{"Type":"Pass","End":true}}},"Next":%q}`,
-				rapid.IntRange(0, 2).Draw(t, fmt.Sprintf("conc%d", i)), i, i, next(i, fmt.Sprintf("next%d", i)))
+				rapid.IntRange(0, 2).Draw(t, fmt.Sprintf("conc%d", i)), i, i, next(i))
 		}
 		states = append(states, fmt.Sprintf("%q:%s", name(i), s))
 	}

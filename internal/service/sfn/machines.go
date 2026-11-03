@@ -39,15 +39,12 @@ func checkUnimplemented(op string, typ *sfnapi.StateMachineType, publish bool, e
 }
 
 // checkDefinition parses definition with the features whose runtime has
-// landed and answers the first error, as CreateStateMachine renders it
-// (UNVERIFIED, ASL-01, SFN-08).
+// landed and answers every error in one message, as CreateStateMachine
+// renders them (ASL-01, SFN-08, recorded 2026-11-03).
 func checkDefinition(definition string) *awserr.Error {
-	if _, diags := asl.Parse(definition, AcceptedFeatures()); len(diags) > 0 {
-		for _, d := range diags {
-			if d.Severity == asl.SeverityError {
-				return sfnapi.ErrInvalidDefinition(d.InvalidDefinition())
-			}
-		}
+	_, diags := asl.Parse(definition, AcceptedFeatures())
+	if message := asl.InvalidDefinition(diags); message != "" {
+		return sfnapi.ErrInvalidDefinition(message)
 	}
 	return nil
 }

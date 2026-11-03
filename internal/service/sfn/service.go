@@ -58,14 +58,17 @@ const (
 		"Lambda only (a function ARN or arn:aws:states:::lambda:invoke). These answer InvalidDefinition with code UNSUPPORTED_BY_UNDERSTUDY: " +
 		"JSONata, Assign and variables, Distributed Map and its fields, Credentials, HeartbeatSeconds, callbacks, activities, " +
 		"every other Task resource, a literal lambda:invoke InvocationType other than RequestResponse, and JSONPath functions such as length(), " +
-		"multi-clause filters and filter scripts (ASL-19). A dynamodb resource outside getItem, putItem, updateItem and deleteItem answers " +
-		"AWS's SCHEMA_VALIDATION_FAILED text. Only the first problem in a definition is reported (UNVERIFIED, ASL-01, SFN-08). " +
+		"multi-clause filters and filter scripts, though AWS accepts length() and fails only at run time (ASL-19). " +
+		"ToleratedFailurePercentage, which AWS accepts on an inline Map, is refused with Distributed Map's fields (ASL-01). " +
+		"A dynamodb resource outside getItem, putItem, updateItem and deleteItem answers AWS's SCHEMA_VALIDATION_FAILED text. " +
+		"Every problem in a definition is reported in one message, as AWS joins them; wording for problems no recording covers is understudy's (ASL-01). " +
 		"loggingConfiguration and tracingConfiguration are validated, stored and echoed; no log events or traces are emitted. " +
-		"The role ARN is checked for syntax, and its trust policy only under iam.enforce=enforce, with understudy's message (UNVERIFIED, SFN-08)"
+		"The role ARN is checked for syntax. AWS checks neither the role's existence nor its trust at create; understudy checks its trust " +
+		"policy under iam.enforce=enforce, with understudy's message (SFN-08)"
 	noteUpdate = "The CreateStateMachine definition and configuration rules apply; publish true and versionDescription answer 501. " +
 		"Running executions keep the definition and role they started with"
-	noteValidate = "Diagnostics use AWS's codes; messages are AWS's for the recorded cases (stepfunctions-asl.md 3.4-3.6) and understudy's wording elsewhere " +
-		"(UNVERIFIED, ASL-01). Features understudy refuses are ERROR diagnostics with code UNSUPPORTED_BY_UNDERSTUDY; type EXPRESS answers 501"
+	noteValidate = "Diagnostics use AWS's codes, locations and order; messages are AWS's for the recorded cases (stepfunctions-asl.md 3.4-3.6) " +
+		"and understudy's wording elsewhere (ASL-01). Features understudy refuses are ERROR diagnostics with code UNSUPPORTED_BY_UNDERSTUDY; type EXPRESS answers 501"
 	noteVersions = "Always empty: publishing versions is not implemented (publish is refused and PublishStateMachineVersion is unbound)"
 	noteDelete   = "An idle machine is removed at once, and one with running executions once the last of them ends; " +
 		"AWS still describes a deleted machine as DELETING, idle or not, for a time no recording has measured " +

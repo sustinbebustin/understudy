@@ -100,11 +100,11 @@ func TestParseRefusesStructuralProblems(t *testing.T) {
 // grammar").
 func TestParseRefusesMoreUnsupportedConstructs(t *testing.T) {
 	tests := []struct{ name, def, location string }{
-		{"variable in a Choice", `{"StartAt":"C","States":{"C":{"Type":"Choice","Choices":[{"Variable":"$v","IsNull":true,"Next":"P"}]},` + terminalP + `}}`, "/States/C/Choices/0/Variable"},
+		{"variable in a Choice", `{"StartAt":"C","States":{"C":{"Type":"Choice","Choices":[{"Variable":"$v","IsNull":true,"Next":"P"}]},` + terminalP + `}}`, "/States/C/Choices[0]/Variable"},
 		{"variable in an intrinsic", `{"StartAt":"P","States":{"P":{"Type":"Pass","Parameters":{"x.$":"States.Format('{}', $v)"},"End":true}}}`, "/States/P/Parameters"},
 		{"ExecutionType", `{"StartAt":"M","States":{"M":{"Type":"Map","ItemProcessor":{"ProcessorConfig":{"ExecutionType":"STANDARD"},"StartAt":"I","States":{"I":{"Type":"Pass","End":true}}},"End":true}}}`, "/States/M/ItemProcessor/ProcessorConfig/ExecutionType"},
 		{"JSONPath function in an intrinsic", `{"StartAt":"P","States":{"P":{"Type":"Pass","Parameters":{"x.$":"States.Array($.a.length())"},"End":true}}}`, "/States/P/Parameters"},
-		{"Catch Assign", `{"StartAt":"T","States":{"T":{` + lambdaTask + `,"Catch":[{"ErrorEquals":["States.ALL"],"Assign":{},"Next":"P"}],"Next":"P"},` + terminalP + `}}`, "/States/T/Catch/0/Assign"},
+		{"Catch Assign", `{"StartAt":"T","States":{"T":{` + lambdaTask + `,"Catch":[{"ErrorEquals":["States.ALL"],"Assign":{},"Next":"P"}],"Next":"P"},` + terminalP + `}}`, "/States/T/Catch[0]/Assign"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -138,14 +138,15 @@ func TestASL01RefusedStateKeepsAWSVerdicts(t *testing.T) {
 	}
 }
 
-// Nested states are located through their branch or processor; the form
-// of those locations is understudy's (contract 5.1).
+// Nested states are located through their branch or processor, a branch
+// by its index in brackets and an unknown field at its state (ASL-01,
+// recorded 2026-11-03); the processor form is inferred from it.
 func TestASL01NestedLocations(t *testing.T) {
 	// inferred, ASL-01
 	tests := []struct{ def, location string }{
-		{`{"StartAt":"X","States":{"X":{"Type":"Parallel","Branches":[{"StartAt":"A","States":{"A":{"Type":"Pass","End":true}}},{"StartAt":"B","States":{"B":{"Type":"Pass","Bad":1,"End":true}}}],"End":true}}}`, "/States/X/Branches/1/States/B/Bad"},
-		{`{"StartAt":"M","States":{"M":{"Type":"Map","ItemProcessor":{"StartAt":"I","States":{"I":{"Type":"Pass","Bad":1,"End":true}}},"End":true}}}`, "/States/M/ItemProcessor/States/I/Bad"},
-		{`{"StartAt":"M","States":{"M":{"Type":"Map","Iterator":{"StartAt":"I","States":{"I":{"Type":"Pass","Bad":1,"End":true}}},"End":true}}}`, "/States/M/Iterator/States/I/Bad"},
+		{`{"StartAt":"X","States":{"X":{"Type":"Parallel","Branches":[{"StartAt":"A","States":{"A":{"Type":"Pass","End":true}}},{"StartAt":"B","States":{"B":{"Type":"Pass","Bad":1,"End":true}}}],"End":true}}}`, "/States/X/Branches[1]/States/B"},
+		{`{"StartAt":"M","States":{"M":{"Type":"Map","ItemProcessor":{"StartAt":"I","States":{"I":{"Type":"Pass","Bad":1,"End":true}}},"End":true}}}`, "/States/M/ItemProcessor/States/I"},
+		{`{"StartAt":"M","States":{"M":{"Type":"Map","Iterator":{"StartAt":"I","States":{"I":{"Type":"Pass","Bad":1,"End":true}}},"End":true}}}`, "/States/M/Iterator/States/I"},
 	}
 	for _, tt := range tests {
 		_, diags := asl.Parse(tt.def, allFeatures)

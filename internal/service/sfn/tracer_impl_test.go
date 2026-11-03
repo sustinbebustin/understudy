@@ -62,16 +62,16 @@ func TestSucceedExecution(t *testing.T) {
 	})
 }
 
-// CreateStateMachine renders the first problem only, in AWS's envelope.
-func TestASL01CreateRendersTheFirstProblem(t *testing.T) {
-	// inferred, ASL-01
-	// inferred, SFN-08
+// CreateStateMachine renders every problem in one InvalidDefinition
+// message, schema problems first (ASL-01 16, recorded 2026-11-03).
+func TestASL01CreateJoinsEveryProblem(t *testing.T) {
 	run(t, func(h *harness) {
-		def := `{"StartAt":"P","States":{"P":{"Type":"Pass","Next":"Nope"},"W":{"Type":"Wait","Seconds":1,"End":true}}}`
+		def := `{"StartAt":"A","States":{"A":{"Type":"Pass","Next":"Nope"},"B":{"Type":"Bogus"}}}`
 		_, err := call(h, sfnapi.OpCreateStateMachine, &sfnapi.CreateStateMachineInput{Name: "m", Definition: def, RoleArn: h.roleArn()})
-		if err == nil || err.ID.Shape.Name() != "InvalidDefinition" || !strings.HasPrefix(err.Message, "Invalid State Machine Definition: 'MISSING_TRANSITION_TARGET: ") ||
-			!strings.HasSuffix(err.Message, " at /States/P/Next'") {
-			h.Fatalf("CreateStateMachine = %+v, want only the missing Next target", err)
+		want := `Invalid State Machine Definition: 'SCHEMA_VALIDATION_FAILED: The field 'Type' should have one of these values: [Task, Wait, Pass, Succeed, Fail, Choice, Parallel, Map] at /States/B/Type, ` +
+			`MISSING_TRANSITION_TARGET: Missing 'Next' target: Nope at /States/A/Next, MISSING_TRANSITION_TARGET: State "B" is not reachable. at /States/B, MISSING_END_STATE: Workflow has no terminal state at null'`
+		if err == nil || err.ID.Shape.Name() != "InvalidDefinition" || err.Message != want {
+			h.Fatalf("CreateStateMachine = %+v, want InvalidDefinition %q", err, want)
 		}
 	})
 }

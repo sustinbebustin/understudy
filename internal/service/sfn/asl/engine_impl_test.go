@@ -35,7 +35,8 @@ func TestASL16HistoryLimit(t *testing.T) {
 // wider than a Pass or Choice step's.
 func TestASL16HistoryLimitTaskLoop(t *testing.T) {
 	for lead := range 7 {
-		states := `"T":{"Type":"Task","Resource":"` + functionArn + `","Next":"P"},"P":{"Type":"Pass","Next":"T"},"S":{"Type":"Succeed"}`
+		// The catcher only makes S reachable, as AWS requires (ASL-01).
+		states := `"T":{"Type":"Task","Resource":"` + functionArn + `","Catch":[{"ErrorEquals":["X"],"Next":"S"}],"Next":"P"},"P":{"Type":"Pass","Next":"T"},"S":{"Type":"Succeed"}`
 		start := "T"
 		var statesSb39 strings.Builder
 		for i := range lead {
@@ -60,9 +61,10 @@ func TestASL16HistoryLimitTaskLoop(t *testing.T) {
 	}
 }
 
-// Parse reports every problem in document order; CreateStateMachine renders
-// the first (contract 5.1).
-func TestASL01EveryProblemInDocumentOrder(t *testing.T) {
+// Parse reports every problem: the others in document order, then the
+// transition checks (ASL-01 16, recorded 2026-11-03); an understudy refusal
+// counts as one of the others.
+func TestASL01EveryProblemTransitionChecksLast(t *testing.T) {
 	// inferred, ASL-01
 	_, diags := asl.Parse(`{"StartAt":"P","States":{"P":{"Type":"Pass","Next":"Nope"},"W":{"Type":"Wait","Seconds":1,"End":true}},"Extra":1}`,
 		asl.NewFeatures(asl.FeatPass, asl.FeatSucceed))
@@ -70,7 +72,7 @@ func TestASL01EveryProblemInDocumentOrder(t *testing.T) {
 	for _, d := range diags {
 		locations = append(locations, d.Location)
 	}
-	want := []string{"/States/P/Next", "/States/W", "/"}
+	want := []string{"/States/W", "/", "/States/P/Next", "/States/W"}
 	if len(locations) != len(want) {
 		t.Fatalf("diagnostics at %v, want %v", locations, want)
 	}
@@ -79,8 +81,8 @@ func TestASL01EveryProblemInDocumentOrder(t *testing.T) {
 			t.Fatalf("diagnostics at %v, want %v", locations, want)
 		}
 	}
-	if diags[1].Code != asl.CodeUnsupported {
-		t.Errorf("Wait diagnostic = %+v, want %s", diags[1], asl.CodeUnsupported)
+	if diags[0].Code != asl.CodeUnsupported {
+		t.Errorf("Wait diagnostic = %+v, want %s", diags[0], asl.CodeUnsupported)
 	}
 }
 

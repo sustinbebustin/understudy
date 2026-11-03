@@ -122,13 +122,11 @@ func (s *Service) startExecution(_ context.Context, c *kernel.Call, in *sfnapi.S
 	return &sfnapi.StartExecutionOutput{ExecutionArn: started.arn, StartDate: started.started.Wire()}, nil
 }
 
-// definitionError answers the first error of a stored definition that no
-// longer parses, as CreateStateMachine would.
+// definitionError answers the errors of a stored definition that no longer
+// parses, as CreateStateMachine would.
 func definitionError(diags []asl.Diagnostic) *awserr.Error {
-	for _, d := range diags {
-		if d.Severity == asl.SeverityError {
-			return sfnapi.ErrInvalidDefinition(d.InvalidDefinition())
-		}
+	if message := asl.InvalidDefinition(diags); message != "" {
+		return sfnapi.ErrInvalidDefinition(message)
 	}
 	return sfnapi.ErrInvalidDefinition("Invalid State Machine Definition: the stored definition no longer parses")
 }

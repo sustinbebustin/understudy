@@ -265,6 +265,96 @@ func TestASL09WaitPathsAccepted(t *testing.T) {
 	}
 }
 
+// ValidateStateMachineDefinition answers AWS's diagnostics: array indexes
+// as [i] in locations, schema problems before the transition checks, an
+// unreachable state and a missing terminal state reported beside other
+// problems, the latter without a location (ASL-01, recorded 2026-11-03;
+// stepfunctions-asl.md 3.6).
+func TestASL01RecordedDiagnostics(t *testing.T) {
+	long := strings.Repeat("a", 81)
+	for _, tt := range []struct {
+		step, def string
+		want      []string
+	}{
+		{"01", `{"StartAt":"A","States":{"A":{"Type":"Pass","Next":"Nope"}}}`, []string{
+			"MISSING_TRANSITION_TARGET /States/A/Next Missing 'Next' target: Nope",
+			"MISSING_END_STATE  Workflow has no terminal state",
+		}},
+		{"02", `{"StartAt":"P","States":{"P":{"Type":"Parallel","Branches":[{"StartAt":"P","States":{"P":{"Type":"Pass","End":true}}}],"End":true}}}`, []string{
+			"DUPLICATE_STATE_NAME /States/P/Branches[0]/States/P Duplicate State name: P",
+		}},
+		{"03", `{"StartAt":"A","States":{"A":{"Type":"Pass","End":true},"B":{"Type":"Pass","End":true}}}`, []string{
+			`MISSING_TRANSITION_TARGET /States/B State "B" is not reachable.`,
+		}},
+		{"04", `{"StartAt":"A","States":{"A":{"Type":"Pass","Next":"B"},"B":{"Type":"Pass","Next":"A"}}}`, []string{
+			"MISSING_END_STATE  Workflow has no terminal state",
+		}},
+		{"05", `{"StartAt":"A","States":{"A":{"Type":"Pass","Next":"B","End":true},"B":{"Type":"Succeed"}}}`, []string{
+			"SCHEMA_VALIDATION_FAILED /States/A There should only be one of the following fields: [Next, End]",
+		}},
+		{"06", `{"StartAt":"C","States":{"C":{"Type":"Choice","End":true,"Choices":[{"Variable":"$.x","IsPresent":true,"Next":"S"}]},"S":{"Type":"Succeed"}}}`, []string{
+			"SCHEMA_VALIDATION_FAILED /States/C Field 'End' is not supported",
+		}},
+		{"07", `{"StartAt":"P","States":{"P":{"Type":"Parallel","Branches":[{"StartAt":"F","States":{"F":{"Type":"Succeed"}}}],"Catch":[{"ErrorEquals":["States.ALL"],"Next":"S"},{"ErrorEquals":["X"],"Next":"S"}],"End":true},"S":{"Type":"Succeed"}}}`, []string{
+			"SCHEMA_VALIDATION_FAILED /States/P/Catch[0]/ErrorEquals[0] States.ALL must appear alone and at end of list",
+		}},
+		{"08", `{"StartAt":"` + long + `","States":{"` + long + `":{"Type":"Succeed"}}}`, []string{
+			"INVALID_STATE_NAME /States/" + long + " Invalid State name: State '" + long + "' exceeds the 80-character limit allowed by the service",
+		}},
+		{"09", `{"TimeoutSeconds":99999999,"StartAt":"S","States":{"S":{"Type":"Succeed"}}}`, nil},
+		{"10", `{"TimeoutSeconds":100000000,"StartAt":"S","States":{"S":{"Type":"Succeed"}}}`, []string{
+			"SCHEMA_VALIDATION_FAILED /TimeoutSeconds Maximum value is 99999999",
+		}},
+		{"11", `{"StartAt":"S","States":{"S":{"Type":"Succeed","Bogus":1}}}`, []string{
+			"SCHEMA_VALIDATION_FAILED /States/S Field 'Bogus' is not supported",
+		}},
+		{"12", `{"StartAt":"P","States":{"P":{"Type":"Parallel","Branches":[{"StartAt":"S","States":{"S":{"Type":"Succeed"}}}],"Retry":[{"ErrorEquals":["X"],"IntervalSeconds":0,"BackoffRate":0.5,"MaxDelaySeconds":31622401,"JitterStrategy":"HALF"}],"End":true}}}`, []string{
+			"SCHEMA_VALIDATION_FAILED /States/P/Retry[0]/BackoffRate Minimum value is 1.0",
+			"SCHEMA_VALIDATION_FAILED /States/P/Retry[0]/MaxDelaySeconds Maximum value is 31622400",
+			"SCHEMA_VALIDATION_FAILED /States/P/Retry[0]/JitterStrategy Value should be one of the following: [NONE, FULL]",
+		}},
+		{"13", `{"StartAt":"A","States":{"A":{"Type":"Pass","Parameters":{"x.$":"States.ArrayLength(States.Array(States.Array(States.Array(States.Array(States.Array(States.Array(States.Array(States.Array(States.Array(States.Array(1)))))))))))"},"End":true}}}`, []string{
+			"SCHEMA_VALIDATION_FAILED /States/A/Parameters The value for the field 'x.$' must be a valid JSONPath or a valid intrinsic function call",
+		}},
+		{"15", `{"StartAt":"A","States":{"A":{"Type":"Pass","Result":1,"Parameters":{"a":1},"End":true}}}`, nil},
+		{"16", `{"StartAt":"A","States":{"A":{"Type":"Pass","Next":"Nope"},"B":{"Type":"Bogus"}}}`, []string{
+			"SCHEMA_VALIDATION_FAILED /States/B/Type The field 'Type' should have one of these values: [Task, Wait, Pass, Succeed, Fail, Choice, Parallel, Map]",
+			"MISSING_TRANSITION_TARGET /States/A/Next Missing 'Next' target: Nope",
+			`MISSING_TRANSITION_TARGET /States/B State "B" is not reachable.`,
+			"MISSING_END_STATE  Workflow has no terminal state",
+		}},
+	} {
+		_, diags := asl.Parse(tt.def, allFeatures)
+		got := make([]string, 0, len(diags))
+		for _, d := range diags {
+			got = append(got, d.Code+" "+d.Location+" "+d.Message)
+		}
+		if strings.Join(got, "\n") != strings.Join(tt.want, "\n") {
+			t.Errorf("ASL-01 %s diagnostics:\n%s\nwant:\n%s", tt.step, strings.Join(got, "\n"), strings.Join(tt.want, "\n"))
+		}
+	}
+}
+
+// CreateStateMachine joins every error into one InvalidDefinition message,
+// a missing location rendered "at null"; a missing required top-level field
+// stops validation before the other checks (ASL-01 16, SFN-08 05, ASL-09
+// 05, recorded 2026-11-03).
+func TestInvalidDefinitionJoinsEveryError(t *testing.T) {
+	for _, tt := range []struct{ step, def, want string }{
+		{
+			"ASL-01 16", `{"StartAt":"A","States":{"A":{"Type":"Pass","Next":"Nope"},"B":{"Type":"Bogus"}}}`,
+			`Invalid State Machine Definition: 'SCHEMA_VALIDATION_FAILED: The field 'Type' should have one of these values: [Task, Wait, Pass, Succeed, Fail, Choice, Parallel, Map] at /States/B/Type, MISSING_TRANSITION_TARGET: Missing 'Next' target: Nope at /States/A/Next, MISSING_TRANSITION_TARGET: State "B" is not reachable. at /States/B, MISSING_END_STATE: Workflow has no terminal state at null'`,
+		},
+		{"SFN-08 05", `{"States":{"A":{"Type":"Bogus"}}}`, "Invalid State Machine Definition: 'SCHEMA_VALIDATION_FAILED: These fields are required: [StartAt] at /'"},
+		{"ASL-09 05", `{"StartAt":"W","States":{"W":{"Type":"Wait","Seconds":100000000,"End":true}}}`, "Invalid State Machine Definition: 'SCHEMA_VALIDATION_FAILED: Maximum value is 99999999 at /States/W/Seconds'"},
+	} {
+		_, diags := asl.Parse(tt.def, allFeatures)
+		if got := asl.InvalidDefinition(diags); got != tt.want {
+			t.Errorf("%s: InvalidDefinition = %q\nwant %q", tt.step, got, tt.want)
+		}
+	}
+}
+
 // A Choice Variable that selects nothing fails the execution with an
 // uncatchable States.Runtime and the recorded cause (ASL-08, recorded
 // 2026-11-03; stepfunctions-asl.md 6.4).
