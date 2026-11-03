@@ -21,7 +21,7 @@ Primary references used throughout:
 - LocalStack (Apache-2.0, archived; read, never copied): DDB-SNAP = `localstack@8b9a79f tests/aws/services/dynamodb/test_dynamodb.snapshot.json`, DDB-TEST = the matching `test_dynamodb.py`; STREAMS-SNAP = `tests/aws/services/dynamodbstreams/test_dynamodb_streams.snapshot.json`; ESM-SNAP = `tests/aws/services/lambda_/event_source_mapping/test_lambda_integration_dynamodbstreams.snapshot.json` (32 cases, 31 with a validation date between 2024-10-12 and 2025-11-25), ESM-TEST = the matching `.py`.
 - Terraform: `hashicorp/terraform-provider-aws v6.68.0` (TF below).
 
-Anything no source fixes is marked UNVERIFIED with the recording case that settles it (section 12).
+Anything no source fixes is marked UNVERIFIED with the recording case that settles it (section 12). The recording session of 2026-11-03 ran DDBS-01 to DDBS-12, DDBS-16 and DDBS-17 (fixtures in `testdata/parity/dynamodb/DDBS-*`, each with a `notes.md`); its results replace the UNVERIFIED lines they settle, labelled aws-recorded with the item id. DDBS-13, DDBS-14 and DDBS-15 were deferred (they need hours or days of waiting) and stay UNVERIFIED.
 
 ## 2. Findings that change the design
 
@@ -69,7 +69,11 @@ Every error structure has one member, `message` (lower case), and no `httpError`
 - That documentation describes the member, and the service need not send it as the message. The only modeled-error message recorded is for DescribeStream on a missing stream: 400, code `ResourceNotFoundException`, "Requested resource not found: Stream: arn:<partition>:dynamodb:<region>:111111111111:table/<table-name>/stream/2024-11-18T14:36:44.149 not found" (third-party-recorded, STREAMS-SNAP:L90-L104, validated 2024-11-20). The test also asserts that the message names the caller's account and region (`tests/aws/services/dynamodbstreams/test_dynamodb_streams.py:L203-L206`).
 - The same snapshot points to a lower-case `message` member on the wire. Besides `Error.Message`, it carries a top-level `"message"` key (STREAMS-SNAP:L98), and LocalStack's ESM-SNAP:L4487 does the same for Lambda's "Stream not found". botocore adds that key only when it parses the body against the modeled error shape, whose member is `message`. That lookup is exact-key: `JSONParser._do_modeled_error_parse` (`L1095-L1096`) parses the body through `_handle_json_body` (`L1110-L1115`) into `BaseJSONParser._handle_structure`, which reads `value.get(json_name)` (`L703-L704`) (botocore `cd68b6e` `botocore/parsers.py`; `botocore/endpoint.py:L334-L348`). A body carrying only `Message` would leave no top-level `message` key (inferred from that code).
 - Local answers with `__type` `com.amazonaws.dynamodb.v20120810#<Name>` and the member spelled `Message` (observed, section 6.5).
-- UNVERIFIED: the `__type` AWS sends for a Streams error. It is either DynamoDB's `com.amazonaws.dynamodb.v20120810#` namespace, as Local sends and a shared backend would suggest, or the model's `com.amazonaws.dynamodbstreams#`. The message member is most likely `message`, per the model and the snapshot above, against Local's `Message`, but no raw body of a modeled Streams error has been seen. Two raw AWS bodies point the same way without settling it: the Streams endpoint's authentication error, `com.amazon.coral.service#InvalidSignatureException` with `message` (aws-recorded, 3.2), and DynamoDB's own modeled errors, `com.amazonaws.dynamodb.v20120810#ResourceNotFoundException` with `message` (aws-recorded, `testdata/parity/dynamodb/R04/07-ttl-missing-table.json`). botocore strips the namespace and reads either casing for `Error.Message` (sqs.md 2.2), so this matters for byte parity and for clients that match `__type` themselves (DDBS-01).
+- aws-recorded (DDBS-01, recorded 2026-11-03): Streams errors carry DynamoDB's namespace and a lower-case `message`, with `x-amz-crc32` on every 400 (Local omits it on errors):
+  - DescribeStream, stream missing: `{"__type":"com.amazonaws.dynamodb.v20120810#ResourceNotFoundException","message":"Requested resource not found: Stream: <stream arn> not found"}`;
+  - GetShardIterator, stream missing: the same `__type`, "Requested resource not found: Stream does not exist"; shard missing: "Requested resource not found: Shard does not exist" (Local's texts lack the prefix);
+  - GetRecords, garbage iterator: `{"__type":"com.amazon.coral.validate#ValidationException","message":"Invalid ShardIterator"}`, Local's text.
+- One exception, aws-recorded (DDBS-04): an expired iterator answers `{"__type":"com.amazonaws.dynamodb.streams.v20120810#ExpiredIteratorException","message":"Shard iterator has expired"}`, a third namespace that neither the model nor DynamoDB uses. understudy sends DynamoDB's namespace for it (the overlay sets one namespace per service), which the GetRecords coverage note states.
 
 ### 3.4 Constraint traits
 
@@ -87,7 +91,12 @@ From MODEL:
 - Clients: aws-sdk-go-v2 `service/dynamodbstreams` v1.46.0 (2026-10-14): "Add support for a new iterator type (AT TIMESTAMP)" (CHANGELOG at aws-sdk-go-v2 `aae188a`); botocore `cd68b6e` lists `AT_TIMESTAMP`; the DynamoDB Streams Kinesis Adapter needs 2.5.0 or later ([Streams.Timestamp](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Streams.Timestamp.html)).
 - Lambda event source mappings on DynamoDB still take only `TRIM_HORIZON` or `LATEST` ([services-ddb-params](https://docs.aws.amazon.com/lambda/latest/dg/services-ddb-params.html)).
 - Local 3.3.1 answers `AT_TIMESTAMP` with 500 `com.amazonaws.dynamodb.v20120810#InternalFailure` "The request processing has failed because of an unknown error, exception or failure." (observed).
-- UNVERIFIED: the texts for `AT_TIMESTAMP` with a future `Timestamp`, without `Timestamp`, and for `Timestamp` alongside another iterator type, and whether a timestamp before the stream existed behaves as `TRIM_HORIZON` (DDBS-16).
+- aws-recorded (DDBS-16, recorded 2026-11-03), each 400 `com.amazon.coral.validate#ValidationException`:
+  - a future `Timestamp`: "One or more parameter values were invalid: Timestamp parameter cannot be greater than the current timestamp";
+  - `AT_TIMESTAMP` without `Timestamp`: "One or more parameter values were invalid: Valid timestamp must be provided when the iterator type is AT_TIMESTAMP";
+  - `Timestamp` with `TRIM_HORIZON`: "One or more parameter values were invalid: Timestamp should not be passed for this iterator type".
+  - A timestamp before the stream existed answers 200 with an iterator. Whether it reads from the oldest record, as `TRIM_HORIZON` would, was not read back; that stays UNVERIFIED.
+- understudy refuses `AT_TIMESTAMP` until the pin moves (11.2), so these texts wait for that change.
 
 ## 4. Identifiers and formats
 
@@ -117,54 +126,62 @@ From MODEL:
 - Form `<StreamArn>|1|<opaque>`: `arn:aws:dynamodb:us-west-2:111122223333:table/Forum/stream/2015-05-20T20:51:10.252|1|AAAAAAAAAAEvJp6D+zaQ...` (GetShardIterator and GetRecords examples). LocalStack asserts `^<stream_arn>\|\d\|.+$` against AWS (third-party-recorded weak, DDB-TEST:L2226-L2232; the test is tagged `aws.validated` but absent from the validation file). Maximum length 2048 (MODEL).
 - "A shard iterator expires 15 minutes after it is returned to the requester" ([GetShardIterator](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_streams_GetShardIterator.html)). GetRecords' `ExpiredIteratorException` entry says "15 minutes after it is retrieved using the `GetShardIterator` action", which leaves open whether a `NextShardIterator` gets 15 minutes of its own ([GetRecords](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_streams_GetRecords.html)).
 - Local: `<StreamArn>|001|base64("<shardId>|<21-digit sequence number>|<30-digit issued-at epoch ms>")`. One iterator can be read repeatedly. An iterator 890 s old works and one 910 s old answers `ExpiredIteratorException` with `"Message":""`, as does one issued in the future (crafted issue times). An iterator whose prefix names another stream (a renamed table, or the account and region rewritten) answers 200 with no records and no error (observed).
-- UNVERIFIED: whether AWS accepts the same iterator twice; whether each `NextShardIterator`'s 15 minutes run from its own return; the `ExpiredIteratorException` text (DDBS-04).
+- aws-recorded (DDBS-04, recorded 2026-11-03): AWS accepts the same iterator twice (200); a `NextShardIterator` used at 14 minutes works, and one taken at 14 minutes still works at 16 minutes after the chain's first GetShardIterator, so each `NextShardIterator` gets its own 15 minutes; an unused iterator at 16 minutes answers `ExpiredIteratorException` "Shard iterator has expired" (namespace in 3.3). The switch `dynamodb.streams.iterator-reuse` keeps `allowed`, now aws-recorded.
 
 ### 4.5 eventID and eventVersion
 
 - `eventID` is "A globally unique identifier for the event" ([Record](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_streams_Record.html)). The GetRecords example uses 32 lower-case hex digits (`e2fd9c34eff2d779b297b26f5fef4206`). LocalStack replaces `eventID` with placeholders, so its recordings say nothing about the format. Local uses a dashed UUID (observed).
 - `eventVersion`: the API reference example shows `"1.0"`; AWS sent `"1.1"` in GetRecords (third-party-recorded, DDB-SNAP:L761, validated 2025-10-08) and in Lambda events (ESM-SNAP:L73, validated 2025-11-25). Local sends `"1.1"` (observed). "Client applications must not assume that `eventVersion` will remain at a particular value" (Record).
-- UNVERIFIED: the `eventID` format and the sequence-number lengths AWS mints today (DDBS-09).
+- aws-recorded (DDBS-09, recorded 2026-11-03): `eventID` is 32 lower-case hex digits (`event-id` `hex32` holds), `eventVersion` `1.1`, shard ids `shardId-<20 digits>-<8 hex>`. Sequence numbers differ from the `decimal-21` switch value: the three records (INSERT, MODIFY, REMOVE, all on one of the stream's 4 shards) carry 23 digits (`121000...`, `122000...`, `124000...`, increasing, not contiguous), while that shard's `StartingSequenceNumber` has 21 digits (`100003...`), so the first record is far above the start, not one above it. understudy keeps `decimal-21`, which the switch's settles reason states; building AWS's form is a follow-up.
 
 ## 5. Stream lifecycle
 
 ### 5.1 Enabling a stream
 
 - `StreamSpecification {StreamEnabled (required boolean), StreamViewType}` on CreateTable or UpdateTable ([StreamSpecification](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_StreamSpecification.html)). "You receive a `ValidationException` if you try to enable a stream on a table that already has a stream, or if you try to disable a stream on a table that doesn't have a stream" ([UpdateTable](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_UpdateTable.html); STREAMS). "It is not possible to edit a `StreamViewType` once a stream has been setup", so a change is a disable followed by a new stream (STREAMS).
-- The AWS text for enabling twice is quoted in the provider: "ValidationException: Table already has an enabled stream" (sdk-source, TF `internal/service/dynamodb/table.go:L1276-L1278`).
+- The AWS text for enabling twice is quoted in the provider: "ValidationException: Table already has an enabled stream" (sdk-source, TF `internal/service/dynamodb/table.go:L1276-L1278`). AWS's full text adds ": TableName: <table>" (DDBS-06, below).
 - Local's texts, each a 400 `com.amazon.coral.validate#ValidationException` (observed):
   - enable twice, or enable with another view type: "Table already has an enabled stream"
   - disable with no stream: "Table has no stream to disable"
   - enable without a view type: "Invalid StreamViewType: Stream ViewType must not be null or empty when enabling streams."
   - disable with a view type: "Invalid StreamViewType: Stream StreamEnabled was false but a StreamViewType was present."
 - Local also accepts `CreateTable` with `StreamViewType: "BOGUS"` and then reports `"StreamViewType":"UNKNOWN_TO_SDK_VERSION"` (observed), so enum validation must run before the forward.
-- UNVERIFIED: AWS's texts for the last three cases (DDBS-06).
+- aws-recorded (DDBS-06, recorded 2026-11-03), each 400 `com.amazon.coral.validate#ValidationException` with AWS's texts, which differ from Local's in every case:
+  - enable twice, or enable with another view type: "Table already has an enabled stream: TableName: <table>";
+  - disable with no stream: "Table has no stream to disable: TableName: <table>";
+  - enable without a view type: "One or more parameter values were invalid: If stream is being enabled then UpdateViewType is required";
+  - disable with a view type: "One or more parameter values were invalid: If stream is being disabled, then UpdateViewType must not be specified".
+  - The last two came on a table with a stream (03) and one without (05), so AWS checks the view type before the table's stream state. understudy checks them before the forward and adds the table name to Local's two other texts (`internal/service/dynamodb/shims.go` checkStreamChange, `rewrite.go` fixError).
 
 ### 5.2 StreamStatus
 
 - `ENABLING` means "Streams is currently being enabled on the DynamoDB table", followed by `ENABLED`, `DISABLING` and `DISABLED` (StreamDescription).
 - LocalStack's AWS-run tests poll DescribeStream until `ENABLED` before writing (`localstack@8b9a79f localstack-core/localstack/testing/pytest/fixtures.py:L797-L806`), which suggests a window in which the stream is not yet `ENABLED` (inferred).
 - Local reports `ENABLED` in the CreateTable answer and `DISABLED` straight after a disable (observed).
-- UNVERIFIED: whether, and for how long, AWS reports `ENABLING` after CreateTable or UpdateTable and `DISABLING` after a disable (DDBS-05).
+- aws-recorded (DDBS-05, recorded 2026-11-03), against the `status-transitions` default `immediate`:
+  - after CreateTable (whose answer has `TableStatus CREATING`, the `StreamSpecification` and the latest stream ARN and label), DescribeStream at +0 s and +4 s reads `ENABLING` with `Shards: []`, and from +7 s `ENABLED` with 4 open shards;
+  - after a disable (whose UpdateTable answer has `TableStatus UPDATING`, no `StreamSpecification`, `LatestStreamArn` kept), +0 s reads `DISABLING` with 4 open shards, +4 s `DISABLING` with every shard carrying `EndingSequenceNumber`, and from +8 s `DISABLED`.
+  - understudy changes status at once, which the DescribeStream coverage note states; the transitions are a follow-up.
 
 ### 5.3 Disabling and re-enabling
 
 - "If you disable a stream, any shards that are open will be closed. The data in the stream will continue to be readable for 24 hours." (STREAMS, "Reading and processing a stream"). A closed shard has an `EndingSequenceNumber` (DescribeStream). On GetRecords, a `NextShardIterator` "set to `null`" means "the shard has been closed and the requested iterator will not return any more data" (GetRecords).
 - After a disable, DescribeTable omits `StreamSpecification` and keeps `LatestStreamArn` and `LatestStreamLabel` on AWS. TF's acceptance test checks that `stream_arn` still matches the stream ARN pattern after `stream_enabled = false` (sdk-source, `table_test.go:L3990-L3996`), and its import step ignores `stream_view_type` because it "Should be unset when stream is disabled" (`table_test.go:L4003`). Local behaves the same (observed).
 - Re-enabling mints a new ARN (STREAMS). In Local the new label is the UpdateTable instant, and ListStreams lists both streams (observed; ordering in section 6.1).
-- UNVERIFIED: the form of a closed shard's last page (`NextShardIterator` absent, or present as JSON `null`), and what `LATEST` does on a closed shard (DDBS-07).
+- aws-recorded (DDBS-07, recorded 2026-11-03): after a disable all 4 shards carry `EndingSequenceNumber` (an empty shard's equals its start; the shard with the record ends at 22 digits above a 21-digit start); each shard's last page has no `NextShardIterator` member in the raw body (`closed-shard-next-iterator` `absent` holds); `LATEST` on a closed shard answers 200 with an iterator.
 
 ### 5.4 Deleting the table
 
 - "If you have DynamoDB Streams enabled on the table, then the corresponding stream on that table goes into the `DISABLED` state, and the stream is automatically deleted after 24 hours." ([DeleteTable](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_DeleteTable.html)).
 - After the table is deleted, Local keeps the stream `DISABLED` with its shard closed. The stream is still listed and readable, including through an iterator taken before the delete, and it survives a re-created table of the same name, whose new stream gets a new label (observed).
-- UNVERIFIED: whether AWS keeps such a stream listed and readable through GetShardIterator and GetRecords during those 24 hours (DDBS-17).
+- aws-recorded (DDBS-17, recorded 2026-11-03): after DeleteTable the stream is `DISABLED` with all 4 shards closed, ListStreams for the deleted table lists it, and GetShardIterator and GetRecords read its INSERT. Local and understudy agree. When within the 24 hours AWS stops serving it was not recorded.
 
 ### 5.5 Retention and trimming
 
 - "All data in DynamoDB Streams is subject to a 24-hour lifetime ... data that is older than 24 hours is susceptible to trimming (removal) at any moment." "There is no mechanism for manually deleting an existing stream." (STREAMS, "Data retention limit").
 - `TRIM_HORIZON` starts "at the last (untrimmed) stream record, which is the oldest record in the shard" (GetShardIterator). `TrimmedDataAccessException` is raised for an iterator requested with a sequence number older than the trim point, or for one whose next record was trimmed before it was used (GetRecords).
 - Whether and when Local trims was not observed (a short session cannot). Its other timers, the TTL sweep (dynamodb-local.md 5.2) and iterator expiry (4.4), run on the wall clock.
-- UNVERIFIED: the `TrimmedDataAccessException` text, and how soon after 24 hours AWS trims (DDBS-15).
+- UNVERIFIED: the `TrimmedDataAccessException` text, and how soon after 24 hours AWS trims (DDBS-15). Deferred in the 2026-11-03 session: it runs at least 25 hours after DDBS-09 (after 2026-11-04T17:40Z) against the kept table `us1103-ddbs`.
 
 ### 5.6 Shards, lineage and rollover
 
@@ -172,7 +189,8 @@ From MODEL:
 - `DescribeStream` pages shards with `Limit` (up to 100) and `LastEvaluatedShardId`. `ShardFilter {Type: CHILD_SHARDS, ShardId}` returns a parent's children (DescribeStream; STREAMS, "Shard discovery").
 - LocalStack comment in an AWS-validated test: "AWS will often return 4 Shards where we return only one" (DDB-TEST:L2166; validated 2025-10-08). The test asserts only that `ExclusiveStartShardId` excludes the named shard. Against that, a recorded DescribeStream of a new provisioned table (5 RCU, 5 WCU) shows one shard (third-party-recorded, DDB-SNAP:L708-L735, validated 2025-10-08).
 - Rollover every four hours or so is widely repeated, but no AWS page read for this note says it.
-- UNVERIFIED: a new on-demand table's initial shard count, and whether and when a lightly written shard closes and gets a child (DDBS-14).
+- aws-recorded, a side observation of DDBS-05, DDBS-07, DDBS-09 and DDBS-17 (2026-11-03): every new on-demand table's stream opened with 4 shards, which LocalStack's "often 4" anticipated.
+- UNVERIFIED: whether and when a lightly written shard closes and gets a child (DDBS-14, deferred in the 2026-11-03 session: it needs 6 unattended hours).
 - Local: one shard per stream that never splits ("When you run DynamoDB locally, there is no table partitioning", usage notes). `ShardFilter CHILD_SHARDS` on that shard returns `[]`. `ExclusiveStartShardId` set to the only shard returns `[]`, and an `ExclusiveStartShardId` naming no shard returns every shard (observed).
 
 ## 6. Operations
@@ -187,8 +205,8 @@ From MODEL:
   - `Limit` 0: "1 validation error detected: Value '0' at 'limit' failed to satisfy constraint: Member must have value greater than or equal to 1".
   - A `TableName` naming no table, or shorter than 3 characters: `{"Streams":[]}`, with no validation.
   - Order: unpaged, the newest stream first; with `Limit 1`, the older stream, with `LastEvaluatedStreamArn` set to it.
-- UNVERIFIED: whether AWS answers a `TableName` naming no table with an empty list or with `ResourceNotFoundException`, which the model lists for ListStreams (DDBS-03).
-- UNVERIFIED: AWS's order, whether `DISABLED` streams are listed, and how `LastEvaluatedStreamArn` pages (DDBS-08).
+- aws-recorded (DDBS-03, recorded 2026-11-03): a `TableName` naming no table, and one naming a table without a stream, answer 200 `{"Streams":[]}` (`list-unknown-table` `empty` holds).
+- aws-recorded (DDBS-08, recorded 2026-11-03): newest first, the `DISABLED` stream listed after the new one, and no `LastEvaluatedStreamArn` unpaged. With `Limit 1` the first page is the newest stream with `LastEvaluatedStreamArn` set to it (Local gives the older first); the second page is the older stream, with `LastEvaluatedStreamArn` set to it again, although nothing follows. understudy sets it on every full page (`internal/service/dynamodb/streams.go` listStreams); for a full page under the default `Limit` of 100 that is inferred.
 
 ### 6.2 DescribeStream
 
@@ -247,7 +265,18 @@ From MODEL:
 | UpdateTable, enable twice | `ValidationException` "Table already has an enabled stream" (sdk-source) | same | DDBS-06 (confirm) |
 | UpdateTable, disable with none; enable without view type; disable with view type | `ValidationException` (doc) | texts in section 5.1 | DDBS-06 |
 
-- UNVERIFIED: AWS's texts and error classes for every row above settled by DDBS-02, including whether `Limit` 1001 on GetRecords is `LimitExceededException` (doc) or `ValidationException` (Local), and whether AWS validates the model's length and enum constraints before looking anything up (DDBS-02).
+- aws-recorded (DDBS-02, recorded 2026-11-03), each 400 `com.amazon.coral.validate#ValidationException`; the rows above give the expectations the recording answered:
+  - DescribeStream `StreamArn` "short": "Invalid StreamArn", neither a Coral length text nor not-found (understudy: an overlay rule, `codegen/overlays/dynamodbstreams.json`).
+  - DescribeStream `Limit` 101 and ListStreams `Limit` 101: Local's texts.
+  - `Limit` 0 on DescribeStream and GetRecords: "1 validation error detected: Value at 'limit' failed to satisfy constraint: Member must have value greater than or equal to 1", the Coral grammar without the value. understudy's generated text quotes it (`Value '0' at 'limit'`).
+  - `AT_SEQUENCE_NUMBER` without `SequenceNumber`: "One or more parameter values were invalid: SequenceNumber cannot be null".
+  - `TRIM_HORIZON` with `SequenceNumber`: Local's text.
+  - `ShardIteratorType` BOGUS: "1 validation error detected: Value at 'shardIteratorType' failed to satisfy constraint: Member must satisfy enum value set: [AFTER_SEQUENCE_NUMBER, LATEST, AT_TIMESTAMP, AT_SEQUENCE_NUMBER, TRIM_HORIZON]" (no value; `AT_TIMESTAMP` in that order). understudy quotes the value and lists the pinned model's four types.
+  - `ShardIteratorType` missing: "1 validation error detected: Value at 'shardIteratorType' failed to satisfy constraint: Member must not be null".
+  - a non-numeric `SequenceNumber`: "Invalid SequenceNumber for the shard", without the "One or more parameter values were invalid:" prefix.
+  - `ShardId` "x": "1 validation error detected: Value at 'shardId' failed to satisfy constraint: Member must have length greater than or equal to 28", so AWS validates the shard id's length before any lookup (but not the stream ARN's, which gets "Invalid StreamArn").
+  - GetRecords `Limit` 1001: `ValidationException` with Local's text "One or more parameter values were invalid: Limit should be less than or equal to 1000", not the documented `LimitExceededException`.
+- understudy answers each with AWS's text except the Coral texts, which quote the value, and the enum list; both are in the coverage notes.
 
 ## 7. Stream records
 
@@ -272,7 +301,7 @@ Sources: the view-type definitions (StreamRecord; STREAMS); recorded KEYS_ONLY (
 - It is given "in UNIX epoch time format and rounded down to the closest second" (StreamRecord), a `timestamp` shape and so an epoch-seconds number in awsJson. Recorded: boto parsed it to a `datetime` with `microsecond == 0` (third-party-recorded, DDB-TEST:L1990 and L2001, validated 2024-06-26).
 - In the Lambda form it is a number with 10 integral digits (`int(math.log10(timestamp)) == 9`, ESM-TEST:L190, validated 2025-11-25). A numeric event filter on it matches ("gets converted into a float BEFORE filtering", ESM-TEST:L766-L774; case `date_time_conversion`, ESM-SNAP:L1818-L1983).
 - The GetRecords example prints `1.46480431E9`. DynamoDB's own answers use that exponent form for timestamps: `CreationDateTime` `1.791959601263E9` and a whole-second `EarliestRestorableDateTime` `1.791959752E9` (aws-recorded, `testdata/parity/dynamodb/R04/01-create-table.json`, `04-pitr-describe-1.json`). That is DynamoDB, not Streams, so it supports the exponent form without settling it. understudy writes the codec's plain epoch-seconds number and states it in the GetRecords coverage note (11.3). Local prints `1792962840.000` and floors to the minute: writes at 21:14:04 UTC carried 21:14:00 (observed; dynamodb-local.md 8).
-- UNVERIFIED: how AWS spells the number on the wire today: integral, `.0`, three decimals or an exponent (DDBS-10).
+- aws-recorded (DDBS-10, recorded 2026-11-03): the exponent form, whole seconds: `1.793723928E9`, `1.793723929E9`, as DynamoDB's own `CreationDateTime` and the GetRecords example. understudy writes a plain epoch-seconds number, which the GetRecords coverage note states. A Lambda event's `ApproximateCreationDateTime` is spelled `1793725107.0` instead (ESMS-17, lambda-stream-sources.md 8.2).
 
 ### 7.4 SizeBytes
 
@@ -293,14 +322,14 @@ Sources: the view-type definitions (StreamRecord; STREAMS); recorded KEYS_ONLY (
 - The table is a sample. Computing the rule for every record in DDB-SNAP, STREAMS-SNAP and ESM-SNAP matched all 82 recorded `SizeBytes` (16 distinct values from 12 to 80, every test in its validation file). Those items hold only `S`, `B`, `BOOL` and integer `N` attributes, so they say nothing about fractional numbers, lists, maps or sets.
 
 - Local fits the same rule in every simple case (observed). For one item with a fractional number, a list, a map and a string set it reported 40 where the rule above gives 39. 40 is what sizing a number by base-100 digit pairs aligned on the decimal point gives (`12345.678` as 01|23|45|67|80 plus 1 byte, i.e. 6 bytes plus the name), a reading the documentation's "approximately" allows (inferred).
-- UNVERIFIED: AWS's `SizeBytes` for fractional numbers, lists, maps and sets (DDBS-11).
+- aws-recorded (DDBS-11, recorded 2026-11-03): for the item with a fractional number, a list, a map and a string set, AWS's `SizeBytes` is 40, Local's value, not the documented rule's 39. That supports the base-100 digit-pair reading above; understudy keeps Local's value.
 
 ### 7.5 userIdentity for TTL deletes
 
 - The model's `Identity` has members `PrincipalId` and `Type` and no `jsonName`. The GetRecords response syntax shows `"userIdentity": {"PrincipalId": "string", "Type": "string"}` ([GetRecords](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_streams_GetRecords.html)). The Record page's prose names `Records[].userIdentity.type` "Service" and `.principalId` "dynamodb.amazonaws.com".
 - TTL-STREAMS shows lower-case `"type": "Service"`, `"principalId": "dynamodb.amazonaws.com"`. Its Lambda filter is `{"userIdentity":{"type":["Service"],"principalId":["dynamodb.amazonaws.com"]}}`, and aws-lambda-go decodes `json:"type"`, `json:"principalId"`, with `userIdentity` `omitempty` (aws-lambda-go `4111853` `events/dynamodb.go:L71-L77`). For a global table, only the region that ran TTL sets the field (TTL-STREAMS note).
 - Local's own TTL emits `eventName: UNKNOWN_TO_SDK_VERSION` with no `userIdentity` (dynamodb-local.md 5.2). understudy's sweeper deletes through DeleteItem, which Local records as a plain REMOVE with no `userIdentity` (observed). Its calls already run as `dynamodb.amazonaws.com` with Origin `Internal{Via: DynamoDBTTL}` (`internal/service/dynamodb/ttl.go:L51-L53`, `L305-L306`).
-- UNVERIFIED: the member casing AWS sends in GetRecords for a TTL delete (DDBS-13).
+- UNVERIFIED: the member casing AWS sends in GetRecords for a TTL delete (DDBS-13). Deferred in the 2026-11-03 session: TTL deletes "typically within two days", so the item's read runs within 24 hours of the delete, against the kept table `us1103-ddbs`.
 
 ### 7.6 Which writes emit a record
 
@@ -313,7 +342,7 @@ Sources: the view-type definitions (StreamRecord; STREAMS); recorded KEYS_ONLY (
   - TransactWriteItems emits one record per changed item (DDB-SNAP:L983-L1150).
   - PartiQL `INSERT`, `UPDATE` and `DELETE` emit INSERT, MODIFY and REMOVE (DDB-SNAP:L799-L852).
 - Local agrees with all of the above. It also emits nothing for an `UpdateItem` that `REMOVE`s an absent attribute, for a failed condition and for a DeleteItem of an absent key (observed).
-- UNVERIFIED: whether AWS emits a record for a DeleteItem of an absent key; the documentation covers only PutItem and UpdateItem (DDBS-12).
+- aws-recorded (DDBS-12, recorded 2026-11-03): a DeleteItem of an absent key emits no record (`delete-absent-item` `no-record` holds); the marker INSERT written after it arrived.
 
 ### 7.7 Ordering and exactly-once
 
@@ -440,33 +469,34 @@ No Streams operation stays unbound. DynamoDB's Kinesis streaming-destination ope
 
 ### 11.3 Fidelity switches
 
-| Switch | Default | Label | Grounds | Settled by |
-|---|---|---|---|---|
-| `dynamodb.streams.status-transitions` | `immediate` | inferred | 5.2 | DDBS-05 |
-| `dynamodb.streams.shard-rollover` | `never` | inferred | 5.6 | DDBS-14 |
-| `dynamodb.streams.event-id` | `hex32` | aws-doc | 4.5 | DDBS-09 |
-| `dynamodb.streams.sequence-number` | `decimal-21` (21 digits, per-shard counter, first record one above `StartingSequenceNumber`) | inferred | 4.3 | DDBS-09 |
-| `dynamodb.streams.iterator-reuse` | `allowed` | inferred | 4.4 | DDBS-04 |
-| `dynamodb.streams.closed-shard-next-iterator` | `absent` | inferred (the GetRecords reference says "set to `null`", which fits absent or JSON `null`; Local omits it) | 5.3, 6.4 | DDBS-07 |
-| `dynamodb.streams.list-order` | `newest-first` | aws-doc | 6.1 | DDBS-08 |
-| `dynamodb.streams.list-unknown-table` | `empty` | inferred | 6.1 | DDBS-03 |
-| `dynamodb.streams.user-identity-case` | `PascalCase` (GetRecords form; the Lambda form is always lower camel case) | aws-doc | 7.5 | DDBS-13 |
-| `dynamodb.streams.delete-absent-item` | `no-record` | inferred | 7.6 | DDBS-12 |
-| `dynamodb.streams.trim-after` | `24h` (exactly: the earliest point the documentation allows) | aws-doc | 5.5 | DDBS-15 |
+| Switch | Default | Label | Grounds | Settled by | Recorded 2026-11-03 |
+|---|---|---|---|---|---|
+| `dynamodb.streams.status-transitions` | `immediate` | inferred | 5.2 | DDBS-05 | differs: `ENABLING` about 7 s, `DISABLING` about 8 s (5.2) |
+| `dynamodb.streams.shard-rollover` | `never` | inferred | 5.6 | DDBS-14 | deferred; 4 shards at creation (5.6) |
+| `dynamodb.streams.event-id` | `hex32` | aws-doc | 4.5 | DDBS-09 | matches |
+| `dynamodb.streams.sequence-number` | `decimal-21` (21 digits, per-shard counter, first record one above `StartingSequenceNumber`) | inferred | 4.3 | DDBS-09 | differs: 23-digit records above a 21-digit start (4.5) |
+| `dynamodb.streams.iterator-reuse` | `allowed` | aws-recorded | 4.4 | DDBS-04 | matches |
+| `dynamodb.streams.closed-shard-next-iterator` | `absent` | inferred (the GetRecords reference says "set to `null`", which fits absent or JSON `null`; Local omits it) | 5.3, 6.4 | DDBS-07 | matches |
+| `dynamodb.streams.list-order` | `newest-first` | aws-doc | 6.1 | DDBS-08 | matches |
+| `dynamodb.streams.list-unknown-table` | `empty` | inferred | 6.1 | DDBS-03 | matches |
+| `dynamodb.streams.user-identity-case` | `PascalCase` (GetRecords form; the Lambda form is always lower camel case) | aws-doc | 7.5 | DDBS-13 | deferred (7.5) |
+| `dynamodb.streams.delete-absent-item` | `no-record` | inferred | 7.6 | DDBS-12 | matches |
+| `dynamodb.streams.trim-after` | `24h` (exactly: the earliest point the documentation allows) | aws-doc | 5.5 | DDBS-15 | deferred (5.5) |
 
-Each switch exists because no recording fixes the behavior (ADR 0003). A recording replaces its switch with fixed behavior and a test that cites the fixture.
+Each switch exists because no recording fixes the behavior (ADR 0003). A recording replaces its switch with fixed behavior and a test that cites the fixture. The rows that match are now that fixed behavior; the two that differ, and the code follow-ups they need, are in the coverage notes.
 
-Two candidates are settled without a switch. The timestamp spelling is the awsJson codec's plain epoch-seconds number (`internal/protocol/awsjson/doc.go`), as the DynamoDB shim writes it, and the GetRecords coverage note says so (DDBS-10). The error namespace `com.amazonaws.dynamodb.v20120810` is the overlay trait `dev.understudy#errorNamespace` on the Streams service, label inferred, as `codegen/overlays/dynamodb.json` does for DynamoDB (DDBS-01).
+Two candidates are settled without a switch. The timestamp spelling is the awsJson codec's plain epoch-seconds number (`internal/protocol/awsjson/doc.go`), as the DynamoDB shim writes it, and the GetRecords coverage note says so; AWS writes the exponent form (DDBS-10, 7.3). The error namespace `com.amazonaws.dynamodb.v20120810` is the overlay trait `dev.understudy#errorNamespace` on the Streams service, aws-recorded (DDBS-01), as `codegen/overlays/dynamodb.json` does for DynamoDB; `ExpiredIteratorException` alone carries `com.amazonaws.dynamodb.streams.v20120810` on AWS (DDBS-04, 3.3).
 
 Only `dynamodb.streams.sequence-number` and `dynamodb.streams.iterator-reuse` are built as switches, under the per-unit cap of about five new switches (roadmap item 8a). Every other row is implemented as documented (`event-id`, `list-order`, `user-identity-case`, `trim-after`: aws-doc), or is an UNVERIFIED clause in the operation's coverage note with a code comment citing this note and the recording id (`status-transitions`, `shard-rollover`, `closed-shard-next-iterator`, `list-unknown-table`, `delete-absent-item`).
 
 ### 11.4 Limits and validation
 
-- Generated from MODEL: the lengths, the `min 1` ranges, required members and enums of 3.4. The Coral range text matches Local's for `Limit 0` (6.5).
-- Hand-coded until DDBS-02 settles the texts:
-  - `ListStreams.Limit` and `DescribeStream.Limit` at most 100, with Local's texts.
-  - `GetRecords.Limit` at most 1000. The documented error is `LimitExceededException` and Local's is `ValidationException`; start with Local's text and class, label inferred, and let DDBS-02 decide.
-  - `SequenceNumber` digits only. `AT_` and `AFTER_SEQUENCE_NUMBER` require it and the other types must not carry it (Local's texts, 6.3).
+- Generated from MODEL: the lengths, the `min 1` ranges, required members and enums of 3.4. The Coral range text matches Local's for `Limit 0`; AWS's omits the value (DDBS-02, 6.5).
+- Hand-coded, with the texts DDBS-02 recorded (6.5):
+  - `ListStreams.Limit` and `DescribeStream.Limit` at most 100, with Local's texts, which are AWS's.
+  - `GetRecords.Limit` at most 1000, `ValidationException` with Local's text, which is AWS's.
+  - `SequenceNumber` digits only ("Invalid SequenceNumber for the shard"). `AT_` and `AFTER_SEQUENCE_NUMBER` require it ("SequenceNumber cannot be null") and the other types must not carry it (Local's text, which is AWS's).
+  - A DescribeStream `StreamArn` shorter than 37 characters is "Invalid StreamArn" (an overlay rule).
 - Defaults when `Limit` is absent: 100 for the list operations and 1000 records for GetRecords (inferred: the documentation gives only upper limits). GetRecords also stops at 1 MB of `SizeBytes` (inferred unit).
 - Not enforced, and injectable as faults: 5 ListStreams and 10 DescribeStream calls per second, and two readers per shard.
 
@@ -478,7 +508,7 @@ Only `dynamodb.streams.sequence-number` and `dynamodb.streams.iterator-reuse` ar
 
 ### 11.6 DynamoDB-side changes
 
-- CreateTable, UpdateTable and DeleteTable drive the log's lifecycle. `StreamSpecification` is validated before the forward (5.1). Local's enable and disable texts pass through until DDBS-06.
+- CreateTable, UpdateTable and DeleteTable drive the log's lifecycle. `StreamSpecification` is validated before the forward (5.1), its view type against `StreamEnabled` with AWS's texts, and Local's enable and disable refusals take AWS's texts (DDBS-06, 5.1).
 - The tag shim must stop refusing stream ARNs with "Invalid TableArn" (`internal/service/dynamodb/tags.go:L162-L176`). That text says the ARN is malformed, and AWS documents `tag-resource` and `list-tags-of-resource` on stream ARNs ([Tagging.Streams](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Tagging.Streams.html); "DynamoDB Streams does not currently support tagging on creation"). Either store stream tags keyed by stream ARN (small), or answer with understudy's explicit unimplemented error and add the coverage note `stream ARNs are not taggable in understudy; AWS tags existing streams` to TagResource, UntagResource and ListTagsOfResource.
 - The TTL sweeper is unchanged; its Origin is what tags the record (11.1 item 2).
 
@@ -655,7 +685,7 @@ rec DDBS-06/04-disable-again aws dynamodb update-table --table-name "$P-ddbs-st"
 rec DDBS-06/05-disable-with-view-type aws dynamodb update-table --table-name "$P-ddbs-st" --stream-specification StreamEnabled=false,StreamViewType=KEYS_ONLY
 ```
 
-Expected: five `ValidationException`s; 01 should read "Table already has an enabled stream". Cost USD 0.00, 3 minutes. Teardown: none.
+Expected: five `ValidationException`s; 01 reads "Table already has an enabled stream: TableName: <table>" (recorded 2026-11-03; the provider quotes the text without the suffix). Cost USD 0.00, 3 minutes. Teardown: none.
 
 ### 12.8 DDBS-07: the last page of a closed shard
 
