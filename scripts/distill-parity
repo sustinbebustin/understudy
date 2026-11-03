@@ -693,9 +693,12 @@ def main(argv: list[str]) -> int:
             steps.setdefault(stem, {})[ext if ext in EXCHANGE_EXTS else f.name] = data
         sources[item] = steps
 
+    written: set[Path] = set()
+
     def write(path: Path, text: str) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text, encoding="utf-8", errors="surrogateescape")
+        written.add(path)
 
     failures = []
     for item, steps in sources.items():
@@ -735,8 +738,8 @@ def main(argv: list[str]) -> int:
     if leaks:
         print("distill-parity: credentials or the account id remain in:\n" + "\n".join(leaks), file=sys.stderr)
         return 1
-    print(f"distill-parity: wrote {sum(1 for p in args.out.rglob('*') if p.is_file())} files to {args.out}; "
-          f"masked {len(masker.table)} owner identifiers")
+    print(f"distill-parity: wrote {len(written)} files of {len(sources)} items to {args.out}; "
+          f"masked the account id and {len(masker.table)} other owner identifiers")
     return 0
 
 
