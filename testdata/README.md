@@ -65,7 +65,7 @@ It reads the account id from `<recordings>/_scripts/acct` (or `--account-file`),
 
 ## Replay scenarios
 
-`parity/<svc>/<item>/scenario.json` tells `internal/parity` how to replay one item against an in-process understudy: which steps run, in which order, what to set up first, which recorded values stand for the ones understudy mints, and which fidelity switches and overlay evidence items a step settles. The checked-in scenarios are `dynamodb/R11` (step 07, DynamoDB Streams' signing scopes), `events/R14` (the `TestEventPattern` cases H1, H8, H9 and H14), `kms/KMS-alias`, `sqs/R01` and `sts/R15`. An item without one is not replayed.
+`parity/<svc>/<item>/scenario.json` tells `internal/parity` how to replay one item against an in-process understudy: which steps run, in which order, what to set up first, which recorded values stand for the ones understudy mints, and which fidelity switches and overlay evidence items a step settles. The checked-in scenarios are `dynamodb/R11` (step 07, DynamoDB Streams' signing scopes), `events/R14` (the `TestEventPattern` cases H1, H8, H9 and H14), `iam/IAM-EVAL-35` and `iam/IAM-EVAL-36` (the CreatePolicy refusals; an accepted CreatePolicy is left out, since AWS writes the `Policy` members in an order understudy does not follow), `kms/KMS-alias`, `sqs/R01` and `sts/R15`. An item without one is not replayed.
 
 ```json
 {
