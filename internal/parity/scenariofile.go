@@ -42,6 +42,7 @@ type stepFile struct {
 	Bind    []bindFile  `json:"bind,omitempty"`
 	// Advance is a time.Duration as its String method writes it.
 	Advance string `json:"advance,omitempty"`
+	Signing string `json:"signing,omitempty"`
 }
 
 type bindFile struct {
@@ -123,7 +124,7 @@ func (f stepFile) step(field string) (Step, error) {
 	if err != nil {
 		return Step{}, err
 	}
-	st := Step{Fixture: f.Fixture, Compare: f.Compare, Bind: binds}
+	st := Step{Fixture: f.Fixture, Compare: f.Compare, Bind: binds, Signing: f.Signing}
 	if f.Advance == "" {
 		return st, nil
 	}
@@ -231,7 +232,7 @@ func (s Step) file() (stepFile, error) {
 	if err != nil {
 		return stepFile{}, err
 	}
-	f := stepFile{Fixture: s.Fixture, Compare: s.Compare, Bind: binds}
+	f := stepFile{Fixture: s.Fixture, Compare: s.Compare, Bind: binds, Signing: s.Signing}
 	if s.Advance != 0 {
 		f.Advance = s.Advance.String()
 	}

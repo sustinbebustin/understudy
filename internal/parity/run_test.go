@@ -286,6 +286,35 @@ func TestRunSensitivityFailsANormalizedSettledField(t *testing.T) {
 	}
 }
 
+// A step's signing names the credential scope the recording signed for,
+// which the fixture drops with Authorization: both R11 07 steps reach
+// streams.dynamodb.us-east-2.amazonaws.com, one signed for dynamodb and one
+// for streams.dynamodb (the R11 capture's Credential=.../dynamodb/... and
+// .../streams.dynamodb/...), where the host's first label is "streams".
+func TestRunSignsForAStepsRecordedScope(t *testing.T) {
+	t.Parallel()
+	scenario := `{
+  "version": 1, "item": "R11", "account": "123456789012", "region": "us-east-2", "client": "curl",
+  "steps": [
+    {"fixture": "dynamodb/R11/07-streams-signed-dynamodb.json", "compare": "all", "signing": "dynamodb"},
+    {"fixture": "dynamodb/R11/07-streams-signed-streams.dynamodb.json", "compare": "all", "signing": "streams.dynamodb"}
+  ]
+}`
+	fsys := mapFS(t, "dynamodb/R11", scenario, []string{
+		"dynamodb/R11/07-streams-signed-dynamodb.json",
+		"dynamodb/R11/07-streams-signed-streams.dynamodb.json",
+	}, nil)
+	tr := &fakeTransport{answer: func(Outgoing) (Response, string) { return withType("application/x-amz-json-1.0", 200, `{}`), "" }}
+	run(t, fsys, "dynamodb/R11", tr, Options{})
+	got := make([]string, 0, len(tr.sent))
+	for _, o := range tr.sent {
+		got = append(got, o.SigningName)
+	}
+	if want := []string{"dynamodb", "streams.dynamodb"}; !slices.Equal(got, want) {
+		t.Errorf("signed for %v; want %v", got, want)
+	}
+}
+
 // Fixtures of a scenario that creates a key, then describes it: the key id
 // AWS returned (157cb509-..., kms/KMS-alias/01-duplicate.json TargetKeyId) is
 // bound to the one understudy returns.

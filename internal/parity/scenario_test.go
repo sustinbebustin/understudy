@@ -49,7 +49,7 @@ const fullScenario = `{
       ],
       "advance": "6s"
     },
-    {"fixture": "sqs/R01/02-recv1.json", "compare": "final", "advance": "1m30s"}
+    {"fixture": "sqs/R01/02-recv1.json", "compare": "final", "advance": "1m30s", "signing": "streams.dynamodb"}
   ],
   "waivers": [{"step": "01-duplicate", "field": "header/content-type", "reason": "a reason"}],
   "settles": [
@@ -93,7 +93,7 @@ func fullScenarioValue() Scenario {
 				},
 				Advance: 6 * time.Second,
 			},
-			{Fixture: "sqs/R01/02-recv1.json", Compare: CompareFinal, Advance: 90 * time.Second},
+			{Fixture: "sqs/R01/02-recv1.json", Compare: CompareFinal, Advance: 90 * time.Second, Signing: "streams.dynamodb"},
 		},
 		Waivers: []Waiver{{Step: "01-duplicate", Field: "header/content-type", Reason: "a reason"}},
 		Settles: []Claim{
@@ -288,6 +288,7 @@ func TestParseScenarioValidates(t *testing.T) {
 		{"advance not a duration", func(d *scenarioDocument) { d.steps[0]["advance"] = "6" }, "steps[0].advance"},
 		{"advance zero", func(d *scenarioDocument) { d.steps[0]["advance"] = "0s" }, "steps[0].advance"},
 		{"advance negative", func(d *scenarioDocument) { d.steps[0]["advance"] = "-1s" }, "steps[0].advance"},
+		{"signing not a scope name", func(d *scenarioDocument) { d.steps[0]["signing"] = "Streams/DynamoDB" }, "steps[0].signing"},
 		{"bind path", func(d *scenarioDocument) {
 			d.steps[0]["bind"] = []any{map[string]any{"path": "Body/x", "shape": uuid}}
 		}, "steps[0].bind[0].path"},
@@ -495,6 +496,9 @@ func scenarioGen() *rapid.Generator[Scenario] {
 			}
 			if rapid.Bool().Draw(t, "advances") {
 				s.Advance = time.Duration(rapid.Int64Range(1, 3_600_000).Draw(t, "advance ms")) * time.Millisecond
+			}
+			if rapid.Bool().Draw(t, "signs") {
+				s.Signing = rapid.SampledFrom([]string{"dynamodb", "streams.dynamodb", "execute-api"}).Draw(t, "signing")
 			}
 			steps[i] = s
 		}

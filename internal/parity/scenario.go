@@ -58,6 +58,10 @@ type Step struct {
 	Bind    []Bind
 	// Advance moves the emulator clock before the step; 0 moves nothing.
 	Advance time.Duration
+	// Signing is the credential scope's service name the recording signed
+	// the step for, which the fixture drops with Authorization; "" signs
+	// for the first DNS label of the recorded host.
+	Signing string
 }
 
 // Name is the step's name: its fixture's base name without ".json".

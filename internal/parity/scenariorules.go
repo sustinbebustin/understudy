@@ -18,8 +18,11 @@ var (
 	// servicePattern is a registry service id or an ARN's service.
 	servicePattern   = regexp.MustCompile(`^[a-z0-9-]+$`)
 	operationPattern = regexp.MustCompile(`^[A-Z][A-Za-z0-9]*$`)
-	switchPattern    = regexp.MustCompile(`^[a-z0-9]+(?:\.[A-Za-z0-9-]+)+$`)
-	capturePattern   = regexp.MustCompile(`^[A-Z_][A-Z0-9_]*$`)
+	// signingPattern is a credential scope's service name ("dynamodb",
+	// "streams.dynamodb").
+	signingPattern = regexp.MustCompile(`^[a-z0-9-]+(?:\.[a-z0-9-]+)*$`)
+	switchPattern  = regexp.MustCompile(`^[a-z0-9]+(?:\.[A-Za-z0-9-]+)+$`)
+	capturePattern = regexp.MustCompile(`^[A-Z_][A-Z0-9_]*$`)
 )
 
 // check says what makes s a scenario the format refuses, as a
@@ -163,6 +166,9 @@ func (s Step) check(field string) error {
 	}
 	if s.Advance < 0 {
 		return fieldError(field+".advance", fmt.Sprintf("%s is negative: an advance moves the emulator clock forward", s.Advance))
+	}
+	if s.Signing != "" && !signingPattern.MatchString(s.Signing) {
+		return fieldError(field+".signing", fmt.Sprintf("%q is not a credential scope's service name, such as dynamodb or streams.dynamodb", s.Signing))
 	}
 	return nil
 }

@@ -6,12 +6,9 @@
   "client": "curl",
   "steps": [
     {
-      "fixture": "dynamodb/R11/07-streams-signed-dynamodb.json",
-      "compare": "all"
-    },
-    {
       "fixture": "dynamodb/R11/07-streams-signed-streams.dynamodb.json",
-      "compare": "all"
+      "compare": "all",
+      "signing": "streams.dynamodb"
     }
   ]
 }
