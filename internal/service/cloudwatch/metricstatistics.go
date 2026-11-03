@@ -20,28 +20,29 @@ import (
 // call may ask for (cloudwatch-alarms.md 9.3).
 const maxStatisticsDatapoints = 1440
 
-// GetMetricStatistics' refusals whose texts no recording shows, modelled
-// on the recorded PutMetricData wording (inferred, cloudwatch-alarms.md
-// 9.3, CWA-19); both Statistics and ExtendedStatistics is errExclusive.
+// GetMetricStatistics' refusals of the statistics and the period, as AWS
+// answered them (cloudwatch-alarms.md 9.3; CWA-19, recorded 2026-11-03).
 const (
-	textNoStatistics     = "Must specify either Statistics or ExtendedStatistics."
-	textStatisticsPeriod = "The parameter Period must be 1, 5, 10, 20, 30, or a multiple of 60."
+	textNoStatistics     = "At least one of the parameters Statistics and ExtendedStatistics must be specified."
+	textSubMinutePeriod  = "The parameter Period must be a value in the set [1, 5, 10, 20, 30]."
+	textMinutePeriodStep = "The parameter Period must be a multiple of 60."
 )
 
-// checkGetMetricStatistics checks, in order, that exactly one of Statistics
-// and ExtendedStatistics is sent, the period, the time range, the
-// dimensions and the 1440-datapoint limit, counted over the request before
-// any data is read (cloudwatch-alarms.md 9.1, 9.3). A valid ExtendedStatistics
-// alone answers 501: understudy keeps statistic sets, not samples, and
-// cannot compute percentiles (cloudwatch-alarms.md 12.7).
+// checkGetMetricStatistics checks, in order, that Statistics or
+// ExtendedStatistics is sent, the period, the time range, the dimensions
+// and the 1440-datapoint limit, counted over the request before any data is
+// read (cloudwatch-alarms.md 9.1, 9.3). AWS accepts both statistics lists
+// together (CWA-19). A valid ExtendedStatistics, alone or with Statistics,
+// answers 501: understudy keeps statistic sets, not samples, and cannot
+// compute percentiles (cloudwatch-alarms.md 12.7).
 func checkGetMetricStatistics(in *cloudwatchapi.GetMetricStatisticsInput) *awserr.Error {
 	switch {
-	case len(in.Statistics) > 0 && len(in.ExtendedStatistics) > 0:
-		return errExclusive("Statistics", "ExtendedStatistics")
 	case len(in.Statistics) == 0 && len(in.ExtendedStatistics) == 0:
-		return cloudwatchapi.ErrMissingRequiredParameterException(textNoStatistics)
+		return cloudwatchapi.ErrInvalidParameterCombinationException(textNoStatistics)
+	case !validQueryPeriod(in.Period) && in.Period < 60:
+		return cloudwatchapi.ErrInvalidParameterValueException(textSubMinutePeriod)
 	case !validQueryPeriod(in.Period):
-		return cloudwatchapi.ErrInvalidParameterValueException(textStatisticsPeriod)
+		return cloudwatchapi.ErrInvalidParameterValueException(textMinutePeriodStep)
 	case !in.StartTime.Before(in.EndTime):
 		return cloudwatchapi.ErrInvalidParameterValueException("The parameter StartTime must be less than the parameter EndTime.") // recorded
 	}
@@ -64,12 +65,11 @@ func checkGetMetricStatistics(in *cloudwatchapi.GetMetricStatisticsInput) *awser
 }
 
 // statisticsDatapoints is the number of periods a request spans: the
-// ceiling of (EndTime - StartTime) / Period over the StartTime as sent,
-// not as rounded (cloudwatch.get-metric-statistics.datapoint-limit). The
-// caller has checked StartTime < EndTime and a positive Period.
+// floor of (EndTime - StartTime) / Period over the StartTime as sent, not
+// as rounded (cloudwatch.get-metric-statistics.datapoint-limit, CWA-20).
+// The caller has checked StartTime < EndTime and a positive Period.
 func statisticsDatapoints(start, end time.Time, period int32) int64 {
-	span, p := end.Sub(start), time.Duration(period)*time.Second
-	return int64((span + p - 1) / p)
+	return int64(end.Sub(start) / (time.Duration(period) * time.Second))
 }
 
 // getMetricStatistics answers one datapoint per period with data, and per
@@ -146,9 +146,9 @@ func statisticsSwitches() []fidelity.Entry {
 	ops := []string{"cloudwatch.GetMetricStatistics"}
 	return []fidelity.Entry{
 		fidelity.Switch[string]{
-			Name: "cloudwatch.get-metric-statistics.datapoint-limit", Value: "ceil-unrounded",
-			Label: evidence.Inferred, Ref: alarmResearch + "#93-errors-and-limits", Record: "CWA-20", Ops: ops,
-			Settles: fidelity.NoScenario{Reason: "unrecorded: CWA-20"},
+			Name: "cloudwatch.get-metric-statistics.datapoint-limit", Value: "floor-unrounded",
+			Label: evidence.AWSRecorded, Ref: alarmResearch + "#93-errors-and-limits", Record: "CWA-20", Ops: ops,
+			Settles: fidelity.NoScenario{Reason: "CWA-20 recorded; cloudwatch/CWA-19 replays its steps, which match on status and message but differ on the JSON body's __type and member order, so none can settle it yet"},
 		}.Entry(),
 		fidelity.Switch[string]{
 			Name: "cloudwatch.get-metric-statistics.order", Value: "timestamp-ascending,then-unit",

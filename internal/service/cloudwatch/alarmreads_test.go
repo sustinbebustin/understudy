@@ -340,36 +340,48 @@ func TestGetMetricStatisticsLimits(t *testing.T) {
 	})
 }
 
-// A count that is not whole rounds up over the unrounded StartTime
-// (cloudwatch.get-metric-statistics.datapoint-limit, UNVERIFIED, CWA-20).
+// The count is the floor of the span over the period, the StartTime as
+// sent: AWS refused 1441 whole periods and accepted 1440.5 periods from an
+// aligned start, from a start at :30 and 1439.98 periods that rounding the
+// start would make 1440.5 (cloudwatch.get-metric-statistics.datapoint-limit;
+// cwa 9.3; CWA-20, recorded 2026-11-03:
+// testdata/parity/cloudwatch/CWA-19/11-span-1441.json to 15-under-unless-rounded.json).
 func TestGetMetricStatisticsCountRounding(t *testing.T) {
 	run(t, func(h *harness) {
-		followsSwitch(h, "cloudwatch.get-metric-statistics.datapoint-limit", "ceil-unrounded")
+		followsSwitch(h, "cloudwatch.get-metric-statistics.datapoint-limit", "floor-unrounded")
 		now := h.now()
 		stat := []cloudwatchapi.Statistic{cloudwatchapi.StatisticSum}
-		// 1440 periods and one second: 1441 by the ceiling.
 		_, err := call(h, cloudwatchapi.OpGetMetricStatistics, &cloudwatchapi.GetMetricStatisticsInput{
-			Namespace: "ns", MetricName: "m", StartTime: now, EndTime: now.Add(day + time.Second), Period: 60, Statistics: stat,
+			Namespace: "ns", MetricName: "m", StartTime: now.Add(-day - time.Minute), EndTime: now, Period: 60, Statistics: stat,
 		})
-		if err == nil || err.ID.QueryCode != "InvalidParameterCombination" ||
-			err.Message != "You have requested up to "+strconv.Itoa(1441)+" datapoints, which exceeds the limit of 1440. You may reduce the datapoints requested by increasing Period, or decreasing the time range." {
-			h.Errorf("1440 periods and a second = %v, want the 1441 datapoint refusal", err)
-		}
-		if _, err := call(h, cloudwatchapi.OpGetMetricStatistics, &cloudwatchapi.GetMetricStatisticsInput{
-			Namespace: "ns", MetricName: "m", StartTime: now, EndTime: now.Add(day), Period: 60, Statistics: stat,
-		}); err != nil {
-			h.Errorf("exactly 1440 periods = %s %s, want accepted", err.ID.QueryCode, err.Message)
+		wantError(h.T, err, "InvalidParameterCombination", "You have requested up to "+strconv.Itoa(1441)+
+			" datapoints, which exceeds the limit of 1440. You may reduce the datapoints requested by increasing Period, or decreasing the time range.")
+		for _, tc := range []struct {
+			name       string
+			start, end time.Time
+		}{
+			{"12 exactly 1440", now.Add(-day), now},
+			{"13 half a period over, aligned start", now.Add(-day), now.Add(30 * time.Second)},
+			{"14 half a period over, start at :30", now.Add(-day - 30*time.Second), now},
+			{"15 under, over once rounded", now.Add(-day + 31*time.Second), now.Add(30 * time.Second)},
+		} {
+			if _, err := call(h, cloudwatchapi.OpGetMetricStatistics, &cloudwatchapi.GetMetricStatisticsInput{
+				Namespace: "ns", MetricName: "m", StartTime: tc.start, EndTime: tc.end, Period: 60, Statistics: stat,
+			}); err != nil {
+				h.Errorf("%s = %s %s, want accepted", tc.name, err.ID.QueryCode, err.Message)
+			}
 		}
 	})
 }
 
-// Statistics and ExtendedStatistics together or neither, and a Period that
-// is not 1, 5, 10, 20, 30 or a multiple of 60, are client errors (cwa 9.1,
-// 9.3; every error the model lists for the operation but
-// InternalServiceFault is 400). Their codes and texts are UNVERIFIED
-// (CWA-19) and no switch governs them, so only the status is asserted.
-// ExtendedStatistics alone answers 501: understudy keeps statistic sets and
-// cannot compute percentiles (cwa 12.1, 12.7).
+// The refusals AWS recorded: neither Statistics nor ExtendedStatistics is
+// InvalidParameterCombination; a Period under 60 outside 1, 5, 10, 20 and
+// 30, and one of 60 or more that is not a multiple of 60, are
+// InvalidParameterValue with their own texts (cwa 9.3; CWA-19, recorded
+// 2026-11-03: testdata/parity/cloudwatch/CWA-19). Both Statistics and
+// ExtendedStatistics is accepted on AWS (01-both.json); understudy answers
+// it as it answers ExtendedStatistics alone, 501: it keeps statistic sets
+// and cannot compute percentiles (cwa 12.1, 12.7).
 func TestGetMetricStatisticsRefusals(t *testing.T) {
 	run(t, func(h *harness) {
 		now := h.now()
@@ -380,19 +392,38 @@ func TestGetMetricStatisticsRefusals(t *testing.T) {
 			}
 		}
 		for _, tc := range []struct {
-			name  string
-			alter func(in *cloudwatchapi.GetMetricStatisticsInput)
+			name          string
+			alter         func(in *cloudwatchapi.GetMetricStatisticsInput)
+			code, message string
 		}{
-			{"both", func(in *cloudwatchapi.GetMetricStatisticsInput) { in.ExtendedStatistics = []string{"p90"} }},
-			{"neither", func(in *cloudwatchapi.GetMetricStatisticsInput) { in.Statistics = nil }},
-			{"period 7", func(in *cloudwatchapi.GetMetricStatisticsInput) { in.Period = 7 }},
-			{"period 90", func(in *cloudwatchapi.GetMetricStatisticsInput) { in.Period = 90 }},
+			{
+				"neither", func(in *cloudwatchapi.GetMetricStatisticsInput) { in.Statistics = nil },
+				"InvalidParameterCombination", "At least one of the parameters Statistics and ExtendedStatistics must be specified.",
+			},
+			{
+				"period 7", func(in *cloudwatchapi.GetMetricStatisticsInput) { in.Period = 7 },
+				"InvalidParameterValue", "The parameter Period must be a value in the set [1, 5, 10, 20, 30].",
+			},
+			{
+				"period 61", func(in *cloudwatchapi.GetMetricStatisticsInput) { in.Period = 61 },
+				"InvalidParameterValue", "The parameter Period must be a multiple of 60.",
+			},
+			{
+				"period 90", func(in *cloudwatchapi.GetMetricStatisticsInput) { in.Period = 90 },
+				"InvalidParameterValue", "The parameter Period must be a multiple of 60.",
+			},
 		} {
 			in := base()
 			tc.alter(in)
-			if _, err := call(h, cloudwatchapi.OpGetMetricStatistics, in); err == nil || err.ID.Status != 400 {
-				h.Errorf("%s: error = %v, want a 400", tc.name, err)
+			_, err := call(h, cloudwatchapi.OpGetMetricStatistics, in)
+			if err == nil || err.ID.Status != 400 || err.ID.QueryCode != tc.code || err.Message != tc.message {
+				h.Errorf("%s: error = %v, want 400 %s %q", tc.name, err, tc.code, tc.message)
 			}
+		}
+		both := base()
+		both.ExtendedStatistics = []string{"p50"}
+		if _, err := call(h, cloudwatchapi.OpGetMetricStatistics, both); err == nil || err.ID.Status != 501 {
+			h.Errorf("both Statistics and ExtendedStatistics = %v, want 501", err)
 		}
 		for _, p := range []int32{1, 5, 10, 20, 30, 60, 120} {
 			in := base()

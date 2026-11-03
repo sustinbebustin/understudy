@@ -790,7 +790,7 @@ func TestAlarmSwitches(t *testing.T) {
 			"cloudwatch.alarm.events.actions-disabled":         {"events-sent", evidence.AWSRecorded},
 			"cloudwatch.alarm.events.metric-id":                {"one-per-configuration", evidence.AWSRecorded},
 			"cloudwatch.alarm.history.page-size":               {"50", evidence.AWSRecorded},
-			"cloudwatch.get-metric-statistics.datapoint-limit": {"ceil-unrounded", evidence.Inferred},
+			"cloudwatch.get-metric-statistics.datapoint-limit": {"floor-unrounded", evidence.AWSRecorded},
 			"cloudwatch.get-metric-statistics.order":           {"timestamp-ascending,then-unit", evidence.Inferred},
 			"cloudwatch.alarm.actions.denied":                  {"dropped", evidence.AWSRecorded},
 		}
