@@ -310,14 +310,18 @@ func (s *stepper) runSucceeded(i int, last int64) {
 // level the execution fails; a failing branch or iteration fails its run,
 // whose other branches or iterations are stopped (stepfunctions-asl.md 9.1,
 // 9.2). A Map iteration writes MapIterationFailed pointing at last; the
-// stopped ones write nothing (inferred, ASL-13).
+// stopped ones write nothing (inferred, ASL-13). A Terminal fails the
+// execution at once from any depth: ExecutionFailed points at last, with no
+// MapIterationFailed or *StateFailed between (ASL-05, ASL-08 and ASL-15 in
+// a Parallel branch, ASL-07 in a Map iteration, recorded 2026-11-03).
 func (s *stepper) scopeFailed(f Failure, last int64) {
+	if t, ok := f.(Terminal); ok {
+		s.fail(t.Name, t.Cause, last)
+		return
+	}
 	if s.fr.run == 0 {
-		switch f := f.(type) {
-		case Terminal:
-			s.fail(f.Name, f.Cause, last)
-		case StateError:
-			s.fail(f.Name, f.Cause, last)
+		if e, ok := f.(StateError); ok {
+			s.fail(e.Name, e.Cause, last)
 		}
 		return
 	}
@@ -347,18 +351,14 @@ func (s *stepper) scopeFailed(f Failure, last int64) {
 // v2/scenarios/test_base_scenarios.snapshot.json:L1484), then to Catch;
 // otherwise *StateFailed points at last and the error is the enclosing
 // frame's, a Fail state's error the state's own (7.2; for Parallel
-// inferred, ASL-13). A Terminal is never retried or caught, at any depth
-// (inferred, ASL-15): from a branch or iteration it fails the state with
-// its cause as given; from the state's own fields its States.Runtime cause
-// gets the state's prefix (4.6).
+// ASL-10 and ASL-13, recorded 2026-11-03). A Terminal is never retried or
+// caught, at any depth (ASL-15, recorded 2026-11-03): one from a branch or
+// iteration never reaches here (scopeFailed), and one from the state's own
+// fields gets the state's States.Runtime prefix (4.6).
 func (s *stepper) runFailed(b block, v visit, last int64, f Failure, started bool) {
 	e, ok := f.(StateError)
 	if !ok {
-		if !started {
-			s.stateFailedAfter(b.name, v.entered, last, f)
-			return
-		}
-		s.raise(f, s.emit(b.kind+"StateFailed", last, nil))
+		s.stateFailedAfter(b.name, v.entered, last, f)
 		return
 	}
 	again := func(v visit) job { return runRetryJob{visit: v, previous: last} }

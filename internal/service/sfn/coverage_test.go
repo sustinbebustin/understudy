@@ -106,7 +106,9 @@ func TestUnboundOperationsAnswer501(t *testing.T) {
 
 // Every inferred choice is a switch with its value, label, record, ref,
 // operations and no settling scenario (spec "Fidelity switches"; contract
-// section 6.2). Values are read from the constructors, never restated.
+// section 6.2); a switch the 2026-11-03 recording session settled keeps its
+// row, labelled aws-recorded. Values are read from the constructors, never
+// restated.
 func TestSwitches(t *testing.T) {
 	bound := make([]string, 0, len(wantCoverage))
 	for name := range wantCoverage {
@@ -117,15 +119,16 @@ func TestSwitches(t *testing.T) {
 		entry       fidelity.Entry
 		name, ref   string
 		record      string
+		label       evidence.Label
 		ops         []string
 		sortOpsLike bool
 	}{
-		{sfn.ChoiceNoMatch().Entry(), "sfn.choice.no-match", "docs/research/stepfunctions-asl.md#64-no-match-and-missing-variables", "ASL-08", []string{"sfn.StartExecution"}, false},
-		{sfn.ChoiceMissingVariable().Entry(), "sfn.choice.missing-variable", "docs/research/stepfunctions-asl.md#64-no-match-and-missing-variables", "ASL-08", []string{"sfn.StartExecution"}, false},
-		{sfn.IntrinsicFailure().Entry(), "sfn.intrinsic.failure-error", "docs/research/stepfunctions-asl.md#54-failures", "ASL-05", []string{"sfn.StartExecution"}, false},
-		{sfn.LambdaError().Entry(), "sfn.integration.lambda-error", "docs/research/stepfunctions-api.md#94-error-names-and-causes-recorded", "SFN-15", []string{"sfn.StartExecution"}, false},
-		{sfn.DeleteRunningExecution().Entry(), "sfn.delete.running-execution", "docs/research/stepfunctions-api.md#54-deletestatemachine", "SFN-06", []string{"sfn.DeleteStateMachine", "sfn.StartExecution"}, true},
-		{sfn.DenialStatus().Entry(), "sfn.denial.status", "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit", "SFN-15", bound, true},
+		{sfn.ChoiceNoMatch().Entry(), "sfn.choice.no-match", "docs/research/stepfunctions-asl.md#64-no-match-and-missing-variables", "ASL-08", evidence.AWSRecorded, []string{"sfn.StartExecution"}, false},
+		{sfn.ChoiceMissingVariable().Entry(), "sfn.choice.missing-variable", "docs/research/stepfunctions-asl.md#64-no-match-and-missing-variables", "ASL-08", evidence.AWSRecorded, []string{"sfn.StartExecution"}, false},
+		{sfn.IntrinsicFailure().Entry(), "sfn.intrinsic.failure-error", "docs/research/stepfunctions-asl.md#54-failures", "ASL-05", evidence.Inferred, []string{"sfn.StartExecution"}, false},
+		{sfn.LambdaError().Entry(), "sfn.integration.lambda-error", "docs/research/stepfunctions-api.md#94-error-names-and-causes-recorded", "SFN-15", evidence.Inferred, []string{"sfn.StartExecution"}, false},
+		{sfn.DeleteRunningExecution().Entry(), "sfn.delete.running-execution", "docs/research/stepfunctions-api.md#54-deletestatemachine", "SFN-06", evidence.Inferred, []string{"sfn.DeleteStateMachine", "sfn.StartExecution"}, true},
+		{sfn.DenialStatus().Entry(), "sfn.denial.status", "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit", "SFN-15", evidence.Inferred, bound, true},
 	}
 	got := (&sfn.Service{}).Switches()
 	if len(got) != len(want) {
@@ -137,8 +140,8 @@ func TestSwitches(t *testing.T) {
 		if w.sortOpsLike {
 			ops = slices.Sorted(slices.Values(ops))
 		}
-		if e.Name != w.name || e.Ref != w.ref || e.Record != w.record || e.Label != evidence.Inferred || !slices.Equal(ops, w.ops) || e.Value != w.entry.Value {
-			t.Errorf("switch %d = %+v\nwant name %s, ref %s, record %s, label inferred, ops %v, value %s", i, e, w.name, w.ref, w.record, w.ops, w.entry.Value)
+		if e.Name != w.name || e.Ref != w.ref || e.Record != w.record || e.Label != w.label || !slices.Equal(ops, w.ops) || e.Value != w.entry.Value {
+			t.Errorf("switch %d = %+v\nwant name %s, ref %s, record %s, label %s, ops %v, value %s", i, e, w.name, w.ref, w.record, w.label, w.ops, w.entry.Value)
 		}
 		ns, ok := e.Settles.(fidelity.NoScenario)
 		if !ok || !strings.Contains(ns.Reason, w.record) {

@@ -23,32 +23,42 @@ func boundOps() []string {
 	}
 }
 
+// sfnUnreplayed is why no scenario settles a switch whose recording exists:
+// the step that shows it is a DescribeExecution or GetExecutionHistory
+// answer, whose body AWS writes with nested __type members and members in
+// alphabetical order, which understudy's serializer does not reproduce, so
+// the step cannot match. recorded names the fixtures, with "is" or "are".
+func sfnUnreplayed(recorded string) string {
+	return recorded + " recorded 2026-11-03; not replayed: AWS's execution bodies carry nested __type members and alphabetical member order"
+}
+
 // ChoiceNoMatch is the error of a Choice state no rule matches and that has
-// no Default (stepfunctions-asl.md 6.4).
+// no Default: States.Runtime, uncatchable (ASL-08, recorded 2026-11-03;
+// stepfunctions-asl.md 6.4).
 func ChoiceNoMatch() fidelity.Switch[asl.ErrorRule] {
 	return fidelity.Switch[asl.ErrorRule]{
 		Name:    "sfn.choice.no-match",
-		Value:   asl.ErrorRule{Name: "States.NoChoiceMatched", Terminal: false},
-		Label:   evidence.Inferred,
+		Value:   asl.ErrorRule{Name: "States.Runtime", Terminal: true},
+		Label:   evidence.AWSRecorded,
 		Ref:     "docs/research/stepfunctions-asl.md#64-no-match-and-missing-variables",
 		Record:  "ASL-08",
 		Ops:     []string{"sfn.StartExecution"},
-		Settles: fidelity.NoScenario{Reason: "unrecorded: recording case ASL-08 (stepfunctions-asl.md 16.2)"},
+		Settles: fidelity.NoScenario{Reason: sfnUnreplayed("sfn/ASL-08/01-no-match-history.json is")},
 	}
 }
 
 // ChoiceMissingVariable is the error of a Choice rule whose Variable path
-// selects nothing (stepfunctions-asl.md 6.4); its cause carries the 4.6
-// prefix.
+// selects nothing: States.Runtime, uncatchable, its cause carrying the 4.6
+// prefix (ASL-08, recorded 2026-11-03; stepfunctions-asl.md 6.4).
 func ChoiceMissingVariable() fidelity.Switch[asl.ErrorRule] {
 	return fidelity.Switch[asl.ErrorRule]{
 		Name:    "sfn.choice.missing-variable",
 		Value:   asl.ErrorRule{Name: "States.Runtime", Terminal: true},
-		Label:   evidence.Inferred,
+		Label:   evidence.AWSRecorded,
 		Ref:     "docs/research/stepfunctions-asl.md#64-no-match-and-missing-variables",
 		Record:  "ASL-08",
 		Ops:     []string{"sfn.StartExecution"},
-		Settles: fidelity.NoScenario{Reason: "unrecorded: recording case ASL-08 (stepfunctions-asl.md 16.2)"},
+		Settles: fidelity.NoScenario{Reason: sfnUnreplayed("sfn/ASL-08/02-missing-history.json is")},
 	}
 }
 
