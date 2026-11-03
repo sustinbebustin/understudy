@@ -1,0 +1,35 @@
+{
+  "step": "25-queue",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.GetQueueAttributes"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,g,b,E,AN cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.get-queue-attributes"],
+          ["X-Amz-Date", "20261103T042655Z"],
+          ["amz-sdk-invocation-id", "e18ac9dd-dc1b-44ba-b9ff-e4ff31c027f4"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "170"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/us1103-enf-mq\", \"AttributeNames\": [\"ApproximateNumberOfMessages\", \"ApproximateNumberOfMessagesNotVisible\"]}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "67da6eb0-6807-522b-949e-0dd30cc8e6fb"],
+          ["Date", "Tue, 03 Nov 2026 04:26:55 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "94"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"Attributes\":{\"ApproximateNumberOfMessages\":\"0\",\"ApproximateNumberOfMessagesNotVisible\":\"0\"}}"
+      }
+    }
+  ]
+}

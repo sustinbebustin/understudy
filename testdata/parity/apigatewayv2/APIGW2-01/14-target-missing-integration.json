@@ -1,0 +1,39 @@
+{
+  "step": "14-target-missing-integration",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (BadRequestException) when calling the CreateRoute operation: Unable to find route target of type integrations with ID 0000000",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://apigateway.us-east-2.amazonaws.com/v2/apis/hl9cpb8a0a/routes",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,Z,g,E,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#apigatewayv2.create-route"],
+          ["X-Amz-Date", "20261103T164314Z"],
+          ["amz-sdk-invocation-id", "2e159bc5-b74f-4b8d-a2be-2b5c7a096471"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "63"]
+        ],
+        "body": "{\"routeKey\": \"GET /dangling\", \"target\": \"integrations/0000000\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:43:14 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "78"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "50c3b1c6-af52-4a93-b2b7-151084e14686"],
+          ["Access-Control-Allow-Origin", "*"],
+          ["x-amzn-ErrorType", "BadRequestException"],
+          ["x-amz-apigw-id", "GRdNiFIriYcEl7w="],
+          ["Access-Control-Expose-Headers", "x-amzn-RequestId,x-amzn-ErrorType,x-amzn-ErrorMessage,Date"],
+          ["X-Amzn-Trace-Id", "Root=1-6aea0f22-0241e485409d1c25160ae0fe"]
+        ],
+        "body": "{\"message\":\"Unable to find route target of type integrations with ID 0000000\"}"
+      }
+    }
+  ]
+}

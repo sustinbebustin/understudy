@@ -1,0 +1,36 @@
+{
+  "step": "01-delete",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://ssm.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSSM.DeleteParameters"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,b,g,Z,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#ssm.delete-parameters"],
+          ["X-Amz-Date", "20261103T163832Z"],
+          ["amz-sdk-invocation-id", "775ecf2c-5b5a-4ac3-aa2c-a12aaa35f736"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "92"]
+        ],
+        "body": "{\"Names\": [\"/us1103/ssm/x27/b\", \"/us1103/ssm/x27/missing\", \"/us1103/ssm/x27/a\", \"bad name\"]}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Tue, 03 Nov 2026 16:38:33 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "122"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "c5156ece-e4ee-4b7d-9e48-39c1aef348bd"],
+          ["Cache-Control", "no-store"]
+        ],
+        "body": "{\"DeletedParameters\":[\"/us1103/ssm/x27/a\",\"/us1103/ssm/x27/b\"],\"InvalidParameters\":[\"/us1103/ssm/x27/missing\",\"bad name\"]}"
+      }
+    }
+  ]
+}

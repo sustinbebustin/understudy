@@ -1,0 +1,39 @@
+{
+  "step": "06-copy",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidRequest) when calling the CopyObject operation: The encryption parameters are not applicable to this object.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://us1103-ssec.s3.us-east-2.amazonaws.com/t6",
+        "headers": [
+          ["x-amz-copy-source", "us1103-ssec/p1"],
+          ["x-amz-copy-source-server-side-encryption-customer-algorithm", "AES256"],
+          ["x-amz-copy-source-server-side-encryption-customer-key", "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="],
+          ["x-amz-copy-source-server-side-encryption-customer-key-MD5", "hRasmdxgYDKV3nvbahU1MA=="],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,E,g,Z,AN cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.copy-object"],
+          ["X-Amz-Date", "20261103T033954Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "6a17dbb9-5abd-4296-abb4-83de6dc5c617"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "0"]
+        ]
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "MGQZM4ZRS3PA13N4"],
+          ["x-amz-id-2", "6rQPS7s0WfJjAH5c08lwetJ6JbNczOHoLI8fXgqNFC0TgX6FIAwWOs81jO6hPwEZ4y2dzMUKmbUF5UqXOHkEdv7iTGTvyqCn"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Tue, 03 Nov 2026 03:39:53 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<Error><Code>InvalidRequest</Code><Message>The encryption parameters are not applicable to this object.</Message><RequestId>MGQZM4ZRS3PA13N4</RequestId><HostId>6rQPS7s0WfJjAH5c08lwetJ6JbNczOHoLI8fXgqNFC0TgX6FIAwWOs81jO6hPwEZ4y2dzMUKmbUF5UqXOHkEdv7iTGTvyqCn</HostId></Error>"
+      }
+    }
+  ]
+}

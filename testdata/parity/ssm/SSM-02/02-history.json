@@ -1,0 +1,36 @@
+{
+  "step": "02-history",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ParameterNotFound) when calling the GetParameterHistory operation:",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://ssm.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSSM.GetParameterHistory"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,E,AN,C,g,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#ssm.get-parameter-history"],
+          ["X-Amz-Date", "20261103T163553Z"],
+          ["amz-sdk-invocation-id", "2d96dc5a-cfd4-4f64-a14d-5fb8199439cd"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "31"]
+        ],
+        "body": "{\"Name\": \"/us1103/ssm/missing\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Tue, 03 Nov 2026 16:35:53 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "30"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "df75f4f2-d5bd-4a29-aec9-d2f8962a32fc"]
+        ],
+        "body": "{\"__type\":\"ParameterNotFound\"}"
+      }
+    }
+  ]
+}

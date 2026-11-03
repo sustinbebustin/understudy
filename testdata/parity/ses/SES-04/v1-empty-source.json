@@ -1,0 +1,33 @@
+{
+  "step": "v1-empty-source",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://email.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Host", "email.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261103T164213Z"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/x-www-form-urlencoded"],
+          ["Content-Length", "158"]
+        ],
+        "body": "Action=SendEmail&Version=2010-12-01&Source=&Destination.ToAddresses.member.1=success%40simulator.amazonses.com&Message.Subject.Data=s&Message.Body.Text.Data=b"
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:42:13 GMT"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "275"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "f443e909-d71b-4ed5-84a8-6d6824226227"]
+        ],
+        "body": "<ErrorResponse xmlns=\"http://ses.amazonaws.com/doc/2010-12-01/\">\n  <Error>\n    <Type>Sender</Type>\n    <Code>InvalidParameterValue</Code>\n    <Message>Invalid email address .</Message>\n  </Error>\n  <RequestId>f443e909-d71b-4ed5-84a8-6d6824226227</RequestId>\n</ErrorResponse>\n"
+      }
+    }
+  ]
+}

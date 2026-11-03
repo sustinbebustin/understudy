@@ -1,0 +1,33 @@
+{
+  "step": "10-get-role",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (AccessDenied) when calling the GetRole operation: User: arn:aws:sts::123456789012:assumed-role/us1103-enf-none/enf is not authorized to perform: iam:GetRole on resource: role us1103-enf-none because no identity-based policy allows the iam:GetRole action. Go to https://us-east-1.console.aws.amazon.com/iam/home?region=us-east-1#/authorization-details/6b2693phg6fm0f3bnbb8be5d3 for complete details, or call the GetRequestAuthorizationDetails API with the following authorization id: 6b2693phg6fm0f3bnbb8be5d3",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://iam.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,AN,E,Z,g cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#iam.get-role"],
+          ["X-Amz-Date", "20261103T034513Z"],
+          ["amz-sdk-invocation-id", "8cf6a432-765c-4e5c-a5ca-6cb290dfa251"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "58"]
+        ],
+        "body": "Action=GetRole&Version=2010-05-08&RoleName=us1103-enf-none"
+      },
+      "response": {
+        "status": 403,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 03:45:13 GMT"],
+          ["x-amzn-RequestId", "75fd0688-e9a8-4702-85b3-acec3f5dd125"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "702"]
+        ],
+        "body": "<ErrorResponse xmlns=\"https://iam.amazonaws.com/doc/2010-05-08/\">\n  <Error>\n    <Type>Sender</Type>\n    <Code>AccessDenied</Code>\n    <Message>User: arn:aws:sts::123456789012:assumed-role/us1103-enf-none/enf is not authorized to perform: iam:GetRole on resource: role us1103-enf-none because no identity-based policy allows the iam:GetRole action. Go to https://us-east-1.console.aws.amazon.com/iam/home?region=us-east-1#/authorization-details/6b2693phg6fm0f3bnbb8be5d3 for complete details, or call the GetRequestAuthorizationDetails API with the following authorization id: 6b2693phg6fm0f3bnbb8be5d3</Message>\n  </Error>\n  <RequestId>75fd0688-e9a8-4702-85b3-acec3f5dd125</RequestId>\n</ErrorResponse>\n"
+      }
+    }
+  ]
+}

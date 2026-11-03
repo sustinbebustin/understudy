@@ -1,0 +1,38 @@
+{
+  "step": "24-tag-key-129",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (BadRequestException) when calling the TagResource operation: {\"message\": \"1 validation error detected: Value \\'{kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk=v}\\' at \\'addedTags\\' failed to satisfy constraint: Map keys must satisfy constraint: [Member must have length less than or equal to 128, Member must have length greater than or equal to 1]\"}",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://apigateway.us-east-2.amazonaws.com/v2/tags/arn%3Aaws%3Aapigateway%3Aus-east-2%3A%3A%2Fapis%2Fhl9cpb8a0a",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,b,Z,AN,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#apigatewayv2.tag-resource"],
+          ["X-Amz-Date", "20261103T164322Z"],
+          ["amz-sdk-invocation-id", "2e2fa537-9479-4ef7-831a-afa88a13d6c4"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "148"]
+        ],
+        "body": "{\"tags\": {\"kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk\": \"v\"}}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:43:22 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "372"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "0048b6fd-0717-453e-9805-cfcfdf7a269b"],
+          ["Access-Control-Allow-Origin", "*"],
+          ["x-amzn-ErrorType", "BadRequestException"],
+          ["x-amz-apigw-id", "GRdOqF3qiYcEIMA="],
+          ["X-Amzn-Trace-Id", "Root=1-6aea0f2a-66b0419864d0d0712db4fe9d"]
+        ],
+        "body": "{\"message\": \"1 validation error detected: Value \\'{kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk=v}\\' at \\'addedTags\\' failed to satisfy constraint: Map keys must satisfy constraint: [Member must have length less than or equal to 128, Member must have length greater than or equal to 1]\"}"
+      }
+    }
+  ]
+}

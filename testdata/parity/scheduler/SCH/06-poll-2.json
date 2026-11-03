@@ -1,0 +1,31 @@
+{
+  "step": "06-poll-2",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ResourceNotFoundException) when calling the GetScheduleGroup operation: Schedule group us1103-g does not exist.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://scheduler.us-east-2.amazonaws.com/schedule-groups/us1103-g",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,Z,E,g,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#scheduler.get-schedule-group"],
+          ["X-Amz-Date", "20261103T163837Z"],
+          ["amz-sdk-invocation-id", "86e4cc59-08a8-4afd-b901-4c1f778687bd"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 404,
+        "headers": [
+          ["x-amzn-RequestId", "cb1087d4-19a5-4026-995e-2192b17bf6e5"],
+          ["x-amzn-ErrorType", "ResourceNotFoundException:http://internal.amazon.com/coral/com.amazonaws.chronos/"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "53"],
+          ["Date", "Tue, 03 Nov 2026 16:38:37 GMT"]
+        ],
+        "body": "{\"Message\":\"Schedule group us1103-g does not exist.\"}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "step": "implicit-kms",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (AccessDeniedException) when calling the ListKeys operation: User: arn:aws:sts::123456789012:assumed-role/us1103-eval-none/none is not authorized to perform: kms:ListKeys on resource: * because no identity-based policy allows the kms:ListKeys action",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://kms.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "TrentService.ListKeys"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,Z,g,E,b,C cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#kms.list-keys"],
+          ["X-Amz-Date", "20261103T031946Z"],
+          ["amz-sdk-invocation-id", "665a4a66-de6a-4429-a467-81fa9811596e"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "2"]
+        ],
+        "body": "{}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "59ed73b7-0093-415b-b386-5b3b37b56708"],
+          ["Cache-Control", "no-cache, no-store, must-revalidate, private"],
+          ["Expires", "0"],
+          ["Pragma", "no-cache"],
+          ["Date", "Tue, 03 Nov 2026 03:19:47 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "235"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"__type\":\"AccessDeniedException\",\"Message\":\"User: arn:aws:sts::123456789012:assumed-role/us1103-eval-none/none is not authorized to perform: kms:ListKeys on resource: * because no identity-based policy allows the kms:ListKeys action\"}"
+      }
+    }
+  ]
+}

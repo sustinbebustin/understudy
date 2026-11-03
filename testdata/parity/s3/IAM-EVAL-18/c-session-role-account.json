@@ -1,0 +1,33 @@
+{
+  "step": "c-session-role-account",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://us1103-eval-np-123456789012.s3.us-east-2.amazonaws.com/?list-type=2&encoding-type=url",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,E,g,C,b,AN cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.list-objects-v2"],
+          ["X-Amz-Date", "20261103T031731Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "56987554-5d0c-4456-a238-8f00ad75f49c"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amz-id-2", "UFqpQnXlUVT3QU8iViqK7B9hW+jIsiEKODc3ZHfLKeKHTJI/teZYhdIXhEa2bl76scI8fFBpBn0wnMGEmqnKdIGlN4TBq8W3"],
+          ["x-amz-request-id", "5PNPKE5TFZNY7H3Q"],
+          ["Server", "AmazonS3"],
+          ["Date", "Tue, 03 Nov 2026 03:17:32 GMT"],
+          ["x-amz-bucket-region", "us-east-2"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListBucketResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Name>us1103-eval-np-123456789012</Name><Prefix></Prefix><KeyCount>0</KeyCount><MaxKeys>1000</MaxKeys><EncodingType>url</EncodingType><IsTruncated>false</IsTruncated></ListBucketResult>"
+      }
+    }
+  ]
+}

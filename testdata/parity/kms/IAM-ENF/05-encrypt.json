@@ -1,0 +1,38 @@
+{
+  "step": "05-encrypt",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (AccessDeniedException) when calling the Encrypt operation: User: arn:aws:sts::123456789012:assumed-role/us1103-enf-none/enf is not authorized to perform: kms:Encrypt on resource: arn:aws:kms:us-east-2:123456789012:key/45c1da4a-a2c9-4510-9930-7f77b26866b5 because no identity-based policy allows the kms:Encrypt action",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://kms.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "TrentService.Encrypt"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,Z,AN,g,E cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#kms.encrypt"],
+          ["X-Amz-Date", "20261103T034506Z"],
+          ["amz-sdk-invocation-id", "3daf801b-f4f9-459f-b4fe-5f312a7cdb02"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "70"]
+        ],
+        "body": "{\"KeyId\": \"45c1da4a-a2c9-4510-9930-7f77b26866b5\", \"Plaintext\": \"eA==\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "54e4e358-e054-4ee9-8d22-2fe8e8962435"],
+          ["Cache-Control", "no-cache, no-store, must-revalidate, private"],
+          ["Expires", "0"],
+          ["Pragma", "no-cache"],
+          ["Date", "Tue, 03 Nov 2026 03:45:06 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "305"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"__type\":\"AccessDeniedException\",\"Message\":\"User: arn:aws:sts::123456789012:assumed-role/us1103-enf-none/enf is not authorized to perform: kms:Encrypt on resource: arn:aws:kms:us-east-2:123456789012:key/45c1da4a-a2c9-4510-9930-7f77b26866b5 because no identity-based policy allows the kms:Encrypt action\"}"
+      }
+    }
+  ]
+}

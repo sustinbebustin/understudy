@@ -1,0 +1,39 @@
+{
+  "step": "01-deploy-no-routes",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (BadRequestException) when calling the CreateDeployment operation: Unable to deploy API because no valid routes exist in this API",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://apigateway.us-east-2.amazonaws.com/v2/apis/un8cw1i7c9/deployments",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,g,b,Z,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#apigatewayv2.create-deployment"],
+          ["X-Amz-Date", "20261103T164345Z"],
+          ["amz-sdk-invocation-id", "9fa50d62-70ac-4fdc-bf07-e3767d9ff2f7"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "2"]
+        ],
+        "body": "{}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:43:46 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "76"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "c691379b-8ce0-4cb4-a088-6fd861bf8375"],
+          ["Access-Control-Allow-Origin", "*"],
+          ["x-amzn-ErrorType", "BadRequestException"],
+          ["x-amz-apigw-id", "GRdSYEqTiYcEEkQ="],
+          ["Access-Control-Expose-Headers", "x-amzn-RequestId,x-amzn-ErrorType,x-amzn-ErrorMessage,Date"],
+          ["X-Amzn-Trace-Id", "Root=1-6aea0f41-7a6cb66a3a2d59c778e9768b"]
+        ],
+        "body": "{\"message\":\"Unable to deploy API because no valid routes exist in this API\"}"
+      }
+    }
+  ]
+}

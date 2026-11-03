@@ -1,0 +1,35 @@
+{
+  "step": "02-receive-again",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.ReceiveMessage"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,Z,E,g,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.receive-message"],
+          ["X-Amz-Date", "20261103T170614Z"],
+          ["amz-sdk-invocation-id", "2402811b-ee28-4740-8893-230e4e7c7abf"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "189"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/us1103-ldl-eb\", \"AttributeNames\": [\"All\"], \"MessageAttributeNames\": [\"All\"], \"MaxNumberOfMessages\": 10, \"WaitTimeSeconds\": 20}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "65a8f275-70af-5d6c-bf29-911166693124"],
+          ["Date", "Tue, 03 Nov 2026 17:06:15 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "3348"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"Messages\":[{\"Attributes\":{\"SenderId\":\"AIDAIMTEBMVXFWRSXIKCK\",\"ApproximateFirstReceiveTimestamp\":\"1793725574986\",\"ApproximateReceiveCount\":\"1\",\"SentTimestamp\":\"1793725542423\",\"AWSTraceHeader\":\"Root=1-6aea1465-6988f1f542afd06e46fde847;Parent=2d4dddd6489902df;Sampled=0;Lineage=1:b5da2ca6:0\"},\"Body\":\"{\\\"version\\\":\\\"0\\\",\\\"id\\\":\\\"da17f074-c76d-fcd0-7bc5-c3400fa105df\\\",\\\"detail-type\\\":\\\"Lambda Function Invocation Result - Success\\\",\\\"source\\\":\\\"lambda\\\",\\\"account\\\":\\\"123456789012\\\",\\\"time\\\":\\\"2026-11-03T17:05:42Z\\\",\\\"region\\\":\\\"us-east-2\\\",\\\"resources\\\":[\\\"arn:aws:events:us-east-2:123456789012:event-bus/default\\\",\\\"arn:aws:lambda:us-east-2:123456789012:function:us1103-ldl-ebf:$LATEST\\\"],\\\"detail\\\":{\\\"version\\\":\\\"1.0\\\",\\\"timestamp\\\":\\\"2026-11-03T17:05:42.330Z\\\",\\\"requestContext\\\":{\\\"requestId\\\":\\\"bff1235f-c12d-4350-ab06-cb272459ef0d\\\",\\\"functionArn\\\":\\\"arn:aws:lambda:us-east-2:123456789012:function:us1103-ldl-ebf:$LATEST\\\",\\\"condition\\\":\\\"Success\\\",\\\"approximateInvokeCount\\\":1},\\\"requestPayload\\\":{\\\"mode\\\":\\\"ok\\\"},\\\"responseContext\\\":{\\\"statusCode\\\":200,\\\"executedVersion\\\":\\\"$LATEST\\\"},\\\"responsePayload\\\":{\\\"ok\\\":true,\\\"mode\\\":\\\"ok\\\"}}}\",\"MD5OfBody\":\"2b271d991911ad7d7ecec83a980534cf\",\"MessageId\":\"b3834b49-0b02-49c7-b7e3-95b39fd6da86\",\"ReceiptHandle\":\"AQEBX2k+hwFF+5xdcKKS3VqeNE6RWHVTqaVMjbXiZ/5FKSAl1/F+J2G/ZST7RPztS3rVZJDKkHkCcUwsMdFiUDQ/V5clqXC3SitFltNmPhfvQE/nC+TbCauKg02V7vvdcXMnYiGHlV6jfP5Vn+bfCrS6T/E91G6bu9rJFuYkLauOOOnKr46mSHW3nlenm9qGqNZDA1714/9xgh40R0P0VEIOoV4IOxuG5FlUGgyCdbL2ehdsaEMbmvRnFZdchExfqcVddeib2xMagQLLqMRzEbtEm9fDN/vQDstu/F8ierL8LxBD1FVMiaH/aRjJfb52+aXrO9qPA59nKPguLe3F/XjRaBSDfrCP8TNjGmDdKg+rIAD4/IFUjxWGw7f18Jm00owAmjvogvWDz9qAY5qPK+XuvQ==\"},{\"Attributes\":{\"SenderId\":\"AIDAIMTEBMVXFWRSXIKCK\",\"ApproximateFirstReceiveTimestamp\":\"1793725574988\",\"ApproximateReceiveCount\":\"1\",\"SentTimestamp\":\"1793725542677\",\"AWSTraceHeader\":\"Root=1-6aea1466-3e158bfa160cd9ff739adf50;Parent=5db4f6515c2e2c01;Sampled=0;Lineage=1:b5da2ca6:0\"},\"Body\":\"{\\\"version\\\":\\\"0\\\",\\\"id\\\":\\\"e139538e-94bb-051f-650d-b8ff9c8d5d23\\\",\\\"detail-type\\\":\\\"Lambda Function Invocation Result - Success\\\",\\\"source\\\":\\\"lambda\\\",\\\"account\\\":\\\"123456789012\\\",\\\"time\\\":\\\"2026-11-03T17:05:42Z\\\",\\\"region\\\":\\\"us-east-2\\\",\\\"resources\\\":[\\\"arn:aws:events:us-east-2:123456789012:event-bus/default\\\",\\\"arn:aws:lambda:us-east-2:123456789012:function:us1103-ldl-ebf:$LATEST\\\"],\\\"detail\\\":{\\\"version\\\":\\\"1.0\\\",\\\"timestamp\\\":\\\"2026-11-03T17:05:42.584Z\\\",\\\"requestContext\\\":{\\\"requestId\\\":\\\"5f8a81f0-1a22-4918-a9a5-8bcd1d2a5d4e\\\",\\\"functionArn\\\":\\\"arn:aws:lambda:us-east-2:123456789012:function:us1103-ldl-ebf:$LATEST\\\",\\\"condition\\\":\\\"Success\\\",\\\"approximateInvokeCount\\\":1},\\\"requestPayload\\\":{\\\"mode\\\":\\\"ok\\\"},\\\"responseContext\\\":{\\\"statusCode\\\":200,\\\"executedVersion\\\":\\\"$LATEST\\\"},\\\"responsePayload\\\":{\\\"ok\\\":true,\\\"mode\\\":\\\"ok\\\"}}}\",\"MD5OfBody\":\"808c3addc9cafcd17c4aced19e591d41\",\"MessageId\":\"9c8995ab-586d-4855-8d1f-bf28781b32d5\",\"ReceiptHandle\":\"AQEBoNwzOvBxM8tDQQzyIi7eFOAtbRUB3GA+LyH1tHs5n+ISC7NFUMLyW+pS2Gf4Uvy0Q+bMB/DaDFFoqIe9C48K4g5QNZfFNXpLul3gSBA5bZwxJ88g8Hk8Eko8fG27KcUBmHsD+ToLyxKg3UAMehB0UQa04RZtAJrDvSLDTFVYpjkpUHfy9TF4FOSVLhbhug4T937LsgPnWbzwCJotm6UeqEa21bzUvcn0khBk6k8inhset5inDoioD0tkjtNWqpBvxiv0vvsbPR+ff3N+m15B2REsglMp2TTo/vBZVilfGcKwHxOtTymLg8hpPImAIBd84TjJHBOR1y7eEDEeXCMescFeph/tgWmJ+fEdBvOlgaja3hQp9Q8Hoibz1elvGS3acGOsrS9g8Htu2fSv2d70OQ==\"}]}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "step": "09-json-qm",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://monitoring.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Host", "monitoring.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261103T034511Z"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["X-Amz-Target", "GraniteServiceVersion20100801.DescribeAlarms"],
+          ["x-amzn-query-mode", "true"],
+          ["Content-Length", "2"]
+        ],
+        "body": "{}"
+      },
+      "response": {
+        "status": 403,
+        "reason": "Forbidden",
+        "headers": [
+          ["x-amzn-RequestId", "be7036e4-70eb-4109-af78-1b84bd2d93ef"],
+          ["x-amzn-query-error", "AccessDenied;Sender"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "332"],
+          ["Date", "Tue, 03 Nov 2026 03:45:11 GMT"]
+        ],
+        "body": "{\"__type\":\"com.amazon.coral.service#AccessDeniedException\",\"Message\":\"User: arn:aws:sts::123456789012:assumed-role/us1103-enf-none/enf is not authorized to perform: cloudwatch:DescribeAlarms on resource: arn:aws:cloudwatch:us-east-2:123456789012:alarm:* because no identity-based policy allows the cloudwatch:DescribeAlarms action\"}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "step": "04-stage",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://ssm.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSSM.GetParameter"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,Z,g,b,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#ssm.get-parameter"],
+          ["X-Amz-Date", "20261103T163746Z"],
+          ["amz-sdk-invocation-id", "b113abc0-abbe-4480-82e8-d42cbb0feadd"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "87"]
+        ],
+        "body": "{\"Name\": \"/aws/reference/secretsmanager/us1103-ref:AWSCURRENT\", \"WithDecryption\": true}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Tue, 03 Nov 2026 16:37:46 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "536"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "518b54e9-eb51-4709-b8c4-639731ce4a99"],
+          ["Cache-Control", "no-store"]
+        ],
+        "body": "{\"Parameter\":{\"ARN\":\"arn:aws:secretsmanager:us-east-2:123456789012:secret:us1103-ref-UfO53N\",\"LastModifiedDate\":1.793723864728E9,\"Name\":\"/aws/reference/secretsmanager/us1103-ref\",\"Selector\":\":AWSCURRENT\",\"SourceResult\":\"{\\\"ARN\\\":\\\"arn:aws:secretsmanager:us-east-2:123456789012:secret:us1103-ref-UfO53N\\\",\\\"name\\\":\\\"us1103-ref\\\",\\\"versionId\\\":\\\"525dc47e-3952-4ef3-83fc-ed945c5af382\\\",\\\"secretString\\\":\\\"s1\\\",\\\"versionStages\\\":[\\\"AWSCURRENT\\\"],\\\"createdDate\\\":\\\"Nov 3, 2026, 4:37:44 PM\\\"}\",\"Type\":\"SecureString\",\"Value\":\"s1\",\"Version\":0}}"
+      }
+    }
+  ]
+}

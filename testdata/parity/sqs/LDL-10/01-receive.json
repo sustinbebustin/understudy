@@ -1,0 +1,35 @@
+{
+  "step": "01-receive",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.ReceiveMessage"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,E,AN,b,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.receive-message"],
+          ["X-Amz-Date", "20261103T170613Z"],
+          ["amz-sdk-invocation-id", "5c62095c-cda5-4649-b0d6-85fddf98b311"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "189"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/us1103-ldl-eb\", \"AttributeNames\": [\"All\"], \"MessageAttributeNames\": [\"All\"], \"MaxNumberOfMessages\": 10, \"WaitTimeSeconds\": 20}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "37177be8-e923-5f2a-8b66-188cffe62281"],
+          ["Date", "Tue, 03 Nov 2026 17:06:14 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "1957"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"Messages\":[{\"Attributes\":{\"SenderId\":\"AIDAIMTEBMVXFWRSXIKCK\",\"ApproximateFirstReceiveTimestamp\":\"1793725573991\",\"ApproximateReceiveCount\":\"1\",\"SentTimestamp\":\"1793725543739\",\"AWSTraceHeader\":\"Root=1-6aea1467-5b20a5732ea47ee81d219e1a;Parent=55b4ffbaa6d640a0;Sampled=0;Lineage=1:b5da2ca6:0\"},\"Body\":\"{\\\"version\\\":\\\"0\\\",\\\"id\\\":\\\"eb0d22b6-cf96-6e3a-00bd-3725ffc86aea\\\",\\\"detail-type\\\":\\\"Lambda Function Invocation Result - Failure\\\",\\\"source\\\":\\\"lambda\\\",\\\"account\\\":\\\"123456789012\\\",\\\"time\\\":\\\"2026-11-03T17:05:43Z\\\",\\\"region\\\":\\\"us-east-2\\\",\\\"resources\\\":[\\\"arn:aws:events:us-east-2:123456789012:event-bus/default\\\",\\\"arn:aws:lambda:us-east-2:123456789012:function:us1103-ldl-ebf:$LATEST\\\"],\\\"detail\\\":{\\\"version\\\":\\\"1.0\\\",\\\"timestamp\\\":\\\"2026-11-03T17:05:43.646Z\\\",\\\"requestContext\\\":{\\\"requestId\\\":\\\"9e41fb07-0195-495a-ae07-75c8ced5ecfb\\\",\\\"functionArn\\\":\\\"arn:aws:lambda:us-east-2:123456789012:function:us1103-ldl-ebf:$LATEST\\\",\\\"condition\\\":\\\"RetriesExhausted\\\",\\\"approximateInvokeCount\\\":1},\\\"requestPayload\\\":{\\\"mode\\\":\\\"raise\\\"},\\\"responseContext\\\":{\\\"statusCode\\\":200,\\\"executedVersion\\\":\\\"$LATEST\\\",\\\"functionError\\\":\\\"Unhandled\\\"},\\\"responsePayload\\\":{\\\"errorMessage\\\":\\\"ldl intentional failure\\\",\\\"errorType\\\":\\\"Exception\\\",\\\"requestId\\\":\\\"9e41fb07-0195-495a-ae07-75c8ced5ecfb\\\",\\\"stackTrace\\\":[\\\"  File \\\\\\\"/var/task/app.py\\\\\\\", line 10, in handler\\\\n    raise Exception(\\\\\\\"ldl intentional failure\\\\\\\")\\\\n\\\"]}}}\",\"MD5OfBody\":\"7703d167e4c0a9f8867a1131dd0689a5\",\"MessageId\":\"261fd9f4-a3db-4759-8e0f-cdee6f1217f3\",\"ReceiptHandle\":\"AQEBZElBK3DVA2lkfWrQDyEC39FaEDl+1J/pbIYS3eD8Fcj5ZvgCk+j0sDZ6I6qASVaVroxzCrVqyVmm6GaUCc6V5YrgMea0eSlsPbr3aQfrGa+S5WNHAYheF/eO/5YokxpUUOG7NLMpu7/zYmpNJ1x/UFFsmbj8U+ZDJm6joTz9lWSHglEMbJOiX1pc32anQog1RNDz7KeDe/lIXVNLiobfBBN2d8UIiRC+AmP00DGOVOw3Ut8eVs4SmJopb+Z9kzERHo7VolgBGcp71CE4nZFhDxLIlRXVntSb56oimS2y0TB8j0C7Vjf29Hz05q4aAXp7YMdUpUYKKPjRtGQm88t5dYVa/NaP34zkc4emf/OYhEZOoFHq6B9fd6bkhGM9wbGcbH7v/AP4/ofgMFe31X7rpQ==\"}]}"
+      }
+    }
+  ]
+}

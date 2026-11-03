@@ -1,0 +1,34 @@
+{
+  "step": "04-throttled-history",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://states.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSStepFunctions.GetExecutionHistory"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,Z,g,C,b,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#stepfunctions.get-execution-history"],
+          ["X-Amz-Date", "20261103T164454Z"],
+          ["amz-sdk-invocation-id", "6d2d939f-13ec-4fe5-9cb9-86a88ee10d53"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "121"]
+        ],
+        "body": "{\"executionArn\": \"arn:aws:states:us-east-2:123456789012:execution:us1103-throttled:1310f711-30ab-4b94-90a9-d2d4dc80bfde\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "a85e7360-8a88-4ba6-9809-c84f02fdb57b"],
+          ["Date", "Tue, 03 Nov 2026 16:44:54 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "1827"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"events\":[{\"__type\":\"com.amazonaws.swf.base.model#HistoryEvent\",\"executionStartedEventDetails\":{\"input\":\"{}\",\"inputDetails\":{\"truncated\":false},\"roleArn\":\"arn:aws:iam::123456789012:role/us1103-sfn\"},\"id\":1,\"previousEventId\":0,\"timestamp\":1.793724284128E9,\"type\":\"ExecutionStarted\"},{\"__type\":\"com.amazonaws.swf.base.model#HistoryEvent\",\"id\":2,\"previousEventId\":0,\"stateEnteredEventDetails\":{\"input\":\"{}\",\"inputDetails\":{\"truncated\":false},\"name\":\"T\"},\"timestamp\":1.793724284147E9,\"type\":\"TaskStateEntered\"},{\"__type\":\"com.amazonaws.swf.base.model#HistoryEvent\",\"id\":3,\"previousEventId\":2,\"taskScheduledEventDetails\":{\"parameters\":\"{\\\"FunctionName\\\":\\\"arn:aws:lambda:us-east-2:123456789012:function:us1103-sfn15-fn\\\"}\",\"region\":\"us-east-2\",\"resource\":\"invoke\",\"resourceType\":\"lambda\"},\"timestamp\":1.793724284147E9,\"type\":\"TaskScheduled\"},{\"__type\":\"com.amazonaws.swf.base.model#HistoryEvent\",\"id\":4,\"previousEventId\":3,\"taskStartedEventDetails\":{\"resource\":\"invoke\",\"resourceType\":\"lambda\"},\"timestamp\":1.793724284184E9,\"type\":\"TaskStarted\"},{\"__type\":\"com.amazonaws.swf.base.model#HistoryEvent\",\"id\":5,\"previousEventId\":4,\"taskFailedEventDetails\":{\"cause\":\"Rate Exceeded. (Service: AWSLambda; Status Code: 429; Error Code: TooManyRequestsException; Request ID: 160472d4-bbe4-43cf-a806-bbe43691d17d; Proxy: null)\",\"error\":\"Lambda.TooManyRequestsException\",\"resource\":\"invoke\",\"resourceType\":\"lambda\"},\"timestamp\":1.793724284235E9,\"type\":\"TaskFailed\"},{\"__type\":\"com.amazonaws.swf.base.model#HistoryEvent\",\"executionFailedEventDetails\":{\"cause\":\"Rate Exceeded. (Service: AWSLambda; Status Code: 429; Error Code: TooManyRequestsException; Request ID: 160472d4-bbe4-43cf-a806-bbe43691d17d; Proxy: null)\",\"error\":\"Lambda.TooManyRequestsException\"},\"id\":6,\"previousEventId\":5,\"timestamp\":1.793724284271E9,\"type\":\"ExecutionFailed\"}]}"
+      }
+    }
+  ]
+}

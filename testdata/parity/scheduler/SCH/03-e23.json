@@ -1,0 +1,32 @@
+{
+  "step": "03-e23",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://scheduler.us-east-2.amazonaws.com/schedules/us1103-e23",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,b,E,g,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#scheduler.create-schedule"],
+          ["X-Amz-Date", "20261103T163717Z"],
+          ["amz-sdk-invocation-id", "3ea3ecfb-4e21-4323-a014-4b02ef84e2d5"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "294"]
+        ],
+        "body": "{\"FlexibleTimeWindow\": {\"Mode\": \"OFF\"}, \"ScheduleExpression\": \"cron(0/30 20-2 ? * MON-FRI *)\", \"State\": \"DISABLED\", \"Target\": {\"Arn\": \"arn:aws:sqs:us-east-2:123456789012:us1103-sch\", \"RoleArn\": \"arn:aws:iam::123456789012:role/us1103-sch\"}, \"ClientToken\": \"c4b4e04e-cf79-4a99-a838-a88016909bd4\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "f3eb5609-e3e7-4612-be91-2f1cd1671ea7"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "86"],
+          ["Date", "Tue, 03 Nov 2026 16:37:18 GMT"]
+        ],
+        "body": "{\"ScheduleArn\":\"arn:aws:scheduler:us-east-2:123456789012:schedule/default/us1103-e23\"}"
+      }
+    }
+  ]
+}

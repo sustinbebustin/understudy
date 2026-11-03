@@ -1,0 +1,35 @@
+{
+  "step": "06-create-default",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ValidationException) when calling the CreateScheduleGroup operation: This operation cannot be performed on schedule group default.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://scheduler.us-east-2.amazonaws.com/schedule-groups/default",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,E,Z,AN,g cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#scheduler.create-schedule-group"],
+          ["X-Amz-Date", "20261103T163806Z"],
+          ["amz-sdk-invocation-id", "1d8011d4-a32f-4a3e-89af-28b73654a0d2"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "55"]
+        ],
+        "body": "{\"ClientToken\": \"afc55c0c-4a3d-4f48-b9cb-f14baf75fc5a\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "66c86332-6991-42bf-9c9e-e8af2c8ab4cb"],
+          ["x-amzn-ErrorType", "ValidationException:http://internal.amazon.com/coral/com.amazonaws.chronos/"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "75"],
+          ["Date", "Tue, 03 Nov 2026 16:38:06 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "{\"Message\":\"This operation cannot be performed on schedule group default.\"}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "step": "41-raw",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://ssm.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Host", "ssm.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261103T033958Z"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["X-Amz-Target", "AmazonSSM.DescribeParameters"],
+          ["Content-Length", "2"]
+        ],
+        "body": "{}"
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Tue, 03 Nov 2026 03:39:58 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "288"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "10d48feb-6ff3-4c29-9ca5-f4772a3f1877"]
+        ],
+        "body": "{\"__type\":\"AccessDeniedException\",\"Message\":\"User: arn:aws:sts::123456789012:assumed-role/us1103-enf-none/enf is not authorized to perform: ssm:DescribeParameters on resource: arn:aws:ssm:us-east-2:123456789012:* because no identity-based policy allows the ssm:DescribeParameters action\"}"
+      }
+    }
+  ]
+}

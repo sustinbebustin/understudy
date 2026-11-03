@@ -1,0 +1,35 @@
+{
+  "step": "07-streams",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (AccessDeniedException) when calling the DescribeLogStreams operation: User: arn:aws:sts::123456789012:assumed-role/us1103-enf-none/enf is not authorized to perform: logs:DescribeLogStreams on resource: arn:aws:logs:us-east-2:123456789012:log-group:/us1103/enf because no identity-based policy allows the logs:DescribeLogStreams action",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://logs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "Logs_20140328.DescribeLogStreams"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,b,Z,g,E,C cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#logs.describe-log-streams"],
+          ["X-Amz-Date", "20261103T034509Z"],
+          ["amz-sdk-invocation-id", "258dd643-9718-4524-830f-04eaaadcd176"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "31"]
+        ],
+        "body": "{\"logGroupName\": \"/us1103/enf\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "eefb40ed-4099-4e40-a910-afb13f7bfbbd"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "311"],
+          ["Date", "Tue, 03 Nov 2026 03:45:09 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "{\"__type\":\"AccessDeniedException\",\"Message\":\"User: arn:aws:sts::123456789012:assumed-role/us1103-enf-none/enf is not authorized to perform: logs:DescribeLogStreams on resource: arn:aws:logs:us-east-2:123456789012:log-group:/us1103/enf because no identity-based policy allows the logs:DescribeLogStreams action\"}"
+      }
+    }
+  ]
+}

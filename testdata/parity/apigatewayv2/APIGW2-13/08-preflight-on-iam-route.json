@@ -1,0 +1,36 @@
+{
+  "step": "08-preflight-on-iam-route",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "OPTIONS",
+        "url": "https://hl9cpb8a0a.execute-api.us-east-2.amazonaws.com/iam",
+        "headers": [
+          ["Host", "hl9cpb8a0a.execute-api.us-east-2.amazonaws.com"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"],
+          ["Origin", "https://a.example"],
+          ["Access-Control-Request-Method", "GET"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:49:59 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "962"],
+          ["Connection", "keep-alive"],
+          ["access-control-allow-origin", "https://a.example"],
+          ["access-control-allow-methods", "GET,POST"],
+          ["access-control-allow-headers", "content-type"],
+          ["access-control-allow-credentials", "true"],
+          ["access-control-max-age", "300"],
+          ["Apigw-Requestid", "GReMxiI3iYcEPYw="]
+        ],
+        "body": "{\"version\": \"2.0\", \"routeKey\": \"ANY /{proxy+}\", \"rawPath\": \"/iam\", \"rawQueryString\": \"\", \"headers\": {\"accept\": \"*/*\", \"access-control-request-method\": \"GET\", \"content-length\": \"0\", \"host\": \"hl9cpb8a0a.execute-api.us-east-2.amazonaws.com\", \"origin\": \"https://a.example\", \"user-agent\": \"curl/8.23.0\", \"x-amzn-trace-id\": \"Root=1-6aea10b7-18702af45a849fec1bc7bcf5\", \"x-forwarded-for\": \"198.51.100.2\", \"x-forwarded-port\": \"443\", \"x-forwarded-proto\": \"https\"}, \"requestContext\": {\"accountId\": \"123456789012\", \"apiId\": \"hl9cpb8a0a\", \"domainName\": \"hl9cpb8a0a.execute-api.us-east-2.amazonaws.com\", \"domainPrefix\": \"hl9cpb8a0a\", \"http\": {\"method\": \"OPTIONS\", \"path\": \"/iam\", \"protocol\": \"HTTP/1.1\", \"sourceIp\": \"198.51.100.2\", \"userAgent\": \"curl/8.23.0\"}, \"requestId\": \"GReMxiI3iYcEPYw=\", \"routeKey\": \"ANY /{proxy+}\", \"stage\": \"$default\", \"time\": \"03/Nov/2026:16:49:59 +0000\", \"timeEpoch\": 1793724599660}, \"pathParameters\": {\"proxy\": \"iam\"}, \"isBase64Encoded\": false}"
+      }
+    }
+  ]
+}

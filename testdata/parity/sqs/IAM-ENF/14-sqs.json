@@ -1,0 +1,37 @@
+{
+  "step": "14-sqs",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (AWS.SimpleQueueService.NonExistentQueue) when calling the GetQueueAttributes operation: The specified queue does not exist.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.GetQueueAttributes"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,g,b,E,Z cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.get-queue-attributes"],
+          ["X-Amz-Date", "20261103T034521Z"],
+          ["amz-sdk-invocation-id", "478072be-63ee-4d7a-9d73-33e0af676cec"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "110"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/us1103-enf-missing\", \"AttributeNames\": [\"All\"]}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "197eca6c-3db3-5011-b636-a90f66a230e1"],
+          ["x-amzn-query-error", "AWS.SimpleQueueService.NonExistentQueue;Sender"],
+          ["Date", "Tue, 03 Nov 2026 03:45:21 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "96"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"__type\":\"com.amazonaws.sqs#QueueDoesNotExist\",\"message\":\"The specified queue does not exist.\"}"
+      }
+    }
+  ]
+}

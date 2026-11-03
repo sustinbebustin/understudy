@@ -1,0 +1,35 @@
+{
+  "step": "08-no-role",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ValidationException) when calling the PutTargets operation: RoleArn is required for target arn:aws:events:us-east-2:123456789012:event-bus/us1103-h2.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://events.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSEvents.PutTargets"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,b,AN,g,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#events.put-targets"],
+          ["X-Amz-Date", "20261103T163936Z"],
+          ["amz-sdk-invocation-id", "d0f28f44-c6af-467d-b148-d71c3d3a88b9"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "147"]
+        ],
+        "body": "{\"Rule\": \"us1103-h1r\", \"EventBusName\": \"us1103-h1\", \"Targets\": [{\"Id\": \"h2n\", \"Arn\": \"arn:aws:events:us-east-2:123456789012:event-bus/us1103-h2\"}]}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "cef9d9a2-72b6-4f32-9ec0-2c612d0bf227"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "134"],
+          ["Date", "Tue, 03 Nov 2026 16:39:36 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "{\"__type\":\"ValidationException\",\"message\":\"RoleArn is required for target arn:aws:events:us-east-2:123456789012:event-bus/us1103-h2.\"}"
+      }
+    }
+  ]
+}

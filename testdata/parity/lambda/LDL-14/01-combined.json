@@ -1,0 +1,35 @@
+{
+  "step": "01-combined",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidParameterValueException) when calling the CreateFunction operation: Layers consume more than the available size of 262144000 bytes\n\nAdditional error details:\nType: User",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://lambda.us-east-2.amazonaws.com/2015-03-31/functions",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,E,b,Z,g cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.create-function"],
+          ["X-Amz-Date", "20261103T170729Z"],
+          ["amz-sdk-invocation-id", "81921968-aa0a-43ac-873e-c291a10c1d1f"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "1126"]
+        ],
+        "body": "{\"FunctionName\": \"us1103-ldl-big\", \"Runtime\": \"python3.13\", \"Role\": \"arn:aws:iam::123456789012:role/us1103-ldl-role\", \"Handler\": \"app.handler\", \"Layers\": [\"arn:aws:lambda:us-east-2:123456789012:layer:us1103-ldl-big1:1\", \"arn:aws:lambda:us-east-2:123456789012:layer:us1103-ldl-big2:1\"], \"Code\": {\"ZipFile\": \"UEsDBBQAAAAIAIOEY12nZZ+m9gEAAFQEAAAGAAAAYXBwLnB5hVNNa+MwEL3nVwxzshbjhoW9GHrItl1SCEkJgaUnI6xxq40y8kpyNiXkvy+Sm9St2a4PtjUfb94bzehda12AX95yDtbn4F98DkHvaDJR1MCzZGXIZbQnDjnUlgMdgignAAA7qwiuIfmKJwoZRgsK0A1or9kHyTWdc5WugwAynmBpmRJC6zSHLFYvVLdrfXbEFI0lvGaho98d+VBpheW5fiH/+OrNkSes8YOa93ZLw8RXS9V0XAdtuZKOc8BYMIou4isTJyESpG7A+oJ4r53lXuGP2f2iWi2r9d3Nan2LAiSrf4qNvrOAm54BguZeW3lh7aT2BHeHmtrIKUOjDCjyQbOMBmikNp0jvLDqO38NmFLxP1CaA3E8SvMJlLH8RM59Aja46BpzwAMK+AJfp9PpGM0bonaAlbqbjFm88gGUxxy+CTGGYMvvpFHoHL/NzjA0dXYUiq2RmiE5Rym15cboepim+2Uwyuys+gh2xEYbwhJsS5zhlW3D1RmjCIeAonAkVSZyiGvQpdgeqvg5X51GBFoZnv2Y9BH9i6+iE8u4jUX8zQFtG4fUWxdIZdYXRvugtOuZoBDjJUDiPZZw3JYfp3groLEOtnEWM3yYbebxOhe31eL++3q2fqzOpofHzXy1TCdx6iVcaNotlrBxHfWCo9z4OU3+AlBLAQIUAxQAAAAIAIOEY12nZZ+m9gEAAFQEAAAGAAAAAAAAAAAAAAC0gQAAAABhcHAucHlQSwUGAAAAAAEAAQA0AAAAGgIAAAAA\"}}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 17:07:29 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "90"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "335dc0f6-9575-4e5c-9c49-630f52e2abed"],
+          ["x-amzn-ErrorType", "InvalidParameterValueException"]
+        ],
+        "body": "{\"Type\":\"User\",\"message\":\"Layers consume more than the available size of 262144000 bytes\"}"
+      }
+    }
+  ]
+}

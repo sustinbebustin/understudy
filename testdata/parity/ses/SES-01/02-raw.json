@@ -1,0 +1,33 @@
+{
+  "step": "02-raw",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://email.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Host", "email.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261103T164210Z"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/x-www-form-urlencoded"],
+          ["Content-Length", "198"]
+        ],
+        "body": "Action=SendEmail&Version=2010-12-01&Source=Nobody+%3Cus1103-nobody%40example.com%3E&Destination.ToAddresses.member.1=success%40simulator.amazonses.com&Message.Subject.Data=s&Message.Body.Text.Data=b"
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:42:10 GMT"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "380"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "058a96a0-73e2-40e0-b5de-3e1638fa88fb"]
+        ],
+        "body": "<ErrorResponse xmlns=\"http://ses.amazonaws.com/doc/2010-12-01/\">\n  <Error>\n    <Type>Sender</Type>\n    <Code>MessageRejected</Code>\n    <Message>Email address is not verified. The following identities failed the check in region US-EAST-2: Nobody &lt;us1103-nobody@example.com&gt;</Message>\n  </Error>\n  <RequestId>058a96a0-73e2-40e0-b5de-3e1638fa88fb</RequestId>\n</ErrorResponse>\n"
+      }
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "step": "E-json-charset",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sns.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,AN,Z,g,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sns.set-subscription-attributes"],
+          ["X-Amz-Date", "20261103T171244Z"],
+          ["amz-sdk-invocation-id", "a6c9a33a-5b5f-4048-9eef-9e16c48537e4"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "313"]
+        ],
+        "body": "Action=SetSubscriptionAttributes&Version=2010-03-31&SubscriptionArn=arn%3Aaws%3Asns%3Aus-east-2%3A123456789012%3Aus1103-snsh-e%3A70f302f7-78b4-46d0-b4fc-527dc9c843d6&AttributeName=DeliveryPolicy&AttributeValue=%7B%22requestPolicy%22%3A%7B%22headerContentType%22%3A%22application%2Fjson%3B+charset%3DUTF-8%22%7D%7D"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "74ee9334-fe15-59f0-894c-f050e6596a37"],
+          ["Date", "Tue, 03 Nov 2026 17:12:44 GMT"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "229"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "<SetSubscriptionAttributesResponse xmlns=\"http://sns.amazonaws.com/doc/2010-03-31/\">\n  <ResponseMetadata>\n    <RequestId>74ee9334-fe15-59f0-894c-f050e6596a37</RequestId>\n  </ResponseMetadata>\n</SetSubscriptionAttributesResponse>\n"
+      }
+    }
+  ]
+}

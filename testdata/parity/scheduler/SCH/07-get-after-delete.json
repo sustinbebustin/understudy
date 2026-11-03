@@ -1,0 +1,31 @@
+{
+  "step": "07-get-after-delete",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ResourceNotFoundException) when calling the GetSchedule operation: Schedule us1103-p2 does not exist.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://scheduler.us-east-2.amazonaws.com/schedules/us1103-p2",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,Z,g,b,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#scheduler.get-schedule"],
+          ["X-Amz-Date", "20261103T173426Z"],
+          ["amz-sdk-invocation-id", "eae6bb85-5c31-498d-8d93-167de554b186"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 404,
+        "headers": [
+          ["x-amzn-RequestId", "4849cb79-3aef-4012-aab0-82b01d4f8776"],
+          ["x-amzn-ErrorType", "ResourceNotFoundException:http://internal.amazon.com/coral/com.amazonaws.chronos/"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "48"],
+          ["Date", "Tue, 03 Nov 2026 17:34:26 GMT"]
+        ],
+        "body": "{\"Message\":\"Schedule us1103-p2 does not exist.\"}"
+      }
+    }
+  ]
+}

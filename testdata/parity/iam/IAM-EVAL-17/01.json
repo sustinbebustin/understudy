@@ -1,0 +1,32 @@
+{
+  "step": "01",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://iam.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,Z,E,b,AC,AD cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#iam.get-context-keys-for-custom-policy"],
+          ["X-Amz-Date", "20261103T031430Z"],
+          ["amz-sdk-invocation-id", "e30139c6-dc6d-420f-aa39-10777089960f"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "502"]
+        ],
+        "body": "Action=GetContextKeysForCustomPolicy&Version=2010-05-08&PolicyInputList.member.1=%7B%22Version%22%3A%222012-10-17%22%2C%22Statement%22%3A%5B%7B%22Effect%22%3A%22Allow%22%2C%22Action%22%3A%22s3%3AGetObject%22%2C%22Resource%22%3A%22arn%3Aaws%3As3%3A%3A%3Ab%2F%24%7Baws%3Ausername%7D%2F%2A%22%2C%22Condition%22%3A%7B%22IpAddress%22%3A%7B%22aws%3ASourceIp%22%3A%22203.0.113.8%2F24%22%7D%2C%22StringEquals%22%3A%7B%22s3%3AExistingObjectTag%2Fteam%22%3A%22%24%7Baws%3APrincipalTag%2Fteam%7D%22%7D%7D%7D%5D%7D"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 03:14:30 GMT"],
+          ["x-amzn-RequestId", "62cf7fc1-a622-4c24-a512-179daa64b7d2"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "530"]
+        ],
+        "body": "<GetContextKeysForCustomPolicyResponse xmlns=\"https://iam.amazonaws.com/doc/2010-05-08/\">\n  <GetContextKeysForCustomPolicyResult>\n    <ContextKeyNames>\n      <member>aws:SourceIp</member>\n      <member>aws:username</member>\n      <member>aws:PrincipalTag/team</member>\n      <member>s3:ExistingObjectTag/team</member>\n    </ContextKeyNames>\n  </GetContextKeysForCustomPolicyResult>\n  <ResponseMetadata>\n    <RequestId>62cf7fc1-a622-4c24-a512-179daa64b7d2</RequestId>\n  </ResponseMetadata>\n</GetContextKeysForCustomPolicyResponse>\n"
+      }
+    }
+  ]
+}

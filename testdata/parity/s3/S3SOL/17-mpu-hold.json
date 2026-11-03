@@ -1,0 +1,36 @@
+{
+  "step": "17-mpu-hold",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidRequest) when calling the CreateMultipartUpload operation: Bucket is missing ObjectLockConfiguration",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://us1103-nolock.s3.us-east-2.amazonaws.com/l17?uploads",
+        "headers": [
+          ["x-amz-object-lock-legal-hold", "ON"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,E,b,Z,g cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.create-multipart-upload"],
+          ["X-Amz-Date", "20261103T034055Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "df34195b-9506-4ad1-8d95-b479b3a6a4a0"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "0"]
+        ]
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "XYW6XVX4RABS4V7T"],
+          ["x-amz-id-2", "8SNFo//wNVtFuy1qyqMo4Y6HXsGjD3IBSm7J8s8BdB0Z/2hHyVsYLFGd3RzwUGLRav7lp2kMTQ8="],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Tue, 03 Nov 2026 03:40:55 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>InvalidRequest</Code><Message>Bucket is missing ObjectLockConfiguration</Message><RequestId>XYW6XVX4RABS4V7T</RequestId><HostId>8SNFo//wNVtFuy1qyqMo4Y6HXsGjD3IBSm7J8s8BdB0Z/2hHyVsYLFGd3RzwUGLRav7lp2kMTQ8=</HostId></Error>"
+      }
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "step": "01-create-min",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://scheduler.us-east-2.amazonaws.com/schedules/us1103-s1",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,g,AN,Z,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#scheduler.create-schedule"],
+          ["X-Amz-Date", "20261103T163645Z"],
+          ["amz-sdk-invocation-id", "2550c710-ea9e-4861-9a47-b552c8d0de48"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "256"]
+        ],
+        "body": "{\"FlexibleTimeWindow\": {\"Mode\": \"OFF\"}, \"ScheduleExpression\": \"rate(1 hour)\", \"Target\": {\"Arn\": \"arn:aws:sqs:us-east-2:123456789012:us1103-sch\", \"RoleArn\": \"arn:aws:iam::123456789012:role/us1103-sch\"}, \"ClientToken\": \"0fdfe57f-08d1-4eed-a26b-5f02ce925eb4\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "c84f2df8-8af3-4cc0-a6c8-a36cb5255013"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "85"],
+          ["Date", "Tue, 03 Nov 2026 16:36:46 GMT"]
+        ],
+        "body": "{\"ScheduleArn\":\"arn:aws:scheduler:us-east-2:123456789012:schedule/default/us1103-s1\"}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "step": "09-xml",
+  "client": "curl",
+  "exchanges": [
+    {
+      "response": {
+        "status": 415,
+        "reason": "Unsupported Media Type",
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:40:23 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "37"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "5838ce64-1967-46d4-9c04-969ad197e56a"],
+          ["x-amzn-ErrorType", "BadRequestException"],
+          ["x-amz-apigw-id", "GRcytGfuiYcEpsw="]
+        ],
+        "body": "{\"message\": \"Unsupported Media Type\"}"
+      }
+    }
+  ]
+}

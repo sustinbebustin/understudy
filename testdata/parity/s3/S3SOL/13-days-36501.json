@@ -1,0 +1,38 @@
+{
+  "step": "13-days-36501",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidArgument) when calling the PutObjectLockConfiguration operation: Default retention period too large.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://us1103-olock-y.s3.us-east-2.amazonaws.com/?object-lock",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,AN,W,g,E,Z cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.put-object-lock-configuration"],
+          ["x-amz-checksum-crc64nvme", "JpjHOKWw87g="],
+          ["x-amz-sdk-checksum-algorithm", "CRC64NVME"],
+          ["X-Amz-Date", "20261103T034045Z"],
+          ["X-Amz-Content-SHA256", "75a6cf5ecea390feff1be3d3288857ec2f933576e544c51505be5ffd1b35e610"],
+          ["amz-sdk-invocation-id", "0566dc85-9a3a-4635-85f1-eb3117558a2b"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "236"]
+        ],
+        "body": "<ObjectLockConfiguration xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><ObjectLockEnabled>Enabled</ObjectLockEnabled><Rule><DefaultRetention><Mode>GOVERNANCE</Mode><Days>36501</Days></DefaultRetention></Rule></ObjectLockConfiguration>"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "0CXD75YWMK3F0A5Z"],
+          ["x-amz-id-2", "Sso9YdtFpDOpdwhCXw+QtNjfmTQhFdJpd1cJy+xlahvmnsEHWQ03tJjpmoWSoDK2n8ivjWApFkHFrgqVCKfAa9JAD/WtK9SF"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Tue, 03 Nov 2026 03:40:44 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>InvalidArgument</Code><Message>Default retention period too large.</Message><ArgumentName>Days</ArgumentName><ArgumentValue>36501</ArgumentValue><RequestId>0CXD75YWMK3F0A5Z</RequestId><HostId>Sso9YdtFpDOpdwhCXw+QtNjfmTQhFdJpd1cJy+xlahvmnsEHWQ03tJjpmoWSoDK2n8ivjWApFkHFrgqVCKfAa9JAD/WtK9SF</HostId></Error>"
+      }
+    }
+  ]
+}

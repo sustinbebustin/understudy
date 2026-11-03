@@ -1,0 +1,35 @@
+{
+  "step": "receive-2",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.ReceiveMessage"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,AD,E,AN,AC,b cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.receive-message"],
+          ["X-Amz-Date", "20261103T031827Z"],
+          ["amz-sdk-invocation-id", "4ca507eb-2957-44b3-80ef-b13c15777ddf"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "192"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/us1103-cwa\", \"AttributeNames\": [\"All\"], \"MessageSystemAttributeNames\": [\"All\"], \"MaxNumberOfMessages\": 10, \"WaitTimeSeconds\": 10}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "18e3e514-4e05-5250-8e3e-86771ac6727b"],
+          ["Date", "Tue, 03 Nov 2026 03:18:27 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "3093"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"Messages\":[{\"Attributes\":{\"SenderId\":\"AROA3TYMO3BGDHJFBHT75:AWS-CLOUDCAST\",\"ApproximateFirstReceiveTimestamp\":\"1793675861858\",\"ApproximateReceiveCount\":\"2\",\"SentTimestamp\":\"1793675739378\"},\"Body\":\"{\\n  \\\"Type\\\" : \\\"Notification\\\",\\n  \\\"MessageId\\\" : \\\"f46aabdc-f04e-55db-9d0d-c8bfa45527d6\\\",\\n  \\\"TopicArn\\\" : \\\"arn:aws:sns:us-east-2:123456789012:us1103-cwa\\\",\\n  \\\"Subject\\\" : \\\"ALARM: \\\\\\\"us1103-sns-full\\\\\\\" in US East (Ohio)\\\",\\n  \\\"Message\\\" : \\\"{\\\\\\\"AlarmName\\\\\\\":\\\\\\\"us1103-sns-full\\\\\\\",\\\\\\\"AlarmDescription\\\\\\\":\\\\\\\"full \\\\\\\\\\\\\\\"quoted\\\\\\\\\\\\\\\" description\\\\\\\",\\\\\\\"AWSAccountId\\\\\\\":\\\\\\\"123456789012\\\\\\\",\\\\\\\"AlarmConfigurationUpdatedTimestamp\\\\\\\":\\\\\\\"2026-11-03T03:15:36.700+0000\\\\\\\",\\\\\\\"NewStateValue\\\\\\\":\\\\\\\"ALARM\\\\\\\",\\\\\\\"NewStateReason\\\\\\\":\\\\\\\"cwa sns-full\\\\\\\",\\\\\\\"StateChangeTime\\\\\\\":\\\\\\\"2026-11-03T03:15:39.316+0000\\\\\\\",\\\\\\\"Region\\\\\\\":\\\\\\\"US East (Ohio)\\\\\\\",\\\\\\\"AlarmArn\\\\\\\":\\\\\\\"arn:aws:cloudwatch:us-east-2:123456789012:alarm:us1103-sns-full\\\\\\\",\\\\\\\"OldStateValue\\\\\\\":\\\\\\\"INSUFFICIENT_DATA\\\\\\\",\\\\\\\"ActionExecutedAfterMuteWindow\\\\\\\":false,\\\\\\\"OKActions\\\\\\\":[\\\\\\\"arn:aws:sns:us-east-2:123456789012:us1103-cwa\\\\\\\"],\\\\\\\"AlarmActions\\\\\\\":[\\\\\\\"arn:aws:sns:us-east-2:123456789012:us1103-cwa\\\\\\\"],\\\\\\\"InsufficientDataActions\\\\\\\":[],\\\\\\\"Trigger\\\\\\\":{\\\\\\\"MetricName\\\\\\\":\\\\\\\"sns-none\\\\\\\",\\\\\\\"Namespace\\\\\\\":\\\\\\\"us1103/cwa\\\\\\\",\\\\\\\"StatisticType\\\\\\\":\\\\\\\"Statistic\\\\\\\",\\\\\\\"Statistic\\\\\\\":\\\\\\\"MAXIMUM\\\\\\\",\\\\\\\"Unit\\\\\\\":\\\\\\\"Seconds\\\\\\\",\\\\\\\"Dimensions\\\\\\\":[{\\\\\\\"value\\\\\\\":\\\\\\\"1\\\\\\\",\\\\\\\"name\\\\\\\":\\\\\\\"a\\\\\\\"},{\\\\\\\"value\\\\\\\":\\\\\\\"2\\\\\\\",\\\\\\\"name\\\\\\\":\\\\\\\"b\\\\\\\"}],\\\\\\\"Period\\\\\\\":60,\\\\\\\"EvaluationPeriods\\\\\\\":2,\\\\\\\"DatapointsToAlarm\\\\\\\":1,\\\\\\\"ComparisonOperator\\\\\\\":\\\\\\\"GreaterThanThreshold\\\\\\\",\\\\\\\"Threshold\\\\\\\":3.0,\\\\\\\"TreatMissingData\\\\\\\":\\\\\\\"ignore\\\\\\\",\\\\\\\"EvaluateLowSampleCountPercentile\\\\\\\":\\\\\\\"\\\\\\\"}}\\\",\\n  \\\"Timestamp\\\" : \\\"2026-11-03T03:15:39.330Z\\\",\\n  \\\"SignatureVersion\\\" : \\\"1\\\",\\n  \\\"Signature\\\" : \\\"DM/Q5Jqd5o97Phqakgk95Fl4niFerI2wybz0q7JC1Bh1qXMcbR6vMIwMDgLA59UCH/Zx3QJWBMfSmFpJOnhjBaLYbP3fOrgzOhL9QR4KbWN+Vkfs4BlPYYHZAdlB0PIK8ZL7W4U4k8/4hw7guY8ZgWqx8BNBZI+v64x1wSm2H7FdkUWk38kewBVvMeUNPc8QUtFykrSkhJW/hjIZL8VXHivgUiKaax4TORLjJN8BwRv8kjzew0WryY5lvHgdTkajsQMwOXlLknILOfCG0rm/4IaV7PlvTr5Lgck90rSHs5gY0N5zu8z755rdjjMOfhyYbJf5OiUjJEfPIWB0EnwY5A==\\\",\\n  \\\"SigningCertURL\\\" : \\\"https://sns.us-east-2.amazonaws.com/SimpleNotificationService-1e59c4574facfe41babdb2d652f8ebef.pem\\\",\\n  \\\"UnsubscribeURL\\\" : \\\"https://sns.us-east-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:us-east-2:123456789012:us1103-cwa:15319413-2f73-447c-a41c-110ef074dd45\\\"\\n}\",\"MD5OfBody\":\"40287fbfc6bde52832ea214185826861\",\"MessageId\":\"cc8f7a25-242d-4e3e-9a23-f02ccf7a2aac\",\"ReceiptHandle\":\"AQEBA9h1koQ9v+w6JsVz4Clgq1iaBe9BCbEYW541tMeCUyP5XyCq0cAD+t+vmv8EG7W56+CB/oJXFOYFPlGBHDmhOW2Gxy+ybnw94IjeZQcX5TjsU55EvDXI7sUVY+bZq3Sx/Gjvz4CfXMKZIJNO8MZk+0zUjS0PGRCYnKByaWvxHpEYLLR10yKn4CkEtYPVn3ZllXFsE4sjN3s2ww/wa3+uIyzgJmqJ0yi+t92IvXGh/pHecBCN/0pBk3NDdkSQDKc1cn2DOfm43uPjZ0JFaiddTfsrFoBX7KQDPNEMUvk6HEQKP+4Xui01rXU7+2PES6/2UNovTgPjbmZ3tE7vPn9nDvtetuQI6iG04J5o+lNhjB3IEpZmySTyDuovCWdcD+XlTvz6dBwdgLgKXoqsmAMx+A==\"}]}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "step": "04-head",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "HEAD",
+        "url": "https://us1103-ldl-b.s3.us-east-2.amazonaws.com/aws/lambda/async/us1103-ldl-s3/2026/11/03/2026-11-03T16.52.53-fdc93dec-996a-4141-9306-9a64b74461b0",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,b,E,AN,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.head-object"],
+          ["X-Amz-Date", "20261103T165334Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "dbb1435c-cd29-46ce-9d59-1f269b68e2ed"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amz-id-2", "d3CfDk7/DszEXaaREG8fZiRjD8Pgw889TQcVX76iciefuvhxKZISlqLdKdzVdVAj9PvhwLviuq3PlTa0sju21087i30CKk0N"],
+          ["x-amz-request-id", "VSVQ0SAAQ8YG5G0K"],
+          ["Server", "AmazonS3"],
+          ["Date", "Tue, 03 Nov 2026 16:53:35 GMT"],
+          ["Last-Modified", "Tue, 03 Nov 2026 16:52:54 GMT"],
+          ["ETag", "\"9f48121adf05de9c546aba86e30f7eaf\""],
+          ["x-amz-server-side-encryption", "AES256"],
+          ["Accept-Ranges", "bytes"],
+          ["Content-Length", "657"],
+          ["Content-Type", "application/octet-stream"]
+        ],
+        "body": ""
+      }
+    }
+  ]
+}

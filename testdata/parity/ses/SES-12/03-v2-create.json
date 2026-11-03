@@ -1,0 +1,33 @@
+{
+  "step": "03-v2-create",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://email.us-east-2.amazonaws.com/v2/email/identities",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,b,AN,g,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sesv2.create-email-identity"],
+          ["X-Amz-Date", "20261103T164221Z"],
+          ["amz-sdk-invocation-id", "37a9954a-b098-40c7-a722-3ed30152222f"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "42"]
+        ],
+        "body": "{\"EmailIdentity\": \"us1103-v2@example.com\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:42:21 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "87"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "c144897a-4b02-48f4-840f-c51bb9327d79"]
+        ],
+        "body": "{\"DkimAttributes\":null,\"IdentityType\":\"EMAIL_ADDRESS\",\"VerifiedForSendingStatus\":false}"
+      }
+    }
+  ]
+}

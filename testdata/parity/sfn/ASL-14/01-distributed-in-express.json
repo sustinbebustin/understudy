@@ -1,0 +1,35 @@
+{
+  "step": "01-distributed-in-express",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidDefinition) when calling the CreateStateMachine operation: Invalid State Machine Definition: 'SCHEMA_VALIDATION_FAILED: The field 'Mode' with value 'DISTRIBUTED' is not supported inside 'EXPRESS' state machines at /States/M/ItemProcessor/Mode'",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://states.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSStepFunctions.CreateStateMachine"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,g,b,Z,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#stepfunctions.create-state-machine"],
+          ["X-Amz-Date", "20261103T165150Z"],
+          ["amz-sdk-invocation-id", "c1403f34-9125-4e63-9880-1f7d5fce134a"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "341"]
+        ],
+        "body": "{\"name\": \"us1103-xd\", \"definition\": \"{\\\"StartAt\\\":\\\"M\\\",\\\"States\\\":{\\\"M\\\":{\\\"Type\\\":\\\"Map\\\",\\\"ItemProcessor\\\":{\\\"ProcessorConfig\\\":{\\\"Mode\\\":\\\"DISTRIBUTED\\\",\\\"ExecutionType\\\":\\\"EXPRESS\\\"},\\\"StartAt\\\":\\\"S\\\",\\\"States\\\":{\\\"S\\\":{\\\"Type\\\":\\\"Succeed\\\"}}},\\\"End\\\":true}}}\", \"roleArn\": \"arn:aws:iam::123456789012:role/us1103-sfn\", \"type\": \"EXPRESS\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "7ee157cb-71a5-4d4e-b72b-ac17f5ba43a2"],
+          ["Date", "Tue, 03 Nov 2026 16:51:50 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "262"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"__type\":\"com.amazonaws.swf.service.v2.model#InvalidDefinition\",\"message\":\"Invalid State Machine Definition: 'SCHEMA_VALIDATION_FAILED: The field 'Mode' with value 'DISTRIBUTED' is not supported inside 'EXPRESS' state machines at /States/M/ItemProcessor/Mode'\"}"
+      }
+    }
+  ]
+}

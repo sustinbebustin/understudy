@@ -1,0 +1,39 @@
+{
+  "step": "05-over-10mib",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://hl9cpb8a0a.execute-api.us-east-2.amazonaws.com/e",
+        "headers": [
+          ["Host", "hl9cpb8a0a.execute-api.us-east-2.amazonaws.com"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/octet-stream"],
+          ["Content-Length", "10485761"],
+          ["Expect", "100-continue"]
+        ],
+        "body_omitted": {"bytes": 10485761, "sha256": "0c2725e0d4ae4ae669bdd6c88b253997198efb67d962d217c52e6cbfd318fe0c"}
+      },
+      "response": {
+        "status": 413,
+        "reason": "Request Entity Too Large",
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:46:39 GMT"],
+          ["Content-Length", "38"],
+          ["Connection", "keep-alive"],
+          ["apigw-requestid", "GRdtdgJwiYcEPaw="]
+        ],
+        "body": "{\"message\":\"Request Entity Too Large\"}"
+      },
+      "interim_responses": [
+        {
+          "status": 100,
+          "reason": "Continue",
+          "headers": []
+        }
+      ]
+    }
+  ]
+}

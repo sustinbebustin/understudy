@@ -1,0 +1,31 @@
+{
+  "step": "21-config",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://us1103-enf-b.s3.us-east-2.amazonaws.com/?notification",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,AN,b,E,g cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.get-bucket-notification-configuration"],
+          ["X-Amz-Date", "20261103T040248Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "97222e89-3f29-465f-8055-3e61ea560c98"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amz-id-2", "iRdk0VyLEYMttpwBAP4sKJE476ioNCH7LFNFNftbiEQw9OSUgmHlUdk19nZl9OnYK/frv3+hBpR8VwXfmvo80UTyCpW95qym"],
+          ["x-amz-request-id", "ENJE9SV27S2GAZ9M"],
+          ["Server", "AmazonS3"],
+          ["Date", "Tue, 03 Nov 2026 04:02:49 GMT"],
+          ["Transfer-Encoding", "chunked"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<NotificationConfiguration xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><QueueConfiguration><Id>YjFiZGQ4OTQtZjgyNS00M2Y3LWEzZTctNmM3N2YwNWFkZjYw</Id><Queue>arn:aws:sqs:us-east-2:123456789012:us1103-enf-nq</Queue><Event>s3:ObjectCreated:*</Event></QueueConfiguration></NotificationConfiguration>"
+      }
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "step": "04-order-role-target",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ValidationException) when calling the CreateSchedule operation: dynamodb is not a supported service for a target.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://scheduler.us-east-2.amazonaws.com/schedules/us1103-o4",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,AN,Z,b,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#scheduler.create-schedule"],
+          ["X-Amz-Date", "20261103T163747Z"],
+          ["amz-sdk-invocation-id", "36774f44-3fb7-40ac-8694-75f6ae7353ac"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "272"]
+        ],
+        "body": "{\"FlexibleTimeWindow\": {\"Mode\": \"OFF\"}, \"ScheduleExpression\": \"rate(1 hour)\", \"Target\": {\"Arn\": \"arn:aws:dynamodb:us-east-2:123456789012:table/us1103-t\", \"RoleArn\": \"arn:aws:iam::123456789012:role/us1103-sch-lambda\"}, \"ClientToken\": \"6e65569f-b092-4c20-be61-c8459d321d9a\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "0fc07d39-0d45-4343-8c50-88e3971dec71"],
+          ["x-amzn-ErrorType", "ValidationException:http://internal.amazon.com/coral/com.amazonaws.chronos/"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "63"],
+          ["Date", "Tue, 03 Nov 2026 16:37:48 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "{\"Message\":\"dynamodb is not a supported service for a target.\"}"
+      }
+    }
+  ]
+}

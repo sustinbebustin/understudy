@@ -1,0 +1,59 @@
+{
+  "step": "18-log-gone-Failure",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://logs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "Logs_20140328.FilterLogEvents"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,AN,C,b,Z,g cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#logs.filter-log-events"],
+          ["X-Amz-Date", "20261103T035739Z"],
+          ["amz-sdk-invocation-id", "0cd86bcb-9b91-4c26-a9b5-66a1bc9919bb"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "108"]
+        ],
+        "body": "{\"logGroupName\": \"sns/us-east-2/123456789012/us1103-enf-t/Failure\", \"filterPattern\": \"\\\"NonExistentQueue\\\"\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "ad30d910-3f9f-4100-9128-ccdb4fce0ec8"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "1455"],
+          ["Date", "Tue, 03 Nov 2026 03:57:39 GMT"]
+        ],
+        "body": "{\"events\":[{\"eventId\":\"40000359572359240358696997810784585683082540585937272832\",\"ingestionTime\":1793678158254,\"logStreamName\":\"d4ea52a6-192c-3472-baa0-56914dc587ec\",\"message\":\"{\\\"notification\\\":{\\\"messageMD5Sum\\\":\\\"4ae8a35d1ae3f0a0124f3b9af10e9926\\\",\\\"messageId\\\":\\\"2fd489dd-8df3-53dc-ae16-eabed08a4d0e\\\",\\\"topicArn\\\":\\\"arn:aws:sns:us-east-2:123456789012:us1103-enf-t\\\",\\\"timestamp\\\":\\\"2026-11-03 03:55:37.082\\\"},\\\"delivery\\\":{\\\"deliveryId\\\":\\\"a5433ee5-8295-5c68-826f-5d86dfecc12d\\\",\\\"redrivePolicy\\\":\\\"{\\\\\\\"deadLetterTargetArn\\\\\\\":\\\\\\\"arn:aws:sqs:us-east-2:123456789012:us1103-enf-dlq\\\\\\\"}\\\",\\\"destination\\\":\\\"arn:aws:sqs:us-east-2:123456789012:us1103-enf-gone\\\",\\\"providerResponse\\\":\\\"{\\\\\\\"ErrorCode\\\\\\\":\\\\\\\"AWS.SimpleQueueService.NonExistentQueue\\\\\\\",\\\\\\\"ErrorMessage\\\\\\\":\\\\\\\"The specified queue does not exist or you do not have access to it.\\\\\\\",\\\\\\\"sqsRequestId\\\\\\\":\\\\\\\"Unrecoverable\\\\\\\"}\\\",\\\"dwellTimeMs\\\":31,\\\"statusCode\\\":400},\\\"status\\\":\\\"FAILURE\\\"}\",\"timestamp\":1793678158118}],\"nextToken\":\"Bxkq6kVGFtq2y_MoigeqscPOdhXVbhiVtLoAmXb5jCqH5Jt3uyevJzIuAIEcGnBvyd-XKKrsxJxPTRe00ArTRlZHtx9pThQ1WdsLmaUeAQPF5nidwnx9V7lt7NWXtiqdg7d4AXXxktRdSVRJ-wwJxwCmEzlhfCoq7Tc4E6KJhn36PAmnD0EYa-NQnykM0UfEburc_kuMeFxYO9lhCQi2FGAbiQ0QEWB34DP0tccZd8SJU191SQTL5K5SIFpANddUC18kBNKYISk0qsWCRUVtL6A-Y4euQ4cMOBh_zZZqxt0A875EhJxYro453ZxhJ8mg3sevBHDXDnMI1KYMOOpknA\",\"searchStatistics\":{\"approximateTotalLogStreamCount\":0,\"completedLogStreamCount\":0},\"searchedLogStreams\":[]}"
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://logs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "Logs_20140328.FilterLogEvents"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,AN,C,b,Z,g cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#logs.filter-log-events"],
+          ["X-Amz-Date", "20261103T035739Z"],
+          ["amz-sdk-invocation-id", "cb949be3-72c0-4dc9-a534-e0becacfe6db"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "467"]
+        ],
+        "body": "{\"logGroupName\": \"sns/us-east-2/123456789012/us1103-enf-t/Failure\", \"filterPattern\": \"\\\"NonExistentQueue\\\"\", \"nextToken\": \"Bxkq6kVGFtq2y_MoigeqscPOdhXVbhiVtLoAmXb5jCqH5Jt3uyevJzIuAIEcGnBvyd-XKKrsxJxPTRe00ArTRlZHtx9pThQ1WdsLmaUeAQPF5nidwnx9V7lt7NWXtiqdg7d4AXXxktRdSVRJ-wwJxwCmEzlhfCoq7Tc4E6KJhn36PAmnD0EYa-NQnykM0UfEburc_kuMeFxYO9lhCQi2FGAbiQ0QEWB34DP0tccZd8SJU191SQTL5K5SIFpANddUC18kBNKYISk0qsWCRUVtL6A-Y4euQ4cMOBh_zZZqxt0A875EhJxYro453ZxhJ8mg3sevBHDXDnMI1KYMOOpknA\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "ffecf73e-51d2-4347-8031-76019040db85"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "121"],
+          ["Date", "Tue, 03 Nov 2026 03:57:39 GMT"]
+        ],
+        "body": "{\"events\":[],\"searchStatistics\":{\"approximateTotalLogStreamCount\":0,\"completedLogStreamCount\":0},\"searchedLogStreams\":[]}"
+      }
+    }
+  ]
+}

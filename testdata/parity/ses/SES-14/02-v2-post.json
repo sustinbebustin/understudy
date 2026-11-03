@@ -1,0 +1,33 @@
+{
+  "step": "02-v2-post",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://email.us-east-2.amazonaws.com/v2/email/list-identities",
+        "headers": [
+          ["Host", "email.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261103T164226Z"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "14"]
+        ],
+        "body": "{\"PageSize\":2}"
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:42:26 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "866"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "aeeb7997-1691-4f9d-b932-8e32e9181643"]
+        ],
+        "body": "{\"EmailIdentities\":[{\"IdentityName\":\"us1103.example.org\",\"IdentityType\":\"DOMAIN\",\"SendingEnabled\":false,\"VdmAttributes\":null,\"VerificationStatus\":\"PENDING\"},{\"IdentityName\":\"us1103.example.com\",\"IdentityType\":\"DOMAIN\",\"SendingEnabled\":false,\"VdmAttributes\":null,\"VerificationStatus\":\"PENDING\"}],\"NextToken\":\"QUFBQUFBQUFBQUVHckQ0MUc4cFNLWmRlMFhxcnRtdDdsbFRTSU9jYVJxNnE5eUdBNk5NbldYdVI5SVZqUldyYjhvL1FndEFxbUsydUtFdm11UXM3NDUxZlZUdmFuViszd0d3YXZFc3MxWU1oZm1BLzNPM3RsZFlUemdZUmtGNVBiU3dObmM1cDFNVm1xcW90ckNQZWszVGZySUpVV2thR1pzSVpYc2hYTCt3VUU1b21MbWY4aFNQajFldHNueTVKT3h4UTNhRHphaytQcDY2TTBobEZhbXdRem1NaThwOWhMTm9FdjBBdVc1OE5KT01WRmg3R29xM29ZT21rUDlaNVRoV1ZsdG9zOGhNUUI0b3hQdGF6Qm9kclVBQU1CeHdYTHZGZzJZVW9nZTJwN3U2Z0lHQVoxcWVzMFhiODNYak5MR1E0Vm5LdVJQNWt1UTBMR2pmWGJTNnFseC80YjI1ZG9RZ3REZTdKdUFZZUJ2OEVXTVc3Nm03bVlDcHhGdnZhekppNU9zZVFOTGNMck80ZTNqdzFQbnZGUzFzNmUwNFo=\"}"
+      }
+    }
+  ]
+}

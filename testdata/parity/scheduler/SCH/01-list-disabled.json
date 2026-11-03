@@ -1,0 +1,29 @@
+{
+  "step": "01-list-disabled",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://scheduler.us-east-2.amazonaws.com/schedules?NamePrefix=us1103-s&State=DISABLED",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,g,E,AN,b,C cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#scheduler.list-schedules"],
+          ["X-Amz-Date", "20261103T163651Z"],
+          ["amz-sdk-invocation-id", "9c012f39-10d0-49c3-8dd5-ba90c6805eb4"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "df284066-4819-4491-8002-812243812128"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "307"],
+          ["Date", "Tue, 03 Nov 2026 16:36:51 GMT"]
+        ],
+        "body": "{\"NextToken\":null,\"Schedules\":[{\"Arn\":\"arn:aws:scheduler:us-east-2:123456789012:schedule/default/us1103-s2\",\"CreationDate\":1.793723807159E9,\"GroupName\":\"default\",\"LastModificationDate\":1.793723807159E9,\"Name\":\"us1103-s2\",\"State\":\"DISABLED\",\"Target\":{\"Arn\":\"arn:aws:sqs:us-east-2:123456789012:us1103-sch\"}}]}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,86 @@
+{
+  "step": "06-tag-missing",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ResourceNotFoundException) when calling the TagResource operation (reached max retries: 2): Schedule group us1103-nogroup does not exist.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://scheduler.us-east-2.amazonaws.com/tags/arn%3Aaws%3Ascheduler%3Aus-east-2%3A123456789012%3Aschedule-group%2Fus1103-nogroup",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,AN,Z,E,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#scheduler.tag-resource"],
+          ["X-Amz-Date", "20261103T163810Z"],
+          ["amz-sdk-invocation-id", "e7c1cbba-f91a-4518-850d-14851d313d0a"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "38"]
+        ],
+        "body": "{\"Tags\": [{\"Key\": \"k\", \"Value\": \"v\"}]}"
+      },
+      "response": {
+        "status": 429,
+        "headers": [
+          ["x-amzn-RequestId", "71ac5d59-111c-4812-b84f-6e98c58ceec7"],
+          ["x-amzn-ErrorType", "ThrottlingException:http://internal.amazon.com/coral/com.amazonaws.chronos/"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "59"],
+          ["Date", "Tue, 03 Nov 2026 16:38:10 GMT"]
+        ],
+        "body": "{\"Message\":\"Request was denied due to request throttling.\"}"
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://scheduler.us-east-2.amazonaws.com/tags/arn%3Aaws%3Ascheduler%3Aus-east-2%3A123456789012%3Aschedule-group%2Fus1103-nogroup",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,AN,Z,E,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#scheduler.tag-resource"],
+          ["X-Amz-Date", "20261103T163810Z"],
+          ["amz-sdk-invocation-id", "e7c1cbba-f91a-4518-850d-14851d313d0a"],
+          ["amz-sdk-request", "ttl=20261103T163910Z; attempt=2; max=3"],
+          ["Content-Length", "38"]
+        ],
+        "body": "{\"Tags\": [{\"Key\": \"k\", \"Value\": \"v\"}]}"
+      },
+      "response": {
+        "status": 429,
+        "headers": [
+          ["x-amzn-RequestId", "c96e45ff-fb18-4e8b-a88c-7f9cd6417238"],
+          ["x-amzn-ErrorType", "ThrottlingException:http://internal.amazon.com/coral/com.amazonaws.chronos/"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "59"],
+          ["Date", "Tue, 03 Nov 2026 16:38:11 GMT"]
+        ],
+        "body": "{\"Message\":\"Request was denied due to request throttling.\"}"
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://scheduler.us-east-2.amazonaws.com/tags/arn%3Aaws%3Ascheduler%3Aus-east-2%3A123456789012%3Aschedule-group%2Fus1103-nogroup",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,AN,Z,E,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#scheduler.tag-resource"],
+          ["X-Amz-Date", "20261103T163812Z"],
+          ["amz-sdk-invocation-id", "e7c1cbba-f91a-4518-850d-14851d313d0a"],
+          ["amz-sdk-request", "ttl=20261103T163911Z; attempt=3; max=3"],
+          ["Content-Length", "38"]
+        ],
+        "body": "{\"Tags\": [{\"Key\": \"k\", \"Value\": \"v\"}]}"
+      },
+      "response": {
+        "status": 404,
+        "headers": [
+          ["x-amzn-RequestId", "6b6eef2d-9ade-4b8f-892a-0ee2ad55e997"],
+          ["x-amzn-ErrorType", "ResourceNotFoundException:http://internal.amazon.com/coral/com.amazonaws.chronos/"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "59"],
+          ["Date", "Tue, 03 Nov 2026 16:38:12 GMT"]
+        ],
+        "body": "{\"Message\":\"Schedule group us1103-nogroup does not exist.\"}"
+      }
+    }
+  ]
+}

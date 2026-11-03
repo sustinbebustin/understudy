@@ -1,0 +1,35 @@
+{
+  "step": "02-name-default",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ResourceAlreadyExistsException) when calling the CreateEventBus operation: Event bus default already exists.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://events.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSEvents.CreateEventBus"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,AN,E,b,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#events.create-event-bus"],
+          ["X-Amz-Date", "20261103T163542Z"],
+          ["amz-sdk-invocation-id", "4a6ab66b-f4b0-47e3-9ebf-94c3107f53c3"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "19"]
+        ],
+        "body": "{\"Name\": \"default\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "39386ca4-37dc-4b5c-ab75-ca4ce7250e10"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "89"],
+          ["Date", "Tue, 03 Nov 2026 16:35:42 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "{\"__type\":\"ResourceAlreadyExistsException\",\"message\":\"Event bus default already exists.\"}"
+      }
+    }
+  ]
+}

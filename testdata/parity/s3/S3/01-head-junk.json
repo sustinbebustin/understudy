@@ -1,0 +1,90 @@
+{
+  "step": "01-head-junk",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (400) when calling the HeadObject operation: Bad Request",
+  "exchanges": [
+    {
+      "request": {
+        "method": "HEAD",
+        "url": "https://us1103-ckmode.s3.us-east-2.amazonaws.com/k",
+        "headers": [
+          ["x-amz-checksum-mode", "junk"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,AN,g,E,Z cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.head-object"],
+          ["X-Amz-Date", "20261103T033934Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "23eb6ca6-8b72-4f9d-9202-71b677a45277"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "435NPDFDYV00PD54"],
+          ["x-amz-id-2", "PCb5PUx/ifXQWP6DLeKzqoVWvUK7cvSpSTYTWhn9befXlqN96xWFy847xSYgVYPkfy03O7Qa24VhycxzdMT4kI7j2yzIuav9"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Tue, 03 Nov 2026 03:39:34 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": ""
+      }
+    },
+    {
+      "request": {
+        "method": "HEAD",
+        "url": "https://us1103-ckmode.s3.us-east-2.amazonaws.com/",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,AN,g,E,Z cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.head-object"],
+          ["X-Amz-Date", "20261103T033935Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "cd237747-d752-47a7-9351-bc8bf02f6a98"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amz-id-2", "bGieAPZkO7jQd+sbeEteOfCO/LJe+HuOm4DfUUSjVQQHKipzumlRKfQ4FOfLaA5gc9ipujSwpy1gXuvVBm1HcsTXarbd7KDQ"],
+          ["x-amz-request-id", "435RF6RDJ4HR2WCE"],
+          ["Server", "AmazonS3"],
+          ["Date", "Tue, 03 Nov 2026 03:39:36 GMT"],
+          ["x-amz-bucket-region", "us-east-2"],
+          ["x-amz-access-point-alias", "false"],
+          ["x-amz-bucket-arn", "arn:aws:s3:::us1103-ckmode"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"]
+        ],
+        "body": ""
+      }
+    },
+    {
+      "request": {
+        "method": "HEAD",
+        "url": "https://us1103-ckmode.s3.us-east-2.amazonaws.com/k",
+        "headers": [
+          ["x-amz-checksum-mode", "junk"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,Ah,AN,g,E,Z cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.head-object"],
+          ["X-Amz-Date", "20261103T033935Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "23eb6ca6-8b72-4f9d-9202-71b677a45277"],
+          ["amz-sdk-request", "ttl=20261103T034034Z; attempt=2; max=3"]
+        ]
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "435XBNYCGV42RNPN"],
+          ["x-amz-id-2", "TAjvu6nxak+2UTnMCzxoSCgwQwKCFuyG/wKU5ElWGBVtAnNAOPpOL6iPyn2+zvrx6HOaX6Nmk9ctncGwqbWd6zSfUGfVVEYn"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Tue, 03 Nov 2026 03:39:34 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": ""
+      }
+    }
+  ]
+}

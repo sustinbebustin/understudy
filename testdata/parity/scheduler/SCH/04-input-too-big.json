@@ -1,0 +1,35 @@
+{
+  "step": "04-input-too-big",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ValidationException) when calling the CreateSchedule operation: The input size for the target cannot exceed 262144 bytes.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://scheduler.us-east-2.amazonaws.com/schedules/us1103-i1",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,g,b,Z,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#scheduler.create-schedule"],
+          ["X-Amz-Date", "20261103T163739Z"],
+          ["amz-sdk-invocation-id", "a9806a51-690b-465a-9c68-1dc864305ee5"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "262435"]
+        ],
+        "body_omitted": {"bytes": 262435, "sha256": "d180099ba00f6257adbed3c29997fb4075f2040c1f45f7244acd9e632b4519a6"}
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "38890f86-4fe0-4ca3-ae87-78aad3ec4dd2"],
+          ["x-amzn-ErrorType", "ValidationException:http://internal.amazon.com/coral/com.amazonaws.chronos/"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "71"],
+          ["Date", "Tue, 03 Nov 2026 16:37:40 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "{\"Message\":\"The input size for the target cannot exceed 262144 bytes.\"}"
+      }
+    }
+  ]
+}

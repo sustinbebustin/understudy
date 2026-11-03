@@ -1,0 +1,36 @@
+{
+  "step": "03-get-missing-route",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (NotFoundException) when calling the GetRoute operation: Invalid route identifier specified",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://apigateway.us-east-2.amazonaws.com/v2/apis/hl9cpb8a0a/routes/0000000",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,b,g,E,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#apigatewayv2.get-route"],
+          ["X-Amz-Date", "20261103T164308Z"],
+          ["amz-sdk-invocation-id", "ad7225b2-e814-4233-97bd-2d45c8164b31"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 404,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:43:08 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "48"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "2c93f5b6-2db7-4045-a8b1-7f487618d068"],
+          ["Access-Control-Allow-Origin", "*"],
+          ["x-amzn-ErrorType", "NotFoundException"],
+          ["x-amz-apigw-id", "GRdMhHt0iYcELpw="],
+          ["Access-Control-Expose-Headers", "x-amzn-RequestId,x-amzn-ErrorType,x-amzn-ErrorMessage,Date"],
+          ["X-Amzn-Trace-Id", "Root=1-6aea0f1c-08d3c2d20f0a6b1c15d8e53b"]
+        ],
+        "body": "{\"message\":\"Invalid route identifier specified\"}"
+      }
+    }
+  ]
+}

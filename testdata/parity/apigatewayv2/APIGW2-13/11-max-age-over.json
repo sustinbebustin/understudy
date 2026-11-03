@@ -1,0 +1,39 @@
+{
+  "step": "11-max-age-over",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (BadRequestException) when calling the UpdateApi operation: allow-credentials is not supported if 'allow-origin' is *",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PATCH",
+        "url": "https://apigateway.us-east-2.amazonaws.com/v2/apis/hl9cpb8a0a",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,g,b,E,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#apigatewayv2.update-api"],
+          ["X-Amz-Date", "20261103T165021Z"],
+          ["amz-sdk-invocation-id", "ecf87cf4-3a83-4c96-81b1-b7f581157308"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "63"]
+        ],
+        "body": "{\"corsConfiguration\": {\"allowOrigins\": [\"*\"], \"maxAge\": 86401}}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:50:21 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "77"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "e5b07ba5-b58c-490f-9fea-9209a32d01b0"],
+          ["Access-Control-Allow-Origin", "*"],
+          ["x-amzn-ErrorType", "BadRequestException"],
+          ["x-amz-apigw-id", "GReQNHT_iYcEACQ="],
+          ["Access-Control-Expose-Headers", "x-amzn-RequestId,x-amzn-ErrorType,x-amzn-ErrorMessage,Date"],
+          ["X-Amzn-Trace-Id", "Root=1-6aea10cd-2c845bbe3706d6474de86e72"]
+        ],
+        "body": "{\n  \"message\" : \"allow-credentials is not supported if 'allow-origin' is *\"\n}"
+      }
+    }
+  ]
+}

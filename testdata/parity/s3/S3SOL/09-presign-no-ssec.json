@@ -1,0 +1,22 @@
+{
+  "step": "09-presign-no-ssec",
+  "client": "curl",
+  "exchanges": [
+    {
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["x-amz-request-id", "FB9QC44CG97KXPXT"],
+          ["x-amz-id-2", "nwBSnlBxu5Xc73mNrdAmW/9LHIbBymFlqV/5jVDIO35KLFYx35XnY9TbgCYh76aRtdfhWABjVT7TIYrfgyDu5tCLSuJCsPEx"],
+          ["Date", "Tue, 03 Nov 2026 03:40:06 GMT"],
+          ["Content-Type", "application/xml"],
+          ["Server", "AmazonS3"],
+          ["Transfer-Encoding", "chunked"],
+          ["Connection", "close"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>InvalidRequest</Code><Message>The object was stored using a form of Server Side Encryption. The correct parameters must be provided to retrieve the object.</Message><RequestId>FB9QC44CG97KXPXT</RequestId><HostId>nwBSnlBxu5Xc73mNrdAmW/9LHIbBymFlqV/5jVDIO35KLFYx35XnY9TbgCYh76aRtdfhWABjVT7TIYrfgyDu5tCLSuJCsPEx</HostId></Error>"
+      }
+    }
+  ]
+}

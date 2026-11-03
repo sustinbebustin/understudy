@@ -1,0 +1,33 @@
+{
+  "step": "C-publish-1",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sns.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,g,E,Z,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sns.publish"],
+          ["X-Amz-Date", "20261103T164533Z"],
+          ["amz-sdk-invocation-id", "642f0a24-32fb-46be-9401-a18510a96f87"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "115"]
+        ],
+        "body": "Action=Publish&Version=2010-03-31&TopicArn=arn%3Aaws%3Asns%3Aus-east-2%3A123456789012%3Aus1103-snsh-c&Message=m-c-1"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "72ac10ca-b73e-583f-b860-73aea6d38175"],
+          ["Date", "Tue, 03 Nov 2026 16:45:33 GMT"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "294"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "<PublishResponse xmlns=\"http://sns.amazonaws.com/doc/2010-03-31/\">\n  <PublishResult>\n    <MessageId>4737bb06-3f3a-5f4b-846e-d8622ed73601</MessageId>\n  </PublishResult>\n  <ResponseMetadata>\n    <RequestId>72ac10ca-b73e-583f-b860-73aea6d38175</RequestId>\n  </ResponseMetadata>\n</PublishResponse>\n"
+      }
+    }
+  ]
+}

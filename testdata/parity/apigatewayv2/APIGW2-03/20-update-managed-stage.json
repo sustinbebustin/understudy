@@ -1,0 +1,37 @@
+{
+  "step": "20-update-managed-stage",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "PATCH",
+        "url": "https://apigateway.us-east-2.amazonaws.com/v2/apis/swtcu0ifi5/stages/%24default",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,E,b,AN,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#apigatewayv2.update-stage"],
+          ["X-Amz-Date", "20261103T164341Z"],
+          ["amz-sdk-invocation-id", "39a6ecac-f7ed-4983-b78e-bee9565b1c75"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "20"]
+        ],
+        "body": "{\"description\": \"x\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:43:41 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "454"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "82c1f6c7-0d4c-4876-b115-0ca5b171cf4b"],
+          ["Access-Control-Allow-Origin", "*"],
+          ["x-amz-apigw-id", "GRdRqF-kCYcEWfg="],
+          ["Access-Control-Expose-Headers", "x-amzn-RequestId,x-amzn-ErrorType,x-amzn-ErrorMessage,Date"],
+          ["X-Amzn-Trace-Id", "Root=1-6aea0f3d-750ac2716abc6f994809348d"]
+        ],
+        "body": "{\n  \"stageName\" : \"$default\",\n  \"description\" : \"x\",\n  \"deploymentId\" : \"98l8j5\",\n  \"defaultRouteSettings\" : {\n    \"detailedMetricsEnabled\" : false\n  },\n  \"routeSettings\" : { },\n  \"stageVariables\" : { },\n  \"autoDeploy\" : true,\n  \"lastDeploymentStatusMessage\" : \"Successfully deployed stage with deployment ID '98l8j5'\",\n  \"createdDate\" : \"2026-11-03T16:43:37Z\",\n  \"lastUpdatedDate\" : \"2026-11-03T16:43:41Z\",\n  \"tags\" : { },\n  \"apiGatewayManaged\" : true\n}"
+      }
+    }
+  ]
+}

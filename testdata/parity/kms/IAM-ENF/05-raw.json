@@ -1,0 +1,37 @@
+{
+  "step": "05-raw",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://kms.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Host", "kms.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261103T034507Z"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["X-Amz-Target", "TrentService.DescribeKey"],
+          ["Content-Length", "48"]
+        ],
+        "body": "{\"KeyId\":\"45c1da4a-a2c9-4510-9930-7f77b26866b5\"}"
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["x-amzn-RequestId", "c79b2d6d-d46d-44e1-8920-4cd562cb1d98"],
+          ["Cache-Control", "no-cache, no-store, must-revalidate, private"],
+          ["Expires", "0"],
+          ["Pragma", "no-cache"],
+          ["Date", "Tue, 03 Nov 2026 03:45:07 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "313"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"__type\":\"AccessDeniedException\",\"Message\":\"User: arn:aws:sts::123456789012:assumed-role/us1103-enf-none/enf is not authorized to perform: kms:DescribeKey on resource: arn:aws:kms:us-east-2:123456789012:key/45c1da4a-a2c9-4510-9930-7f77b26866b5 because no identity-based policy allows the kms:DescribeKey action\"}"
+      }
+    }
+  ]
+}

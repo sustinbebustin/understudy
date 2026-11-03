@@ -1,0 +1,39 @@
+{
+  "step": "22-subtype-partial-update",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (BadRequestException) when calling the UpdateIntegration operation: Invalid integration URI specified",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PATCH",
+        "url": "https://apigateway.us-east-2.amazonaws.com/v2/apis/hl9cpb8a0a/integrations/uyli5pu",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,Z,b,g,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#apigatewayv2.update-integration"],
+          ["X-Amz-Date", "20261103T164320Z"],
+          ["amz-sdk-invocation-id", "72116ae9-09ab-449a-b8a8-c092ce5dc2cc"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "55"]
+        ],
+        "body": "{\"requestParameters\": {\"MessageBody\": \"$request.body\"}}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:43:21 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "47"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "dbc72686-c916-458b-8e33-4147c0528010"],
+          ["Access-Control-Allow-Origin", "*"],
+          ["x-amzn-ErrorType", "BadRequestException"],
+          ["x-amz-apigw-id", "GRdOeHALCYcEcSg="],
+          ["Access-Control-Expose-Headers", "x-amzn-RequestId,x-amzn-ErrorType,x-amzn-ErrorMessage,Date"],
+          ["X-Amzn-Trace-Id", "Root=1-6aea0f28-5b4374c028ccbccc2d77ad45"]
+        ],
+        "body": "{\"message\":\"Invalid integration URI specified\"}"
+      }
+    }
+  ]
+}

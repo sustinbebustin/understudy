@@ -1,0 +1,36 @@
+{
+  "step": "01-default-page",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://ssm.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Host", "ssm.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261103T163715Z"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["X-Amz-Target", "AmazonSSM.GetParametersByPath"],
+          ["Content-Length", "26"]
+        ],
+        "body": "{\"Path\":\"/us1103/ssm/p19\"}"
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Tue, 03 Nov 2026 16:37:15 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "2709"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "b50dd15e-5195-4b9a-9180-6620cbe4fbe3"],
+          ["Cache-Control", "no-store"]
+        ],
+        "body": "{\"NextToken\":\"AAEAAY6YGWl8XX2E6CVd/l8jQLIUZ3TDg+IBr16ByZ3dJs8DAAAAAGrqDbupOkcgnR94R1SO8L4lWMsJZFhAIXpQAYNeKuN+2uLjDoGGMvkb6mLPh0to4l9GRMa2CmOBGlPFvv5bOfMQj6TEUOEu65F8ME5j+0jXe2VwbHtyMNjznWxUvtrTkpa3XmaZj+yVcMfuo8yIc+Iiq2MhF+Uwixq8BcXe4YT57YDXQdDoDEdzN41ylVu9ZaZyvB2a1TbkEWGEvvS/7W7pwXm/TBEVMyHM+vSqPouOuGdBBB437qZDs7ah01T71kegb57PdcFzgN/fgBLYHE8tbiW1jwLIV+kO0QJqyg/fK54DV9FskqNDsoOloaAjdbHBpMCgw0sBLHGE1iE8tCCjw4L6axkKMORqBQmh0iIAv2TDsZwvb4Bl9JXhfAHZg7gV8HZgrl/WiqW1/ynlTj6bPAgfRweOkJnu/U8g8TCsGvEIxoADVQZ8nISHr896VlOAXAiKpbkY63Ynni7rXDn4M9FVL3MDQgJHCjpHDyeKvHLQ61NXh0Ay6hno64H/0KCtfPUfRNBmB9XgnnIcyT9nzoQGN8GqqeJHd91nip+HGej2stb+thrNb3yuO9VjGzVs1MljVWPaZEL/zm2vn3fXLsM5+6g6ikZk98NiLkZJlDRzEKc1UXrYW/3LaoN1vitw1U8=\",\"Parameters\":[{\"ARN\":\"arn:aws:ssm:us-east-2:123456789012:parameter/us1103/ssm/p19/k01\",\"DataType\":\"text\",\"LastModifiedDate\":1.793723834429E9,\"Name\":\"/us1103/ssm/p19/k01\",\"Type\":\"String\",\"Value\":\"v2\",\"Version\":2},{\"ARN\":\"arn:aws:ssm:us-east-2:123456789012:parameter/us1103/ssm/p19/k03\",\"DataType\":\"text\",\"LastModifiedDate\":1.793723828006E9,\"Name\":\"/us1103/ssm/p19/k03\",\"Type\":\"String\",\"Value\":\"03\",\"Version\":1},{\"ARN\":\"arn:aws:ssm:us-east-2:123456789012:parameter/us1103/ssm/p19/k04\",\"DataType\":\"text\",\"LastModifiedDate\":1.79372383178E9,\"Name\":\"/us1103/ssm/p19/k04\",\"Type\":\"String\",\"Value\":\"04\",\"Version\":1},{\"ARN\":\"arn:aws:ssm:us-east-2:123456789012:parameter/us1103/ssm/p19/k05\",\"DataType\":\"text\",\"LastModifiedDate\":1.793723829643E9,\"Name\":\"/us1103/ssm/p19/k05\",\"Type\":\"String\",\"Value\":\"05\",\"Version\":1},{\"ARN\":\"arn:aws:ssm:us-east-2:123456789012:parameter/us1103/ssm/p19/k06\",\"DataType\":\"text\",\"LastModifiedDate\":1.793723832305E9,\"Name\":\"/us1103/ssm/p19/k06\",\"Type\":\"String\",\"Value\":\"06\",\"Version\":1},{\"ARN\":\"arn:aws:ssm:us-east-2:123456789012:parameter/us1103/ssm/p19/k07\",\"DataType\":\"text\",\"LastModifiedDate\":1.793723828553E9,\"Name\":\"/us1103/ssm/p19/k07\",\"Type\":\"String\",\"Value\":\"07\",\"Version\":1},{\"ARN\":\"arn:aws:ssm:us-east-2:123456789012:parameter/us1103/ssm/p19/k09\",\"DataType\":\"text\",\"LastModifiedDate\":1.793723830187E9,\"Name\":\"/us1103/ssm/p19/k09\",\"Type\":\"String\",\"Value\":\"09\",\"Version\":1},{\"ARN\":\"arn:aws:ssm:us-east-2:123456789012:parameter/us1103/ssm/p19/k10\",\"DataType\":\"text\",\"LastModifiedDate\":1.793723833371E9,\"Name\":\"/us1103/ssm/p19/k10\",\"Type\":\"String\",\"Value\":\"10\",\"Version\":1},{\"ARN\":\"arn:aws:ssm:us-east-2:123456789012:parameter/us1103/ssm/p19/k11\",\"DataType\":\"text\",\"LastModifiedDate\":1.79372383071E9,\"Name\":\"/us1103/ssm/p19/k11\",\"Type\":\"String\",\"Value\":\"11\",\"Version\":1},{\"ARN\":\"arn:aws:ssm:us-east-2:123456789012:parameter/us1103/ssm/p19/k12\",\"DataType\":\"text\",\"LastModifiedDate\":1.793723827453E9,\"Name\":\"/us1103/ssm/p19/k12\",\"Type\":\"String\",\"Value\":\"12\",\"Version\":1}]}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "step": "03-string-seconds-describe",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://states.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSStepFunctions.DescribeExecution"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,Z,E,b,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#stepfunctions.describe-execution"],
+          ["X-Amz-Date", "20261103T164806Z"],
+          ["amz-sdk-invocation-id", "68478cfc-c3cd-490e-8043-8ad6b45ae53a"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "114"]
+        ],
+        "body": "{\"executionArn\": \"arn:aws:states:us-east-2:123456789012:execution:us1103-ws:bbb67c17-f0e8-4b71-87d9-e8bc9666a918\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "a158f25e-68e7-4fa6-b311-e91ff725a71c"],
+          ["Date", "Tue, 03 Nov 2026 16:48:06 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "708"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"executionArn\":\"arn:aws:states:us-east-2:123456789012:execution:us1103-ws:bbb67c17-f0e8-4b71-87d9-e8bc9666a918\",\"input\":\"{\\\"s\\\":\\\"1\\\"}\",\"inputDetails\":{\"__type\":\"com.amazonaws.swf.base.model#CloudWatchEventsExecutionDataDetails\",\"included\":true},\"name\":\"bbb67c17-f0e8-4b71-87d9-e8bc9666a918\",\"output\":\"{\\\"s\\\":\\\"1\\\"}\",\"outputDetails\":{\"__type\":\"com.amazonaws.swf.base.model#CloudWatchEventsExecutionDataDetails\",\"included\":true},\"redriveCount\":0,\"redriveStatus\":\"NOT_REDRIVABLE\",\"redriveStatusReason\":\"Execution is SUCCEEDED and cannot be redriven\",\"startDate\":1.793724483052E9,\"stateMachineArn\":\"arn:aws:states:us-east-2:123456789012:stateMachine:us1103-ws\",\"status\":\"SUCCEEDED\",\"stopDate\":1.793724484126E9}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "step": "08-recv-dlq-3",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.ReceiveMessage"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,AN,E,g,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.receive-message"],
+          ["X-Amz-Date", "20261103T174402Z"],
+          ["amz-sdk-invocation-id", "8f43b571-2e23-4731-be66-ab3d019e6b93"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "190"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/us1103-sch-dlq\", \"AttributeNames\": [\"All\"], \"MessageAttributeNames\": [\"All\"], \"MaxNumberOfMessages\": 10, \"WaitTimeSeconds\": 10}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "f793e990-b121-54bb-8707-8af4ae8381d1"],
+          ["Date", "Tue, 03 Nov 2026 17:44:02 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "1696"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"Messages\":[{\"Attributes\":{\"SenderId\":\"AROARZPUZDIKAAAAAAA3A:4c824c9b0db83dc282e9a9c50beb54e3\",\"ApproximateFirstReceiveTimestamp\":\"1793727842591\",\"ApproximateReceiveCount\":\"1\",\"SentTimestamp\":\"1793727566036\"},\"Body\":\"{\\\"MessageBody\\\":\\\"u\\\",\\\"QueueUrl\\\":\\\"https://sqs.us-east-2.amazonaws.com/123456789012/us1103-sch-gone\\\"}\",\"MD5OfBody\":\"38cd462b541ed35390a58b7a7f4b964a\",\"MD5OfMessageAttributes\":\"6fd64d4f91281c6b1fcb23a4396c6380\",\"MessageAttributes\":{\"CONTAINS_INVALID_PAYLOAD\":{\"DataType\":\"String\",\"StringValue\":\"false\"},\"ERROR_CODE\":{\"DataType\":\"String\",\"StringValue\":\"AWS.SimpleQueueService.NonExistentQueue\"},\"ERROR_MESSAGE\":{\"DataType\":\"String\",\"StringValue\":\"The specified queue does not exist.\"},\"EXECUTION_ID\":{\"DataType\":\"String\",\"StringValue\":\"ed6aea1c-1f5e-43a3-8c08-55e43ec01971\"},\"IS_PAYLOAD_TRUNCATED\":{\"DataType\":\"String\",\"StringValue\":\"false\"},\"RETRY_ATTEMPTS\":{\"DataType\":\"String\",\"StringValue\":\"0\"},\"SCHEDULED_TIME\":{\"DataType\":\"String\",\"StringValue\":\"2026-11-03T17:38:39Z\"},\"SCHEDULE_ARN\":{\"DataType\":\"String\",\"StringValue\":\"arn:aws:scheduler:us-east-2:123456789012:schedule/default/us1103-x4\"},\"TARGET_ARN\":{\"DataType\":\"String\",\"StringValue\":\"arn:aws:scheduler:::aws-sdk:sqs:sendMessage\"}},\"MessageId\":\"a7ea5ace-8475-40b9-9867-54ec9a92053f\",\"ReceiptHandle\":\"AQEBLLn3kRtB5iC1cWzOVTO4kcXI30Uu6JQL18p9KNQl+1m7BZV3illb69a+HtW7XWRx/H3E+fCAeY7x5aLQqvpSe/DQuKb6Prw2jzHFgkVtuJRJp/aLUmVlUmY4sGEd2jNhDR12HkTpEwTiFMDq12lhWp3OMgcLDwFfX6MoS31n1puHkA+2KPevNr0Y80sE5kVWkGaRfGQdvU65D7WKUtRnj10lN7fpozcuW9eE+W093IxAdlSnaH/jwC3dFENPx6OjF6p1/Tt7nCu9bAjbKFKlPuk4jev8bzowjenXH7qINAg4HmSUHqNyDWCqMbQrA8F+b774xehuFIt02BGsN7jlfg9SJ30U/x7mQjS0O28OU1Ab0uYiUZtFJmWGKCXmXnCIhnE3bLX2D+BBGACEHSYINg==\"}]}"
+      }
+    }
+  ]
+}

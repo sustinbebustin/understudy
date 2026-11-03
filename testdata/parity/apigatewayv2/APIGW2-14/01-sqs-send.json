@@ -1,0 +1,33 @@
+{
+  "step": "01-sqs-send",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://hl9cpb8a0a.execute-api.us-east-2.amazonaws.com/sqs",
+        "headers": [
+          ["Host", "hl9cpb8a0a.execute-api.us-east-2.amazonaws.com"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "7"]
+        ],
+        "body": "{\"a\":1}"
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:50:51 GMT"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "378"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "1a5c8b98-1c78-5c8c-9bf2-e8fc0f534a01"],
+          ["apigw-requestid", "GReU1hYECYcEP2A="]
+        ],
+        "body": "<?xml version=\"1.0\"?><SendMessageResponse xmlns=\"http://queue.amazonaws.com/doc/2012-11-05/\"><SendMessageResult><MessageId>66078514-8894-4e06-afc4-2d8947aa0cbd</MessageId><MD5OfMessageBody>bb6cb5c68df4652941caf652a366f2d8</MD5OfMessageBody></SendMessageResult><ResponseMetadata><RequestId>1a5c8b98-1c78-5c8c-9bf2-e8fc0f534a01</RequestId></ResponseMetadata></SendMessageResponse>"
+      }
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "step": "23-before",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sns.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,b,E,g,Z cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#sns.get-topic-attributes"],
+          ["X-Amz-Date", "20261103T041440Z"],
+          ["amz-sdk-invocation-id", "a4bd6340-b903-4f6a-adaa-540487126339"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "112"]
+        ],
+        "body": "Action=GetTopicAttributes&Version=2010-03-31&TopicArn=arn%3Aaws%3Asns%3Aus-east-2%3A123456789012%3Aus1103-enf-et"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "b641159c-ae61-564b-8302-76ffcf91e8c6"],
+          ["Date", "Tue, 03 Nov 2026 04:14:40 GMT"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "2222"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "<GetTopicAttributesResponse xmlns=\"http://sns.amazonaws.com/doc/2010-03-31/\">\n  <GetTopicAttributesResult>\n    <Attributes>\n      <entry>\n        <key>Policy</key>\n        <value>{&quot;Version&quot;:&quot;2008-10-17&quot;,&quot;Id&quot;:&quot;__default_policy_ID&quot;,&quot;Statement&quot;:[{&quot;Sid&quot;:&quot;__default_statement_ID&quot;,&quot;Effect&quot;:&quot;Allow&quot;,&quot;Principal&quot;:{&quot;AWS&quot;:&quot;*&quot;},&quot;Action&quot;:[&quot;SNS:GetTopicAttributes&quot;,&quot;SNS:SetTopicAttributes&quot;,&quot;SNS:AddPermission&quot;,&quot;SNS:RemovePermission&quot;,&quot;SNS:DeleteTopic&quot;,&quot;SNS:Subscribe&quot;,&quot;SNS:ListSubscriptionsByTopic&quot;,&quot;SNS:Publish&quot;],&quot;Resource&quot;:&quot;arn:aws:sns:us-east-2:123456789012:us1103-enf-et&quot;,&quot;Condition&quot;:{&quot;StringEquals&quot;:{&quot;AWS:SourceOwner&quot;:&quot;123456789012&quot;}}}]}</value>\n      </entry>\n      <entry>\n        <key>Owner</key>\n        <value>123456789012</value>\n      </entry>\n      <entry>\n        <key>SubscriptionsPending</key>\n        <value>0</value>\n      </entry>\n      <entry>\n        <key>TopicArn</key>\n        <value>arn:aws:sns:us-east-2:123456789012:us1103-enf-et</value>\n      </entry>\n      <entry>\n        <key>EffectiveDeliveryPolicy</key>\n        <value>{&quot;http&quot;:{&quot;defaultHealthyRetryPolicy&quot;:{&quot;minDelayTarget&quot;:20,&quot;maxDelayTarget&quot;:20,&quot;numRetries&quot;:3,&quot;numMaxDelayRetries&quot;:0,&quot;numNoDelayRetries&quot;:0,&quot;numMinDelayRetries&quot;:0,&quot;backoffFunction&quot;:&quot;linear&quot;},&quot;disableSubscriptionOverrides&quot;:false,&quot;defaultRequestPolicy&quot;:{&quot;headerContentType&quot;:&quot;text/plain; charset=UTF-8&quot;}}}</value>\n      </entry>\n      <entry>\n        <key>SubscriptionsConfirmed</key>\n        <value>0</value>\n      </entry>\n      <entry>\n        <key>DisplayName</key>\n        <value/>\n      </entry>\n      <entry>\n        <key>SubscriptionsDeleted</key>\n        <value>0</value>\n      </entry>\n    </Attributes>\n  </GetTopicAttributesResult>\n  <ResponseMetadata>\n    <RequestId>b641159c-ae61-564b-8302-76ffcf91e8c6</RequestId>\n  </ResponseMetadata>\n</GetTopicAttributesResponse>\n"
+      }
+    }
+  ]
+}

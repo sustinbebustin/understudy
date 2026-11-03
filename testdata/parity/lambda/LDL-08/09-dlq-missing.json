@@ -1,0 +1,35 @@
+{
+  "step": "09-dlq-missing",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidParameterValueException) when calling the UpdateFunctionConfiguration operation: Error occurred while SendMessage. SQS Error Code: AWS.SimpleQueueService.NonExistentQueue. SQS Error Message: The specified queue does not exist.\n\nAdditional error details:\nType: User",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://lambda.us-east-2.amazonaws.com/2015-03-31/functions/us1103-ldl-v/configuration",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,g,b,Z,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.update-function-configuration"],
+          ["X-Amz-Date", "20261103T165347Z"],
+          ["amz-sdk-invocation-id", "e83af766-0d1f-4d0b-8d91-792170299081"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "91"]
+        ],
+        "body": "{\"DeadLetterConfig\": {\"TargetArn\": \"arn:aws:sqs:us-east-2:123456789012:us1103-ldl-nosuch\"}}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:53:47 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "173"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "a98a622d-f409-44a5-b7b2-e8787895e160"],
+          ["x-amzn-ErrorType", "InvalidParameterValueException"]
+        ],
+        "body": "{\"Type\":\"User\",\"message\":\"Error occurred while SendMessage. SQS Error Code: AWS.SimpleQueueService.NonExistentQueue. SQS Error Message: The specified queue does not exist.\"}"
+      }
+    }
+  ]
+}

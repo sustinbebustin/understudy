@@ -1,0 +1,36 @@
+{
+  "step": "06-get-parameters",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://ssm.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSSM.GetParameters"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,b,g,Z,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#ssm.get-parameters"],
+          ["X-Amz-Date", "20261103T163747Z"],
+          ["amz-sdk-invocation-id", "53163c13-2651-45f5-9d01-000bb4073da3"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "124"]
+        ],
+        "body": "{\"Names\": [\"/aws/reference/secretsmanager/us1103-ref\", \"/aws/reference/secretsmanager/us1103-none\"], \"WithDecryption\": true}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Tue, 03 Nov 2026 16:37:47 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "580"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "251c7acd-d819-4ecd-a433-6a369360a398"],
+          ["Cache-Control", "no-store"]
+        ],
+        "body": "{\"InvalidParameters\":[\"/aws/reference/secretsmanager/us1103-none\"],\"Parameters\":[{\"ARN\":\"arn:aws:secretsmanager:us-east-2:123456789012:secret:us1103-ref-UfO53N\",\"LastModifiedDate\":1.793723864728E9,\"Name\":\"/aws/reference/secretsmanager/us1103-ref\",\"SourceResult\":\"{\\\"ARN\\\":\\\"arn:aws:secretsmanager:us-east-2:123456789012:secret:us1103-ref-UfO53N\\\",\\\"name\\\":\\\"us1103-ref\\\",\\\"versionId\\\":\\\"525dc47e-3952-4ef3-83fc-ed945c5af382\\\",\\\"secretString\\\":\\\"s1\\\",\\\"versionStages\\\":[\\\"AWSCURRENT\\\"],\\\"createdDate\\\":\\\"Nov 3, 2026, 4:37:44 PM\\\"}\",\"Type\":\"SecureString\",\"Value\":\"s1\",\"Version\":0}]}"
+      }
+    }
+  ]
+}

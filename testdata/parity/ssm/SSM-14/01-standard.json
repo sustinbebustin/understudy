@@ -1,0 +1,36 @@
+{
+  "step": "01-standard",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ValidationException) when calling the PutParameter operation: You can't assign parameter policies to a standard-parameter tier. You must upgrade the parameter to use the advanced-parameter tier. For more information, see https://docs.aws.amazon.com/systems-manager/latest/userguide/parameter-store-advanced-parameters.html",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://ssm.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSSM.PutParameter"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,Z,E,g,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#ssm.put-parameter"],
+          ["X-Amz-Date", "20261103T163642Z"],
+          ["amz-sdk-invocation-id", "5057a03b-4c2d-4643-ab9b-eab95c12d6e3"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "203"]
+        ],
+        "body": "{\"Name\": \"/us1103/ssm/p14a\", \"Value\": \"v\", \"Type\": \"String\", \"Tier\": \"Standard\", \"Policies\": \"[{\\\"Type\\\":\\\"Expiration\\\",\\\"Version\\\":\\\"1.0\\\",\\\"Attributes\\\":{\\\"Timestamp\\\":\\\"2030-01-01T00:00:00.000Z\\\"}}]\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Tue, 03 Nov 2026 16:36:43 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "305"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "bad84f9b-e8a0-4530-8022-5b909bdc5d9f"]
+        ],
+        "body": "{\"__type\":\"ValidationException\",\"message\":\"You can't assign parameter policies to a standard-parameter tier. You must upgrade the parameter to use the advanced-parameter tier. For more information, see https://docs.aws.amazon.com/systems-manager/latest/userguide/parameter-store-advanced-parameters.html\"}"
+      }
+    }
+  ]
+}

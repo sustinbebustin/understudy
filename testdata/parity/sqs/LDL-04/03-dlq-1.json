@@ -1,0 +1,35 @@
+{
+  "step": "03-dlq-1",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.ReceiveMessage"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,b,Z,AN,g cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.receive-message"],
+          ["X-Amz-Date", "20261103T164257Z"],
+          ["amz-sdk-invocation-id", "bfbfa8e4-c98e-4f03-bc8b-4f6c79728b1a"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "190"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/us1103-ldl-dlq\", \"AttributeNames\": [\"All\"], \"MessageAttributeNames\": [\"All\"], \"MaxNumberOfMessages\": 10, \"WaitTimeSeconds\": 20}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "937c4872-f3f7-5a90-b31e-2b16e2a63d9b"],
+          ["Date", "Tue, 03 Nov 2026 16:42:57 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "1185"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"Messages\":[{\"Attributes\":{\"SenderId\":\"AROARZPUZDIKAAAAAAA2A:awslambda_828_20261103163822483\",\"ApproximateFirstReceiveTimestamp\":\"1793724177185\",\"ApproximateReceiveCount\":\"1\",\"SentTimestamp\":\"1793723902531\",\"AWSTraceHeader\":\"Root=1-6aea0dfe-010b083c421d17076f163660;Parent=56678f05a86f6227;Sampled=0;Lineage=1:cabbc008:0\"},\"Body\":\"{\\\"mode\\\":\\\"raise\\\"}\",\"MD5OfBody\":\"0712e9d84a2fbc1232dd152fd8d2694c\",\"MD5OfMessageAttributes\":\"5aeb783d5306cb392d2ae0b8877dd29a\",\"MessageAttributes\":{\"ErrorCode\":{\"DataType\":\"Number\",\"StringValue\":\"200\"},\"ErrorMessage\":{\"DataType\":\"String\",\"StringValue\":\"ldl intentional failure\"},\"RequestID\":{\"DataType\":\"String\",\"StringValue\":\"a22933be-8bf2-479c-80ef-0acb6f65deab\"}},\"MessageId\":\"7bc16584-2674-4530-9fcf-df50b1c95cb4\",\"ReceiptHandle\":\"AQEB72MUlyvdXeJGzEtSNbcPINLgtE6n3WI77CVJcM9z+5Hbu9XNL91F/DeQJc3b37Nb8hFHvUQ9B82Z1RxGggaAwfbLzPWLJ0+zrjacDlWMhgiMTXYBbxlRxZVSM4eT2ewbdjjzlnfISuK7vvNU33GNPDuDVXzRq9oVpaw6P151G6zNXG332Ir9AyhHhspyjM82rR32y2hGHuXJaMElD+VN+xAr7HopKjEdcevRyr8oX9LVjUtYw+TVmgiZernpVGI4vJTiTuNgZt7EH+Rs+dKQdpwtycVQOZo4J/dXuh2MnYBaZZeHuYsFS9Kab3Xa3ujC/g1Y0jF0wMLoMefZigLlFNSWvJuizsOTijlvh4uPe7Bocpw7Yt4yzhi2wI1vCIzQXylRno8AF7fbdww6+18PPg==\"}]}"
+      }
+    }
+  ]
+}

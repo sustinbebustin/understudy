@@ -1,0 +1,37 @@
+{
+  "step": "06-bad-name",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (BadRequestException) when calling the CreateStage operation: Stage name only allows a-zA-Z0-9_",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://apigateway.us-east-2.amazonaws.com/restapis/iqia6sj0ff/stages",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,b,E,AN,g cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#apigateway.create-stage"],
+          ["Accept", "application/json"],
+          ["X-Amz-Date", "20261103T163908Z"],
+          ["amz-sdk-invocation-id", "a93a9a65-2add-4d94-9792-4cd876ad973c"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "51"]
+        ],
+        "body": "{\"stageName\": \"bad.name\", \"deploymentId\": \"m1dpon\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:39:08 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "48"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "57880679-798c-4c53-b450-a467a87973ed"],
+          ["x-amzn-ErrorType", "BadRequestException"],
+          ["x-amz-apigw-id", "GRcnDJlWCYcEcEQ="]
+        ],
+        "body": "{\"message\":\"Stage name only allows a-zA-Z0-9_\"}\n"
+      }
+    }
+  ]
+}

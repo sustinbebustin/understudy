@@ -1,0 +1,35 @@
+{
+  "step": "06-zero-dlq",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.ReceiveMessage"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,E,b,g,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.receive-message"],
+          ["X-Amz-Date", "20261103T164502Z"],
+          ["amz-sdk-invocation-id", "9ddc893d-64bd-4eba-b46b-55adcc215e77"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "190"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/us1103-ldl-dlq\", \"AttributeNames\": [\"All\"], \"MessageAttributeNames\": [\"All\"], \"MaxNumberOfMessages\": 10, \"WaitTimeSeconds\": 20}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "d7e0bbff-b924-521d-9aac-d89ba8eae613"],
+          ["Date", "Tue, 03 Nov 2026 16:45:02 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "1168"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"Messages\":[{\"Attributes\":{\"SenderId\":\"AROARZPUZDIKAAAAAAA2A:awslambda_539_20261103164441466\",\"ApproximateFirstReceiveTimestamp\":\"1793724302889\",\"ApproximateReceiveCount\":\"1\",\"SentTimestamp\":\"1793724281497\",\"AWSTraceHeader\":\"Root=1-6aea0f79-4240f1ea1353ee380b9bcde6;Parent=48482ac612cc9b02;Sampled=0\"},\"Body\":\"{\\\"mode\\\":\\\"ok\\\"}\",\"MD5OfBody\":\"17a7aa9b3583b3e3c676b75154da4a0a\",\"MD5OfMessageAttributes\":\"5cc7b9e63787b4ca9cae729c9f495a7b\",\"MessageAttributes\":{\"ErrorMessage\":{\"DataType\":\"String\",\"StringValue\":\"Function not invoked. Function isconfigured with zero reserved concurrent executions\"},\"RequestID\":{\"DataType\":\"String\",\"StringValue\":\"0c64e811-78de-4830-8e54-b71d0fd5d056\"}},\"MessageId\":\"d7f4c6b7-b2c8-4989-9964-0706ed461885\",\"ReceiptHandle\":\"AQEBaOF5bp77wOOJssBuY8vRaSdloZX174UcVlb4m8dmUVA7ekquGZU5scvXpTCjj7DOzAUFE+Wvlxhq1A6l6F2ls3G4QXx6t3vYud0iLm5aaT9KQikcX/w5ZitE6RKOQIABHJ1/eFaz57Y6h8mTc1aT9yJiAUFlDmjwlgd+NEY4n7mIsKKsfaaAZ26ZiI18bN08JHymsmsOe1VDIcTY6Yrnb57OzkiiPItZfbUyrFbC+i5aAbXL+UDp3ejLNofF/jG2J2UA/P9xBR5X48hcKCTiaLAAGY/eoSWhygIt0HH4ia+J4maVqzFpp0SbmofiHf5uYl3kk9FsFCFJUsCX7OzmTkEHDThacn/uci22BIcKudDigO3NmMoRbU7hZnfHjZCqEdXEtJB0h8v9GGIGZdvz/Q==\"}]}"
+      }
+    }
+  ]
+}

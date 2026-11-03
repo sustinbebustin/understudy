@@ -1,0 +1,33 @@
+{
+  "step": "42-bare-retention",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://logs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "Logs_20140328.PutRetentionPolicy"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,E,Z,AN,g cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#logs.put-retention-policy"],
+          ["X-Amz-Date", "20261103T034025Z"],
+          ["amz-sdk-invocation-id", "4a842973-b6f4-4796-ba4d-22f2ca6c9475"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "53"]
+        ],
+        "body": "{\"logGroupName\": \"/us1103/r28\", \"retentionInDays\": 1}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "fdb95b45-a02e-4d31-a536-489bde926035"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "0"],
+          ["Date", "Tue, 03 Nov 2026 03:40:25 GMT"]
+        ],
+        "body": ""
+      }
+    }
+  ]
+}

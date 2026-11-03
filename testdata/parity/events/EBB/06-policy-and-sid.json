@@ -1,0 +1,35 @@
+{
+  "step": "06-policy-and-sid",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ValidationException) when calling the PutPermission operation: Action, Principal, StatementId and Condition could not be combined with Policy parameter.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://events.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSEvents.PutPermission"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,Z,b,E,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#events.put-permission"],
+          ["X-Amz-Date", "20261103T163619Z"],
+          ["amz-sdk-invocation-id", "6bc1b9cf-2e34-4aba-b314-593197ff26db"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "310"]
+        ],
+        "body": "{\"EventBusName\": \"us1103-p\", \"StatementId\": \"s5\", \"Policy\": \"{\\\"Version\\\":\\\"2012-10-17\\\",\\\"Statement\\\":[{\\\"Sid\\\":\\\"p1\\\",\\\"Effect\\\":\\\"Allow\\\",\\\"Principal\\\":{\\\"AWS\\\":\\\"arn:aws:iam::123456789012:root\\\"},\\\"Action\\\":\\\"events:PutEvents\\\",\\\"Resource\\\":\\\"arn:aws:events:us-east-2:123456789012:event-bus/us1103-p\\\"}]}\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "f915bc11-0f84-4413-b96f-15b3129c5c67"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "134"],
+          ["Date", "Tue, 03 Nov 2026 16:36:19 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "{\"__type\":\"ValidationException\",\"message\":\"Action, Principal, StatementId and Condition could not be combined with Policy parameter.\"}"
+      }
+    }
+  ]
+}

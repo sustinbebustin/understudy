@@ -1,0 +1,33 @@
+{
+  "step": "01-create",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://email.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,AN,Z,b,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#ses.create-template"],
+          ["X-Amz-Date", "20261103T164232Z"],
+          ["amz-sdk-invocation-id", "fe6da14b-ff77-4f87-9a8f-bdaf09e38777"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "153"]
+        ],
+        "body": "Action=CreateTemplate&Version=2010-12-01&Template.TemplateName=us1103-t3&Template.SubjectPart=Hi+%7B%7Bname%7D%7D&Template.TextPart=Dear+%7B%7Bname%7D%7D"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:42:32 GMT"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "233"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "5bb3a6b3-418b-448a-bcbb-6d3830a0a281"]
+        ],
+        "body": "<CreateTemplateResponse xmlns=\"http://ses.amazonaws.com/doc/2010-12-01/\">\n  <CreateTemplateResult/>\n  <ResponseMetadata>\n    <RequestId>5bb3a6b3-418b-448a-bcbb-6d3830a0a281</RequestId>\n  </ResponseMetadata>\n</CreateTemplateResponse>\n"
+      }
+    }
+  ]
+}

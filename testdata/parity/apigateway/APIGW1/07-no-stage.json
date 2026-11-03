@@ -1,0 +1,22 @@
+{
+  "step": "07-no-stage",
+  "client": "curl",
+  "exchanges": [
+    {
+      "response": {
+        "status": 403,
+        "reason": "Forbidden",
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:39:10 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "23"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "368ec597-d605-45be-a4dc-647d92e89c73"],
+          ["x-amzn-ErrorType", "ForbiddenException"],
+          ["x-amz-apigw-id", "GRcnYHIxiYcEe1A="]
+        ],
+        "body": "{\"message\":\"Forbidden\"}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "step": "01-put-bad-algo",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidEncryptionAlgorithmError) when calling the PutObject operation: The Encryption request you specified is not valid. Supported value: AES256.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://us1103-ssec-blk.s3.us-east-2.amazonaws.com/c",
+        "headers": [
+          ["x-amz-server-side-encryption-customer-algorithm", "KMS"],
+          ["x-amz-server-side-encryption-customer-key", "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="],
+          ["x-amz-server-side-encryption-customer-key-MD5", "hRasmdxgYDKV3nvbahU1MA=="],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,b,g,Z,E,W cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.put-object"],
+          ["Expect", "100-continue"],
+          ["Transfer-Encoding", "chunked"],
+          ["Content-Encoding", "aws-chunked"],
+          ["X-Amz-Trailer", "x-amz-checksum-crc64nvme"],
+          ["X-Amz-Decoded-Content-Length", "10"],
+          ["x-amz-sdk-checksum-algorithm", "CRC64NVME"],
+          ["X-Amz-Date", "20261103T033947Z"],
+          ["X-Amz-Content-SHA256", "STREAMING-UNSIGNED-PAYLOAD-TRAILER"],
+          ["amz-sdk-invocation-id", "63081628-12ef-4b54-9948-d80bf636a754"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "QXYW34Y5BJG2GJ5V"],
+          ["x-amz-id-2", "JTt3k+IaFwbEKUIaaJZZGY1QhSAxe/JMlZYvb8+HkYDaEnME6Q08aLAZVpmg7z8xep3O1brW/F2Wp7MSy8f982wzsspwxA2e"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Tue, 03 Nov 2026 03:39:47 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>InvalidEncryptionAlgorithmError</Code><Message>The Encryption request you specified is not valid. Supported value: AES256.</Message><ArgumentName>x-amz-server-side-encryption</ArgumentName><ArgumentValue>KMS</ArgumentValue><RequestId>QXYW34Y5BJG2GJ5V</RequestId><HostId>JTt3k+IaFwbEKUIaaJZZGY1QhSAxe/JMlZYvb8+HkYDaEnME6Q08aLAZVpmg7z8xep3O1brW/F2Wp7MSy8f982wzsspwxA2e</HostId></Error>"
+      }
+    }
+  ]
+}

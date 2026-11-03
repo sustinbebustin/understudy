@@ -1,0 +1,36 @@
+{
+  "step": "07-remove-absent",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://ssm.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSSM.RemoveTagsFromResource"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,AN,b,E,g cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#ssm.remove-tags-from-resource"],
+          ["X-Amz-Date", "20261103T163756Z"],
+          ["amz-sdk-invocation-id", "248d588b-7610-4315-bc23-f0521050b112"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "83"]
+        ],
+        "body": "{\"ResourceType\": \"Parameter\", \"ResourceId\": \"/us1103/ssm/t25\", \"TagKeys\": [\"nope\"]}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Tue, 03 Nov 2026 16:37:56 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "2"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "b66093ba-f7b5-406f-824f-fb08a146b489"],
+          ["Cache-Control", "no-store"]
+        ],
+        "body": "{}"
+      }
+    }
+  ]
+}

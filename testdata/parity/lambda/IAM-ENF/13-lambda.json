@@ -1,0 +1,31 @@
+{
+  "step": "13-lambda",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://lambda.us-east-2.amazonaws.com/2015-03-31/functions/bad%21name",
+        "headers": [
+          ["Host", "lambda.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261103T034518Z"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"]
+        ]
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 03:45:18 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "332"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "557ba2e6-68d6-49cf-b752-71dfe7980916"],
+          ["x-amzn-ErrorType", "ValidationException"]
+        ],
+        "body": "{\"message\":\"1 validation error detected: Value 'bad!name' at 'functionName' failed to satisfy constraint: Member must satisfy regular expression pattern: (arn:(aws[a-zA-Z-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\\\d{1}:)?(\\\\d{12}:)?(function:)?([a-zA-Z0-9-_\\\\.]+)(:(\\\\$LATEST(\\\\.PUBLISHED)?|[a-zA-Z0-9-_]+))?\"}"
+      }
+    }
+  ]
+}

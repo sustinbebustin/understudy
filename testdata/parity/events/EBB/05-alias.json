@@ -1,0 +1,33 @@
+{
+  "step": "05-alias",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://events.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSEvents.CreateEventBus"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,g,b,Z,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#events.create-event-bus"],
+          ["X-Amz-Date", "20261103T163604Z"],
+          ["amz-sdk-invocation-id", "7ab358db-284b-4ca8-8023-b89d510ab7f4"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "61"]
+        ],
+        "body": "{\"Name\": \"us1103-k2\", \"KmsKeyIdentifier\": \"alias/us1103-ebb\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "c331cfcb-5e5a-4448-bb27-67522e382be9"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "148"],
+          ["Date", "Tue, 03 Nov 2026 16:36:04 GMT"]
+        ],
+        "body": "{\"EventBusArn\":\"arn:aws:events:us-east-2:123456789012:event-bus/us1103-k2\",\"KmsKeyIdentifier\":\"arn:aws:kms:us-east-2:123456789012:alias/us1103-ebb\"}"
+      }
+    }
+  ]
+}

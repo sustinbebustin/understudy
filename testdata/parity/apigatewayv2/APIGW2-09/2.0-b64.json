@@ -1,0 +1,29 @@
+{
+  "step": "2.0-b64",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://roj3rnqmie.execute-api.us-east-2.amazonaws.com/r?mode=b64",
+        "headers": [
+          ["Host", "roj3rnqmie.execute-api.us-east-2.amazonaws.com"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 03:40:35 GMT"],
+          ["Content-Type", "application/octet-stream"],
+          ["Content-Length", "2"],
+          ["Connection", "keep-alive"],
+          ["Apigw-Requestid", "GPqkFgDbCYcEJ5Q="]
+        ],
+        "body": "\u0000\u0001"
+      }
+    }
+  ]
+}

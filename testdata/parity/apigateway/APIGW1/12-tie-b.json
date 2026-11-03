@@ -1,0 +1,21 @@
+{
+  "step": "12-tie-b",
+  "client": "curl",
+  "exchanges": [
+    {
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:42:23 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "17"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "a56b53cf-fa7f-4d27-87e6-156846c351de"],
+          ["x-amz-apigw-id", "GRdFiGBLCYcEsrg="]
+        ],
+        "body": "{\"picked\": \"400\"}"
+      }
+    }
+  ]
+}

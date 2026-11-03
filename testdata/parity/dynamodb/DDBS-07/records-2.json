@@ -1,0 +1,34 @@
+{
+  "step": "records-2",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://streams.dynamodb.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "DynamoDBStreams_20120810.GetRecords"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,b,Z,E,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#dynamodbstreams.get-records"],
+          ["X-Amz-Date", "20261103T163822Z"],
+          ["amz-sdk-invocation-id", "bc670c3b-b3e2-40bf-9b89-04e1b9f85179"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "979"]
+        ],
+        "body": "{\"ShardIterator\": \"arn:aws:dynamodb:us-east-2:123456789012:table/us1103-ddbs-cl/stream/2026-11-03T16:37:07.192|1|AAAAAAAAAAHMy9rZrh/j0oOT/+b+fPcLvPMqemNsSeG4dcvV8qzXUdSBq6yCA7JFveak0NlUcY/et/9RzgoHJQLLswOh/Z3pSzl2CBqMAhJ78HhiP/U6cFVXDF2VmVYa9dz8zV95sPJfEicaCxlO5qRjnNiSdVYVoHVNspSxZNsZCiuqIeyY5QNMK9RgfwJxErfHYsUp4ltavlsfZmpA7KYKn/PRq8SRybSiF2FY8OC08qRTlp55dpNLKwGkwU0TOpeORzPPIuxWiHhQ9VjAvjmG1c/vHmZO5H5ec6X2qkNn8oj7BlvcAI31uqaHZJR6FyqI1pskxamxQHVeKPyN7VVCOA2z8+Kf6L46AQ0O53xPELrwM0uuVYNm3a1KTDrrS40yVRAoFejCq/xVgFePtRBoYesKHmibzRODU80YVMEAOEKNEuzy43XXnhQ6oa9YNFXkiCq7ObnzlHQQLsBCGDXRQ2DB0Nr4EarKnG+TldVD47t2SJ+ToMYZl3wcxGWRCapGkZEG1uPe3Rl68JxJx3Uu8N2EcorrR7ZB5LAt9cxPjtb6xdYo1pTve7CRfI4Cw31LYPhkfzj3dNPzfFZhXBUzog6Dx4DXXISIs0JpjN7sRYYnMozcAJU5oPonm6zq73YAk8XgBdFabWQQ7UWT/F4ZA4ZYmH0U92ogz99DMpF1yWa8lwov1mp9g+6trVMlrrCAqhk3PCvj+GwpwdrpzApKVrb6mK5gGCgq7YDUBo5rwMbXM+9qeIH8SSyJa/pTd0CVhVcxNJR7cyA5Y54oG90En1Crxv/y0sbh0Fcz9yElW5HxKwvuFIwhvL79Mh5uZJ3rCh/ShjXqYttzVEFiQGsZyLzIafAR\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "SULGA9QMHHMFFK7NUEBKA4FV67VV4KQNSO5AEMVJF66Q9ASUAAJG"],
+          ["x-amz-crc32", "2263940207"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "321"],
+          ["Date", "Tue, 03 Nov 2026 16:38:23 GMT"]
+        ],
+        "body": "{\"Records\":[{\"awsRegion\":\"us-east-2\",\"dynamodb\":{\"ApproximateCreationDateTime\":1.793723848E9,\"Keys\":{\"pk\":{\"S\":\"a\"}},\"SequenceNumber\":\"1900000266748485764459\",\"SizeBytes\":3,\"StreamViewType\":\"KEYS_ONLY\"},\"eventID\":\"0f29b38bd056b8b51b78f86c22c22c64\",\"eventName\":\"INSERT\",\"eventSource\":\"aws:dynamodb\",\"eventVersion\":\"1.1\"}]}"
+      }
+    }
+  ]
+}

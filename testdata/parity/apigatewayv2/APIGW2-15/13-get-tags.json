@@ -1,0 +1,35 @@
+{
+  "step": "13-get-tags",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (AccessDeniedException) when calling the GetTags operation: User: arn:aws:sts::123456789012:assumed-role/us1103-gw-caller/gw15 is not authorized to perform: apigateway:GET on resource: arn:aws:apigateway:us-east-2::/apis/hl9cpb8a0a because no identity-based policy allows the apigateway:GET action",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://apigateway.us-east-2.amazonaws.com/v2/tags/arn%3Aaws%3Aapigateway%3Aus-east-2%3A%3A%2Fapis%2Fhl9cpb8a0a",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,E,Z,AN,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#apigatewayv2.get-tags"],
+          ["X-Amz-Date", "20261103T165100Z"],
+          ["amz-sdk-invocation-id", "bd1e5b22-fbbe-4df6-aed8-37bf6f52cfe4"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 403,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:51:00 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "251"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "0eb26514-aa82-49c3-a69b-a009b2abfbdf"],
+          ["Access-Control-Allow-Origin", "*"],
+          ["x-amzn-ErrorType", "AccessDeniedException"],
+          ["x-amz-apigw-id", "GReWUFZ-CYcEJeg="],
+          ["X-Amzn-Trace-Id", "Root=1-6aea10f4-3a6e2f8633ae535451bdb2e4"]
+        ],
+        "body": "{\"message\":\"User: arn:aws:sts::123456789012:assumed-role/us1103-gw-caller/gw15 is not authorized to perform: apigateway:GET on resource: arn:aws:apigateway:us-east-2::/apis/hl9cpb8a0a because no identity-based policy allows the apigateway:GET action\"}"
+      }
+    }
+  ]
+}

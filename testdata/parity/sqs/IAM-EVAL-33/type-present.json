@@ -1,0 +1,35 @@
+{
+  "step": "type-present",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.ReceiveMessage"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,AN,Z,AC,b,AD cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.receive-message"],
+          ["X-Amz-Date", "20261103T032332Z"],
+          ["amz-sdk-invocation-id", "af834ad1-cd71-4f25-9259-6be435d0a9bd"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "102"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/us1103-eval-sp\", \"WaitTimeSeconds\": 10}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "ed50142d-0c4a-50c4-96da-774e59bf7135"],
+          ["Date", "Tue, 03 Nov 2026 03:23:33 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "1526"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"Messages\":[{\"Body\":\"{\\n  \\\"Type\\\" : \\\"Notification\\\",\\n  \\\"MessageId\\\" : \\\"1ad0b1b0-57ce-5487-b9a3-d2d3023a05a1\\\",\\n  \\\"TopicArn\\\" : \\\"arn:aws:sns:us-east-2:123456789012:us1103-eval-sp\\\",\\n  \\\"Message\\\" : \\\"type-present\\\",\\n  \\\"Timestamp\\\" : \\\"2026-11-03T03:23:32.247Z\\\",\\n  \\\"SignatureVersion\\\" : \\\"1\\\",\\n  \\\"Signature\\\" : \\\"XyHdo8+y58pIdDJIAbust/yVGy9BA0f2FVUcmJNgm2Jnx08RVjISpQeaAZyp5Bt4Zb7DgekGCuMRajLHbnueqOOJDyKxYl+yHTz8xRqVh+pFvFPB/+I0m18B2g8f5NAOaABKAd98Sb9tmQ9ipVBIMy2tlcLE3OBPlopmWtOCvTHYEb/trcMoNtmXl2DKsgQ8IIao/r0IwvlN/2QW3sPPtAFVeYGN5YFeQrdtW9PfhvXbg7B2xrBKg8pFz/jCmeUv4r7YkRQX41kO6nggCceLEBunvorKCX+vlQSEH1bOc/WsUB+vGyaP9Q3rmbvQUXIrQJEdb44cXcDp2xqgQJHojw==\\\",\\n  \\\"SigningCertURL\\\" : \\\"https://sns.us-east-2.amazonaws.com/SimpleNotificationService-1e59c4574facfe41babdb2d652f8ebef.pem\\\",\\n  \\\"UnsubscribeURL\\\" : \\\"https://sns.us-east-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:us-east-2:123456789012:us1103-eval-sp:6ad0a032-6f7b-4355-8736-f98ac8e098d0\\\"\\n}\",\"MD5OfBody\":\"134612aa372b091873c8d24ed1772c36\",\"MessageId\":\"88a5cf88-d8b1-4589-b024-8fd5b4129f3a\",\"ReceiptHandle\":\"AQEBKtpo3FA75+ieoXlsbUyHm7v//N07yHHX5nEEv/w4/NVN9xyvzbuE3hCvvi1N8tukXSal1z3eSxHvzez0TpWc9zQl/B+5cWNRIUr5VhnyV50WcGi9Cof6KvKoZ26fmwsGsb2FVRzx+RZlS6gXn8N7awfedqy0pQhrBeX6Vs3oqyMm2EemFu3NZZO7hYY2TIeRk9+yFPT7jHRlG6qlDSUtyj0i8CHZH4B0PclMlLFQS8sO5cyYGV/U725iXXDCNkaG1JpzRbYW0fr3tDqugPsGFskkiyU/hU4MGB7snZnSJf7HtbQC7YNGrUo12Ya3HnZ+ypyjGzBtAysieGkeS4tH9kvSu0vAwQQcudggtOmokd/PX7X+EQIBS0P6Yp273iPiP+eBuIqzOPRTNkoka+1HpA==\"}]}"
+      }
+    }
+  ]
+}

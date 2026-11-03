@@ -1,0 +1,37 @@
+{
+  "step": "02-without-boundary",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://kms.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "TrentService.DescribeKey"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,AN,Z,E,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#kms.describe-key"],
+          ["X-Amz-Date", "20261103T164427Z"],
+          ["amz-sdk-invocation-id", "dc67b8ab-3ec5-4bbd-bbc3-2e04bee1613b"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "88"]
+        ],
+        "body": "{\"KeyId\": \"arn:aws:kms:us-east-2:123456789012:key/e962f3e0-e791-4b09-a1a5-018e6f94f99f\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "7810ebda-7089-45ff-8ae8-8dec1999c8c0"],
+          ["Cache-Control", "no-cache, no-store, must-revalidate, private"],
+          ["Expires", "0"],
+          ["Pragma", "no-cache"],
+          ["Date", "Tue, 03 Nov 2026 16:44:27 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "575"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"KeyMetadata\":{\"AWSAccountId\":\"123456789012\",\"Arn\":\"arn:aws:kms:us-east-2:123456789012:key/e962f3e0-e791-4b09-a1a5-018e6f94f99f\",\"CreationDate\":1.793724238874E9,\"CurrentKeyMaterialId\":\"0d570c4a9d8301d0c2c077e138194233218103a8ba05bd61c62b1b6c257c7c1f\",\"CustomerMasterKeySpec\":\"SYMMETRIC_DEFAULT\",\"Description\":\"us1103-eval\",\"Enabled\":true,\"EncryptionAlgorithms\":[\"SYMMETRIC_DEFAULT\"],\"KeyId\":\"e962f3e0-e791-4b09-a1a5-018e6f94f99f\",\"KeyManager\":\"CUSTOMER\",\"KeySpec\":\"SYMMETRIC_DEFAULT\",\"KeyState\":\"Enabled\",\"KeyUsage\":\"ENCRYPT_DECRYPT\",\"MultiRegion\":false,\"Origin\":\"AWS_KMS\"}}"
+      }
+    }
+  ]
+}

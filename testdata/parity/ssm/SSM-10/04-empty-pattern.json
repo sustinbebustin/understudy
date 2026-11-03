@@ -1,0 +1,36 @@
+{
+  "step": "04-empty-pattern",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://ssm.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Host", "ssm.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261103T163626Z"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["X-Amz-Target", "AmazonSSM.PutParameter"],
+          ["Content-Length", "98"]
+        ],
+        "body": "{\"Name\":\"/us1103/ssm/f10\",\"Type\":\"SecureString\",\"Value\":\"x3\",\"AllowedPattern\":\"\",\"Overwrite\":true}"
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Tue, 03 Nov 2026 16:36:26 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "31"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "fb87f253-e5a2-4d5f-9e32-75489516cc1b"],
+          ["Cache-Control", "no-store"]
+        ],
+        "body": "{\"Tier\":\"Standard\",\"Version\":3}"
+      }
+    }
+  ]
+}

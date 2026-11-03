@@ -1,0 +1,33 @@
+{
+  "step": "03-dlq-empty-target",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://lambda.us-east-2.amazonaws.com/2015-03-31/functions/us1103-ldl-r/configuration",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,Z,E,AN,g cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.update-function-configuration"],
+          ["X-Amz-Date", "20261103T171015Z"],
+          ["amz-sdk-invocation-id", "e776374d-fb9f-4034-87ce-b0f5244edf77"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "39"]
+        ],
+        "body": "{\"DeadLetterConfig\": {\"TargetArn\": \"\"}}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 17:10:16 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "1377"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "4d5d7600-86d4-4e92-a11e-c00d65f308b1"]
+        ],
+        "body": "{\"Description\":\"\",\"TracingConfig\":{\"Mode\":\"PassThrough\"},\"VpcConfig\":null,\"DurableConfig\":null,\"SigningJobArn\":null,\"SnapStart\":{\"OptimizationStatus\":\"Off\",\"ApplyOn\":\"None\"},\"RevisionId\":\"3b2733d3-dd2d-4166-8447-c0185a675c2c\",\"LastModified\":\"2026-11-03T17:10:16.000+0000\",\"FunctionName\":\"us1103-ldl-r\",\"Runtime\":\"python3.13\",\"Version\":\"$LATEST\",\"PackageType\":\"Zip\",\"LastUpdateStatus\":\"InProgress\",\"Layers\":null,\"TenancyConfig\":null,\"FunctionArn\":\"arn:aws:lambda:us-east-2:123456789012:function:us1103-ldl-r\",\"KMSKeyArn\":null,\"MemorySize\":128,\"ImageConfigResponse\":null,\"LastUpdateStatusReason\":\"The function is being created.\",\"CapacityProviderConfig\":null,\"DeadLetterConfig\":null,\"Timeout\":3,\"ConfigSha256\":null,\"Handler\":\"app.handler\",\"CodeSha256\":\"iBzzNmgrNufyQiEq3D4gnLUnWIgK/ddmWktKTLJO7Vw=\",\"Role\":\"arn:aws:iam::123456789012:role/us1103-ldl-role\",\"SigningProfileVersionArn\":null,\"MasterArn\":null,\"RuntimeVersionConfig\":{\"Error\":null,\"RuntimeVersionArn\":\"arn:aws:lambda:us-east-2::runtime:a57ada4e55c073ec92cc8770cbeb247827d22095fbfa8de3509923cb9ce48bd1\"},\"CodeSize\":612,\"State\":\"Active\",\"StateReason\":null,\"LoggingConfig\":{\"LogFormat\":\"Text\",\"ApplicationLogLevel\":null,\"LogGroup\":\"/aws/lambda/us1103-ldl-r\",\"SystemLogLevel\":null},\"Environment\":null,\"EphemeralStorage\":{\"Size\":512},\"StateReasonCode\":null,\"LastUpdateStatusReasonCode\":\"Creating\",\"Architectures\":[\"x86_64\"]}"
+      }
+    }
+  ]
+}

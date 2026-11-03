@@ -1,0 +1,39 @@
+{
+  "step": "20-subtype-missing-body",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (BadRequestException) when calling the CreateIntegration operation: Operation: SQS-SendMessage requires enabling passthrough, or defining all of the following parameters in the parameter mapping: [QueueUrl, MessageBody]",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://apigateway.us-east-2.amazonaws.com/v2/apis/hl9cpb8a0a/integrations",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,b,E,g,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#apigatewayv2.create-integration"],
+          ["X-Amz-Date", "20261103T164319Z"],
+          ["amz-sdk-invocation-id", "c5a2714d-3b47-4124-8f51-8dbe4f01cedb"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "269"]
+        ],
+        "body": "{\"credentialsArn\": \"arn:aws:iam::123456789012:role/us1103-gw-int\", \"integrationSubtype\": \"SQS-SendMessage\", \"integrationType\": \"AWS_PROXY\", \"payloadFormatVersion\": \"1.0\", \"requestParameters\": {\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/us1103-gw-q\"}}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:43:19 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "165"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "dbbba158-5c0d-493b-9795-347fb39a9caa"],
+          ["Access-Control-Allow-Origin", "*"],
+          ["x-amzn-ErrorType", "BadRequestException"],
+          ["x-amz-apigw-id", "GRdOME8CiYcEeIg="],
+          ["Access-Control-Expose-Headers", "x-amzn-RequestId,x-amzn-ErrorType,x-amzn-ErrorMessage,Date"],
+          ["X-Amzn-Trace-Id", "Root=1-6aea0f27-634995d51cb942435f26d0ba"]
+        ],
+        "body": "{\"message\":\"Operation: SQS-SendMessage requires enabling passthrough, or defining all of the following parameters in the parameter mapping: [QueueUrl, MessageBody]\"}"
+      }
+    }
+  ]
+}

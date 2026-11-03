@@ -1,0 +1,32 @@
+{
+  "step": "03-json",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://roj3rnqmie.execute-api.us-east-2.amazonaws.com/v1/a",
+        "headers": [
+          ["Host", "roj3rnqmie.execute-api.us-east-2.amazonaws.com"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "7"]
+        ],
+        "body": "{\"a\":1}"
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 03:40:33 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "1759"],
+          ["Connection", "keep-alive"],
+          ["Apigw-Requestid", "GPqjyibyCYcEJtA="]
+        ],
+        "body": "{\"version\": \"1.0\", \"resource\": \"/v1/{proxy+}\", \"path\": \"/v1/a\", \"httpMethod\": \"POST\", \"headers\": {\"Content-Length\": \"7\", \"Content-Type\": \"application/json\", \"Host\": \"roj3rnqmie.execute-api.us-east-2.amazonaws.com\", \"User-Agent\": \"curl/8.23.0\", \"X-Amzn-Trace-Id\": \"Root=1-6ae957b1-4b0e56f543b1ca662341abbf\", \"X-Forwarded-For\": \"198.51.100.2\", \"X-Forwarded-Port\": \"443\", \"X-Forwarded-Proto\": \"https\", \"accept\": \"*/*\"}, \"multiValueHeaders\": {\"Content-Length\": [\"7\"], \"Content-Type\": [\"application/json\"], \"Host\": [\"roj3rnqmie.execute-api.us-east-2.amazonaws.com\"], \"User-Agent\": [\"curl/8.23.0\"], \"X-Amzn-Trace-Id\": [\"Root=1-6ae957b1-4b0e56f543b1ca662341abbf\"], \"X-Forwarded-For\": [\"198.51.100.2\"], \"X-Forwarded-Port\": [\"443\"], \"X-Forwarded-Proto\": [\"https\"], \"accept\": [\"*/*\"]}, \"queryStringParameters\": null, \"multiValueQueryStringParameters\": null, \"requestContext\": {\"accountId\": \"123456789012\", \"apiId\": \"roj3rnqmie\", \"domainName\": \"roj3rnqmie.execute-api.us-east-2.amazonaws.com\", \"domainPrefix\": \"roj3rnqmie\", \"extendedRequestId\": \"GPqjyibyCYcEJtA=\", \"httpMethod\": \"POST\", \"identity\": {\"accessKey\": null, \"accountId\": null, \"caller\": null, \"cognitoAmr\": null, \"cognitoAuthenticationProvider\": null, \"cognitoAuthenticationType\": null, \"cognitoIdentityId\": null, \"cognitoIdentityPoolId\": null, \"principalOrgId\": null, \"sourceIp\": \"198.51.100.2\", \"user\": null, \"userAgent\": \"curl/8.23.0\", \"userArn\": null}, \"path\": \"/v1/a\", \"protocol\": \"HTTP/1.1\", \"requestId\": \"GPqjyibyCYcEJtA=\", \"requestTime\": \"03/Nov/2026:03:40:33 +0000\", \"requestTimeEpoch\": 1793677233323, \"resourceId\": \"ANY /v1/{proxy+}\", \"resourcePath\": \"/v1/{proxy+}\", \"stage\": \"$default\"}, \"pathParameters\": {\"proxy\": \"a\"}, \"stageVariables\": null, \"body\": \"{\\\"a\\\":1}\", \"isBase64Encoded\": false}"
+      }
+    }
+  ]
+}

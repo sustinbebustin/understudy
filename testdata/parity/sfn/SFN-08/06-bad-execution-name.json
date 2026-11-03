@@ -1,0 +1,35 @@
+{
+  "step": "06-bad-execution-name",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidName) when calling the StartExecution operation: Invalid Name: 'bad name'",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://states.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSStepFunctions.StartExecution"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,b,AN,g,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#stepfunctions.start-execution"],
+          ["X-Amz-Date", "20261103T163923Z"],
+          ["amz-sdk-invocation-id", "9da26152-1df5-4fd7-9961-37d7819adec3"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "105"]
+        ],
+        "body": "{\"stateMachineArn\": \"arn:aws:states:us-east-2:123456789012:stateMachine:us1103-pass\", \"name\": \"bad name\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "f55cf363-a4f1-485d-b285-1a142331037e"],
+          ["Date", "Tue, 03 Nov 2026 16:39:23 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "96"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"__type\":\"com.amazonaws.swf.service.v2.model#InvalidName\",\"message\":\"Invalid Name: 'bad name'\"}"
+      }
+    }
+  ]
+}

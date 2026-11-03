@@ -1,0 +1,39 @@
+{
+  "step": "09-duplicate-route-key",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ConflictException) when calling the CreateRoute operation: Route with key GET /any already exists for this API",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://apigateway.us-east-2.amazonaws.com/v2/apis/hl9cpb8a0a/routes",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,b,g,Z,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#apigatewayv2.create-route"],
+          ["X-Amz-Date", "20261103T164311Z"],
+          ["amz-sdk-invocation-id", "7d757c2c-0177-4dbf-9d5b-e9c771861fe3"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "24"]
+        ],
+        "body": "{\"routeKey\": \"GET /any\"}"
+      },
+      "response": {
+        "status": 409,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:43:12 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "65"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "82c0c327-51a9-4518-8c96-c3168c3a39c5"],
+          ["Access-Control-Allow-Origin", "*"],
+          ["x-amzn-ErrorType", "ConflictException"],
+          ["x-amz-apigw-id", "GRdNEFPqiYcEECw="],
+          ["Access-Control-Expose-Headers", "x-amzn-RequestId,x-amzn-ErrorType,x-amzn-ErrorMessage,Date"],
+          ["X-Amzn-Trace-Id", "Root=1-6aea0f1f-27bc34d501c361c56dba6b1c"]
+        ],
+        "body": "{\"message\":\"Route with key GET /any already exists for this API\"}"
+      }
+    }
+  ]
+}

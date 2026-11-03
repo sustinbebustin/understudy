@@ -1,0 +1,37 @@
+{
+  "step": "02-change-view-type",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ValidationException) when calling the UpdateTable operation: Table already has an enabled stream: TableName: us1103-ddbs",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://dynamodb.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "DynamoDB_20120810.UpdateTable"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/P,E,AN,g,b,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#dynamodb.update-table"],
+          ["X-Amz-Date", "20261103T163704Z"],
+          ["amz-sdk-invocation-id", "91926c04-cca1-4c79-8c09-de8aa3cd8fe1"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "107"]
+        ],
+        "body": "{\"TableName\": \"us1103-ddbs\", \"StreamSpecification\": {\"StreamEnabled\": true, \"StreamViewType\": \"KEYS_ONLY\"}}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Tue, 03 Nov 2026 16:37:04 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "130"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "59RM85LKUL7OCJ770FH2MJD5ARVV4KQNSO5AEMVJF66Q9ASUAAJG"],
+          ["x-amz-crc32", "2110286299"]
+        ],
+        "body": "{\"__type\":\"com.amazon.coral.validate#ValidationException\",\"message\":\"Table already has an enabled stream: TableName: us1103-ddbs\"}"
+      }
+    }
+  ]
+}

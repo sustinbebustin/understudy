@@ -1,0 +1,37 @@
+{
+  "step": "04-disable-again",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ValidationException) when calling the UpdateTable operation: Table has no stream to disable: TableName: us1103-ddbs-st",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://dynamodb.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "DynamoDB_20120810.UpdateTable"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,AN,P,g,b,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#dynamodb.update-table"],
+          ["X-Amz-Date", "20261103T163705Z"],
+          ["amz-sdk-invocation-id", "bee15abf-9b82-463e-bd15-8b5d1aa47405"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "80"]
+        ],
+        "body": "{\"TableName\": \"us1103-ddbs-st\", \"StreamSpecification\": {\"StreamEnabled\": false}}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Tue, 03 Nov 2026 16:37:05 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "128"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "TR2QHG9PC6OL11057TF8GOJVUJVV4KQNSO5AEMVJF66Q9ASUAAJG"],
+          ["x-amz-crc32", "1819813675"]
+        ],
+        "body": "{\"__type\":\"com.amazon.coral.validate#ValidationException\",\"message\":\"Table has no stream to disable: TableName: us1103-ddbs-st\"}"
+      }
+    }
+  ]
+}

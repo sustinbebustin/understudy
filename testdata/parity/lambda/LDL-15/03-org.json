@@ -1,0 +1,33 @@
+{
+  "step": "03-org",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://lambda.us-east-2.amazonaws.com/2018-10-31/layers/us1103-ldl-pol/versions/1/policy",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,Z,E,b,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.add-layer-version-permission"],
+          ["X-Amz-Date", "20261103T170747Z"],
+          ["amz-sdk-invocation-id", "ee51ff63-ff8d-4cbf-9d4d-404f62b0c654"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "110"]
+        ],
+        "body": "{\"StatementId\": \"org\", \"Action\": \"lambda:GetLayerVersion\", \"Principal\": \"*\", \"OrganizationId\": \"o-abcdefghij\"}"
+      },
+      "response": {
+        "status": 201,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 17:07:47 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "317"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "4569f5a8-9a10-451b-b0dc-68a782de51bf"]
+        ],
+        "body": "{\"RevisionId\":\"d88e1489-aa3f-4b8c-baa1-724cc7c9798f\",\"Statement\":\"{\\\"Sid\\\":\\\"org\\\",\\\"Effect\\\":\\\"Allow\\\",\\\"Principal\\\":\\\"*\\\",\\\"Action\\\":\\\"lambda:GetLayerVersion\\\",\\\"Resource\\\":\\\"arn:aws:lambda:us-east-2:123456789012:layer:us1103-ldl-pol:1\\\",\\\"Condition\\\":{\\\"StringEquals\\\":{\\\"aws:PrincipalOrgID\\\":\\\"o-abcdefghij\\\"}}}\"}"
+      }
+    }
+  ]
+}

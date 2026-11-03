@@ -1,0 +1,35 @@
+{
+  "step": "22-16-untag-resource-tags-only",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (AccessDeniedException) when calling the UntagResource operation: User: arn:aws:sts::123456789012:assumed-role/us1103-apigw1-caller/gw22 is not authorized to perform: apigateway:PATCH on resource: arn:aws:apigateway:us-east-2::/restapis/iqia6sj0ff because no identity-based policy allows the apigateway:PATCH action",
+  "exchanges": [
+    {
+      "request": {
+        "method": "DELETE",
+        "url": "https://apigateway.us-east-2.amazonaws.com/tags/arn%3Aaws%3Aapigateway%3Aus-east-2%3A%3A%2Frestapis%2Fiqia6sj0ff?tagKeys=k",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,E,AN,g,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#apigateway.untag-resource"],
+          ["Accept", "application/json"],
+          ["X-Amz-Date", "20261103T164952Z"],
+          ["amz-sdk-invocation-id", "c04f83c9-cd87-491b-927b-4bcf138d28d6"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "0"]
+        ]
+      },
+      "response": {
+        "status": 403,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:49:52 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "264"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "170f1586-e7b1-436f-a163-da00b8d10aa1"],
+          ["x-amzn-ErrorType", "AccessDeniedException"],
+          ["x-amz-apigw-id", "GReLtIIpiYcEcEQ="]
+        ],
+        "body": "{\"Message\":\"User: arn:aws:sts::123456789012:assumed-role/us1103-apigw1-caller/gw22 is not authorized to perform: apigateway:PATCH on resource: arn:aws:apigateway:us-east-2::/restapis/iqia6sj0ff because no identity-based policy allows the apigateway:PATCH action\"}\n"
+      }
+    }
+  ]
+}

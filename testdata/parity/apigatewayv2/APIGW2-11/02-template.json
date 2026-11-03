@@ -1,0 +1,29 @@
+{
+  "step": "02-template",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://hl9cpb8a0a.execute-api.us-east-2.amazonaws.com/perm/1",
+        "headers": [
+          ["Host", "hl9cpb8a0a.execute-api.us-east-2.amazonaws.com"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:47:18 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "890"],
+          ["Connection", "keep-alive"],
+          ["Apigw-Requestid", "GRdzkiWiiYcENpQ="]
+        ],
+        "body": "{\"version\": \"2.0\", \"routeKey\": \"GET /perm/{id}\", \"rawPath\": \"/perm/1\", \"rawQueryString\": \"\", \"headers\": {\"accept\": \"*/*\", \"content-length\": \"0\", \"host\": \"hl9cpb8a0a.execute-api.us-east-2.amazonaws.com\", \"user-agent\": \"curl/8.23.0\", \"x-amzn-trace-id\": \"Root=1-6aea1016-2f2489a648ca8b662478f8b2\", \"x-forwarded-for\": \"198.51.100.2\", \"x-forwarded-port\": \"443\", \"x-forwarded-proto\": \"https\"}, \"requestContext\": {\"accountId\": \"123456789012\", \"apiId\": \"hl9cpb8a0a\", \"domainName\": \"hl9cpb8a0a.execute-api.us-east-2.amazonaws.com\", \"domainPrefix\": \"hl9cpb8a0a\", \"http\": {\"method\": \"GET\", \"path\": \"/perm/1\", \"protocol\": \"HTTP/1.1\", \"sourceIp\": \"198.51.100.2\", \"userAgent\": \"curl/8.23.0\"}, \"requestId\": \"GRdzkiWiiYcENpQ=\", \"routeKey\": \"GET /perm/{id}\", \"stage\": \"$default\", \"time\": \"03/Nov/2026:16:47:18 +0000\", \"timeEpoch\": 1793724438317}, \"pathParameters\": {\"id\": \"1\"}, \"isBase64Encoded\": false}"
+      }
+    }
+  ]
+}

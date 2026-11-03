@@ -1,0 +1,29 @@
+{
+  "step": "D-restore-link",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://sns.us-east-2.amazonaws.com/?Action=ConfirmSubscription&TopicArn=arn:aws:sns:us-east-2:123456789012:us1103-snsh-d&Token=2336412f37fb687f5d51e6e2425929f4483a15a827c768293f6ea2bc543a129ecac4c6b69257987c65eaf41e08b46b779884f6861b5727ed82192f64c8854ccc9c6cce04fa230d6a03286e6b1d706fade053d8ae32fd16253724b0cd766e5a8473395b6740bc85eb4ba8993f7a8c8853",
+        "headers": [
+          ["Host", "sns.us-east-2.amazonaws.com"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["x-amzn-RequestId", "9f8ee58a-7242-55d4-8558-86ee65cf47f9"],
+          ["Date", "Tue, 03 Nov 2026 17:09:33 GMT"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "403"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "<ConfirmSubscriptionResponse xmlns=\"http://sns.amazonaws.com/doc/2010-03-31/\">\n  <ConfirmSubscriptionResult>\n    <SubscriptionArn>arn:aws:sns:us-east-2:123456789012:us1103-snsh-d:5ab3db84-8c58-4967-b8e5-d717e86fb4a1</SubscriptionArn>\n  </ConfirmSubscriptionResult>\n  <ResponseMetadata>\n    <RequestId>9f8ee58a-7242-55d4-8558-86ee65cf47f9</RequestId>\n  </ResponseMetadata>\n</ConfirmSubscriptionResponse>\n"
+      }
+    }
+  ]
+}

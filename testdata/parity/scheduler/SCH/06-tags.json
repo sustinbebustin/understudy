@@ -1,0 +1,29 @@
+{
+  "step": "06-tags",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://scheduler.us-east-2.amazonaws.com/tags/arn%3Aaws%3Ascheduler%3Aus-east-2%3A123456789012%3Aschedule-group%2Fus1103-g",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,E,b,Z,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#scheduler.list-tags-for-resource"],
+          ["X-Amz-Date", "20261103T163807Z"],
+          ["amz-sdk-invocation-id", "da437f28-a3d5-4aec-ae96-6e7f0ff8f47b"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "4b4710e4-a317-42cc-8cae-85b143df174e"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "62"],
+          ["Date", "Tue, 03 Nov 2026 16:38:07 GMT"]
+        ],
+        "body": "{\"Tags\":[{\"Key\":\"k0\",\"Value\":\"v0\"},{\"Key\":\"k1\",\"Value\":\"v1\"}]}"
+      }
+    }
+  ]
+}

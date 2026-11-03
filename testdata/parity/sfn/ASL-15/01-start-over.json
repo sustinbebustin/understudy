@@ -1,0 +1,35 @@
+{
+  "step": "01-start-over",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ValidationException) when calling the StartExecution operation: 1 validation error detected: Value at 'input' failed to satisfy constraint: Member must have size less than or equal to 262144 bytes in UTF-8 encoding",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://states.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSStepFunctions.StartExecution"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,b,g,Z,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#stepfunctions.start-execution"],
+          ["X-Amz-Date", "20261103T165157Z"],
+          ["amz-sdk-invocation-id", "3065c964-c8d9-4ea7-a3f4-28138ad1a728"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "262301"]
+        ],
+        "body_omitted": {"bytes": 262301, "sha256": "eefab6d31182562c89719e83e5b87b90577709705a256e133a20fb2e173b66ee"}
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "039961be-0bad-4bb0-b276-8ea445023112"],
+          ["Date", "Tue, 03 Nov 2026 16:51:57 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "221"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"__type\":\"com.amazon.coral.validate#ValidationException\",\"message\":\"1 validation error detected: Value at 'input' failed to satisfy constraint: Member must have size less than or equal to 262144 bytes in UTF-8 encoding\"}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "step": "events-2",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.ReceiveMessage"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AD,b,E,Z,AN,AC cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.receive-message"],
+          ["X-Amz-Date", "20261103T031740Z"],
+          ["amz-sdk-invocation-id", "e688c68f-4708-434c-828e-e76a53400352"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "195"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/us1103-cwa-ev\", \"AttributeNames\": [\"All\"], \"MessageSystemAttributeNames\": [\"All\"], \"MaxNumberOfMessages\": 10, \"WaitTimeSeconds\": 10}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "bf6c1e0b-d4ae-5a8f-b757-7d68803a25fd"],
+          ["Date", "Tue, 03 Nov 2026 03:17:40 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "4168"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"Messages\":[{\"Attributes\":{\"SenderId\":\"AIDAIMTEBMVXFWRSXIKCK\",\"ApproximateFirstReceiveTimestamp\":\"1793675860588\",\"ApproximateReceiveCount\":\"1\",\"SentTimestamp\":\"1793675768561\"},\"Body\":\"{\\\"version\\\":\\\"0\\\",\\\"id\\\":\\\"07f3a2b6-c4f7-d971-332f-dd17ea8861ce\\\",\\\"detail-type\\\":\\\"CloudWatch Alarm Configuration Change\\\",\\\"source\\\":\\\"aws.cloudwatch\\\",\\\"account\\\":\\\"123456789012\\\",\\\"time\\\":\\\"2026-11-03T03:16:08Z\\\",\\\"region\\\":\\\"us-east-2\\\",\\\"resources\\\":[\\\"arn:aws:cloudwatch:us-east-2:123456789012:alarm:us1103-ev-shape\\\"],\\\"detail\\\":{\\\"alarmName\\\":\\\"us1103-ev-shape\\\",\\\"operation\\\":\\\"update\\\",\\\"state\\\":{\\\"value\\\":\\\"OK\\\",\\\"timestamp\\\":\\\"2026-11-03T03:16:07.941+0000\\\"},\\\"configuration\\\":{\\\"evaluationPeriods\\\":2,\\\"datapointsToAlarm\\\":1,\\\"threshold\\\":4.0,\\\"comparisonOperator\\\":\\\"GreaterThanThreshold\\\",\\\"treatMissingData\\\":\\\"ignore\\\",\\\"metrics\\\":[{\\\"id\\\":\\\"88d0cfb4-194c-e040-2fb6-2645907f54cb\\\",\\\"metricStat\\\":{\\\"metric\\\":{\\\"namespace\\\":\\\"us1103/cwa\\\",\\\"name\\\":\\\"ev-none\\\",\\\"dimensions\\\":{}},\\\"period\\\":60,\\\"stat\\\":\\\"Maximum\\\"},\\\"returnData\\\":true}],\\\"alarmName\\\":\\\"us1103-ev-shape\\\",\\\"description\\\":\\\"described\\\",\\\"actionsEnabled\\\":true,\\\"timestamp\\\":\\\"2026-11-03T03:16:08.475+0000\\\",\\\"okActions\\\":[\\\"arn:aws:lambda:us-east-2:123456789012:function:us1103-cwa\\\"],\\\"alarmActions\\\":[\\\"arn:aws:lambda:us-east-2:123456789012:function:us1103-cwa\\\"],\\\"insufficientDataActions\\\":[]},\\\"previousConfiguration\\\":{\\\"evaluationPeriods\\\":2,\\\"datapointsToAlarm\\\":1,\\\"threshold\\\":3.0,\\\"comparisonOperator\\\":\\\"GreaterThanThreshold\\\",\\\"treatMissingData\\\":\\\"ignore\\\",\\\"metrics\\\":[{\\\"id\\\":\\\"c2d0cfb4-1516-36f2-5a1f-d2a9f14c031b\\\",\\\"metricStat\\\":{\\\"metric\\\":{\\\"namespace\\\":\\\"us1103/cwa\\\",\\\"name\\\":\\\"ev-none\\\",\\\"dimensions\\\":{}},\\\"period\\\":60,\\\"stat\\\":\\\"Maximum\\\"},\\\"returnData\\\":true}],\\\"alarmName\\\":\\\"us1103-ev-shape\\\",\\\"actionsEnabled\\\":true,\\\"timestamp\\\":\\\"2026-11-03T03:16:06.316+0000\\\",\\\"okActions\\\":[\\\"arn:aws:lambda:us-east-2:123456789012:function:us1103-cwa\\\"],\\\"alarmActions\\\":[\\\"arn:aws:lambda:us-east-2:123456789012:function:us1103-cwa\\\"],\\\"insufficientDataActions\\\":[]}}}\",\"MD5OfBody\":\"935e9acc2046687e41277ca395922c93\",\"MessageId\":\"3e8d23db-e2ba-4233-882b-6c9786213ef8\",\"ReceiptHandle\":\"AQEBIw4enSM23cY8esNZfTnknqZuHforxcxkoaDpiVd6iJTV9VDLeInz0xPc3sDJpqUNOZZ5U/+wqz+Irof0ngscsVvGSOhbuFGzc4pWPG2ruBKAJJu3dz8PJapjKOVHy6fz0N38viddICf0jsnkiOCZk8E2w1aFQp9rfzZjxN0qRoaTDxsykJZTrN256zbHBf+0GRTAPNb4bh7Xzdx9141t5jc5/zarBMB5kG6B0gs/6a/bJsAsuk6ssEv1gVUZrlnqGq60bJn0EmjlugPLZQdatrQjEYn3E2p+rSydlyrnln1L5HuTkqwLT4NKv5hC7x21zvPaWgdFZdC0kSShlrVyBBZeuJG7f6ZA4bVVfDguvIAziwKMP1fc7PtUrHnFhFEWUxpH1hYTdT0gKVGAfEoCYg==\"},{\"Attributes\":{\"SenderId\":\"AIDAIMTEBMVXFWRSXIKCK\",\"ApproximateFirstReceiveTimestamp\":\"1793675860591\",\"ApproximateReceiveCount\":\"1\",\"SentTimestamp\":\"1793675769089\"},\"Body\":\"{\\\"version\\\":\\\"0\\\",\\\"id\\\":\\\"74b3b6ff-8d5f-7598-322d-cda3d744df87\\\",\\\"detail-type\\\":\\\"CloudWatch Alarm State Change\\\",\\\"source\\\":\\\"aws.cloudwatch\\\",\\\"account\\\":\\\"123456789012\\\",\\\"time\\\":\\\"2026-11-03T03:16:09Z\\\",\\\"region\\\":\\\"us-east-2\\\",\\\"resources\\\":[\\\"arn:aws:cloudwatch:us-east-2:123456789012:alarm:us1103-ev-shape\\\"],\\\"detail\\\":{\\\"alarmName\\\":\\\"us1103-ev-shape\\\",\\\"state\\\":{\\\"value\\\":\\\"ALARM\\\",\\\"reason\\\":\\\"three\\\",\\\"timestamp\\\":\\\"2026-11-03T03:16:09.013+0000\\\"},\\\"previousState\\\":{\\\"value\\\":\\\"OK\\\",\\\"reason\\\":\\\"two\\\",\\\"reasonData\\\":\\\"{\\\\\\\"k\\\\\\\":\\\\\\\"v\\\\\\\"}\\\",\\\"timestamp\\\":\\\"2026-11-03T03:16:07.941+0000\\\"},\\\"configuration\\\":{\\\"metrics\\\":[{\\\"id\\\":\\\"88d0cfb4-194c-e040-2fb6-2645907f54cb\\\",\\\"metricStat\\\":{\\\"metric\\\":{\\\"namespace\\\":\\\"us1103/cwa\\\",\\\"name\\\":\\\"ev-none\\\",\\\"dimensions\\\":{}},\\\"period\\\":60,\\\"stat\\\":\\\"Maximum\\\"},\\\"returnData\\\":true}],\\\"description\\\":\\\"described\\\"}}}\",\"MD5OfBody\":\"ffb2f8e4a59a4153c79399763ae372c7\",\"MessageId\":\"31f919a3-7ea2-4f73-a847-e9c499962023\",\"ReceiptHandle\":\"AQEBqZ+WLzFb3z5fyAMoTfURFvfunesiif795MVtA/tE91AnKK3Oa3eLCAweLNk0gHhC5pt+tFeERjkiGpF1Gm+bsKzxm8Hfu35Xrme3z62hvxYSBzIbcOGFNXBpSGyswY3eKQu2q8Y32XyDKwlf33Vm1o3X5JV5JvjIDEaLG00kHWXbpKwyo2pvsq8/cC2ekjAcxhARivxQaGiF2MaMmK5B61omjat6Z/xDL6aQgqReztEBc44sVY0weTIeZyJGK7ySAd30oy38ZwezsuGQQneTfPw66deEjjtR1N0rLz+rYGPRcoafTxQhuPcqae77yW3eEsgJCX6J89fI7sFaniCe4a0e69c8ObwUf9+wp4I+kWrtjNgqX7KVyDQucY7XjXLZJht4m3/bQjcqTcMwz4paTA==\"}]}"
+      }
+    }
+  ]
+}

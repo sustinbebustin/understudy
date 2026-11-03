@@ -1,0 +1,36 @@
+{
+  "step": "06-double",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ValidationException) when calling the GetParameter operation: Invalid parameter name. Please use correct syntax for referencing a version/label  <name>:<version/label>",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://ssm.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSSM.GetParameter"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,E,Z,AN,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#ssm.get-parameter"],
+          ["X-Amz-Date", "20261103T163701Z"],
+          ["amz-sdk-invocation-id", "8d70df89-e5be-47e7-b6c0-cd5382d3c07d"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "31"]
+        ],
+        "body": "{\"Name\": \"/us1103/ssm/l16:1:2\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Tue, 03 Nov 2026 16:37:01 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "150"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "3d121c91-3c89-4f42-84db-fa4adb40e853"]
+        ],
+        "body": "{\"__type\":\"ValidationException\",\"message\":\"Invalid parameter name. Please use correct syntax for referencing a version/label  <name>:<version/label>\"}"
+      }
+    }
+  ]
+}

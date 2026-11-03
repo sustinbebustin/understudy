@@ -1,0 +1,22 @@
+{
+  "step": "18-numbers",
+  "client": "curl",
+  "exchanges": [
+    {
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:47:18 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "174"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "2839a6b9-6836-4e8b-b3dd-9e3f639a5228"],
+          ["x-amz-apigw-id", "GRdzqFqiiYcEpHQ="],
+          ["X-Amzn-Trace-Id", "Root=1-6aea1016-4d7add4b1dc69d1003d9565a;Parent=751d2e5342536b02;Sampled=0;Lineage=1:3c3b1068:0"]
+        ],
+        "body": "{\"missing\": \"\\\"\\\"\", \"n\": \"10.0\", \"f\": \"1000.0\", \"big\": \"12345678901234567890\", \"all\": \"{\\\"n\\\":10.0,\\\"f\\\":1000.0,\\\"big\\\":12345678901234567890,\\\"s\\\":\\\"x\\\"}\", \"pathmissing\": \"\"}"
+      }
+    }
+  ]
+}

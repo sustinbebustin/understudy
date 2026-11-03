@@ -1,0 +1,35 @@
+{
+  "step": "04-missing-bucket",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidParameterValueException) when calling the PutFunctionEventInvokeConfig operation: Error occurred while ListBucket. S3 Error Code: 404 Not Found. S3 Error Message: Not Found\n\nAdditional error details:\nType: User",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://lambda.us-east-2.amazonaws.com/2019-09-25/functions/us1103-ldl-v/event-invoke-config",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,E,AN,g,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.put-function-event-invoke-config"],
+          ["X-Amz-Date", "20261103T165343Z"],
+          ["amz-sdk-invocation-id", "b076ab90-d4a2-4315-acce-8729e5eab4e0"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "87"]
+        ],
+        "body": "{\"DestinationConfig\": {\"OnFailure\": {\"Destination\": \"arn:aws:s3:::us1103-ldl-nosuch\"}}}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:53:44 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "118"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "ed1c5f12-17ab-469f-999c-8c2569f4aeb9"],
+          ["x-amzn-ErrorType", "InvalidParameterValueException"]
+        ],
+        "body": "{\"Type\":\"User\",\"message\":\"Error occurred while ListBucket. S3 Error Code: 404 Not Found. S3 Error Message: Not Found\"}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "step": "04-bad-machine-name",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidName) when calling the CreateStateMachine operation: Invalid Name: 'us1103 v4'",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://states.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSStepFunctions.CreateStateMachine"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,AN,b,E,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#stepfunctions.create-state-machine"],
+          ["X-Amz-Date", "20261103T163922Z"],
+          ["amz-sdk-invocation-id", "02994cad-1bbd-48aa-ade9-8200cdb8c423"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "166"]
+        ],
+        "body": "{\"name\": \"us1103 v4\", \"definition\": \"{\\\"StartAt\\\":\\\"P\\\",\\\"States\\\":{\\\"P\\\":{\\\"Type\\\":\\\"Pass\\\",\\\"End\\\":true}}}\", \"roleArn\": \"arn:aws:iam::123456789012:role/us1103-sfn\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "b452b066-519d-44f8-be24-7097e9f64c12"],
+          ["Date", "Tue, 03 Nov 2026 16:39:22 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "97"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"__type\":\"com.amazonaws.swf.service.v2.model#InvalidName\",\"message\":\"Invalid Name: 'us1103 v4'\"}"
+      }
+    }
+  ]
+}

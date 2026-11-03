@@ -1,0 +1,36 @@
+{
+  "step": "06-arn",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://ssm.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSSM.ListTagsForResource"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,Z,b,g,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#ssm.list-tags-for-resource"],
+          ["X-Amz-Date", "20261103T163755Z"],
+          ["amz-sdk-invocation-id", "a6733f5d-5671-404a-87b9-93367fd1db02"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "106"]
+        ],
+        "body": "{\"ResourceType\": \"Parameter\", \"ResourceId\": \"arn:aws:ssm:us-east-2:123456789012:parameter/us1103/ssm/t25\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Tue, 03 Nov 2026 16:37:55 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "1304"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "38bf0b19-ecbd-4b76-ad1d-79274940100a"],
+          ["Cache-Control", "no-store"]
+        ],
+        "body": "{\"TagList\":[{\"Key\":\"k31\",\"Value\":\"v\"},{\"Key\":\"k30\",\"Value\":\"v\"},{\"Key\":\"k33\",\"Value\":\"v\"},{\"Key\":\"k32\",\"Value\":\"v\"},{\"Key\":\"k35\",\"Value\":\"v\"},{\"Key\":\"k34\",\"Value\":\"v\"},{\"Key\":\"k37\",\"Value\":\"v\"},{\"Key\":\"k36\",\"Value\":\"v\"},{\"Key\":\"k39\",\"Value\":\"v\"},{\"Key\":\"k38\",\"Value\":\"v\"},{\"Key\":\"k1\",\"Value\":\"v\"},{\"Key\":\"k40\",\"Value\":\"v\"},{\"Key\":\"k2\",\"Value\":\"v\"},{\"Key\":\"k3\",\"Value\":\"v\"},{\"Key\":\"k42\",\"Value\":\"v\"},{\"Key\":\"k4\",\"Value\":\"v\"},{\"Key\":\"k41\",\"Value\":\"v\"},{\"Key\":\"k44\",\"Value\":\"v\"},{\"Key\":\"k5\",\"Value\":\"v\"},{\"Key\":\"k43\",\"Value\":\"v\"},{\"Key\":\"k6\",\"Value\":\"v\"},{\"Key\":\"k46\",\"Value\":\"v\"},{\"Key\":\"k7\",\"Value\":\"v\"},{\"Key\":\"k45\",\"Value\":\"v\"},{\"Key\":\"k8\",\"Value\":\"v\"},{\"Key\":\"k48\",\"Value\":\"v\"},{\"Key\":\"k9\",\"Value\":\"v\"},{\"Key\":\"k47\",\"Value\":\"v\"},{\"Key\":\"k49\",\"Value\":\"v\"},{\"Key\":\"k50\",\"Value\":\"v\"},{\"Key\":\"k11\",\"Value\":\"v\"},{\"Key\":\"k10\",\"Value\":\"v\"},{\"Key\":\"k13\",\"Value\":\"v\"},{\"Key\":\"k12\",\"Value\":\"v\"},{\"Key\":\"k15\",\"Value\":\"v\"},{\"Key\":\"k14\",\"Value\":\"v\"},{\"Key\":\"k17\",\"Value\":\"v\"},{\"Key\":\"k16\",\"Value\":\"v\"},{\"Key\":\"k19\",\"Value\":\"v\"},{\"Key\":\"k18\",\"Value\":\"v\"},{\"Key\":\"k20\",\"Value\":\"v\"},{\"Key\":\"k22\",\"Value\":\"v\"},{\"Key\":\"k21\",\"Value\":\"v\"},{\"Key\":\"k24\",\"Value\":\"v\"},{\"Key\":\"k23\",\"Value\":\"v\"},{\"Key\":\"k26\",\"Value\":\"v\"},{\"Key\":\"k25\",\"Value\":\"v\"},{\"Key\":\"k28\",\"Value\":\"v\"},{\"Key\":\"k27\",\"Value\":\"v\"},{\"Key\":\"k29\",\"Value\":\"v\"}]}"
+      }
+    }
+  ]
+}

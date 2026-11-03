@@ -1,0 +1,35 @@
+{
+  "step": "receive-4",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.ReceiveMessage"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,Z,b,AC,AD,AN cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.receive-message"],
+          ["X-Amz-Date", "20261103T031511Z"],
+          ["amz-sdk-invocation-id", "1aa34076-4ec8-4831-a0a5-c8fc436dd2b5"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "197"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/us1103-cwa.fifo\", \"AttributeNames\": [\"All\"], \"MessageSystemAttributeNames\": [\"All\"], \"MaxNumberOfMessages\": 10, \"WaitTimeSeconds\": 10}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "d81f0c4c-64e7-5ff6-adf3-6f2f37186e7b"],
+          ["Date", "Tue, 03 Nov 2026 03:15:19 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "2387"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"Messages\":[{\"Attributes\":{\"SenderId\":\"AROARIMVCWVER77J3HQL3:AWS-CLOUDCAST\",\"ApproximateFirstReceiveTimestamp\":\"1793675689664\",\"ApproximateReceiveCount\":\"2\",\"SentTimestamp\":\"1793675659720\",\"SequenceNumber\":\"18905925042597871616\",\"MessageDeduplicationId\":\"1d201fd4-5b5e-482f-a55b-03df10d028ae\",\"MessageGroupId\":\"b2cb701415225c28b3c813b230c12eb52042aafa0b65a275e8cdbfc83c0f4480\"},\"Body\":\"{\\n  \\\"Type\\\" : \\\"Notification\\\",\\n  \\\"MessageId\\\" : \\\"214fb2a0-c01f-5776-a783-d1c393d43eb2\\\",\\n  \\\"TopicArn\\\" : \\\"arn:aws:sns:us-east-2:123456789012:us1103-cwa.fifo\\\",\\n  \\\"Subject\\\" : \\\"ALARM: \\\\\\\"us1103-fifo\\\\\\\" in US East (Ohio)\\\",\\n  \\\"Message\\\" : \\\"{\\\\\\\"AlarmName\\\\\\\":\\\\\\\"us1103-fifo\\\\\\\",\\\\\\\"AlarmDescription\\\\\\\":null,\\\\\\\"AWSAccountId\\\\\\\":\\\\\\\"123456789012\\\\\\\",\\\\\\\"AlarmConfigurationUpdatedTimestamp\\\\\\\":\\\\\\\"2026-11-03T03:14:18.568+0000\\\\\\\",\\\\\\\"NewStateValue\\\\\\\":\\\\\\\"ALARM\\\\\\\",\\\\\\\"NewStateReason\\\\\\\":\\\\\\\"fifo\\\\\\\",\\\\\\\"StateChangeTime\\\\\\\":\\\\\\\"2026-11-03T03:14:19.129+0000\\\\\\\",\\\\\\\"Region\\\\\\\":\\\\\\\"US East (Ohio)\\\\\\\",\\\\\\\"AlarmArn\\\\\\\":\\\\\\\"arn:aws:cloudwatch:us-east-2:123456789012:alarm:us1103-fifo\\\\\\\",\\\\\\\"OldStateValue\\\\\\\":\\\\\\\"INSUFFICIENT_DATA\\\\\\\",\\\\\\\"ActionExecutedAfterMuteWindow\\\\\\\":false,\\\\\\\"OKActions\\\\\\\":[],\\\\\\\"AlarmActions\\\\\\\":[\\\\\\\"arn:aws:sns:us-east-2:123456789012:us1103-cwa.fifo\\\\\\\"],\\\\\\\"InsufficientDataActions\\\\\\\":[],\\\\\\\"Trigger\\\\\\\":{\\\\\\\"MetricName\\\\\\\":\\\\\\\"fifo-none\\\\\\\",\\\\\\\"Namespace\\\\\\\":\\\\\\\"us1103/cwa\\\\\\\",\\\\\\\"StatisticType\\\\\\\":\\\\\\\"Statistic\\\\\\\",\\\\\\\"Statistic\\\\\\\":\\\\\\\"MAXIMUM\\\\\\\",\\\\\\\"Unit\\\\\\\":null,\\\\\\\"Dimensions\\\\\\\":[],\\\\\\\"Period\\\\\\\":60,\\\\\\\"EvaluationPeriods\\\\\\\":1,\\\\\\\"ComparisonOperator\\\\\\\":\\\\\\\"GreaterThanThreshold\\\\\\\",\\\\\\\"Threshold\\\\\\\":3.0,\\\\\\\"TreatMissingData\\\\\\\":\\\\\\\"ignore\\\\\\\",\\\\\\\"EvaluateLowSampleCountPercentile\\\\\\\":\\\\\\\"\\\\\\\"}}\\\",\\n  \\\"Timestamp\\\" : \\\"2026-11-03T03:14:19.151Z\\\",\\n  \\\"UnsubscribeURL\\\" : \\\"https://sns.us-east-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:us-east-2:123456789012:us1103-cwa.fifo:34c05cb9-3440-406f-8aa1-052809b63848\\\"\\n}\",\"MD5OfBody\":\"f40242c8100d6564584d577c372de4a5\",\"MessageId\":\"ccdfcef6-0ac2-41cd-866a-2d6684ee94c3\",\"ReceiptHandle\":\"AQEBFMNxaJbLbs16day0D0L76RBQ+cUIU7UZNgQhwaqIxymHYktZDQT92nvGl5aiwbY744OIL1SIwIWO+/B2qW7Ul1XQYaisOB1DTqzoB6iQkukFyp0A3RjnckKdY2499BJiPZxUBB+4O/0OQ0lapXAqy6B5NRv9s4SlZQX/WFDiDo9IOHBCjKpfibuJuFWjqYWRIMdf3F6okYgmZAnfarwdX/i1Y/0ILCHEqjly/CX2x+aOcM9QIGudOHW2VV7uUcE7C7LoOnSQrGfnIMFDkuRYwQ==\"}]}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "step": "42-bare-put-events",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (AccessDeniedException) when calling the PutLogEvents operation: User: arn:aws:sts::123456789012:assumed-role/us1103-enf-lg-bare/enf is not authorized to perform: logs:PutLogEvents on resource: arn:aws:logs:us-east-2:123456789012:log-group:/us1103/r28:log-stream:s because no identity-based policy allows the logs:PutLogEvents action",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://logs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "Logs_20140328.PutLogEvents"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,g,b,Z,AN cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#logs.put-log-events"],
+          ["X-Amz-Date", "20261103T034027Z"],
+          ["amz-sdk-invocation-id", "641a10ae-51ac-41b2-b665-92badf4b077f"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "114"]
+        ],
+        "body": "{\"logGroupName\": \"/us1103/r28\", \"logStreamName\": \"s\", \"logEvents\": [{\"timestamp\": 1793677226000, \"message\": \"x\"}]}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "d020ca2a-6fe3-4842-821c-596167f17117"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "315"],
+          ["Date", "Tue, 03 Nov 2026 03:40:27 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "{\"__type\":\"AccessDeniedException\",\"Message\":\"User: arn:aws:sts::123456789012:assumed-role/us1103-enf-lg-bare/enf is not authorized to perform: logs:PutLogEvents on resource: arn:aws:logs:us-east-2:123456789012:log-group:/us1103/r28:log-stream:s because no identity-based policy allows the logs:PutLogEvents action\"}"
+      }
+    }
+  ]
+}

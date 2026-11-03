@@ -1,0 +1,35 @@
+{
+  "step": "03-reformatted",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ExecutionAlreadyExists) when calling the StartExecution operation: Execution Already Exists: 'arn:aws:states:us-east-2:123456789012:execution:us1103-wait:us1103-idem'",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://states.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSStepFunctions.StartExecution"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,AN,Z,g,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#stepfunctions.start-execution"],
+          ["X-Amz-Date", "20261103T163643Z"],
+          ["amz-sdk-invocation-id", "51c30895-6778-4576-b1e7-31788b5518de"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "133"]
+        ],
+        "body": "{\"stateMachineArn\": \"arn:aws:states:us-east-2:123456789012:stateMachine:us1103-wait\", \"name\": \"us1103-idem\", \"input\": \"{ \\\"a\\\": 1 }\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "7a27f821-51a1-465f-8372-f87505885128"],
+          ["Date", "Tue, 03 Nov 2026 16:36:43 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "182"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"__type\":\"com.amazonaws.swf.service.v2.model#ExecutionAlreadyExists\",\"message\":\"Execution Already Exists: 'arn:aws:states:us-east-2:123456789012:execution:us1103-wait:us1103-idem'\"}"
+      }
+    }
+  ]
+}

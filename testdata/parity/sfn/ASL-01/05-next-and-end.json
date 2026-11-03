@@ -1,0 +1,34 @@
+{
+  "step": "05-next-and-end",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://states.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSStepFunctions.ValidateStateMachineDefinition"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,E,AN,g,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#stepfunctions.validate-state-machine-definition"],
+          ["X-Amz-Date", "20261103T164648Z"],
+          ["amz-sdk-invocation-id", "e8846024-69ce-466a-a467-c1de9148ac5f"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "133"]
+        ],
+        "body": "{\"definition\": \"{\\\"StartAt\\\":\\\"A\\\",\\\"States\\\":{\\\"A\\\":{\\\"Type\\\":\\\"Pass\\\",\\\"Next\\\":\\\"B\\\",\\\"End\\\":true},\\\"B\\\":{\\\"Type\\\":\\\"Succeed\\\"}}}\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "adc671d5-f950-4870-a48d-5ec3620b489b"],
+          ["Date", "Tue, 03 Nov 2026 16:46:48 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "203"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"diagnostics\":[{\"code\":\"SCHEMA_VALIDATION_FAILED\",\"location\":\"/States/A\",\"message\":\"There should only be one of the following fields: [Next, End]\",\"severity\":\"ERROR\"}],\"result\":\"FAIL\",\"truncated\":false}"
+      }
+    }
+  ]
+}

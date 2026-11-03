@@ -1,0 +1,36 @@
+{
+  "step": "05-get-missing-stage",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (NotFoundException) when calling the GetStage operation: Invalid stage identifier specified",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://apigateway.us-east-2.amazonaws.com/v2/apis/hl9cpb8a0a/stages/nope",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,AN,b,Z,g cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#apigatewayv2.get-stage"],
+          ["X-Amz-Date", "20261103T164309Z"],
+          ["amz-sdk-invocation-id", "696e3a52-9d56-4b9c-818f-055a9039b7db"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 404,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:43:09 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "54"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "20aacd02-1611-4992-80e4-faf2e4035136"],
+          ["Access-Control-Allow-Origin", "*"],
+          ["x-amzn-ErrorType", "NotFoundException"],
+          ["x-amz-apigw-id", "GRdMtE4UiYcEhjw="],
+          ["Access-Control-Expose-Headers", "x-amzn-RequestId,x-amzn-ErrorType,x-amzn-ErrorMessage,Date"],
+          ["X-Amzn-Trace-Id", "Root=1-6aea0f1d-50a6c5cb70a8759c0bf2ea1a"]
+        ],
+        "body": "{\n  \"message\" : \"Invalid stage identifier specified\"\n}"
+      }
+    }
+  ]
+}

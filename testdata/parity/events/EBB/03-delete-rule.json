@@ -1,0 +1,35 @@
+{
+  "step": "03-delete-rule",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ResourceNotFoundException) when calling the DeleteRule operation: Event bus us1103-missing does not exist.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://events.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSEvents.DeleteRule"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,Z,E,AN,g cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#events.delete-rule"],
+          ["X-Amz-Date", "20261103T163548Z"],
+          ["amz-sdk-invocation-id", "b07a4077-9e0a-4dd6-a397-813f2009e14a"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "54"]
+        ],
+        "body": "{\"Name\": \"us1103-m\", \"EventBusName\": \"us1103-missing\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "c23ea3e3-215e-4758-8cf0-daea924a24b6"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "91"],
+          ["Date", "Tue, 03 Nov 2026 16:35:48 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "{\"__type\":\"ResourceNotFoundException\",\"message\":\"Event bus us1103-missing does not exist.\"}"
+      }
+    }
+  ]
+}

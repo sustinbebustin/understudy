@@ -1,0 +1,29 @@
+{
+  "step": "06-member-after-delete",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://scheduler.us-east-2.amazonaws.com/schedules/us1103-gm1?groupName=us1103-g",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,Z,b,E,g cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#scheduler.get-schedule"],
+          ["X-Amz-Date", "20261103T163816Z"],
+          ["amz-sdk-invocation-id", "dae4927a-69e3-43f8-bafa-cd2f3557a653"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "a0c7ec40-a2c0-4e38-aa21-a94c729252e7"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "812"],
+          ["Date", "Tue, 03 Nov 2026 16:38:16 GMT"]
+        ],
+        "body": "{\"ActionAfterCompletion\":\"NONE\",\"Arn\":\"arn:aws:scheduler:us-east-2:123456789012:schedule/us1103-g/us1103-gm1\",\"CreationDate\":1.793723893697E9,\"Description\":null,\"EndDate\":null,\"FlexibleTimeWindow\":{\"MaximumWindowInMinutes\":null,\"Mode\":\"OFF\"},\"GroupName\":\"us1103-g\",\"KmsKeyArn\":null,\"LastModificationDate\":1.793723893697E9,\"Name\":\"us1103-gm1\",\"ScheduleExpression\":\"rate(1 hour)\",\"ScheduleExpressionTimezone\":\"UTC\",\"StartDate\":null,\"State\":\"DISABLED\",\"Target\":{\"Arn\":\"arn:aws:sqs:us-east-2:123456789012:us1103-sch\",\"DeadLetterConfig\":null,\"EcsParameters\":null,\"EventBridgeParameters\":null,\"Input\":null,\"KinesisParameters\":null,\"RetryPolicy\":{\"MaximumEventAgeInSeconds\":86400,\"MaximumRetryAttempts\":185},\"RoleArn\":\"arn:aws:iam::123456789012:role/us1103-sch\",\"SageMakerPipelineParameters\":null,\"SqsParameters\":null}}"
+      }
+    }
+  ]
+}

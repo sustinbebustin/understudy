@@ -1,0 +1,36 @@
+{
+  "step": "06-get-missing-deployment",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (NotFoundException) when calling the GetDeployment operation: Invalid Deployment identifier specified",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://apigateway.us-east-2.amazonaws.com/v2/apis/hl9cpb8a0a/deployments/000000",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,E,b,g,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#apigatewayv2.get-deployment"],
+          ["X-Amz-Date", "20261103T164310Z"],
+          ["amz-sdk-invocation-id", "52176fb9-83fa-47ee-9a74-13c8b531b21b"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 404,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:43:10 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "53"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "768557a9-6f46-4cba-a562-cdbfdbfe5484"],
+          ["Access-Control-Allow-Origin", "*"],
+          ["x-amzn-ErrorType", "NotFoundException"],
+          ["x-amz-apigw-id", "GRdMzFIjiYcEegQ="],
+          ["Access-Control-Expose-Headers", "x-amzn-RequestId,x-amzn-ErrorType,x-amzn-ErrorMessage,Date"],
+          ["X-Amzn-Trace-Id", "Root=1-6aea0f1e-749278a426469fd16a6765b9"]
+        ],
+        "body": "{\"message\":\"Invalid Deployment identifier specified\"}"
+      }
+    }
+  ]
+}

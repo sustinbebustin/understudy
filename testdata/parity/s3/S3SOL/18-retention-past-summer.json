@@ -1,0 +1,39 @@
+{
+  "step": "18-retention-past-summer",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidArgument) when calling the PutObjectRetention operation: The retain until date must be in the future!",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://us1103-olock.s3.us-east-2.amazonaws.com/d12?retention",
+        "headers": [
+          ["x-amz-bypass-governance-retention", "true"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,E,AN,W,Z,b cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.put-object-retention"],
+          ["x-amz-checksum-crc64nvme", "SZXWxMlUpC0="],
+          ["x-amz-sdk-checksum-algorithm", "CRC64NVME"],
+          ["X-Amz-Date", "20261103T034059Z"],
+          ["X-Amz-Content-SHA256", "79b041dce536db358873636b6b15b33f558a7c1839725ffd646aca61350ca4f4"],
+          ["amz-sdk-invocation-id", "cd728720-a70e-4cdf-b129-426dea28dbdb"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "149"]
+        ],
+        "body": "<Retention xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Mode>GOVERNANCE</Mode><RetainUntilDate>2020-07-01T00:00:00Z</RetainUntilDate></Retention>"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "RZRBQACJ2M5ZWS5Z"],
+          ["x-amz-id-2", "f6YfSF3RT2nlAhIlAGZrOLgp8NIbDHxswJcpzyqrgeodF4c15YP85DFv91q1q4JyH5BtpwdPagM="],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Tue, 03 Nov 2026 03:40:59 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>InvalidArgument</Code><Message>The retain until date must be in the future!</Message><ArgumentName>RetainUntilDate</ArgumentName><ArgumentValue>Tue Jun 30 17:00:00 PDT 2020</ArgumentValue><RequestId>RZRBQACJ2M5ZWS5Z</RequestId><HostId>f6YfSF3RT2nlAhIlAGZrOLgp8NIbDHxswJcpzyqrgeodF4c15YP85DFv91q1q4JyH5BtpwdPagM=</HostId></Error>"
+      }
+    }
+  ]
+}

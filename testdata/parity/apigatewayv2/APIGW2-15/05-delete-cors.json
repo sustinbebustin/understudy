@@ -1,0 +1,36 @@
+{
+  "step": "05-delete-cors",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (AccessDeniedException) when calling the DeleteCorsConfiguration operation: User: arn:aws:sts::123456789012:assumed-role/us1103-gw-caller/gw15 is not authorized to perform: apigateway:DELETE on resource: arn:aws:apigateway:us-east-2::/apis/hl9cpb8a0a/cors because no identity-based policy allows the apigateway:DELETE action",
+  "exchanges": [
+    {
+      "request": {
+        "method": "DELETE",
+        "url": "https://apigateway.us-east-2.amazonaws.com/v2/apis/hl9cpb8a0a/cors",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,g,E,b,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#apigatewayv2.delete-cors-configuration"],
+          ["X-Amz-Date", "20261103T165056Z"],
+          ["amz-sdk-invocation-id", "192622d7-2df9-4a86-80b7-2fafc97c7c44"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "0"]
+        ]
+      },
+      "response": {
+        "status": 403,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:50:56 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "262"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "e5f94ef3-01b8-4851-abcf-11b24b3d5336"],
+          ["Access-Control-Allow-Origin", "*"],
+          ["x-amzn-ErrorType", "AccessDeniedException"],
+          ["x-amz-apigw-id", "GReVoEOjiYcEhMQ="],
+          ["X-Amzn-Trace-Id", "Root=1-6aea10f0-2c757a20360308f71c21d36c"]
+        ],
+        "body": "{\"message\":\"User: arn:aws:sts::123456789012:assumed-role/us1103-gw-caller/gw15 is not authorized to perform: apigateway:DELETE on resource: arn:aws:apigateway:us-east-2::/apis/hl9cpb8a0a/cors because no identity-based policy allows the apigateway:DELETE action\"}"
+      }
+    }
+  ]
+}

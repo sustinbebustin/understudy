@@ -1,0 +1,39 @@
+{
+  "step": "01-get-lower-raw",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://us1103-ckmode.s3.us-east-2.amazonaws.com/k",
+        "headers": [
+          ["Host", "us1103-ckmode.s3.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261103T033935Z"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"],
+          ["x-amz-content-sha256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["x-amz-checksum-mode", "enabled"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["x-amz-request-id", "435PAXEM8JH408EY"],
+          ["x-amz-id-2", "tb2q8sCevvd6isU07S4cNsjQiKx08N31O0fA9/cHplifQMdRFwqsEqh7oHGFZ7VzQAn7eCWHyD9udud0+W2KJNA0I3f0Gbq2"],
+          ["Content-Length", "10"],
+          ["Accept-Ranges", "bytes"],
+          ["Date", "Tue, 03 Nov 2026 03:39:35 GMT"],
+          ["Server", "AmazonS3"],
+          ["Last-Modified", "Tue, 03 Nov 2026 03:39:32 GMT"],
+          ["ETag", "\"781e5e245d69b566979b86e28d23f2c7\""],
+          ["x-amz-checksum-crc64nvme", "Ffmx7kz9nB0="],
+          ["x-amz-checksum-type", "FULL_OBJECT"],
+          ["Content-Type", "binary/octet-stream"],
+          ["x-amz-server-side-encryption", "AES256"]
+        ],
+        "body": "0123456789"
+      }
+    }
+  ]
+}

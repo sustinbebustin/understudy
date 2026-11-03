@@ -1,0 +1,38 @@
+{
+  "step": "24-no-mode",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (MalformedXML) when calling the PutObjectRetention operation: The XML you provided was not well-formed or did not validate against our published schema",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://us1103-olock.s3.us-east-2.amazonaws.com/e24?retention",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,AN,E,Z,g,W cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.put-object-retention"],
+          ["x-amz-checksum-crc64nvme", "Ymy/OdrM77M="],
+          ["x-amz-sdk-checksum-algorithm", "CRC64NVME"],
+          ["X-Amz-Date", "20261103T034324Z"],
+          ["X-Amz-Content-SHA256", "cc2eb7253b50201f9e2e29a7bdfb8ecfa5737b9f87526610bdd3cc0b89ff3485"],
+          ["amz-sdk-invocation-id", "6ad16b2b-ae2f-43f3-bcec-016ced57c13f"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "149"]
+        ],
+        "body": "<Retention xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><EventHold>ON</EventHold><EventHoldDuration><Days>1</Days></EventHoldDuration></Retention>"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "HFKME5H2XRGDHD6F"],
+          ["x-amz-id-2", "eU0vTpusFAB9a1oayyqHVd1nHcfBF/Cb8EA9BVMCgsWd4+EcFZxAn1rNpaH0huMVt4dAtMLn2aR3h/Vq59txtusjYgXLcDRp"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Tue, 03 Nov 2026 03:43:24 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>MalformedXML</Code><Message>The XML you provided was not well-formed or did not validate against our published schema</Message><RequestId>HFKME5H2XRGDHD6F</RequestId><HostId>eU0vTpusFAB9a1oayyqHVd1nHcfBF/Cb8EA9BVMCgsWd4+EcFZxAn1rNpaH0huMVt4dAtMLn2aR3h/Vq59txtusjYgXLcDRp</HostId></Error>"
+      }
+    }
+  ]
+}

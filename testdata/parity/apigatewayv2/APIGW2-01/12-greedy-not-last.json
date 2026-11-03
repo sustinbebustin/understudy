@@ -1,0 +1,39 @@
+{
+  "step": "12-greedy-not-last",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (BadRequestException) when calling the CreateRoute operation: Greedy variables may only be in last position of route key",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://apigateway.us-east-2.amazonaws.com/v2/apis/hl9cpb8a0a/routes",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,b,Z,E,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#apigatewayv2.create-route"],
+          ["X-Amz-Date", "20261103T164313Z"],
+          ["amz-sdk-invocation-id", "7c9b8a7c-8b15-4810-b08d-a16428db90aa"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "31"]
+        ],
+        "body": "{\"routeKey\": \"GET /{proxy+}/x\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:43:13 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "72"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "63b831f6-a9e1-4a93-ae46-cdbb058f077b"],
+          ["Access-Control-Allow-Origin", "*"],
+          ["x-amzn-ErrorType", "BadRequestException"],
+          ["x-amz-apigw-id", "GRdNWG-9iYcEXJA="],
+          ["Access-Control-Expose-Headers", "x-amzn-RequestId,x-amzn-ErrorType,x-amzn-ErrorMessage,Date"],
+          ["X-Amzn-Trace-Id", "Root=1-6aea0f21-3750dacd4e167e29395fcdad"]
+        ],
+        "body": "{\"message\":\"Greedy variables may only be in last position of route key\"}"
+      }
+    }
+  ]
+}

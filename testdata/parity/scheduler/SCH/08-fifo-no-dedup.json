@@ -1,0 +1,32 @@
+{
+  "step": "08-fifo-no-dedup",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://scheduler.us-east-2.amazonaws.com/schedules/us1103-x3",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,AN,g,b,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#scheduler.create-schedule"],
+          ["X-Amz-Date", "20261103T173441Z"],
+          ["amz-sdk-invocation-id", "e8b275db-596f-40a8-8942-510c54f972fc"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "495"]
+        ],
+        "body": "{\"FlexibleTimeWindow\": {\"Mode\": \"OFF\"}, \"ScheduleExpression\": \"at(2026-11-03T17:38:39)\", \"Target\": {\"Arn\": \"arn:aws:sqs:us-east-2:123456789012:us1103-schnd.fifo\", \"RoleArn\": \"arn:aws:iam::123456789012:role/us1103-sch\", \"Input\": \"nodedup\", \"DeadLetterConfig\": {\"Arn\": \"arn:aws:sqs:us-east-2:123456789012:us1103-sch-dlq\"}, \"RetryPolicy\": {\"MaximumEventAgeInSeconds\": 120, \"MaximumRetryAttempts\": 2}, \"SqsParameters\": {\"MessageGroupId\": \"g\"}}, \"ClientToken\": \"0ecb110d-a58b-4089-9594-b91d8c5f1cd2\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "044bc5ac-d0ed-42aa-82ef-a5eb71b7ddb1"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "85"],
+          ["Date", "Tue, 03 Nov 2026 17:34:41 GMT"]
+        ],
+        "body": "{\"ScheduleArn\":\"arn:aws:scheduler:us-east-2:123456789012:schedule/default/us1103-x3\"}"
+      }
+    }
+  ]
+}

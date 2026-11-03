@@ -1,0 +1,5 @@
+
+aws: [ERROR]: An error occurred (PolicyLengthExceededException) when calling the AddLayerVersionPermission operation: The final policy size (20693) is bigger than the limit (20480).
+
+Additional error details:
+Type: User

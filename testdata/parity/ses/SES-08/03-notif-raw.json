@@ -1,0 +1,33 @@
+{
+  "step": "03-notif-raw",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://email.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Host", "email.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261103T164215Z"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/x-www-form-urlencoded"],
+          ["Content-Length", "152"]
+        ],
+        "body": "Action=GetIdentityNotificationAttributes&Version=2010-12-01&Identities.member.1=us1103-me%40example.com&Identities.member.2=us1103-unknown%40example.com"
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:42:15 GMT"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "833"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "784dd1d4-6282-4b47-9168-2bf289bff5e0"]
+        ],
+        "body": "<GetIdentityNotificationAttributesResponse xmlns=\"http://ses.amazonaws.com/doc/2010-12-01/\">\n  <GetIdentityNotificationAttributesResult>\n    <NotificationAttributes>\n      <entry>\n        <key>us1103-me@example.com</key>\n        <value>\n          <HeadersInBounceNotificationsEnabled>false</HeadersInBounceNotificationsEnabled>\n          <HeadersInDeliveryNotificationsEnabled>false</HeadersInDeliveryNotificationsEnabled>\n          <HeadersInComplaintNotificationsEnabled>false</HeadersInComplaintNotificationsEnabled>\n          <ForwardingEnabled>true</ForwardingEnabled>\n        </value>\n      </entry>\n    </NotificationAttributes>\n  </GetIdentityNotificationAttributesResult>\n  <ResponseMetadata>\n    <RequestId>784dd1d4-6282-4b47-9168-2bf289bff5e0</RequestId>\n  </ResponseMetadata>\n</GetIdentityNotificationAttributesResponse>\n"
+      }
+    }
+  ]
+}

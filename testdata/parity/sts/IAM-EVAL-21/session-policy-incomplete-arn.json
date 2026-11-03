@@ -1,0 +1,35 @@
+{
+  "step": "session-policy-incomplete-arn",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (MalformedPolicyDocument) when calling the AssumeRole operation: The following resources are invalid : arn:aws:s3",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sts.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,Z,AD,AN,AC,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sts.assume-role"],
+          ["X-Amz-Date", "20261103T164725Z"],
+          ["amz-sdk-invocation-id", "1ce0c32d-3126-4654-b9ad-161e3745975e"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "300"]
+        ],
+        "body": "Action=AssumeRole&Version=2011-06-15&RoleArn=arn%3Aaws%3Aiam%3A%3A123456789012%3Arole%2Fus1103-eval-none&RoleSessionName=tt&Policy=%7B%22Version%22%3A%222012-10-17%22%2C%22Statement%22%3A%5B%7B%22Effect%22%3A%22Allow%22%2C%22Action%22%3A%22s3%3A%2A%22%2C%22Resource%22%3A%22arn%3Aaws%3As3%22%7D%5D%7D"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "33d9030f-6299-4916-98be-707b3cbb8d85"],
+          ["X-Amz-Sts-Extended-Request-Id", "MTp1cy1lYXN0LTI6UzoxNzkzNzI0NDQ1NTIyOlI6SFcwWHg1MDU="],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "303"],
+          ["Date", "Tue, 03 Nov 2026 16:47:25 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<ErrorResponse xmlns=\"https://sts.amazonaws.com/doc/2011-06-15/\">\n  <Error>\n    <Type>Sender</Type>\n    <Code>MalformedPolicyDocument</Code>\n    <Message>The following resources are invalid : arn:aws:s3</Message>\n  </Error>\n  <RequestId>33d9030f-6299-4916-98be-707b3cbb8d85</RequestId>\n</ErrorResponse>\n"
+      }
+    }
+  ]
+}

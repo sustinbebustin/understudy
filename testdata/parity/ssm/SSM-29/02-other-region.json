@@ -1,0 +1,36 @@
+{
+  "step": "02-other-region",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ValidationException) when calling the GetParameter operation: Incorrect region in: arn:aws:ssm:us-east-1:123456789012:parameter/us1103-a29",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://ssm.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSSM.GetParameter"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,b,AN,g,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#ssm.get-parameter"],
+          ["X-Amz-Date", "20261103T163837Z"],
+          ["amz-sdk-invocation-id", "8e3721a4-a765-4b51-90c4-8a3853d52855"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "67"]
+        ],
+        "body": "{\"Name\": \"arn:aws:ssm:us-east-1:123456789012:parameter/us1103-a29\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Tue, 03 Nov 2026 16:38:37 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "121"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "9573e6e0-8e66-4769-9983-e1363ed04e22"]
+        ],
+        "body": "{\"__type\":\"ValidationException\",\"message\":\"Incorrect region in: arn:aws:ssm:us-east-1:123456789012:parameter/us1103-a29\"}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "step": "02-delete-missing-api",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (NotFoundException) when calling the DeleteApi operation: Invalid API identifier specified 123456789012:0000000000",
+  "exchanges": [
+    {
+      "request": {
+        "method": "DELETE",
+        "url": "https://apigateway.us-east-2.amazonaws.com/v2/apis/0000000000",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,b,E,AN,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#apigatewayv2.delete-api"],
+          ["X-Amz-Date", "20261103T164307Z"],
+          ["amz-sdk-invocation-id", "f0db82da-3744-4c52-895c-dd7524de997d"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "0"]
+        ]
+      },
+      "response": {
+        "status": 404,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:43:07 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "70"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "946a0786-11bb-4f4c-a5ed-69f0202474f0"],
+          ["Access-Control-Allow-Origin", "*"],
+          ["x-amzn-ErrorType", "NotFoundException"],
+          ["x-amz-apigw-id", "GRdMbGi5CYcEBfw="],
+          ["Access-Control-Expose-Headers", "x-amzn-RequestId,x-amzn-ErrorType,x-amzn-ErrorMessage,Date"],
+          ["X-Amzn-Trace-Id", "Root=1-6aea0f1b-3f91bf1b5d68dfdb67ae52dc"]
+        ],
+        "body": "{\"message\":\"Invalid API identifier specified 123456789012:0000000000\"}"
+      }
+    }
+  ]
+}

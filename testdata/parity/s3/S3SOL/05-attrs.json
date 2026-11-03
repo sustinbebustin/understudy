@@ -1,0 +1,35 @@
+{
+  "step": "05-attrs",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidRequest) when calling the GetObjectAttributes operation: The object was stored using a form of Server Side Encryption. The correct parameters must be provided to retrieve the object.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://us1103-ssec.s3.us-east-2.amazonaws.com/c1?attributes",
+        "headers": [
+          ["x-amz-object-attributes", "ETag,ObjectSize"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,Z,AN,b,E cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.get-object-attributes"],
+          ["X-Amz-Date", "20261103T033952Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "a541ac49-bd41-4107-be2f-618e04c6c3be"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amz-id-2", "bT1cS3Q8hKH2COTnQ8Xkqli4xlhjTdNWrbDdwk9OfOwXNMnq6EUmGIwGH/0yYXdOY8ANH3dGlCKZLawjfd4Lg1l/jrDxqX8a"],
+          ["x-amz-request-id", "THQYE9HAF6QNVPMT"],
+          ["Server", "AmazonS3"],
+          ["Date", "Tue, 03 Nov 2026 03:39:54 GMT"],
+          ["Connection", "close"],
+          ["Content-Type", "application/xml"],
+          ["Content-Length", "338"]
+        ],
+        "body": "<Error><Code>InvalidRequest</Code><Message>The object was stored using a form of Server Side Encryption. The correct parameters must be provided to retrieve the object.</Message><RequestId>THQYE9HAF6QNVPMT</RequestId><HostId>bT1cS3Q8hKH2COTnQ8Xkqli4xlhjTdNWrbDdwk9OfOwXNMnq6EUmGIwGH/0yYXdOY8ANH3dGlCKZLawjfd4Lg1l/jrDxqX8a</HostId></Error>"
+      }
+    }
+  ]
+}

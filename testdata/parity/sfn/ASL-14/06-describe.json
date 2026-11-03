@@ -1,0 +1,35 @@
+{
+  "step": "06-describe",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidArn) when calling the DescribeExecution operation: Invalid Arn: 'Resource type not valid in this context: express'",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://states.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSStepFunctions.DescribeExecution"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,E,g,AN,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#stepfunctions.describe-execution"],
+          ["X-Amz-Date", "20261103T165154Z"],
+          ["amz-sdk-invocation-id", "ed2434f9-b032-438f-af60-76a26fe6625d"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "149"]
+        ],
+        "body": "{\"executionArn\": \"arn:aws:states:us-east-2:123456789012:express:us1103-xw:345bf6db-d1d5-4346-b221-0f6259a02d58:e92995f2-a075-4449-92f8-fc7de9e93dcb\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "f2ef6ae5-2fb1-4fc6-8b40-f4fc0c63dbb9"],
+          ["Date", "Tue, 03 Nov 2026 16:51:54 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "134"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"__type\":\"com.amazonaws.swf.service.v2.model#InvalidArn\",\"message\":\"Invalid Arn: 'Resource type not valid in this context: express'\"}"
+      }
+    }
+  ]
+}

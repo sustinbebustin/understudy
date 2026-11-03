@@ -1,0 +1,32 @@
+{
+  "step": "AmazonS3FullAccess",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://iam.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AD,b,AC,E,AN,Z cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#iam.get-policy"],
+          ["X-Amz-Date", "20261103T032316Z"],
+          ["amz-sdk-invocation-id", "d172f3bf-5a9f-45b2-a35c-316c94239665"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "100"]
+        ],
+        "body": "Action=GetPolicy&Version=2010-05-08&PolicyArn=arn%3Aaws%3Aiam%3A%3Aaws%3Apolicy%2FAmazonS3FullAccess"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 03:23:17 GMT"],
+          ["x-amzn-RequestId", "f480b89d-ec45-4dae-91f7-26d6b9ea630a"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "865"]
+        ],
+        "body": "<GetPolicyResponse xmlns=\"https://iam.amazonaws.com/doc/2010-05-08/\">\n  <GetPolicyResult>\n    <Policy>\n      <PermissionsBoundaryUsageCount>0</PermissionsBoundaryUsageCount>\n      <Path>/</Path>\n      <UpdateDate>2021-09-27T20:16:37Z</UpdateDate>\n      <DefaultVersionId>v2</DefaultVersionId>\n      <PolicyId>ANPAIFIR6V6BVTRAHWINE</PolicyId>\n      <IsAttachable>true</IsAttachable>\n      <PolicyName>AmazonS3FullAccess</PolicyName>\n      <Description>Provides full access to all buckets via the AWS Management Console.</Description>\n      <AttachmentCount>0</AttachmentCount>\n      <Arn>arn:aws:iam::aws:policy/AmazonS3FullAccess</Arn>\n      <Tags/>\n      <CreateDate>2015-02-06T18:40:58Z</CreateDate>\n    </Policy>\n  </GetPolicyResult>\n  <ResponseMetadata>\n    <RequestId>f480b89d-ec45-4dae-91f7-26d6b9ea630a</RequestId>\n  </ResponseMetadata>\n</GetPolicyResponse>\n"
+      }
+    }
+  ]
+}

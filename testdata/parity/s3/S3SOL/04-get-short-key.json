@@ -1,0 +1,35 @@
+{
+  "step": "04-get-short-key",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://us1103-ssec.s3.us-east-2.amazonaws.com/c1",
+        "headers": [
+          ["Host", "us1103-ssec.s3.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261103T033950Z"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"],
+          ["x-amz-content-sha256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["x-amz-server-side-encryption-customer-algorithm", "AES256"],
+          ["x-amz-server-side-encryption-customer-key", "MDEyMzQ1Njc4OQ=="],
+          ["x-amz-server-side-encryption-customer-key-MD5", "eB5eJF1ptWaXm4bijSPyxw=="]
+        ]
+      },
+      "response": {
+        "status": 403,
+        "reason": "Forbidden",
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "JRVB9K4ZKMMXYKY0"],
+          ["x-amz-id-2", "ewykDuHEH1I3f9Xa3bKvJhcHSmU12TVYQNx3m6kZgg2yf4y4wIswn5V5ImdxlPtXOSRITN+ToxcajkciYtGu5LDi/BE0TSta"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Tue, 03 Nov 2026 03:39:50 GMT"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>AccessDenied</Code><Message>Requests specifying Server Side Encryption with Customer provided keys must provide the correct secret key.</Message><RequestId>JRVB9K4ZKMMXYKY0</RequestId><HostId>ewykDuHEH1I3f9Xa3bKvJhcHSmU12TVYQNx3m6kZgg2yf4y4wIswn5V5ImdxlPtXOSRITN+ToxcajkciYtGu5LDi/BE0TSta</HostId></Error>"
+      }
+    }
+  ]
+}

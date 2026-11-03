@@ -1,0 +1,88 @@
+{
+  "step": "05-head",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (400) when calling the HeadObject operation: Bad Request",
+  "exchanges": [
+    {
+      "request": {
+        "method": "HEAD",
+        "url": "https://us1103-ssec.s3.us-east-2.amazonaws.com/c1",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,AN,E,g,b cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.head-object"],
+          ["X-Amz-Date", "20261103T033952Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "bf8b656b-954a-4dcc-91a9-a914d1ed16ea"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "GCXBDS9V3YF4YAYW"],
+          ["x-amz-id-2", "unvFrHja0MzrfvpbzTXxJKdoXh9FEK8Zk52yTlloQfuGnOf/beAcTsCKINyQ/JCX9I0jHRChiMn+VVxUPotAtXINSO2nsWAu"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Tue, 03 Nov 2026 03:39:52 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": ""
+      }
+    },
+    {
+      "request": {
+        "method": "HEAD",
+        "url": "https://us1103-ssec.s3.us-east-2.amazonaws.com/",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,AN,E,g,b cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.head-object"],
+          ["X-Amz-Date", "20261103T033952Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "a2b00455-eb83-41f9-8121-e47175cf4830"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amz-id-2", "HA6S5WKUPQRQN4sNe7dJokzEe3a4C/Q7IHvGy9uk662ESiwOQkcKDPHhCGfsfa6qUkjihuwGL/TvkqCqbgLmk9SG64IkRDx9"],
+          ["x-amz-request-id", "GCXCV9VM5AB33S0P"],
+          ["Server", "AmazonS3"],
+          ["Date", "Tue, 03 Nov 2026 03:39:53 GMT"],
+          ["x-amz-bucket-region", "us-east-2"],
+          ["x-amz-access-point-alias", "false"],
+          ["x-amz-bucket-arn", "arn:aws:s3:::us1103-ssec"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"]
+        ],
+        "body": ""
+      }
+    },
+    {
+      "request": {
+        "method": "HEAD",
+        "url": "https://us1103-ssec.s3.us-east-2.amazonaws.com/c1",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,AN,E,g,Ah,b cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.head-object"],
+          ["X-Amz-Date", "20261103T033952Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "bf8b656b-954a-4dcc-91a9-a914d1ed16ea"],
+          ["amz-sdk-request", "ttl=20261103T034052Z; attempt=2; max=3"]
+        ]
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "GCXDPHZ6GKSB7YQG"],
+          ["x-amz-id-2", "Xgayodc2D2Juq7aV6gY7epkc+NilABqY3GviblBUFUsd15ZM6BVNi9zP37PHuxDq1Ez/7oZgVNwX4mRLpD/mcmR81yUYfA+i"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Tue, 03 Nov 2026 03:39:51 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": ""
+      }
+    }
+  ]
+}

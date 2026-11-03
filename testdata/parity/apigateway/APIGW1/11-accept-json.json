@@ -1,0 +1,21 @@
+{
+  "step": "11-accept-json",
+  "client": "curl",
+  "exchanges": [
+    {
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:41:33 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "10"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "ec1c1dd2-413b-433d-a81d-d3319a02c323"],
+          ["x-amz-apigw-id", "GRc9nGlBiYcEb4w="]
+        ],
+        "body": "<r>xml</r>"
+      }
+    }
+  ]
+}

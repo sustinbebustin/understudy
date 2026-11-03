@@ -1,0 +1,29 @@
+{
+  "step": "01-no-permission",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://hl9cpb8a0a.execute-api.us-east-2.amazonaws.com/perm/1",
+        "headers": [
+          ["Host", "hl9cpb8a0a.execute-api.us-east-2.amazonaws.com"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"]
+        ]
+      },
+      "response": {
+        "status": 500,
+        "reason": "Internal Server Error",
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:47:02 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "35"],
+          ["Connection", "keep-alive"],
+          ["Apigw-Requestid", "GRdxGhoQiYcEPvw="]
+        ],
+        "body": "{\"message\":\"Internal Server Error\"}"
+      }
+    }
+  ]
+}

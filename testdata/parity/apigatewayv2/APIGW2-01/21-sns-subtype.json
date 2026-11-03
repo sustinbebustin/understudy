@@ -1,0 +1,39 @@
+{
+  "step": "21-sns-subtype",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (BadRequestException) when calling the CreateIntegration operation: Operation: SNS-Publish is not supported.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://apigateway.us-east-2.amazonaws.com/v2/apis/hl9cpb8a0a/integrations",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,Z,AN,b,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#apigatewayv2.create-integration"],
+          ["X-Amz-Date", "20261103T164319Z"],
+          ["amz-sdk-invocation-id", "0eaf1a5a-c7ef-420b-9dcb-c1d4578ee2b5"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "205"]
+        ],
+        "body": "{\"credentialsArn\": \"arn:aws:iam::123456789012:role/us1103-gw-int\", \"integrationSubtype\": \"SNS-Publish\", \"integrationType\": \"AWS_PROXY\", \"payloadFormatVersion\": \"1.0\", \"requestParameters\": {\"Message\": \"x\"}}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:43:19 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "54"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "5b9d1f45-40db-447e-b5c6-37aed701ce45"],
+          ["Access-Control-Allow-Origin", "*"],
+          ["x-amzn-ErrorType", "BadRequestException"],
+          ["x-amz-apigw-id", "GRdOSFqiCYcEAZw="],
+          ["Access-Control-Expose-Headers", "x-amzn-RequestId,x-amzn-ErrorType,x-amzn-ErrorMessage,Date"],
+          ["X-Amzn-Trace-Id", "Root=1-6aea0f27-4820d52b6664724e37771f4a"]
+        ],
+        "body": "{\"message\":\"Operation: SNS-Publish is not supported.\"}"
+      }
+    }
+  ]
+}

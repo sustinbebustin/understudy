@@ -1,0 +1,33 @@
+{
+  "step": "E-subscribe-plain",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sns.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,Z,g,E,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sns.subscribe"],
+          ["X-Amz-Date", "20261103T171249Z"],
+          ["amz-sdk-invocation-id", "a9918d2b-ed59-4261-93d9-908c70c427e4"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "241"]
+        ],
+        "body": "Action=Subscribe&Version=2010-03-31&TopicArn=arn%3Aaws%3Asns%3Aus-east-2%3A123456789012%3Aus1103-snsh-e&Protocol=https&ReturnSubscriptionArn=true&Endpoint=https%3A%2F%2Fvz3psz4tmkxmxkgmjauplxjx5e0onbnf.lambda-url.us-east-2.on.aws%2Fhold%2Fe2"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "ee4076dd-76ac-5f19-8d39-15b96efda6dd"],
+          ["Date", "Tue, 03 Nov 2026 17:12:49 GMT"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "363"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "<SubscribeResponse xmlns=\"http://sns.amazonaws.com/doc/2010-03-31/\">\n  <SubscribeResult>\n    <SubscriptionArn>arn:aws:sns:us-east-2:123456789012:us1103-snsh-e:f4c62677-e395-4cec-863b-4793d9999c89</SubscriptionArn>\n  </SubscribeResult>\n  <ResponseMetadata>\n    <RequestId>ee4076dd-76ac-5f19-8d39-15b96efda6dd</RequestId>\n  </ResponseMetadata>\n</SubscribeResponse>\n"
+      }
+    }
+  ]
+}

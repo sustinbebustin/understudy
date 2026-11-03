@@ -1,0 +1,33 @@
+{
+  "step": "13-iam",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://iam.amazonaws.com/",
+        "headers": [
+          ["Host", "iam.amazonaws.com"],
+          ["X-Amz-Date", "20261103T034519Z"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/x-www-form-urlencoded"],
+          ["Content-Length", "53"]
+        ],
+        "body": "Action=GetRole&RoleName=bad%21name&Version=2010-05-08"
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 03:45:19 GMT"],
+          ["x-amzn-RequestId", "bc45c5cf-c694-4ead-8281-9620706de66f"],
+          ["Connection", "close"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "366"]
+        ],
+        "body": "<ErrorResponse xmlns=\"https://iam.amazonaws.com/doc/2010-05-08/\">\n  <Error>\n    <Type>Sender</Type>\n    <Code>ValidationError</Code>\n    <Message>The specified value for roleName is invalid. It must contain only alphanumeric characters and/or the following: +=,.@_-</Message>\n  </Error>\n  <RequestId>bc45c5cf-c694-4ead-8281-9620706de66f</RequestId>\n</ErrorResponse>\n"
+      }
+    }
+  ]
+}

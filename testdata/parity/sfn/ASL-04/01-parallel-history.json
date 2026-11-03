@@ -1,0 +1,34 @@
+{
+  "step": "01-parallel-history",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://states.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSStepFunctions.GetExecutionHistory"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,E,Z,AN,g cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#stepfunctions.get-execution-history"],
+          ["X-Amz-Date", "20261103T164705Z"],
+          ["amz-sdk-invocation-id", "c49200e4-3226-489b-b225-d30773a24715"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "136"]
+        ],
+        "body": "{\"executionArn\": \"arn:aws:states:us-east-2:123456789012:execution:us1103-mpar:36436791-c96d-4f5c-a5aa-a3fa84f29112\", \"maxResults\": 1000}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "30c0e059-2172-4b77-b997-b02df6e22942"],
+          ["Date", "Tue, 03 Nov 2026 16:47:05 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "964"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"events\":[{\"__type\":\"com.amazonaws.swf.base.model#HistoryEvent\",\"executionStartedEventDetails\":{\"input\":\"{\\\"k\\\": \\\"v\\\", \\\"n\\\": [1, 2]}\",\"inputDetails\":{\"truncated\":false},\"roleArn\":\"arn:aws:iam::123456789012:role/us1103-sfn\"},\"id\":1,\"previousEventId\":0,\"timestamp\":1.793724424167E9,\"type\":\"ExecutionStarted\"},{\"__type\":\"com.amazonaws.swf.base.model#HistoryEvent\",\"id\":2,\"previousEventId\":0,\"stateEnteredEventDetails\":{\"input\":\"{\\\"k\\\": \\\"v\\\", \\\"n\\\": [1, 2]}\",\"inputDetails\":{\"truncated\":false},\"name\":\"P\"},\"timestamp\":1.793724424184E9,\"type\":\"ParallelStateEntered\"},{\"__type\":\"com.amazonaws.swf.base.model#HistoryEvent\",\"executionFailedEventDetails\":{\"cause\":\"An error occurred while executing the state 'P' (entered at the event id #2). The JSONPath '$.nope' specified for the field 'v.$' could not be found in the input '{\\\"k\\\": \\\"v\\\", \\\"n\\\": [1, 2]}'\",\"error\":\"States.Runtime\"},\"id\":3,\"previousEventId\":2,\"timestamp\":1.793724424208E9,\"type\":\"ExecutionFailed\"}]}"
+      }
+    }
+  ]
+}

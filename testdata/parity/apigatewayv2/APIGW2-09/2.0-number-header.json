@@ -1,0 +1,30 @@
+{
+  "step": "2.0-number-header",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://roj3rnqmie.execute-api.us-east-2.amazonaws.com/r?mode=number-header",
+        "headers": [
+          ["Host", "roj3rnqmie.execute-api.us-east-2.amazonaws.com"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 03:40:34 GMT"],
+          ["Content-Type", "text/plain; charset=utf-8"],
+          ["Content-Length", "1"],
+          ["Connection", "keep-alive"],
+          ["X-N", "1"],
+          ["Apigw-Requestid", "GPqj_gcZiYcEJZQ="]
+        ],
+        "body": "x"
+      }
+    }
+  ]
+}

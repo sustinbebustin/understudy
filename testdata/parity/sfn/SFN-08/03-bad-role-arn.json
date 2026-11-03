@@ -1,0 +1,35 @@
+{
+  "step": "03-bad-role-arn",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidArn) when calling the CreateStateMachine operation: Invalid Role Arn: 'not-an-arn'",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://states.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSStepFunctions.CreateStateMachine"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,E,Z,b,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#stepfunctions.create-state-machine"],
+          ["X-Amz-Date", "20261103T163922Z"],
+          ["amz-sdk-invocation-id", "d2eb145b-6961-4b5c-8e39-075fd6cdbf88"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "135"]
+        ],
+        "body": "{\"name\": \"us1103-v3\", \"definition\": \"{\\\"StartAt\\\":\\\"P\\\",\\\"States\\\":{\\\"P\\\":{\\\"Type\\\":\\\"Pass\\\",\\\"End\\\":true}}}\", \"roleArn\": \"not-an-arn\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "59365129-dcb7-4f0a-88a6-67090f101805"],
+          ["Date", "Tue, 03 Nov 2026 16:39:22 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "101"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"__type\":\"com.amazonaws.swf.service.v2.model#InvalidArn\",\"message\":\"Invalid Role Arn: 'not-an-arn'\"}"
+      }
+    }
+  ]
+}

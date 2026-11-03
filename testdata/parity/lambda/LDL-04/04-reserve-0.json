@@ -1,0 +1,33 @@
+{
+  "step": "04-reserve-0",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://lambda.us-east-2.amazonaws.com/2017-10-31/functions/us1103-ldl-th/concurrency",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,Z,b,g,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.put-function-concurrency"],
+          ["X-Amz-Date", "20261103T164440Z"],
+          ["amz-sdk-invocation-id", "c0aaaf83-0500-405c-a4a9-d0b49f0cf7c4"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "35"]
+        ],
+        "body": "{\"ReservedConcurrentExecutions\": 0}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:44:40 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "34"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "df451bab-aa51-4793-8a03-900f3f77d098"]
+        ],
+        "body": "{\"ReservedConcurrentExecutions\":0}"
+      }
+    }
+  ]
+}

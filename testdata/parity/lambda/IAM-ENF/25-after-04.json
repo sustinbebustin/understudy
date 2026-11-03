@@ -1,0 +1,30 @@
+{
+  "step": "25-after-04",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://lambda.us-east-2.amazonaws.com/2015-03-31/event-source-mappings/1ae49ef0-e7b8-422d-8fb4-c6f6e78604f0",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,b,E,Z,AN cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.get-event-source-mapping"],
+          ["X-Amz-Date", "20261103T042048Z"],
+          ["amz-sdk-invocation-id", "12533386-09d9-4fe4-ba3e-cd1a77ba0d3d"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 04:20:49 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "1115"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "5d2d140d-6ac4-444e-8b59-b70d7f58b31c"]
+        ],
+        "body": "{\"StartingPosition\":null,\"SelfManagedEventSource\":null,\"ParallelizationFactor\":null,\"FilterCriteria\":null,\"FilterCriteriaError\":null,\"ProvisionedPollerConfig\":null,\"MetricsConfig\":null,\"LastModified\":1793679332.829,\"LastProcessingResult\":null,\"DestinationConfig\":null,\"AmazonManagedKafkaEventSourceConfig\":null,\"SourceAccessConfigurations\":null,\"UUID\":\"1ae49ef0-e7b8-422d-8fb4-c6f6e78604f0\",\"MaximumBatchingWindowInSeconds\":0,\"BatchSize\":1,\"FunctionArn\":\"arn:aws:lambda:us-east-2:123456789012:function:us1103-enf-fn\",\"KMSKeyArn\":null,\"MaximumRetryAttempts\":null,\"ScalingConfig\":null,\"Topics\":null,\"EventSourceArn\":\"arn:aws:sqs:us-east-2:123456789012:us1103-enf-mq\",\"SelfManagedKafkaEventSourceConfig\":null,\"DocumentDBEventSourceConfig\":null,\"TumblingWindowInSeconds\":null,\"BisectBatchOnFunctionError\":null,\"EventSourceMappingArn\":\"arn:aws:lambda:us-east-2:123456789012:event-source-mapping:1ae49ef0-e7b8-422d-8fb4-c6f6e78604f0\",\"State\":\"Enabled\",\"LoggingConfig\":null,\"MaximumRecordAgeInSeconds\":null,\"StartingPositionTimestamp\":null,\"Queues\":null,\"StateTransitionReason\":\"USER_INITIATED\",\"FunctionResponseTypes\":[]}"
+      }
+    }
+  ]
+}

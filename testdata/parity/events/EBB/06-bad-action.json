@@ -1,0 +1,35 @@
+{
+  "step": "06-bad-action",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ValidationException) when calling the PutPermission operation: Provided value in parameter 'action' is not supported.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://events.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSEvents.PutPermission"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,b,g,Z,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#events.put-permission"],
+          ["X-Amz-Date", "20261103T163616Z"],
+          ["amz-sdk-invocation-id", "b0d2b5c0-b249-44a0-8720-f7a93c8a32d7"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "106"]
+        ],
+        "body": "{\"EventBusName\": \"us1103-p\", \"Action\": \"events:PutRule\", \"Principal\": \"123456789012\", \"StatementId\": \"s2\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "28c9c162-7d6c-49c4-a14e-8d0ac22fe18f"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "99"],
+          ["Date", "Tue, 03 Nov 2026 16:36:17 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "{\"__type\":\"ValidationException\",\"message\":\"Provided value in parameter 'action' is not supported.\"}"
+      }
+    }
+  ]
+}

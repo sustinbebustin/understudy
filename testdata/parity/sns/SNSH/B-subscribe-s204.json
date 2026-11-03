@@ -1,0 +1,33 @@
+{
+  "step": "B-subscribe-s204",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sns.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,g,Z,AN,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sns.subscribe"],
+          ["X-Amz-Date", "20261103T163939Z"],
+          ["amz-sdk-invocation-id", "a57608c4-b37a-42c1-9bb3-c03262c97b75"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "583"]
+        ],
+        "body": "Action=Subscribe&Version=2010-03-31&TopicArn=arn%3Aaws%3Asns%3Aus-east-2%3A123456789012%3Aus1103-snsh-b&Protocol=https&Attributes.entry.1.key=DeliveryPolicy&Attributes.entry.1.value=%7B%22healthyRetryPolicy%22%3A%7B%22numRetries%22%3A2%2C%22minDelayTarget%22%3A5%2C%22maxDelayTarget%22%3A5%7D%7D&Attributes.entry.2.key=RedrivePolicy&Attributes.entry.2.value=%7B%22deadLetterTargetArn%22%3A%22arn%3Aaws%3Asqs%3Aus-east-2%3A123456789012%3Aus1103-snsh-dlq%22%7D&ReturnSubscriptionArn=true&Endpoint=https%3A%2F%2Fvz3psz4tmkxmxkgmjauplxjx5e0onbnf.lambda-url.us-east-2.on.aws%2Fauto%2Fs204"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "7295a232-c991-5649-9ca3-c156d91ac6da"],
+          ["Date", "Tue, 03 Nov 2026 16:39:39 GMT"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "363"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "<SubscribeResponse xmlns=\"http://sns.amazonaws.com/doc/2010-03-31/\">\n  <SubscribeResult>\n    <SubscriptionArn>arn:aws:sns:us-east-2:123456789012:us1103-snsh-b:00c1e0ac-6fa5-4805-b3d3-f7db5bcc92a5</SubscriptionArn>\n  </SubscribeResult>\n  <ResponseMetadata>\n    <RequestId>7295a232-c991-5649-9ca3-c156d91ac6da</RequestId>\n  </ResponseMetadata>\n</SubscribeResponse>\n"
+      }
+    }
+  ]
+}

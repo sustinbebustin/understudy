@@ -1,0 +1,29 @@
+{
+  "step": "01-get-full",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://scheduler.us-east-2.amazonaws.com/schedules/us1103-s2",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,b,E,Z,g cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#scheduler.get-schedule"],
+          ["X-Amz-Date", "20261103T163647Z"],
+          ["amz-sdk-invocation-id", "62e53448-c4a4-4530-9317-cca807cd7dd1"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "f1841fb5-88e5-429c-aebc-89bf3f3805cd"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "890"],
+          ["Date", "Tue, 03 Nov 2026 16:36:47 GMT"]
+        ],
+        "body": "{\"ActionAfterCompletion\":\"NONE\",\"Arn\":\"arn:aws:scheduler:us-east-2:123456789012:schedule/default/us1103-s2\",\"CreationDate\":1.793723807159E9,\"Description\":\"d\",\"EndDate\":1.924992E9,\"FlexibleTimeWindow\":{\"MaximumWindowInMinutes\":5,\"Mode\":\"FLEXIBLE\"},\"GroupName\":\"default\",\"KmsKeyArn\":null,\"LastModificationDate\":1.793723807159E9,\"Name\":\"us1103-s2\",\"ScheduleExpression\":\"cron(0 12 * * ? *)\",\"ScheduleExpressionTimezone\":\"America/New_York\",\"StartDate\":1.893456E9,\"State\":\"DISABLED\",\"Target\":{\"Arn\":\"arn:aws:sqs:us-east-2:123456789012:us1103-sch\",\"DeadLetterConfig\":{\"Arn\":\"arn:aws:sqs:us-east-2:123456789012:us1103-sch-dlq\"},\"EcsParameters\":null,\"EventBridgeParameters\":null,\"Input\":\"x\",\"KinesisParameters\":null,\"RetryPolicy\":{\"MaximumEventAgeInSeconds\":600,\"MaximumRetryAttempts\":3},\"RoleArn\":\"arn:aws:iam::123456789012:role/us1103-sch\",\"SageMakerPipelineParameters\":null,\"SqsParameters\":null}}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "step": "02-create-deployment",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://apigateway.us-east-2.amazonaws.com/v2/apis/hl9cpb8a0a/deployments",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,AN,g,Z,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#apigatewayv2.create-deployment"],
+          ["X-Amz-Date", "20261103T164324Z"],
+          ["amz-sdk-invocation-id", "a3e245ce-ba77-46a2-bdda-9ce5dc9f35a0"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "2"]
+        ],
+        "body": "{}"
+      },
+      "response": {
+        "status": 201,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:43:24 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "113"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "e2be6b98-d647-47e9-a6ef-52f733814942"],
+          ["Access-Control-Allow-Origin", "*"],
+          ["x-amz-apigw-id", "GRdPDEIdCYcEvbg="],
+          ["Access-Control-Expose-Headers", "x-amzn-RequestId,x-amzn-ErrorType,x-amzn-ErrorMessage,Date"],
+          ["X-Amzn-Trace-Id", "Root=1-6aea0f2c-0d31057b38e1f04c34a95bac"]
+        ],
+        "body": "{\"deploymentId\":\"fcokk3\",\"createdDate\":\"2026-11-03T16:43:24Z\",\"deploymentStatus\":\"DEPLOYED\",\"autoDeployed\":false}"
+      }
+    }
+  ]
+}

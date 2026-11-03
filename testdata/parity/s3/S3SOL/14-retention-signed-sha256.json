@@ -1,0 +1,38 @@
+{
+  "step": "14-retention-signed-sha256",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://us1103-olock.s3.us-east-2.amazonaws.com/s14",
+        "headers": [
+          ["Host", "us1103-olock.s3.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261103T034048Z"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"],
+          ["x-amz-content-sha256", "84d89877f0d4041efb6bf91a16f0248f2fd573e6af05c19f96bedb9f882f7882"],
+          ["x-amz-object-lock-mode", "GOVERNANCE"],
+          ["x-amz-object-lock-retain-until-date", "2026-11-03T04:40:47.123Z"],
+          ["Content-Length", "10"],
+          ["Content-Type", "application/x-www-form-urlencoded"]
+        ],
+        "body": "0123456789"
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "NK82DZ9NKFCTTDYH"],
+          ["x-amz-id-2", "TrcImSfpfG5S7q/YQEarCo3v7RmEXFXqcKf9zkwCvfW9zAFQm9VHiu2QyIhauOSXsUyR3njatW8we3LntylI9myTw3uhwms2"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Tue, 03 Nov 2026 03:40:47 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>InvalidRequest</Code><Message>Content-MD5 OR x-amz-checksum- HTTP header is required for Put Object requests with Object Lock parameters</Message><RequestId>NK82DZ9NKFCTTDYH</RequestId><HostId>TrcImSfpfG5S7q/YQEarCo3v7RmEXFXqcKf9zkwCvfW9zAFQm9VHiu2QyIhauOSXsUyR3njatW8we3LntylI9myTw3uhwms2</HostId></Error>"
+      }
+    }
+  ]
+}

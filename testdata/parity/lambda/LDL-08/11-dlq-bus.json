@@ -1,0 +1,35 @@
+{
+  "step": "11-dlq-bus",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidParameterValueException) when calling the UpdateFunctionConfiguration operation: Invalid dead letter queue ARN: The service specified by the TargetArn is not supported for dead letter configuration.\n\nAdditional error details:\nType: User",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://lambda.us-east-2.amazonaws.com/2015-03-31/functions/us1103-ldl-v/configuration",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,b,AN,g,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.update-function-configuration"],
+          ["X-Amz-Date", "20261103T165349Z"],
+          ["amz-sdk-invocation-id", "79e30c7c-d096-4d22-84b1-3548d30ab479"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "94"]
+        ],
+        "body": "{\"DeadLetterConfig\": {\"TargetArn\": \"arn:aws:events:us-east-2:123456789012:event-bus/default\"}}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:53:49 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "145"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "dee101a0-6026-4f17-a3c3-28924363bcee"],
+          ["x-amzn-ErrorType", "InvalidParameterValueException"]
+        ],
+        "body": "{\"Type\":\"User\",\"message\":\"Invalid dead letter queue ARN: The service specified by the TargetArn is not supported for dead letter configuration.\"}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "step": "19-no-payload-version",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (BadRequestException) when calling the CreateIntegration operation: PayloadFormatVersion is a required parameter for integration",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://apigateway.us-east-2.amazonaws.com/v2/apis/hl9cpb8a0a/integrations",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,AN,b,g,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#apigatewayv2.create-integration"],
+          ["X-Amz-Date", "20261103T164318Z"],
+          ["amz-sdk-invocation-id", "eb0b7ea4-0fb6-4bcc-8e18-8e255f8136ba"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "110"]
+        ],
+        "body": "{\"integrationType\": \"AWS_PROXY\", \"integrationUri\": \"arn:aws:lambda:us-east-2:123456789012:function:us1103-gw\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:43:18 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "74"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "1fe80516-e3d1-43c7-ae33-8975a39b6943"],
+          ["Access-Control-Allow-Origin", "*"],
+          ["x-amzn-ErrorType", "BadRequestException"],
+          ["x-amz-apigw-id", "GRdOGH94iYcEXxA="],
+          ["Access-Control-Expose-Headers", "x-amzn-RequestId,x-amzn-ErrorType,x-amzn-ErrorMessage,Date"],
+          ["X-Amzn-Trace-Id", "Root=1-6aea0f26-12ee2ce91334ea234c8ea366"]
+        ],
+        "body": "{\"message\":\"PayloadFormatVersion is a required parameter for integration\"}"
+      }
+    }
+  ]
+}

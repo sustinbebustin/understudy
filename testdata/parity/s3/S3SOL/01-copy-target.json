@@ -1,0 +1,38 @@
+{
+  "step": "01-copy-target",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (AccessDenied) when calling the CopyObject operation: User: arn:aws:sts::123456789012:assumed-role/AccountFullAccessRole/00000000-0000-0000-0000-000000000005 is not authorized to perform: s3:CopyObject on resource: \"arn:aws:s3:::us1103-ssec-blk/c\" because this bucket has blocked upload requests that specify Server Side Encryption with Customer provided keys (SSE-C). Please specify a different server-side encryption type.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://us1103-ssec-blk.s3.us-east-2.amazonaws.com/c",
+        "headers": [
+          ["x-amz-copy-source", "us1103-ssec-blk/p1"],
+          ["x-amz-server-side-encryption-customer-algorithm", "AES256"],
+          ["x-amz-server-side-encryption-customer-key", "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="],
+          ["x-amz-server-side-encryption-customer-key-MD5", "hRasmdxgYDKV3nvbahU1MA=="],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,g,b,E,AN cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.copy-object"],
+          ["X-Amz-Date", "20261103T033948Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "536b2f5e-f3b7-4d57-abdc-bc1cd72e1c0b"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "0"]
+        ]
+      },
+      "response": {
+        "status": 403,
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "S0Q0S1C5EEA5W22Z"],
+          ["x-amz-id-2", "P6ZiEEJfcxerSqYJPWl7ltDNacDvRev1MxWcaI+eNZs9XihMNdo0xSqv22VoEc0AWGodaR7y0BJHzSqXpXr8oIzgbsR7T1HH"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Tue, 03 Nov 2026 03:39:47 GMT"]
+        ],
+        "body": "<Error><Code>AccessDenied</Code><Message>User: arn:aws:sts::123456789012:assumed-role/AccountFullAccessRole/00000000-0000-0000-0000-000000000005 is not authorized to perform: s3:CopyObject on resource: \"arn:aws:s3:::us1103-ssec-blk/c\" because this bucket has blocked upload requests that specify Server Side Encryption with Customer provided keys (SSE-C). Please specify a different server-side encryption type.</Message><RequestId>S0Q0S1C5EEA5W22Z</RequestId><HostId>P6ZiEEJfcxerSqYJPWl7ltDNacDvRev1MxWcaI+eNZs9XihMNdo0xSqv22VoEc0AWGodaR7y0BJHzSqXpXr8oIzgbsR7T1HH</HostId></Error>"
+      }
+    }
+  ]
+}

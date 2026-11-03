@@ -1,0 +1,36 @@
+{
+  "step": "05-public",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (AccessDeniedException) when calling the GetParameter operation: No access to \"/aws/\" namespace: aws/service/nonexistent is not a valid namespace",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://ssm.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSSM.GetParameter"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,Z,b,AN,g cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#ssm.get-parameter"],
+          ["X-Amz-Date", "20261103T163554Z"],
+          ["amz-sdk-invocation-id", "f2f39dc5-f44b-4082-9494-fcd8181bf9cc"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "38"]
+        ],
+        "body": "{\"Name\": \"/aws/service/nonexistent/x\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Tue, 03 Nov 2026 16:35:54 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "129"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "a1c71f29-0c37-4108-8fe7-53e4aabcb439"]
+        ],
+        "body": "{\"__type\":\"AccessDeniedException\",\"Message\":\"No access to \\\"/aws/\\\" namespace: aws/service/nonexistent is not a valid namespace\"}"
+      }
+    }
+  ]
+}

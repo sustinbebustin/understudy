@@ -1,0 +1,33 @@
+{
+  "step": "B-publish",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sns.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,Z,g,b,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sns.publish"],
+          ["X-Amz-Date", "20261103T164019Z"],
+          ["amz-sdk-invocation-id", "bb6330dd-3a4d-40fd-868f-e27375914d2d"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "251"]
+        ],
+        "body": "Action=Publish&Version=2010-03-31&TopicArn=arn%3Aaws%3Asns%3Aus-east-2%3A123456789012%3Aus1103-snsh-b&Message=m-b&Subject=sb&MessageAttributes.entry.1.Name=k&MessageAttributes.entry.1.Value.DataType=String&MessageAttributes.entry.1.Value.StringValue=v"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "1b8c8268-84c8-5020-beda-e10c947b5ec7"],
+          ["Date", "Tue, 03 Nov 2026 16:40:19 GMT"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "294"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "<PublishResponse xmlns=\"http://sns.amazonaws.com/doc/2010-03-31/\">\n  <PublishResult>\n    <MessageId>d3a4c1bd-f0a8-527d-9843-a2d9e01bcc9a</MessageId>\n  </PublishResult>\n  <ResponseMetadata>\n    <RequestId>1b8c8268-84c8-5020-beda-e10c947b5ec7</RequestId>\n  </ResponseMetadata>\n</PublishResponse>\n"
+      }
+    }
+  ]
+}

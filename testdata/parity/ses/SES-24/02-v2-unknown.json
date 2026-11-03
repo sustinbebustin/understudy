@@ -1,0 +1,29 @@
+{
+  "step": "02-v2-unknown",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://email.us-east-2.amazonaws.com/v2/email/nonexistent",
+        "headers": [
+          ["Host", "email.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261103T164235Z"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"]
+        ]
+      },
+      "response": {
+        "status": 404,
+        "reason": "Not Found",
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:42:35 GMT"],
+          ["Content-Length", "29"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "c5fd81f4-9014-4f5b-babd-d506becbbfb1"]
+        ],
+        "body": "<UnknownOperationException/>\n"
+      }
+    }
+  ]
+}

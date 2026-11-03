@@ -1,0 +1,35 @@
+{
+  "step": "01-destination",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.ReceiveMessage"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,b,E,AN,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.receive-message"],
+          ["X-Amz-Date", "20261103T163908Z"],
+          ["amz-sdk-invocation-id", "c0e1c789-4e5b-4dcb-8c1d-59161d535c49"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "191"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/us1103-ldl-dest\", \"AttributeNames\": [\"All\"], \"MessageAttributeNames\": [\"All\"], \"MaxNumberOfMessages\": 10, \"WaitTimeSeconds\": 20}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "9dfe107e-c155-5d71-a435-731ad13935bd"],
+          ["Date", "Tue, 03 Nov 2026 16:39:08 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "3577"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"Messages\":[{\"Attributes\":{\"SenderId\":\"AROARZPUZDIKAAAAAAA2A:awslambda_828_20261103163822483\",\"ApproximateFirstReceiveTimestamp\":\"1793723948669\",\"ApproximateReceiveCount\":\"1\",\"SentTimestamp\":\"1793723902749\",\"AWSTraceHeader\":\"Root=1-6aea0dfe-2298cbff356443312828226c;Parent=2e79402d64035abd;Sampled=0;Lineage=1:cabbc008:0\"},\"Body\":\"{\\\"version\\\":\\\"1.0\\\",\\\"timestamp\\\":\\\"2026-11-03T16:38:22.747Z\\\",\\\"requestContext\\\":{\\\"requestId\\\":\\\"df31248a-d6a5-4a4f-bee3-6703dfc777c6\\\",\\\"functionArn\\\":\\\"arn:aws:lambda:us-east-2:123456789012:function:us1103-ldl-t:$LATEST\\\",\\\"condition\\\":\\\"RetriesExhausted\\\",\\\"approximateInvokeCount\\\":1},\\\"requestPayload\\\":{\\\"mode\\\":\\\"longerr\\\"},\\\"responseContext\\\":{\\\"statusCode\\\":200,\\\"executedVersion\\\":\\\"$LATEST\\\",\\\"functionError\\\":\\\"Unhandled\\\"},\\\"responsePayload\\\":{\\\"errorMessage\\\": \\\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\\\", \\\"errorType\\\": \\\"Exception\\\", \\\"requestId\\\": \\\"df31248a-d6a5-4a4f-bee3-6703dfc777c6\\\", \\\"stackTrace\\\": [\\\"  File \\\\\\\"/var/task/app.py\\\\\\\", line 12, in handler\\\\n    raise Exception(event.get(\\\\\\\"c\\\\\\\", \\\\\\\"x\\\\\\\") * 2000)\\\\n\\\"]}}\",\"MD5OfBody\":\"1f28dfd3b4d410c76264e494ce631758\",\"MessageId\":\"6a7a04ed-f008-48b3-9ccf-9c17daddf2ec\",\"ReceiptHandle\":\"AQEBk1aCSopxmSJ1w1O/42aeeBhPz+GbCDVp1dzp4vxsLsxaS8JtKcltsaGvbWrTzfzABRjIomiGPf3T08R62229CzZTREfVMzqB7lCSDvoWGyxTlVmGbCM51gRUaJvqViX6FDiXg8EaehGnfeuxZXQpcYZbKUG2UDwNWyjnrLo2SH0B/zx/9F2kxAvPE0fDABVGM4z/vjW2XGmH1tcAF2V6f3/ieVfHo0j+h8NaaVsn0uTcP2JEfTXKh6A5bjICgK7/oJPPfCzu7ij4SnUPBdwEvJOPfMteLXl0U/hNbXPoU6sLq13OA5MEtUxU9WX1ONxpi1zrkVbNisf7w4LJ+Si+xkypSYSDvY6zK1MT2/pXOKHBgvyF5G1JX7voHvIrvq8n5t1hpTpQgLY51ljthUBg4g==\"}]}"
+      }
+    }
+  ]
+}

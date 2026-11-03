@@ -1,0 +1,35 @@
+{
+  "step": "08-recv-dlq-2",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.ReceiveMessage"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,b,g,E,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.receive-message"],
+          ["X-Amz-Date", "20261103T174401Z"],
+          ["amz-sdk-invocation-id", "537a7c3a-7df7-4fbb-81c0-168e677cffde"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "190"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/us1103-sch-dlq\", \"AttributeNames\": [\"All\"], \"MessageAttributeNames\": [\"All\"], \"MaxNumberOfMessages\": 10, \"WaitTimeSeconds\": 10}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "7750eb83-30e6-5f50-baae-88e72f440cc4"],
+          ["Date", "Tue, 03 Nov 2026 17:44:02 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "3722"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"Messages\":[{\"Attributes\":{\"SenderId\":\"AROARZPUZDIKAAAAAAA3A:4c824c9b0db83dc282e9a9c50beb54e3\",\"ApproximateFirstReceiveTimestamp\":\"1793727842066\",\"ApproximateReceiveCount\":\"1\",\"SentTimestamp\":\"1793727521711\"},\"Body\":\"{\\\"MessageBody\\\":\\\"nodedup\\\",\\\"MessageGroupId\\\":\\\"g\\\",\\\"QueueUrl\\\":\\\"https://sqs.us-east-2.amazonaws.com/123456789012/us1103-schnd.fifo\\\"}\",\"MD5OfBody\":\"8abe2b97661164d7dcfc4a4400b58243\",\"MD5OfMessageAttributes\":\"0b72eaf9b6aec71e51c53df5cdb1c052\",\"MessageAttributes\":{\"CONTAINS_INVALID_PAYLOAD\":{\"DataType\":\"String\",\"StringValue\":\"false\"},\"ERROR_CODE\":{\"DataType\":\"String\",\"StringValue\":\"InvalidParameterValue\"},\"ERROR_MESSAGE\":{\"DataType\":\"String\",\"StringValue\":\"The queue should either have ContentBasedDeduplication enabled or MessageDeduplicationId provided explicitly\"},\"EXECUTION_ID\":{\"DataType\":\"String\",\"StringValue\":\"6f6aea1c-1fb4-4107-a78d-b199f1f857ae\"},\"IS_PAYLOAD_TRUNCATED\":{\"DataType\":\"String\",\"StringValue\":\"false\"},\"RETRY_ATTEMPTS\":{\"DataType\":\"String\",\"StringValue\":\"0\"},\"SCHEDULED_TIME\":{\"DataType\":\"String\",\"StringValue\":\"2026-11-03T17:38:39Z\"},\"SCHEDULE_ARN\":{\"DataType\":\"String\",\"StringValue\":\"arn:aws:scheduler:us-east-2:123456789012:schedule/default/us1103-x3\"},\"TARGET_ARN\":{\"DataType\":\"String\",\"StringValue\":\"arn:aws:sqs:us-east-2:123456789012:us1103-schnd.fifo\"}},\"MessageId\":\"86ef17ba-3178-4342-affa-47b7ff4932ee\",\"ReceiptHandle\":\"AQEByOI6NvUFyt/WffMhYm1RmThLsBrVvc1N5fVyMvsZaSdv1iBgsgUtgPQDXQAI/Ky+6LhHtARBWTIFKluefDD3O4CrIxX9iXeyMUL1ID0sxaAjXtOwZ7iL5cdU4KPcwH5m7+py3A2MIn3wkPTa0TsoDj+xRfRvKaPYQPE63ZwWf4YzreFLRM4f1aWTl1If8qWXqKl0/zMIcqboFeeQdNfKbRaRqdsNCpSYcKxqFYiWhJSHimsMIXqH0M53ApG5a+IE8BcJwvq6FxZYRDQYJT1xK3/6SV4HDbLLEEf9NIhz7s7DtkGWbWq786OFPyvuwkegabmUrsPNgsttbYV/AjAaWdRgz05EitI2GYtffSGobIvDExotmkh2QlkQJ38kDG1EBURMusscW+1YlDCGQG3YdA==\"},{\"Attributes\":{\"SenderId\":\"AROARZPUZDIKAAAAAAA4A:6937f20ac7513eb384fd606438d6c5c7\",\"ApproximateFirstReceiveTimestamp\":\"1793727842068\",\"ApproximateReceiveCount\":\"1\",\"SentTimestamp\":\"1793727565061\"},\"Body\":\"{\\\"MessageBody\\\":\\\"denied 8c6aea1c-1f04-41ab-bfec-41419007114e 1\\\",\\\"QueueUrl\\\":\\\"https://sqs.us-east-2.amazonaws.com/123456789012/us1103-sch\\\"}\",\"MD5OfBody\":\"c1bd4bca5c7afc30bccab97107833212\",\"MD5OfMessageAttributes\":\"c54da5c6a26d2067438d7feed2e6434d\",\"MessageAttributes\":{\"CONTAINS_INVALID_PAYLOAD\":{\"DataType\":\"String\",\"StringValue\":\"false\"},\"ERROR_CODE\":{\"DataType\":\"String\",\"StringValue\":\"AccessDenied\"},\"ERROR_MESSAGE\":{\"DataType\":\"String\",\"StringValue\":\"User: arn:aws:sts::123456789012:assumed-role/us1103-sch-dlqonly/6937f20ac7513eb384fd606438d6c5c7 is not authorized to perform: sqs:sendmessage on resource: arn:aws:sqs:us-east-2:123456789012:us1103-sch because no identity-based policy allows the sqs:sendmessage action\"},\"EXECUTION_ID\":{\"DataType\":\"String\",\"StringValue\":\"8c6aea1c-1f04-41ab-bfec-41419007114e\"},\"IS_PAYLOAD_TRUNCATED\":{\"DataType\":\"String\",\"StringValue\":\"false\"},\"RETRY_ATTEMPTS\":{\"DataType\":\"String\",\"StringValue\":\"0\"},\"SCHEDULED_TIME\":{\"DataType\":\"String\",\"StringValue\":\"2026-11-03T17:38:39Z\"},\"SCHEDULE_ARN\":{\"DataType\":\"String\",\"StringValue\":\"arn:aws:scheduler:us-east-2:123456789012:schedule/default/us1103-x2\"},\"TARGET_ARN\":{\"DataType\":\"String\",\"StringValue\":\"arn:aws:sqs:us-east-2:123456789012:us1103-sch\"}},\"MessageId\":\"abaed7a9-ee46-4363-83e0-374d1bdf73af\",\"ReceiptHandle\":\"AQEB7HisWab/+dA01P48FP8zC3JMXHUWQ8tHsYXvP6+JYQv78FDfZvGjZpwo0/v4nLomrqosVCZDqGViVM9X2tqX27EZW64pOiqHUpvvnfrF1o6BtXzkUcmxEKdh6eJYTITrY81dF3sSt0Z5ORtue8EoHNMF9gKfz+DAmsSzY4Vji/vD8bcWaJXayq4/MM/Hy0v/I7KFLT4SFCJcbtcVnLA9VfIGlqWpVp4k1x/zokBhJJIqFnjKSX/+MltRugcl2/LiiZxRWMaB76ilF8kCPswlpPzSMBTU82r8Uw+v+tc4c6SVPFurICW/oqiQIyH/DQhYHrBfXdFWMT34wEcm/4pT8li0LFn6rFgXVe7xebxVnSjrR2kSU9wTr3qwiUVfDnEeYK/mNsi6p+83s7SelwRSHA==\"}]}"
+      }
+    }
+  ]
+}

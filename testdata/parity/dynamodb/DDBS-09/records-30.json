@@ -1,0 +1,34 @@
+{
+  "step": "records-30",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://streams.dynamodb.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "DynamoDBStreams_20120810.GetRecords"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,b,Z,AN,g cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#dynamodbstreams.get-records"],
+          ["X-Amz-Date", "20261103T163916Z"],
+          ["amz-sdk-invocation-id", "a077b9d3-e4ea-45f7-9039-d2c47621ed3c"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "1020"]
+        ],
+        "body": "{\"ShardIterator\": \"arn:aws:dynamodb:us-east-2:123456789012:table/us1103-ddbs/stream/2026-11-03T16:35:17.650|1|AAAAAAAAAAEW99NiPJ6T2Uguh12da2Bb+mTCgGHdg/Wnk9PcqNhPFS4ES4UMJ9O+nlsW8zL+f0uTohzP8BlNOazPyZY5z6bDYi2sXAHbER7/qmC+PiXqjNbBuZy/NFnLA0RMrk3nmYRyBeP82R2IhpXtnI/8BK931P/Bc7UM6aSHJYZY7UnYt9MAFkSyghYKtXnv1P+dbmMjtJO02i3jGGkBbwO5kt8GSQkQUE/Xg/LxtDCjUo0LRyUZqa77TCLgK5tLSvKB3QMDJXrCgC/orYJ/63MYHN7Bc0F9caehNeIxwEB8BqtgOrHZVOibQLpGMklg39m1F000zWyd8o9fM16dzT3X19CwZQpmAZcGUjoh4Blrw+ip/Y0B8npJyHz3fsnMahvKrqCrFrkltr0NyxlqOTKhL4+A1TQ8rzf64yAY/vbNkOcVgEOBASp1mCLDIsJ9kSiFC+raFI+4n7U86+L+TfruNxbJatwUHW9ZFxvBM1W1tsBu/e5K0jAt/QmcTysEr271Fx3oGNsluEZuDLdQdNpGu6B/djXXfwTvtKkUaFJotg0UD286NzhO+LWmYJsUja8Bv6yc3yLXKmAOZTp4icCkWqA+8flT1MUrlW3+9Yc0+NI1yIyHwxwSucrG8KwSGQO3cNeAFpzOwLgUwMtHtoNvmqtbxcArao/Gm/8EADQkEwa63gsliRvSCRvV59fN96PqiPaUw57YwUCh60eYPIWHf14KprI/3Vxp0nUyJ/JwZChYW47jZak/K13pOZoBVG9ObSt6XOwWM/v88Gxr3Kt+P3LuF8m5bihAHLzMTICfjG9i0EftW3/7b9sMmpM83dbjv7beXtJLPlM3X1fJG0EwyWUlOErJ+0Dpvmw7yV6sEFQV+PEuACnO6erCEb+7nA6xACA=\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "0V1BD0H5KULED8G0ABOV4DGP6NVV4KQNSO5AEMVJF66Q9ASUAAJG"],
+          ["x-amz-crc32", "824043300"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "1036"],
+          ["Date", "Tue, 03 Nov 2026 16:39:16 GMT"]
+        ],
+        "body": "{\"NextShardIterator\":\"arn:aws:dynamodb:us-east-2:123456789012:table/us1103-ddbs/stream/2026-11-03T16:35:17.650|1|AAAAAAAAAAE2Eux9Ueb7yDMj9f0gH3wh1YZWQhtGySe3neGHOsnOzCYlqfg3FNWHeicp/BGVdt3eE6ExBEwBWu09ELS91Vh/tNOsmNXwBpS1AoHq27rifFnJCVAcY+6pT8V+R3jsfTJLBZz4Ozc4Q2+1X4T3CQNzFXagDNx6qO6JWglO1HQspagou9kNV3/nSfXT8O3WnG7g41ptJtaAKaT31I76m9CHKwDAi+XoAUN/OLJq5DXP56h1zl0VqycElL1b/XJkK6FZvtU6Sn4Do+SPRXO7uZYoHzKyjaJ3W2X//PbxffkyJErIgooBu3SlPLqMR6dWwV0Omm4YeTXIzGdxLU86hHPxrB/W7/NPPBke0yCr7Ta1vH6kPmF1kd55VUuzeulImJMnbWXyCMmKjIujJHAVM6FI1NrM9LAPh0t1bBhV3oEa4CdbD4MgbDxmqGqXNKnkFHFqEMSyWmlxY87lqP0buuUwH3BQCnSuik8XPkfWUpvmSa4DgvC+ZCuFePHaVr9oaIrw0/nYimeSrYaUsbdYLepKGVTmUFUTqA59w32Ok8si81Dm5PRbTQZU0ebyAVmEc+6JAB4tg0j2JVbsD2jWOqBRhBiWyFey0T1C+t010lsAPtvF5zT56znl22kLEFNQOAP2WiOD8N6Eri0IzF1IA5QtmnTnBNByKiLDm+5HPZDaEQbnioobZLS5nz0OeczR6bTSI2Gh2qEzTgkPX15KB0gpSDIwRP33CF2PBxJOKsTUD5bLsagm8C2EFhophrW48uKBsDnaQ/dnUI3/jmtbF3K5jO1p2VHV3nHGSWCf+dYDx0fAqW0D5Umn6WWBy6iHg/FYkGfMMGHXxY/Qi/QyIGjnuVC0FGciRQn1bsnXQiN+TSqmWcdqQzdtrTBJKzWP26M=\",\"Records\":[]}"
+      }
+    }
+  ]
+}

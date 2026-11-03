@@ -1,0 +1,33 @@
+{
+  "step": "D-confirm-first",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sns.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,AN,b,Z,g cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sns.confirm-subscription"],
+          ["X-Amz-Date", "20261103T170648Z"],
+          ["amz-sdk-invocation-id", "4acb5e81-a13a-4dac-bb62-19f03b6569c5"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "375"]
+        ],
+        "body": "Action=ConfirmSubscription&Version=2010-03-31&TopicArn=arn%3Aaws%3Asns%3Aus-east-2%3A123456789012%3Aus1103-snsh-d&Token=2336412f37fb687f5d51e6e2425929f4483a15a827c768293f61ddc009bc3a848f8901bbf176699b3ae4eb3978099d2f0c412ab62c767fb975ff2f31372b7a148f5232e53755029e3b6eebe4a4cdba66b6103f6538609bc427a90ed2868f514f154591257fd942c0bd8c32a65f7f4067&AuthenticateOnUnsubscribe=true"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "e6a2f4c8-5481-5d9f-80df-97ac4268aad1"],
+          ["Date", "Tue, 03 Nov 2026 17:06:49 GMT"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "403"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "<ConfirmSubscriptionResponse xmlns=\"http://sns.amazonaws.com/doc/2010-03-31/\">\n  <ConfirmSubscriptionResult>\n    <SubscriptionArn>arn:aws:sns:us-east-2:123456789012:us1103-snsh-d:0662bbb8-3efa-45bc-a61f-687c9e465c51</SubscriptionArn>\n  </ConfirmSubscriptionResult>\n  <ResponseMetadata>\n    <RequestId>e6a2f4c8-5481-5d9f-80df-97ac4268aad1</RequestId>\n  </ResponseMetadata>\n</ConfirmSubscriptionResponse>\n"
+      }
+    }
+  ]
+}

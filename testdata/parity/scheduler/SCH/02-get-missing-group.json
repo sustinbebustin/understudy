@@ -1,0 +1,31 @@
+{
+  "step": "02-get-missing-group",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ResourceNotFoundException) when calling the GetSchedule operation: Schedule group us1103-nogroup does not exist.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://scheduler.us-east-2.amazonaws.com/schedules/us1103-d1?groupName=us1103-nogroup",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,g,AN,Z,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#scheduler.get-schedule"],
+          ["X-Amz-Date", "20261103T163657Z"],
+          ["amz-sdk-invocation-id", "25be33e6-cd10-4259-8695-ad12919ace0a"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 404,
+        "headers": [
+          ["x-amzn-RequestId", "c0eab90a-2f3c-4544-8801-85d100ddbc62"],
+          ["x-amzn-ErrorType", "ResourceNotFoundException:http://internal.amazon.com/coral/com.amazonaws.chronos/"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "59"],
+          ["Date", "Tue, 03 Nov 2026 16:36:57 GMT"]
+        ],
+        "body": "{\"Message\":\"Schedule group us1103-nogroup does not exist.\"}"
+      }
+    }
+  ]
+}

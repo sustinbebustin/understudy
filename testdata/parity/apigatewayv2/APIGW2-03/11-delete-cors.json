@@ -1,0 +1,35 @@
+{
+  "step": "11-delete-cors",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "DELETE",
+        "url": "https://apigateway.us-east-2.amazonaws.com/v2/apis/9ackjmy7v7/cors",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,AN,Z,g,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#apigatewayv2.delete-cors-configuration"],
+          ["X-Amz-Date", "20261103T164334Z"],
+          ["amz-sdk-invocation-id", "89b9de66-50b7-4bc3-9bf9-8cfc89b743e1"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "0"]
+        ]
+      },
+      "response": {
+        "status": 204,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:43:34 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "0"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "3b7da965-96df-49e2-ac9d-980f03a3b274"],
+          ["Access-Control-Allow-Origin", "*"],
+          ["x-amz-apigw-id", "GRdQiF5oCYcEbcA="],
+          ["Access-Control-Expose-Headers", "x-amzn-RequestId,x-amzn-ErrorType,x-amzn-ErrorMessage,Date"],
+          ["X-Amzn-Trace-Id", "Root=1-6aea0f36-62b0154a55dbbcb33dbbcfd9"]
+        ],
+        "body": ""
+      }
+    }
+  ]
+}

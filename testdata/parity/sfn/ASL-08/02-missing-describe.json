@@ -1,0 +1,34 @@
+{
+  "step": "02-missing-describe",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://states.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSStepFunctions.DescribeExecution"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,Z,g,AN,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#stepfunctions.describe-execution"],
+          ["X-Amz-Date", "20261103T164753Z"],
+          ["amz-sdk-invocation-id", "6586e195-339c-4d34-ad4e-631f146af965"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "114"]
+        ],
+        "body": "{\"executionArn\": \"arn:aws:states:us-east-2:123456789012:execution:us1103-ch:fe792ed0-a67c-401f-9c9c-d4c49e9c65da\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "b3dffc02-dcab-4235-ac13-5b7056bbc275"],
+          ["Date", "Tue, 03 Nov 2026 16:47:53 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "680"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"cause\":\"An error occurred while executing the state 'C' (entered at the event id #4). Invalid path '$.x': The choice state's condition path references an invalid value.\",\"error\":\"States.Runtime\",\"executionArn\":\"arn:aws:states:us-east-2:123456789012:execution:us1103-ch:fe792ed0-a67c-401f-9c9c-d4c49e9c65da\",\"input\":\"{}\",\"inputDetails\":{\"__type\":\"com.amazonaws.swf.base.model#CloudWatchEventsExecutionDataDetails\",\"included\":true},\"name\":\"fe792ed0-a67c-401f-9c9c-d4c49e9c65da\",\"redriveCount\":0,\"redriveStatus\":\"REDRIVABLE\",\"startDate\":1.793724472924E9,\"stateMachineArn\":\"arn:aws:states:us-east-2:123456789012:stateMachine:us1103-ch\",\"status\":\"FAILED\",\"stopDate\":1.793724472965E9}"
+      }
+    }
+  ]
+}

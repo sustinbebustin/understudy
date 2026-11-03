@@ -1,0 +1,35 @@
+{
+  "step": "01-target-without-role",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ValidationException) when calling the PutTargets operation: RoleArn is required for target arn:aws:states:us-east-2:123456789012:stateMachine:us1103-pass.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://events.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSEvents.PutTargets"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,Z,b,AN,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#events.put-targets"],
+          ["X-Amz-Date", "20261103T163929Z"],
+          ["amz-sdk-invocation-id", "4e345693-3334-4128-984c-25d6d1e2b553"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "127"]
+        ],
+        "body": "{\"Rule\": \"us1103-sfn-rule\", \"Targets\": [{\"Id\": \"t0\", \"Arn\": \"arn:aws:states:us-east-2:123456789012:stateMachine:us1103-pass\"}]}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "6da7bb60-c0b5-4b13-a12f-3e9c09922f84"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "139"],
+          ["Date", "Tue, 03 Nov 2026 16:39:29 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "{\"__type\":\"ValidationException\",\"message\":\"RoleArn is required for target arn:aws:states:us-east-2:123456789012:stateMachine:us1103-pass.\"}"
+      }
+    }
+  ]
+}

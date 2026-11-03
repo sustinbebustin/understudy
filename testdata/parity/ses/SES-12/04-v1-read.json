@@ -1,0 +1,33 @@
+{
+  "step": "04-v1-read",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://email.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,AN,E,g,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#ses.get-identity-verification-attributes"],
+          ["X-Amz-Date", "20261103T164222Z"],
+          ["amz-sdk-invocation-id", "0db5983f-eb82-432a-8e6a-f46cc1d5e943"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "103"]
+        ],
+        "body": "Action=GetIdentityVerificationAttributes&Version=2010-12-01&Identities.member.1=us1103-v2%40example.com"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:42:22 GMT"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "555"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "e30d329f-086e-488c-8a3f-6b462f66a96e"]
+        ],
+        "body": "<GetIdentityVerificationAttributesResponse xmlns=\"http://ses.amazonaws.com/doc/2010-12-01/\">\n  <GetIdentityVerificationAttributesResult>\n    <VerificationAttributes>\n      <entry>\n        <key>us1103-v2@example.com</key>\n        <value>\n          <VerificationStatus>Pending</VerificationStatus>\n        </value>\n      </entry>\n    </VerificationAttributes>\n  </GetIdentityVerificationAttributesResult>\n  <ResponseMetadata>\n    <RequestId>e30d329f-086e-488c-8a3f-6b462f66a96e</RequestId>\n  </ResponseMetadata>\n</GetIdentityVerificationAttributesResponse>\n"
+      }
+    }
+  ]
+}

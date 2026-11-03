@@ -1,0 +1,33 @@
+{
+  "step": "06-remove-last",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://events.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSEvents.RemovePermission"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,Z,AN,E,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#events.remove-permission"],
+          ["X-Amz-Date", "20261103T163615Z"],
+          ["amz-sdk-invocation-id", "2717e61c-f0d7-40f8-afb7-a71dac11ac88"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "49"]
+        ],
+        "body": "{\"StatementId\": \"s1\", \"EventBusName\": \"us1103-p\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "8e636e44-0854-46a0-bac4-c3d58e86ac58"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "0"],
+          ["Date", "Tue, 03 Nov 2026 16:36:16 GMT"]
+        ],
+        "body": ""
+      }
+    }
+  ]
+}

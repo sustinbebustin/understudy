@@ -1,0 +1,33 @@
+{
+  "step": "07-ddb-event-name",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://lambda.us-east-2.amazonaws.com/2015-03-31/event-source-mappings",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,E,AN,g,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.create-event-source-mapping"],
+          ["X-Amz-Date", "20261103T165355Z"],
+          ["amz-sdk-invocation-id", "f0eddb20-4f37-4493-8a00-8543b58436be"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "256"]
+        ],
+        "body": "{\"EventSourceArn\": \"arn:aws:dynamodb:us-east-2:123456789012:table/us1103-dt-16/stream/2026-11-03T16:53:34.474\", \"FunctionName\": \"us1103-esms\", \"FilterCriteria\": {\"Filters\": [{\"Pattern\": \"{\\\"eventName\\\":[\\\"INSERT\\\"]}\"}]}, \"StartingPosition\": \"TRIM_HORIZON\"}"
+      },
+      "response": {
+        "status": 202,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:53:56 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "1272"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "54677223-7345-4a64-854e-76dbf795c087"]
+        ],
+        "body": "{\"StartingPosition\":\"TRIM_HORIZON\",\"SelfManagedEventSource\":null,\"ParallelizationFactor\":1,\"FilterCriteria\":{\"Filters\":[{\"Pattern\":\"{\\\"eventName\\\":[\\\"INSERT\\\"]}\"}]},\"FilterCriteriaError\":null,\"ProvisionedPollerConfig\":null,\"MetricsConfig\":null,\"LastModified\":1793724836.251,\"LastProcessingResult\":\"No records processed\",\"DestinationConfig\":{\"OnSuccess\":null,\"OnFailure\":{\"Destination\":null}},\"AmazonManagedKafkaEventSourceConfig\":null,\"SourceAccessConfigurations\":null,\"UUID\":\"96b67dd7-c591-4dfd-a849-3e146bcc23d2\",\"MaximumBatchingWindowInSeconds\":0,\"BatchSize\":100,\"FunctionArn\":\"arn:aws:lambda:us-east-2:123456789012:function:us1103-esms\",\"KMSKeyArn\":null,\"MaximumRetryAttempts\":-1,\"ScalingConfig\":null,\"Topics\":null,\"EventSourceArn\":\"arn:aws:dynamodb:us-east-2:123456789012:table/us1103-dt-16/stream/2026-11-03T16:53:34.474\",\"SelfManagedKafkaEventSourceConfig\":null,\"DocumentDBEventSourceConfig\":null,\"TumblingWindowInSeconds\":0,\"BisectBatchOnFunctionError\":false,\"EventSourceMappingArn\":\"arn:aws:lambda:us-east-2:123456789012:event-source-mapping:96b67dd7-c591-4dfd-a849-3e146bcc23d2\",\"State\":\"Creating\",\"LoggingConfig\":null,\"MaximumRecordAgeInSeconds\":-1,\"StartingPositionTimestamp\":null,\"Queues\":null,\"StateTransitionReason\":\"User action\",\"FunctionResponseTypes\":[]}"
+      }
+    }
+  ]
+}

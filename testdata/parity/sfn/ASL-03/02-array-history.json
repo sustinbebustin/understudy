@@ -1,0 +1,34 @@
+{
+  "step": "02-array-history",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://states.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSStepFunctions.GetExecutionHistory"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,g,b,AN,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#stepfunctions.get-execution-history"],
+          ["X-Amz-Date", "20261103T164701Z"],
+          ["amz-sdk-invocation-id", "5b23e7f3-c084-474e-b12d-39c61fcbe2ec"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "134"]
+        ],
+        "body": "{\"executionArn\": \"arn:aws:states:us-east-2:123456789012:execution:us1103-rp:35cdc053-0b04-4475-9c04-9978f1446c31\", \"maxResults\": 1000}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "c15199de-1d7a-4dbe-b70d-463ae73baf55"],
+          ["Date", "Tue, 03 Nov 2026 16:47:01 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "768"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"events\":[{\"__type\":\"com.amazonaws.swf.base.model#HistoryEvent\",\"executionStartedEventDetails\":{\"input\":\"[1]\",\"inputDetails\":{\"truncated\":false},\"roleArn\":\"arn:aws:iam::123456789012:role/us1103-sfn\"},\"id\":1,\"previousEventId\":0,\"timestamp\":1.793724420537E9,\"type\":\"ExecutionStarted\"},{\"__type\":\"com.amazonaws.swf.base.model#HistoryEvent\",\"id\":2,\"previousEventId\":0,\"stateEnteredEventDetails\":{\"input\":\"[1]\",\"inputDetails\":{\"truncated\":false},\"name\":\"A\"},\"timestamp\":1.793724420559E9,\"type\":\"PassStateEntered\"},{\"__type\":\"com.amazonaws.swf.base.model#HistoryEvent\",\"executionFailedEventDetails\":{\"cause\":\"Unable to apply step \\\"x\\\" to input [1]\",\"error\":\"States.ReferencePathConflict\"},\"id\":3,\"previousEventId\":2,\"timestamp\":1.793724420582E9,\"type\":\"ExecutionFailed\"}]}"
+      }
+    }
+  ]
+}

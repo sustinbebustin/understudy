@@ -1,0 +1,36 @@
+{
+  "step": "01-list-empty",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://ssm.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Host", "ssm.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261103T163752Z"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["X-Amz-Target", "AmazonSSM.ListTagsForResource"],
+          ["Content-Length", "59"]
+        ],
+        "body": "{\"ResourceType\":\"Parameter\",\"ResourceId\":\"/us1103/ssm/t25\"}"
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Tue, 03 Nov 2026 16:37:52 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "14"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "7f39390c-86cc-4eb0-bd92-a40c3be75b16"],
+          ["Cache-Control", "no-store"]
+        ],
+        "body": "{\"TagList\":[]}"
+      }
+    }
+  ]
+}

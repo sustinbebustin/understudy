@@ -1,0 +1,22 @@
+{
+  "step": "10-timeout",
+  "client": "curl",
+  "exchanges": [
+    {
+      "response": {
+        "status": 504,
+        "reason": "Gateway Timeout",
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:40:58 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "41"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "4949ec25-2245-4c59-a48d-6ca34c3e8cda"],
+          ["x-amzn-ErrorType", "InternalServerErrorException"],
+          ["x-amz-apigw-id", "GRc4AHrKCYcEbnA="]
+        ],
+        "body": "{\"message\": \"Endpoint request timed out\"}"
+      }
+    }
+  ]
+}

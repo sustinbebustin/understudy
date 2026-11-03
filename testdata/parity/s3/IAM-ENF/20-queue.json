@@ -1,0 +1,36 @@
+{
+  "step": "20-queue",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidArgument) when calling the PutBucketNotificationConfiguration operation: Unable to validate the following destination configurations",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://us1103-enf-b.s3.us-east-2.amazonaws.com/?notification",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,E,g,AN,b cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.put-bucket-notification-configuration"],
+          ["X-Amz-Date", "20261103T035750Z"],
+          ["X-Amz-Content-SHA256", "2bbb4dacee02902ac23a039f29c3db0ceed8714f337b269500d2f5a32fb25a1e"],
+          ["amz-sdk-invocation-id", "744460d0-5474-4450-ac75-db6e87530970"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "240"]
+        ],
+        "body": "<NotificationConfiguration xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><QueueConfiguration><Queue>arn:aws:sqs:us-east-2:123456789012:us1103-enf-nq</Queue><Event>s3:ObjectCreated:*</Event></QueueConfiguration></NotificationConfiguration>"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "XH84W93NNWW6SQ8K"],
+          ["x-amz-id-2", "KRFz8nKkkTqpl3LIDKrnNbx47puYkfL8Z80xNnVptsZ2tz5ZX/tuF5HJ5ZDhXdpoTxR4TiqcvgSZVuwpuw67AF8o238WvE0Q"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Tue, 03 Nov 2026 03:57:49 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>InvalidArgument</Code><Message>Unable to validate the following destination configurations</Message><ArgumentName1>arn:aws:sqs:us-east-2:123456789012:us1103-enf-nq</ArgumentName1><ArgumentValue1>Permissions on the destination queue do not allow S3 to publish notifications from this bucket</ArgumentValue1><RequestId>XH84W93NNWW6SQ8K</RequestId><HostId>KRFz8nKkkTqpl3LIDKrnNbx47puYkfL8Z80xNnVptsZ2tz5ZX/tuF5HJ5ZDhXdpoTxR4TiqcvgSZVuwpuw67AF8o238WvE0Q</HostId></Error>"
+      }
+    }
+  ]
+}

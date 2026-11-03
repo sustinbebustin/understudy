@@ -1,0 +1,34 @@
+{
+  "step": "12-records-limit-0",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://streams.dynamodb.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Host", "streams.dynamodb.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261103T163542Z"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["X-Amz-Target", "DynamoDBStreams_20120810.GetRecords"],
+          ["Content-Length", "1029"]
+        ],
+        "body": "{\"ShardIterator\":\"arn:aws:dynamodb:us-east-2:123456789012:table/us1103-ddbs/stream/2026-11-03T16:35:17.650|1|AAAAAAAAAAFGoGrzJyLGFe6Y6JjimlyTKb79VoaVmHxk1BCOvJbC+8QraD2uBM0nE+d092wlv4Y6nG8p3xEQ/T3b3odojUyoHL4ZDc8htjPqO/KC9LTAQ4FKTuHIH5m5jqCm7gfBp1NArt3xD0acaRSaIUOk6ynxIs971Em3c9Zerw2Q4NmB1KqIGa4rUK9+PjkzdImQbOJ/yFmOJGTWODc/aujgjr0YHZ6/dbdDlpJvdF214chyki8PulRMoy7yZIkR87O496Tnn8bRB13JrFXR5emyBRz7T834BNRs21RQSpbhlZxC+B/ZkJZzKH/QOlEEQttRTDk2Xxdf/i7YG1i2JC96y9iR80+Ab2/8oSVxj4jhw0Lvcw9BCAFLf1B2q294C8TFqorlK6rwXc5kKT5yNe+/8+m8j95Vd3Qf5ok9M0lFFr2xJu/yI4P+/Mp1i4UfvwPLlnDa5tZ1QMg6XwBEDZugiXK7UjeZGZbb5nNR+biwl7VWfRpFmaQ62ktrHH3veDv72kDBI46N8BBl8Su5sZb/PpFrTHlTb5AT1HI3oS4MTcw90jhHqAaQ2FRhtrdzYN9zmENEAa70v8fU2bre+dOJ81BLZ3YaNqMyPYCs9dhSz8S4QucA+94gfSOU5ewt3fVurWcZPKb+Uo3o5K1tFaxLmZMsu1GmdGq0IOvVYMoog/jwVNq8tu+mQJNyzyDwDbk0AxzRJrMI+fCG4YMxK1K4D5/NwlBjndQ9/SYNIiOMhP8aWh8qdJpD0rP5aHkedSNpxtKHKGNX1ldvj0aPCYqq05aEG5n4vXt08j89b2owTgw4nIqQWsiGx/ya7BDpfWqwGi7yfA7s36c1FIF0ELmmEGeqBHBLhpmenhyjuQszfwipBp+yg1V9wlSvOjdZR0tf6hg=\",\"Limit\":0}"
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["x-amzn-RequestId", "RUL5R04N87LFG2BT0C8UL5QIUFVV4KQNSO5AEMVJF66Q9ASUAAJG"],
+          ["x-amz-crc32", "2082487272"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "196"],
+          ["Date", "Tue, 03 Nov 2026 16:35:42 GMT"]
+        ],
+        "body": "{\"__type\":\"com.amazon.coral.validate#ValidationException\",\"message\":\"1 validation error detected: Value at 'limit' failed to satisfy constraint: Member must have value greater than or equal to 1\"}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "step": "03-deprecated-name",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://ssm.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSSM.DescribeParameters"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,Z,b,E,AN,C cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#ssm.describe-parameters"],
+          ["X-Amz-Date", "20261103T163739Z"],
+          ["amz-sdk-invocation-id", "574b8234-62a2-43f7-ac9f-db469d79a353"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "61"]
+        ],
+        "body": "{\"Filters\": [{\"Key\": \"Name\", \"Values\": [\"/us1103/ssm/f21\"]}]}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Tue, 03 Nov 2026 16:37:39 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "693"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "24ddcc30-5baf-4847-8f24-6eaac3ba975f"],
+          ["Cache-Control", "no-store"]
+        ],
+        "body": "{\"Parameters\":[{\"ARN\":\"arn:aws:ssm:us-east-2:123456789012:parameter/us1103/ssm/f21/Top\",\"DataType\":\"text\",\"LastModifiedDate\":1.79372385795E9,\"LastModifiedUser\":\"arn:aws:sts::123456789012:assumed-role/AccountFullAccessRole/00000000-0000-0000-0000-000000000005\",\"Name\":\"/us1103/ssm/f21/Top\",\"Policies\":[],\"Tier\":\"Standard\",\"Type\":\"String\",\"Version\":1},{\"ARN\":\"arn:aws:ssm:us-east-2:123456789012:parameter/us1103/ssm/f21/x/deep\",\"DataType\":\"text\",\"LastModifiedDate\":1.793723857425E9,\"LastModifiedUser\":\"arn:aws:sts::123456789012:assumed-role/AccountFullAccessRole/00000000-0000-0000-0000-000000000005\",\"Name\":\"/us1103/ssm/f21/x/deep\",\"Policies\":[],\"Tier\":\"Standard\",\"Type\":\"String\",\"Version\":1}]}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "step": "10-foreign-get",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (AccessDeniedException) when calling the GetLayerVersionByArn operation: User: arn:aws:sts::123456789012:assumed-role/AccountFullAccessRole/00000000-0000-0000-0000-000000000005 is not authorized to perform: lambda:GetLayerVersion on resource: arn:aws:lambda:us-east-2:123456789012:layer:us1103-nosuch:1 because no resource-based policy allows the lambda:GetLayerVersion action",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://lambda.us-east-2.amazonaws.com/2018-10-31/layers?find=LayerVersion&Arn=arn%3Aaws%3Alambda%3Aus-east-2%3A123456789012%3Alayer%3Aus1103-nosuch%3A1",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,Z,g,AN,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.get-layer-version-by-arn"],
+          ["X-Amz-Date", "20261103T170838Z"],
+          ["amz-sdk-invocation-id", "e90ad0a6-c10c-48a7-bb18-03bd64aab4e6"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 403,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 17:08:38 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "317"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "92814645-bde0-4e7f-a238-0c181474e1b1"],
+          ["x-amzn-ErrorType", "AccessDeniedException"]
+        ],
+        "body": "{\"Message\":\"User: arn:aws:sts::123456789012:assumed-role/AccountFullAccessRole/00000000-0000-0000-0000-000000000005 is not authorized to perform: lambda:GetLayerVersion on resource: arn:aws:lambda:us-east-2:123456789012:layer:us1103-nosuch:1 because no resource-based policy allows the lambda:GetLayerVersion action\"}"
+      }
+    }
+  ]
+}

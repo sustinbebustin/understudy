@@ -1,0 +1,34 @@
+{
+  "step": "01-describe",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://states.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSStepFunctions.DescribeExecution"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,Z,b,E,g cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#stepfunctions.describe-execution"],
+          ["X-Amz-Date", "20261103T164710Z"],
+          ["amz-sdk-invocation-id", "342b4949-1cfe-4c80-8712-fab51e52c24a"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "115"]
+        ],
+        "body": "{\"executionArn\": \"arn:aws:states:us-east-2:123456789012:execution:us1103-i01:f71c95cc-2521-4673-86bb-eee5e23e8e05\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "b3545ec3-4db7-4f28-b800-5bc34a189994"],
+          ["Date", "Tue, 03 Nov 2026 16:47:10 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "764"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"executionArn\":\"arn:aws:states:us-east-2:123456789012:execution:us1103-i01:f71c95cc-2521-4673-86bb-eee5e23e8e05\",\"input\":\"{\\\"a\\\":[1],\\\"s\\\":\\\"%%%\\\",\\\"n\\\":2147483647,\\\"o\\\":{\\\"k\\\":{\\\"x\\\":1}}}\",\"inputDetails\":{\"__type\":\"com.amazonaws.swf.base.model#CloudWatchEventsExecutionDataDetails\",\"included\":true},\"name\":\"f71c95cc-2521-4673-86bb-eee5e23e8e05\",\"output\":\"[{\\\"r\\\":null}]\",\"outputDetails\":{\"__type\":\"com.amazonaws.swf.base.model#CloudWatchEventsExecutionDataDetails\",\"included\":true},\"redriveCount\":0,\"redriveStatus\":\"NOT_REDRIVABLE\",\"redriveStatusReason\":\"Execution is SUCCEEDED and cannot be redriven\",\"startDate\":1.793724429748E9,\"stateMachineArn\":\"arn:aws:states:us-east-2:123456789012:stateMachine:us1103-i01\",\"status\":\"SUCCEEDED\",\"stopDate\":1.793724429787E9}"
+      }
+    }
+  ]
+}

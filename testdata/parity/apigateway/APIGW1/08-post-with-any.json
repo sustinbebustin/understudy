@@ -1,0 +1,21 @@
+{
+  "step": "08-post-with-any",
+  "client": "curl",
+  "exchanges": [
+    {
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:39:47 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "17"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "63128770-c29f-4e2e-bb69-f744c6679b2e"],
+          ["x-amz-apigw-id", "GRctHEV6iYcEY3w="]
+        ],
+        "body": "{\"marker\": \"any\"}"
+      }
+    }
+  ]
+}

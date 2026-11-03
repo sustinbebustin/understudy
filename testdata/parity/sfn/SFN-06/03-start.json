@@ -1,0 +1,35 @@
+{
+  "step": "03-start",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (StateMachineDeleting) when calling the StartExecution operation: State Machine is being deleted: 'arn:aws:states:us-east-2:123456789012:stateMachine:us1103-del'",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://states.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSStepFunctions.StartExecution"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,E,b,Z,g cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#stepfunctions.start-execution"],
+          ["X-Amz-Date", "20261103T163702Z"],
+          ["amz-sdk-invocation-id", "def47906-8925-47ae-a16a-3f71f3d1ee66"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "84"]
+        ],
+        "body": "{\"stateMachineArn\": \"arn:aws:states:us-east-2:123456789012:stateMachine:us1103-del\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "871b4c98-f904-4923-a270-c4de6c73b37d"],
+          ["Date", "Tue, 03 Nov 2026 16:37:02 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "176"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"__type\":\"com.amazonaws.swf.service.v2.model#StateMachineDeleting\",\"message\":\"State Machine is being deleted: 'arn:aws:states:us-east-2:123456789012:stateMachine:us1103-del'\"}"
+      }
+    }
+  ]
+}

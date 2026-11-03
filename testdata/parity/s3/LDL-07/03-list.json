@@ -1,0 +1,33 @@
+{
+  "step": "03-list",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://us1103-ldl-b.s3.us-east-2.amazonaws.com/?list-type=2&encoding-type=url",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,C,b,E,AN,g cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.list-objects-v2"],
+          ["X-Amz-Date", "20261103T165333Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "1cb8383b-bd0e-4427-a524-1ec0424493c2"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amz-id-2", "v/LGkM1iQXILgzPORE/jYTmhu8w7Xxo9RABQy6sItMnK3CR7/BAg/Dx2UgG9Tvyvunyxb+jllls6N+1o+wOuiDIzbMjN5g/t"],
+          ["x-amz-request-id", "DJ6GJE58TMVPX1X3"],
+          ["Server", "AmazonS3"],
+          ["Date", "Tue, 03 Nov 2026 16:53:34 GMT"],
+          ["x-amz-bucket-region", "us-east-2"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListBucketResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Name>us1103-ldl-b</Name><Prefix></Prefix><KeyCount>1</KeyCount><MaxKeys>1000</MaxKeys><EncodingType>url</EncodingType><IsTruncated>false</IsTruncated><Contents><Key>aws/lambda/async/us1103-ldl-s3/2026/11/03/2026-11-03T16.52.53-fdc93dec-996a-4141-9306-9a64b74461b0</Key><LastModified>2026-11-03T16:52:54.000Z</LastModified><ETag>&quot;9f48121adf05de9c546aba86e30f7eaf&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>657</Size><StorageClass>STANDARD</StorageClass></Contents></ListBucketResult>"
+      }
+    }
+  ]
+}

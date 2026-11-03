@@ -1,0 +1,33 @@
+{
+  "step": "07-put-rule-by-arn",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://events.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSEvents.PutRule"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,E,Z,b,g cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#events.put-rule"],
+          ["X-Amz-Date", "20261103T163631Z"],
+          ["amz-sdk-invocation-id", "dc523cd3-b78e-416b-ab59-287cb2b9a0ee"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "140"]
+        ],
+        "body": "{\"Name\": \"us1103-lr\", \"EventPattern\": \"{\\\"source\\\":[\\\"rec\\\"]}\", \"EventBusName\": \"arn:aws:events:us-east-2:123456789012:event-bus/us1103-la\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "24e3e653-74b2-4243-bf2a-a7b51cc8d076"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "76"],
+          ["Date", "Tue, 03 Nov 2026 16:36:32 GMT"]
+        ],
+        "body": "{\"RuleArn\":\"arn:aws:events:us-east-2:123456789012:rule/us1103-la/us1103-lr\"}"
+      }
+    }
+  ]
+}

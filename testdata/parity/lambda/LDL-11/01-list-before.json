@@ -1,0 +1,30 @@
+{
+  "step": "01-list-before",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://lambda.us-east-2.amazonaws.com/2018-10-31/layers",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,C,AN,Z,b,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.list-layers"],
+          ["X-Amz-Date", "20261103T170619Z"],
+          ["amz-sdk-invocation-id", "6b661cd7-87ed-402c-86f3-d7916284e186"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 17:06:19 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "31"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "1ae5e64f-6221-4de2-9954-53217314fa23"]
+        ],
+        "body": "{\"NextMarker\":null,\"Layers\":[]}"
+      }
+    }
+  ]
+}

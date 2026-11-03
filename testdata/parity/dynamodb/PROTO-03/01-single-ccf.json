@@ -1,0 +1,37 @@
+{
+  "step": "01-single-ccf",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (TransactionCanceledException) when calling the TransactWriteItems operation: Transaction cancelled, please refer cancellation reasons for specific reasons [ConditionalCheckFailed]\n\nAdditional error details:\nCancellationReasons: <complex value>\nUse \"--cli-error-format json\" or another error format to see the full details.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://dynamodb.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "DynamoDB_20120810.TransactWriteItems"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,g,Z,P,AN,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#dynamodb.transact-write-items"],
+          ["X-Amz-Date", "20261103T163651Z"],
+          ["amz-sdk-invocation-id", "05f80641-921d-4511-9e49-933a5800544b"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "263"]
+        ],
+        "body": "{\"TransactItems\": [{\"ConditionCheck\": {\"TableName\": \"us1103-proto-tx\", \"Key\": {\"pk\": {\"S\": \"held\"}}, \"ConditionExpression\": \"attribute_not_exists(pk)\", \"ReturnValuesOnConditionCheckFailure\": \"NONE\"}}], \"ClientRequestToken\": \"6c684884-1b92-4561-9820-deb14fc687de\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Tue, 03 Nov 2026 16:36:52 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "290"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-requestid", "GOFTO5ML5PGVSILELINEJNKN33VV4KQNSO5AEMVJF66Q9ASUAAJG"],
+          ["x-amz-crc32", "3141789222"]
+        ],
+        "body": "{\"__type\":\"com.amazonaws.dynamodb.v20120810#TransactionCanceledException\",\"CancellationReasons\":[{\"Code\":\"ConditionalCheckFailed\",\"Message\":\"The conditional request failed\"}],\"Message\":\"Transaction cancelled, please refer cancellation reasons for specific reasons [ConditionalCheckFailed]\"}"
+      }
+    }
+  ]
+}

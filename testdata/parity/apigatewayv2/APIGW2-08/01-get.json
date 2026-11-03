@@ -1,0 +1,29 @@
+{
+  "step": "01-get",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://roj3rnqmie.execute-api.us-east-2.amazonaws.com/v1/a/b?x=1&x=2&y=%2F",
+        "headers": [
+          ["Host", "roj3rnqmie.execute-api.us-east-2.amazonaws.com"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 03:40:33 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "1723"],
+          ["Connection", "keep-alive"],
+          ["Apigw-Requestid", "GPqjvhYDiYcEJFQ="]
+        ],
+        "body": "{\"version\": \"1.0\", \"resource\": \"/v1/{proxy+}\", \"path\": \"/v1/a/b\", \"httpMethod\": \"GET\", \"headers\": {\"Content-Length\": \"0\", \"Host\": \"roj3rnqmie.execute-api.us-east-2.amazonaws.com\", \"User-Agent\": \"curl/8.23.0\", \"X-Amzn-Trace-Id\": \"Root=1-6ae957b1-04e2cd734698c4f569a95d02\", \"X-Forwarded-For\": \"198.51.100.2\", \"X-Forwarded-Port\": \"443\", \"X-Forwarded-Proto\": \"https\", \"accept\": \"*/*\"}, \"multiValueHeaders\": {\"Content-Length\": [\"0\"], \"Host\": [\"roj3rnqmie.execute-api.us-east-2.amazonaws.com\"], \"User-Agent\": [\"curl/8.23.0\"], \"X-Amzn-Trace-Id\": [\"Root=1-6ae957b1-04e2cd734698c4f569a95d02\"], \"X-Forwarded-For\": [\"198.51.100.2\"], \"X-Forwarded-Port\": [\"443\"], \"X-Forwarded-Proto\": [\"https\"], \"accept\": [\"*/*\"]}, \"queryStringParameters\": {\"x\": \"2\", \"y\": \"/\"}, \"multiValueQueryStringParameters\": {\"x\": [\"1\", \"2\"], \"y\": [\"/\"]}, \"requestContext\": {\"accountId\": \"123456789012\", \"apiId\": \"roj3rnqmie\", \"domainName\": \"roj3rnqmie.execute-api.us-east-2.amazonaws.com\", \"domainPrefix\": \"roj3rnqmie\", \"extendedRequestId\": \"GPqjvhYDiYcEJFQ=\", \"httpMethod\": \"GET\", \"identity\": {\"accessKey\": null, \"accountId\": null, \"caller\": null, \"cognitoAmr\": null, \"cognitoAuthenticationProvider\": null, \"cognitoAuthenticationType\": null, \"cognitoIdentityId\": null, \"cognitoIdentityPoolId\": null, \"principalOrgId\": null, \"sourceIp\": \"198.51.100.2\", \"user\": null, \"userAgent\": \"curl/8.23.0\", \"userArn\": null}, \"path\": \"/v1/a/b\", \"protocol\": \"HTTP/1.1\", \"requestId\": \"GPqjvhYDiYcEJFQ=\", \"requestTime\": \"03/Nov/2026:03:40:33 +0000\", \"requestTimeEpoch\": 1793677233003, \"resourceId\": \"ANY /v1/{proxy+}\", \"resourcePath\": \"/v1/{proxy+}\", \"stage\": \"$default\"}, \"pathParameters\": {\"proxy\": \"a/b\"}, \"stageVariables\": null, \"body\": null, \"isBase64Encoded\": false}"
+      }
+    }
+  ]
+}

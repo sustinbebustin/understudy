@@ -1,0 +1,32 @@
+{
+  "step": "01-role-template",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://iam.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,b,AD,AC,AN,E cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#iam.create-policy"],
+          ["X-Amz-Date", "20261103T031208Z"],
+          ["amz-sdk-invocation-id", "26017565-b2f2-4740-8624-3a005619a80f"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "381"]
+        ],
+        "body": "Action=CreatePolicy&Version=2010-05-08&PolicyName=us1103-eval-iampath-01-role-template&PolicyDocument=%7B%22Version%22%3A%222012-10-17%22%2C%22Statement%22%3A%5B%7B%22Effect%22%3A%22Allow%22%2C%22Action%22%3A%22iam%3AGet%2A%22%2C%22Resource%22%3A%22arn%3Aaws%3Aiam%3A%3Aaws%3Arole-template%2Fcloudwatch.amazonaws.com%2FCloudWatchOmniAWSIntegrationForOrgRoleTemplate%3A1%22%7D%5D%7D"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 03:12:08 GMT"],
+          ["x-amzn-RequestId", "04794d38-b605-41f7-911d-ea2587de733a"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "807"]
+        ],
+        "body": "<CreatePolicyResponse xmlns=\"https://iam.amazonaws.com/doc/2010-05-08/\">\n  <CreatePolicyResult>\n    <Policy>\n      <PermissionsBoundaryUsageCount>0</PermissionsBoundaryUsageCount>\n      <Path>/</Path>\n      <UpdateDate>2026-11-03T03:12:08Z</UpdateDate>\n      <DefaultVersionId>v1</DefaultVersionId>\n      <PolicyId>ANPARZPUZDIKAAAAAAAMA</PolicyId>\n      <IsAttachable>true</IsAttachable>\n      <PolicyName>us1103-eval-iampath-01-role-template</PolicyName>\n      <AttachmentCount>0</AttachmentCount>\n      <Arn>arn:aws:iam::123456789012:policy/us1103-eval-iampath-01-role-template</Arn>\n      <CreateDate>2026-11-03T03:12:08Z</CreateDate>\n    </Policy>\n  </CreatePolicyResult>\n  <ResponseMetadata>\n    <RequestId>04794d38-b605-41f7-911d-ea2587de733a</RequestId>\n  </ResponseMetadata>\n</CreatePolicyResponse>\n"
+      }
+    }
+  ]
+}

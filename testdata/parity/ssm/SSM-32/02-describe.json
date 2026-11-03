@@ -1,0 +1,35 @@
+{
+  "step": "02-describe",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://ssm.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Host", "ssm.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261103T164115Z"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["X-Amz-Target", "AmazonSSM.DescribeParameters"],
+          ["Content-Length", "23"]
+        ],
+        "body": "{\"NextToken\":\"garbage\"}"
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Tue, 03 Nov 2026 16:41:15 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "82"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "2d2f2a40-c10c-43ae-8926-b9e5332cc451"]
+        ],
+        "body": "{\"__type\":\"InvalidNextToken\",\"Message\":\"The following token is invalid: garbage.\"}"
+      }
+    }
+  ]
+}

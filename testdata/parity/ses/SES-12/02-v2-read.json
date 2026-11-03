@@ -1,0 +1,30 @@
+{
+  "step": "02-v2-read",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://email.us-east-2.amazonaws.com/v2/email/identities/us1103-v1%40example.com",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,Z,AN,b,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sesv2.get-email-identity"],
+          ["X-Amz-Date", "20261103T164220Z"],
+          ["amz-sdk-invocation-id", "7f55f8eb-df0f-4446-b463-27a826d777a1"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:42:20 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "670"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "e4cb8b42-2e9e-4e5c-b649-86d64a4b4af2"]
+        ],
+        "body": "{\"ConfigurationSetName\":null,\"DkimAttributes\":{\"CurrentSigningKeyLength\":null,\"LastKeyGenerationTimestamp\":null,\"NextSigningKeyLength\":\"RSA_1024_BIT\",\"SigningAttributesOrigin\":\"AWS_SES\",\"SigningEnabled\":false,\"SigningHostedZone\":null,\"Status\":\"NOT_STARTED\",\"Tokens\":null},\"FeedbackForwardingStatus\":true,\"IdentityType\":\"EMAIL_ADDRESS\",\"MailFromAttributes\":{\"BehaviorOnMxFailure\":\"USE_DEFAULT_VALUE\",\"MailFromDomain\":null,\"MailFromDomainStatus\":null},\"Policies\":{},\"Tags\":[],\"VdmAttributes\":null,\"VerificationInfo\":{\"ErrorType\":null,\"LastCheckedTimestamp\":null,\"LastSuccessTimestamp\":null,\"SOARecord\":null},\"VerificationStatus\":\"PENDING\",\"VerifiedForSendingStatus\":false}"
+      }
+    }
+  ]
+}

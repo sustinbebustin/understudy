@@ -1,0 +1,32 @@
+{
+  "step": "05-accesspoint-object",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://iam.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AC,E,AN,b,Z,AD cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#iam.create-policy"],
+          ["X-Amz-Date", "20261103T031214Z"],
+          ["amz-sdk-invocation-id", "3836fcf4-d210-4a79-82e3-60ff5d7d9f55"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "343"]
+        ],
+        "body": "Action=CreatePolicy&Version=2010-05-08&PolicyName=us1103-eval-s3rg-05-accesspoint-object&PolicyDocument=%7B%22Version%22%3A%222012-10-17%22%2C%22Statement%22%3A%5B%7B%22Effect%22%3A%22Allow%22%2C%22Action%22%3A%22s3%3A%2A%22%2C%22Resource%22%3A%22arn%3Aaws%3As3%3Aus-east-2%3A123456789012%3Aaccesspoint%2Fus1103-eval%2Fobject%2F%2A%22%7D%5D%7D"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 03:12:14 GMT"],
+          ["x-amzn-RequestId", "8f463b7f-540d-4ac2-97d7-535dde42a9e9"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "811"]
+        ],
+        "body": "<CreatePolicyResponse xmlns=\"https://iam.amazonaws.com/doc/2010-05-08/\">\n  <CreatePolicyResult>\n    <Policy>\n      <PermissionsBoundaryUsageCount>0</PermissionsBoundaryUsageCount>\n      <Path>/</Path>\n      <UpdateDate>2026-11-03T03:12:14Z</UpdateDate>\n      <DefaultVersionId>v1</DefaultVersionId>\n      <PolicyId>ANPARZPUZDIKAAAAAAASA</PolicyId>\n      <IsAttachable>true</IsAttachable>\n      <PolicyName>us1103-eval-s3rg-05-accesspoint-object</PolicyName>\n      <AttachmentCount>0</AttachmentCount>\n      <Arn>arn:aws:iam::123456789012:policy/us1103-eval-s3rg-05-accesspoint-object</Arn>\n      <CreateDate>2026-11-03T03:12:14Z</CreateDate>\n    </Policy>\n  </CreatePolicyResult>\n  <ResponseMetadata>\n    <RequestId>8f463b7f-540d-4ac2-97d7-535dde42a9e9</RequestId>\n  </ResponseMetadata>\n</CreatePolicyResponse>\n"
+      }
+    }
+  ]
+}

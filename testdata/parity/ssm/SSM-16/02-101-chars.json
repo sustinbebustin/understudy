@@ -1,0 +1,36 @@
+{
+  "step": "02-101-chars",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ValidationException) when calling the LabelParameterVersion operation: 1 validation error detected: Value '[aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa]' at 'labels' failed to satisfy constraint: Member must satisfy constraint: [Member must have length less than or equal to 100, Member must have length greater than or equal to 1]",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://ssm.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSSM.LabelParameterVersion"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,AN,g,E,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#ssm.label-parameter-version"],
+          ["X-Amz-Date", "20261103T163655Z"],
+          ["amz-sdk-invocation-id", "a4344d37-30fb-44ee-b63d-3a51ab7bc3ea"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "167"]
+        ],
+        "body": "{\"Name\": \"/us1103/ssm/l16\", \"ParameterVersion\": 1, \"Labels\": [\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"]}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Tue, 03 Nov 2026 16:36:55 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "363"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "ee61bc56-74d1-4dc3-8bf7-414ca98bd617"]
+        ],
+        "body": "{\"__type\":\"ValidationException\",\"message\":\"1 validation error detected: Value '[aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa]' at 'labels' failed to satisfy constraint: Member must satisfy constraint: [Member must have length less than or equal to 100, Member must have length greater than or equal to 1]\"}"
+      }
+    }
+  ]
+}

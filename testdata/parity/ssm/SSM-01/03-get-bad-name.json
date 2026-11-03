@@ -1,0 +1,35 @@
+{
+  "step": "03-get-bad-name",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://ssm.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Host", "ssm.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261103T163551Z"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["X-Amz-Target", "AmazonSSM.GetParameter"],
+          ["Content-Length", "27"]
+        ],
+        "body": "{\"Name\":\"/us1103/ssm//bad\"}"
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Tue, 03 Nov 2026 16:35:51 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "274"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "f3b71355-4eb9-4376-a627-05d2233cf300"]
+        ],
+        "body": "{\"__type\":\"ValidationException\",\"message\":\"Parameter name: can't be prefixed with \\\"ssm\\\" (case-insensitive). If formed as a path, it can consist of sub-paths divided by slash symbol; each sub-path can be formed as a mix of letters, numbers and the following 3 symbols .-_\"}"
+      }
+    }
+  ]
+}

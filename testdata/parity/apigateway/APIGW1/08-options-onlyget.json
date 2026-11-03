@@ -1,0 +1,22 @@
+{
+  "step": "08-options-onlyget",
+  "client": "curl",
+  "exchanges": [
+    {
+      "response": {
+        "status": 403,
+        "reason": "Forbidden",
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:39:47 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "42"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "f4d2be6a-4c78-48f3-8702-3aa32dab7c91"],
+          ["x-amzn-ErrorType", "MissingAuthenticationTokenException"],
+          ["x-amz-apigw-id", "GRctLFG0CYcEOGA="]
+        ],
+        "body": "{\"message\":\"Missing Authentication Token\"}"
+      }
+    }
+  ]
+}

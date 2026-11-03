@@ -1,0 +1,39 @@
+{
+  "step": "23-delete-objects-version-bypass",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidArgument) when calling the DeleteObjects operation: x-amz-bypass-governance-retention is only applicable to Object Lock enabled buckets.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://us1103-nolock.s3.us-east-2.amazonaws.com/?delete",
+        "headers": [
+          ["x-amz-bypass-governance-retention", "true"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,b,g,Z,E,W cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.delete-objects"],
+          ["x-amz-checksum-crc64nvme", "qHdW0qkrZEk="],
+          ["x-amz-sdk-checksum-algorithm", "CRC64NVME"],
+          ["X-Amz-Date", "20261103T034320Z"],
+          ["X-Amz-Content-SHA256", "e5d6838ae4d46db052e2f16cd250a1e0e4646fc88a58ce207306f8a12cb8513b"],
+          ["amz-sdk-invocation-id", "9cd6d02f-6692-46f0-ac37-b0b90e576f81"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "150"]
+        ],
+        "body": "<Delete xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Object><Key>n1</Key><VersionId>c895DIs0re0Bl8RjK9S1uoEujpj.2cIH</VersionId></Object></Delete>"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "D28YEPRP6JFA0JAV"],
+          ["x-amz-id-2", "1b+STrGDcS6kw4N0JqmO09XZiV0QTRd+KgaBDYQGVz2yUrnRvPOSqcMIZMTp6QPUBR/4Z7yICx2zrqSmjMw69d/W0QmXFO5L"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Tue, 03 Nov 2026 03:43:20 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<Error><Code>InvalidArgument</Code><Message>x-amz-bypass-governance-retention is only applicable to Object Lock enabled buckets.</Message><ArgumentName>x-amz-bypass-governance-retention</ArgumentName><RequestId>D28YEPRP6JFA0JAV</RequestId><HostId>1b+STrGDcS6kw4N0JqmO09XZiV0QTRd+KgaBDYQGVz2yUrnRvPOSqcMIZMTp6QPUBR/4Z7yICx2zrqSmjMw69d/W0QmXFO5L</HostId></Error>"
+      }
+    }
+  ]
+}

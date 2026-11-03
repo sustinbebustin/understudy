@@ -1,0 +1,33 @@
+{
+  "step": "04-update-no-name",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://events.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSEvents.UpdateEventBus"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,g,Z,b,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#events.update-event-bus"],
+          ["X-Amz-Date", "20261103T163557Z"],
+          ["amz-sdk-invocation-id", "1aa66ecf-5ca7-4e67-bbdc-b08b210bb4ea"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "33"]
+        ],
+        "body": "{\"Description\": \"us1103-default\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "6af127eb-be59-4057-a1e5-9d93ba7b8afc"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "113"],
+          ["Date", "Tue, 03 Nov 2026 16:35:57 GMT"]
+        ],
+        "body": "{\"Arn\":\"arn:aws:events:us-east-2:123456789012:event-bus/default\",\"Description\":\"us1103-default\",\"Name\":\"default\"}"
+      }
+    }
+  ]
+}

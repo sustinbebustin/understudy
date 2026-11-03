@@ -1,0 +1,34 @@
+{
+  "step": "11-records-limit-1001",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://streams.dynamodb.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Host", "streams.dynamodb.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261103T163542Z"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["X-Amz-Target", "DynamoDBStreams_20120810.GetRecords"],
+          ["Content-Length", "1032"]
+        ],
+        "body": "{\"ShardIterator\":\"arn:aws:dynamodb:us-east-2:123456789012:table/us1103-ddbs/stream/2026-11-03T16:35:17.650|1|AAAAAAAAAAGAfyT0VPAE63zteUkxTUcKxZFxnX/zNQW8+ibRVf6XtuK6u+jiJdQGfFmtF56L5S5GXwqizXK5E3SpsnS/86u5/LeGmnZXE2A5jwtR5t5/PxwJiXiE+8AX5fvD2buw6BCMoKNSKp2NIGToL0CpJN8XcdztiiDxKg6Bze/erTPa/nYpkhlJdIHoyKCPXAXd+q1sk+ufML4RmdVMFSMQ0UMnw9EzCtLuw3yH6pYTOy4E2FL2wJ67/iJNqga9BxxmO22w2Z7EXFGjAJdVaHYxGoT/8gEBsuT8DY0u+TazayFky04TrRo1MUGPS6i9E07wqLDjrcx3nhuqbyPID4aMgqi+9amCuQJz9FECZUU1cXstsGQcpY8bI9U1CPH2XK9KQZAoaqMWHU7PEOA9z86VoFlNG3p/E5oAb9+PFAUtz3/jw3BdeGpvzxwRbilKjtgIf1kKSuHR4W2Zexy9+cGFIId8ss3ky6sxOU+cik9xWk4dbixQQi0xbR9jzedO+mXClit6Kxo/PbnKSK4iBByI4oAU3PQDJgpLPc6ib8+MaBdaF7/4w90mKlP0OgopBnjy14R89n55+a8wGoijmiCsSsXS+fD52BaYQ+rdR8b9KCnrjk4uCP4kQzKSTN+tcVOmMrXfPCxwb1u7/SX0h7p6PI5VSSbbhttCZxDAlGUkMmDYnAEesECNbWlWCop5Hkl0qKA/VfTIp02t77Rs70WDD36+AmtWZwomSR0E6biCPLc7YjNFF7iZJ+kkXRcogETfQdbPgmhrK5oJFbjcxs+66ju60XIz38m6+PCYKKC5nhpIpQb9RuIjNTcbu2m1WF1YLYlbRDb1oMmUiCfiS80HvKV6m4zcaqpvv7L9xs36+NjpAMZcn1FqIhs499fPW60oKkY=\",\"Limit\":1001}"
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["x-amzn-RequestId", "SDUD37TB97JCRS4DRGUBUP5HGJVV4KQNSO5AEMVJF66Q9ASUAAJG"],
+          ["x-amz-crc32", "174049976"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "156"],
+          ["Date", "Tue, 03 Nov 2026 16:35:42 GMT"]
+        ],
+        "body": "{\"__type\":\"com.amazon.coral.validate#ValidationException\",\"message\":\"One or more parameter values were invalid: Limit should be less than or equal to 1000\"}"
+      }
+    }
+  ]
+}

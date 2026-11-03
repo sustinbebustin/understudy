@@ -8,24 +8,24 @@
         "url": "https://streams.dynamodb.us-east-2.amazonaws.com/",
         "headers": [
           ["Host", "streams.dynamodb.us-east-2.amazonaws.com"],
-          ["X-Amz-Date", "20261014T070310Z"],
-          ["User-Agent", "curl/8.22.0"],
+          ["X-Amz-Date", "20261103T034045Z"],
+          ["User-Agent", "curl/8.23.0"],
           ["Accept", "*/*"],
           ["Content-Type", "application/x-amz-json-1.0"],
           ["X-Amz-Target", "DynamoDBStreams_20120810.ListStreams"],
           ["Content-Length", "2"]
         ],
-        "body_unrecorded": {"bytes": 2}
+        "body": "{}"
       },
       "response": {
         "status": 400,
         "reason": "Bad Request",
         "headers": [
-          ["x-amzn-RequestId", "LETGP5HGO3RVRTHCF8DJ38JAVJVV4KQNSO5AEMVJF66Q9ASUAAJG"],
+          ["x-amzn-RequestId", "OMC3FFGQGR5A09HNHSO76O09UFVV4KQNSO5AEMVJF66Q9ASUAAJG"],
           ["x-amz-crc32", "1525103862"],
           ["Content-Type", "application/x-amz-json-1.0"],
           ["Content-Length", "136"],
-          ["Date", "Wed, 14 Oct 2026 07:03:10 GMT"]
+          ["Date", "Tue, 03 Nov 2026 03:40:45 GMT"]
         ],
         "body": "{\"__type\":\"com.amazon.coral.service#InvalidSignatureException\",\"message\":\"Credential should be scoped to correct service: 'dynamodb'. \"}"
       }

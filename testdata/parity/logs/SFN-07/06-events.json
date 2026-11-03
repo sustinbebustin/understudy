@@ -1,0 +1,35 @@
+{
+  "step": "06-events",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ResourceNotFoundException) when calling the GetLogEvents operation: The specified log stream does not exist.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://logs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "Logs_20140328.GetLogEvents"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,g,AN,b,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#logs.get-log-events"],
+          ["X-Amz-Date", "20261103T163857Z"],
+          ["amz-sdk-invocation-id", "cdcd3d54-05e8-4250-9212-9058e3674d66"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "101"]
+        ],
+        "body": "{\"logGroupName\": \"/aws/vendedlogs/states/us1103-log\", \"logStreamName\": \"None\", \"startFromHead\": true}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "6b25a71a-bc57-486d-82b6-9f4de2e290a0"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "91"],
+          ["Date", "Tue, 03 Nov 2026 16:38:57 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "{\"__type\":\"ResourceNotFoundException\",\"message\":\"The specified log stream does not exist.\"}"
+      }
+    }
+  ]
+}

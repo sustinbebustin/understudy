@@ -1,0 +1,34 @@
+{
+  "step": "04-v2-raw",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://email.us-east-2.amazonaws.com/v2/email/outbound-emails",
+        "headers": [
+          ["Host", "email.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261103T164254Z"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "139"]
+        ],
+        "body": "{\"Content\":{\"Raw\":{\"Data\":\"RnJvbTogdXMxMTAzLW1lQGV4YW1wbGUuY29tClRvOiBzdWNjZXNzQHNpbXVsYXRvci5hbWF6b25zZXMuY29tClN1YmplY3Q6IHIxCgpiCg==\"}}}"
+      },
+      "response": {
+        "status": 403,
+        "reason": "Forbidden",
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:42:54 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "207"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "bf02ad7b-23f5-4487-bd52-1075707bfe09"],
+          ["x-amzn-ErrorType", "AccessDeniedException"]
+        ],
+        "body": "{\"Message\":\"User 'arn:aws:sts::123456789012:assumed-role/us1103-enf-none/enf' is not authorized to perform 'ses:SendRawEmail' on resource 'arn:aws:ses:us-east-2:123456789012:identity/us1103-me@example.com'\"}"
+      }
+    }
+  ]
+}

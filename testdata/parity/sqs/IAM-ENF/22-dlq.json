@@ -1,0 +1,35 @@
+{
+  "step": "22-dlq",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.ReceiveMessage"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,Z,g,b,AN cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.receive-message"],
+          ["X-Amz-Date", "20261103T040452Z"],
+          ["amz-sdk-invocation-id", "7174c4d2-f24a-4dbb-8ea6-36dea55b83b7"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "190"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/us1103-enf-dlq\", \"AttributeNames\": [\"All\"], \"MessageAttributeNames\": [\"All\"], \"MaxNumberOfMessages\": 10, \"WaitTimeSeconds\": 20}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "aa2fb6b4-da54-593e-a3cb-d5d785f00215"],
+          ["Date", "Tue, 03 Nov 2026 04:04:52 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "1762"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"Messages\":[{\"Attributes\":{\"SenderId\":\"AIDAIMTEBMVXFWRSXIKCK\",\"ApproximateFirstReceiveTimestamp\":\"1793678692649\",\"ApproximateReceiveCount\":\"1\",\"SentTimestamp\":\"1793678602198\"},\"Body\":\"{\\\"version\\\":\\\"0\\\",\\\"id\\\":\\\"f048ef66-ee59-7f24-3a05-31aeed773526\\\",\\\"detail-type\\\":\\\"t\\\",\\\"source\\\":\\\"us1103.enf\\\",\\\"account\\\":\\\"123456789012\\\",\\\"time\\\":\\\"2026-11-03T04:03:22Z\\\",\\\"region\\\":\\\"us-east-2\\\",\\\"resources\\\":[],\\\"detail\\\":{\\\"case\\\":\\\"refused\\\"}}\",\"MD5OfBody\":\"c0919c5f050a3636165f4f3af4d47bd7\",\"MD5OfMessageAttributes\":\"2b04d0ba0193cb1a0944130bd36f903b\",\"MessageAttributes\":{\"ERROR_CODE\":{\"DataType\":\"String\",\"StringValue\":\"NO_PERMISSIONS\"},\"ERROR_MESSAGE\":{\"DataType\":\"String\",\"StringValue\":\"User: events.amazonaws.com is not authorized to perform: lambda:InvokeFunction on resource: arn:aws:lambda:us-east-2:123456789012:function:us1103-enf-fn because no resource-based policy allows the lambda:InvokeFunction action (Service: AWSLambdaInternal; Status Code: 403; Error Code: AccessDeniedException; Request ID: 271acfe2-795a-4a54-b097-52c86d8af15a; Proxy: null)\"},\"RULE_ARN\":{\"DataType\":\"String\",\"StringValue\":\"arn:aws:events:us-east-2:123456789012:rule/us1103-enf-r\"},\"TARGET_ARN\":{\"DataType\":\"String\",\"StringValue\":\"arn:aws:lambda:us-east-2:123456789012:function:us1103-enf-fn\"}},\"MessageId\":\"00325e00-aaa3-41d9-94e9-ef7fd315a703\",\"ReceiptHandle\":\"AQEBfVO0d8igEWtwlF//6iF/DX/Gs3BTlX2p9aKkuv7U5gRhA6GwA8krv+Eyx8kpHQSpDfXotj79havbdPMTTrcqypQj/L1TslXzLSyazqJfwMBgiZpx7aeR+3+LrZ/iiqTMzjefCGzZSVOlZWylBMZDqj9IRmccNjYbav06arxeSgDy3PDzESb2lv18LvQPFAxn28h5HS32iz0ymQgF/4mmV2k3xezf/jAev8pwa9YNlB9FBr1grjlFjPAOb9BY+TWfo4RkYbvThbIe0sZTnrRErIVfKM6norLzZFhCaG1BA6c7M5pIBByFptR9ELqDG+1aDmx/UtgZvgD2XjrOjgxkO2EbUFFlWh4Fv1J9emVNvIfDI1BKwdPjvbULcUpTVk2pxrGq6yKfGrDsJYsZdWzgbQ==\"}]}"
+      }
+    }
+  ]
+}

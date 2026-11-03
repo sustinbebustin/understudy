@@ -1,0 +1,36 @@
+{
+  "step": "04-missing-key",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidKeyId) when calling the PutParameter operation: Alias arn:aws:kms:us-east-2:123456789012:alias/us1103-none is not found. (Service: AWSKMS; Status Code: 400; Error Code: NotFoundException; Request ID: 8476b5e8-1af2-41b1-b423-ddcfc3d3340e; Proxy: null)",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://ssm.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSSM.PutParameter"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,AN,Z,AD,E,AC cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#ssm.put-parameter"],
+          ["X-Amz-Date", "20261103T030819Z"],
+          ["amz-sdk-invocation-id", "3e132012-6098-4824-8a7a-62c63a919202"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "103"]
+        ],
+        "body": "{\"Name\": \"/us1103/ssm/k22/missing\", \"Value\": \"s\", \"Type\": \"SecureString\", \"KeyId\": \"alias/us1103-none\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Tue, 03 Nov 2026 03:08:19 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "240"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "35bfe21a-886d-4edd-9954-0961492fe6ec"]
+        ],
+        "body": "{\"__type\":\"InvalidKeyId\",\"message\":\"Alias arn:aws:kms:us-east-2:123456789012:alias/us1103-none is not found. (Service: AWSKMS; Status Code: 400; Error Code: NotFoundException; Request ID: 8476b5e8-1af2-41b1-b423-ddcfc3d3340e; Proxy: null)\"}"
+      }
+    }
+  ]
+}

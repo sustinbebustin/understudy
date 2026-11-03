@@ -1,0 +1,35 @@
+{
+  "step": "02-receive-more",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.ReceiveMessage"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,g,E,b,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.receive-message"],
+          ["X-Amz-Date", "20261103T164428Z"],
+          ["amz-sdk-invocation-id", "dae6b09c-b113-4f10-b43c-21ddc5cbf756"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "128"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/us1103-ssm-ev\", \"MaxNumberOfMessages\": 10, \"WaitTimeSeconds\": 20}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "3a70a031-1f71-519d-9e3c-c3550eddacb7"],
+          ["Date", "Tue, 03 Nov 2026 16:44:28 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "965"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"Messages\":[{\"Body\":\"{\\\"version\\\":\\\"0\\\",\\\"id\\\":\\\"9ac2e1eb-a1fb-fed5-cd58-74d90862a047\\\",\\\"detail-type\\\":\\\"Parameter Store Change\\\",\\\"source\\\":\\\"aws.ssm\\\",\\\"account\\\":\\\"123456789012\\\",\\\"time\\\":\\\"2026-11-03T16:43:25Z\\\",\\\"region\\\":\\\"us-east-2\\\",\\\"resources\\\":[\\\"arn:aws:ssm:us-east-2:123456789012:parameter/us1103/ssm/e31\\\"],\\\"detail\\\":{\\\"name\\\":\\\"/us1103/ssm/e31\\\",\\\"description\\\":\\\"d\\\",\\\"type\\\":\\\"String\\\",\\\"operation\\\":\\\"Create\\\"}}\",\"MD5OfBody\":\"52c3e5f169db1f24cd4b0b0b9f801c62\",\"MessageId\":\"8e406071-4c6f-45a0-9266-cee406198fea\",\"ReceiptHandle\":\"AQEBbFIqttnpP8XJzmy5suj0ufJACMWv0VvgHUdms1vUK+dPrALkUpR5+w/WLs1FA2IiYRKSI9TO71S8NvIXuDSnGUgSNZXuW0LnzSUTYGgGSiBaw2ep1xYC/ScEL//tEBG2pUD21I1uLd+qAUm6yWVKUtVJtlf2l69byH3BQ5TjyzXDXbVGC09qZ520Cu2tO39arUf20flyCkY7CbU9kLyQjS/FDxv4aIzswXlI1Gyhvu1Ze6ILVpKtNy4nERU64Rj3VjYh9I4J3OvBATjjdPIc4DbXI9M9baKZokEy6jzV0tcb5/YHvHTVukcCNgjXIhRrPbC9BsVKC2OqzTCgwgJwM/hnR/TlXAi39sC/BzJR37wxBG8eS9eftjmY8bSQdbkt2QRiFDOJaXpsRrEG3d9GMQ==\"}]}"
+      }
+    }
+  ]
+}

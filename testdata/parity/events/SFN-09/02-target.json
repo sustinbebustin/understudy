@@ -1,0 +1,33 @@
+{
+  "step": "02-target",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://events.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSEvents.PutTargets"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,Z,g,b,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#events.put-targets"],
+          ["X-Amz-Date", "20261103T163951Z"],
+          ["amz-sdk-invocation-id", "86a32271-0379-427d-9666-bc81abd385d3"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "186"]
+        ],
+        "body": "{\"Rule\": \"us1103-sfn-rule\", \"Targets\": [{\"Id\": \"t1\", \"Arn\": \"arn:aws:states:us-east-2:123456789012:stateMachine:us1103-pass\", \"RoleArn\": \"arn:aws:iam::123456789012:role/us1103-sfn-eb\"}]}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "3c0f6bf1-f9ae-4960-b327-f2dbbbd36950"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "41"],
+          ["Date", "Tue, 03 Nov 2026 16:39:51 GMT"]
+        ],
+        "body": "{\"FailedEntries\":[],\"FailedEntryCount\":0}"
+      }
+    }
+  ]
+}

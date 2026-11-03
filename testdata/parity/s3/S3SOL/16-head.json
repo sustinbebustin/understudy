@@ -1,0 +1,39 @@
+{
+  "step": "16-head",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "HEAD",
+        "url": "https://us1103-olock-y.s3.us-east-2.amazonaws.com/c16",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,g,b,Z,AN cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.head-object"],
+          ["X-Amz-Date", "20261103T034052Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "94e30ac9-2655-47d1-a5e2-50bf6b3726be"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amz-id-2", "4O4goQn1xNXWwds+Cq8M6tLI7sxpVSFF5s+KE+8LZlqCviEMO0DpSHBAykjy73NbdgPs8f4DGiIx6+9DBHpstNFGP00TJ6Pl"],
+          ["x-amz-request-id", "C5D3R8W6K3RVBP6Z"],
+          ["Server", "AmazonS3"],
+          ["Date", "Tue, 03 Nov 2026 03:40:53 GMT"],
+          ["Last-Modified", "Tue, 03 Nov 2026 03:40:52 GMT"],
+          ["ETag", "\"781e5e245d69b566979b86e28d23f2c7\""],
+          ["x-amz-server-side-encryption", "AES256"],
+          ["x-amz-object-lock-retain-until-date", "2028-11-03T03:40:51.734Z"],
+          ["x-amz-object-lock-mode", "GOVERNANCE"],
+          ["x-amz-version-id", "w2gAO_.qX.NXlYE5FnP1LdibqxADZ4fO"],
+          ["Accept-Ranges", "bytes"],
+          ["Content-Length", "10"],
+          ["Content-Type", "binary/octet-stream"]
+        ],
+        "body": ""
+      }
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "step": "06-get-after-delete",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://scheduler.us-east-2.amazonaws.com/schedule-groups/us1103-g",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,AN,b,Z,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#scheduler.get-schedule-group"],
+          ["X-Amz-Date", "20261103T163815Z"],
+          ["amz-sdk-invocation-id", "2b0f1344-2cdc-4f47-b84d-46b6cdfda56a"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "88e09ae6-a1db-4f63-872d-72b442ea92dc"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "183"],
+          ["Date", "Tue, 03 Nov 2026 16:38:15 GMT"]
+        ],
+        "body": "{\"Arn\":\"arn:aws:scheduler:us-east-2:123456789012:schedule-group/us1103-g\",\"CreationDate\":1.793723885841E9,\"LastModificationDate\":1.793723895233E9,\"Name\":\"us1103-g\",\"State\":\"DELETING\"}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "step": "05-lambda-integration-as-terraform",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://apigateway.us-east-2.amazonaws.com/v2/apis/9ackjmy7v7/integrations",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,E,AN,Z,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#apigatewayv2.create-integration"],
+          ["X-Amz-Date", "20261103T164329Z"],
+          ["amz-sdk-invocation-id", "d3ea4066-8b3e-40d6-b082-f5cb07107798"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "285"]
+        ],
+        "body": "{\"connectionType\": \"INTERNET\", \"integrationType\": \"AWS_PROXY\", \"integrationUri\": \"arn:aws:apigateway:us-east-2:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-2:123456789012:function:us1103-gw/invocations\", \"passthroughBehavior\": \"WHEN_NO_MATCH\", \"payloadFormatVersion\": \"2.0\"}"
+      },
+      "response": {
+        "status": 201,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:43:29 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "315"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "2b734faa-176f-489f-9ea4-958f7503e640"],
+          ["Access-Control-Allow-Origin", "*"],
+          ["x-amz-apigw-id", "GRdPyHoOCYcEVRQ="],
+          ["Access-Control-Expose-Headers", "x-amzn-RequestId,x-amzn-ErrorType,x-amzn-ErrorMessage,Date"],
+          ["X-Amzn-Trace-Id", "Root=1-6aea0f31-648deac166c513312f4e466c"]
+        ],
+        "body": "{\"integrationId\":\"b5bzc0o\",\"integrationType\":\"AWS_PROXY\",\"integrationMethod\":\"POST\",\"integrationUri\":\"arn:aws:apigateway:us-east-2:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-2:123456789012:function:us1103-gw/invocations\",\"connectionType\":\"INTERNET\",\"timeoutInMillis\":30000,\"payloadFormatVersion\":\"2.0\"}"
+      }
+    }
+  ]
+}

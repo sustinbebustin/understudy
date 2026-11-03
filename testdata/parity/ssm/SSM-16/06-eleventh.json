@@ -1,0 +1,36 @@
+{
+  "step": "06-eleventh",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ParameterVersionLabelLimitExceeded) when calling the LabelParameterVersion operation: A parameter version can have maximum 10 labels.Move one or more labels to another version and try again.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://ssm.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSSM.LabelParameterVersion"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,AN,b,E,g cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#ssm.label-parameter-version"],
+          ["X-Amz-Date", "20261103T163657Z"],
+          ["amz-sdk-invocation-id", "6f547b86-425b-46ec-b9f2-4be07e397cb5"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "69"]
+        ],
+        "body": "{\"Name\": \"/us1103/ssm/l16\", \"ParameterVersion\": 2, \"Labels\": [\"b10\"]}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Tue, 03 Nov 2026 16:36:57 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "164"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "eeac93cb-e40e-4034-82e0-53ac7c178b5d"]
+        ],
+        "body": "{\"__type\":\"ParameterVersionLabelLimitExceeded\",\"message\":\"A parameter version can have maximum 10 labels.Move one or more labels to another version and try again.\"}"
+      }
+    }
+  ]
+}

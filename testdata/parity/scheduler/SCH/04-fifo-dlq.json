@@ -1,0 +1,35 @@
+{
+  "step": "04-fifo-dlq",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ValidationException) when calling the CreateSchedule operation: 1 validation error detected: Value 'arn:aws:sqs:us-east-2:123456789012:us1103-x.fifo' at 'target.deadLetterConfig.arn' failed to satisfy constraint: Member must satisfy regular expression pattern: arn:aws[a-z-]*:sqs:[a-z0-9\\-]+:\\d{12}:[a-zA-Z0-9\\-_]+",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://scheduler.us-east-2.amazonaws.com/schedules/us1103-q1",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,b,Z,E,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#scheduler.create-schedule"],
+          ["X-Amz-Date", "20261103T163740Z"],
+          ["amz-sdk-invocation-id", "1602db43-8f07-462a-be76-fa005262fe68"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "337"]
+        ],
+        "body": "{\"FlexibleTimeWindow\": {\"Mode\": \"OFF\"}, \"ScheduleExpression\": \"rate(1 hour)\", \"Target\": {\"Arn\": \"arn:aws:sqs:us-east-2:123456789012:us1103-sch\", \"RoleArn\": \"arn:aws:iam::123456789012:role/us1103-sch\", \"DeadLetterConfig\": {\"Arn\": \"arn:aws:sqs:us-east-2:123456789012:us1103-x.fifo\"}}, \"ClientToken\": \"4311ce94-2e0d-461c-ade2-d839bba5701e\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "5dc0bad5-a136-4cf0-9421-ef76aeed81d6"],
+          ["x-amzn-ErrorType", "ValidationException:http://internal.amazon.com/coral/com.amazonaws.chronos/"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "267"],
+          ["Date", "Tue, 03 Nov 2026 16:37:40 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "{\"Message\":\"1 validation error detected: Value 'arn:aws:sqs:us-east-2:123456789012:us1103-x.fifo' at 'target.deadLetterConfig.arn' failed to satisfy constraint: Member must satisfy regular expression pattern: arn:aws[a-z-]*:sqs:[a-z0-9\\\\-]+:\\\\d{12}:[a-zA-Z0-9\\\\-_]+\"}"
+      }
+    }
+  ]
+}

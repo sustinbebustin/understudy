@@ -1,0 +1,36 @@
+{
+  "step": "13-ddb",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://dynamodb.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Host", "dynamodb.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261103T034519Z"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["X-Amz-Target", "DynamoDB_20120810.Scan"],
+          ["Content-Length", "38"]
+        ],
+        "body": "{\"TableName\":\"us1103-enf-d\",\"Limit\":0}"
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Tue, 03 Nov 2026 03:45:19 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "196"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-requestid", "A86CMAFV58K1HSTQ85NMG9N2KFVV4KQNSO5AEMVJF66Q9ASUAAJG"],
+          ["x-amz-crc32", "2217156422"]
+        ],
+        "body": "{\"__type\":\"com.amazon.coral.validate#ValidationException\",\"message\":\"1 validation error detected: Value at 'Limit' failed to satisfy constraint: Member must have value greater than or equal to 1\"}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "step": "A-publish",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sns.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,Z,AN,b,g cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sns.publish"],
+          ["X-Amz-Date", "20261103T163748Z"],
+          ["amz-sdk-invocation-id", "6b801802-aeed-4258-869d-f85451cadfa6"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "708"]
+        ],
+        "body": "Action=Publish&Version=2010-03-31&TopicArn=arn%3Aaws%3Asns%3Aus-east-2%3A123456789012%3Aus1103-snsh-a&Message=line1%0Aline2+%22q%22+%26+%3Cx%3E+%5C+%2F%09%C3%A9&Subject=subj&MessageAttributes.entry.1.Name=s&MessageAttributes.entry.1.Value.DataType=String&MessageAttributes.entry.1.Value.StringValue=v&MessageAttributes.entry.2.Name=n&MessageAttributes.entry.2.Value.DataType=Number&MessageAttributes.entry.2.Value.StringValue=1.5&MessageAttributes.entry.3.Name=b&MessageAttributes.entry.3.Value.DataType=Binary&MessageAttributes.entry.3.Value.BinaryValue=AAEC&MessageAttributes.entry.4.Name=a&MessageAttributes.entry.4.Value.DataType=String.Array&MessageAttributes.entry.4.Value.StringValue=%5B%22x%22%2C1%5D"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "00ef2a9b-c7dd-5a8d-91e1-49ffd7c06aa5"],
+          ["Date", "Tue, 03 Nov 2026 16:37:49 GMT"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "294"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "<PublishResponse xmlns=\"http://sns.amazonaws.com/doc/2010-03-31/\">\n  <PublishResult>\n    <MessageId>4c9f70d5-d7f5-531a-b494-13b1c7e89332</MessageId>\n  </PublishResult>\n  <ResponseMetadata>\n    <RequestId>00ef2a9b-c7dd-5a8d-91e1-49ffd7c06aa5</RequestId>\n  </ResponseMetadata>\n</PublishResponse>\n"
+      }
+    }
+  ]
+}

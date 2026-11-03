@@ -1,0 +1,36 @@
+{
+  "step": "24-release",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://us1103-olock.s3.us-east-2.amazonaws.com/e24?retention",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,g,b,W,Z,E cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.put-object-retention"],
+          ["x-amz-checksum-crc64nvme", "UvkpUYLTRoE="],
+          ["x-amz-sdk-checksum-algorithm", "CRC64NVME"],
+          ["X-Amz-Date", "20261103T034328Z"],
+          ["X-Amz-Content-SHA256", "b9e00e788e6b6ad8f67187f1424c79d5734f6d90752151f5d79058eeb45c0802"],
+          ["amz-sdk-invocation-id", "bf79fba0-ce76-40a3-958d-778e93c42564"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "120"]
+        ],
+        "body": "<Retention xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Mode>GOVERNANCE</Mode><EventHold>OFF</EventHold></Retention>"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amz-id-2", "4nu1srtzaogqXMyHZBmQ1W2KIzPMNsTFY3tSfa2rP4j1BkPvx2WimACxvqv92icRhuMYrqxNwVorG4UkX6HrMVsqVNgVkOgb"],
+          ["x-amz-request-id", "HJNP4JYXXYDPQAXK"],
+          ["Server", "AmazonS3"],
+          ["Date", "Tue, 03 Nov 2026 03:43:29 GMT"],
+          ["x-amz-version-id", "Z5F_Zd4GdqbTnu3B_Kn8JVLHKM6Aa3Y9"],
+          ["Content-Length", "0"]
+        ],
+        "body": ""
+      }
+    }
+  ]
+}

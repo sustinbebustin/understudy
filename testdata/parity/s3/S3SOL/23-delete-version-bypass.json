@@ -1,0 +1,36 @@
+{
+  "step": "23-delete-version-bypass",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidArgument) when calling the DeleteObject operation: x-amz-bypass-governance-retention is only applicable to Object Lock enabled buckets.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "DELETE",
+        "url": "https://us1103-nolock.s3.us-east-2.amazonaws.com/n1?versionId=c895DIs0re0Bl8RjK9S1uoEujpj.2cIH",
+        "headers": [
+          ["x-amz-bypass-governance-retention", "true"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,AN,b,g,E cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.delete-object"],
+          ["X-Amz-Date", "20261103T034321Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "01a8ef58-3693-4d42-a4ac-e11b90066a87"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "0"]
+        ]
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "X5XA3BJ6S5AWD8E1"],
+          ["x-amz-id-2", "z+8vYQrBiu0ENEsbqvG0ssXlWsFgPu9w9J0pjZCaJfuZjWZpiZVjmTdl58rXPocNZ/vot9e6YG2ntxIo9Sij22AKgfPVRA5m"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Tue, 03 Nov 2026 03:43:21 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>InvalidArgument</Code><Message>x-amz-bypass-governance-retention is only applicable to Object Lock enabled buckets.</Message><ArgumentName>x-amz-bypass-governance-retention</ArgumentName><RequestId>X5XA3BJ6S5AWD8E1</RequestId><HostId>z+8vYQrBiu0ENEsbqvG0ssXlWsFgPu9w9J0pjZCaJfuZjWZpiZVjmTdl58rXPocNZ/vot9e6YG2ntxIo9Sij22AKgfPVRA5m</HostId></Error>"
+      }
+    }
+  ]
+}

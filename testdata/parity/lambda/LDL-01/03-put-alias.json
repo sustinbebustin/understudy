@@ -1,0 +1,33 @@
+{
+  "step": "03-put-alias",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://lambda.us-east-2.amazonaws.com/2019-09-25/functions/us1103-ldl-q/event-invoke-config?Qualifier=live",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,g,E,b,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.put-function-event-invoke-config"],
+          ["X-Amz-Date", "20261103T163703Z"],
+          ["amz-sdk-invocation-id", "1b2d492c-738b-4545-9e59-19e8c570a9ee"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "134"]
+        ],
+        "body": "{\"MaximumRetryAttempts\": 0, \"DestinationConfig\": {\"OnSuccess\": {\"Destination\": \"arn:aws:sqs:us-east-2:123456789012:us1103-ldl-dest\"}}}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:37:04 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "332"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "46f064d7-5f30-42a7-b28c-9d1d32b884b9"]
+        ],
+        "body": "{\"DestinationConfig\":{\"OnFailure\":{\"Destination\":null},\"OnSuccess\":{\"Destination\":\"arn:aws:sqs:us-east-2:123456789012:us1103-ldl-dest\"}},\"FunctionArn\":\"arn:aws:lambda:us-east-2:123456789012:function:us1103-ldl-q:live\",\"LastModified\":1.793723824214E9,\"MaximumEventAgeInSeconds\":null,\"MaximumRetryAttempts\":0,\"ProvisionedConfig\":null}"
+      }
+    }
+  ]
+}

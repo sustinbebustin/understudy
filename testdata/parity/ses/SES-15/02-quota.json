@@ -1,0 +1,33 @@
+{
+  "step": "02-quota",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://email.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,AN,Z,E,g cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#ses.get-send-quota"],
+          ["X-Amz-Date", "20261103T164227Z"],
+          ["amz-sdk-invocation-id", "98c5396f-e832-4eb8-95df-d4a888dbd9c3"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "38"]
+        ],
+        "body": "Action=GetSendQuota&Version=2010-12-01"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:42:27 GMT"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "369"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "16f528b1-33d3-461e-9c2f-e9cc3af9eb5e"]
+        ],
+        "body": "<GetSendQuotaResponse xmlns=\"http://ses.amazonaws.com/doc/2010-12-01/\">\n  <GetSendQuotaResult>\n    <SentLast24Hours>0.0</SentLast24Hours>\n    <MaxSendRate>1.0</MaxSendRate>\n    <Max24HourSend>200.0</Max24HourSend>\n  </GetSendQuotaResult>\n  <ResponseMetadata>\n    <RequestId>16f528b1-33d3-461e-9c2f-e9cc3af9eb5e</RequestId>\n  </ResponseMetadata>\n</GetSendQuotaResponse>\n"
+      }
+    }
+  ]
+}

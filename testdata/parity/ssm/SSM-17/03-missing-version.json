@@ -1,0 +1,36 @@
+{
+  "step": "03-missing-version",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ParameterVersionNotFound) when calling the GetParameter operation: Systems Manager could not find version 99 of /us1103/ssm/l16. Verify the version and try again.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://ssm.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSSM.GetParameter"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,AN,b,E,g cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#ssm.get-parameter"],
+          ["X-Amz-Date", "20261103T163659Z"],
+          ["amz-sdk-invocation-id", "caa6b5ce-dfde-4de5-bd8f-f918d1060ba8"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "30"]
+        ],
+        "body": "{\"Name\": \"/us1103/ssm/l16:99\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Tue, 03 Nov 2026 16:36:59 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "145"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "45429c5e-54a6-4805-8491-6dd10fa00f1f"]
+        ],
+        "body": "{\"__type\":\"ParameterVersionNotFound\",\"message\":\"Systems Manager could not find version 99 of /us1103/ssm/l16. Verify the version and try again.\"}"
+      }
+    }
+  ]
+}

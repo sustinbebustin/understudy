@@ -1,0 +1,34 @@
+{
+  "step": "records-1",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://streams.dynamodb.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "DynamoDBStreams_20120810.GetRecords"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,g,Z,b,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#dynamodbstreams.get-records"],
+          ["X-Amz-Date", "20261103T163822Z"],
+          ["amz-sdk-invocation-id", "957f5d2e-210f-4a50-874f-d11b296f0d2e"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "1003"]
+        ],
+        "body": "{\"ShardIterator\": \"arn:aws:dynamodb:us-east-2:123456789012:table/us1103-ddbs-cl/stream/2026-11-03T16:37:07.192|1|AAAAAAAAAAFQ4TsasyMezimsYzLflIDDbCbnAQ5YFVlLbHxvokpXcY0RkmpWx/Aya5B51IDiWEOmk6VuUKKxjmv0XRCVyW+K9Wo2bNwIbm7VibeWcSf5F0qJTB2hScFXimVO1+Rv6B2gS2sRdUgVbWLRrr3ufk1xkKQhjB4z+Anq4nPNbqfcqRePwaTySJ6w5TIrDCA/zjKBVpg7bDmn2lTAD0WYhn2e8ul/cUv3EG2sImqAYFYUd3YXNw6vXKr2bXPc1KlrxNrBY4U1A4msT5ls9f7oZoY9hP3tT+N8RaMei5Xo2s7zaROjJp16U5RPQhlw49KcQJhAL3vqbbS2Ej2DPwmRj05qOo78qhL/2m5bw+SqCoR2Um/LZmpH4z7u/d+1ssgkaBfrmX6f2YiPF+sTU/6HI+Jy+F/3NpsK9SL2F2Vj8LpeOHWL224oURwIlZ1+dJ0/js9OhHj4s3ont4j8MPQ7eg/8s3smXm80TuugohJGr8FqKaUlr1tLLg++TJwZpVNczFi2ElugDIhkhbEZlfY9uXfBAZFkUpILLlI8hZtfvFqt7XDQpEroAlQTjPlC82YJbzXqJy9FDWlPlyTvIIRI8vIX1YTniWOEdVerfRce+eZXP33AMvhQXdY8cdvsrZAYLFN/vmt2eArWtF4lz5P/fBQxM+W8miOThPCH+KxANYcdKy4LdBLRfJ5G1Xgny1upN1aDS4ypcTXdaICclc18D8YjG3lR6q2JlPacW7e/JrwVvaPdSXN/LJZkN+RTTx7Gx4K+E7/QCVpo6zF48i3symr90pc3ZsApvI81hI1uvSwbjuLp7xpiXLA31pVc0eZN6i8Xr5Nters+3V1eAZhpCS2B1QMhP+t8mslCKQxBYrQ5Fw==\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "PK60AHLCCH078O9UEETEMPUD8VVV4KQNSO5AEMVJF66Q9ASUAAJG"],
+          ["x-amz-crc32", "2531396130"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "14"],
+          ["Date", "Tue, 03 Nov 2026 16:38:22 GMT"]
+        ],
+        "body": "{\"Records\":[]}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "step": "19-upgrade",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (AccessDenied) when calling the PutObjectRetention operation: Access Denied because object protected by object lock.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://us1103-olock.s3.us-east-2.amazonaws.com/g19?retention&versionId=gww6gJwWlMhDEOHUXFHa2l1GiaEUUeHn",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,g,Z,W,b,E cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.put-object-retention"],
+          ["x-amz-checksum-crc64nvme", "lxWe9uaUUwg="],
+          ["x-amz-sdk-checksum-algorithm", "CRC64NVME"],
+          ["X-Amz-Date", "20261103T034101Z"],
+          ["X-Amz-Content-SHA256", "d841fb8c7ab54bf12d752d685315d04dca19160b30fc721a6a6c0000dc90d0fa"],
+          ["amz-sdk-invocation-id", "a767e913-37a2-4e1e-b3d9-2f2807c3a1b4"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "156"]
+        ],
+        "body": "<Retention xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Mode>COMPLIANCE</Mode><RetainUntilDate>2026-11-03T03:43:00.123000Z</RetainUntilDate></Retention>"
+      },
+      "response": {
+        "status": 403,
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "71J4SDWKTTN8WRAN"],
+          ["x-amz-id-2", "AyCRg6EJFOZ9P9tLLsvxzx2DJiE4udeE6vmXJAGbo7Gds34kD//FnzLuoTgoALS7JI/h2mFlX1s="],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Tue, 03 Nov 2026 03:41:00 GMT"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>AccessDenied</Code><Message>Access Denied because object protected by object lock.</Message><RequestId>71J4SDWKTTN8WRAN</RequestId><HostId>AyCRg6EJFOZ9P9tLLsvxzx2DJiE4udeE6vmXJAGbo7Gds34kD//FnzLuoTgoALS7JI/h2mFlX1s=</HostId></Error>"
+      }
+    }
+  ]
+}

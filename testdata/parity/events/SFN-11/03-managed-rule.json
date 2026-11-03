@@ -1,0 +1,33 @@
+{
+  "step": "03-managed-rule",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://events.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSEvents.ListRules"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/C,g,AN,b,Z,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#events.list-rules"],
+          ["X-Amz-Date", "20261103T164211Z"],
+          ["amz-sdk-invocation-id", "5f5b8ad8-ec6c-4ba5-808f-c88ed327b6f7"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "31"]
+        ],
+        "body": "{\"NamePrefix\": \"StepFunctions\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "72de60ea-2929-4e60-b1c8-d47c8b17ec2b"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "628"],
+          ["Date", "Tue, 03 Nov 2026 16:42:11 GMT"]
+        ],
+        "body": "{\"Rules\":[{\"Arn\":\"arn:aws:events:us-east-2:123456789012:rule/StepFunctionsGetEventsForStepFunctionsExecutionRule\",\"Description\":\"This rule is used to notify Step Functions regarding integrated workflow executions\",\"EventBusName\":\"default\",\"EventPattern\":\"{\\n  \\\"source\\\": [\\n    \\\"aws.states\\\"\\n  ],\\n  \\\"detail-type\\\": [\\n    \\\"Step Functions Execution Status Change\\\"\\n  ],\\n  \\\"detail\\\": {\\n    \\\"status\\\": [\\n      \\\"FAILED\\\",\\n      \\\"SUCCEEDED\\\",\\n      \\\"TIMED_OUT\\\",\\n      \\\"ABORTED\\\"\\n    ]\\n  }\\n}\\n\",\"ManagedBy\":\"states.amazonaws.com\",\"Name\":\"StepFunctionsGetEventsForStepFunctionsExecutionRule\",\"State\":\"ENABLED\"}]}"
+      }
+    }
+  ]
+}

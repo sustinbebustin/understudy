@@ -1,0 +1,34 @@
+{
+  "step": "02-after-second",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://monitoring.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "GraniteServiceVersion20100801.DescribeAlarms"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,AN,E,C,AC,AD,Z cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#cloudwatch.describe-alarms"],
+          ["X-Amz-Date", "20261103T032004Z"],
+          ["amz-sdk-invocation-id", "1b37b33c-8a38-4b54-ba6a-cbe5b5b16277"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "31"]
+        ],
+        "body": "{\"AlarmNames\": [\"us1103-same\"]}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "abb9fdba-bfd9-4828-8c8c-9ce4994d69af"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "746"],
+          ["Date", "Tue, 03 Nov 2026 03:20:04 GMT"]
+        ],
+        "body": "{\"CompositeAlarms\":[],\"LogAlarms\":[],\"MetricAlarms\":[{\"ActionsEnabled\":true,\"AlarmActions\":[\"arn:aws:sns:us-east-2:123456789012:us1103-cwa\"],\"AlarmArn\":\"arn:aws:cloudwatch:us-east-2:123456789012:alarm:us1103-same\",\"AlarmConfigurationUpdatedTimestamp\":1.793675997097E9,\"AlarmName\":\"us1103-same\",\"ComparisonOperator\":\"GreaterThanThreshold\",\"CreationId\":\"e064ea66-5701-41e5-aa25-1d20ff356a51/1793675997043\",\"Dimensions\":[],\"EvaluationPeriods\":1,\"InsufficientDataActions\":[],\"MetricName\":\"same-none\",\"Namespace\":\"us1103/cwa\",\"OKActions\":[],\"Period\":60,\"StateReason\":\"first\",\"StateTransitionedTimestamp\":1.793675997606E9,\"StateUpdatedTimestamp\":1.793675997606E9,\"StateValue\":\"ALARM\",\"Statistic\":\"Maximum\",\"Threshold\":3.0,\"TreatMissingData\":\"ignore\"}]}"
+      }
+    }
+  ]
+}

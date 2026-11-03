@@ -1,0 +1,37 @@
+{
+  "step": "22-06-create-resource",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (AccessDeniedException) when calling the CreateResource operation: User: arn:aws:sts::123456789012:assumed-role/us1103-apigw1-caller/gw22 is not authorized to perform: apigateway:POST on resource: arn:aws:apigateway:us-east-2::/restapis/iqia6sj0ff/resources/tz0skq9gak because no identity-based policy allows the apigateway:POST action",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://apigateway.us-east-2.amazonaws.com/restapis/iqia6sj0ff/resources/tz0skq9gak",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,g,b,Z,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#apigateway.create-resource"],
+          ["Accept", "application/json"],
+          ["X-Amz-Date", "20261103T164931Z"],
+          ["amz-sdk-invocation-id", "89751aa7-0dc4-40f3-9ea1-69bfe2342f02"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "22"]
+        ],
+        "body": "{\"pathPart\": \"denied\"}"
+      },
+      "response": {
+        "status": 403,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:49:31 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "283"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "43da1ea6-6c95-4060-bd03-f05a2c1cea93"],
+          ["x-amzn-ErrorType", "AccessDeniedException"],
+          ["x-amz-apigw-id", "GReIcL72CYcEcEQ="]
+        ],
+        "body": "{\"Message\":\"User: arn:aws:sts::123456789012:assumed-role/us1103-apigw1-caller/gw22 is not authorized to perform: apigateway:POST on resource: arn:aws:apigateway:us-east-2::/restapis/iqia6sj0ff/resources/tz0skq9gak because no identity-based policy allows the apigateway:POST action\"}\n"
+      }
+    }
+  ]
+}

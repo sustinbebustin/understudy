@@ -1,0 +1,34 @@
+{
+  "step": "02-cap-create",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://states.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSStepFunctions.CreateStateMachine"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,b,g,AN,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#stepfunctions.create-state-machine"],
+          ["X-Amz-Date", "20261103T164832Z"],
+          ["amz-sdk-invocation-id", "cab5f19b-3e73-4619-a2fe-ce1a9c059683"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "401"]
+        ],
+        "body": "{\"name\": \"us1103-r02-cap\", \"definition\": \"{\\\"StartAt\\\":\\\"P\\\",\\\"States\\\":{\\\"P\\\":{\\\"Type\\\":\\\"Parallel\\\",\\\"Branches\\\":[{\\\"StartAt\\\":\\\"F\\\",\\\"States\\\":{\\\"F\\\":{\\\"Type\\\":\\\"Fail\\\",\\\"Error\\\":\\\"E1\\\",\\\"Cause\\\":\\\"c\\\"}}}],\\\"Retry\\\":[{\\\"ErrorEquals\\\":[\\\"E1\\\"],\\\"IntervalSeconds\\\":2,\\\"BackoffRate\\\":3,\\\"MaxAttempts\\\":4,\\\"MaxDelaySeconds\\\":5}],\\\"End\\\":true}}}\", \"roleArn\": \"arn:aws:iam::123456789012:role/us1103-sfn\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "d8b552c6-70e6-4225-8664-3e696a0d34bc"],
+          ["Date", "Tue, 03 Nov 2026 16:48:32 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "119"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"creationDate\":1.793724512263E9,\"stateMachineArn\":\"arn:aws:states:us-east-2:123456789012:stateMachine:us1103-r02-cap\"}"
+      }
+    }
+  ]
+}
