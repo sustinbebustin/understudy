@@ -497,7 +497,7 @@ func (t toFunction) event(r httpevent.Request, c httpevent.Context) ([]byte, err
 	if t.integration.PayloadFormatVersion == payloadV1 {
 		return httpevent.EventV1(r, c, httpevent.HTTPAPI{})
 	}
-	return httpevent.EventV2(r, c)
+	return httpevent.EventV2For(r, c, httpevent.HTTPAPI{})
 }
 
 // response reads the function's output under the integration's payload

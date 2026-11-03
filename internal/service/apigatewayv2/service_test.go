@@ -91,28 +91,30 @@ func TestCoverageMarks(t *testing.T) {
 
 func errOf[Out any](_ *Out, err *awserr.Error) *awserr.Error { return err }
 
-// The five switches name every behavior a test pins without AWS-recorded
-// evidence, in the unit's order, each inferred, with a Ref into
-// apigateway-http.md, the recording cases that settle it and no parity
-// scenario yet, and Switches lists each constructor's value.
+// The five switches name the behaviors a test pins, in the unit's order,
+// each with its evidence label, a Ref into apigateway-http.md, the
+// recording cases that settle it and no parity scenario (the replayer
+// routes no API Gateway request), and Switches lists each constructor's
+// value.
 func TestSwitches(t *testing.T) {
 	type sw struct {
 		value   string
 		records []string
 		ops     []string
+		label   evidence.Label
 	}
 	invoke := "apigatewayv2.InvokeApi"
 	want := []struct {
 		name string
 		sw
 	}{
-		{"apigatewayv2.lambda.failure-answers", sw{fmt.Sprintf("%v", apigatewayv2.FailureAnswersSwitch().Value), []string{"APIGW2-10"}, []string{invoke}}},
-		{"apigatewayv2.lambda.permission", sw{fmt.Sprintf("%v", apigatewayv2.PermissionSwitch().Value), []string{"APIGW2-11"}, []string{invoke}}},
-		{"apigatewayv2.route.matching", sw{fmt.Sprintf("%v", apigatewayv2.RouteMatchingSwitch().Value), []string{"APIGW2-05"}, []string{invoke}}},
+		{"apigatewayv2.lambda.failure-answers", sw{fmt.Sprintf("%v", apigatewayv2.FailureAnswersSwitch().Value), []string{"APIGW2-10"}, []string{invoke}, evidence.Inferred}},
+		{"apigatewayv2.lambda.permission", sw{fmt.Sprintf("%v", apigatewayv2.PermissionSwitch().Value), []string{"APIGW2-11"}, []string{invoke}, evidence.Inferred}},
+		{"apigatewayv2.route.matching", sw{fmt.Sprintf("%v", apigatewayv2.RouteMatchingSwitch().Value), []string{"APIGW2-05"}, []string{invoke}, evidence.Inferred}},
 		{"apigatewayv2.front.answers", sw{fmt.Sprintf("%v", apigatewayv2.FrontAnswersSwitch().Value), []string{"APIGW2-06", "APIGW2-04"}, []string{
 			invoke, "apigatewayv2.CreateDeployment", "apigatewayv2.DeleteDeployment", "apigatewayv2.CreateStage", "apigatewayv2.UpdateStage",
-		}}},
-		{"apigatewayv2.payload.unrecorded", sw{fmt.Sprintf("%v", apigatewayv2.PayloadSwitch().Value), []string{"APIGW2-07", "APIGW2-08", "APIGW2-09"}, []string{invoke}}},
+		}, evidence.Inferred}},
+		{"apigatewayv2.payload.unrecorded", sw{fmt.Sprintf("%v", apigatewayv2.PayloadSwitch().Value), []string{"APIGW2-07", "APIGW2-08", "APIGW2-09"}, []string{invoke}, evidence.AWSRecorded}},
 	}
 	run(t, func(h *harness) {
 		got := h.svc.Switches()
@@ -125,8 +127,8 @@ func TestSwitches(t *testing.T) {
 				t.Errorf("switch %d = %s, want %s", i, e.Name, w.name)
 				continue
 			}
-			if e.Value != w.value || e.Label != evidence.Inferred || !slices.Equal(e.Ops, w.ops) {
-				t.Errorf("%s = value %q, label %s, ops %v\nwant value %q, label inferred, ops %v", e.Name, e.Value, e.Label, e.Ops, w.value, w.ops)
+			if e.Value != w.value || e.Label != w.label || !slices.Equal(e.Ops, w.ops) {
+				t.Errorf("%s = value %q, label %s, ops %v\nwant value %q, label %s, ops %v", e.Name, e.Value, e.Label, e.Ops, w.value, w.label, w.ops)
 			}
 			if !strings.HasPrefix(e.Ref, "docs/research/apigateway-http.md#") {
 				t.Errorf("%s Ref = %q, want an anchor in docs/research/apigateway-http.md", e.Name, e.Ref)
@@ -137,7 +139,7 @@ func TestSwitches(t *testing.T) {
 				}
 			}
 			if _, ok := e.Settles.(fidelity.NoScenario); !ok {
-				t.Errorf("%s Settles = %#v, want NoScenario until %v is recorded", e.Name, e.Settles, w.records)
+				t.Errorf("%s Settles = %#v, want NoScenario: no scenario replays %v", e.Name, e.Settles, w.records)
 			}
 		}
 	})

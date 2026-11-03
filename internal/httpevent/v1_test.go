@@ -116,9 +116,9 @@ func without(keys []string, names ...string) []string {
 
 // The event's keys follow the guide example's order at every level. The
 // example's requestContext.authorizer is a JWT authorizer's and its
-// identity.clientCert a mutual-TLS custom domain's; what a NONE route sends
-// for them is UNVERIFIED (apigateway-http.md 5.2, APIGW2-08), so neither is
-// part of the order checked.
+// identity.clientCert a mutual-TLS custom domain's; a NONE route sends
+// neither, and identity has cognitoAmr (APIGW2-08, recorded 2026-11-03,
+// apigateway-http.md 5.2).
 func TestEventV1KeyOrder(t *testing.T) {
 	raw, _ := eventV1(t, v1Request(), v1Context())
 	top := []string{
@@ -142,7 +142,7 @@ func TestEventV1KeyOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 	identity := []string{
-		"accessKey", "accountId", "caller", "cognitoAuthenticationProvider", "cognitoAuthenticationType",
+		"accessKey", "accountId", "caller", "cognitoAmr", "cognitoAuthenticationProvider", "cognitoAuthenticationType",
 		"cognitoIdentityId", "cognitoIdentityPoolId", "principalOrgId", "sourceIp", "user", "userAgent", "userArn",
 	}
 	if got := without(objectKeys(t, ev.RequestContext, "identity"), "clientCert"); !slices.Equal(got, identity) {
@@ -156,7 +156,8 @@ func TestEventV1KeyOrder(t *testing.T) {
 // multiValueHeaders, every
 // decoded query value in multiValueQueryStringParameters, the context's
 // ids, requestTime as 04/Mar/2020:19:15:17 +0000 with requestTimeEpoch in
-// milliseconds, resourceId null, resourcePath equal to resource, the
+// milliseconds, resourceId the route key (APIGW2-08, against the guide's
+// null), resourcePath equal to resource, the
 // identity's sourceIp and userAgent, pathParameters and stageVariables null
 // when there are none, and a text body as sent with isBase64Encoded false.
 func TestEventV1Members(t *testing.T) {
@@ -192,8 +193,8 @@ func TestEventV1Members(t *testing.T) {
 	if rc.RequestTime != "04/Mar/2020:19:15:17 +0000" || rc.RequestTimeEpoch != 1583349317135 {
 		t.Errorf("requestTime %q, requestTimeEpoch %d; want 04/Mar/2020:19:15:17 +0000 and 1583349317135", rc.RequestTime, rc.RequestTimeEpoch)
 	}
-	if string(rc.ResourceID) != "null" {
-		t.Errorf("requestContext.resourceId = %s, want null", rc.ResourceID)
+	if string(rc.ResourceID) != `"GET /my/path"` {
+		t.Errorf("requestContext.resourceId = %s, want the route key (APIGW2-08)", rc.ResourceID)
 	}
 	if rc.Identity["sourceIp"] != "192.0.2.1" || rc.Identity["userAgent"] != "user-agent" {
 		t.Errorf("identity sourceIp %v, userAgent %v; want 192.0.2.1 and user-agent", rc.Identity["sourceIp"], rc.Identity["userAgent"])
@@ -241,6 +242,21 @@ func TestEventV1HeaderNamesAsAnHTTPAPIRecordedThem(t *testing.T) {
 	}
 	if len(ev.MultiValueHeaders) != len(want) {
 		t.Errorf("multiValueHeaders = %v, want the names of headers", ev.MultiValueHeaders)
+	}
+}
+
+// requestContext.resourceId is the matched route key and identity carries
+// cognitoAmr null beside the guide's members (APIGW2-08, recorded
+// 2026-11-03: 01-get, route ANY /v1/{proxy+}).
+func TestEventV1RequestContextAsAnHTTPAPIRecordedIt(t *testing.T) {
+	c := v1Context()
+	c.RouteKey = "ANY /v1/{proxy+}"
+	_, ev := eventV1(t, v1Request(), c)
+	if string(ev.RequestContext.ResourceID) != `"ANY /v1/{proxy+}"` || ev.Resource != "/v1/{proxy+}" {
+		t.Errorf("resourceId %s, resource %q; want the route key and its path", ev.RequestContext.ResourceID, ev.Resource)
+	}
+	if v, ok := ev.RequestContext.Identity["cognitoAmr"]; !ok || v != nil {
+		t.Errorf("identity.cognitoAmr = %v (present %v), want null", v, ok)
 	}
 }
 

@@ -167,6 +167,14 @@ func unrecorded(cases string) fidelity.Settles {
 	return fidelity.NoScenario{Reason: "unrecorded: " + cases + " (apigateway-http.md 14) records it"}
 }
 
+// recorded is the Settles of a switch the named recording cases recorded:
+// their fixtures stay evidence only, since the replayer routes neither
+// restJson1 nor execute-api requests (testdata/README.md, Replay
+// scenarios).
+func recorded(cases string) fidelity.Settles {
+	return fidelity.NoScenario{Reason: cases + " recorded 2026-11-03 (testdata/parity/apigatewayv2); the replayer does not route restJson1 or execute-api requests"}
+}
+
 // FailureAnswersSwitch is apigatewayv2.lambda.failure-answers. The HTTP
 // API troubleshooting page documents the 500 body for malformed output;
 // its status, the timeout and size answers are inferred (5.6, 4.7, 12 item
@@ -253,7 +261,14 @@ func FrontAnswersSwitch() fidelity.Switch[FrontAnswers] {
 }
 
 // PayloadSwitch is apigatewayv2.payload.unrecorded (5.1-5.4, 12 items 3, 6
-// and 10).
+// and 10). APIGW2-07, APIGW2-08 and APIGW2-09 recorded every choice on
+// 2026-11-03: a bodyless 2.0 event's isBase64Encoded is false, requestId is
+// the apigw-requestid header, a response without a Content-Type gets
+// text/plain; charset=utf-8 under both formats, a 2.0 response's
+// multiValueHeaders is ignored, and the 1.0 single-value maps keep a
+// repeated header's and a repeated query parameter's last value (the
+// guide's example keeps the first query value). The replayer does not
+// route data-plane requests, so no scenario replays them.
 func PayloadSwitch() fidelity.Switch[PayloadChoices] {
 	return fidelity.Switch[PayloadChoices]{
 		Name: "apigatewayv2.payload.unrecorded",
@@ -263,13 +278,13 @@ func PayloadSwitch() fidelity.Switch[PayloadChoices] {
 			DefaultContentType:  "text/plain; charset=utf-8",
 			V2MultiValueHeaders: false,
 			V1Header:            Last,
-			V1Query:             First,
+			V1Query:             Last,
 		},
-		Label:   evidence.Inferred,
+		Label:   evidence.AWSRecorded,
 		Ref:     researchRef + "51-payload-format-20-request-event",
 		Record:  "APIGW2-07, APIGW2-08, APIGW2-09",
 		Ops:     []string{invokeAPI},
-		Settles: unrecorded("APIGW2-07, APIGW2-08 and APIGW2-09"),
+		Settles: recorded("APIGW2-07, APIGW2-08 and APIGW2-09"),
 	}
 }
 

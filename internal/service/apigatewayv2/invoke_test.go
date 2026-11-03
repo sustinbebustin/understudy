@@ -164,7 +164,7 @@ func TestInvocationIsJournaledAsTheCallsChild(t *testing.T) {
 // joined with commas, header names lowercased, cookies out of the
 // headers, a text body as sent with isBase64Encoded false.
 // requestContext.requestId equals the apigw-requestid header as the
-// apigatewayv2.payload.unrecorded switch says (UNVERIFIED, APIGW2-07).
+// apigatewayv2.payload.unrecorded switch says (recorded, APIGW2-07).
 func TestEventV2Request(t *testing.T) {
 	choices := apigatewayv2.PayloadSwitch().Value
 	run(t, func(h *harness) {
@@ -302,8 +302,8 @@ func TestStageSegmentFollowsTheSwitch(t *testing.T) {
 // 5.2) and answers with the documented 1.0 response format (5.4); which
 // repeated header and query value the single-value maps keep is the
 // apigatewayv2.payload.unrecorded switch's V1Header and V1Query
-// (UNVERIFIED, APIGW2-08), and a response without Content-Type gets the
-// switch's DefaultContentType (APIGW2-09).
+// (recorded, APIGW2-08), and a response without Content-Type gets the
+// switch's DefaultContentType (recorded, APIGW2-09).
 func TestPayloadV1(t *testing.T) {
 	choices := apigatewayv2.PayloadSwitch().Value
 	pick := func(p apigatewayv2.Pick, first, last string) string {
@@ -349,7 +349,7 @@ func TestPayloadV1(t *testing.T) {
 // statusCode is a 200 application/json body, a bare string the string
 // itself (the unit's conflict row 6); a structured response without a
 // Content-Type gets the apigatewayv2.payload.unrecorded switch's
-// DefaultContentType (UNVERIFIED, APIGW2-09).
+// DefaultContentType (recorded, APIGW2-09).
 func TestResponseV2(t *testing.T) {
 	run(t, func(h *harness) {
 		id, _ := h.lambdaAPI("2.0", "GET /hello")
