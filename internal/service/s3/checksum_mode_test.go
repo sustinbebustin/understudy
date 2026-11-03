@@ -54,24 +54,28 @@ func TestChecksumModeIsMatchedInAnyCase(t *testing.T) {
 }
 
 // TestChecksumModeOtherValuesAreRefused: a value that is no case variant
-// of ENABLED is refused with 400 InvalidArgument and the model enum's
-// validation text, before the bucket is looked up. AWS's answer is
-// UNVERIFIED (s3.md 5.8, recording S3-01); this pins the refusal understudy
-// keeps until it is recorded.
+// of ENABLED is refused with 400 InvalidRequest "Value for
+// x-amz-checksum-mode header is invalid.", with no ArgumentName or
+// ArgumentValue (s3.md 5.8; S3-01, recorded 2026-11-03). That the refusal
+// comes before the bucket is looked up is inferred: S3-01 read an existing
+// object.
 func TestChecksumModeOtherValuesAreRefused(t *testing.T) {
 	runObjects(t, func(h *harness) {
 		h.createBucket("modes")
 		h.put("modes", "k", "hi\n")
-		const message = "1 validation error detected: Value 'junk' at 'checksumMode' failed to satisfy constraint: Member must satisfy enum value set: [ENABLED]"
+		const message = "Value for x-amz-checksum-mode header is invalid."
 		junk := new(s3api.ChecksumMode("junk"))
 		for _, bucket := range []string{"modes", "missing"} {
 			_, err := invoke(h, s3api.OpGetObject, &s3api.GetObjectInput{Bucket: bucket, Key: "k", ChecksumMode: junk})
-			wantCode(t, err, "InvalidArgument", http.StatusBadRequest)
+			wantCode(t, err, "InvalidRequest", http.StatusBadRequest)
 			if err.Message != message {
 				t.Errorf("GetObject from %s with junk: message %q, want %q", bucket, err.Message, message)
 			}
+			if len(err.Fields) != 0 {
+				t.Errorf("GetObject from %s with junk: elements %v, want none", bucket, err.Fields)
+			}
 			_, err = invoke(h, s3api.OpHeadObject, &s3api.HeadObjectInput{Bucket: bucket, Key: "k", ChecksumMode: junk})
-			wantCode(t, err, "InvalidArgument", http.StatusBadRequest)
+			wantCode(t, err, "InvalidRequest", http.StatusBadRequest)
 		}
 	})
 }
