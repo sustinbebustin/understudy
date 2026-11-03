@@ -22,6 +22,12 @@ func (s *stepper) choice(st choiceState, j stepJob) {
 		s.stateFailed(st.name, entered, f)
 		return
 	}
+	if _, isNull := effective.(document.Null); isNull {
+		// Recorded for a Variable "$" on a null Map item (ASL-07,
+		// 2026-11-03); inferred for every rule path.
+		s.stateFailed(st.name, entered, Terminal{Name: errRuntime, Cause: "Unable to apply Path transformation to null or empty input."})
+		return
+	}
 	next, err := sc.choose(st, effective)
 	var bad *patternError
 	switch {

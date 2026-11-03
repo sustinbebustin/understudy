@@ -1,10 +1,12 @@
 package asl
 
 import (
+	"errors"
 	"slices"
 	"strconv"
 
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy/document"
+	"github.com/sustinbebustin/understudy/internal/service/sfn/asl/jsonpath"
 )
 
 // maxInlineConcurrency is the most iterations an inline Map runs at once:
@@ -139,7 +141,7 @@ func (s *stepper) iterationInputs(st mapState, v visit, effective document.Value
 	}
 	got, err := st.itemsPath.Eval(effective, ctx)
 	if err != nil {
-		return nil, 0, Terminal{Name: errRuntime, Cause: err.Error()}
+		return nil, 0, itemsPathFailure(err)
 	}
 	items, ok := got.(document.List)
 	if !ok {
@@ -149,6 +151,22 @@ func (s *stepper) iterationInputs(st mapState, v visit, effective document.Value
 			"' selected " + text(got) + ", which is not an array"}
 	}
 	return slices.Clone(items), limit, nil
+}
+
+// itemsPathFailure is an ItemsPath that selects nothing: a name or index
+// missing from an object or array is States.ReferencePathConflict "Unable
+// to apply step "<step>" to input <node>", recorded for a name missing from
+// the state input (ASL-06, 2026-11-03; the index form is inferred); any
+// other miss keeps States.Runtime with the path's text.
+func itemsPathFailure(err error) Failure {
+	if missing, ok := errors.AsType[*jsonpath.MissingError](err); ok {
+		switch missing.Node.(type) {
+		case document.Map, document.List:
+			return Terminal{Name: errReferencePathConflict, Cause: "Unable to apply step " + strconv.Quote(missing.Step) + " to input " + text(missing.Node)}
+		case document.String, document.Number, document.Bool, document.Null, nil:
+		}
+	}
+	return Terminal{Name: errRuntime, Cause: err.Error()}
 }
 
 // selectItems applies the Map's ItemSelector to each of items: it builds

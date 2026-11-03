@@ -367,3 +367,23 @@ func TestASL08ChoiceMissingVariableIsRuntime(t *testing.T) {
 	d.wantShape("ASL-08 02-missing-history",
 		"ExecutionStarted 1<-0", "ParallelStateEntered 2<-0", "ParallelStateStarted 3<-2", "ChoiceStateEntered 4<-3", "ExecutionFailed 5<-4")
 }
+
+// A Map ItemsPath that selects nothing in an object input fails the
+// execution States.ReferencePathConflict, pointing at MapStateEntered
+// (ASL-06, recorded 2026-11-03).
+func TestASL06ItemsPathMissing(t *testing.T) {
+	d := newDriver(t, `{"StartAt":"M","States":{"M":{"Type":"Map","ItemsPath":"$.r","ItemProcessor":{"StartAt":"S","States":{"S":{"Type":"Succeed"}}},"End":true}}}`, rules())
+	d.start(`{"a":1}`)
+	failedWith(t, d.runToEnd(10), "States.ReferencePathConflict", func(c string) bool { return c == `Unable to apply step "r" to input {"a":1}` })
+	d.wantShape("ASL-06 01-history", "ExecutionStarted 1<-0", "MapStateEntered 2<-0", "ExecutionFailed 3<-2")
+}
+
+// A Choice whose Variable is $ fails on a null input with States.Runtime
+// (ASL-07, recorded 2026-11-03 inside a Map iteration).
+func TestASL07ChoiceOnNullInput(t *testing.T) {
+	d := newDriver(t, `{"StartAt":"C","States":{"C":{"Type":"Choice","Choices":[{"Variable":"$","IsTimestamp":true,"Next":"S"}],"Default":"S"},"S":{"Type":"Succeed"}}}`, rules())
+	d.start(`null`)
+	failedWith(t, d.runToEnd(10), "States.Runtime", func(c string) bool {
+		return c == runtimePrefix("C", 2)+"Unable to apply Path transformation to null or empty input."
+	})
+}
