@@ -238,6 +238,9 @@ func (s *Service) addLayerVersionPermission(_ context.Context, c *kernel.Call, i
 	if err := checkLayerVersion(in.VersionNumber); err != nil {
 		return nil, err
 	}
+	if in.OrganizationId != nil && in.Principal != "*" {
+		return nil, errLayerOrgPrincipal()
+	}
 	principal, err := layerPrincipal(ref.scope, in.Principal)
 	if err != nil {
 		return nil, err

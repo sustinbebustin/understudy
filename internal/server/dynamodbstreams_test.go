@@ -27,21 +27,27 @@ func TestDynamoDBStreamsDisabledNamesTheSetting(t *testing.T) {
 	}
 }
 
-// The coverage report carries the 8a notes exactly as the spec words them
-// ("Coverage marks"): the four Streams operations, all bound and partial,
-// and the stream clauses of Lambda's mapping operations.
+// The coverage report carries the Streams notes as the DDBS recordings of
+// 2026-11-03 left them (dynamodb-streams.md 6.5, 11.2): ListStreams full,
+// the other three partial with the differences recorded, and the stream
+// clauses of Lambda's mapping operations.
 func TestDynamoDBStreamsCoverageNotes(t *testing.T) {
+	constraint := "a constraint violation's text quotes the value (\"Value '0' at 'limit'\"), where AWS's omits it (\"Value at 'limit'\")"
 	want := map[string]string{
-		"dynamodbstreams.ListStreams":      "a TableName naming no table returns an empty list, a disabled stream stays listed until it is deleted 24 hours after its table, and LastEvaluatedStreamArn is set only when more streams follow; AWS's answers to all three, and the Limit text (DynamoDB Local's), are UNVERIFIED (dynamodb-streams.md 6.1, 6.5)",
-		"dynamodbstreams.DescribeStream":   "aws-differs: understudy: a stream has one shard, which never splits or rolls over; AWS opens a shard per table partition and closes shards as it replaces them; StreamStatus is ENABLED or DISABLED at once, never ENABLING or DISABLING; the Limit text is DynamoDB Local's and UNVERIFIED (dynamodb-streams.md 6.5)",
-		"dynamodbstreams.GetShardIterator": "AT_TIMESTAMP is refused: the pinned model (api-models-aws 1cfdfb4) predates it; the validation and not-found texts are DynamoDB Local's, and a deleted table's stream stays readable until it is deleted 24 hours later; AWS's forms of both are UNVERIFIED (dynamodb-streams.md 5.4, 6.5)",
-		"dynamodbstreams.GetRecords":       "aws-differs: understudy: more than two concurrent readers of a shard are never throttled; inject LimitExceededException with a fault rule; the last page of a closed shard omits NextShardIterator, a Limit above 1000 answers ValidationException as DynamoDB Local does, ApproximateCreationDateTime is written as a plain epoch-seconds number, a NextShardIterator expires 15 minutes after its own issue, SizeBytes is DynamoDB Local's (a byte above the documented item-size rule for some fractional numbers), a DeleteItem of an absent key emits no record, and the malformed, expired and trimmed iterator texts are DynamoDB Local's or understudy's; AWS's forms are UNVERIFIED (dynamodb-streams.md 4.4, 5.3, 5.5, 6.4, 7.3, 7.4, 7.6)",
+		"dynamodbstreams.DescribeStream": "aws-differs: understudy: a stream has one shard, which never splits or rolls over; AWS opened a new on-demand table's stream with 4 shards and closes shards as it replaces them; " +
+			"StreamStatus is ENABLED or DISABLED at once, where AWS reports ENABLING with no shards for about 7 seconds and DISABLING for about 8; " + constraint + " (dynamodb-streams.md 5.2, 5.6, 6.5)",
+		"dynamodbstreams.GetShardIterator": "AT_TIMESTAMP is refused: the pinned model (api-models-aws 1cfdfb4) predates it, so the enum text lists the four other types where AWS's lists five; " +
+			constraint + " (dynamodb-streams.md 3.5, 6.5)",
+		"dynamodbstreams.GetRecords": "aws-differs: understudy: more than two concurrent readers of a shard are never throttled; inject LimitExceededException with a fault rule; " +
+			"ApproximateCreationDateTime is written as a plain epoch-seconds number, where AWS writes the exponent form (1.793723928E9); " +
+			"ExpiredIteratorException carries the __type namespace com.amazonaws.dynamodb.v20120810, where AWS's is com.amazonaws.dynamodb.streams.v20120810; " +
+			constraint + "; the trimmed-iterator text is UNVERIFIED (dynamodb-streams.md 3.3, 5.5, 6.5, 7.3)",
 	}
 	// The 8a text with the spec's "After 8b" edits: the Kinesis kind in the
 	// first clause, the 501 list naming consumers and AT_TIMESTAMP on a
 	// Kinesis stream, and the re-enable clause (lambda-stream-sources.md 7.1)
 	// last in the UNVERIFIED list.
-	esm := "SQS queues, DynamoDB streams and Kinesis data streams; serve polls the source and invokes the function with each batch; Kinesis stream consumers, AT_TIMESTAMP on a Kinesis stream, ParallelizationFactor above 1, BisectBatchOnFunctionError, TumblingWindowInSeconds above 0, a valid FilterCriteria on a stream and an S3 on-failure destination answer 501; a stream is read as soon as it receives a record rather than at AWS's polling rate (4 per second for DynamoDB, once per second for Kinesis), which is used as the delay before a retry; UNVERIFIED (lambda-stream-sources.md 3.3, 3.4, 3.7, 4.2, 5.1, 5.3, 5.5, 5.6, 7.1): the text refusing MaximumRecordAgeInSeconds 0 to 59, an explicit BatchSize above 10 without a window being accepted on a stream, members of the other source type being ignored, destination existence checked only at delivery, a retried batch keeping its records, the 6 MB limit counted over the serialized event, record age measured from the record's arrival in the stream, RetryAttemptsExhausted reported when the last retry fails after the records have also passed their age, one on-failure record per expired record, an itemIdentifier outside the batch counting as complete failure, batchItemFailures keys matched case-sensitively, records lost to stream retention dropped without an on-failure record, an on-failure record the execution role may not send dropped with a journal entry, LastProcessingResult unchanged by a failure, on-failure messages without attributes, and records written while a Kinesis mapping is disabled being delivered after re-enable; MetricsConfig is stored, no metrics are emitted"
+	esm := "SQS queues, DynamoDB streams and Kinesis data streams; serve polls the source and invokes the function with each batch; Kinesis stream consumers, AT_TIMESTAMP on a Kinesis stream, ParallelizationFactor above 1, BisectBatchOnFunctionError, TumblingWindowInSeconds above 0, a valid FilterCriteria on a stream and an S3 on-failure destination answer 501; a stream is read as soon as it receives a record rather than at AWS's polling rate (4 per second for DynamoDB, once per second for Kinesis), which is used as the delay before a retry; UNVERIFIED (lambda-stream-sources.md 3.3, 3.4, 3.7, 4.2, 5.1, 5.3, 5.5, 5.6, 7.1): the text refusing MaximumRecordAgeInSeconds 0 to 59, an explicit BatchSize above 10 without a window being accepted on a Kinesis stream, members of the SQS type being ignored on a stream mapping, an Update refusing the stream type's members on an SQS mapping as Create does, destination existence checked only at delivery, a retried batch keeping its records, the 6 MB limit counted over the serialized event, record age measured from the record's arrival in the stream, RetryAttemptsExhausted reported when the last retry fails after the records have also passed their age, one on-failure record per expired record, an itemIdentifier outside the batch counting as complete failure, batchItemFailures keys matched case-sensitively, records lost to stream retention dropped without an on-failure record, an on-failure record the execution role may not send dropped with a journal entry, LastProcessingResult unchanged by a failure, on-failure messages without attributes, and records written while a Kinesis mapping is disabled being delivered after re-enable; MetricsConfig is stored, no metrics are emitted"
 	// The iam.enforce clause: 5b's SQS sentence, with A11's DynamoDB stream
 	// reads and B6's Kinesis reads (spec "Enforce matrix" rows 2-3;
 	// iam-enforcement-surfaces.md 8.6).
@@ -59,6 +65,9 @@ func TestDynamoDBStreamsCoverageNotes(t *testing.T) {
 		for _, op := range s.Operations {
 			got[string(s.Service)+"."+op.Name] = op.Status
 		}
+	}
+	if _, ok := got["dynamodbstreams.ListStreams"].(coverage.Full); !ok {
+		t.Errorf("dynamodbstreams.ListStreams: status %#v, want full", got["dynamodbstreams.ListStreams"])
 	}
 	for op, note := range want {
 		p, ok := got[op].(coverage.Partial)

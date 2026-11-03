@@ -269,10 +269,11 @@ func checkMembers(cat Catalogue, r Rule, a Error, op ref.OperationID, id awserr.
 }
 
 // reasonsMissing is the refusal of a TransactionCanceledException rule
-// without CancellationReasons (smithy-protocol-tests.md 12.2).
+// without CancellationReasons (smithy-protocol-tests.md 12.2). Its example
+// reason is AWS's recorded TransactionConflict reason (12.4, PROTO-06).
 func reasonsMissing() string {
 	return string(transactionCanceled) + ` always carries CancellationReasons on AWS, one per item of the transaction in item order; ` +
-		`set them in action.members, such as {"CancellationReasons": [{"Code": "TransactionConflict", "Message": "Transaction is ongoing for the item."}]}`
+		`set them in action.members, such as {"CancellationReasons": [{"Code": "TransactionConflict", "Message": "Transaction is ongoing for the item"}]}`
 }
 
 // checkAWSShape refuses members that decode but would make an error AWS
@@ -365,9 +366,9 @@ func reasonCount(a Action) int {
 // injects on op, a call of items transaction items. A
 // TransactionCanceledException gets one reason per item: the rule's
 // reasons, then {"Code":"None"} for each item after them, with no Message
-// and no Item (smithy-protocol-tests.md 12.2, 14.9; the bytes of a None
-// reason are UNVERIFIED, PROTO-02). ExecuteTransaction pads its statements
-// the same way, though its reasons are UNVERIFIED (12.4, PROTO-05). The
+// and no Item (smithy-protocol-tests.md 12.2, 14.9; recorded, 12.4:
+// PROTO-02). ExecuteTransaction pads its statements the same way (12.4:
+// PROTO-05). The
 // message, first match wins: the members' own message member,
 // action.message, for a TransactionCanceledException AWS's text listing
 // the codes (12.4), the text naming the rule, or none for a shape without
@@ -418,12 +419,10 @@ func injectedMessage(m Members, plan memberPlan, message string, id awserr.Ident
 	case message != "":
 		return message
 	case id.Shape == transactionCanceled:
-		// The codes in request order inside AWS's frame, recorded for
-		// TransactWriteItems only (smithy-protocol-tests.md 12.3,
-		// third-party-recorded; 12.4). ExecuteTransaction takes the same
-		// frame, which is UNVERIFIED (12.4, PROTO-05). The key it goes
-		// under is the identity's MessageKey, Message from the model's
-		// spelling: inferred, UNVERIFIED (12.4, 14.9, PROTO-01).
+		// The codes in request order inside AWS's frame, for
+		// TransactWriteItems and ExecuteTransaction alike, under the
+		// identity's MessageKey, Message (smithy-protocol-tests.md 12.4:
+		// PROTO-01, PROTO-05, recorded).
 		return "Transaction cancelled, please refer cancellation reasons for specific reasons [" + strings.Join(codes, ", ") + "]"
 	case id.MessageKey != awserr.NoMessage:
 		return "Injected by understudy fault rule " + string(rule) + "."

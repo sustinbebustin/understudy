@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/sustinbebustin/understudy/internal/api/eventbridgeapi"
 	"github.com/sustinbebustin/understudy/internal/api/lambdaapi"
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
 	"github.com/sustinbebustin/understudy/internal/api/snsapi"
@@ -30,9 +29,10 @@ type configuredDestination struct {
 // destination only, is refused in the recorded words for another
 // service's ARN (lambda-destinations-layers.md 2.2); that AWS answers a
 // malformed ARN of a service it does deliver to the same way is inferred.
+// A FIFO queue is refused the same way (aws-recorded, 2.2: LDL-08); a
+// FIFO topic is accepted, and Lambda fails it at delivery (inferred).
 // Then each destination must exist and not be the function itself
-// (checkDestination). A FIFO queue or topic is accepted: Lambda fails it
-// at delivery (2.2). It returns the destinations, which the write checks
+// (checkDestination). It returns the destinations, which the write checks
 // again (recheckDestination).
 func (s *Service) checkDestinations(ctx context.Context, c *kernel.Call, fn functionRef, d *lambdaapi.DestinationConfig) ([]configuredDestination, *awserr.Error) {
 	success, failure := destinations(d)
@@ -45,7 +45,9 @@ func (s *Service) checkDestinations(ctx context.Context, c *kernel.Call, fn func
 			continue
 		}
 		dest, err := destination.Parse(side.arn)
-		if _, bucket := dest.(destination.Bucket); err != nil || bucket && !side.onFailure {
+		_, bucket := dest.(destination.Bucket)
+		queue, isQueue := dest.(destination.Queue)
+		if err != nil || bucket && !side.onFailure || isQueue && strings.HasSuffix(queue.ARN.Resource, ".fifo") {
 			return nil, errDestinationConfig(success, failure)
 		}
 		out = append(out, configuredDestination{arn: side.arn, dest: dest})
@@ -60,8 +62,9 @@ func (s *Service) checkDestinations(ctx context.Context, c *kernel.Call, fn func
 
 // checkDestination refuses d when it is the function fn names or does not
 // exist. A destination function is found in its own scope's state
-// (lambda-api.md 7.7); a queue, topic, bus or bucket is looked up in its
-// own service (lookUpDestination).
+// (lambda-api.md 7.7); a queue, topic or bucket is looked up in its own
+// service (lookUpDestination). A bus is not: AWS accepts one that does not
+// exist (aws-recorded, lambda-destinations-layers.md 2.3: LDL-08 03).
 func (s *Service) checkDestination(ctx context.Context, c *kernel.Call, fn functionRef, d configuredDestination) *awserr.Error {
 	scope, ok := destinationScope(fn, d.dest)
 	if !ok {
@@ -75,16 +78,15 @@ func (s *Service) checkDestination(ctx context.Context, c *kernel.Call, fn funct
 		return err
 	case destination.Queue:
 		return lookUpDestination(ctx, s, c, d.arn, scope, sqsapi.OpGetQueueUrl,
-			&sqsapi.GetQueueUrlInput{QueueName: dest.ARN.Resource, QueueOwnerAWSAccountId: new(dest.ARN.Account)}, sqsapi.IdentityQueueDoesNotExist())
+			&sqsapi.GetQueueUrlInput{QueueName: dest.ARN.Resource, QueueOwnerAWSAccountId: new(dest.ARN.Account)}, sqsapi.IdentityQueueDoesNotExist(), errDestinationMissing(d.arn))
 	case destination.Topic:
 		return lookUpDestination(ctx, s, c, d.arn, scope, snsapi.OpGetTopicAttributes,
-			&snsapi.GetTopicAttributesInput{TopicArn: dest.ARN.String()}, snsapi.IdentityNotFoundException())
+			&snsapi.GetTopicAttributesInput{TopicArn: dest.ARN.String()}, snsapi.IdentityNotFoundException(), errDestinationMissing(d.arn))
 	case destination.Bus:
-		return lookUpDestination(ctx, s, c, d.arn, scope, eventbridgeapi.OpDescribeEventBus,
-			&eventbridgeapi.DescribeEventBusInput{Name: new(dest.ARN.String())}, eventbridgeapi.IdentityResourceNotFoundException())
+		return nil
 	case destination.Bucket:
 		return lookUpDestination(ctx, s, c, d.arn, scope, s3api.OpHeadBucket,
-			&s3api.HeadBucketInput{Bucket: dest.Name}, s3api.IdentityNotFound())
+			&s3api.HeadBucketInput{Bucket: dest.Name}, s3api.IdentityNotFound(), errBucketDestinationMissing())
 	}
 	return awserr.Internalf(fmt.Errorf("lambda: destination %s parsed to %T, which checkDestination has no check for", d.arn, d.dest))
 }
@@ -145,21 +147,20 @@ func (st *State) recheckDestination(fn functionRef, d configuredDestination) *aw
 // lookUpDestination asks the service of the destination arn whether it
 // exists in scope, as Lambda on its own behalf (kernel.AsPlatform) over
 // the destination mechanism: the execution role's permission is not
-// checked at configuration (lambda-destinations-layers.md 11.1). Whether
-// AWS looks these destinations up at all is unrecorded (2.3, LDL-08;
-// switch lambda.destination.config-existence-check). Only that service's
-// not-found answer means the destination is missing, which is refused as
-// a missing destination function is; any other failure leaves its
-// existence unknown, so the call fails with InternalFailure and nothing
-// is stored.
-func lookUpDestination[In, Out any](ctx context.Context, s *Service, c *kernel.Call, arn string, scope aws.Scope, op kernel.Op[In, Out], in *In, notFound awserr.Identity) *awserr.Error {
+// checked at configuration (lambda-destinations-layers.md 11.1). AWS
+// looks up queues, topics and buckets (aws-recorded, 2.3: LDL-08; switch
+// lambda.destination.config-existence-check). Only that service's
+// not-found answer means the destination is missing, which is refused
+// with missing; any other failure leaves its existence unknown, so the
+// call fails with InternalFailure and nothing is stored.
+func lookUpDestination[In, Out any](ctx context.Context, s *Service, c *kernel.Call, arn string, scope aws.Scope, op kernel.Op[In, Out], in *In, notFound awserr.Identity, missing *awserr.Error) *awserr.Error {
 	t := kernel.Target{Scope: scope, As: kernel.AsPlatform{Name: lambdaService}, Via: ref.LambdaDestination}
 	_, err := kernel.Invoke(ctx, s.k, c, op, t, in)
 	switch {
 	case err == nil:
 		return nil
 	case err.ID.Shape == notFound.Shape:
-		return errDestinationMissing(arn)
+		return missing
 	case err.ID == awserr.RequestAbortedException():
 		return err
 	}

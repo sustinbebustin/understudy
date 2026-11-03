@@ -27,7 +27,7 @@ func faultsCmd() *command {
 				"understudy faults add --operation sqs.SendMessage --throttle --next 3",
 				"understudy faults add --id slow-s3 --service s3 --latency 2s",
 				"understudy faults add --operation sqs.ReceiveMessage --error QueueDoesNotExist --probability 0.1",
-				`understudy faults add --operation dynamodb.TransactWriteItems --error TransactionCanceledException --members '{"CancellationReasons":[{"Code":"TransactionConflict","Message":"Transaction is ongoing for the item."}]}' --next 1`,
+				`understudy faults add --operation dynamodb.TransactWriteItems --error TransactionCanceledException --members '{"CancellationReasons":[{"Code":"TransactionConflict","Message":"Transaction is ongoing for the item"}]}' --next 1`,
 				"understudy faults add --phase delivery --mechanism sns-to-sqs --drop --next 1",
 				"understudy faults add --phase delivery --mechanism sns-to-http --http-status 503 --next 1",
 			},

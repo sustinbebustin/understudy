@@ -305,6 +305,21 @@ func (s *Service) updateLatest(ctx context.Context, st *State, tx *kernel.Tx, re
 	return f, nil
 }
 
+// checkImageUpdate refuses layers, then a runtime or handler, on an image
+// function's configuration (lambda-destinations-layers.md 7.1).
+func checkImageUpdate(code Code, in *lambdaapi.UpdateFunctionConfigurationInput) *awserr.Error {
+	if _, image := code.(ImageCode); !image {
+		return nil
+	}
+	switch {
+	case len(in.Layers) > 0:
+		return errImageTakesNoLayers()
+	case in.Runtime != nil || in.Handler != nil:
+		return errImageTakesNoRuntime()
+	}
+	return nil
+}
+
 func (s *Service) updateFunctionConfiguration(ctx context.Context, c *kernel.Call, in *lambdaapi.UpdateFunctionConfigurationInput) (*lambdaapi.FunctionConfiguration, *awserr.Error) {
 	ref, err := parseFunctionRef(c, in.FunctionName, nil)
 	if err != nil {
@@ -324,8 +339,8 @@ func (s *Service) updateFunctionConfiguration(ctx context.Context, c *kernel.Cal
 	res, err := write(s, c, ref.scope, func(st *State, now clock.Instant, tx *kernel.Tx) (result, *awserr.Error) {
 		var released []blob.Ref
 		f, err := s.updateLatest(ctx, st, tx, ref, in.RevisionId, now, func(v *Version, was Serving) *awserr.Error {
-			if _, image := v.Code.(ImageCode); image && (in.Runtime != nil || in.Handler != nil || len(in.Layers) > 0) {
-				return errImageTakesNoRuntime()
+			if err := checkImageUpdate(v.Code, in); err != nil {
+				return err
 			}
 			// Layers replaces the list whole, and [] clears it
 			// (lambda-destinations-layers.md 9.2).
@@ -369,7 +384,7 @@ func (s *Service) layersForUpdate(ctx context.Context, ref functionRef, layers [
 		return attachment{}, err
 	}
 	if packageType == lambdaapi.PackageTypeImage {
-		return attachment{}, errImageTakesNoRuntime()
+		return attachment{}, errImageTakesNoLayers()
 	}
 	return s.resolveLayers(ctx, ref.scope, layers)
 }

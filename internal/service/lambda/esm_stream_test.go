@@ -441,6 +441,44 @@ func TestSQSMappingRendersNoStreamField(t *testing.T) {
 	})
 }
 
+// An SQS mapping refuses each member of the stream type with AWS's text
+// (aws-recorded, lambda-stream-sources.md 3.4: ESMS-03 01-07).
+func TestSQSMappingRefusesStreamMembers(t *testing.T) {
+	runStream(t, esm.StreamFidelity{}, func(h *streamHarness) {
+		_, arn := h.queue("orders", nil)
+		h.createFunction("worker")
+		for _, tc := range []struct {
+			in   lambdaapi.CreateEventSourceMappingInput
+			text string
+		}{
+			{lambdaapi.CreateEventSourceMappingInput{StartingPosition: new(lambdaapi.EventSourcePosition("LATEST"))}, "StartingPosition is not valid for SQS event sources."},
+			{lambdaapi.CreateEventSourceMappingInput{ParallelizationFactor: new(int32(2))}, "Unsupported ParallelizationFactor parameter for given event source mapping type."},
+			{lambdaapi.CreateEventSourceMappingInput{BisectBatchOnFunctionError: new(true)}, "Unsupported BisectBatchOnFunctionError parameter for given event source mapping type."},
+			{lambdaapi.CreateEventSourceMappingInput{MaximumRetryAttempts: new(int32(2))}, "Unsupported MaximumRetryAttempts parameter for given event source mapping type."},
+			{lambdaapi.CreateEventSourceMappingInput{MaximumRecordAgeInSeconds: new(int32(60))}, "Unsupported MaximumRecordAgeInSeconds parameter for given event source mapping type."},
+			{lambdaapi.CreateEventSourceMappingInput{TumblingWindowInSeconds: new(int32(60))}, "Unsupported TumblingWindowInSeconds parameter for given event source mapping type."},
+			{
+				lambdaapi.CreateEventSourceMappingInput{DestinationConfig: &lambdaapi.DestinationConfig{OnFailure: &lambdaapi.OnFailure{Destination: new(arn)}}},
+				"Unsupported DestinationConfig parameter for given event source mapping type.",
+			},
+		} {
+			tc.in.FunctionName, tc.in.EventSourceArn = "worker", new(arn)
+			errorIs(h, fail(h.harness, lambdaapi.OpCreateEventSourceMapping, &tc.in), "InvalidParameterValueException", tc.text)
+		}
+	})
+}
+
+// A FIFO queue is refused as a stream mapping's on-failure destination
+// (aws-recorded, lambda-stream-sources.md 3.7: ESMS-05 04).
+func TestStreamMappingRefusesAFIFOOnFailure(t *testing.T) {
+	runStream(t, esm.StreamFidelity{}, func(h *streamHarness) {
+		h.createFunction("worker")
+		errorIs(h, fail(h.harness, lambdaapi.OpCreateEventSourceMapping, h.streamInput(lambdaapi.CreateEventSourceMappingInput{
+			DestinationConfig: &lambdaapi.DestinationConfig{OnFailure: &lambdaapi.OnFailure{Destination: new("arn:aws:sqs:us-east-1:000000000000:failures.fifo")}},
+		})), "InvalidParameterValueException", "FIFO-type Amazon SQS queues aren't supported as a destination.")
+	})
+}
+
 // Rows 1 to 6 of lambda-stream-sources.md 3.3, byte for byte
 // (third-party-recorded: LS-API:L12333-L12366 rows 1-3, LS-D:L4478-L4494
 // row 4, LS-D:L557-L568 row 5, LS-D:L458-L490 row 6), StartingPosition

@@ -59,35 +59,33 @@ func putDestinations(onSuccess, onFailure string) *lambdaapi.PutFunctionEventInv
 }
 
 // existenceChecked fails the test unless the switch
-// lambda.destination.config-existence-check says every destination is
-// looked up: whether AWS looks up a queue, topic, bus or bucket is
-// unrecorded (lambda-destinations-layers.md 2.3, 11.2, LDL-08).
+// lambda.destination.config-existence-check says a queue, topic or bucket
+// is looked up and a bus is not (aws-recorded, lambda-destinations-layers.md
+// 2.3: LDL-08).
 func existenceChecked(h *harness) {
 	h.Helper()
-	if v := h.switchValue("lambda.destination.config-existence-check"); v != "all" {
+	if v := h.switchValue("lambda.destination.config-existence-check"); v != "queue-topic-bucket" {
 		h.Fatalf("lambda.destination.config-existence-check = %q, a value this test does not know", v)
 	}
 }
 
-// A destination that does not exist is refused with the text AWS answers
-// for a missing destination function (lambda-api.md 7.7), which the
-// Terraform provider's retry rule gives for any destination ARN
-// (lambda-destinations-layers.md 2.3, finding 6), and nothing is stored.
-// Each destination is looked up in its own service, as Lambda on its own
-// behalf over the destination mechanism (11.1: the execution role's
-// permission is not checked here).
+// A destination that does not exist is refused, and nothing is stored: a
+// queue or topic with the text AWS answers for a missing destination
+// function (lambda-api.md 7.7; aws-recorded, LDL-08 01 and 02), a bucket
+// with S3's ListBucket refusal (LDL-08 04). Each destination is looked up
+// in its own service, as Lambda on its own behalf over the destination
+// mechanism (11.1: the execution role's permission is not checked here).
 func TestEventInvokeConfigRefusesADestinationThatDoesNotExist(t *testing.T) {
 	cases := []struct {
 		name   string
 		in     *lambdaapi.PutFunctionEventInvokeConfigInput
-		arn    string
+		text   string
 		lookup string
 	}{
-		{"queue", putDestinations("arn:aws:sqs:us-east-1:000000000000:missing-queue", ""), "arn:aws:sqs:us-east-1:000000000000:missing-queue", "GetQueueUrl missing-queue 000000000000"},
-		{"topic", putDestinations("arn:aws:sns:us-east-1:000000000000:missing-topic", ""), "arn:aws:sns:us-east-1:000000000000:missing-topic", "GetTopicAttributes arn:aws:sns:us-east-1:000000000000:missing-topic"},
-		{"bus", putDestinations("arn:aws:events:us-east-1:000000000000:event-bus/missing-bus", ""), "arn:aws:events:us-east-1:000000000000:event-bus/missing-bus", "DescribeEventBus arn:aws:events:us-east-1:000000000000:event-bus/missing-bus"},
-		{"bucket", putDestinations("", "arn:aws:s3:::missing-bucket"), "arn:aws:s3:::missing-bucket", "HeadBucket missing-bucket"},
-		{"another account's queue", putDestinations("", "arn:aws:sqs:us-east-1:111111111111:missing-queue"), "arn:aws:sqs:us-east-1:111111111111:missing-queue", "GetQueueUrl missing-queue 111111111111"},
+		{"queue", putDestinations("arn:aws:sqs:us-east-1:000000000000:missing-queue", ""), "The destination ARN arn:aws:sqs:us-east-1:000000000000:missing-queue is invalid.", "GetQueueUrl missing-queue 000000000000"},
+		{"topic", putDestinations("arn:aws:sns:us-east-1:000000000000:missing-topic", ""), "The destination ARN arn:aws:sns:us-east-1:000000000000:missing-topic is invalid.", "GetTopicAttributes arn:aws:sns:us-east-1:000000000000:missing-topic"},
+		{"bucket", putDestinations("", "arn:aws:s3:::missing-bucket"), "Error occurred while ListBucket. S3 Error Code: 404 Not Found. S3 Error Message: Not Found", "HeadBucket missing-bucket"},
+		{"another account's queue", putDestinations("", "arn:aws:sqs:us-east-1:111111111111:missing-queue"), "The destination ARN arn:aws:sqs:us-east-1:111111111111:missing-queue is invalid.", "GetQueueUrl missing-queue 111111111111"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -96,7 +94,7 @@ func TestEventInvokeConfigRefusesADestinationThatDoesNotExist(t *testing.T) {
 				existenceChecked(h)
 				h.createFunction("fn")
 				err := fail(h, lambdaapi.OpPutFunctionEventInvokeConfig, c.in)
-				errorIs(t, err, "InvalidParameterValueException", "The destination ARN "+c.arn+" is invalid.")
+				errorIs(t, err, "InvalidParameterValueException", c.text)
 				if err.ID.Status != 400 {
 					t.Errorf("status = %d, want 400", err.ID.Status)
 				}
@@ -114,9 +112,10 @@ func TestEventInvokeConfigRefusesADestinationThatDoesNotExist(t *testing.T) {
 	}
 }
 
-// Destinations that exist are stored and echoed; FIFO queues and topics
-// are among them, since Lambda fails a FIFO destination at delivery, not
-// at configuration (lambda-destinations-layers.md 2.2).
+// Destinations that exist are stored and echoed, a FIFO topic among them
+// (whether AWS refuses one at configuration is unrecorded,
+// lambda-destinations-layers.md 2.2). A bus is not looked up: AWS accepts
+// a missing one (aws-recorded, LDL-08 03).
 func TestEventInvokeConfigTakesDestinationsThatExist(t *testing.T) {
 	runLookups(t, func(h *harness, seen *lookups) {
 		t := h.T
@@ -125,7 +124,7 @@ func TestEventInvokeConfigTakesDestinationsThatExist(t *testing.T) {
 		for _, c := range []struct{ onSuccess, onFailure string }{
 			{successQueue, auditBucket},
 			{alertsTopic, auditBus},
-			{"arn:aws:sqs:us-east-1:000000000000:records.fifo", "arn:aws:sns:us-east-1:000000000000:alerts.fifo"},
+			{"arn:aws:sns:us-east-1:000000000000:alerts.fifo", "arn:aws:events:us-east-1:000000000000:event-bus/missing-bus"},
 		} {
 			out := call(h, lambdaapi.OpPutFunctionEventInvokeConfig, putDestinations(c.onSuccess, c.onFailure))
 			if out.DestinationConfig == nil || out.DestinationConfig.OnSuccess == nil || out.DestinationConfig.OnFailure == nil ||
@@ -133,8 +132,43 @@ func TestEventInvokeConfigTakesDestinationsThatExist(t *testing.T) {
 				t.Errorf("Put %s, %s = %+v, want both stored", c.onSuccess, c.onFailure, out.DestinationConfig)
 			}
 		}
-		if n := len(seen.all()); n != 6 {
-			t.Errorf("%d lookups, want one per destination", n)
+		if n := len(seen.all()); n != 4 {
+			t.Errorf("%d lookups, want one per destination that is not a bus", n)
+		}
+	})
+}
+
+// A FIFO queue is refused at configuration in the words of a destination
+// config Lambda cannot take, before any lookup (aws-recorded,
+// lambda-destinations-layers.md 2.2: LDL-08 05).
+func TestEventInvokeConfigRefusesAFIFOQueue(t *testing.T) {
+	runLookups(t, func(h *harness, seen *lookups) {
+		t := h.T
+		existenceChecked(h)
+		h.createFunction("fn")
+		const fifo = "arn:aws:sqs:us-east-1:000000000000:records.fifo"
+		errorIs(t, fail(h, lambdaapi.OpPutFunctionEventInvokeConfig, putDestinations("", fifo)),
+			"InvalidParameterValueException", "The provided destination config DestinationConfig(onSuccess=null, onFailure=OnFailure(destination="+fifo+")) is invalid.")
+		if n := len(seen.all()); n != 0 {
+			t.Errorf("%d lookups for a FIFO queue, want none", n)
+		}
+	})
+}
+
+// UpdateFunctionEventInvokeConfig with one side of DestinationConfig keeps
+// the other side stored (aws-recorded, lambda-destinations-layers.md 2.1:
+// LDL-08 07 and 08).
+func TestUpdateEventInvokeConfigMergesDestinationsPerSide(t *testing.T) {
+	runLookups(t, func(h *harness, _ *lookups) {
+		t := h.T
+		h.createFunction("fn")
+		call(h, lambdaapi.OpPutFunctionEventInvokeConfig, putDestinations(successQueue, auditBucket))
+		out := call(h, lambdaapi.OpUpdateFunctionEventInvokeConfig, &lambdaapi.UpdateFunctionEventInvokeConfigInput{
+			FunctionName: "fn", DestinationConfig: &lambdaapi.DestinationConfig{OnFailure: &lambdaapi.OnFailure{Destination: new(alertsTopic)}},
+		})
+		if out.DestinationConfig == nil || out.DestinationConfig.OnSuccess == nil || deref(out.DestinationConfig.OnSuccess.Destination) != successQueue ||
+			out.DestinationConfig.OnFailure == nil || deref(out.DestinationConfig.OnFailure.Destination) != alertsTopic {
+			t.Errorf("Update with OnFailure only = %+v, want OnSuccess %s kept and OnFailure %s", out.DestinationConfig, successQueue, alertsTopic)
 		}
 	})
 }
@@ -291,7 +325,10 @@ func TestInvokeCoverageNoLongerDisclaimsDestinations(t *testing.T) {
 // Every behavior this unit chose without AWS-recorded evidence is a switch
 // with the value, label and settling record of
 // lambda-destinations-layers.md 11.2, a ref into that note and no parity
-// scenario that settles it yet (section 12 queues each recording).
+// scenario that settles it: the replayer skips Lambda's REST and Docker
+// steps. The 2026-11-03 recordings made eight of them aws-recorded;
+// LDL-05 and LDL-15 recorded behavior that sns-oversize and
+// cross-account-policy do not have, so those keep their labels and say so.
 func TestDestinationAndLayerSwitchesNameEveryUnrecordedChoice(t *testing.T) {
 	type sw struct {
 		value  string
@@ -300,15 +337,15 @@ func TestDestinationAndLayerSwitchesNameEveryUnrecordedChoice(t *testing.T) {
 		ops    []string
 	}
 	want := map[string]sw{
-		"lambda.async.qualifier-config":                  {"invoked-qualifier-only", evidence.Inferred, "LDL-01", []string{"lambda.Invoke", "lambda.PutFunctionEventInvokeConfig"}},
-		"lambda.destination.record-function-arn":         {"invoked-qualifier", evidence.Inferred, "LDL-01", []string{"lambda.Invoke"}},
-		"lambda.destination.config-existence-check":      {"all", evidence.Inferred, "LDL-08", []string{"lambda.PutFunctionEventInvokeConfig", "lambda.UpdateFunctionEventInvokeConfig"}},
-		"lambda.destination.delivery-retry":              {"none", evidence.Inferred, "LDL-09", []string{"lambda.Invoke"}},
+		"lambda.async.qualifier-config":                  {"invoked-qualifier-only", evidence.AWSRecorded, "LDL-01", []string{"lambda.Invoke", "lambda.PutFunctionEventInvokeConfig"}},
+		"lambda.destination.record-function-arn":         {"invoked-qualifier", evidence.AWSRecorded, "LDL-01", []string{"lambda.Invoke"}},
+		"lambda.destination.config-existence-check":      {"queue-topic-bucket", evidence.AWSRecorded, "LDL-08", []string{"lambda.PutFunctionEventInvokeConfig", "lambda.UpdateFunctionEventInvokeConfig"}},
+		"lambda.destination.delivery-retry":              {"none", evidence.AWSRecorded, "LDL-09", []string{"lambda.Invoke"}},
 		"lambda.destination.sns-oversize":                {"delivery-failure", evidence.AWSDoc, "LDL-05", []string{"lambda.Invoke"}},
-		"lambda.destination.lambda-invocation-type":      {"Event", evidence.Inferred, "LDL-06", []string{"lambda.Invoke"}},
-		"lambda.destination.eventbridge-resources-order": {"bus-then-function", evidence.ThirdPartyRecorded, "LDL-10", []string{"lambda.Invoke"}},
-		"lambda.layers.merge-conflict":                   {"later-overwrites", evidence.Inferred, "LDL-12", []string{"lambda.Invoke"}},
-		"lambda.layers.compatibility":                    {"not-enforced", evidence.Inferred, "LDL-13", []string{"lambda.CreateFunction", "lambda.UpdateFunctionConfiguration"}},
+		"lambda.destination.lambda-invocation-type":      {"Event", evidence.AWSRecorded, "LDL-06", []string{"lambda.Invoke"}},
+		"lambda.destination.eventbridge-resources-order": {"bus-then-function", evidence.AWSRecorded, "LDL-10", []string{"lambda.Invoke"}},
+		"lambda.layers.merge-conflict":                   {"later-overwrites", evidence.AWSRecorded, "LDL-12", []string{"lambda.Invoke"}},
+		"lambda.layers.compatibility":                    {"not-enforced", evidence.AWSRecorded, "LDL-13", []string{"lambda.CreateFunction", "lambda.UpdateFunctionConfiguration"}},
 		"lambda.layers.cross-account-policy":             {"advise", evidence.Inferred, "LDL-15", []string{"lambda.CreateFunction", "lambda.UpdateFunctionConfiguration"}},
 	}
 	runLookups(t, func(h *harness, _ *lookups) {

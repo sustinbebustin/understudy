@@ -549,10 +549,21 @@ func (cfg EventInvokeConfig) with(in eventInvokeInput, replace bool) EventInvoke
 		cfg.MaximumEventAgeInSeconds = in.age
 	}
 	switch {
-	case in.dest != nil:
-		cfg.OnSuccess, cfg.OnFailure = destinations(in.dest)
-	case replace:
+	case replace && in.dest == nil:
 		cfg.OnSuccess, cfg.OnFailure = "", ""
+	case replace:
+		cfg.OnSuccess, cfg.OnFailure = destinations(in.dest)
+	case in.dest != nil:
+		// Update merges per side: a side the request leaves out stays as
+		// stored (aws-recorded, lambda-destinations-layers.md 2.1: LDL-08
+		// 07 and 08).
+		success, failure := destinations(in.dest)
+		if in.dest.OnSuccess != nil {
+			cfg.OnSuccess = success
+		}
+		if in.dest.OnFailure != nil {
+			cfg.OnFailure = failure
+		}
 	}
 	return cfg
 }

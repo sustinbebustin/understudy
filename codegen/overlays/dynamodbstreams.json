@@ -17,8 +17,9 @@
             "covers": ["dev.understudy#responseCrc32"]
           },
           {
-            "label": "inferred",
-            "source": "docs/research/dynamodb-streams.md#33-error-shapes: Streams is served by the DynamoDB backend, DynamoDB's own modeled errors carry com.amazonaws.dynamodb.v20120810# (aws-recorded, testdata/parity/dynamodb/R04/07-ttl-missing-table.json) and DynamoDB Local sends that namespace for Streams errors; whether AWS sends it or the model's com.amazonaws.dynamodbstreams# is UNVERIFIED until recording DDBS-01",
+            "label": "aws-recorded",
+            "source": "testdata/parity/dynamodb/DDBS-01/01-describe-missing.json: ResourceNotFoundException carries com.amazonaws.dynamodb.v20120810# with a lower-case message (docs/research/dynamodb-streams.md#33-error-shapes); ExpiredIteratorException alone carries com.amazonaws.dynamodb.streams.v20120810# (testdata/parity/dynamodb/DDBS-04/04-unused-at-16min.json), which this service-wide namespace does not give it",
+            "validated": "2026-11-03",
             "covers": ["dev.understudy#errorNamespace"]
           },
           {
@@ -32,11 +33,23 @@
             "covers": ["dev.understudy#denialError"]
           },
           {
-            "label": "inferred",
-            "source": "docs/research/dynamodb-streams.md#65-error-and-validation-texts: DynamoDB Local answers the Limit 0 range violation with the Coral constraint text and its own checks with com.amazon.coral.validate#ValidationException (5.1, 6.4), but skips length checks and answers enum, required and digit violations with 500 InternalFailure (8.3 row 11); AWS documents ValidationException on GetShardIterator; AWS's class for constraint failures is UNVERIFIED until recording DDBS-02",
+            "label": "aws-recorded",
+            "source": "testdata/parity/dynamodb/DDBS-02/03-describe-limit-0.json, 07-bad-type.json, 08-missing-type.json, 10-short-shard.json: AWS answers range, enum, required and length violations with 400 com.amazon.coral.validate#ValidationException in the Coral grammar, but without the value (\"Value at 'limit' failed to satisfy constraint\"), which the generated text quotes (docs/research/dynamodb-streams.md#65-error-and-validation-texts)",
+            "validated": "2026-11-03",
             "covers": ["dev.understudy#validationError"]
           }
         ]
+      }
+    },
+    "com.amazonaws.dynamodbstreams#DescribeStreamInput$StreamArn": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException", "style": "fixed", "constraints": ["length"], "reason": "Invalid StreamArn"},
+        "dev.understudy#evidence": {
+          "label": "aws-recorded",
+          "source": "testdata/parity/dynamodb/DDBS-02/01-describe-short-arn.json: a StreamArn of 5 characters answers ValidationException \"Invalid StreamArn\", not the Coral length text (docs/research/dynamodb-streams.md#65-error-and-validation-texts)",
+          "validated": "2026-11-03"
+        }
       }
     },
     "com.amazon.coral.service#AccessDeniedException": {

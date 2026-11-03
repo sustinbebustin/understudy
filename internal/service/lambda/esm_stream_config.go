@@ -24,7 +24,8 @@ import (
 // BisectBatchOnFunctionError, TumblingWindowInSeconds above 0, a
 // FilterCriteria pattern and an S3 on-failure destination. The SQS rule
 // that a BatchSize above 10 needs a batching window does not apply to a
-// stream (contract 8.2 step 4).
+// stream (contract 8.2 step 4; aws-recorded for DynamoDB,
+// lambda-stream-sources.md 3.3: ESMS-02 03).
 
 // defaultStreamBatchSize is a stream mapping's BatchSize when Create sets
 // none (lambda-stream-sources.md 3.5, recorded LS-D:L246-L271).
@@ -216,6 +217,26 @@ func (u streamSettings) checkUnbuilt(noun string) *awserr.Error {
 	return nil
 }
 
+// refuseOnSQS refuses an SQS mapping that carries a member of the stream
+// type, in AWS's words (aws-recorded on Create, one member at a time,
+// lambda-stream-sources.md 3.4: ESMS-03 02-06). Update is inferred to
+// refuse them alike, and the order when several are set is unrecorded.
+func (u streamSettings) refuseOnSQS() *awserr.Error {
+	switch {
+	case u.parallelization != nil:
+		return errUnsupportedMember("ParallelizationFactor")
+	case u.bisect != nil:
+		return errUnsupportedMember("BisectBatchOnFunctionError")
+	case u.retries != nil:
+		return errUnsupportedMember("MaximumRetryAttempts")
+	case u.recordAge != nil:
+		return errUnsupportedMember("MaximumRecordAgeInSeconds")
+	case u.tumbling != nil:
+		return errUnsupportedMember("TumblingWindowInSeconds")
+	}
+	return nil
+}
+
 // applyLimits sets the record age and retry limit u carries on settings;
 // -1 lifts either. The model's ranges (-1 to 604800, -1 to 10000) are
 // checked before a handler runs, and the record-age floor by checkUnbuilt.
@@ -237,9 +258,9 @@ func (u streamSettings) applyLimits(settings *esm.StreamSettings) {
 // streamOnFailure reads an on-failure destination: "" is none, which also
 // clears one on Update (aws-doc "supply an empty string",
 // lambda-stream-sources.md 3.7); an SQS queue or SNS topic is kept; an S3
-// bucket answers 501; anything else is the recorded unsupported text.
-// Whether the destination exists is checked only at delivery (inferred,
-// 3.7).
+// bucket answers 501; a FIFO queue and anything else are refused with
+// recorded texts. Whether the destination exists is checked only at
+// delivery (inferred, 3.7).
 func streamOnFailure(dest, noun string) (esm.OnFailure, *awserr.Error) {
 	if dest == "" {
 		return esm.NoDestination{}, nil
@@ -250,6 +271,9 @@ func streamOnFailure(dest, noun string) (esm.OnFailure, *awserr.Error) {
 	}
 	switch a.Service {
 	case "sqs":
+		if strings.HasSuffix(a.Resource, ".fifo") {
+			return nil, errFIFOStreamDestination()
+		}
 		return esm.QueueDestination{ARN: a}, nil
 	case "sns":
 		return esm.TopicDestination{ARN: a}, nil

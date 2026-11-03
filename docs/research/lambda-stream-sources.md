@@ -14,6 +14,8 @@ Evidence labels (the labels of `internal/evidence`):
 
 UNVERIFIED marks behavior no source fixes. Each one names its recording case `ESMS-NN` (section 13).
 
+The recording session of 2026-11-03 (fixtures in `testdata/parity/lambda/ESMS-*` and `testdata/parity/logs/ESMS-*`, each with a `notes.md`) ran only the DynamoDB and SQS steps: a free-plan service control policy denies Kinesis in the recording account. ESMS-01, 04, 06, 07, 08, 09, 12, 15 and 18 are wholly Kinesis and stay n/a; their lines stay UNVERIFIED.
+
 Abbreviations, each an upstream identity:
 
 - `LS-K` = localstack@8b9a79f tests/aws/services/lambda_/event_source_mapping/test_lambda_integration_kinesis.snapshot.json ([file](https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/lambda_/event_source_mapping/test_lambda_integration_kinesis.snapshot.json)); `LS-K.py` is the test source beside it.
@@ -106,7 +108,7 @@ All are third-party-recorded unless marked. `IPVE` stands for `InvalidParameterV
 | 6 | Filter pattern not a JSON object of arrays (`single-string`, `[{"eventName": ["INSERT"=123}]`) | IPVE 400 | `Invalid filter pattern definition.` | LS-D:L458-L490, patterns at LS-D.py:L883-L889 |
 | 7 | Smithy range violation on a stream member (`ParallelizationFactor` 0 or 11, `MaximumRetryAttempts` -2 or 10001, `TumblingWindowInSeconds` 901, `BatchSize` 10001, `MaximumRecordAgeInSeconds` -2 or 604801) | UNVERIFIED | Plausible: `ValidationException` `1 validation error detected: Value '<v>' at '<lowerCamelName>' failed to satisfy constraint: Member must have value less than or equal to <max>` (the format lambda-events.md 1.3 cites), or an IPVE (ESMS-01) | |
 | 8 | `MaximumRecordAgeInSeconds` 0..59 (inside the Smithy range) | UNVERIFIED | AWS documents only that such values "are not allowed". Plausible: an IPVE with an unrecorded text (ESMS-01). Terraform refuses them before sending (`TF-ESM:L258-L266`) | |
-| 9 | Explicit `BatchSize` above 10 with `MaximumBatchingWindowInSeconds` 0 on a stream | UNVERIFIED | Options: accepted (as the default 100 is), or the SQS text `Maximum batch window in seconds must be greater than 0 if maximum batch size is greater than 10` (ESMS-02) | |
+| 9 | Explicit `BatchSize` above 10 with `MaximumBatchingWindowInSeconds` 0 on a stream | DynamoDB: accepted, 202 with `BatchSize 11` (ESMS-02 03, recorded 2026-11-03); Kinesis UNVERIFIED (ESMS-02 01, 02, 04-06: n/a, free-plan SCP denies Kinesis) | The SQS text `Maximum batch window in seconds must be greater than 0 if maximum batch size is greater than 10` does not apply on DynamoDB | |
 | 10 | Six filters | UNVERIFIED | "Lambda returns an error when you try to create the event source" ([filtering](https://docs.aws.amazon.com/lambda/latest/dg/invocation-eventfiltering.html)) (ESMS-01) | |
 | 11 | A data pattern that is not JSON (`{"data": "plain"}`) | UNVERIFIED | "Lambda throws an exception at the time of the event source mapping creation or update" ([kinesis-filtering](https://docs.aws.amazon.com/lambda/latest/dg/with-kinesis-filtering.html)). Plausible: row 6's text (ESMS-01) | |
 | 12 | Stream in another Region | UNVERIFIED | DynamoDB: "Cross-region triggers are not supported". Text unknown (ESMS-01) | |
@@ -118,7 +120,8 @@ All are third-party-recorded unless marked. `IPVE` stands for `InvalidParameterV
 
 - The API reference scopes each member: `ParallelizationFactor` and `TumblingWindowInSeconds` "(Kinesis and DynamoDB Streams only)"; `BisectBatchOnFunctionError`, `MaximumRecordAgeInSeconds`, `MaximumRetryAttempts` and `DestinationConfig` "(Kinesis, DynamoDB Streams, Amazon MSK, and self-managed Apache Kafka)"; `ScalingConfig` "(Amazon SQS only)"; `StartingPosition` "Required for Amazon Kinesis and Amazon DynamoDB Stream event sources" ([CreateESM](https://docs.aws.amazon.com/lambda/latest/api/API_CreateEventSourceMapping.html)).
 - The only recorded cross-type refusal is SQS's: `DestinationConfig.OnSuccess` on an SQS mapping answers `Unsupported DestinationConfig parameter for given event source mapping type.` (lambda-events.md 1.3, LS-API:L5858-L5868).
-- UNVERIFIED: whether AWS refuses each stream member on an SQS mapping (`StartingPosition`, `ParallelizationFactor`, `BisectBatchOnFunctionError`, `MaximumRetryAttempts`, `MaximumRecordAgeInSeconds`, `TumblingWindowInSeconds`, `DestinationConfig.OnFailure`), each SQS member on a stream mapping (`ScalingConfig`, `ProvisionedPollerConfig`, `Queues`), and `OnSuccess` on a stream mapping, which the model calls "Not supported". It could instead accept and drop them. Plausible: refusal with IPVE texts like the recorded SQS one (ESMS-03). Today `createMapping` in `internal/service/lambda/esm_config.go` builds its settings without `StartingPosition`, `ParallelizationFactor`, `BisectBatchOnFunctionError`, `MaximumRetryAttempts`, `MaximumRecordAgeInSeconds` and `TumblingWindowInSeconds`, so an SQS mapping ignores them silently. `mappingSettings.apply` already refuses any `DestinationConfig` destination on an SQS mapping, `OnFailure` included, with the recorded `OnSuccess` text.
+- Recorded (ESMS-03 01-07, 2026-11-03): Create refuses each stream member on an SQS mapping, sent one at a time, with 400 `InvalidParameterValueException` and `"Type":"User"`: `StartingPosition is not valid for SQS event sources.`; `Unsupported <Member> parameter for given event source mapping type.` for `ParallelizationFactor`, `BisectBatchOnFunctionError`, `MaximumRetryAttempts`, `MaximumRecordAgeInSeconds` and `TumblingWindowInSeconds`; and the recorded `OnSuccess` text, `Unsupported DestinationConfig parameter for given event source mapping type.`, for `DestinationConfig.OnFailure`. understudy refuses them the same way (`refuseOnSQS` in `internal/service/lambda/esm_stream_config.go`), on Update as well (inferred).
+- UNVERIFIED: the order when several are set, Update's answer, each SQS member on a stream mapping (`ScalingConfig`, `ProvisionedPollerConfig`, `Queues`), and `OnSuccess` on a stream mapping, which the model calls "Not supported" (ESMS-03 08-11: n/a, free-plan SCP denies Kinesis). A stream mapping still ignores the SQS members.
 
 ### 3.5 Recorded responses
 
@@ -148,7 +151,7 @@ Create for a Kinesis stream with only `StartingPosition: LATEST` set, HTTP 202 (
 ```
 
 - `DestinationConfig` is `{"OnFailure": {}}` with no destination configured (LS-K:L8-L10, LS-D:L44-L46, LS-D:L150-L152) and `{"OnFailure": {"Destination": "<arn>"}}` with one (LS-K:L1301-L1305).
-- Absent from every recorded stream response: `FilterCriteria` (present only when set, LS-K:L1376-L1388), `ScalingConfig`, `ProvisionedPollerConfig`, `MetricsConfig`, `KMSKeyArn`, `StartingPositionTimestamp`, `Queues`, `Topics`, `SourceAccessConfigurations`, `SelfManagedEventSource`. No recording uses `AT_TIMESTAMP`, so the timestamp's echo is UNVERIFIED (ESMS-04).
+- Absent from every recorded stream response: `FilterCriteria` (present only when set, LS-K:L1376-L1388), `ScalingConfig`, `ProvisionedPollerConfig`, `MetricsConfig`, `KMSKeyArn`, `StartingPositionTimestamp`, `Queues`, `Topics`, `SourceAccessConfigurations`, `SelfManagedEventSource`. No recording uses `AT_TIMESTAMP`, so the timestamp's echo is UNVERIFIED (ESMS-04). Those recordings are SDK-parsed; the raw body of a DynamoDB Create (ESMS-02 03, recorded 2026-11-03) carries every unset member as JSON `null` (`FilterCriteria`, `ScalingConfig`, `Queues`, `StartingPositionTimestamp`, ...) and `DestinationConfig` as `{"OnSuccess":null,"OnFailure":{"Destination":null}}`. understudy leaves them out, which an SDK reads the same way.
 - `FunctionResponseTypes` echoes `["ReportBatchItemFailures"]` when set (LS-K:L1670-L1672).
 - `LastProcessingResult` is `"No records processed"` until a batch completes, then `"OK"`: in a Get after one successful invocation (LS-K:L3066, with `State` `Enabled` at L3072) and in an Update response after processing (LS-D:L184). LocalStack skips the field as flaky in its own comparison (LS-K.py:L1339-L1344), but the recorded values are AWS's. UNVERIFIED: the values after a failed batch, a throttle, or the loss of the stream or function (ESMS-14). lambda-events.md 1.4 cites one third-party value, `PROBLEM: internal Lambda error. Please contact Lambda customer support.`
 - `StateTransitionReason` is `"User action"` on Create, Get, Update, List and Delete (LS-K:L23, LS-D:L191, LS-D:L292, LS-API:L5922-L5998).
@@ -158,7 +161,7 @@ Create for a Kinesis stream with only `StartingPosition: LATEST` set, HTTP 202 (
 
 - Create answers `Creating` and later reads `Enabled` (LS-API:L5941, L5969), as for SQS (lambda-events.md 1.5).
 - `UpdateEventSourceMapping` with `Enabled: false` answers 202 with `State: "Disabling"` and `LastProcessingResult: "OK"` (LS-D:L173-L197). The mapping then reads `Disabled` (LS-K.py:L472-L473 waits for it). This settles the `Disabling` UNVERIFIED of lambda-events.md 1.5 for a DynamoDB mapping.
-- LocalStack's AWS run then sleeps 60 seconds "so the event source mapping is for sure disabled, sadly the state is no real indication" (LS-K.py:L474-L476). That is a third-party remark that polling may outlast `Disabled`. UNVERIFIED (ESMS-13).
+- LocalStack's AWS run then sleeps 60 seconds "so the event source mapping is for sure disabled, sadly the state is no real indication" (LS-K.py:L474-L476). That is a third-party remark that polling may outlast `Disabled`. UNVERIFIED (ESMS-13). Recorded on DynamoDB (ESMS-13 08-11, 2026-11-03): the disabling update answers 202 `Disabling`, "User action", "OK"; the mapping reads `Disabled` from the first sample, in the same second; the re-enabling update answers 202 `Enabling`, "User action", "OK".
 - UNVERIFIED: whether a stream mapping created with `Enabled: false` answers `Disabled` at once as an SQS one does, whether an update of another field answers `Updating`, and how long `Creating` lasts given "several minutes" to start polling (ESMS-14).
 
 ### 3.7 DestinationConfig on streams
@@ -167,7 +170,8 @@ Create for a Kinesis stream with only `StartingPosition: LATEST` set, HTTP 202 (
 - The execution role needs `sqs:SendMessage`, `sns:Publish`, or `s3:PutObject` with `s3:ListBucket` (same page).
 - Removal: "To remove a destination, supply an empty string as the argument to the `destination-config` parameter", with the example `--destination-config '{"OnFailure": {"Destination": ""}}'` (same page). The model's pattern admits the empty string (2.2).
 - "Updated settings are applied asynchronously and aren't reflected in the output until the process completes. Use the get-event-source-mapping command to view the current status." (same page).
-- UNVERIFIED: whether Create checks that the destination exists (and the texts), whether a FIFO queue or topic is refused for DynamoDB (the params page says "standard"), whether a Lambda function ARN or `kafka://` destination is refused for a stream mapping, and what the response holds after removal, plausibly `{"OnFailure": {}}` (ESMS-05).
+- Recorded (ESMS-05 04, 2026-11-03): a FIFO queue as a DynamoDB mapping's `OnFailure` is refused, 400 `InvalidParameterValueException` `{"Type":"User","message":"FIFO-type Amazon SQS queues aren't supported as a destination."}`. understudy refuses it on both stream kinds (inferred for Kinesis).
+- UNVERIFIED (ESMS-05 01-03, 05-11: n/a, free-plan SCP denies Kinesis): whether Create checks that the destination exists (and the texts), whether a FIFO topic is refused, whether a Lambda function ARN or `kafka://` destination is refused for a stream mapping, and what the response holds after removal, plausibly `{"OnFailure": {}}` (ESMS-05).
 - "Amazon SNS destinations have a message size limit of 256 KB. If the combined size of the function request and response payload exceeds the limit, Lambda will drop the payload when sending `OnFailure` event to the destination." (smithy, member doc of `com.amazonaws.lambda#OnFailure$Destination`). For stream mappings SQS and SNS receive only metadata (5.6).
 
 ## 4. Polling and batch assembly
@@ -177,7 +181,7 @@ Create for a Kinesis stream with only `StartingPosition: LATEST` set, HTTP 202 (
 - DynamoDB: "Lambda polls shards in your DynamoDB stream for records at a base rate of 4 times per second. When records are available, Lambda invokes your function and waits for the result. If processing succeeds, Lambda resumes polling until it receives more records." ([with-ddb](https://docs.aws.amazon.com/lambda/latest/dg/with-ddb.html)).
 - Kinesis, standard iterator: "Lambda polls each shard in your Kinesis stream for records at a base rate of once per second. When more records are available, Lambda keeps processing batches until the function catches up with the stream." Enhanced fan-out consumers instead receive pushed records over HTTP/2 ([with-kinesis](https://docs.aws.amazon.com/lambda/latest/dg/with-kinesis.html)).
 - Start: several minutes after create or update (3.2). On retries, "Lambda makes `kinesis:GetRecords` and `kinesis:GetShardIterator` API calls" ([kinesis-create](https://docs.aws.amazon.com/lambda/latest/dg/services-kinesis-create.html)). "You are not charged for GetRecords API calls invoked by Lambda as part of DynamoDB triggers." ([ddb-create](https://docs.aws.amazon.com/lambda/latest/dg/services-dynamodb-eventsourcemapping.html)).
-- UNVERIFIED: the delay between a write and its invocation for each source, with and without a batching window (ESMS-17).
+- Recorded on DynamoDB, `LATEST`, window 0 (ESMS-17 07-09, 2026-11-03): 0.45 to 1.78 s from put to the function's first log line, median about 0.75 s, one record per invocation, over ten puts 3.5 s apart. UNVERIFIED: Kinesis, and a batching window (ESMS-17 01-06: n/a, free-plan SCP denies Kinesis).
 
 ### 4.2 Batch assembly
 
@@ -198,7 +202,8 @@ Create for a Kinesis stream with only `StartingPosition: LATEST` set, HTTP 202 (
 
 - Kinesis: "You can specify the number of concurrent batches that Lambda polls from a shard by using a parallelization factor from 1 (default) to 10. For example, when you set `ParallelizationFactor` to 2, you can have 200 concurrent Lambda invocations at maximum to process 100 Kinesis data shards ... When you increase the number of concurrent batches per shard, Lambda still ensures in-order processing at the partition-key level." ([with-kinesis](https://docs.aws.amazon.com/lambda/latest/dg/with-kinesis.html)).
 - DynamoDB: "With `ParallelizationFactor`, Lambda runs multiple concurrent batches per shard and groups the records in each shard by partition key. Within a shard, records that share a partition key go to the same concurrent batch and are processed in order. Records with different partition keys can be processed concurrently. DynamoDB Streams guarantees ordering per item (partition key and sort key)." ([with-ddb](https://docs.aws.amazon.com/lambda/latest/dg/with-ddb.html)).
-- UNVERIFIED: how keys are assigned to concurrent batches. Plausible options are a hash of the partition key modulo the factor, or dynamic assignment. Also unknown: whether a key keeps its lane across retries, and whether a failing lane blocks the other lanes of its shard (ESMS-11).
+- Recorded on DynamoDB (ESMS-11 03-04, 2026-11-03; factor 3, batch 10, window 2 s, 30 writes over 6 keys, 5 each): no two keys shared an invocation, though `BatchSize 10` allowed two keys per batch: 6 invocations of 5 records, each key's writes in order, all started within 30 ms. The stream had several shards and a DynamoDB record carries no shard id, so lanes per shard cannot be read from this.
+- UNVERIFIED: how keys are assigned to concurrent batches. Plausible options are a hash of the partition key modulo the factor, or dynamic assignment; ESMS-11's one-key batches favor neither. Also unknown: whether a key keeps its lane across retries, and whether a failing lane blocks the other lanes of its shard (ESMS-11 01-02: n/a, free-plan SCP denies Kinesis).
 
 ### 4.5 Filtering
 
@@ -217,13 +222,13 @@ Create for a Kinesis stream with only `StartingPosition: LATEST` set, HTTP 202 (
 - Non-matching records: "For Kinesis and DynamoDB, after your filter criteria evaluates a record, the streams iterator advances past this record." ([filtering](https://docs.aws.amazon.com/lambda/latest/dg/invocation-eventfiltering.html)). They are never invoked and never retried.
 - Recorded for Kinesis: two mappings on one stream filtering `data.event_type` on `function_1` and `function_2`. Each function was invoked exactly once, with its own record (LS-K.py:L1461-L1535, LS-K:L1365-L1446).
 - Recorded for DynamoDB (third-party-recorded; LocalStack calls its own negative cases unreliable, LS-D.py:L676-L680):
-  - `{"eventName": ["INSERT", "MODIFY"]}` was accepted, and both the INSERT and the MODIFY were delivered (LS-D.py:L695-L701, LS-D:L715-L889). A metadata key is therefore accepted at create, despite "only support filtering on the `dynamodb` key". That a metadata key excludes anything is not recorded. The `insert_same_entry_twice` case cannot show it, because "If you perform a `PutItem` or `UpdateItem` operation that does not change any data in an item, DynamoDB Streams does not write a stream record" ([Streams](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Streams.html)). UNVERIFIED: whether metadata keys (`eventName`, `eventSource`, `awsRegion`, `userIdentity`, Kinesis `partitionKey`) match and exclude records (ESMS-16).
+  - `{"eventName": ["INSERT", "MODIFY"]}` was accepted, and both the INSERT and the MODIFY were delivered (LS-D.py:L695-L701, LS-D:L715-L889). A metadata key is therefore accepted at create, despite "only support filtering on the `dynamodb` key". That a metadata key excludes anything is not recorded. The `insert_same_entry_twice` case cannot show it, because "If you perform a `PutItem` or `UpdateItem` operation that does not change any data in an item, DynamoDB Streams does not write a stream record" ([Streams](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Streams.html)). Recorded (ESMS-16 07-08, 2026-11-03): `{"eventName":["INSERT"]}` is accepted (202, echoed as sent) and excludes: of an INSERT, a MODIFY and a REMOVE, only the INSERT was delivered. UNVERIFIED: the other metadata keys (`eventSource`, `awsRegion`, `userIdentity`, Kinesis `partitionKey`) (ESMS-16 01-06: n/a, free-plan SCP denies Kinesis).
   - The attribute type key is part of the path: `{"dynamodb": {"NewImage": {"presentKey": {"S": ["presentValue"]}}}}` matched (LS-D.py:L711-L719). LocalStack's comment that leaving out `"S"` does not match is not a recording.
   - `{"dynamodb": {"NewImage": {"presentKey": [{"exists": false}]}}}` matched both items, including the one with `presentKey`, an intermediate node (LS-D.py:L729-L735). This fits "The Exists operator only works on leaf nodes" ([ddb-filtering](https://docs.aws.amazon.com/lambda/latest/dg/with-ddb-filtering.html)).
   - A `numeric` operator on an `N` value never matched, because the values are strings: "DynamoDB event filtering doesn't support the use of numeric operators" (same page; recorded at LS-D.py:L736-L756).
   - `{"numeric": [">", 0]}` on `dynamodb.ApproximateCreationDateTime` matched both records, so the timestamp is a number when filtered (LS-D.py:L765-L774), although the filtering page's example prints it as the string `"1678831218.0"` (section 10 row 10).
 - The grammar is EventBridge's, through the shared `ruler` engine. The Lambda-specific deviations are already the `lambda.esm-filter.*` switches ([matching-engines.md](matching-engines.md)). Aggregated KPL records are filtered only for enhanced fan-out consumers ([kinesis-filtering](https://docs.aws.amazon.com/lambda/latest/dg/with-kinesis-filtering.html)).
-- UNVERIFIED: whether records dropped by a filter count toward `BatchSize`. Plausible: they do not, since the iterator only advances past them (ESMS-16).
+- UNVERIFIED: whether records dropped by a filter count toward `BatchSize`. Plausible: they do not, since the iterator only advances past them (ESMS-16 02: n/a, free-plan SCP denies Kinesis).
 
 ## 5. Failure handling
 
@@ -330,7 +335,8 @@ LocalStack has no tumbling-window case, so this section is aws-doc and sdk-sourc
 - "Lambda determines tumbling window boundaries based on the time when records were inserted into the stream. All records have an approximate timestamp available that Lambda uses in boundary determinations." (both pages). The examples' windows start on multiples of the window length since the epoch (inferred).
 - Kinesis only: "When no new records are being added to the current window, Lambda waits for up to 2 minutes before assuming that the window is over." ([kinesis-windows](https://docs.aws.amazon.com/lambda/latest/dg/services-kinesis-windows.html)). The DynamoDB page omits this sentence.
 - "Tumbling window aggregations do not support resharding. When a shard ends, Lambda considers the current window to be closed, and any child shards start their own window in a fresh state." "Tumbling windows fully support the existing retry policies `maxRetryAttempts` and `maxRecordAge`." "Records are always processed in order the first time. If records are processed more than once, they might be processed out of order." (both pages).
-- UNVERIFIED: the alignment rule; the first invocation's `state` (`{}`, `null` or absent); whether the final invoke carries records or `Records: []`; when the final invoke fires on DynamoDB; and how windows combine with `ParallelizationFactor` and `batchItemFailures` (ESMS-10).
+- Recorded on DynamoDB (ESMS-10 06-07, 2026-11-03; batch 2, window 60 s, three puts 5 s apart that landed on three shards): windows start on multiples of the window length since the epoch, by each record's `ApproximateCreationDateTime` (`{"start":"2026-11-03T16:37:00Z","end":"2026-11-03T16:38:00Z"}`, RFC 3339 with `Z` and no fraction); the first invocation's `state` is `{}`; record invocations carry `isFinalInvokeForWindow false` and `isWindowTerminatedEarly false`; the final invoke carries `Records: []`, `isFinalInvokeForWindow true` and the state; it fired per shard 130, 140 and 180 s after that shard's record invocation, consistent with the Kinesis page's 2-minute idle close. Every record invocation came about 70 s after the first put.
+- UNVERIFIED: Kinesis windows, and how windows combine with `ParallelizationFactor` and `batchItemFailures` (ESMS-10 01-05: n/a, free-plan SCP denies Kinesis).
 
 ## 7. Lifecycle
 
@@ -338,7 +344,8 @@ LocalStack has no tumbling-window case, so this section is aws-doc and sdk-sourc
 
 - "When false, Lambda pauses polling and invocation." ([CreateESM](https://docs.aws.amazon.com/lambda/latest/api/API_CreateEventSourceMapping.html)); "You can change the function that AWS Lambda invokes, or pause invocation and resume later from the same location." ([UpdateESM](https://docs.aws.amazon.com/lambda/latest/api/API_UpdateEventSourceMapping.html)); "Set to false to stop processing records. Lambda keeps track of the last record processed and resumes processing from that point when the mapping is reenabled." ([ddb-create](https://docs.aws.amazon.com/lambda/latest/dg/services-dynamodb-eventsourcemapping.html)).
 - Recorded, as weak absence checks: after the disabling update, a record written two seconds later on DynamoDB (LS-D.py:L317-L327), or 60 seconds after `Disabled` on Kinesis (LS-K.py:L472-L488), did not invoke the function.
-- UNVERIFIED: that records written while disabled arrive after re-enable on Kinesis (the API wording implies it; only the DynamoDB page says so outright); how long polling continues after `Disabled` reads; and whether an in-flight batch completes (ESMS-13). Records that pass the retention limit while the mapping is disabled are lost (inferred from 5.3).
+- Recorded on DynamoDB (ESMS-13 07-11, 2026-11-03): a record written while the mapping was `Disabled` was not invoked; it was invoked 37 s after re-enabling, once, and the record before the disable was not delivered again.
+- UNVERIFIED: that records written while disabled arrive after re-enable on Kinesis (the API wording implies it; only the DynamoDB page says so outright); how long polling continues after `Disabled` reads; and whether an in-flight batch completes (ESMS-13 01-06: n/a, free-plan SCP denies Kinesis). Records that pass the retention limit while the mapping is disabled are lost (inferred from 5.3).
 
 ### 7.2 Shard close, resharding, DynamoDB shard rollover
 
@@ -350,7 +357,8 @@ LocalStack has no tumbling-window case, so this section is aws-doc and sdk-sourc
 
 - Recorded: immediately after `DeleteTable`, `ListEventSourceMappings` still shows the mapping `Enabled` (LS-D.py:L329-L372, LS-D:L272-L301). After the function is deleted, the DynamoDB mapping also stays `Enabled` (lambda-events.md 1.5).
 - "If you disable and then re-enable a stream on the table, a new stream is created with a different stream descriptor." ([Streams](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Streams.html)), so a mapping keeps pointing at the old stream (inferred).
-- UNVERIFIED: the later `State`, `StateTransitionReason` and `LastProcessingResult` of a mapping whose stream, table or function is gone (ESMS-14).
+- Recorded for a deleted table (ESMS-14 10-11, 2026-11-03): the mapping stayed `Enabled` / "User action" / "No records processed" for about 108 s, then read `Disabled` / "Unrecoverable error" / "PROBLEM: Stream is closed", still so 19 minutes later. AWS disables the mapping itself; understudy has no such transition (a follow-up).
+- UNVERIFIED: the same for a gone function, and the states after failures and throttles (ESMS-14 01-09, 12-14: n/a, free-plan SCP denies Kinesis).
 
 ## 8. Event records
 
@@ -398,7 +406,7 @@ Envelope `{"Records": [...]}`. Recorded (LS-K:L33-L48) and documented ([with-kin
 | 1 | Polling rate | Kinesis: "once per second" ([with-kinesis](https://docs.aws.amazon.com/lambda/latest/dg/with-kinesis.html)) | DynamoDB: "4 times per second" ([with-ddb](https://docs.aws.amazon.com/lambda/latest/dg/with-ddb.html), lambda-events.md 9.1); the two are easy to conflate | per-source rates |
 | 2 | Stream destinations | params pages: SQS or SNS ("standard" for DynamoDB) | API reference and on-failure pages: SQS, SNS, S3 or Kafka; S3 recorded for both | SQS, SNS, S3 |
 | 3 | DynamoDB `MaximumRetryAttempts` minimum | [ddb-params](https://docs.aws.amazon.com/lambda/latest/dg/services-ddb-params.html): 0 | model and API reference: -1, and -1 echoed by AWS (LS-D:L161) | -1 |
-| 4 | Batch-window rule | API reference: a batch above 10 needs a window of at least 1 for Kinesis and DynamoDB | default 100 with window 0 accepted (LS-K:L6, L17) | recorded; explicit 11 UNVERIFIED |
+| 4 | Batch-window rule | API reference: a batch above 10 needs a window of at least 1 for Kinesis and DynamoDB | default 100 with window 0 accepted (LS-K:L6, L17); explicit 11 with window 0 accepted on DynamoDB (ESMS-02 03) | recorded; explicit 11 on Kinesis UNVERIFIED |
 | 5 | DynamoDB filter keys | "only support filtering on the `dynamodb` key" | an `eventName` pattern accepted and matching (LS-D.py:L695-L701) | recorded acceptance |
 | 6 | Kinesis params table | no `FilterCriteria` row ([kinesis-params](https://docs.aws.amazon.com/lambda/latest/dg/services-kinesis-parameters.html)) | filtering pages support Kinesis; recorded (LS-K:L1376-L1388) | supported |
 | 7 | DynamoDB `EventSourceArn` | params page: "ARN of the data stream or a stream consumer" | API reference: "The ARN of the stream" | the stream ARN |
@@ -411,24 +419,26 @@ Envelope `{"Records": [...]}`. Recorded (LS-K:L33-L48) and documented ([with-kin
 
 ## 11. UNVERIFIED register
 
-1. Texts for stream range violations, a record age of 1 to 59, six filters, a non-JSON data pattern, a cross-region stream, and a duplicate named by ARN (3.3; ESMS-01).
-2. Explicit `BatchSize` above 10 with window 0 on a stream (3.3; ESMS-02).
-3. Refusal or silent acceptance of members that belong to the other source type, and of `OnSuccess` on streams (3.4; ESMS-03).
-4. `AT_TIMESTAMP` rules and the timestamp's echo (3.2; ESMS-04).
-5. Destination checks at create, FIFO destinations for DynamoDB, the response after removal, and the update echo (3.7; ESMS-05).
-6. Retry delay, and whether a retried batch grows (5.1; ESMS-06).
-7. The bisection algorithm and its retry accounting (5.4; ESMS-07).
-8. Partial-batch edges: an outside sequence number, descending order, non-object results, key case, and the attempt count after a partial resend (5.5; ESMS-08).
-9. The basis of the record-age check, condition precedence, and grouping of expired records (5.3; ESMS-09).
-10. Tumbling-window alignment, first state, final invoke, and the DynamoDB idle close (6.2; ESMS-10).
-11. Lane assignment under `ParallelizationFactor` (4.4; ESMS-11).
-12. Parent-before-child shard order for Kinesis mappings (7.2; ESMS-12).
-13. Resume after re-enable on Kinesis, and polling after `Disabled` (3.6, 7.1; ESMS-13).
-14. State timing, `Disabled` at create, `Updating`, and `LastProcessingResult` and `StateTransitionReason` after failures, throttles and deletions (3.5, 3.6, 7.3; ESMS-14).
-15. SQS message attributes, `functionArn` qualification, and the form of a `RecordAgeExceeded` record on S3 (5.6; ESMS-15).
-16. Metadata-key filters, and whether filtered records count toward the batch size (4.5; ESMS-16).
-17. Write-to-invocation latency per source, with and without a window (4.1; ESMS-17).
-18. 6 MB batch accounting (4.2; ESMS-18).
+The 2026-11-03 session settled the DynamoDB and SQS parts noted below; every Kinesis part is n/a there (free-plan SCP denies Kinesis) and stays open.
+
+1. Texts for stream range violations, a record age of 1 to 59, six filters, a non-JSON data pattern, a cross-region stream, and a duplicate named by ARN (3.3; ESMS-01: n/a).
+2. Explicit `BatchSize` above 10 with window 0 on a Kinesis stream (3.3; ESMS-02). DynamoDB recorded: accepted.
+3. SQS members on a stream mapping, `OnSuccess` on streams, and the order of the SQS refusals (3.4; ESMS-03). Stream members on an SQS mapping recorded: refused.
+4. `AT_TIMESTAMP` rules and the timestamp's echo (3.2; ESMS-04: n/a).
+5. Destination checks at create, the response after removal, and the update echo (3.7; ESMS-05). A FIFO queue for DynamoDB recorded: refused.
+6. Retry delay, and whether a retried batch grows (5.1; ESMS-06: n/a).
+7. The bisection algorithm and its retry accounting (5.4; ESMS-07: n/a).
+8. Partial-batch edges: an outside sequence number, descending order, non-object results, key case, and the attempt count after a partial resend (5.5; ESMS-08: n/a).
+9. The basis of the record-age check, condition precedence, and grouping of expired records (5.3; ESMS-09: n/a).
+10. Kinesis tumbling windows, and windows with `ParallelizationFactor` and `batchItemFailures` (6.2; ESMS-10). DynamoDB alignment, first state, final invoke and idle close recorded.
+11. Lane assignment under `ParallelizationFactor` (4.4; ESMS-11). DynamoDB recorded one key per batch, which does not decide it.
+12. Parent-before-child shard order for Kinesis mappings (7.2; ESMS-12: n/a).
+13. Resume after re-enable on Kinesis, and polling after `Disabled` (3.6, 7.1; ESMS-13). DynamoDB resume recorded.
+14. State timing, `Disabled` at create, `Updating`, and `LastProcessingResult` and `StateTransitionReason` after failures, throttles and a gone function (3.5, 3.6, 7.3; ESMS-14). A deleted table recorded: `Disabled` after about 108 s.
+15. SQS message attributes, `functionArn` qualification, and the form of a `RecordAgeExceeded` record on S3 (5.6; ESMS-15: n/a).
+16. Kinesis metadata-key filters, and whether filtered records count toward the batch size (4.5; ESMS-16). DynamoDB `eventName` recorded: accepted and filters.
+17. Write-to-invocation latency on Kinesis and with a window (4.1; ESMS-17). DynamoDB without a window recorded.
+18. 6 MB batch accounting (4.2; ESMS-18: n/a).
 
 ## 12. Implications for understudy
 
@@ -494,10 +504,10 @@ Envelope `{"Records": [...]}`. Recorded (LS-K:L33-L48) and documented ([with-kin
 
 | Switch | Default | Label | Grounds | Settled by |
 |---|---|---|---|---|
-| `lambda.esm-stream.latest-anchor` | `create-instant` | inferred | 3.2 | ESMS-17 |
-| `lambda.esm-stream.batch-window-rule` | `sqs-only` | inferred | 3.3 | ESMS-02 |
+| `lambda.esm-stream.latest-anchor` | `create-instant` | inferred | 3.2 | ESMS-17 (not settled: the DynamoDB run waited 120 s after `Enabled`) |
+| `lambda.esm-stream.batch-window-rule` | `sqs-only` | aws-recorded for DynamoDB (ESMS-02 03), inferred for Kinesis | 3.3 | ESMS-02 |
 | `lambda.esm-stream.record-age-floor` | `InvalidParameterValueException` | inferred | 3.3 | ESMS-01 |
-| `lambda.esm-stream.foreign-parameters` | `ignore` | inferred | 3.4 | ESMS-03 |
+| `lambda.esm-stream.foreign-parameters` | `refuse` on an SQS mapping, `ignore` on a stream mapping | aws-recorded on SQS (ESMS-03 01-07), inferred on streams | 3.4 | ESMS-03 |
 | `lambda.esm-stream.destination-existence` | `at-delivery` | inferred | 3.7 | ESMS-05 |
 | `lambda.esm-stream.retry-delay` | `poll-interval` (250 ms for DynamoDB, 1 s for Kinesis, emulator time, from the failed invocation's end; the rates are aws-doc 4.1, their use as the retry delay is not) | inferred | 5.1 | ESMS-06 |
 | `lambda.esm-stream.retry-batch` | `same-records` | inferred | 5.1 | ESMS-06 |
@@ -506,22 +516,22 @@ Envelope `{"Records": [...]}`. Recorded (LS-K:L33-L48) and documented ([with-kin
 | `lambda.esm-stream.report-key-case` | `exact` | inferred | 5.5 | ESMS-08 |
 | `lambda.esm-stream.partial-resend-budget` | `restart` | inferred | 5.5 | ESMS-08 |
 | `lambda.esm-stream.expired-grouping` | `per-record` | inferred | 5.3 | ESMS-09 |
-| `lambda.esm-stream.window-alignment` | `epoch-multiple` | inferred | 6.2 | ESMS-10 |
-| `lambda.esm-stream.window-idle-close` | `2m` | aws-doc for Kinesis, inferred for DynamoDB | 6.2, 10 row 11 | ESMS-10 |
-| `lambda.esm-stream.window-final-invoke` | `empty-records` | inferred | 6.2 | ESMS-10 |
+| `lambda.esm-stream.window-alignment` | `epoch-multiple` | aws-recorded for DynamoDB (ESMS-10 07) | 6.2 | ESMS-10 |
+| `lambda.esm-stream.window-idle-close` | `2m` | aws-doc for Kinesis; DynamoDB recorded 130-180 s after the shard's last invocation (ESMS-10 07) | 6.2, 10 row 11 | ESMS-10 |
+| `lambda.esm-stream.window-final-invoke` | `empty-records` | aws-recorded for DynamoDB (ESMS-10 07) | 6.2 | ESMS-10 |
 | `lambda.esm-stream.parallel-assignment` | `hash-partition-key` | inferred | 4.4 | ESMS-11 |
 | `lambda.esm-stream.reshard-order` | `parent-first` | inferred | 7.2 | ESMS-12 |
-| `lambda.esm-stream.disabled-resume` | `checkpoint` | aws-doc | 7.1 | ESMS-13 |
-| `lambda.esm-stream.last-processing-result-on-failure` | `unchanged` | inferred | 3.5 | ESMS-14 |
+| `lambda.esm-stream.disabled-resume` | `checkpoint` | aws-doc; aws-recorded for DynamoDB (ESMS-13 11) | 7.1 | ESMS-13 |
+| `lambda.esm-stream.last-processing-result-on-failure` | `unchanged` | inferred; a deleted table recorded `PROBLEM: Stream is closed` with `Disabled` (ESMS-14 11) | 3.5 | ESMS-14 |
 | `lambda.esm-stream.on-failure.message-attributes` | `none` | inferred | 5.6 | ESMS-15 |
-| `lambda.esm-stream.metadata-filter-keys` | `matched` | inferred | 4.5 | ESMS-16 |
+| `lambda.esm-stream.metadata-filter-keys` | `matched` | aws-recorded for DynamoDB `eventName` (ESMS-16 08) | 4.5 | ESMS-16 |
 | `lambda.esm-stream.filtered-count` | `excluded-from-batch-size` | inferred | 4.5 | ESMS-16 |
 | `lambda.esm-stream.non-json-data` | `dropped` | aws-doc | 4.5 | ESMS-16 |
 | `lambda.esm-stream.payload-accounting` | `serialized-event` | inferred | 4.2 | ESMS-18 |
 
 The window switches matter only once windows are built (12.1 item 3). There is no poll-interval switch: readers are woken by writes (12.5 item 1).
 
-Only `latest-anchor`, `retry-delay` and `partial-resend-budget` are built as switches, under the per-unit cap of about five new switches (roadmap item 8a). The rest are moot while their feature answers 501 (`bisect`, the window switches, `parallel-assignment`, `reshard-order`, and the three filter switches, since a filter that compiles answers 501 on a stream), implemented as documented (`disabled-resume`, aws-doc), or an UNVERIFIED clause in the CreateEventSourceMapping coverage note with a code comment citing this note and the recording id (`batch-window-rule`, `record-age-floor`, `foreign-parameters`, `destination-existence`, `retry-batch`, `report-outside-sequence`, `report-key-case`, `expired-grouping`, `last-processing-result-on-failure`, `on-failure.message-attributes`, `payload-accounting`). Third-party-recorded behavior (5.2, 5.3, 5.5, 5.6) is fixed behavior with tests that cite the snapshot, not a switch.
+Only `latest-anchor`, `retry-delay` and `partial-resend-budget` are built as switches, under the per-unit cap of about five new switches (roadmap item 8a). The rest are moot while their feature answers 501 (`bisect`, the window switches, `parallel-assignment`, `reshard-order`, and the three filter switches, since a filter that compiles answers 501 on a stream), implemented as documented (`disabled-resume`, aws-doc), fixed behavior after a recording (`foreign-parameters` on an SQS mapping, ESMS-03; `batch-window-rule` on DynamoDB, ESMS-02), or an UNVERIFIED clause in the CreateEventSourceMapping coverage note with a code comment citing this note and the recording id (`batch-window-rule` on Kinesis, `record-age-floor`, `foreign-parameters` on a stream mapping, `destination-existence`, `retry-batch`, `report-outside-sequence`, `report-key-case`, `expired-grouping`, `last-processing-result-on-failure`, `on-failure.message-attributes`, `payload-accounting`). Third-party-recorded behavior (5.2, 5.3, 5.5, 5.6) is fixed behavior with tests that cite the snapshot, not a switch.
 
 ### 12.8 Terraform: apply and an empty second plan
 
@@ -558,6 +568,8 @@ Only `latest-anchor`, `retry-delay` and `partial-resend-budget` are built as swi
 ## 13. Recording queue
 
 Agents never run these. A maintainer runs them in the recording-kit shell (docs/recording-kit.md sections 1 and 2), where `$P`, `$R`, `$A`, `$Q`, `$REC`, `rec` and `recurl` exist. Each entry lists what it settles, its commands, cost, time and teardown. The shared Kinesis stream bills USD 0.015 per shard-hour in US East (N. Virginia) ([Kinesis pricing](https://aws.amazon.com/kinesis/data-streams/pricing/)), so plan one or two sessions and tear it down between them. A session through all entries holds the stream about six hours, about USD 0.10. DynamoDB stream reads by Lambda are free ([DynamoDB pricing](https://aws.amazon.com/dynamodb/pricing/on-demand/)). Lambda, SQS, SNS and S3 use stays within the free tier at these volumes. LocalStack waited minutes for stream mappings to start polling, and the sleeps below allow for that.
+
+Recorded 2026-11-03: the DynamoDB and SQS steps of ESMS-02, 03, 05, 10, 11, 13, 14, 16 and 17; every Kinesis step is n/a (a free-plan service control policy denies Kinesis), so ESMS-01, 04, 06-09, 12, 15 and 18 did not run, and a rerun needs an account that allows Kinesis. Before that rerun: a long `states` loop outlives short-lived session credentials (ESMS-14 lost 8 minutes of samples), so refresh them inside the loop; and a new on-demand table's stream has several shards (4 in that session), so records land on different shards and ESMS-10 and ESMS-11 batches hold fewer records than their recipes assume.
 
 ### 13.1 Setup, helpers and shared teardown
 

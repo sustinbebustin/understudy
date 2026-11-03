@@ -420,6 +420,8 @@ Also needed for apply: `IncreaseStreamRetentionPeriod` with the current value mu
 
 ## 12. UNVERIFIED register
 
+Every KIN item was n/a in the recording session of 2026-11-03: the account's free-plan service control policy denies every Kinesis action, so nothing was created or recorded. Each line below stays UNVERIFIED until a session in an account that allows Kinesis.
+
 | Id | Open question | Plausible options | Where it matters |
 |---|---|---|---|
 | KIN-01 | Even-split formula when 2^128 is not divisible by N | `i * floor(2^128/N)` (kinesalite); `floor(i * 2^128 / N)`; the 3-shard doc example fits both | 3.3; switch `kinesis.hash.even-split` |
@@ -582,6 +584,8 @@ The edge's request cap for Kinesis must exceed a 10 MiB PutRecords after base64 
 ## 14. Recording queue
 
 Agents never run these. A maintainer runs them in the recording shell of `docs/recording-kit.md` sections 1 and 2 (`$P`, `$R`, `$A`, `$REC`, `rec`, `recurl`), in bash, with the session keys exported. Costs use the US East list prices on the [pricing page](https://aws.amazon.com/kinesis/data-streams/pricing/) (provisioned shard-hour USD 0.015, on-demand stream-hour USD 0.040, enhanced fan-out consumer-shard-hour USD 0.015, extended retention shard-hour USD 0.020), rounding every stream up to a full hour.
+
+Status 2026-11-03: not run. Every item was n/a (a free-plan service control policy denies Kinesis in the recording account); run the queue in an account without that policy.
 
 ### 14.0 Helpers and shared streams
 

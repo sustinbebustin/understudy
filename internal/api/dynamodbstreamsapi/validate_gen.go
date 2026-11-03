@@ -371,7 +371,7 @@ func renderedText(r awserr.Rendered) string {
 
 var policyDescribeStream = validationPolicy{
 	paths: []validationPath{
-		{segments: []string{"streamArn"}, param: "StreamArn"},
+		{segments: []string{"streamArn"}, param: "StreamArn", rules: []validationRule{{kinds: kindLength, id: IdentityValidationException, style: styleFixed, reason: "Invalid StreamArn"}}},
 		{segments: []string{"limit"}, param: "Limit"},
 		{segments: []string{"exclusiveStartShardId"}, param: "ExclusiveStartShardId"},
 		{segments: []string{"shardFilter"}, param: "ShardFilter"},

@@ -217,6 +217,9 @@ func (r *runner) replay(s Step, f Fixture, res StepResult) (stepRun, error) {
 	ours := make([]Response, len(xs))
 	for i, x := range xs {
 		out, err := outgoing(*x.Request, r.toUnderstudy(), r.sc.Region)
+		if s.Signing != "" {
+			out.SigningName = s.Signing
+		}
 		if err == nil {
 			ours[i], res.Operation, err = r.t.Send(out)
 		}

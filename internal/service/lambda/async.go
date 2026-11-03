@@ -555,7 +555,7 @@ func (x *Execution) sendRecords(tx *kernel.Tx, scope aws.Scope, ev asyncEvent, c
 		dlq, err := aws.ParseARN(cfg.deadLetter)
 		var req delivery.Request
 		if err == nil {
-			req, err = destination.DeadLetter(dlq, sender, ev.RequestID, inv, ev.Payload)
+			req, err = destination.DeadLetter(dlq, sender, ev.RequestID, condition, inv, ev.Payload)
 		}
 		if err != nil {
 			s.problems = append(s.problems, err)

@@ -224,14 +224,14 @@ func TestRefusedCallsReleaseTheLayersTheyResolved(t *testing.T) {
 			"ResourceConflictException", "Function already exist: fn")
 		errorIs(t, fail(h, lambdaapi.OpCreateFunction, withLayers(t, "other", layerPrefix+"a:1", layerPrefix+"missing:1")),
 			"InvalidParameterValueException", "Layer version "+layerPrefix+"missing:1 does not exist.")
-		if err := fail(h, lambdaapi.OpCreateFunction, withLayers(t, "other", layerPrefix+"a:1", layerPrefix+"big:1")); !strings.HasPrefix(err.Message, "Function code combined with layers") {
+		if err := fail(h, lambdaapi.OpCreateFunction, withLayers(t, "other", layerPrefix+"a:1", layerPrefix+"big:1")); err.Message != layersTooLarge {
 			t.Errorf("CreateFunction over the limit = %q", err.Message)
 		}
 		stale := &lambdaapi.UpdateFunctionConfigurationInput{FunctionName: "fn", Layers: []string{layerPrefix + "a:1"}, RevisionId: new("stale")}
 		if err := fail(h, lambdaapi.OpUpdateFunctionConfiguration, stale); err.ID.Shape.Name() != "PreconditionFailedException" {
 			t.Errorf("UpdateFunctionConfiguration with a stale RevisionId = %s %q", err.ID.Shape.Name(), err.Message)
 		}
-		if err := fail(h, lambdaapi.OpUpdateFunctionConfiguration, &lambdaapi.UpdateFunctionConfigurationInput{FunctionName: "fn", Layers: []string{layerPrefix + "a:1", layerPrefix + "big:1"}}); !strings.HasPrefix(err.Message, "Function code combined with layers") {
+		if err := fail(h, lambdaapi.OpUpdateFunctionConfiguration, &lambdaapi.UpdateFunctionConfigurationInput{FunctionName: "fn", Layers: []string{layerPrefix + "a:1", layerPrefix + "big:1"}}); err.Message != layersTooLarge {
 			t.Errorf("UpdateFunctionConfiguration over the limit = %q", err.Message)
 		}
 		call(h, lambdaapi.OpDeleteLayerVersion, &lambdaapi.DeleteLayerVersionInput{LayerName: "a", VersionNumber: 1})
@@ -254,13 +254,13 @@ func TestLayerRegionComesBeforeLookup(t *testing.T) {
 	})
 }
 
-// An image function takes no layers, on UpdateFunctionConfiguration as on
-// CreateFunction, with the text understudy gives for both (unrecorded,
-// lambda-destinations-layers.md 7.1, LDL-13).
+// An image function takes no layers, with AWS's text on CreateFunction
+// (aws-recorded, lambda-destinations-layers.md 7.1: LDL-13 03) and the
+// same on UpdateFunctionConfiguration (inferred).
 func TestAnImageFunctionTakesNoLayers(t *testing.T) {
 	run(t, lambda.Options{}, func(h *harness) {
 		t := h.T
-		const text = "Please don't provide Handler or Runtime or Layer when the intended function PackageType is Image."
+		const text = "Lambda layers are not supported for functions created with container images."
 		h.publish("a", pythonLayer(t))
 		in := imageFunction("img", "local/fn:latest")
 		in.Layers = []string{layerPrefix + "a:1"}
@@ -282,7 +282,7 @@ func TestDryRunCodeCountsTheLayers(t *testing.T) {
 		call(h, lambdaapi.OpCreateFunction, withLayers(t, "fn", layerPrefix+"big:1"))
 		h.settle()
 		err := fail(h, lambdaapi.OpUpdateFunctionCode, &lambdaapi.UpdateFunctionCodeInput{FunctionName: "fn", ZipFile: zeroZip(t, "bootstrap", 131_072_001), DryRun: true})
-		if !strings.HasPrefix(err.Message, "Function code combined with layers exceeds the maximum allowed size") {
+		if err.Message != layersTooLarge {
 			t.Errorf("dry run over the limit = %s %q", err.ID.Shape.Name(), err.Message)
 		}
 	})

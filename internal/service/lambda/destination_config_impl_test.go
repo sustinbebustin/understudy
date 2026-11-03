@@ -19,9 +19,10 @@ import (
 
 // The existence check asks the destination services themselves, not the
 // stubs of destination_config_test.go: a queue, topic, bus and bucket that
-// were created are taken, the default bus among them, and each one that
-// was not is refused with the text for a missing destination
-// (lambda-destinations-layers.md 2.3, 11.2; lambda-api.md 7.7).
+// were created are taken, the default bus among them, a missing bus too,
+// and a missing queue, topic or bucket is refused in AWS's words
+// (aws-recorded, lambda-destinations-layers.md 2.3: LDL-08 01 to 04;
+// lambda-api.md 7.7).
 func TestEventInvokeConfigFindsDestinationsInTheirServices(t *testing.T) {
 	kerneltest.Run(t, func(k *kerneltest.K) {
 		blobs, err := blob.NewMemory("", 0)
@@ -55,20 +56,19 @@ func TestEventInvokeConfigFindsDestinationsInTheirServices(t *testing.T) {
 			{successQueue, auditBucket},
 			{alertsTopic, auditBus},
 			{defaultBus, ""},
+			{"arn:aws:events:us-east-1:000000000000:event-bus/missing-bus", ""},
 		} {
 			out := call(h, lambdaapi.OpPutFunctionEventInvokeConfig, putDestinations(c.onSuccess, c.onFailure))
 			if deref(out.DestinationConfig.OnSuccess.Destination) != c.onSuccess || deref(out.DestinationConfig.OnFailure.Destination) != c.onFailure {
 				t.Errorf("Put %s, %s = %+v, want both stored", c.onSuccess, c.onFailure, out.DestinationConfig)
 			}
 		}
-		for _, missing := range []string{
-			"arn:aws:sqs:us-east-1:000000000000:missing-queue",
-			"arn:aws:sns:us-east-1:000000000000:missing-topic",
-			"arn:aws:events:us-east-1:000000000000:event-bus/missing-bus",
-			"arn:aws:s3:::missing-bucket",
+		for _, missing := range []struct{ arn, text string }{
+			{"arn:aws:sqs:us-east-1:000000000000:missing-queue", "The destination ARN arn:aws:sqs:us-east-1:000000000000:missing-queue is invalid."},
+			{"arn:aws:sns:us-east-1:000000000000:missing-topic", "The destination ARN arn:aws:sns:us-east-1:000000000000:missing-topic is invalid."},
+			{"arn:aws:s3:::missing-bucket", "Error occurred while ListBucket. S3 Error Code: 404 Not Found. S3 Error Message: Not Found"},
 		} {
-			errorIs(t, fail(h, lambdaapi.OpPutFunctionEventInvokeConfig, putDestinations("", missing)),
-				"InvalidParameterValueException", "The destination ARN "+missing+" is invalid.")
+			errorIs(t, fail(h, lambdaapi.OpPutFunctionEventInvokeConfig, putDestinations("", missing.arn)), "InvalidParameterValueException", missing.text)
 		}
 	}, kerneltest.Services(lambdaapi.Service(), sqsapi.Service(), snsapi.Service(), eventbridgeapi.Service(), s3api.Service()))
 }

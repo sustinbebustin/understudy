@@ -183,7 +183,9 @@ func TestCreateFunctionValidationRows(t *testing.T) {
 				},
 			},
 			{
-				golden{"image with a layer", "InvalidParameterValueException", 400, "Please don't provide Handler or Runtime or Layer when the intended function PackageType is Image.", true},
+				// aws-recorded, lambda-destinations-layers.md 7.1:
+				// testdata/parity/lambda/LDL-13/03-image-with-layers.json, whose Type is null.
+				golden{"image with a layer", "InvalidParameterValueException", 400, "Lambda layers are not supported for functions created with container images.", false},
 				func(in *lambdaapi.CreateFunctionInput) {
 					asImage(in)
 					in.Layers = []string{"arn:aws:lambda:us-east-1:000000000000:layer:l:1"}

@@ -13,6 +13,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/fidelity"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/ref"
+	"github.com/sustinbebustin/understudy/internal/registry"
 	"github.com/sustinbebustin/understudy/internal/shardlog"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
@@ -28,37 +29,37 @@ type Streams struct {
 // The Streams service is a Stateful with nothing to save.
 var _ kernel.Stateful = (*Streams)(nil)
 
-// listStreamsNote is ListStreams' coverage note: the answers DynamoDB
-// Local gives where AWS's are unrecorded (dynamodb-streams.md 6.1, 6.5;
-// DDBS-03, DDBS-08).
-const listStreamsNote = "a TableName naming no table returns an empty list, a disabled stream stays listed until it is deleted 24 hours after its table, and LastEvaluatedStreamArn is set only when more streams follow; " +
-	"AWS's answers to all three, and the Limit text (DynamoDB Local's), are UNVERIFIED (dynamodb-streams.md 6.1, 6.5)"
+// constraintTexts is the clause of each Streams note whose operation takes
+// a Limit or an enum: the generated Coral text quotes the value, AWS's
+// omits it (aws-recorded, dynamodb-streams.md 6.5: DDBS-02).
+const constraintTexts = "a constraint violation's text quotes the value (\"Value '0' at 'limit'\"), where AWS's omits it (\"Value at 'limit'\")"
 
-// describeStreamNote is DescribeStream's coverage note (dynamodb-streams.md
-// 6.5, 11.4).
-const describeStreamNote = "aws-differs: understudy: a stream has one shard, which never splits or rolls over; AWS opens a shard per table partition and closes shards as it replaces them; " +
-	"StreamStatus is ENABLED or DISABLED at once, never ENABLING or DISABLING; the Limit text is DynamoDB Local's and UNVERIFIED (dynamodb-streams.md 6.5)"
+// describeStreamNote is DescribeStream's coverage note, the differences
+// DDBS-05 recorded (dynamodb-streams.md 5.2, 5.6, 6.5).
+const describeStreamNote = "aws-differs: understudy: a stream has one shard, which never splits or rolls over; AWS opened a new on-demand table's stream with 4 shards and closes shards as it replaces them; " +
+	"StreamStatus is ENABLED or DISABLED at once, where AWS reports ENABLING with no shards for about 7 seconds and DISABLING for about 8; " + constraintTexts +
+	" (dynamodb-streams.md 5.2, 5.6, 6.5)"
 
-// getShardIteratorNote is GetShardIterator's coverage note: the texts
-// DynamoDB Local gives (dynamodb-streams.md 6.3, 6.5; DDBS-02), and a
-// deleted table's stream readable until it is deleted (Local's behavior,
-// 5.4; DDBS-17).
-const getShardIteratorNote = "AT_TIMESTAMP is refused: the pinned model (api-models-aws 1cfdfb4) predates it; the validation and not-found texts are DynamoDB Local's, " +
-	"and a deleted table's stream stays readable until it is deleted 24 hours later; AWS's forms of both are UNVERIFIED (dynamodb-streams.md 5.4, 6.5)"
+// getShardIteratorNote is GetShardIterator's coverage note
+// (dynamodb-streams.md 3.5, 6.5).
+const getShardIteratorNote = "AT_TIMESTAMP is refused: the pinned model (api-models-aws 1cfdfb4) predates it, so the enum text lists the four other types where AWS's lists five; " +
+	constraintTexts + " (dynamodb-streams.md 3.5, 6.5)"
 
-// getRecordsNote is GetRecords' coverage note (dynamodb-streams.md 4.4,
-// 5.3, 5.5, 6.4, 7.3, 7.4, 7.6), as the spec words it.
+// getRecordsNote is GetRecords' coverage note, the differences
+// DDBS-04 and DDBS-10 recorded (dynamodb-streams.md 3.3, 5.5, 6.4, 7.3).
 const getRecordsNote = "aws-differs: understudy: more than two concurrent readers of a shard are never throttled; inject LimitExceededException with a fault rule; " +
-	"the last page of a closed shard omits NextShardIterator, a Limit above 1000 answers ValidationException as DynamoDB Local does, ApproximateCreationDateTime is written as a plain epoch-seconds number, " +
-	"a NextShardIterator expires 15 minutes after its own issue, SizeBytes is DynamoDB Local's (a byte above the documented item-size rule for some fractional numbers), a DeleteItem of an absent key emits no record, " +
-	"and the malformed, expired and trimmed iterator texts are DynamoDB Local's or understudy's; AWS's forms are UNVERIFIED (dynamodb-streams.md 4.4, 5.3, 5.5, 6.4, 7.3, 7.4, 7.6)"
+	"ApproximateCreationDateTime is written as a plain epoch-seconds number, where AWS writes the exponent form (1.793723928E9); " +
+	"ExpiredIteratorException carries the __type namespace com.amazonaws.dynamodb.v20120810, where AWS's is com.amazonaws.dynamodb.streams.v20120810; " +
+	constraintTexts + "; the trimmed-iterator text is UNVERIFIED (dynamodb-streams.md 3.3, 5.5, 6.5, 7.3)"
 
 // NewStreams binds the DynamoDB Streams operations understudy serves,
 // reading svc's log.
 func NewStreams(d kernel.ServiceDeps, svc *Service) *Streams {
 	s := &Streams{svc: svc}
 	b := dynamodbstreamsapi.NewBinder(d.Binder)
-	b.ListStreams(s.listStreams, notes(listStreamsNote))
+	// Every ListStreams answer DDBS-02, DDBS-03, DDBS-08 and DDBS-17 recorded
+	// is AWS's (dynamodb-streams.md 6.1).
+	b.ListStreams(s.listStreams, registry.Full{})
 	b.DescribeStream(s.describeStream, notes(describeStreamNote))
 	b.GetShardIterator(s.getShardIterator, notes(getShardIteratorNote))
 	b.GetRecords(s.getRecords, notes(getRecordsNote))
@@ -138,16 +139,16 @@ func (s *Streams) Switches() []fidelity.Entry {
 			Ref:     "docs/research/dynamodb-streams.md#43-sequence-numbers",
 			Record:  "DDBS-09",
 			Ops:     []string{"dynamodbstreams.DescribeStream", "dynamodbstreams.GetRecords"},
-			Settles: fidelity.NoScenario{Reason: "unrecorded: DDBS-09 is queued"},
+			Settles: fidelity.NoScenario{Reason: "recorded in dynamodb/DDBS-09: AWS numbers records with 23 digits above a 21-digit StartingSequenceNumber, which neither value does"},
 		}.Entry(),
 		fidelity.Switch[string]{
 			Name:    "dynamodb.streams.iterator-reuse",
 			Value:   s.svc.iteratorReuse.String(),
-			Label:   evidence.Inferred,
+			Label:   evidence.AWSRecorded,
 			Ref:     "docs/research/dynamodb-streams.md#44-shard-iterators",
 			Record:  "DDBS-04",
 			Ops:     []string{"dynamodbstreams.GetRecords"},
-			Settles: fidelity.NoScenario{Reason: "unrecorded: DDBS-04 is queued"},
+			Settles: fidelity.NoScenario{Reason: "dynamodb/DDBS-04/02-reuse.json is recorded; the replayer runs without DynamoDB"},
 		}.Entry(),
 	}
 }
@@ -210,7 +211,9 @@ func (s *Streams) listStreams(ctx context.Context, c *kernel.Call, in *dynamodbs
 	for _, r := range rows[:min(limit, len(rows))] {
 		out.Streams = append(out.Streams, dynamodbstreamsapi.Stream{StreamArn: new(r.arn), TableName: new(r.table), StreamLabel: new(r.label)})
 	}
-	if len(rows) > limit {
+	// A full page names its last stream, though none follows: AWS's last
+	// page under Limit 1 does (aws-recorded, dynamodb-streams.md 6.1: DDBS-08).
+	if len(rows) >= limit {
 		out.LastEvaluatedStreamArn = new(rows[limit-1].arn)
 	}
 	return out, nil

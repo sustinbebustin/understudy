@@ -443,10 +443,10 @@ func attributes(attrs []delivery.MessageAttribute) map[string]delivery.Attribute
 // carrying a dead letter, has no dead-letter queue of its own, and makes
 // one attempt, since Lambda deletes an event its dead-letter queue does
 // not take (lambda-destinations-layers.md 5.4).
-func dead(t *testing.T, target string, inv destination.Invocation) delivery.Request {
+func dead(t *testing.T, target string, cond destination.Condition, inv destination.Invocation) delivery.Request {
 	t.Helper()
 	s := sender(t)
-	req, err := destination.DeadLetter(mustARN(t, target), s, goldenRequestID, inv, []byte(pythonEvent))
+	req, err := destination.DeadLetter(mustARN(t, target), s, goldenRequestID, cond, inv, []byte(pythonEvent))
 	if err != nil {
 		t.Fatalf("DeadLetter(%s) = %v", target, err)
 	}
@@ -472,7 +472,7 @@ func ranWithPythonError() destination.Invocation {
 // test_lambda_destinations.snapshot.json:L243-L273, validated 2025-11-24).
 func TestDeadLetterToAQueueIsTheEventAsSent(t *testing.T) {
 	const queue = "arn:aws:sqs:us-east-1:111111111111:destination-fn-dlq"
-	req := dead(t, queue, ranWithPythonError())
+	req := dead(t, queue, destination.RetriesExhausted, ranWithPythonError())
 	got, ok := req.Target.(delivery.SQSQueue)
 	if req.Mechanism != delivery.LambdaToSQS || !ok || got.ARN != mustARN(t, queue) {
 		t.Fatalf("DeadLetter to a queue = %s %#v, want lambda-to-sqs to %s", req.Mechanism, req.Target, queue)
@@ -500,7 +500,7 @@ func TestDeadLetterToAQueueIsTheEventAsSent(t *testing.T) {
 // https://docs.aws.amazon.com/lambda/latest/dg/invocation-async-retain-records.html).
 func TestDeadLetterToATopicIsTheEventAsSent(t *testing.T) {
 	const topic = "arn:aws:sns:us-east-1:111111111111:destination-fn-dlq"
-	req := dead(t, topic, ranWithPythonError())
+	req := dead(t, topic, destination.RetriesExhausted, ranWithPythonError())
 	got, ok := req.Target.(delivery.SNSTopic)
 	if req.Mechanism != delivery.LambdaToSNS || !ok || got.ARN != mustARN(t, topic) || got.Message != pythonEvent || got.Subject != "" {
 		t.Fatalf("DeadLetter to a topic = %s %#v, want lambda-to-sns of the event as sent", req.Mechanism, req.Target)
@@ -515,23 +515,35 @@ func TestDeadLetterToATopicIsTheEventAsSent(t *testing.T) {
 	}
 }
 
-// An event that never ran has a request id but no function error to
-// report: ErrorCode is "200" for a function error (11.3.7), and what AWS
-// sends for a never-run event is unrecorded (LDL-04), so understudy
-// invents neither ErrorCode nor ErrorMessage. RequestID is documented
-// for every dead letter (lambda-destinations-layers.md 5.2).
+// An event that never ran has a request id but no function error, so no
+// ErrorCode. Under zero reserved concurrency AWS adds its own ErrorMessage,
+// "isconfigured" as sent (aws-recorded, lambda-destinations-layers.md 5.2:
+// LDL-04); what it sends for an event that aged out unrun is unrecorded,
+// so understudy invents no ErrorMessage there. RequestID is documented
+// for every dead letter (5.2).
 func TestDeadLetterOfAnEventThatNeverRan(t *testing.T) {
-	req := dead(t, "arn:aws:sqs:us-east-1:111111111111:destination-fn-dlq", destination.NeverRan{})
-	got, ok := req.Target.(delivery.SQSQueue)
-	if !ok {
-		t.Fatalf("DeadLetter to a queue = %#v, want an SQSQueue", req.Target)
-	}
-	want := map[string]delivery.AttributeValue{"RequestID": delivery.StringAttribute{Value: string(goldenRequestID)}}
-	if a := attributes(got.Attributes); len(got.Attributes) != 1 || !reflect.DeepEqual(a, want) {
-		t.Errorf("dead letter attributes = %#v, want RequestID alone", got.Attributes)
-	}
-	if got.Body != pythonEvent {
-		t.Errorf("dead letter body = %q, want the event as sent", got.Body)
+	requestID := delivery.StringAttribute{Value: string(goldenRequestID)}
+	for _, c := range []struct {
+		cond destination.Condition
+		want map[string]delivery.AttributeValue
+	}{
+		{destination.ZeroReservedConcurrency, map[string]delivery.AttributeValue{
+			"ErrorMessage": delivery.StringAttribute{Value: "Function not invoked. Function isconfigured with zero reserved concurrent executions"},
+			"RequestID":    requestID,
+		}},
+		{destination.EventAgeExceeded, map[string]delivery.AttributeValue{"RequestID": requestID}},
+	} {
+		req := dead(t, "arn:aws:sqs:us-east-1:111111111111:destination-fn-dlq", c.cond, destination.NeverRan{})
+		got, ok := req.Target.(delivery.SQSQueue)
+		if !ok {
+			t.Fatalf("DeadLetter to a queue = %#v, want an SQSQueue", req.Target)
+		}
+		if a := attributes(got.Attributes); len(got.Attributes) != len(c.want) || !reflect.DeepEqual(a, c.want) {
+			t.Errorf("%s dead letter attributes = %#v, want %#v", c.cond, got.Attributes, c.want)
+		}
+		if got.Body != pythonEvent {
+			t.Errorf("%s dead letter body = %q, want the event as sent", c.cond, got.Body)
+		}
 	}
 }
 
@@ -545,11 +557,11 @@ func TestDeadLetterRefusesOtherTargets(t *testing.T) {
 		"arn:aws:events:us-east-1:111111111111:event-bus/default",
 		"arn:aws:s3:::audit-records",
 	} {
-		if _, err := destination.DeadLetter(mustARN(t, target), s, goldenRequestID, ranWithPythonError(), []byte(pythonEvent)); !isWrapError(err) {
+		if _, err := destination.DeadLetter(mustARN(t, target), s, goldenRequestID, destination.RetriesExhausted, ranWithPythonError(), []byte(pythonEvent)); !isWrapError(err) {
 			t.Errorf("DeadLetter(%s) = %v, want a *WrapError", target, err)
 		}
 	}
-	if _, err := destination.DeadLetter(mustARN(t, "arn:aws:sqs:us-east-1:111111111111:dlq"), s, goldenRequestID, nil, []byte(pythonEvent)); !isWrapError(err) {
+	if _, err := destination.DeadLetter(mustARN(t, "arn:aws:sqs:us-east-1:111111111111:dlq"), s, goldenRequestID, destination.RetriesExhausted, nil, []byte(pythonEvent)); !isWrapError(err) {
 		t.Errorf("DeadLetter with no invocation = %v, want a *WrapError", err)
 	}
 }

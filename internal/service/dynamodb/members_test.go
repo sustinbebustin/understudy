@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/sustinbebustin/understudy/internal/api/dynamodbapi"
-	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/fault"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/protocol/jsonx"
@@ -93,12 +92,9 @@ func TestTransactionRulesCountTheRequestItems(t *testing.T) {
 					h.Errorf("a 1-item call = %d %s, want it forwarded to Local", got.Status, got.Body)
 				}
 				got := h.call(tx.op.ID.Name, tx.body(3))
-				id := dynamodbapi.IdentityTransactionCanceledException()
-				// The top-level message key is UNVERIFIED
-				// (smithy-protocol-tests.md 12.4, PROTO-01); the identity's
-				// own key is asserted.
-				key := map[awserr.MessageKey]string{awserr.MessageUpper: "Message", awserr.MessageLower: "message"}[id.MessageKey]
-				want := `{"__type":"com.amazonaws.dynamodb.v20120810#TransactionCanceledException","` + key + `":` +
+				// AWS's top-level message key is Message
+				// (smithy-protocol-tests.md 12.4, PROTO-01).
+				want := `{"__type":"com.amazonaws.dynamodb.v20120810#TransactionCanceledException","Message":` +
 					`"Transaction cancelled, please refer cancellation reasons for specific reasons [None, TransactionConflict, None]",` +
 					`"CancellationReasons":[{"Code":"None"},` + conflictReason + `,{"Code":"None"}]}`
 				if got.Status != http.StatusBadRequest || got.Body != want {

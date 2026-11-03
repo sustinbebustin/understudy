@@ -118,9 +118,12 @@ func TestTrimKeepsYoungerRecords(t *testing.T) {
 }
 
 // Once a deleted table's stream is gone at 24 hours, GetShardIterator
-// answers Local's not-found text and an iterator taken before reads the
-// same (dynamodb-streams.md 5.4, 6.5; DDBS-17, GetShardIterator note).
+// answers AWS's not-found text (aws-recorded, DDBS-01:
+// 02-iterator-missing-stream.json) and an iterator taken before reads the
+// same (dynamodb-streams.md 5.4, 6.5; the 24 hours are aws-doc, DDBS-17
+// recorded the stream readable just after the delete).
 func TestGoneStreamRefusesIterators(t *testing.T) {
+	const missing = "Requested resource not found: Stream does not exist"
 	runStreams(t, dynamodb.Options{}, func(h *streamsHarness) {
 		arn, _ := latest(h.createStreamTable("Orders", "KEYS_ONLY"))
 		shard := h.describe(arn).Shards[0].ShardID
@@ -130,10 +133,10 @@ func TestGoneStreamRefusesIterators(t *testing.T) {
 		it := h.iterator(arn, shard, "TRIM_HORIZON", "")
 		h.advance(time.Second)
 		body := `{"StreamArn":"` + arn + `","ShardId":"` + shard + `","ShardIteratorType":"TRIM_HORIZON"}`
-		if e := h.errorOf(h.streamsCall("GetShardIterator", body, defaultCaller()), http.StatusBadRequest); !strings.HasSuffix(e.Type, "#ResourceNotFoundException") || e.text() != "Stream does not exist" {
+		if e := h.errorOf(h.streamsCall("GetShardIterator", body, defaultCaller()), http.StatusBadRequest); !strings.HasSuffix(e.Type, "#ResourceNotFoundException") || e.text() != missing {
 			h.Errorf("GetShardIterator at 24 h: %+v", e)
 		}
-		if e := h.errorOf(h.streamsCall("GetRecords", `{"ShardIterator":"`+it+`"}`, defaultCaller()), http.StatusBadRequest); !strings.HasSuffix(e.Type, "#ResourceNotFoundException") || e.text() != "Stream does not exist" {
+		if e := h.errorOf(h.streamsCall("GetRecords", `{"ShardIterator":"`+it+`"}`, defaultCaller()), http.StatusBadRequest); !strings.HasSuffix(e.Type, "#ResourceNotFoundException") || e.text() != missing {
 			h.Errorf("GetRecords at 24 h: %+v", e)
 		}
 	})

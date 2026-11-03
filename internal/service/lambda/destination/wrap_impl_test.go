@@ -61,7 +61,7 @@ func TestErrorMessageOfAResponseWithoutAStringErrorMessage(t *testing.T) {
 // rather than an empty String attribute, which SQS refuses (sqs.md 2.4).
 func TestDeadLetterLeavesOutAnEmptyErrorMessage(t *testing.T) {
 	inv := destination.Ran{Attempts: 1, Response: destination.Response{ExecutedVersion: "$LATEST", FunctionError: "Unhandled", Payload: []byte(`{"errorMessage":""}`)}}
-	req, err := destination.DeadLetter(mustARN(t, "arn:aws:sqs:us-east-1:111111111111:dlq"), sender(t), goldenRequestID, inv, []byte(pythonEvent))
+	req, err := destination.DeadLetter(mustARN(t, "arn:aws:sqs:us-east-1:111111111111:dlq"), sender(t), goldenRequestID, destination.RetriesExhausted, inv, []byte(pythonEvent))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,7 +83,7 @@ func TestDeadLetterLeavesOutAnEmptyErrorMessage(t *testing.T) {
 // and its attributes in the order ErrorCode, ErrorMessage, RequestID.
 func TestDeadLetterToAQueueCarriesTheTraceHeader(t *testing.T) {
 	s := sender(t)
-	req := dead(t, "arn:aws:sqs:us-east-1:111111111111:destination-fn-dlq", ranWithPythonError())
+	req := dead(t, "arn:aws:sqs:us-east-1:111111111111:destination-fn-dlq", destination.RetriesExhausted, ranWithPythonError())
 	q, ok := req.Target.(delivery.SQSQueue)
 	if !ok || q.TraceHeader != s.Trace {
 		t.Fatalf("target = %#v, want an SQSQueue with the trace header %s", req.Target, s.Trace)
@@ -107,7 +107,7 @@ func TestDeliveriesToAnUnservedScopeAreRefused(t *testing.T) {
 		"arn:aws:sqs:us-east-1:12345:dlq",
 		"arn:aws-cn:sns:cn-north-1:111111111111:alerts",
 	} {
-		if _, err := destination.DeadLetter(mustARN(t, arn), sender(t), goldenRequestID, ranWithPythonError(), []byte(pythonEvent)); !isWrapError(err) {
+		if _, err := destination.DeadLetter(mustARN(t, arn), sender(t), goldenRequestID, destination.RetriesExhausted, ranWithPythonError(), []byte(pythonEvent)); !isWrapError(err) {
 			t.Errorf("DeadLetter(%s) = %v, want a *WrapError", arn, err)
 		}
 	}

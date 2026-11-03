@@ -24,7 +24,8 @@ const describeStreamMax = 100
 
 // iteratorTTL is a shard iterator's lifetime: "A shard iterator expires 15
 // minutes after it is returned to the requester" (dynamodb-streams.md 4.4,
-// aws-doc), each NextShardIterator from its own issue (inferred, DDBS-04).
+// aws-doc), each NextShardIterator from its own issue (aws-recorded,
+// DDBS-04).
 const iteratorTTL = 15 * time.Minute
 
 // getRecordsMax is GetRecords' largest Limit and its default
@@ -35,17 +36,17 @@ const getRecordsMax = 1000
 // of data", counted in SizeBytes (dynamodb-streams.md 6.4, aws-doc).
 const pageBytes = 1 << 20
 
-// Texts of the read errors. The not-found and validation texts are
-// DynamoDB Local's, observed (dynamodb-streams.md 6.5; AWS's are
-// UNVERIFIED, DDBS-02); the expired text is the model's documentation of
-// ExpiredIteratorException (3.3; inferred, DDBS-04).
+// Texts of the read errors, AWS's as recorded (dynamodb-streams.md 4.4,
+// 6.5: DDBS-01, DDBS-02, DDBS-04); the trimmed text is the model's
+// documentation of TrimmedDataAccessException (3.3; inferred, DDBS-15).
 const (
 	textSequenceNotAllowed = "One or more parameter values were invalid: SequenceNumber should not be passed for this iterator type"
-	textInvalidSequence    = "One or more parameter values were invalid: Invalid SequenceNumber"
-	textStreamMissing      = "Stream does not exist"
-	textShardMissing       = "Shard does not exist"
+	textSequenceMissing    = "One or more parameter values were invalid: SequenceNumber cannot be null"
+	textInvalidSequence    = "Invalid SequenceNumber for the shard"
+	textStreamMissing      = "Requested resource not found: Stream does not exist"
+	textShardMissing       = "Requested resource not found: Shard does not exist"
 	textInvalidIterator    = "Invalid ShardIterator"
-	textExpiredIterator    = "The provided iterator exceeds the maximum age allowed."
+	textExpiredIterator    = "Shard iterator has expired"
 	textTrimmed            = "The data you are trying to access has been trimmed."
 )
 
@@ -151,7 +152,8 @@ func (s Stream) description(scope aws.Scope, in *dynamodbstreamsapi.DescribeStre
 }
 
 // position is the shard position GetShardIterator's type and number name,
-// checked in DynamoDB Local's order (dynamodb-streams.md 6.3, 6.5).
+// checked in DynamoDB Local's order with AWS's texts (dynamodb-streams.md
+// 6.3, 6.5).
 func position(in *dynamodbstreamsapi.GetShardIteratorInput) (shardlog.Position, *awserr.Error) {
 	switch in.ShardIteratorType {
 	case dynamodbstreamsapi.ShardIteratorTypeTrimHorizon, dynamodbstreamsapi.ShardIteratorTypeLatest:
@@ -165,7 +167,7 @@ func position(in *dynamodbstreamsapi.GetShardIteratorInput) (shardlog.Position, 
 	case dynamodbstreamsapi.ShardIteratorTypeAtSequenceNumber, dynamodbstreamsapi.ShardIteratorTypeAfterSequenceNumber:
 	}
 	if in.SequenceNumber == nil {
-		return nil, dynamodbstreamsapi.ErrValidationException(textInvalidSequence)
+		return nil, dynamodbstreamsapi.ErrValidationException(textSequenceMissing)
 	}
 	seq, err := shardlog.ParseSeq(*in.SequenceNumber)
 	if err != nil {
@@ -307,8 +309,9 @@ func (st *State) records(scope aws.Scope, token string, limit int, now clock.Ins
 	}
 	singleUse := reuse == IteratorSingleUse
 	if _, used := st.usedIterators[token]; singleUse && used {
-		// dynamodb.streams.iterator-reuse single-use (inferred, DDBS-04):
-		// a second read is refused as an expired iterator.
+		// dynamodb.streams.iterator-reuse single-use, the alternative to
+		// AWS's recorded allowed (DDBS-04): a second read is refused as an
+		// expired iterator.
 		return nil, false, dynamodbstreamsapi.ErrExpiredIteratorException(textExpiredIterator)
 	}
 	shard := x.log.shard

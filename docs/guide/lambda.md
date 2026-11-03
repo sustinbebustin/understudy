@@ -245,21 +245,18 @@ aws sqs receive-message --queue-url http://localhost:4566/000000000000/orders-dl
   ```
 
   The record then has `"approximateInvokeCount": 3`.
-- The configuration of the qualifier invoked applies: `$LATEST`'s for an unqualified invoke, an alias's or version's own otherwise. An alias or version without one gets the defaults and no destination, since AWS's answer is unrecorded (fidelity switch `lambda.async.qualifier-config`). The dead-letter queue is set per function and serves every version.
-- A destination that does not exist is refused when you configure it, as AWS refuses a missing function. Whether AWS also checks queues, topics, buses and buckets is unrecorded (fidelity switch `lambda.destination.config-existence-check`):
+- The configuration of the qualifier invoked applies: `$LATEST`'s for an unqualified invoke, an alias's or version's own otherwise. An alias or version without one gets the defaults and no destination, as on AWS (fidelity switch `lambda.async.qualifier-config`). The dead-letter queue is set per function and serves every version.
+- A destination function, queue or topic that does not exist is refused when you configure it, as on AWS; a missing bucket is refused in S3's words; a missing event bus is accepted, as AWS accepts it (fidelity switch `lambda.destination.config-existence-check`):
 
   ```text
   An error occurred (InvalidParameterValueException) when calling the PutFunctionEventInvokeConfig operation: The destination ARN arn:aws:sqs:us-east-1:000000000000:no-such-queue is invalid.
   ```
 
-- A FIFO queue or topic is accepted as a destination but never delivered to, as on AWS. That failure, and any other failed delivery, is journaled as `dropped` with the metric AWS counts it in, and is not retried:
+- `UpdateFunctionEventInvokeConfig` with one side of `DestinationConfig` keeps the other side, as on AWS.
+- A FIFO queue is refused as a destination when you configure it, as on AWS. A FIFO topic is accepted but never delivered to. That failure, and any other failed delivery, is journaled as `dropped` with the metric AWS counts it in, and is not retried:
 
   ```sh
   understudy journal --kind delivery --errors
-  ```
-
-  ```text
-  41     2026-10-27T03:49:15.848025476Z  delivery       000000000000/us-east-1 lambda-to-sqs orders -> failed.fifo attempt 1 dropped: arn:aws:sqs:us-east-1:000000000000:failed.fifo is a FIFO queue, which Lambda does not deliver to (lambda-destinations-layers.md 2.2, 5.1); Lambda counts it in DestinationDeliveryFailures
   ```
 
 - Records and dead letters are sent as the function's execution role. understudy does not check the role's permissions, but `understudy iam policy --principal <role ARN>` lists the `sqs:SendMessage`, `sns:Publish`, `lambda:InvokeFunction`, `events:PutEvents`, `s3:ListBucket` and `s3:PutObject` statements the deliveries need (see [IAM policy](policy.md)).

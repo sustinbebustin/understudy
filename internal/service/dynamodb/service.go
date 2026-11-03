@@ -84,19 +84,15 @@ const (
 	// which do not send TransactionConflictException. A fault rule sets the
 	// reasons through its members, one per item of the call, which the
 	// bindings count (smithy-protocol-tests.md 14.9, 14.10). The injected
-	// error's wire details that no AWS recording fixes yet are named
-	// UNVERIFIED (12.4: PROTO-01, PROTO-02 and PROTO-05).
+	// error's message key, None reasons and ExecuteTransaction form are
+	// AWS's, recorded (12.4: PROTO-01, PROTO-02 and PROTO-05).
 	noTxConflicts = "aws-differs: dynamodb-local: transactions never conflict; AWS cancels a conflicting transaction with TransactionCanceledException " +
-		"and the cancellation reason TransactionConflict; inject it with a fault rule whose members set CancellationReasons; " +
-		"the injected error's top-level message key, the bytes of a None reason and ExecuteTransaction's message text and reasons are UNVERIFIED " +
+		"and the cancellation reason TransactionConflict; inject it with a fault rule whose members set CancellationReasons " +
 		"(smithy-protocol-tests.md 12.4)"
 	caseTwins      = "aws-differs: dynamodb-local: table names are case-insensitive, so a name that differs from an existing table's only in case is refused with ResourceInUseException"
 	statementTwins = "aws-differs: dynamodb-local: table names inside statements resolve case-insensitively, so a statement naming a case twin of a table acts on that table"
 	parallelScan   = "aws-differs: dynamodb-local: Segment and TotalSegments are ignored, so a parallel scan reads sequentially"
 	statementLimit = "aws-differs: dynamodb-local: Limit is ignored"
-	// streamTexts goes on UpdateTable: Local answers the stream enable and
-	// disable refusals itself (dynamodb-streams.md 5.1, 11.6; DDBS-06).
-	streamTexts = "aws-differs: dynamodb-local: the stream enable and disable errors carry DynamoDB Local's texts; AWS's are UNVERIFIED except \"Table already has an enabled stream\" (dynamodb-streams.md 5.1)"
 )
 
 // notes joins coverage notes into one Partial.
@@ -110,7 +106,9 @@ func (s *Service) bindTables(b dynamodbapi.Binder) {
 	describeTable := named(func(in *dynamodbapi.DescribeTableInput) string { return in.TableName })
 	b.DescribeTableRaw(s.describeTable, registry.Full{}, tables(describeTable))
 	updateTable := named(func(in *dynamodbapi.UpdateTableInput) string { return in.TableName })
-	b.UpdateTableRaw(s.updateTable, notes(streamTexts), tables(updateTable))
+	// The stream enable and disable refusals carry AWS's texts
+	// (dynamodb-streams.md 5.1; DDBS-06).
+	b.UpdateTableRaw(s.updateTable, registry.Full{}, tables(updateTable))
 	b.ListTablesRaw(passthrough(s, noTables, plainAnswer[dynamodbapi.ListTablesInput]), registry.Full{})
 	b.DescribeLimitsRaw(passthrough(s, noTables, plainAnswer[dynamodbapi.DescribeLimitsInput]), registry.Full{})
 }

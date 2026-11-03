@@ -65,7 +65,7 @@ aws dynamodbstreams get-records --shard-iterator "$IT"
 ```
 
 ```text
-aws: [ERROR]: An error occurred (ExpiredIteratorException) when calling the GetRecords operation: The provided iterator exceeds the maximum age allowed.
+aws: [ERROR]: An error occurred (ExpiredIteratorException) when calling the GetRecords operation: Shard iterator has expired
 ```
 
 After `understudy clock advance 24h`, a new `TRIM_HORIZON` iterator reads no records. A deleted table's stream stays listed, `DISABLED` and readable, until 24 hours after the delete.
@@ -200,12 +200,13 @@ The mapping reads the stream as its execution role. `understudy iam policy --pri
 
 ## Limitations
 
-- A stream has one shard, which never splits or rolls over; AWS opens a shard per table partition. A stream is `ENABLED` or `DISABLED` at once, never `ENABLING` or `DISABLING`.
+- A stream has one shard, which never splits or rolls over; AWS opened a new on-demand table's stream with 4 shards. A stream is `ENABLED` or `DISABLED` at once; AWS reports `ENABLING` for about 7 seconds and `DISABLING` for about 8.
+- Record sequence numbers are 21 digits, one above the shard's `StartingSequenceNumber`; AWS's are 23 digits, far above it. Compare them as integers.
 - A DynamoDB table's Kinesis streaming destination answers 501.
 - On a stream mapping, `ParallelizationFactor` above 1, `BisectBatchOnFunctionError`, `TumblingWindowInSeconds` above 0, a `FilterCriteria` pattern that compiles and an S3 on-failure destination answer 501 `NotImplemented`, naming the setting. A pattern that does not compile answers AWS's `InvalidParameterValueException`.
 - Stream ARNs cannot be tagged: `TagResource`, `UntagResource` and `ListTagsOfResource` on one answer 501. AWS tags existing streams.
 - More than two concurrent readers of a shard are never throttled; inject `LimitExceededException` with a [fault rule](faults.md).
-- Several error texts are DynamoDB Local's or understudy's where AWS's are unrecorded. `understudy coverage --service dynamodbstreams` lists each operation's differences, and [Differences from AWS](differences.md#dynamodb) the recorded ones.
+- The error texts are AWS's as recorded, except that a constraint violation's text quotes the value AWS's omits, and `ExpiredIteratorException` carries DynamoDB's `__type` namespace where AWS's is `com.amazonaws.dynamodb.streams.v20120810`. `understudy coverage --service dynamodbstreams` lists each operation's differences, and [Differences from AWS](differences.md#dynamodb) the recorded ones.
 
 ## Kinesis Data Streams
 

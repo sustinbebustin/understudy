@@ -60,6 +60,13 @@ func awsNotFound(table string) string {
 // exists.
 const localPreexisting = "Cannot create preexisting table"
 
+// Local's texts for an UpdateTable enabling a stream on a table that has
+// one and disabling it on a table that has none (dynamodb-streams.md 5.1).
+const (
+	localStreamEnabled = "Table already has an enabled stream"
+	localNoStream      = "Table has no stream to disable"
+)
+
 // awsPreexisting is AWS's text for a CreateTable of a table that exists,
 // which idempotent bootstrap code matches.
 func awsPreexisting(table string) string { return "Table already exists: " + table }
@@ -205,6 +212,14 @@ func fixError(m document.Map, op *registry.Operation, a answer) bool {
 	case text == localPreexisting && id.Shape == dynamodbapi.IdentityResourceInUseException().Shape && a.table != "":
 		m[at].Value = document.String(awsPreexisting(a.table))
 		changed = true
+	case (text == localStreamEnabled || text == localNoStream) && id.Shape == dynamodbapi.IdentityValidationException().Shape && a.table != "":
+		// AWS names the table (aws-recorded, dynamodb-streams.md 5.1:
+		// testdata/parity/dynamodb/DDBS-06/01-enable-again.json, 04-disable-again.json).
+		m[at].Value = text + document.String(": TableName: "+a.table)
+		changed = true
+	}
+	if id.Shape == dynamodbapi.IdentityTransactionCanceledException().Shape {
+		changed = fixReasons(m) || changed
 	}
 	key := id.MessageKey
 	if id.Shape == dynamodbapi.IdentityConditionalCheckFailedException().Shape && slices.ContainsFunc(m, func(e document.Entry) bool { return e.Key == "Item" }) {
@@ -221,6 +236,50 @@ func fixError(m document.Map, op *registry.Operation, a answer) bool {
 		changed = changed || m[at].Key != "Message"
 		m[at].Key = "Message"
 	case awserr.NoMessage:
+	}
+	return changed
+}
+
+// awsReasonText returns AWS's text for Local's cancellation reason text,
+// which ends without Local's and the documentation's final period
+// (smithy-protocol-tests.md 12.4: PROTO-03, PROTO-06), and false for
+// any other text.
+func awsReasonText(local document.String) (document.String, bool) {
+	switch local {
+	case "The conditional request failed.":
+		return "The conditional request failed", true
+	case "Transaction is ongoing for the item.":
+		return "Transaction is ongoing for the item", true
+	}
+	return "", false
+}
+
+// fixReasons translates the Message of each of a TransactionCanceledException's
+// CancellationReasons that holds one of Local's texts, reporting whether it
+// changed one.
+func fixReasons(m document.Map) bool {
+	at := slices.IndexFunc(m, func(e document.Entry) bool { return e.Key == "CancellationReasons" })
+	if at < 0 {
+		return false
+	}
+	reasons, ok := m[at].Value.(document.List)
+	if !ok {
+		return false
+	}
+	changed := false
+	for _, r := range reasons {
+		reason, ok := r.(document.Map)
+		if !ok {
+			continue
+		}
+		for i, e := range reason {
+			if text, ok := e.Value.(document.String); ok && e.Key == "Message" {
+				if fixed, ok := awsReasonText(text); ok {
+					reason[i].Value = fixed
+					changed = true
+				}
+			}
+		}
 	}
 	return changed
 }

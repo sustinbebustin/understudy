@@ -508,12 +508,12 @@ func TestMembersRefusals(t *testing.T) {
 		{
 			"no reasons", errorRule("r", transactWriteItems, tce, nil),
 			"action.members", `com.amazonaws.dynamodb#TransactionCanceledException always carries CancellationReasons on AWS, one per item of the transaction in item order; ` +
-				`set them in action.members, such as {"CancellationReasons": [{"Code": "TransactionConflict", "Message": "Transaction is ongoing for the item."}]}`, false,
+				`set them in action.members, such as {"CancellationReasons": [{"Code": "TransactionConflict", "Message": "Transaction is ongoing for the item"}]}`, false,
 		},
 		{
 			"message without reasons", errorRule("r", transactGetItems, tce, members(t, `{"Message":"m"}`)),
 			"action.members", `com.amazonaws.dynamodb#TransactionCanceledException always carries CancellationReasons on AWS, one per item of the transaction in item order; ` +
-				`set them in action.members, such as {"CancellationReasons": [{"Code": "TransactionConflict", "Message": "Transaction is ongoing for the item."}]}`, false,
+				`set them in action.members, such as {"CancellationReasons": [{"Code": "TransactionConflict", "Message": "Transaction is ongoing for the item"}]}`, false,
 		},
 		{
 			// smithy-protocol-tests.md 14.12; CancellationReasonList holds 1

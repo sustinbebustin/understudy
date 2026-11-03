@@ -104,8 +104,8 @@ func (s *Service) bindMappings(b lambdaapi.Binder) {
 	const note = "SQS queues, DynamoDB streams and Kinesis data streams; serve polls the source and invokes the function with each batch; " +
 		"Kinesis stream consumers, AT_TIMESTAMP on a Kinesis stream, ParallelizationFactor above 1, BisectBatchOnFunctionError, TumblingWindowInSeconds above 0, a valid FilterCriteria on a stream and an S3 on-failure destination answer 501; " +
 		"a stream is read as soon as it receives a record rather than at AWS's polling rate (4 per second for DynamoDB, once per second for Kinesis), which is used as the delay before a retry; " +
-		"UNVERIFIED (lambda-stream-sources.md 3.3, 3.4, 3.7, 4.2, 5.1, 5.3, 5.5, 5.6, 7.1): the text refusing MaximumRecordAgeInSeconds 0 to 59, an explicit BatchSize above 10 without a window being accepted on a stream, " +
-		"members of the other source type being ignored, destination existence checked only at delivery, a retried batch keeping its records, the 6 MB limit counted over the serialized event, " +
+		"UNVERIFIED (lambda-stream-sources.md 3.3, 3.4, 3.7, 4.2, 5.1, 5.3, 5.5, 5.6, 7.1): the text refusing MaximumRecordAgeInSeconds 0 to 59, an explicit BatchSize above 10 without a window being accepted on a Kinesis stream, " +
+		"members of the SQS type being ignored on a stream mapping, an Update refusing the stream type's members on an SQS mapping as Create does, destination existence checked only at delivery, a retried batch keeping its records, the 6 MB limit counted over the serialized event, " +
 		"record age measured from the record's arrival in the stream, RetryAttemptsExhausted reported when the last retry fails after the records have also passed their age, one on-failure record per expired record, " +
 		"an itemIdentifier outside the batch counting as complete failure, batchItemFailures keys matched case-sensitively, records lost to stream retention dropped without an on-failure record, " +
 		"an on-failure record the execution role may not send dropped with a journal entry, LastProcessingResult unchanged by a failure, on-failure messages without attributes, " +
@@ -351,6 +351,12 @@ func (s *Service) createMapping(ctx context.Context, c *kernel.Call, in *lambdaa
 		return s.createStreamMapping(ctx, c, in, queue, kind)
 	case esm.SQS:
 	}
+	if in.StartingPosition != nil {
+		return nil, errStartingPositionOnSQS()
+	}
+	if err := createStreamSettings(in).refuseOnSQS(); err != nil {
+		return nil, err
+	}
 	m := Mapping{Source: queue.String(), SourceKind: kind, BatchSize: defaultBatchSize, Enabled: in.Enabled == nil || *in.Enabled, Tags: maps.Clone(in.Tags)}
 	settings := mappingSettings{
 		batchSize: in.BatchSize, window: in.MaximumBatchingWindowInSeconds, filters: in.FilterCriteria, scaling: in.ScalingConfig,
@@ -486,6 +492,9 @@ func (s *Service) updateMapping(ctx context.Context, c *kernel.Call, in *lambdaa
 	}
 	if _, _, stream := esm.StreamOf(current.SourceKind); stream {
 		return s.updateStreamMapping(ctx, c, in, current)
+	}
+	if err := updateStreamSettings(in).refuseOnSQS(); err != nil {
+		return nil, err
 	}
 	target, err := s.retarget(ctx, c, in.UUID, in.FunctionName)
 	if err != nil {
