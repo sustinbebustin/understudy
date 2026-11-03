@@ -29,10 +29,11 @@ type Dialect struct {
 	// bare <Error> root with RequestId and HostId (S3), not
 	// <ErrorResponse><Error>...</Error><RequestId/></ErrorResponse>.
 	NoErrorWrapping bool
-	// MillisecondTimestamps writes date-time values with milliseconds
-	// always, in bodies and response headers, as S3 does:
-	// 2009-10-12T17:50:30.000Z (s3-ssec-object-lock.md 6.7, switch
-	// s3.object-lock.retain-until-format, for the one such header).
+	// MillisecondTimestamps writes date-time values as S3 does: with
+	// milliseconds always in bodies, 2009-10-12T17:50:30.000Z, and in
+	// response headers only when they are not zero,
+	// 2026-11-03T04:40:14Z and 2028-11-03T03:40:47.030Z
+	// (s3-ssec-object-lock.md 6.7, for the one such header).
 	MillisecondTimestamps bool
 	// InvalidArgument answers a label, query or header value that does not
 	// parse, with ArgumentName and ArgumentValue (S3's InvalidArgument,
@@ -185,7 +186,7 @@ func (c Codec) Encode(r *http.Request, op *registry.Operation, requestID string,
 		unwrapped:  unwrapped(op.Output),
 	}
 	stamp := func(t time.Time, f smithy.TimestampFormat) string {
-		return formatTimestamp(t, f, d.MillisecondTimestamps)
+		return formatHeaderTimestamp(t, f, d.MillisecondTimestamps)
 	}
 	enc, err := restbind.EncodeTimestamps(op, out, status, restbind.HasResponseDocument, func() restbind.DocumentWriter { return newWriter(opts) }, stamp)
 	if err != nil {

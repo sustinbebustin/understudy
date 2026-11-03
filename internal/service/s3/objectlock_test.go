@@ -497,7 +497,7 @@ func TestObjectLockDefaultRetention(t *testing.T) {
 func TestObjectLockReadHeaders(t *testing.T) {
 	runObjects(t, func(h *harness) {
 		t := h.T
-		h.follows("s3.object-lock.retain-until-format", "milliseconds")
+		h.follows("s3.object-lock.retain-until-format", "milliseconds-header-trimmed")
 		h.lockBucket("locked")
 		until := h.Clock.Now().Wire().Add(time.Hour + 123456789)
 		l := retention(s3api.ObjectLockModeGovernance, until)
@@ -600,7 +600,7 @@ func TestObjectRetentionChanges(t *testing.T) {
 		t := h.T
 		h.follows("s3.object-lock.cleared-reads", "404-and-OFF")
 		h.follows("s3.object-lock.mode-upgrade", "refused")
-		h.follows("s3.object-lock.retain-until-format", "milliseconds")
+		h.follows("s3.object-lock.retain-until-format", "milliseconds-header-trimmed")
 		h.lockBucket("locked")
 		v := h.mustPutLocked("locked", "k", "v", s3api.PutObjectInput{})
 		now := h.Clock.Now().Wire()
@@ -802,7 +802,7 @@ func TestObjectLockDeletes(t *testing.T) {
 	runObjects(t, func(h *harness) {
 		t := h.T
 		h.follows("s3.object-lock.bypass-without-lock", "refused")
-		h.follows("s3.object-lock.retain-until-format", "milliseconds")
+		h.follows("s3.object-lock.retain-until-format", "milliseconds-header-trimmed")
 		h.lockBucket("locked")
 		now := h.Clock.Now().Wire()
 		gov := h.mustPutLocked("locked", "gov", "v", retention(s3api.ObjectLockModeGovernance, now.Add(time.Hour)))

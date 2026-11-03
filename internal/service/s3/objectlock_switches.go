@@ -18,7 +18,7 @@ func objectLockSwitches() []fidelity.Entry {
 		retentionOps     = "64-putobjectretention-and-getobjectretention"
 	)
 	return []fidelity.Entry{
-		researchSwitch("s3.object-lock.retain-until-format", "milliseconds", evidence.Inferred, "67-response-headers-on-get-and-head", "S3SOL-12",
+		recordedSwitch("s3.object-lock.retain-until-format", "milliseconds-header-trimmed", "67-response-headers-on-get-and-head", "S3SOL-12",
 			[]string{"s3.PutObject", "s3.CopyObject", "s3.CreateMultipartUpload", "s3.PutObjectRetention", "s3.GetObject", "s3.HeadObject", "s3.GetObjectRetention", "s3.DeleteObject", "s3.DeleteObjects"}),
 		researchSwitch("s3.object-lock.default-years", "365-day", evidence.Inferred, "53-default-retention-dating", "S3SOL-13",
 			[]string{"s3.PutObjectLockConfiguration", "s3.PutObject", "s3.CopyObject", "s3.CompleteMultipartUpload"}),

@@ -259,7 +259,8 @@ SSE-C does not change the checksum rules of [s3.md](s3.md) 6: a raw SSE-C PUT wi
 - The legal-hold header "is not returned if the specified version of this object has never had a legal hold applied" ([API_HeadObject](https://docs.aws.amazon.com/AmazonS3/latest/API/API_HeadObject.html)). Recorded: `ON` (LS test_s3.snapshot.json:L9935, L10247), and `OFF` after removal (L10149).
 - Mode and date appear whenever retention is set, from headers, PutObjectRetention or the bucket default (L9623, L9711, L9738).
 - Event-hold duration headers are "Only returned when the event hold is enabled" (same pages).
-- UNVERIFIED (S3SOL-12): the exact form of `x-amz-object-lock-retain-until-date` and of `GetObjectRetention`'s `RetainUntilDate` (`2030-01-01T00:00:00.000Z` or without fraction), and whether sub-second precision of a requested date is kept. Snapshots replace the value with `datetime`.
+- Recorded (S3SOL-12, recorded 2026-11-03; `testdata/parity/s3/S3SOL/12-*.json`, with S3SOL-13 and -16): the `x-amz-object-lock-retain-until-date` header is ISO 8601 UTC with milliseconds only when they are not zero, `2026-11-03T04:40:14Z` for a whole-second date (`12-head`) and `2028-11-03T03:40:47.030Z` for a default-retention date (`13-head`; also `16-head`, `24-head`), the way Java's `Instant.toString()` writes a millisecond instant. `GetObjectRetention`'s `RetainUntilDate` always has them: `2026-11-03T04:40:14.000Z` (`12-get-retention`), `2026-11-04T03:43:27.296Z` (`24-get`). A version whose GOVERNANCE date has passed is deleted by version id without bypass, 204 (`12-delete-after-expiry`, 25 s after a 20 s retention).
+- Still UNVERIFIED: whether a requested date's sub-second part is kept (the CLI sent `2026-11-03T04:40:14Z`, dropping the `.123` the recipe asked for; understudy keeps milliseconds), and the boundary instant equal to the date.
 
 ### 6.8 CopyObject does not carry lock state
 
@@ -277,7 +278,7 @@ A copy of a version under GOVERNANCE retention, or with a legal hold, has neithe
 
 - Without `versionId` (simple delete) on a locked version: a new delete marker, whatever the lock ([lock](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock.html), "How deletes work"). The status is `204`, with `DeleteMarker=true` (recorded at LS test_s3.snapshot.json:L9797 and L17866; the model binds DeleteObject to 204, section 8). The doc page says "`200 OK`" here (section 10). "Delete markers are not WORM-protected" ([lock-manage](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock-managing.html)).
 - With `versionId` on a protected version: `403 AccessDenied`, "Access Denied because object protected by object lock." (L9639 GOVERNANCE, L17856 COMPLIANCE, L10044 legal hold). GOVERNANCE with `x-amz-bypass-governance-retention: true` → 204 (L9649); COMPLIANCE with bypass → 403 (L17874).
-- After the retain-until date passes, a versioned delete without bypass succeeds (L17904; LS test_s3.py:L9871-L9883 deletes after sleeping past a 5-second retention, validated). The comparison runs on S3's clock; the boundary (equal instant) is part of S3SOL-12.
+- After the retain-until date passes, a versioned delete without bypass succeeds (L17904; LS test_s3.py:L9871-L9883 deletes after sleeping past a 5-second retention, validated; S3SOL-12 `12-delete-after-expiry`, recorded 2026-11-03). The comparison runs on S3's clock; the boundary (equal instant) is UNVERIFIED: S3SOL-12 deleted 5 s after the date.
 
 ### 7.2 DeleteObjects
 
@@ -419,7 +420,7 @@ Run `just coverage-check` after re-marking and commit the regenerated `docs/cove
 | `s3.sse-c.complete-headers` | ListParts and Complete of an SSE-C upload with a checksum algorithm require the key, with the 3.6 texts (another key on Complete gets the same text); headers sent otherwise are checked like UploadPart's (inferred) | aws-recorded | 3.6 | S3SOL-08 |
 | `s3.encryption.unblocked-read` | after `NONE`, GET returns `<BlockedEncryptionTypes><EncryptionType>NONE</EncryptionType></BlockedEncryptionTypes>`; a default-free rule reads back with the `AES256` default and `BucketKeyEnabled` `false` added; an empty `Rule` is accepted | aws-recorded | 4.2 | S3SOL-10 |
 | `s3.encryption.blocked-types-omitted` | a Put without the element (the empty rule included), and DeleteBucketEncryption, put the block back to a new bucket's, `SSE-C` | aws-recorded | 4.2 | S3SOL-11 |
-| `s3.object-lock.retain-until-format` | ISO 8601 UTC with milliseconds (`2030-01-01T00:00:00.000Z`), milliseconds of the request kept; a version is deletable once now >= RetainUntil | inferred | 6.7, 7.1 | S3SOL-12 |
+| `s3.object-lock.retain-until-format` | ISO 8601 UTC; bodies with milliseconds always (`2026-11-03T04:40:14.000Z`), the header with them only when not zero (`2026-11-03T04:40:14Z`, `2028-11-03T03:40:47.030Z`); a version past its date is deletable. Inferred: milliseconds of the request kept, deletable once now >= RetainUntil | aws-recorded | 6.7, 7.1 | S3SOL-12 |
 | `s3.object-lock.default-years` | a year is 365 days; Days 1..36500 and Years 1..100, else `MalformedXML` | inferred | 5.2, 5.3 | S3SOL-13 |
 | `s3.object-lock.checksum-scope` | PutObject only, when the new version gets a retention period; satisfied by `Content-MD5` or an `x-amz-checksum-*` header or trailer, not by a signed payload hash | inferred | 6.3 | S3SOL-14, S3SOL-15 |
 | `s3.object-lock.copy-default` | CopyObject into a default-retention bucket applies the default, no checksum needed | inferred | 6.3, 6.8 | S3SOL-16 |
@@ -693,7 +694,7 @@ rec S3SOL/12-delete-after-expiry aws s3api delete-object --bucket "$L" --key e12
   --version-id "$(aws s3api list-object-versions --bucket "$L" --prefix e12 --query 'Versions[0].VersionId' --output text)"
 ```
 
-Expected: record the raw `x-amz-object-lock-retain-until-date` header and the XML `RetainUntilDate` against the sent `.123Z`; the expired delete succeeds. Cost under USD 0.01, 2 minutes. Teardown: 12.1.
+Expected: record the raw `x-amz-object-lock-retain-until-date` header and the XML `RetainUntilDate` against the sent `.123Z`; the expired delete succeeds. Recorded 2026-11-03: the CLI sent the date without its `.123`, so precision is unrecorded; the header had no fraction, the XML `.000Z`, and the expired delete succeeded (6.7). To record precision, send the date with `recurl`. Cost under USD 0.01, 2 minutes. Teardown: 12.1.
 
 ### 12.14 S3SOL-13. Default retention in years, and range refusals
 
