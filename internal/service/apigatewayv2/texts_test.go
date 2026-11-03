@@ -3,6 +3,7 @@ package apigatewayv2_test
 import (
 	"net/http"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/sustinbebustin/understudy/internal/api/apigatewayv2api"
@@ -145,6 +146,25 @@ func TestDeleteTargetedIntegrationAsRecorded(t *testing.T) {
 		rid := h.createRoute(id, "GET /a", integration)
 		wantText(t, fail(h, apigatewayv2api.OpDeleteIntegration, &apigatewayv2api.DeleteIntegrationInput{ApiId: id, IntegrationId: integration}), conflict,
 			"Cannot delete Integration because it is referenced by the following Routes with Ids: ["+rid+"]")
+	})
+}
+
+// The tag operations answer a missing API with "Resource was not found"
+// and refuse a key over 128 or a value over 256 characters with the Coral
+// text naming addedTags (APIGW2-01, recorded 2026-11-03: steps 23 to 25;
+// apigateway-http.md 3.6).
+func TestTagTextsAsRecorded(t *testing.T) {
+	run(t, func(h *harness) {
+		wantText(t, fail(h, apigatewayv2api.OpGetTags, &apigatewayv2api.GetTagsInput{ResourceArn: apiARN("0000000000")}), notFound, "Resource was not found")
+		api := apiARN(h.apiID("t"))
+		key := strings.Repeat("k", 129)
+		wantText(t, fail(h, apigatewayv2api.OpTagResource, &apigatewayv2api.TagResourceInput{ResourceArn: api, Tags: map[string]string{key: "v"}}), badRequest,
+			"1 validation error detected: Value '{"+key+"=v}' at 'addedTags' failed to satisfy constraint: Map keys must satisfy constraint: "+
+				"[Member must have length less than or equal to 128, Member must have length greater than or equal to 1]")
+		value := strings.Repeat("v", 257)
+		wantText(t, fail(h, apigatewayv2api.OpTagResource, &apigatewayv2api.TagResourceInput{ResourceArn: api, Tags: map[string]string{"k": value}}), badRequest,
+			"1 validation error detected: Value '{k="+value+"}' at 'addedTags' failed to satisfy constraint: Map value must satisfy constraint: "+
+				"[Member must have length less than or equal to 256, Member must have length greater than or equal to 0]")
 	})
 }
 

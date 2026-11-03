@@ -48,7 +48,7 @@ func checkCreateAPI(in *apigatewayv2api.CreateApiInput) *awserr.Error {
 	if err := checkAPIMembers(&in.Name, in.Description, in.Version, in.RouteSelectionExpression); err != nil {
 		return err
 	}
-	return checkTags(in.Tags)
+	return checkTags("tags", in.Tags)
 }
 
 // checkUpdateAPI is checkCreateAPI for the members an UpdateApi carries.

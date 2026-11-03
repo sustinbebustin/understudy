@@ -113,7 +113,7 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 	b.DeleteCorsConfiguration(s.deleteCORS, registry.Partial{Note: baseNote},
 		kernel.WithResources(childCollection(func(in *apigatewayv2api.DeleteCorsConfigurationInput) string { return in.ApiId }, "cors")))
 	b.TagResource(s.tagResource, registry.Partial{Note: baseNote},
-		kernel.WithCheck(func(in *apigatewayv2api.TagResourceInput) *awserr.Error { return checkTags(in.Tags) }),
+		kernel.WithCheck(func(in *apigatewayv2api.TagResourceInput) *awserr.Error { return checkTags("addedTags", in.Tags) }),
 		kernel.WithResources(tagsResource(func(in *apigatewayv2api.TagResourceInput) string { return in.ResourceArn })))
 	b.UntagResource(s.untagResource, registry.Partial{Note: baseNote},
 		kernel.WithResources(tagsResource(func(in *apigatewayv2api.UntagResourceInput) string { return in.ResourceArn })))

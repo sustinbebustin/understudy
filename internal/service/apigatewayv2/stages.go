@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/sustinbebustin/understudy/internal/api/apigatewayv2api"
 	"github.com/sustinbebustin/understudy/internal/aws"
@@ -23,14 +24,16 @@ const defaultStage = "$default"
 // API reference, apigateway-http.md 2.4).
 var stageName = regexp.MustCompile(`^[A-Za-z0-9_-]{1,128}$`)
 
-// Stage variables: "names can have alphanumeric and underscore characters,
-// and the values must match [A-Za-z0-9-._~:/?#&=,]+" (the stage API
-// reference, apigateway-http.md 2.4); a stage holds 100 variables, keys up
-// to 64 characters and values up to 512 (the HTTP API quotas page, 3.9).
-var (
-	stageVariableName  = regexp.MustCompile(`^[A-Za-z0-9_]{1,64}$`)
-	stageVariableValue = regexp.MustCompile(`^[A-Za-z0-9\-._~:/?#&=,]{1,512}$`)
-)
+// stageVariableName: "names can have alphanumeric and underscore
+// characters" (the stage API reference, apigateway-http.md 2.4); a stage
+// holds 100 variables, keys up to 64 characters and values up to 512 (the
+// HTTP API quotas page, 3.9). The reference's value pattern
+// [A-Za-z0-9-._~:/?#&=,]+ is not enforced: AWS accepted "a b" (APIGW2-01,
+// recorded 2026-11-03: step 16).
+var stageVariableName = regexp.MustCompile(`^[A-Za-z0-9_]{1,64}$`)
+
+// maxStageVariableValue is the longest stage variable value (3.9).
+const maxStageVariableValue = 512
 
 // Stage quotas (the HTTP API quotas page, apigateway-http.md 3.9): "Stages
 // per API: 10", 100 stage variables, and the 3 KB access log template,
@@ -63,7 +66,7 @@ func checkCreateStage(in *apigatewayv2api.CreateStageInput) *awserr.Error {
 	if err := checkStageVariables(in.StageVariables, false); err != nil {
 		return err
 	}
-	return checkTags(in.Tags)
+	return checkTags("tags", in.Tags)
 }
 
 // checkUpdateStage is checkCreateStage for the members an UpdateStage
@@ -106,8 +109,8 @@ func checkStageVariables(vars map[string]string, removing bool) *awserr.Error {
 		if !stageVariableName.MatchString(name) {
 			return errBadRequest("stage variable name %q is not 1 to 64 letters, digits and '_'", name)
 		}
-		if v := vars[name]; (!removing || v != "") && !stageVariableValue.MatchString(v) {
-			return errBadRequest("the value of stage variable %q is not 1 to 512 of the characters A-Z a-z 0-9 - . _ ~ : / ? # & = ,", name)
+		if v := vars[name]; (!removing || v != "") && (v == "" || utf8.RuneCountInString(v) > maxStageVariableValue) {
+			return errBadRequest("the value of stage variable %q is not 1 to %d characters long", name, maxStageVariableValue)
 		}
 	}
 	return nil
