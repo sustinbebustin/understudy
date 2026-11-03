@@ -31,7 +31,7 @@ func ssecSwitches() []fidelity.Entry {
 		recordedSwitch("s3.sse-c.missing-key-md5", "InvalidArgument", "32-write-side-validation-third-party-recorded", "S3SOL-03",
 			[]string{"s3.PutObject", "s3.CopyObject", "s3.CreateMultipartUpload", "s3.UploadPart", "s3.UploadPartCopy", "s3.CompleteMultipartUpload"}),
 		recordedSwitch("s3.sse-c.key-encoding", "write-side-texts", "32-write-side-validation-third-party-recorded", "S3SOL-04", ssecPlainHTTPOps),
-		researchSwitch("s3.sse-c.metadata-without-key", "InvalidRequest", evidence.Inferred, "33-reads-getobject-headobject-getobjectattributes", "S3SOL-05",
+		recordedSwitch("s3.sse-c.metadata-without-key", "InvalidRequest", "33-reads-getobject-headobject-getobjectattributes", "S3SOL-05",
 			[]string{"s3.HeadObject", "s3.GetObjectAttributes"}),
 		recordedSwitch("s3.sse-c.copy-source-not-applicable", "InvalidRequest", "35-copyobject-and-uploadpartcopy", "S3SOL-06",
 			[]string{"s3.CopyObject", "s3.UploadPartCopy"}),

@@ -103,20 +103,22 @@ type wantSwitch struct {
 
 // TestSSECAndObjectLockSwitches: the service lists the switches of
 // s3-ssec-object-lock.md 11.4 after its earlier five, in that table's
-// order, each pointing at its section and its recording-queue item and
-// settled by no scenario yet (section 12); s3.encryption.after-delete is
-// now backed by the recording of section 2. IAM enforcement's two S3
-// switches (s3.denial.text, s3.root.bucket-policy-lockout) follow them
+// order, each pointing at its section and its recording-queue item
+// (section 12): recorded on 2026-11-03 and settled by no scenario, since
+// the replayer skips S3's REST requests, except s3.sse-c.plain-http, whose
+// item was not recorded; s3.encryption.after-delete is backed by the
+// recording of section 2. IAM enforcement's two S3 switches
+// (s3.denial.text, s3.root.bucket-policy-lockout) follow them
 // (iam-enforcement-surfaces.md 12.8).
 func TestSSECAndObjectLockSwitches(t *testing.T) {
 	plainHTTPOps := []string{"s3.PutObject", "s3.CopyObject", "s3.CreateMultipartUpload", "s3.UploadPart", "s3.UploadPartCopy", "s3.CompleteMultipartUpload", "s3.GetObject", "s3.HeadObject", "s3.GetObjectAttributes"}
-	inferred, recorded := evidence.Inferred, evidence.AWSRecorded
+	recorded := evidence.AWSRecorded
 	want := []wantSwitch{
 		{"s3.sse-c.plain-http", "refused", evidence.AWSDoc, "39-https", "S3SOL-02", append(slices.Clone(plainHTTPOps), "s3.ListParts")},
 		{"s3.sse-c.blocked-write", "AccessDenied", recorded, "43-what-the-block-refuses", "S3SOL-01", []string{"s3.PutObject", "s3.CopyObject", "s3.CreateMultipartUpload", "s3.UploadPart", "s3.UploadPartCopy"}},
 		{"s3.sse-c.missing-key-md5", "InvalidArgument", recorded, "32-write-side-validation-third-party-recorded", "S3SOL-03", []string{"s3.PutObject", "s3.CopyObject", "s3.CreateMultipartUpload", "s3.UploadPart", "s3.UploadPartCopy", "s3.CompleteMultipartUpload"}},
 		{"s3.sse-c.key-encoding", "write-side-texts", recorded, "32-write-side-validation-third-party-recorded", "S3SOL-04", plainHTTPOps},
-		{"s3.sse-c.metadata-without-key", "InvalidRequest", inferred, "33-reads-getobject-headobject-getobjectattributes", "S3SOL-05", []string{"s3.HeadObject", "s3.GetObjectAttributes"}},
+		{"s3.sse-c.metadata-without-key", "InvalidRequest", recorded, "33-reads-getobject-headobject-getobjectattributes", "S3SOL-05", []string{"s3.HeadObject", "s3.GetObjectAttributes"}},
 		{"s3.sse-c.copy-source-not-applicable", "InvalidRequest", recorded, "35-copyobject-and-uploadpartcopy", "S3SOL-06", []string{"s3.CopyObject", "s3.UploadPartCopy"}},
 		{"s3.sse-c.copy-source-wrong-key", "InvalidRequest", recorded, "35-copyobject-and-uploadpartcopy", "S3SOL-07", []string{"s3.CopyObject", "s3.UploadPartCopy"}},
 		{"s3.sse-c.complete-headers", "required-with-checksum", recorded, "36-multipart-uploads", "S3SOL-08", []string{"s3.CompleteMultipartUpload", "s3.ListParts"}},
@@ -125,14 +127,14 @@ func TestSSECAndObjectLockSwitches(t *testing.T) {
 		{"s3.object-lock.retain-until-format", "milliseconds-header-trimmed", recorded, "67-response-headers-on-get-and-head", "S3SOL-12", []string{"s3.PutObject", "s3.CopyObject", "s3.CreateMultipartUpload", "s3.PutObjectRetention", "s3.GetObject", "s3.HeadObject", "s3.GetObjectRetention", "s3.DeleteObject", "s3.DeleteObjects"}},
 		{"s3.object-lock.default-years", "calendar-years", recorded, "53-default-retention-dating", "S3SOL-13", []string{"s3.PutObjectLockConfiguration", "s3.PutObject", "s3.CopyObject", "s3.CompleteMultipartUpload"}},
 		{"s3.object-lock.checksum-scope", "any-lock-parameter-and-parts", recorded, "63-the-content-md5-or-checksum-requirement", "S3SOL-14, S3SOL-15", []string{"s3.PutObject", "s3.UploadPart"}},
-		{"s3.object-lock.copy-default", "default-applied", inferred, "68-copyobject-does-not-carry-lock-state", "S3SOL-16", []string{"s3.CopyObject"}},
+		{"s3.object-lock.copy-default", "default-applied", recorded, "68-copyobject-does-not-carry-lock-state", "S3SOL-16", []string{"s3.CopyObject"}},
 		{"s3.object-lock.headers-without-lock", "InvalidRequest", recorded, "62-header-validation-third-party-recorded-all-400-invalidargument", "S3SOL-17", []string{"s3.PutObject", "s3.CopyObject", "s3.CreateMultipartUpload"}},
 		{"s3.object-lock.header-texts", "InvalidArgument", recorded, "62-header-validation-third-party-recorded-all-400-invalidargument", "S3SOL-18", []string{"s3.PutObject", "s3.CopyObject", "s3.CreateMultipartUpload", "s3.PutObjectRetention"}},
-		{"s3.object-lock.mode-upgrade", "refused", inferred, "64-putobjectretention-and-getobjectretention", "S3SOL-19", []string{"s3.PutObjectRetention"}},
-		{"s3.object-lock.date-without-mode", "MalformedXML", inferred, "64-putobjectretention-and-getobjectretention", "S3SOL-20", []string{"s3.PutObjectRetention"}},
-		{"s3.object-lock.cleared-reads", "404-and-OFF", inferred, "64-putobjectretention-and-getobjectretention", "S3SOL-21", []string{"s3.GetObjectRetention", "s3.GetObjectLegalHold", "s3.GetObject", "s3.HeadObject"}},
-		{"s3.object-lock.check-order", "lock-state-first", inferred, "65-putobjectlegalhold-and-getobjectlegalhold", "S3SOL-22", []string{"s3.PutObjectRetention", "s3.GetObjectRetention", "s3.PutObjectLegalHold", "s3.GetObjectLegalHold"}},
-		{"s3.object-lock.bypass-without-lock", "refused", evidence.ThirdPartyRecorded, "73-the-bypass-header-on-a-bucket-without-object-lock", "S3SOL-23", []string{"s3.DeleteObject", "s3.DeleteObjects"}},
+		{"s3.object-lock.mode-upgrade", "refused", recorded, "64-putobjectretention-and-getobjectretention", "S3SOL-19", []string{"s3.PutObjectRetention"}},
+		{"s3.object-lock.date-without-mode", "MalformedXML", recorded, "64-putobjectretention-and-getobjectretention", "S3SOL-20", []string{"s3.PutObjectRetention"}},
+		{"s3.object-lock.cleared-reads", "404-and-OFF", recorded, "64-putobjectretention-and-getobjectretention", "S3SOL-21", []string{"s3.GetObjectRetention", "s3.GetObjectLegalHold", "s3.GetObject", "s3.HeadObject"}},
+		{"s3.object-lock.check-order", "lock-state-first", recorded, "65-putobjectlegalhold-and-getobjectlegalhold", "S3SOL-22", []string{"s3.PutObjectRetention", "s3.GetObjectRetention", "s3.PutObjectLegalHold", "s3.GetObjectLegalHold"}},
+		{"s3.object-lock.bypass-without-lock", "refused", recorded, "73-the-bypass-header-on-a-bucket-without-object-lock", "S3SOL-23", []string{"s3.DeleteObject", "s3.DeleteObjects"}},
 	}
 	run(t, s3.Options{}, func(h *harness) {
 		t := h.T
