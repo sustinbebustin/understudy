@@ -46,23 +46,25 @@ func layerBlobs(layers []LayerRef) []blob.Ref {
 }
 
 // layerSwitches are the choices about layers on functions made without
-// AWS-recorded evidence (lambda-destinations-layers.md 11.2).
+// AWS-recorded evidence (lambda-destinations-layers.md 11.2), now recorded
+// (12, 2026-11-03).
 func layerSwitches() []fidelity.Switch[string] {
 	return []fidelity.Switch[string]{
 		// A path two of a function's layers hold has the later layer's
 		// content in /opt (codestore.Store.Merge).
-		ldlSwitch("lambda.layers.merge-conflict", "later-overwrites", evidence.Inferred, "81-extraction-and-merge-order", "LDL-12",
-			"lambda.Invoke"),
+		recorded(ldlSwitch("lambda.layers.merge-conflict", "later-overwrites", evidence.AWSRecorded, "81-extraction-and-merge-order", "LDL-12",
+			"lambda.Invoke")),
 		// A layer marked for another runtime or architecture attaches: the
 		// compatible lists are metadata ListLayers filters on (resolveLayers
 		// checks neither).
-		ldlSwitch("lambda.layers.compatibility", "not-enforced", evidence.Inferred, "73-compatibility-is-metadata", "LDL-13",
-			"lambda.CreateFunction", "lambda.UpdateFunctionConfiguration"),
+		recorded(ldlSwitch("lambda.layers.compatibility", "not-enforced", evidence.AWSRecorded, "73-compatibility-is-metadata", "LDL-13",
+			"lambda.CreateFunction", "lambda.UpdateFunctionConfiguration")),
 		// Another account's layer attaches whatever its owner's policy says,
 		// and an Advisory names a policy that would not grant the caller
-		// (resolveLayer).
-		ldlSwitch("lambda.layers.cross-account-policy", "advise", evidence.Inferred, "74-layers-of-other-accounts", "LDL-15",
+		// (resolveLayer). AWS refuses it instead (LDL-15).
+		differs(ldlSwitch("lambda.layers.cross-account-policy", "advise", evidence.Inferred, "74-layers-of-other-accounts", "LDL-15",
 			"lambda.CreateFunction", "lambda.UpdateFunctionConfiguration"),
+			"AWS refuses a version its owner's policy does not grant, and one that does not exist, with 403 AccessDeniedException"),
 	}
 }
 
@@ -225,7 +227,7 @@ func checkCodeWithLayers(code Code, layers []LayerRef) *awserr.Error {
 		total += l.Unzipped
 	}
 	if total > maxUnzipped {
-		return errCodeWithLayersTooLarge(total)
+		return errCodeWithLayersTooLarge()
 	}
 	return nil
 }

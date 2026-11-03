@@ -241,17 +241,24 @@ func (o Outgoing) check(d Destination) *WrapError {
 	return nil
 }
 
+// zeroConcurrencyMessage is the ErrorMessage of the dead letter of an
+// event a function with zero reserved concurrency never ran
+// (aws-recorded, lambda-destinations-layers.md 5.2: LDL-04).
+const zeroConcurrencyMessage = "Function not invoked. Function isconfigured with zero reserved concurrent executions"
+
 // DeadLetter is the outbox delivery of an event that failed for good to
 // the function's dead-letter queue or topic target
 // (lambda-destinations-layers.md 5.2, 11.3.7): the event as invoked, byte
 // for byte (finding 1), with the attributes ErrorCode Number "200" and
 // ErrorMessage, the first 1 KB of the error's message, for an event the
-// function ran, and RequestID for every one. What AWS sends for an event
-// that never ran is unrecorded (LDL-04), so it gets RequestID alone. One
-// attempt, as the execution role; a failure loses the event (5.4). It
-// refuses, with a *WrapError, a target that is neither SQS nor SNS (5.1)
-// or is in a scope understudy does not serve (served), and a nil inv.
-func DeadLetter(target aws.ARN, s Sender, requestID ids.LambdaRequestID, inv Invocation, payload []byte) (delivery.Request, error) {
+// function ran, and RequestID for every one. An event that never ran under
+// cond ZeroReservedConcurrency gets AWS's ErrorMessage and no ErrorCode
+// (aws-recorded, LDL-04); what AWS sends for one that aged out unrun is
+// unrecorded, so it gets RequestID alone. One attempt, as the execution
+// role; a failure loses the event (5.4). It refuses, with a *WrapError, a
+// target that is neither SQS nor SNS (5.1) or is in a scope understudy
+// does not serve (served), and a nil inv.
+func DeadLetter(target aws.ARN, s Sender, requestID ids.LambdaRequestID, cond Condition, inv Invocation, payload []byte) (delivery.Request, error) {
 	var attrs []delivery.MessageAttribute
 	switch inv := inv.(type) {
 	case nil:
@@ -264,6 +271,10 @@ func DeadLetter(target aws.ARN, s Sender, requestID ids.LambdaRequestID, inv Inv
 			attrs = append(attrs, delivery.MessageAttribute{Name: "ErrorMessage", Value: delivery.StringAttribute{Value: msg}})
 		}
 	case NeverRan:
+		if cond == ZeroReservedConcurrency {
+			// "isconfigured" as AWS sends it (lambda-destinations-layers.md 5.2).
+			attrs = append(attrs, delivery.MessageAttribute{Name: "ErrorMessage", Value: delivery.StringAttribute{Value: zeroConcurrencyMessage}})
+		}
 	}
 	attrs = append(attrs, delivery.MessageAttribute{Name: "RequestID", Value: delivery.StringAttribute{Value: string(requestID)}})
 	req := delivery.Request{

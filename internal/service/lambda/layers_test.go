@@ -554,6 +554,17 @@ func TestAddLayerVersionPermissionRendersPrincipals(t *testing.T) {
 	})
 }
 
+// An account principal with an organization id is refused (aws-recorded,
+// lambda-destinations-layers.md 6.7: testdata/parity/lambda/LDL-15/04-org-account.json).
+func TestLayerPermissionOrganizationNeedsEveryone(t *testing.T) {
+	run(t, lambda.Options{}, func(h *harness) {
+		h.publish("shared", pythonLayer(h.T))
+		errorIs(h.T, fail(h, lambdaapi.OpAddLayerVersionPermission, &lambdaapi.AddLayerVersionPermissionInput{
+			LayerName: "shared", VersionNumber: 1, StatementId: "orgacct", Action: "lambda:GetLayerVersion", Principal: "223456789012", OrganizationId: new("o-abcdefghij"),
+		}), "InvalidParameterValueException", "If organization id is specified then principal should be *")
+	})
+}
+
 // The permission operations' recorded refusals
 // (lambda-destinations-layers.md 6.8: test_lambda_api.snapshot.json:L8915-L9070).
 func TestLayerVersionPermissionErrors(t *testing.T) {

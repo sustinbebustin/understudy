@@ -177,12 +177,11 @@ func errManagedLayerNotFound(arn string) *awserr.Error {
 }
 
 // errCodeWithLayersTooLarge answers a package and layers whose unzipped
-// sizes together pass maxUnzipped. Its start is what a third-party CLI
-// matches AWS's text on; the rest is understudy's, AWS's being unrecorded
-// (lambda-destinations-layers.md 7.1, LDL-14).
-func errCodeWithLayersTooLarge(total int64) *awserr.Error {
-	return user(lambdaapi.ErrInvalidParameterValueException("Function code combined with layers exceeds the maximum allowed size of " +
-		strconv.FormatInt(maxUnzipped, 10) + " bytes. The actual size is " + strconv.FormatInt(total, 10) + " bytes."))
+// sizes together pass maxUnzipped: AWS's text for layers past it
+// (aws-recorded, lambda-destinations-layers.md 7.1: LDL-14 01); that a
+// package tipping smaller layers over gets the same text is inferred.
+func errCodeWithLayersTooLarge() *awserr.Error {
+	return user(lambdaapi.ErrInvalidParameterValueException("Layers consume more than the available size of " + strconv.FormatInt(maxUnzipped, 10) + " bytes"))
 }
 
 // errLayerVersionMissing is the permission operations' answer for a layer
@@ -258,6 +257,20 @@ func errZipNeedsRuntime() *awserr.Error {
 
 func errImageTakesNoRuntime() *awserr.Error {
 	return user(lambdaapi.ErrInvalidParameterValueException("Please don't provide Handler or Runtime or Layer when the intended function PackageType is Image."))
+}
+
+// errImageTakesNoLayers is AWS's refusal of layers on an image function,
+// sent with "Type":null, which understudy leaves out (aws-recorded,
+// lambda-destinations-layers.md 7.1: LDL-13 03). It comes before the image
+// is looked up.
+func errImageTakesNoLayers() *awserr.Error {
+	return lambdaapi.ErrInvalidParameterValueException("Lambda layers are not supported for functions created with container images.")
+}
+
+// errLayerOrgPrincipal refuses an organization id beside a principal that
+// is not "*" (aws-recorded, lambda-destinations-layers.md 6.7: LDL-15 04).
+func errLayerOrgPrincipal() *awserr.Error {
+	return user(lambdaapi.ErrInvalidParameterValueException("If organization id is specified then principal should be *"))
 }
 
 // errCodeSource is understudy's text for code that names no source, or a
@@ -395,6 +408,13 @@ func errDestinationSelf() *awserr.Error {
 
 func errDestinationMissing(arn string) *awserr.Error {
 	return user(lambdaapi.ErrInvalidParameterValueException("The destination ARN " + arn + " is invalid."))
+}
+
+// errBucketDestinationMissing is AWS's answer for an S3 on-failure
+// destination whose bucket does not exist (aws-recorded,
+// lambda-destinations-layers.md 2.3: LDL-08 04).
+func errBucketDestinationMissing() *awserr.Error {
+	return user(lambdaapi.ErrInvalidParameterValueException("Error occurred while ListBucket. S3 Error Code: 404 Not Found. S3 Error Message: Not Found"))
 }
 
 func errDestinationConfig(onSuccess, onFailure string) *awserr.Error {

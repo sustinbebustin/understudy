@@ -191,7 +191,9 @@ func checkCreateFunction(in *lambdaapi.CreateFunctionInput) *awserr.Error {
 		return err
 	}
 	switch {
-	case packageType == lambdaapi.PackageTypeImage && (in.Runtime != nil || in.Handler != nil || len(in.Layers) > 0):
+	case packageType == lambdaapi.PackageTypeImage && len(in.Layers) > 0:
+		return errImageTakesNoLayers()
+	case packageType == lambdaapi.PackageTypeImage && (in.Runtime != nil || in.Handler != nil):
 		return errImageTakesNoRuntime()
 	case packageType == lambdaapi.PackageTypeZip && (in.Runtime == nil || in.Handler == nil):
 		return errZipNeedsRuntime()

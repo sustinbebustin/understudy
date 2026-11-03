@@ -377,15 +377,18 @@ func (zeroReader) Read(p []byte) (int, error) {
 	return len(p), nil
 }
 
+// layersTooLarge is AWS's refusal of layers past the unzipped limit
+// (lambda-destinations-layers.md 7.1: testdata/parity/lambda/LDL-14/01-combined.json).
+const layersTooLarge = "Layers consume more than the available size of 262144000 bytes"
+
 // The function's code and its layers together may hold 262,144,000 bytes
 // unzipped ("250 MB unzipped including layers",
 // https://docs.aws.amazon.com/lambda/latest/dg/gettingstarted-limits.html):
 // a create, a configuration update and a code update that pass it are
-// refused with a message that begins as AWS's does
-// (lambda-destinations-layers.md 7.1, 11.5.4; the rest of the text is
-// unrecorded, LDL-14).
+// refused with AWS's text for layers past the limit (aws-recorded,
+// lambda-destinations-layers.md 7.1: LDL-14 01, two 140 MiB layers; the
+// same text for a package that tips layers within it over is inferred).
 func TestCodeAndLayersTogetherHaveTheUnzippedLimit(t *testing.T) {
-	const prefix = "Function code combined with layers exceeds the maximum allowed size"
 	half := zeroZip(t, "data/half.bin", 131_072_000)
 	run(t, lambda.Options{}, func(h *harness) {
 		t := h.T
@@ -393,8 +396,8 @@ func TestCodeAndLayersTogetherHaveTheUnzippedLimit(t *testing.T) {
 		h.publish("big-b", half)
 		over := func(err *awserr.Error, what string) {
 			t.Helper()
-			if err.ID.Shape.Name() != "InvalidParameterValueException" || err.ID.Status != 400 || !strings.HasPrefix(err.Message, prefix) {
-				t.Errorf("%s = %d %s %q, want 400 InvalidParameterValueException beginning %q", what, err.ID.Status, err.ID.Shape.Name(), err.Message, prefix)
+			if err.ID.Shape.Name() != "InvalidParameterValueException" || err.ID.Status != 400 || err.Message != layersTooLarge {
+				t.Errorf("%s = %d %s %q, want 400 InvalidParameterValueException %q", what, err.ID.Status, err.ID.Shape.Name(), err.Message, layersTooLarge)
 			}
 		}
 		over(fail(h, lambdaapi.OpCreateFunction, withLayers(t, "both", layerPrefix+"big-a:1", layerPrefix+"big-b:1")), "CreateFunction with both halves")
