@@ -211,12 +211,13 @@ func (d *Definition) limit() time.Duration {
 
 // timedOut ends the execution TIMED_OUT at its deadline. DescribeExecution
 // then has no error or cause (stepfunctions-asl.md 8.6; aws-recorded
-// localstack@8b9a79f v2/timeouts/test_timeouts.snapshot.json:L688-L708), so
-// ExecutionTimedOut's details are {}. Its previousEventId is 0, as
-// ExecutionAborted's from StopExecution is, and a running Wait writes no
-// WaitStateAborted (UNVERIFIED, ASL-12).
+// localstack@8b9a79f v2/timeouts/test_timeouts.snapshot.json:L688-L708),
+// while ExecutionTimedOut's details are {"error":"States.Timeout"} with no
+// cause. Its previousEventId is 0, as ExecutionAborted's from
+// StopExecution is, and a running Wait writes no WaitStateAborted (ASL-12,
+// recorded 2026-11-03).
 func (s *stepper) timedOut() {
-	s.emit("ExecutionTimedOut", 0, errorDetails("", ""))
+	s.emit("ExecutionTimedOut", 0, errorDetails(errTimeout, ""))
 	s.end(TimedOut{})
 }
 

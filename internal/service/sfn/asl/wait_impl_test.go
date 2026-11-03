@@ -60,16 +60,16 @@ func TestWaitTimestampPathUnrecordedTexts(t *testing.T) {
 }
 
 // ExecutionTimedOut points at no event, as ExecutionAborted from
-// StopExecution does, and carries empty details; the running Wait writes no
-// WaitStateAborted.
+// StopExecution does, and carries {"error":"States.Timeout"} without a
+// cause; the running Wait writes no WaitStateAborted (ASL-12, recorded
+// 2026-11-03).
 func TestExecutionTimedOutEvent(t *testing.T) {
-	// inferred, ASL-12
 	d := newDriver(t, `{"StartAt":"W","TimeoutSeconds":5,"States":{"W":{"Type":"Wait","Seconds":60,"End":true}}}`, rules())
 	d.start(`{}`)
 	d.runToEnd(10)
-	d.wantShape("understudy's choice", "ExecutionStarted 1<-0", "WaitStateEntered 2<-0", "ExecutionTimedOut 3<-0")
-	if got := d.event("ExecutionTimedOut").Details; !equal(got, document.Map{}) {
-		t.Errorf("ExecutionTimedOut details = %s, want {}", encode(got))
+	d.wantShape("ASL-12", "ExecutionStarted 1<-0", "WaitStateEntered 2<-0", "ExecutionTimedOut 3<-0")
+	if got := d.event("ExecutionTimedOut").Details; !equal(got, document.Map{{Key: "error", Value: document.String("States.Timeout")}}) {
+		t.Errorf("ExecutionTimedOut details = %s, want {\"error\":\"States.Timeout\"}", encode(got))
 	}
 	if len(d.timers) != 0 {
 		t.Errorf("timers still armed after the timeout: %v", d.timers)

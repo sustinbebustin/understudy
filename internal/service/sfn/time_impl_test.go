@@ -86,8 +86,9 @@ func TestDeletingMachineRefusesChanges(t *testing.T) {
 	})
 }
 
-// An execution that ends TIMED_OUT writes ExecutionTimedOut with empty
-// details on the wire, and ListExecutions filters it as TIMED_OUT.
+// An execution that ends TIMED_OUT writes ExecutionTimedOut with
+// {"error":"States.Timeout"} on the wire (ASL-12, recorded 2026-11-03), and
+// ListExecutions filters it as TIMED_OUT.
 func TestTimedOutExecutionOnTheWire(t *testing.T) {
 	run(t, func(h *harness) {
 		machine := h.create("t", `{"StartAt":"W","TimeoutSeconds":5,"States":{"W":{"Type":"Wait","Seconds":60,"End":true}}}`)
@@ -96,8 +97,8 @@ func TestTimedOutExecutionOnTheWire(t *testing.T) {
 		events := h.history(arn)
 		last := events[len(events)-1]
 		if last.Type != sfnapi.HistoryEventTypeExecutionTimedOut || last.ExecutionTimedOutEventDetails == nil ||
-			last.ExecutionTimedOutEventDetails.Error != nil || last.ExecutionTimedOutEventDetails.Cause != nil {
-			h.Errorf("last event = %+v, want ExecutionTimedOut with {}", last)
+			val(last.ExecutionTimedOutEventDetails.Error) != "States.Timeout" || last.ExecutionTimedOutEventDetails.Cause != nil {
+			h.Errorf("last event = %+v, want ExecutionTimedOut with {\"error\":\"States.Timeout\"} (ASL-12)", last)
 		}
 		timedOut := sfnapi.ExecutionStatusTimedOut
 		if got := must(h, sfnapi.OpListExecutions, &sfnapi.ListExecutionsInput{StateMachineArn: new(machine), StatusFilter: &timedOut}).Executions; len(got) != 1 || got[0].ExecutionArn != arn {
