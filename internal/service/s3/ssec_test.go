@@ -563,9 +563,11 @@ func TestSSECPlainHTTP(t *testing.T) {
 // encrypt the target (s3-ssec-object-lock.md 3.5). An SSE-C source copied
 // to a plain target gets the plaintext MD5 ETag and SSE-S3 (LocalStack
 // test_s3.snapshot.json L12913), to an SSE-C target a random ETag and the
-// target key's echo (L12926, L12930); source refusals follow 3.3 and the
-// switches s3.sse-c.copy-source-not-applicable and
-// s3.sse-c.copy-source-wrong-key, on CopyObject and UploadPartCopy alike.
+// target key's echo (L12926, L12930); source refusals follow 3.3 and 3.5,
+// on CopyObject and UploadPartCopy alike: SSE-C headers on a plain source
+// are "not applicable" (S3SOL-06), and another key is 400 InvalidRequest
+// "did not match the ones used originally", not the GET's 403 (S3SOL-07
+// 07-copy, 07-upload-part-copy; both recorded 2026-11-03).
 func TestSSECCopy(t *testing.T) {
 	runObjects(t, func(h *harness) {
 		t := h.T
@@ -618,12 +620,12 @@ func TestSSECCopy(t *testing.T) {
 		_, err = copyAs("x", "enc", s3api.CopyObjectInput{CopySourceSSECustomerAlgorithm: key1.alg(), CopySourceSSECustomerKey: key1.k(), CopySourceSSECustomerKeyMD5: key2.m()})
 		failure{status: 400, code: "InvalidArgument", message: textBadMD5, fields: map[string]string{"ArgumentName": sseArgument}}.is(t, "copy source MD5 mismatch", err)
 
-		notApplicable, naStatus := h.switchCode("s3.sse-c.copy-source-not-applicable")
-		wrongKey, wkStatus := h.switchCode("s3.sse-c.copy-source-wrong-key")
+		notApplicable := failure{status: 400, code: "InvalidRequest", message: textNotSSEC}
+		mismatch := failure{status: 400, code: "InvalidRequest", message: textMismatch}
 		_, err = copyAs("x", "plain", srcKey(key1))
-		failure{status: naStatus, code: notApplicable, message: textNotSSEC}.is(t, "copy-source SSE-C headers on a plain source", err)
+		notApplicable.is(t, "copy-source SSE-C headers on a plain source", err)
 		_, err = copyAs("x", "enc", srcKey(key2))
-		failure{status: wkStatus, code: wrongKey, message: textWrongKey}.is(t, "copy source with another key", err)
+		mismatch.is(t, "copy source with another key", err)
 		if _, err := as(h, who{}, s3api.OpHeadObject, &s3api.HeadObjectInput{Bucket: "ssec", Key: "x"}); err == nil {
 			t.Error("a refused copy left an object")
 		}
@@ -638,8 +640,8 @@ func TestSSECCopy(t *testing.T) {
 			return err
 		}
 		failure{status: 400, code: "InvalidRequest", message: textNeedsKey}.is(t, "UploadPartCopy of an SSE-C source without its key", partCopy("enc", nil))
-		failure{status: wkStatus, code: wrongKey, message: textWrongKey}.is(t, "UploadPartCopy source with another key", partCopy("enc", &key2))
-		failure{status: naStatus, code: notApplicable, message: textNotSSEC}.is(t, "UploadPartCopy SSE-C headers on a plain source", partCopy("plain", &key1))
+		mismatch.is(t, "UploadPartCopy source with another key", partCopy("enc", &key2))
+		notApplicable.is(t, "UploadPartCopy SSE-C headers on a plain source", partCopy("plain", &key1))
 		if err := partCopy("enc", &key1); err != nil {
 			t.Errorf("UploadPartCopy of an SSE-C source with its key: %s %q", err.ID.QueryCode, err.Message)
 		}

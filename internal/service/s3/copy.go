@@ -130,7 +130,7 @@ func (s *Service) readSource(blobs *blob.Store, src copySource, owner *string, c
 		if err != nil {
 			return source{}, err
 		}
-		if _, err := checkCustomerRead(v.Object.Encryption, key, scheme); err != nil {
+		if err := checkCustomerSource(v.Object.Encryption, key, scheme); err != nil {
 			return source{}, err
 		}
 		if err := copySourceError(conds.evaluate(v.validator(), now), conds); err != nil {

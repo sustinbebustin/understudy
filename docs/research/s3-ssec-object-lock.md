@@ -99,9 +99,9 @@ All 400, all with `ArgumentName` `x-amz-server-side-encryption` (sic, even for c
 
 - Source SSE-C headers decrypt the source, target SSE-C headers encrypt the target; either can appear without the other; `x-amz-server-side-encryption` selects another target encryption ([ssec-spec](https://docs.aws.amazon.com/AmazonS3/latest/userguide/specifying-s3-c-encryption.html), "Copy operation"). Recorded: SSE-C source to SSE-S3 target (L12913) and to SSE-C target (L12926).
 - Copying an SSE-C source without the source headers: 400 `InvalidRequest`, "The object was stored using a form of Server Side Encryption. The correct parameters must be provided to retrieve the object." (L12950).
-- UNVERIFIED (S3SOL-06): copy-source SSE-C headers on a source that is not SSE-C. Plausible: the R15 GET text "The encryption parameters are not applicable to this object." (what `internal/service/s3/copy.go` answers today).
-- UNVERIFIED (S3SOL-07): copy-source headers with the wrong key, on CopyObject and UploadPartCopy. Plausible: 403 `AccessDenied` with the GET "correct secret key" text.
-- UploadPartCopy "see CopyObject and UploadPart" ([API_UploadPartCopy](https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPartCopy.html)); no recording. Treat it as CopyObject's source rules plus UploadPart's target rules (inferred; S3SOL-07 includes an UploadPartCopy step).
+- Copy-source SSE-C headers on a source that is not SSE-C: `400 InvalidRequest`, "The encryption parameters are not applicable to this object.", the R15 GET text (S3SOL-06, recorded 2026-11-03; `testdata/parity/s3/S3SOL/06-copy.json`).
+- Copy-source headers with the wrong key: `400 InvalidRequest`, "The provided encryption parameters did not match the ones used originally.", on CopyObject and UploadPartCopy alike (S3SOL-07, recorded 2026-11-03; `07-copy.json`, `07-upload-part-copy.json`). This is UploadPart's mismatch text (3.6), not the GET's 403 "correct secret key" that was guessed.
+- UploadPartCopy "see CopyObject and UploadPart" ([API_UploadPartCopy](https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPartCopy.html)). Its source answers as CopyObject's did in S3SOL-07; its other source and target rules are treated as CopyObject's source rules plus UploadPart's target rules (inferred).
 
 ### 3.6 Multipart uploads
 
@@ -391,7 +391,7 @@ Run `just coverage-check` after re-marking and commit the regenerated `docs/cove
 ### 11.3 Rules to implement
 
 - `resolveSSE` (`internal/service/s3/sse.go:L77`): replace the unconditional `errSSECBlocked` with: 3.2 validation in the order conflict, algorithm, presence, key length, MD5 (only "conflict before algorithm" is recorded, 3.2; the rest of the order is inferred, because each recorded request had a single fault), then the bucket block (order against validation from S3SOL-01), then HTTPS (switch).
-- Reads: GET, HEAD, GetObjectAttributes, copy source and UploadPartCopy source compare the request against the stored variant: SSE-C object without headers → 400 "stored using a form"; with headers on a non-SSE-C object → 400 "not applicable" (aws-recorded); wrong key → 403, including a wrong-length key with a matching MD5 (3.3; recorded for 44 bytes and, S3SOL-04, 10 bytes); a key without its MD5 passes with the MD5 computed (S3SOL-03, recorded on GET).
+- Reads: GET, HEAD, GetObjectAttributes, copy source and UploadPartCopy source compare the request against the stored variant: SSE-C object without headers → 400 "stored using a form"; with headers on a non-SSE-C object → 400 "not applicable" (aws-recorded); wrong key → 403 on a read, and 400 `InvalidRequest` "did not match the ones used originally" on a copy source (S3SOL-07), including a wrong-length key with a matching MD5 (3.3; recorded for 44 bytes and, S3SOL-04, 10 bytes); a key without its MD5 passes with the MD5 computed (S3SOL-03, recorded on GET).
 - ETags: random 32 hex for SSE-C single writes, SSE-C copy targets and SSE-C parts, and random 32 hex plus `-N` for an SSE-C multipart object, because AWS's value is not the MD5 of the part ETags (3.4). The random digits are inferred; no recording can pin a value AWS derives from state it never returns. Never derive an SSE-C ETag from content or from part ETags.
 - Omit `x-amz-server-side-encryption` on every SSE-C response; echo the SSE-C pair on PutObject, CopyObject, CreateMultipartUpload, UploadPart, UploadPartCopy, GetObject, HeadObject; none on CompleteMultipartUpload and GetObjectAttributes (3.4).
 - `checkEncryption` (`internal/service/s3/subresources.go:L546`): accept a rule whose only member is `BlockedEncryptionTypes` (4.2); keep `MalformedXML` for zero or two rules ([s3.md](s3.md) 4.2.2) and for a rule with neither member (inferred; S3SOL-10).
@@ -410,8 +410,8 @@ Run `just coverage-check` after re-marking and commit the regenerated `docs/cove
 | `s3.sse-c.missing-key-md5` | on writes, 400 `InvalidArgument` "Requests specifying Server Side Encryption with Customer provided keys must provide the client calculated MD5 of the secret key.", `ArgumentName=x-amz-server-side-encryption`; reads compute the MD5 and succeed | aws-recorded | 3.2 | S3SOL-03 |
 | `s3.sse-c.key-encoding` | a key that is not base64 gets the MD5-mismatch text; an MD5 mismatch on reads gets it too; a short key with a matching MD5 on reads gets the 403 of 3.3, as the 44-byte key did | aws-recorded | 3.2, 3.3 | S3SOL-04 |
 | `s3.sse-c.metadata-without-key` | HEAD 400 no body; GetObjectAttributes 400 `InvalidRequest` "stored using a form" text | inferred | 3.3 | S3SOL-05 |
-| `s3.sse-c.copy-source-not-applicable` | 400 `InvalidRequest` "The encryption parameters are not applicable to this object." | inferred | 3.5 | S3SOL-06 |
-| `s3.sse-c.copy-source-wrong-key` | 403 `AccessDenied` "correct secret key" text | inferred | 3.5 | S3SOL-07 |
+| `s3.sse-c.copy-source-not-applicable` | 400 `InvalidRequest` "The encryption parameters are not applicable to this object." | aws-recorded | 3.5 | S3SOL-06 |
+| `s3.sse-c.copy-source-wrong-key` | 400 `InvalidRequest` "The provided encryption parameters did not match the ones used originally." | aws-recorded | 3.5 | S3SOL-07 |
 | `s3.sse-c.complete-headers` | Complete checks SSE-C headers like UploadPart when sent, and requires them when the upload has a checksum algorithm; ListParts never requires them | inferred | 3.6 | S3SOL-08 |
 | `s3.encryption.unblocked-read` | after `NONE`, GET returns `<BlockedEncryptionTypes><EncryptionType>NONE</EncryptionType></BlockedEncryptionTypes>`; a default-free rule reads back with the `AES256` default added; an empty `Rule` is `MalformedXML` | inferred | 4.2 | S3SOL-10 |
 | `s3.encryption.blocked-types-omitted` | a Put without the element, and DeleteBucketEncryption, keep the previous blocked setting | inferred | 4.2 | S3SOL-11 |
@@ -590,7 +590,7 @@ rec S3SOL/06-copy aws s3api copy-object --bucket "$B" --key t6 --copy-source "$B
   --copy-source-sse-customer-algorithm AES256 --copy-source-sse-customer-key "$K1"
 ```
 
-Expected: 400 `InvalidRequest` "not applicable" (hypothesis). Cost under USD 0.01, 1 minute. Teardown: `aws s3api delete-object --bucket "$B" --key t6`.
+Expected: 400 `InvalidRequest` "not applicable" (hypothesis). Recorded 2026-11-03: matches (3.5). Cost under USD 0.01, 1 minute. Teardown: `aws s3api delete-object --bucket "$B" --key t6`.
 
 ### 12.8 S3SOL-07. Copy with the wrong source key
 
@@ -604,7 +604,7 @@ rec S3SOL/07-upload-part-copy aws s3api upload-part-copy --bucket "$B" --key t7p
   --copy-source "$B/c1" --copy-source-sse-customer-algorithm AES256 --copy-source-sse-customer-key "$K2"
 ```
 
-Expected: 403 `AccessDenied` "correct secret key" on both. Cost under USD 0.01, 1 minute. Teardown: `aws s3api delete-object --bucket "$B" --key t7`; `aws s3api abort-multipart-upload --bucket "$B" --key t7p --upload-id "$UP7"`.
+Expected: 403 `AccessDenied` "correct secret key" on both. Recorded 2026-11-03: differs on both, 400 `InvalidRequest` "The provided encryption parameters did not match the ones used originally." (3.5). Cost under USD 0.01, 1 minute. Teardown: `aws s3api delete-object --bucket "$B" --key t7`; `aws s3api abort-multipart-upload --bucket "$B" --key t7p --upload-id "$UP7"`.
 
 ### 12.9 S3SOL-08. CompleteMultipartUpload and SSE-C
 

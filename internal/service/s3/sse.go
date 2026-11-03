@@ -411,13 +411,14 @@ func errSSECHeader(text string) *awserr.Error {
 func errSSECNeedsKey() *awserr.Error { return errInvalidRequest(ssecNeedsKeyText) }
 
 // errSSECWrongKey answers a read of an SSE-C version with another key
-// (LocalStack test_s3.snapshot.json L12811, L12855; switch
-// s3.sse-c.copy-source-wrong-key for a copy source).
+// (LocalStack test_s3.snapshot.json L12811, L12855; S3SOL-04
+// 04-get-short-key). A copy source answers another key otherwise
+// (checkCustomerSource).
 func errSSECWrongKey() *awserr.Error { return s3api.ErrAccessDenied(ssecWrongKeyText) }
 
 // errSSECNotApplicable answers SSE-C headers on a read of a version that
-// is not SSE-C (testdata/parity/s3/R15/x-ssec-on-non-ssec-read.json;
-// switch s3.sse-c.copy-source-not-applicable for a copy source).
+// is not SSE-C (testdata/parity/s3/R15/x-ssec-on-non-ssec-read.json), a
+// copy source's included (S3SOL-06, recorded 2026-11-03).
 func errSSECNotApplicable() *awserr.Error {
 	return errInvalidRequest("The encryption parameters are not applicable to this object.")
 }
@@ -606,6 +607,22 @@ func checkCustomerScheme(scheme string) *awserr.Error {
 // 403. It returns the key whose MD5 the response echoes, nil without
 // headers. A blocked bucket never refuses a read (4.3).
 func checkCustomerRead(stored Encryption, h customerHeaders, scheme string) (*customerKey, *awserr.Error) {
+	return judgeCustomerRead(stored, h, scheme, errSSECWrongKey)
+}
+
+// checkCustomerSource judges a CopyObject's or UploadPartCopy's source
+// SSE-C headers as checkCustomerRead judges a read's, except that another
+// key is 400 InvalidRequest "The provided encryption parameters did not
+// match the ones used originally.", not the read's 403
+// (s3-ssec-object-lock.md 3.5; S3SOL-07, recorded 2026-11-03).
+func checkCustomerSource(stored Encryption, h customerHeaders, scheme string) *awserr.Error {
+	_, err := judgeCustomerRead(stored, h, scheme, func() *awserr.Error { return errInvalidRequest(ssecMismatchText) })
+	return err
+}
+
+// judgeCustomerRead is checkCustomerRead with wrongKey the answer to
+// another key.
+func judgeCustomerRead(stored Encryption, h customerHeaders, scheme string, wrongKey func() *awserr.Error) (*customerKey, *awserr.Error) {
 	c, isC := stored.(CustomerEncryption)
 	if !h.sent() {
 		if isC {
@@ -624,7 +641,7 @@ func checkCustomerRead(stored Encryption, h customerHeaders, scheme string) (*cu
 	case !isC:
 		return nil, errSSECNotApplicable()
 	case !c.matches(*k):
-		return nil, errSSECWrongKey()
+		return nil, wrongKey()
 	}
 	return k, nil
 }
