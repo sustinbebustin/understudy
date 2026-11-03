@@ -312,12 +312,12 @@ func TestSetAlarmState(t *testing.T) {
 		created := h.now()
 		h.advance(time.Minute)
 		must(h, cloudwatchapi.OpSetAlarmState, &cloudwatchapi.SetAlarmStateInput{AlarmName: "a", StateValue: cloudwatchapi.StateValueInsufficientData, StateReason: "same value", StateReasonData: new(`{"k":1}`)})
-		// To the same value only the reason and data change, both
-		// timestamps stay (cloudwatch.alarm.set-same-state, cwa 2.3, CWA-17).
-		followsSwitch(h, "cloudwatch.alarm.set-same-state", "reason-and-data-only")
+		// To the same value nothing changes (cloudwatch.alarm.set-same-state,
+		// cwa 2.3, CWA-17).
+		followsSwitch(h, "cloudwatch.alarm.set-same-state", "no-change")
 		a := h.describe("a").MetricAlarms[0]
 		switch {
-		case *a.StateReason != "same value" || a.StateReasonData == nil || *a.StateReasonData != `{"k":1}`:
+		case *a.StateReason != "Unchecked: Initial alarm creation" || a.StateReasonData != nil:
 			h.Errorf("reason = %q %v", *a.StateReason, a.StateReasonData)
 		case !a.StateUpdatedTimestamp.Equal(created):
 			h.Errorf("StateUpdatedTimestamp moved without a change of value: %v", *a.StateUpdatedTimestamp)

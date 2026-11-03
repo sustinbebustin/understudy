@@ -351,10 +351,13 @@ func TestConfigOf(t *testing.T) {
 	}
 }
 
-// An AWS/DynamoDB alarm always ignores missing data whatever it sent, under
-// cloudwatch.alarm.dynamodb-missing-data (cwa 3.7, CWA-21).
-func TestConfigOfDynamoDBIgnoresMissingData(t *testing.T) {
-	forced := switchCase(t, "cloudwatch.alarm.dynamodb-missing-data", map[string]bool{"always-ignore": true})
+// An AWS/DynamoDB alarm applies the treatment it sent: AWS took one sent
+// breaching to ALARM on missing data, the user guide's override, not the
+// API reference's "always ignore" (cloudwatch.alarm.dynamodb-missing-data;
+// cwa 3.7; CWA-21, recorded 2026-11-03:
+// testdata/parity/cloudwatch/CWA-21/ddb-history.json).
+func TestConfigOfDynamoDBKeepsTheTreatment(t *testing.T) {
+	followsSwitch(t, "cloudwatch.alarm.dynamodb-missing-data", "as-configured")
 	in := storedAlarm()
 	in.Namespace = new("AWS/DynamoDB")
 	in.TreatMissingData = new("breaching")
@@ -362,8 +365,8 @@ func TestConfigOfDynamoDBIgnoresMissingData(t *testing.T) {
 	if nerr != nil {
 		t.Fatalf("ConfigOf = %v", nerr)
 	}
-	if forced && cfg.Treatment != alarm.TreatIgnore {
-		t.Errorf("Treatment of an AWS/DynamoDB alarm sent breaching = %v, want ignore", cfg.Treatment)
+	if cfg.Treatment != alarm.TreatBreaching {
+		t.Errorf("Treatment of an AWS/DynamoDB alarm sent breaching = %v, want breaching", cfg.Treatment)
 	}
 }
 

@@ -125,9 +125,8 @@ type Config struct {
 	MSet       bool
 	Comparison Comparison
 	Threshold  float64
-	// Treatment is the treatment evaluation applies: TreatIgnore for an
-	// AWS/DynamoDB alarm whatever it sent
-	// (cloudwatch.alarm.dynamodb-missing-data).
+	// Treatment is the treatment the alarm sent, an AWS/DynamoDB alarm's
+	// included (cloudwatch.alarm.dynamodb-missing-data, CWA-21).
 	Treatment Treatment
 	// WarmUp is the alarm's WarmUpConfiguration; nil without one.
 	WarmUp *WarmUp
@@ -205,9 +204,6 @@ func ConfigOf(in *cloudwatchapi.PutMetricAlarmInput) (Config, *NotEvaluableError
 	treatment, ok := ParseTreatment(in.TreatMissingData)
 	if !ok {
 		return notEvaluable("TreatMissingData " + *in.TreatMissingData)
-	}
-	if in.Namespace != nil && *in.Namespace == "AWS/DynamoDB" {
-		treatment = TreatIgnore // cloudwatch.alarm.dynamodb-missing-data (cloudwatch-alarms.md 3.7)
 	}
 	n := int(*in.EvaluationPeriods)
 	cfg := Config{

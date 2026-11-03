@@ -391,8 +391,8 @@ func (s *Service) eachAlarm(c *kernel.Call, names []string, fn func(st *State, n
 // so the next evaluation re-derives the state (cloudwatch-alarms.md 2.3).
 // A change of value is a transition: both timestamps move, and it journals
 // the StateChange, writes a history item, runs actions and sends the event.
-// To the same value only the reason and data change: both timestamps stay
-// and nothing else happens (cloudwatch.alarm.set-same-state, CWA-17).
+// To the same value nothing changes, the reason and data included
+// (cloudwatch.alarm.set-same-state, CWA-17).
 func (s *Service) setAlarmState(ctx context.Context, c *kernel.Call, in *cloudwatchapi.SetAlarmStateInput) (*cloudwatchapi.SetAlarmStateOutput, *awserr.Error) {
 	if _, ok := s.cells.Lookup(c.Scope()); !ok {
 		return nil, errAlarmNotFound()
@@ -407,12 +407,12 @@ func (s *Service) setAlarmState(ctx context.Context, c *kernel.Call, in *cloudwa
 		if !ok {
 			return struct{}{}, errAlarmNotFound()
 		}
-		next := AlarmState{Value: in.StateValue, Reason: in.StateReason, ReasonData: in.StateReasonData, Updated: a.State.Updated, Transitioned: a.State.Transitioned}
-		if in.StateValue != a.State.Value {
-			next.Updated, next.Transitioned = now, now
-			done = new(s.transition(tx, ref, &a, next))
+		if in.StateValue == a.State.Value {
+			tx.Unchanged()
+			return struct{}{}, nil
 		}
-		a.State = next
+		next := AlarmState{Value: in.StateValue, Reason: in.StateReason, ReasonData: in.StateReasonData, Updated: now, Transitioned: now}
+		done = new(s.transition(tx, ref, &a, next))
 		st.Alarms[in.AlarmName] = a
 		return struct{}{}, nil
 	})
