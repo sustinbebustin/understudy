@@ -757,7 +757,7 @@ func NewErrorMembers(id smithy.ShapeID) (awserr.DecodableMembers, bool) {
 func ThrottleError() awserr.Identity { return IdentityThrottlingException() }
 
 // DenialError returns the identity this service answers an authorization
-// refusal with (dev.understudy#denialError), evidence inferred.
+// refusal with (dev.understudy#denialError), evidence aws-recorded.
 func DenialError() awserr.Identity { return IdentityAccessDenied() }
 
 // UnknownOperationError returns the identity this service answers for an

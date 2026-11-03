@@ -22,7 +22,7 @@ var service = registry.Service{
 	JSONTargetPrefix:      "AWSEvents",
 	XMLNamespace:          "http://events.amazonaws.com/doc/2015-10-07",
 	MalformedRequestError: IdentitySerializationException(),
-	Denial:                registry.Denial{Identity: IdentityAccessDeniedException(), Label: "inferred"},
+	Denial:                registry.Denial{Identity: IdentityAccessDeniedException(), Label: "aws-recorded"},
 	NewErrorMembers:       NewErrorMembers,
 	GenericErrors:         GenericErrors,
 }

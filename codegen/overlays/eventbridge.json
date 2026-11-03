@@ -14,8 +14,9 @@
             "covers": ["dev.understudy#throttleError"]
           },
           {
-            "label": "inferred",
-            "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: the model's AccessDeniedException (client, no httpError, so 400) is declared on CreateConnection and UpdateConnection only (3.1); that an IAM denial answers it at 400 rather than the CommonErrors template's 403 is inferred, switch events.denial.status (12.8), until recording IAM-ENF-08",
+            "label": "aws-recorded",
+            "source": "testdata/parity/events/IAM-ENF/08-describe.json: an IAM denial answers 400 with __type AccessDeniedException, not the CommonErrors template's 403 (docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit; switch events.denial.status)",
+            "validated": "2026-11-03",
             "covers": ["dev.understudy#denialError"]
           },
           {

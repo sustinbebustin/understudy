@@ -5,6 +5,10 @@ import (
 	"testing"
 
 	"github.com/sustinbebustin/understudy/internal/api/dynamodbapi"
+	"github.com/sustinbebustin/understudy/internal/api/eventbridgeapi"
+	"github.com/sustinbebustin/understudy/internal/api/iamapi"
+	"github.com/sustinbebustin/understudy/internal/api/kmsapi"
+	"github.com/sustinbebustin/understudy/internal/api/lambdaapi"
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
 	"github.com/sustinbebustin/understudy/internal/api/sfnapi"
 	"github.com/sustinbebustin/understudy/internal/api/snsapi"
@@ -32,17 +36,17 @@ func TestEveryServiceNamesItsDenialIdentity(t *testing.T) {
 		grounds string
 	}
 	labels := map[ref.ServiceID]row{
-		"sqs":             {evidence.Inferred, "switches sqs.denial.json-identity and sqs.denial.query-text, cases IAM-ENF-01 and IAM-ENF-02"},
+		"sqs":             {evidence.AWSRecorded, "testdata/parity/sqs/IAM-ENF/01-get-attrs.json and 02-query.json"},
 		"sns":             {evidence.AWSDoc, "the model's AuthorizationErrorException"},
 		"s3":              {evidence.AWSDoc, "the model's AccessDenied and the S3 403 troubleshooting page"},
-		"lambda":          {evidence.Inferred, "switch lambda.denial.body, case IAM-ENF-11 (the recorded body is for another account's ARN)"},
-		"dynamodb":        {evidence.Inferred, "switch dynamodb.denial.type, case IAM-ENF-04"},
-		"eventbridge":     {evidence.Inferred, "switch events.denial.status, case IAM-ENF-08"},
+		"lambda":          {evidence.AWSRecorded, "testdata/parity/lambda/IAM-ENF/11-get.json"},
+		"dynamodb":        {evidence.AWSRecorded, "testdata/parity/dynamodb/IAM-ENF/04-describe.json"},
+		"eventbridge":     {evidence.AWSRecorded, "testdata/parity/events/IAM-ENF/08-describe.json"},
 		"cloudwatch":      {evidence.Inferred, "switch cloudwatch.denial.identity, case IAM-ENF-09"},
 		"logs":            {evidence.ThirdPartyRecorded, "switch logs.denial.status, case IAM-ENF-07"},
-		"iam":             {evidence.Inferred, "switch iam.denial.identity, case IAM-ENF-10"},
+		"iam":             {evidence.AWSRecorded, "testdata/parity/iam/IAM-ENF/10-get-role.json"},
 		"sts":             {evidence.AWSRecorded, "testdata/parity/sts/R15/06-assume-denied.json"},
-		"kms":             {evidence.Inferred, "switch kms.denial.status, case IAM-ENF-05"},
+		"kms":             {evidence.AWSRecorded, "testdata/parity/kms/IAM-ENF/05-describe.json"},
 		"secretsmanager":  {evidence.ThirdPartyRecorded, "switch secretsmanager.denial.status, case IAM-ENF-06"},
 		"apigateway":      {evidence.Inferred, "no source"},
 		"apigatewayv2":    {evidence.Inferred, "no source"},
@@ -128,13 +132,64 @@ func TestDocumentedDenialIdentities(t *testing.T) {
 			"com.amazon.coral.service#AccessDeniedException, 400",
 		},
 		{
-			// Over Query the code is AccessDenied: "An error occurred
-			// (AccessDenied) when calling the SendMessage operation"
-			// (iam-enforcement-surfaces.md 3.2, aws-doc). Its status and
-			// JSON identity are inferred (IAM-ENF-01, IAM-ENF-02).
+			// 403, x-amzn-query-error AccessDenied;Sender and __type
+			// com.amazon.coral.service#AccessDeniedException over JSON
+			// (testdata/parity/sqs/IAM-ENF/01-get-attrs.json); Type Sender,
+			// Code AccessDenied over Query
+			// (testdata/parity/sqs/IAM-ENF/02-query.json), aws-recorded.
 			"sqs", sqsapi.Service().Denial.Identity,
-			func(id awserr.Identity) bool { return id.QueryCode == "AccessDenied" },
-			"Query code AccessDenied",
+			func(id awserr.Identity) bool {
+				return id.JSONType == "com.amazon.coral.service#AccessDeniedException" && id.QueryCode == "AccessDenied" &&
+					id.Status == http.StatusForbidden && id.Fault == awserr.Sender
+			},
+			"com.amazon.coral.service#AccessDeniedException, AccessDenied, 403, Sender",
+		},
+		// The JSON services below answer the capital "Message" key; whether
+		// the shape spells it is the message-key follow-up, not asserted here.
+		{
+			// 400, __type com.amazon.coral.service#AccessDeniedException
+			// (testdata/parity/dynamodb/IAM-ENF/04-describe.json, aws-recorded).
+			"dynamodb", dynamodbapi.Service().Denial.Identity,
+			func(id awserr.Identity) bool {
+				return id.JSONType == "com.amazon.coral.service#AccessDeniedException" && id.Status == http.StatusBadRequest
+			},
+			"com.amazon.coral.service#AccessDeniedException, 400",
+		},
+		{
+			// 400, __type AccessDeniedException
+			// (testdata/parity/kms/IAM-ENF/05-describe.json, aws-recorded).
+			"kms", kmsapi.Service().Denial.Identity,
+			func(id awserr.Identity) bool {
+				return id.JSONType == "AccessDeniedException" && id.Status == http.StatusBadRequest
+			},
+			"AccessDeniedException, 400",
+		},
+		{
+			// 400, __type AccessDeniedException
+			// (testdata/parity/events/IAM-ENF/08-describe.json, aws-recorded).
+			"eventbridge", eventbridgeapi.Service().Denial.Identity,
+			func(id awserr.Identity) bool {
+				return id.JSONType == "AccessDeniedException" && id.Status == http.StatusBadRequest
+			},
+			"AccessDeniedException, 400",
+		},
+		{
+			// 403, <Type>Sender</Type><Code>AccessDenied</Code> in the IAM
+			// namespace (testdata/parity/iam/IAM-ENF/10-get-role.json, aws-recorded).
+			"iam", iamapi.Service().Denial.Identity,
+			func(id awserr.Identity) bool {
+				return id.QueryCode == "AccessDenied" && id.Status == http.StatusForbidden && id.Fault == awserr.Sender
+			},
+			"AccessDenied, 403, Sender",
+		},
+		{
+			// 403, x-amzn-ErrorType AccessDeniedException
+			// (testdata/parity/lambda/IAM-ENF/11-get.json, aws-recorded).
+			"lambda", lambdaapi.Service().Denial.Identity,
+			func(id awserr.Identity) bool {
+				return id.Shape.Name() == "AccessDeniedException" && id.Status == http.StatusForbidden
+			},
+			"AccessDeniedException, 403",
 		},
 	}
 	for _, c := range cases {

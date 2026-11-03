@@ -47,8 +47,9 @@
             "covers": ["dev.understudy#throttleError", "dev.understudy#unknownOperationError", "dev.understudy#validationError"]
           },
           {
-            "label": "inferred",
-            "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: the Query code AccessDenied is documented (3.2); the 403 status and the JSON __type com.amazon.coral.service#AccessDeniedException with x-amzn-query-error AccessDenied;Sender are inferred, switches sqs.denial.json-identity and sqs.denial.query-text (12.8), until recordings IAM-ENF-01 and IAM-ENF-02",
+            "label": "aws-recorded",
+            "source": "testdata/parity/sqs/IAM-ENF/01-get-attrs.json and testdata/parity/sqs/IAM-ENF/02-query.json: an IAM denial answers 403, over JSON with x-amzn-query-error AccessDenied;Sender and __type com.amazon.coral.service#AccessDeniedException, over Query with Type Sender and Code AccessDenied (docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit; switches sqs.denial.json-identity and sqs.denial.query-text)",
+            "validated": "2026-11-03",
             "covers": ["dev.understudy#denialError"]
           }
         ]

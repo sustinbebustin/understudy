@@ -25,7 +25,7 @@ var service = registry.Service{
 	QueryCompatible:       true,
 	QueryErrorEnvelope:    registry.QueryErrorEnvelope{Namespace: true, Detail: true},
 	MalformedRequestError: IdentitySerializationException(),
-	Denial:                registry.Denial{Identity: IdentityAccessDenied(), Label: "inferred"},
+	Denial:                registry.Denial{Identity: IdentityAccessDenied(), Label: "aws-recorded"},
 	NewErrorMembers:       NewErrorMembers,
 	GenericErrors:         GenericErrors,
 }

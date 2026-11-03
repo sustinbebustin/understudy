@@ -41,8 +41,9 @@
             "covers": ["dev.understudy#unknownOperationError"]
           },
           {
-            "label": "inferred",
-            "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: AccessDeniedException, 403, is recorded for another account's function ARN with Message null (3.2, third-party-recorded); that a same-account IAM denial answers it with the grammar in Message is inferred, switch lambda.denial.body (12.8), until recording IAM-ENF-11",
+            "label": "aws-recorded",
+            "source": "testdata/parity/lambda/IAM-ENF/11-get.json: a same-account IAM denial answers 403 with x-amzn-ErrorType AccessDeniedException and the grammar in Message; another account's function ARN gives Message null (third-party-recorded) (docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit; switch lambda.denial.body)",
+            "validated": "2026-11-03",
             "covers": ["dev.understudy#denialError"]
           }
         ]
