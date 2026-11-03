@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/evidence"
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 	"github.com/sustinbebustin/understudy/internal/ref"
@@ -27,6 +28,7 @@ const (
 	utErrorNamespace      = understudyNamespace + "errorNamespace"
 	utJSONType            = understudyNamespace + "jsonType"
 	utMessageByProtocol   = understudyNamespace + "messageByProtocol"
+	utMessageKey          = understudyNamespace + "messageKey"
 	utValidationError     = understudyNamespace + "validationError"
 	utValidationPathStyle = understudyNamespace + "validationPathStyle"
 	utSuccessCode         = understudyNamespace + "successCode"
@@ -95,6 +97,7 @@ func understudyTraits() map[string]understudyTrait {
 		utErrorNamespace:      {Honor, siteService, func(r json.RawMessage) error { _, err := parseErrorNamespace(r); return err }},
 		utJSONType:            {Honor, siteErrorShape, func(r json.RawMessage) error { _, err := parseNonEmptyString(r); return err }},
 		utMessageByProtocol:   {Honor, siteErrorShape, func(r json.RawMessage) error { _, err := parseMessageByProtocol(r); return err }},
+		utMessageKey:          {Honor, siteErrorShape, func(r json.RawMessage) error { _, err := parseMessageKey(r); return err }},
 		utValidationError:     {Honor, siteService | siteOperation | siteMember, func(r json.RawMessage) error { _, err := parseValidationRules(r); return err }},
 		utValidationPathStyle: {Honor, siteService, func(r json.RawMessage) error { _, err := parsePathStyle(r); return err }},
 		utSuccessCode:         {Honor, siteOperation, func(r json.RawMessage) error { _, err := parseStatus(r); return err }},
@@ -272,6 +275,23 @@ func parseNonEmptyString(raw json.RawMessage) (string, error) {
 		return "", errors.New("the value must be a non-empty string")
 	}
 	return s, nil
+}
+
+// parseMessageKey reads dev.understudy#messageKey: the body key AWS sends
+// an error's message under, "message" or "Message", when it is not the
+// spelling of the shape's own message member or the shape has none.
+func parseMessageKey(raw json.RawMessage) (awserr.MessageKey, error) {
+	s, err := parseNonEmptyString(raw)
+	if err != nil {
+		return 0, err
+	}
+	switch s {
+	case "message":
+		return awserr.MessageLower, nil
+	case "Message":
+		return awserr.MessageUpper, nil
+	}
+	return 0, fmt.Errorf("messageKey is %q or %q, not %q", "message", "Message", s)
 }
 
 func parseErrorNamespace(raw json.RawMessage) (string, error) {

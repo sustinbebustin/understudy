@@ -155,7 +155,7 @@ func TestStageFailures(t *testing.T) {
 			want: "understudy-gen overlay: extra.json: com.example.golden#Golden: dev.understudy#flavor is not a dev.understudy trait; " +
 				"the closed set is [dev.understudy#alwaysEmit dev.understudy#denialError dev.understudy#emptyCollection dev.understudy#enumOrder dev.understudy#errorNamespace " +
 				"dev.understudy#evidence dev.understudy#internalOperation dev.understudy#jsonType dev.understudy#malformedRequestError " +
-				"dev.understudy#maxRequestBytes dev.understudy#messageByProtocol dev.understudy#notConfigured dev.understudy#patternEcho " +
+				"dev.understudy#maxRequestBytes dev.understudy#messageByProtocol dev.understudy#messageKey dev.understudy#notConfigured dev.understudy#patternEcho " +
 				"dev.understudy#patternValidator dev.understudy#queryErrorEnvelope dev.understudy#queryKeyAlias " +
 				"dev.understudy#responseCrc32 dev.understudy#statusOverride dev.understudy#successCode " +
 				"dev.understudy#throttleError dev.understudy#unknownOperationError dev.understudy#validationError " +
@@ -740,6 +740,7 @@ func TestClassifyOverlayTraits(t *testing.T) {
 		"dev.understudy#errorNamespace":        codegen.Honor,
 		"dev.understudy#jsonType":              codegen.Honor,
 		"dev.understudy#messageByProtocol":     codegen.Honor,
+		"dev.understudy#messageKey":            codegen.Honor,
 		"dev.understudy#validationError":       codegen.Honor,
 		"dev.understudy#validationPathStyle":   codegen.Honor,
 		"dev.understudy#successCode":           codegen.Honor,
