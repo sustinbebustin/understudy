@@ -28,12 +28,13 @@ func TestDynamoDBStreamsDisabledNamesTheSetting(t *testing.T) {
 }
 
 // The coverage report carries the Streams notes as the DDBS recordings of
-// 2026-11-03 left them (dynamodb-streams.md 6.5, 11.2): ListStreams full,
-// the other three partial with the differences recorded, and the stream
-// clauses of Lambda's mapping operations.
+// 2026-11-03 left them (dynamodb-streams.md 6.5, 11.2): the four partial
+// with the differences recorded (ListStreams only its constraint texts,
+// DDBS-02), and the stream clauses of Lambda's mapping operations.
 func TestDynamoDBStreamsCoverageNotes(t *testing.T) {
 	constraint := "a constraint violation's text quotes the value (\"Value '0' at 'limit'\"), where AWS's omits it (\"Value at 'limit'\")"
 	want := map[string]string{
+		"dynamodbstreams.ListStreams": constraint + " (dynamodb-streams.md 6.5)",
 		"dynamodbstreams.DescribeStream": "aws-differs: understudy: a stream has one shard, which never splits or rolls over; AWS opened a new on-demand table's stream with 4 shards and closes shards as it replaces them; " +
 			"StreamStatus is ENABLED or DISABLED at once, where AWS reports ENABLING with no shards for about 7 seconds and DISABLING for about 8; " + constraint + " (dynamodb-streams.md 5.2, 5.6, 6.5)",
 		"dynamodbstreams.GetShardIterator": "AT_TIMESTAMP is refused: the pinned model (api-models-aws 1cfdfb4) predates it, so the enum text lists the four other types where AWS's lists five; " +
@@ -65,9 +66,6 @@ func TestDynamoDBStreamsCoverageNotes(t *testing.T) {
 		for _, op := range s.Operations {
 			got[string(s.Service)+"."+op.Name] = op.Status
 		}
-	}
-	if _, ok := got["dynamodbstreams.ListStreams"].(coverage.Full); !ok {
-		t.Errorf("dynamodbstreams.ListStreams: status %#v, want full", got["dynamodbstreams.ListStreams"])
 	}
 	for op, note := range want {
 		p, ok := got[op].(coverage.Partial)
