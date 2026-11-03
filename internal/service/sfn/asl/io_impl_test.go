@@ -16,23 +16,21 @@ func passMachine(state string) string {
 	return `{"StartAt":"S","States":{"S":{"Type":"Pass",` + state + `"End":true}}}`
 }
 
-// TestASL03ResultPathIntoNonObject: AWS's error for a ResultPath applied to
-// an input it cannot hold a member is unrecorded (stepfunctions-asl.md 4.4);
-// understudy fails the execution with States.Runtime and its own reason,
-// after the state's entered event, like the recorded path failures (4.6).
-func TestASL03ResultPathIntoNonObject(t *testing.T) {
+// TestASL03DeepResultPathConflict: ASL-03 recorded a one-step ResultPath
+// into a string and an array (TestASL03ResultPathConflict); for a deeper
+// path understudy names the node the step stops at, the array's own text or
+// the whole input for a scalar (stepfunctions-asl.md 4.4).
+func TestASL03DeepResultPathConflict(t *testing.T) {
 	// inferred, ASL-03
-	for _, tt := range []struct{ input, reason string }{
-		{`"foo"`, "$ is a string, not an object"},
-		{`[1]`, "$ is an array, not an object"},
+	for _, tt := range []struct{ input, cause string }{
+		{`{"a":[1]}`, `Unable to apply step "b" to input [1]`},
+		{`{"a":"s"}`, `Unable to apply ReferencePath $.a.b to input {"a":"s"}`},
 	} {
 		t.Run(tt.input, func(t *testing.T) {
-			d := newDriver(t, passMachine(`"Result":1,"ResultPath":"$.x",`), rules())
+			d := newDriver(t, passMachine(`"Result":1,"ResultPath":"$.a.b",`), rules())
 			d.start(tt.input)
-			o := d.runToEnd(10)
-			want := runtimePrefix("S", 2) + "Unable to apply ResultPath '$.x' to the input: " + tt.reason
-			failedWith(t, o, "States.Runtime", func(c string) bool { return c == want })
-			d.wantShape("stepfunctions-asl.md 4.6", "ExecutionStarted 1<-0", "PassStateEntered 2<-0", "ExecutionFailed 3<-2")
+			failedWith(t, d.runToEnd(10), "States.ReferencePathConflict", func(c string) bool { return c == tt.cause })
+			d.wantShape("ASL-03", "ExecutionStarted 1<-0", "PassStateEntered 2<-0", "ExecutionFailed 3<-2")
 		})
 	}
 }

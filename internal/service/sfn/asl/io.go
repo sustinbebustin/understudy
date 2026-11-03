@@ -234,8 +234,7 @@ func ruleFailure(r ErrorRule, cause string) Failure {
 // placeResult applies a ResultPath (stepfunctions-asl.md 4.2, 4.4): absent
 // replaces the raw input with the result, null keeps the raw input, a path
 // places the result into the raw input. A path that cannot be applied, such
-// as a name into a non-object, is States.Runtime: AWS's error is
-// unrecorded (ASL-03).
+// as a name into a non-object, is placeConflict's.
 func placeResult(t target, raw, result document.Value) (document.Value, Failure) {
 	switch t := t.(type) {
 	case replaceInput:
@@ -245,9 +244,33 @@ func placeResult(t target, raw, result document.Value) (document.Value, Failure)
 	case placeAt:
 		out, err := t.path.Place(raw, result)
 		if err != nil {
-			return nil, Terminal{Name: errRuntime, Cause: err.Error()}
+			return nil, placeConflict(raw, err)
 		}
 		return out, nil
 	}
 	return result, nil
+}
+
+// errReferencePathConflict is the error of a ResultPath that cannot be
+// applied (ASL-03, recorded 2026-11-03; stepfunctions-asl.md 4.4).
+const errReferencePathConflict = "States.ReferencePathConflict"
+
+// placeConflict is a ResultPath that cannot be applied to raw:
+// States.ReferencePathConflict with no 4.6 prefix, the cause naming the
+// step taken into an array or object, else the whole path and input (ASL-03,
+// recorded 2026-11-03, for "$.x" into "foo" and into [1]; deeper paths are
+// inferred to name the node they stop at). It is terminal: a Pass state has
+// no Catch to show otherwise, and whether a Task's catcher sees it is
+// unrecorded.
+func placeConflict(raw document.Value, err error) Failure {
+	var pe *jsonpath.PlaceError
+	if !errors.As(err, &pe) || pe.Node == nil {
+		return Terminal{Name: errRuntime, Cause: err.Error()}
+	}
+	switch pe.Node.(type) {
+	case document.List, document.Map:
+		return Terminal{Name: errReferencePathConflict, Cause: "Unable to apply step " + strconv.Quote(pe.Step) + " to input " + text(pe.Node)}
+	case document.String, document.Number, document.Bool, document.Null:
+	}
+	return Terminal{Name: errReferencePathConflict, Cause: "Unable to apply ReferencePath " + pe.Path + " to input " + text(raw)}
 }

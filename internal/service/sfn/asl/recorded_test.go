@@ -107,6 +107,21 @@ func TestSFN06DeletedMachineFailsRunningExecution(t *testing.T) {
 	d.wantShape("SFN-06 07-history", "ExecutionStarted 1<-0", "WaitStateEntered 2<-0", "ExecutionFailed 3<-2")
 }
 
+// A ResultPath into a string or an array fails the execution with
+// States.ReferencePathConflict and a cause without the 4.6 prefix (ASL-03,
+// recorded 2026-11-03; stepfunctions-asl.md 4.4).
+func TestASL03ResultPathConflict(t *testing.T) {
+	for input, cause := range map[string]string{
+		`"foo"`: `Unable to apply ReferencePath $.x to input "foo"`,
+		`[1]`:   `Unable to apply step "x" to input [1]`,
+	} {
+		d := newDriver(t, `{"StartAt":"A","States":{"A":{"Type":"Pass","Result":1,"ResultPath":"$.x","End":true}}}`, rules())
+		d.start(input)
+		failedWith(t, d.runToEnd(10), "States.ReferencePathConflict", func(c string) bool { return c == cause })
+		d.wantShape("ASL-03 "+input, "ExecutionStarted 1<-0", "PassStateEntered 2<-0", "ExecutionFailed 3<-2")
+	}
+}
+
 // A Choice Variable that selects nothing fails the execution with an
 // uncatchable States.Runtime and the recorded cause (ASL-08, recorded
 // 2026-11-03; stepfunctions-asl.md 6.4).

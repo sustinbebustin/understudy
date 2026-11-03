@@ -8,11 +8,17 @@ import (
 
 // PlaceError is a ResultPath that cannot put a value into its input: a name
 // step into a value that is not an object, or an index step into a value
-// that is not an array holding that index. AWS's error and cause for it are
-// unrecorded (stepfunctions-asl.md 4.4, ASL-03); the reason is understudy's.
+// that is not an array holding that index. The engine words AWS's cause
+// from Node and Step (stepfunctions-asl.md 4.4, ASL-03); the reason is
+// understudy's.
 type PlaceError struct {
 	Path   string // as written
 	Reason string // understudy's wording
+	// Node is the value the step could not be taken into, nil when the path
+	// is not a Reference Path; Step is that step's name, or its index as
+	// decimal text.
+	Node document.Value
+	Step string
 }
 
 func (e *PlaceError) Error() string {
@@ -57,7 +63,7 @@ func (p Path) placeMember(cur document.Value, i int, name string, value document
 	}
 	m, ok := cur.(document.Map)
 	if !ok {
-		return nil, &PlaceError{Path: p.src, Reason: normalized(p.steps[:i]) + " is " + kind(cur) + ", not an object"}
+		return nil, &PlaceError{Path: p.src, Reason: normalized(p.steps[:i]) + " is " + kind(cur) + ", not an object", Node: cur, Step: name}
 	}
 	old, _ := member(m, name)
 	v, err := p.place(old, i+1, value)
@@ -84,11 +90,11 @@ func (p Path) placeElement(cur document.Value, i, n int, value document.Value) (
 	at := normalized(p.steps[:i])
 	l, ok := cur.(document.List)
 	if !ok {
-		return nil, &PlaceError{Path: p.src, Reason: at + " is " + kind(cur) + ", not an array"}
+		return nil, &PlaceError{Path: p.src, Reason: at + " is " + kind(cur) + ", not an array", Node: cur, Step: strconv.Itoa(n)}
 	}
 	pos, ok := position(n, len(l))
 	if !ok {
-		return nil, &PlaceError{Path: p.src, Reason: at + " has no element " + strconv.Itoa(n)}
+		return nil, &PlaceError{Path: p.src, Reason: at + " has no element " + strconv.Itoa(n), Node: cur, Step: strconv.Itoa(n)}
 	}
 	v, err := p.place(l[pos], i+1, value)
 	if err != nil {
