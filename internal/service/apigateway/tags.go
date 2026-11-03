@@ -200,12 +200,19 @@ func (s *Service) retag(c *kernel.Call, text string, change func(map[string]stri
 }
 
 // tagsResource is the kernel.WithResources resolver of a tag operation:
-// /tags/<the resource ARN percent-encoded>, every byte outside
-// [A-Za-z0-9-_.~] written %XX (contract 7.3; UNVERIFIED, APIGW1-22).
+// the tagged resource itself, as AWS's denials name it, with the primary
+// action GET or PATCH (APIGW1-22, recorded 2026-11-03: steps 13-16;
+// apigateway-rest.md 3.10). Whether AWS also asks about /tags/... is
+// unrecorded: the tagged resource's denial came first. A resourceArn that
+// is not an ARN, which the call refuses, is named as /tags/<the text with
+// every byte outside [A-Za-z0-9-_.~] written %XX>.
 func tagsResource[In any](tagged func(*In) string) func(*kernel.Call, *In) []aws.ARN {
 	return func(c *kernel.Call, in *In) []aws.ARN {
 		const hex = "0123456789ABCDEF"
 		text := tagged(in)
+		if arn, err := aws.ParseARN(text); err == nil {
+			return []aws.ARN{arn}
+		}
 		var b strings.Builder
 		for i := range len(text) {
 			switch ch := text[i]; {

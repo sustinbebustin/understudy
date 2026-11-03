@@ -65,13 +65,13 @@
     },
     {
       "operation": "TagResource",
-      "action": "apigateway:PUT",
-      "reason": "management calls are authorized as apigateway:<HTTP method> on the resource ARN, and this one is PUT /tags/{resourceArn}; the other listed actions gate optional settings (https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-control-access-using-iam-policies-to-create-and-manage-api.html)"
+      "action": "apigateway:PATCH",
+      "reason": "AWS denies TagResource as apigateway:PATCH on the tagged resource (testdata/parity/apigateway/APIGW1/22-15-tag-resource-tags-only.json, recorded 2026-11-03; apigateway-rest.md 3.10), as the tagging docs say: 'To update the tags for a resource, the user must have PATCH permissions for that resource' (https://docs.aws.amazon.com/apigateway/latest/developerguide/apigateway-tagging-iam-policy.html)"
     },
     {
       "operation": "UntagResource",
-      "action": "apigateway:DELETE",
-      "reason": "management calls are authorized as apigateway:<HTTP method> on the resource ARN, and this one is DELETE /tags/{resourceArn}; the other listed action gates optional settings (https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-control-access-using-iam-policies-to-create-and-manage-api.html)"
+      "action": "apigateway:PATCH",
+      "reason": "AWS denies UntagResource as apigateway:PATCH on the tagged resource (testdata/parity/apigateway/APIGW1/22-16-untag-resource-tags-only.json, recorded 2026-11-03; apigateway-rest.md 3.10)"
     },
     {
       "operation": "UpdateDomainName",

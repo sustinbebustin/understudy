@@ -58,17 +58,24 @@ func resourceAt[In any](path func(*In) string) func(*kernel.Call, *In) []aws.ARN
 }
 
 // tagsResource is the kernel.WithResources resolver of a tag operation:
-// /tags/<the resource ARN percent-encoded> (apigateway-http.md 8.1, the
-// form REST APIs document; for HTTP APIs the form, which bytes are encoded
-// and whether the tagged resource needs a permission too are UNVERIFIED,
-// APIGW2-15). Every byte outside [A-Za-z0-9-_.~] is written %XX.
+// the tagged resource itself, as AWS's denials name it (APIGW2-15,
+// recorded 2026-11-03: steps 13-18; apigateway-http.md 8.1), with the
+// operation's primary action GET or PATCH (codegen/services). Whether AWS
+// also asks about a /tags/... resource is unrecorded: the tagged
+// resource's denial came first. A ResourceArn that is not an ARN, which
+// the call then refuses, is named as /tags/<the text percent-encoded>.
 func tagsResource[In any](resourceARN func(*In) string) func(*kernel.Call, *In) []aws.ARN {
 	return func(c *kernel.Call, in *In) []aws.ARN {
-		return []aws.ARN{tagsARN(c.Scope(), resourceARN(in))}
+		text := resourceARN(in)
+		if arn, err := aws.ParseARN(text); err == nil {
+			return []aws.ARN{arn}
+		}
+		return []aws.ARN{tagsARN(c.Scope(), text)}
 	}
 }
 
-// tagsARN is the IAM resource of a tag operation on the ARN text.
+// tagsARN is /tags/<text percent-encoded>, every byte outside
+// [A-Za-z0-9-_.~] written %XX: the tag resource form REST APIs document.
 func tagsARN(scope aws.Scope, text string) aws.ARN {
 	const hex = "0123456789ABCDEF"
 	var b strings.Builder

@@ -445,9 +445,9 @@ func TestTagsOnTheWire(t *testing.T) {
 // Step 8 asks about each Api and tag operation as apigateway:<its HTTP
 // method> on the resource the 8.1 table gives it: /apis for CreateApi and
 // GetApis, /apis/<api-id> for the API's own calls, /apis/<api-id>/cors for
-// DeleteCorsConfiguration, and /tags/<the ARN with every byte outside
-// [A-Za-z0-9-_.~] percent-encoded> for the tag calls (apigateway-http.md
-// 8.1; the tags form UNVERIFIED for HTTP APIs, APIGW2-15).
+// DeleteCorsConfiguration, and the tagged API itself for the tag calls,
+// GET to read and PATCH to change (apigateway-http.md 8.1; APIGW2-15,
+// recorded 2026-11-03).
 func TestStep8AsksAboutTheApiAndTagPairs(t *testing.T) {
 	g := newGate()
 	run(t, func(h *harness) {
@@ -463,12 +463,11 @@ func TestStep8AsksAboutTheApiAndTagPairs(t *testing.T) {
 		must(h, apigatewayv2api.OpDeleteApi, &apigatewayv2api.DeleteApiInput{ApiId: id})
 
 		prefix := "arn:aws:apigateway:" + region + "::"
-		tags := prefix + "/tags/arn%3Aaws%3Aapigateway%3A" + region + "%3A%3A%2Fapis%2F" + id
 		for op, w := range map[string][2]string{
 			"CreateApi": {"apigateway:POST", prefix + "/apis"}, "GetApis": {"apigateway:GET", prefix + "/apis"},
 			"GetApi": {"apigateway:GET", api}, "UpdateApi": {"apigateway:PATCH", api}, "DeleteApi": {"apigateway:DELETE", api},
 			"DeleteCorsConfiguration": {"apigateway:DELETE", api + "/cors"},
-			"TagResource":             {"apigateway:POST", tags}, "GetTags": {"apigateway:GET", tags}, "UntagResource": {"apigateway:DELETE", tags},
+			"TagResource":             {"apigateway:PATCH", api}, "GetTags": {"apigateway:GET", api}, "UntagResource": {"apigateway:PATCH", api},
 		} {
 			if got := g.pairs(op); len(got) != 1 || got[0] != w {
 				t.Errorf("%s asked about %v, want exactly %v", op, got, w)
