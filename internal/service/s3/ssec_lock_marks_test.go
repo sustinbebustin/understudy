@@ -110,10 +110,10 @@ type wantSwitch struct {
 // (iam-enforcement-surfaces.md 12.8).
 func TestSSECAndObjectLockSwitches(t *testing.T) {
 	plainHTTPOps := []string{"s3.PutObject", "s3.CopyObject", "s3.CreateMultipartUpload", "s3.UploadPart", "s3.UploadPartCopy", "s3.CompleteMultipartUpload", "s3.GetObject", "s3.HeadObject", "s3.GetObjectAttributes"}
-	inferred := evidence.Inferred
+	inferred, recorded := evidence.Inferred, evidence.AWSRecorded
 	want := []wantSwitch{
 		{"s3.sse-c.plain-http", "refused", evidence.AWSDoc, "39-https", "S3SOL-02", append(slices.Clone(plainHTTPOps), "s3.ListParts")},
-		{"s3.sse-c.blocked-write", "AccessDenied", inferred, "43-what-the-block-refuses", "S3SOL-01", []string{"s3.PutObject", "s3.CopyObject", "s3.CreateMultipartUpload", "s3.UploadPart", "s3.UploadPartCopy"}},
+		{"s3.sse-c.blocked-write", "AccessDenied", recorded, "43-what-the-block-refuses", "S3SOL-01", []string{"s3.PutObject", "s3.CopyObject", "s3.CreateMultipartUpload", "s3.UploadPart", "s3.UploadPartCopy"}},
 		{"s3.sse-c.missing-key-md5", "InvalidArgument", inferred, "32-write-side-validation-third-party-recorded", "S3SOL-03", plainHTTPOps},
 		{"s3.sse-c.key-encoding", "write-side-texts", inferred, "32-write-side-validation-third-party-recorded", "S3SOL-04", plainHTTPOps},
 		{"s3.sse-c.metadata-without-key", "InvalidRequest", inferred, "33-reads-getobject-headobject-getobjectattributes", "S3SOL-05", []string{"s3.HeadObject", "s3.GetObjectAttributes"}},
@@ -161,6 +161,12 @@ func TestSSECAndObjectLockSwitches(t *testing.T) {
 					w.name, e.Value, e.Label, e.Ref, e.Record, e.Ops, w.value, w.label, "docs/research/s3-ssec-object-lock.md#"+w.anchor, w.record, w.ops)
 			}
 			reason, unsettled := e.Settles.(fidelity.NoScenario)
+			if w.label == evidence.AWSRecorded {
+				if want := w.record + " is recorded; the replayer skips S3's REST requests"; !unsettled || reason.Reason != want {
+					t.Errorf("switch %s settles %#v, want NoScenario %q", w.name, e.Settles, want)
+				}
+				continue
+			}
 			if !unsettled || !strings.HasPrefix(reason.Reason, "unrecorded: "+w.record+" ") || !strings.HasSuffix(reason.Reason, "queued in docs/research/s3-ssec-object-lock.md 12") {
 				t.Errorf("switch %s settles %#v, want NoScenario naming %s queued in s3-ssec-object-lock.md 12", w.name, e.Settles, w.record)
 			}

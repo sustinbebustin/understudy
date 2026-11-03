@@ -211,7 +211,7 @@ func (s *Service) createMultipartUpload(ctx context.Context, c *kernel.Call, in 
 	}
 	a := at(in.Bucket, in.ExpectedBucketOwner)
 	pre, err := read(ctx, s, c, a, func(b *Bucket) (preWrite, *awserr.Error) {
-		return prepareWrite(b, in.Key, unconditional{}, req.sse, req.acl, lockRequest{explicit: req.lock}, c.Endpoint().Scheme)
+		return prepareWrite(b, in.Key, unconditional{}, req.sse, req.acl, lockRequest{explicit: req.lock}, writeCallOf(c, "s3:PutObject"))
 	})
 	if err != nil {
 		return nil, err

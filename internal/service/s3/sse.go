@@ -13,6 +13,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/identity"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/ref"
 )
@@ -128,12 +129,27 @@ func customerOf(choice sseChoice) *customerKey {
 	return nil
 }
 
+// writeCall is the call a write arrives on: its caller and the IAM action
+// that a bucket blocking SSE-C names in its refusal
+// (s3-ssec-object-lock.md 4.3), and its scheme, which SSE-C needs to be
+// https.
+type writeCall struct {
+	principal identity.Principal
+	action    string
+	scheme    string
+}
+
+// writeCallOf is c as a write the block's refusal names action for.
+func writeCallOf(c *kernel.Call, action string) writeCall {
+	return writeCall{principal: c.Principal(), action: action, scheme: c.Endpoint().Scheme}
+}
+
 // resolveSSE applies s3.md 5.7: the request's headers win; without them
-// the bucket's default rule decides. objectARN is the object's ARN, the
-// encryption context S3 adds. SSE-C headers are checked in the order of
-// s3-ssec-object-lock.md 11.3: the trio, then the bucket's block, then the
-// call's scheme.
-func resolveSSE(r sseRequest, b *Bucket, objectARN, scheme string) (sseChoice, *awserr.Error) {
+// the bucket's default rule decides. key is the object's key, whose ARN is
+// the encryption context S3 adds. SSE-C headers are checked in the order
+// of s3-ssec-object-lock.md 11.3: the trio, then the bucket's block, then
+// the call's scheme.
+func resolveSSE(r sseRequest, b *Bucket, key string, w writeCall) (sseChoice, *awserr.Error) {
 	k, err := parseCustomerWrite(r.customer, r.algorithm)
 	if err != nil {
 		return nil, err
@@ -145,11 +161,12 @@ func resolveSSE(r sseRequest, b *Bucket, objectARN, scheme string) (sseChoice, *
 			alg, _, _ := bucketDefault(b)
 			return nil, errKMSKeyWithoutKMS(alg)
 		}
-		if err := checkCustomerWrite(b, scheme); err != nil {
+		if err := checkCustomerWrite(b, key, w); err != nil {
 			return nil, err
 		}
 		return sseC{key: *k}, nil
 	}
+	objectARN := objectResource(b.Name, key).String()
 	alg, keyID, bucketKey := bucketDefault(b)
 	if r.algorithm != nil {
 		alg, keyID = *r.algorithm, r.keyID
@@ -404,9 +421,16 @@ func errSSECNotApplicable() *awserr.Error {
 	return errInvalidRequest("The encryption parameters are not applicable to this object.")
 }
 
-// errSSECBlocked answers an SSE-C write to a bucket whose
-// BlockedEncryptionTypes is SSE-C (switch s3.sse-c.blocked-write).
-func errSSECBlocked() *awserr.Error { return s3api.ErrAccessDenied("Access Denied") }
+// errSSECBlocked answers an SSE-C write w to bucket/key while the bucket's
+// BlockedEncryptionTypes is SSE-C: 403 AccessDenied naming the caller, the
+// action and the object, with no other element (s3-ssec-object-lock.md
+// 4.3; S3SOL-01, recorded 2026-11-03, for an assumed role in the owner's
+// account; the same form for any other caller is inferred).
+func errSSECBlocked(w writeCall, bucket, key string) *awserr.Error {
+	return s3api.ErrAccessDenied("User: " + identity.Render(w.principal) + " is not authorized to perform: " + w.action +
+		` on resource: "` + objectResource(bucket, key).String() + `" because this bucket has blocked upload requests that specify` +
+		" Server Side Encryption with Customer provided keys (SSE-C). Please specify a different server-side encryption type.")
+}
 
 // errSSECInsecure answers SSE-C headers over plain HTTP (switch
 // s3.sse-c.plain-http).
@@ -528,14 +552,14 @@ func fingerprint(salt, key []byte) []byte {
 	return mac.Sum(nil)
 }
 
-// checkCustomerWrite refuses an SSE-C write whose headers parsed: 403 on a
-// bucket that blocks SSE-C (switch s3.sse-c.blocked-write), then 400 over
-// plain HTTP (switch s3.sse-c.plain-http); scheme is the call's.
-func checkCustomerWrite(b *Bucket, scheme string) *awserr.Error {
+// checkCustomerWrite refuses an SSE-C write w of key whose headers parsed:
+// 403 on a bucket that blocks SSE-C (errSSECBlocked), then 400 over plain
+// HTTP (switch s3.sse-c.plain-http).
+func checkCustomerWrite(b *Bucket, key string, w writeCall) *awserr.Error {
 	if b.BlockedEncryption == BlockSSEC {
-		return errSSECBlocked()
+		return errSSECBlocked(w, b.Name, key)
 	}
-	return checkCustomerScheme(scheme)
+	return checkCustomerScheme(w.scheme)
 }
 
 // checkCustomerScheme refuses SSE-C headers sent over plain HTTP: "Amazon
@@ -583,13 +607,13 @@ func checkCustomerRead(stored Encryption, h customerHeaders, scheme string) (*cu
 // 3.6): the header checks, the bucket block, plain HTTP, then the match
 // with the upload. It returns the key whose MD5 the response echoes, nil
 // for an upload that is not SSE-C.
-func checkCustomerPart(upload Encryption, h customerHeaders, b *Bucket, scheme string) (*customerKey, *awserr.Error) {
+func checkCustomerPart(upload Encryption, h customerHeaders, b *Bucket, key string, w writeCall) (*customerKey, *awserr.Error) {
 	k, err := parseCustomerWrite(h, nil)
 	if err != nil {
 		return nil, err
 	}
 	if k != nil {
-		if err := checkCustomerWrite(b, scheme); err != nil {
+		if err := checkCustomerWrite(b, key, w); err != nil {
 			return nil, err
 		}
 	}

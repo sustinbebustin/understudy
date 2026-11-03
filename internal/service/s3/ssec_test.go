@@ -16,6 +16,7 @@ import (
 
 	"github.com/sustinbebustin/understudy/internal/api/kmsapi"
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
+	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/blob"
 	"github.com/sustinbebustin/understudy/internal/checksum"
@@ -409,8 +410,8 @@ func (c ssecCase) resolve(h *harness) failure {
 
 // TestSSECWriteValidation: PutObject, CopyObject and CreateMultipartUpload
 // validate the SSE-C trio as s3-ssec-object-lock.md 3.2 orders it, before
-// the bucket's block (switch s3.sse-c.blocked-write: "checked after header
-// validation") and before the body is read; nothing is written.
+// the bucket's block (4.3; S3SOL-01 01-put-bad-algo, recorded 2026-11-03)
+// and before the body is read; nothing is written.
 func TestSSECWriteValidation(t *testing.T) {
 	runObjects(t, func(h *harness) {
 		t := h.T
@@ -444,27 +445,36 @@ func TestSSECWriteValidation(t *testing.T) {
 	})
 }
 
+// blocked is the 403 of an SSE-C write by the default account's root to
+// bucket/key while the bucket blocks SSE-C, naming action: s3:PutObject
+// for PutObject and CreateMultipartUpload, s3:CopyObject for CopyObject
+// (s3-ssec-object-lock.md 4.3; S3SOL-01, recorded 2026-11-03).
+func blocked(action, bucket, key string) failure {
+	return failure{status: 403, code: "AccessDenied", message: "User: arn:aws:iam::" + aws.DefaultAccount().String() + ":root is not authorized to perform: " + action +
+		` on resource: "arn:aws:s3:::` + bucket + "/" + key + `" because this bucket has blocked upload requests that specify Server Side Encryption with Customer provided keys (SSE-C).` +
+		" Please specify a different server-side encryption type."}
+}
+
 // TestSSECBlockedBucket: a new bucket blocks SSE-C writes (testdata/parity/s3/R06/01-get-get-bucket-encryption.json;
 // s3-ssec-object-lock.md 4.1): PutObject, CopyObject's target,
-// CreateMultipartUpload and UploadPart are refused under switch
-// s3.sse-c.blocked-write, before the scheme is checked, while copy-source
-// SSE-C headers are a read the block does not refuse (4.3). A bucket in
-// me-south-1 allows SSE-C from the start (4.1).
+// CreateMultipartUpload and UploadPart are refused with the recorded 403
+// (4.3; S3SOL-01, recorded 2026-11-03), before the scheme is checked,
+// while copy-source SSE-C headers are a read the block does not refuse
+// (S3SOL-01 01-copy-source-only). A bucket in me-south-1 allows SSE-C from
+// the start (4.1).
 func TestSSECBlockedBucket(t *testing.T) {
 	runObjects(t, func(h *harness) {
 		t := h.T
-		code, status := h.switchCode("s3.sse-c.blocked-write")
-		blocked := failure{status: status, code: code, message: "Access Denied"}
 		h.createBucket("blocked")
 		h.put("blocked", "src", "source")
 		_, err := h.putSSEC("blocked", "k", "v", key1)
-		blocked.is(t, "PutObject", err)
+		blocked("s3:PutObject", "blocked", "k").is(t, "PutObject", err)
 		_, err = as(h, who{}, s3api.OpPutObject, &s3api.PutObjectInput{Bucket: "blocked", Key: "k", Body: bytesBody("v"), SSECustomerAlgorithm: key1.alg(), SSECustomerKey: key1.k(), SSECustomerKeyMD5: key1.m()})
-		blocked.is(t, "PutObject over HTTP", err)
+		blocked("s3:PutObject", "blocked", "k").is(t, "PutObject over HTTP", err)
 		_, err = as(h, overTLS, s3api.OpCopyObject, &s3api.CopyObjectInput{Bucket: "blocked", Key: "k", CopySource: "blocked/src", SSECustomerAlgorithm: key1.alg(), SSECustomerKey: key1.k(), SSECustomerKeyMD5: key1.m()})
-		blocked.is(t, "CopyObject target", err)
+		blocked("s3:CopyObject", "blocked", "k").is(t, "CopyObject target", err)
 		_, err = as(h, overTLS, s3api.OpCreateMultipartUpload, &s3api.CreateMultipartUploadInput{Bucket: "blocked", Key: "k", SSECustomerAlgorithm: key1.alg(), SSECustomerKey: key1.k(), SSECustomerKeyMD5: key1.m()})
-		blocked.is(t, "CreateMultipartUpload", err)
+		blocked("s3:PutObject", "blocked", "k").is(t, "CreateMultipartUpload", err)
 		if _, err := as(h, who{}, s3api.OpHeadObject, &s3api.HeadObjectInput{Bucket: "blocked", Key: "k"}); err == nil {
 			t.Error("a blocked SSE-C write left an object")
 		}
@@ -489,9 +499,11 @@ func TestSSECBlockedBucket(t *testing.T) {
 			Bucket: "open", Key: "parts", UploadId: id, PartNumber: 1, Body: bytesBody("part"),
 			SSECustomerAlgorithm: key1.alg(), SSECustomerKey: key1.k(), SSECustomerKeyMD5: key1.m(),
 		})
-		blocked.is(t, "UploadPart after the bucket blocked SSE-C again", err)
+		// UploadPart names s3:PutObject, its IAM action (inferred: S3SOL-01
+		// recorded no part).
+		blocked("s3:PutObject", "open", "parts").is(t, "UploadPart after the bucket blocked SSE-C again", err)
 		_, err = h.putSSEC("open", "late", "v", key1)
-		blocked.is(t, "PutObject after the bucket blocked SSE-C again", err)
+		blocked("s3:PutObject", "open", "late").is(t, "PutObject after the bucket blocked SSE-C again", err)
 
 		ok(h, signed("me-south-1"), s3api.OpCreateBucket, &s3api.CreateBucketInput{Bucket: "bahrain", CreateBucketConfiguration: &s3api.CreateBucketConfiguration{
 			LocationConstraint: new(s3api.BucketLocationConstraint("me-south-1")),
@@ -949,9 +961,8 @@ func TestBucketEncryptionBlock(t *testing.T) {
 
 		h.setBlock("unblocked", s3api.EncryptionTypeSseC)
 		read("blocked again", "unblocked", s3api.ServerSideEncryptionRule{ApplyServerSideEncryptionByDefault: aes, BucketKeyEnabled: new(false), BlockedEncryptionTypes: types(s3api.EncryptionTypeSseC)})
-		code, status := h.switchCode("s3.sse-c.blocked-write")
 		_, err := h.putSSEC("unblocked", "k", "v", key1)
-		failure{status: status, code: code, message: "Access Denied"}.is(t, "SSE-C PutObject after blocking again", err)
+		blocked("s3:PutObject", "unblocked", "k").is(t, "SSE-C PutObject after blocking again", err)
 
 		h.createBucket("default")
 		if err := put("default", s3api.ServerSideEncryptionRule{ApplyServerSideEncryptionByDefault: kms}); err != nil {

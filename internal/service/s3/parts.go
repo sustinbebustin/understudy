@@ -85,7 +85,9 @@ func (s *Service) readTarget(ctx context.Context, c *kernel.Call, a access, id, 
 		if err != nil {
 			return partTarget{}, err
 		}
-		k, err := checkCustomerPart(u.Encryption, h, b, c.Endpoint().Scheme)
+		// A part names s3:PutObject, the IAM action of UploadPart and
+		// UploadPartCopy alike (inferred: S3SOL-01 recorded no part).
+		k, err := checkCustomerPart(u.Encryption, h, b, key, writeCallOf(c, "s3:PutObject"))
 		if err != nil {
 			return partTarget{}, err
 		}

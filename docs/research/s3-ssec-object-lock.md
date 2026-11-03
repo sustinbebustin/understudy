@@ -40,7 +40,7 @@ Lines that [s3.md](s3.md) or the code marked UNVERIFIED and that `testdata/parit
 | s3.md 4.2.10: the error for an Object Lock upload without `Content-MD5` or a checksum is UNVERIFIED (moto's `MissingUploadObjectWithObjectLockHeaders`) | `400 InvalidRequest`, "Content-MD5 OR x-amz-checksum- HTTP header is required for Put Object requests with Object Lock parameters", no extra elements, even when the request carries no lock header and the retention comes from the bucket default | `testdata/parity/s3/R12/11-put-default-retention.json`, `11-put-without-checksum.json` |
 | `internal/service/s3/sse.go` `errSSECNotApplicable`: "The text is UNVERIFIED" | `400 InvalidRequest`, "The encryption parameters are not applicable to this object." for SSE-C headers on a GET of a non-SSE-C object. The bucket was created on 2026-10-14 and R15 did not unblock it, so it blocks SSE-C. That state is inferred from 4.1 and row 3 here: R15 did not record the bucket's encryption configuration | `testdata/parity/s3/R15/x-ssec-on-non-ssec-read.json` |
 
-Still open: `internal/service/s3/sse.go` `errSSECBlocked` (the 403 text, S3SOL-01). `testdata/parity/s3/R12/notes.md` step 11 also records that understudy stores an Object Lock upload it should refuse.
+`internal/service/s3/sse.go` `errSSECBlocked` (the 403 text) is settled by S3SOL-01 (4.3). `testdata/parity/s3/R12/notes.md` step 11 also records that understudy stores an Object Lock upload it should refuse.
 
 ## 3. SSE-C on objects
 
@@ -160,7 +160,8 @@ SSE-C does not change the checksum rules of [s3.md](s3.md) 6: a raw SSE-C PUT wi
 
 - "While SSE-C is blocked, any `PutObject`, `CopyObject`, `PostObject`, Multipart Upload, or replication request that specifies SSE-C encryption is rejected with an HTTP 403 `AccessDenied` error." ([ssec](https://docs.aws.amazon.com/AmazonS3/latest/userguide/ServerSideEncryptionCustomerKeys.html); [API_UploadPart](https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPart.html) and [API_UploadPartCopy](https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPartCopy.html) say the same for parts.)
 - Reads are not blocked: existing SSE-C objects can still be read "with `GetObject` or `HeadObject` by providing the required SSE-C headers" ([ssec-block](https://docs.aws.amazon.com/AmazonS3/latest/userguide/blocking-unblocking-s3-c-encryption-gpb.html)); SSE-C headers on a read of a plain object in a blocked bucket get the 400 "not applicable" answer, not the 403 (`testdata/parity/s3/R15/x-ssec-on-non-ssec-read.json`). The bucket was created on 2026-10-14, so it is blocked; that is inferred, because R15 did not record its encryption configuration (section 2). Copy-source SSE-C headers are a read of the source, so a blocked target bucket refuses only target SSE-C headers (inferred).
-- UNVERIFIED (S3SOL-01): the 403 message, whether the block is checked before or after the 3.2 header validation, and that copy-source-only SSE-C headers pass a blocked target bucket. `internal/service/s3/sse.go` `errSSECBlocked` (L260) uses an invented sentence today. Plausible: S3's generic "Access Denied" ([API_Error](https://docs.aws.amazon.com/AmazonS3/latest/API/API_Error.html) description for `AccessDenied`) or a specific sentence.
+- Recorded (S3SOL-01, recorded 2026-11-03; `testdata/parity/s3/S3SOL/01-*.json`): the refusal is `403 AccessDenied` with no element but `Message`, a specific sentence naming the caller, an action and the object: `User: arn:aws:sts::123456789012:assumed-role/AccountFullAccessRole/<session> is not authorized to perform: s3:PutObject on resource: "arn:aws:s3:::<bucket>/<key>" because this bucket has blocked upload requests that specify Server Side Encryption with Customer provided keys (SSE-C). Please specify a different server-side encryption type.` PutObject and CreateMultipartUpload name `s3:PutObject`; CopyObject names `s3:CopyObject`, which is not an IAM action. The 3.2 header validation runs first: algorithm `KMS` to a blocked bucket got `InvalidEncryptionAlgorithmError`, not the 403 (`01-put-bad-algo`). A copy with copy-source SSE-C headers only into a blocked bucket succeeds, 200 with `x-amz-server-side-encryption: AES256` (`01-copy-source-only`).
+- Still UNVERIFIED: the action UploadPart and UploadPartCopy name (understudy names `s3:PutObject`, their IAM action), and the text for a caller outside the owner's account or an anonymous one (understudy renders the recorded form for any caller).
 
 ## 5. Object Lock bucket configuration
 
@@ -405,7 +406,7 @@ Run `just coverage-check` after re-marking and commit the regenerated `docs/cove
 | Name | Default | Label | Grounds | Record |
 |---|---|---|---|---|
 | `s3.sse-c.plain-http` | `refused`: 400 `InvalidRequest` "Requests specifying Server Side Encryption with Customer provided keys must be made over a secure connection." (text from other S3 servers, 3.9) on the plain-HTTP listener, reads included; SSE-C works over `--tls` | aws-doc | 3.9 | S3SOL-02 |
-| `s3.sse-c.blocked-write` | 403 `AccessDenied` "Access Denied", checked after header validation | inferred | 4.3 | S3SOL-01 |
+| `s3.sse-c.blocked-write` | 403 `AccessDenied` with the recorded "is not authorized to perform ... has blocked upload requests" text, checked after header validation | aws-recorded | 4.3 | S3SOL-01 |
 | `s3.sse-c.missing-key-md5` | 400 `InvalidArgument` "Requests specifying Server Side Encryption with Customer provided keys must provide the client calculated MD5 of the secret key.", `ArgumentName=x-amz-server-side-encryption` | inferred | 3.2 | S3SOL-03 |
 | `s3.sse-c.key-encoding` | a key that is not base64, and an MD5 mismatch on reads, get the write-side texts of 3.2; a short key with a matching MD5 on reads gets the 403 of 3.3, as the 44-byte key did | inferred | 3.2, 3.3 | S3SOL-04 |
 | `s3.sse-c.metadata-without-key` | HEAD 400 no body; GetObjectAttributes 400 `InvalidRequest` "stored using a form" text | inferred | 3.3 | S3SOL-05 |
@@ -521,7 +522,7 @@ rec S3SOL/01-copy-target aws s3api copy-object --bucket "$BB" --key c --copy-sou
 rec S3SOL/01-copy-source-only aws s3api copy-object --bucket "$BB" --key c2 --copy-source "$B/c1" --copy-source-sse-customer-algorithm AES256 --copy-source-sse-customer-key "$K1"
 ```
 
-Expected: 403 `AccessDenied` for the first four (text to record); the bad-algo step shows the order; the last copies (copy-source headers are a read). Cost under USD 0.01, 3 minutes. Teardown: `aws s3api list-multipart-uploads --bucket "$BB"` and abort any upload listed.
+Expected: 403 `AccessDenied` for the first four (text to record); the bad-algo step shows the order; the last copies (copy-source headers are a read). Recorded 2026-11-03: three 403s with the 4.3 text; the bad-algo step got `InvalidEncryptionAlgorithmError` (validation first), not a 403; the last copied (4.3). Cost under USD 0.01, 3 minutes. Teardown: `aws s3api list-multipart-uploads --bucket "$BB"` and abort any upload listed.
 
 ### 12.3 S3SOL-02. SSE-C over plain HTTP
 

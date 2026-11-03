@@ -12,6 +12,7 @@ import (
 
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
 	"github.com/sustinbebustin/understudy/internal/aws"
+	"github.com/sustinbebustin/understudy/internal/identity"
 )
 
 // The SSE-C refusals of s3-ssec-object-lock.md 3.2 and 3.3, each with
@@ -286,22 +287,29 @@ func TestBlockedEncryptionOf(t *testing.T) {
 }
 
 // TestCheckCustomerWrite: an SSE-C write to a bucket that blocks SSE-C is
-// refused (switch s3.sse-c.blocked-write: "Access Denied", checked before
-// the scheme), and one over plain HTTP to a bucket that allows it is
-// refused under switch s3.sse-c.plain-http; HTTPS to an unblocked bucket
-// passes.
+// refused with 403 AccessDenied naming the caller, the action and the
+// object, checked before the scheme (s3-ssec-object-lock.md 4.3; S3SOL-01,
+// recorded 2026-11-03), and one over plain HTTP to a bucket that allows it
+// is refused under switch s3.sse-c.plain-http; HTTPS to an unblocked
+// bucket passes.
 func TestCheckCustomerWrite(t *testing.T) {
 	values := switchValues(t)
-	blockCode, blockStatus := codeOf(t, values, "s3.sse-c.blocked-write")
-	blocked := wantError{status: blockStatus, code: blockCode, message: "Access Denied"}
+	role := identity.Root{Account: aws.DefaultAccount()}
+	blocked := wantError{status: 403, code: "AccessDenied", message: "User: arn:aws:iam::" + aws.DefaultAccount().String() + ":root is not authorized to perform: s3:CopyObject" +
+		` on resource: "arn:aws:s3:::b/k" because this bucket has blocked upload requests that specify Server Side Encryption with Customer provided keys (SSE-C).` +
+		" Please specify a different server-side encryption type."}
 	if v := declared(t, values, "s3.sse-c.plain-http"); v != "refused" {
 		t.Fatalf("switch s3.sse-c.plain-http declares %q; this test knows %q", v, "refused")
 	}
 	insecure := wantError{status: 400, code: "InvalidRequest", message: msgSSECInsecure}
-	blocked.check(t, "blocked bucket over HTTPS", checkCustomerWrite(&Bucket{BlockedEncryption: BlockSSEC}, "https"))
-	blocked.check(t, "blocked bucket over HTTP", checkCustomerWrite(&Bucket{BlockedEncryption: BlockSSEC}, "http"))
-	insecure.check(t, "unblocked bucket over HTTP", checkCustomerWrite(&Bucket{BlockedEncryption: BlockNone}, "http"))
-	if err := checkCustomerWrite(&Bucket{BlockedEncryption: BlockNone}, "https"); err != nil {
+	call := func(scheme string) writeCall {
+		return writeCall{principal: role, action: "s3:CopyObject", scheme: scheme}
+	}
+	b := func(block BlockedEncryption) *Bucket { return &Bucket{Name: "b", BlockedEncryption: block} }
+	blocked.check(t, "blocked bucket over HTTPS", checkCustomerWrite(b(BlockSSEC), "k", call("https")))
+	blocked.check(t, "blocked bucket over HTTP", checkCustomerWrite(b(BlockSSEC), "k", call("http")))
+	insecure.check(t, "unblocked bucket over HTTP", checkCustomerWrite(b(BlockNone), "k", call("http")))
+	if err := checkCustomerWrite(b(BlockNone), "k", call("https")); err != nil {
 		t.Errorf("unblocked bucket over HTTPS: %s %q, want accepted", err.ID.QueryCode, err.Message)
 	}
 }

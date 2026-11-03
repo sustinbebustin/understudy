@@ -8,8 +8,9 @@ import (
 )
 
 // The SSE-C and bucket-encryption switches of s3-ssec-object-lock.md 11.4,
-// in that table's order. None is settled by a recording yet: each names
-// the recording-queue item of section 12 that would settle it.
+// in that table's order. Each names the recording-queue item of section 12
+// that settles it; recordedSwitch marks those the 2026-11-03 session
+// recorded.
 
 // ssecSwitches lists the switches in table order.
 func ssecSwitches() []fidelity.Entry {
@@ -23,7 +24,7 @@ func ssecSwitches() []fidelity.Entry {
 		// ListParts checks the trio when sent, so it is refused over plain
 		// HTTP the same way (switch s3.sse-c.complete-headers; 3.9).
 		researchSwitch("s3.sse-c.plain-http", "refused", evidence.AWSDoc, "39-https", "S3SOL-02", append(slices.Clone(ssecPlainHTTPOps), "s3.ListParts")),
-		researchSwitch("s3.sse-c.blocked-write", "AccessDenied", evidence.Inferred, "43-what-the-block-refuses", "S3SOL-01",
+		recordedSwitch("s3.sse-c.blocked-write", "AccessDenied", "43-what-the-block-refuses", "S3SOL-01",
 			[]string{"s3.PutObject", "s3.CopyObject", "s3.CreateMultipartUpload", "s3.UploadPart", "s3.UploadPartCopy"}),
 		researchSwitch("s3.sse-c.missing-key-md5", "InvalidArgument", evidence.Inferred, "32-write-side-validation-third-party-recorded", "S3SOL-03", ssecPlainHTTPOps),
 		researchSwitch("s3.sse-c.key-encoding", "write-side-texts", evidence.Inferred, "32-write-side-validation-third-party-recorded", "S3SOL-04", ssecPlainHTTPOps),
@@ -40,6 +41,16 @@ func ssecSwitches() []fidelity.Entry {
 		researchSwitch("s3.encryption.blocked-types-omitted", "kept", evidence.Inferred, "42-blocking-and-unblocking", "S3SOL-11",
 			[]string{"s3.PutBucketEncryption", "s3.DeleteBucketEncryption"}),
 	}
+}
+
+// recordedSwitch is a switch of s3-ssec-object-lock.md 11.4 whose section
+// 12 item the 2026-11-03 session recorded (testdata/parity/s3/S3SOL):
+// value is AWS's recorded behavior. No scenario settles it, as the
+// replayer skips S3's REST requests (s3Unreplayed).
+func recordedSwitch(name, value, anchor, record string, ops []string) fidelity.Entry {
+	e := researchSwitch(name, value, evidence.AWSRecorded, anchor, record, ops)
+	e.Settles = fidelity.NoScenario{Reason: s3Unreplayed(record + " is")}
+	return e
 }
 
 // researchSwitch is one switch of s3-ssec-object-lock.md 11.4, SSE-C or
