@@ -60,16 +60,36 @@ type MockSelection struct {
 	// MediaTypeEssence compares type/subtype only, case-insensitively;
 	// false compares the whole header value byte for byte.
 	MediaTypeEssence bool
-	// TemplateByAccept picks the response template by the first Accept
-	// media type, else application/json, else the only one; false takes
-	// application/json, else the only one.
-	TemplateByAccept bool
 	// PatternFullMatch requires a selectionPattern to match the whole
 	// status text; false finds it anywhere.
 	PatternFullMatch bool
-	// AscendingStatus tries patterned integration responses in ascending
-	// status order, the default last; false in creation order.
-	AscendingStatus bool
+	// PatternOrder is the order patterned integration responses are tried
+	// in, the default last.
+	PatternOrder PatternOrder
+}
+
+// PatternOrder is an order of selection patterns. APIGW1-12 ruled out
+// ascending status and creation order, and fits both of these
+// (apigateway-rest.md 6.7).
+type PatternOrder uint8
+
+// The pattern orders.
+const (
+	// PatternsSortingLastFirst tries the pattern that sorts last first.
+	PatternsSortingLastFirst PatternOrder = iota + 1
+	// PatternsLongestFirst tries the longest pattern first.
+	PatternsLongestFirst
+)
+
+// String names the order as the coverage report shows it.
+func (o PatternOrder) String() string {
+	switch o {
+	case PatternsSortingLastFirst:
+		return "sorting-last-first"
+	case PatternsLongestFirst:
+		return "longest-first"
+	}
+	return "PatternOrder(?)"
 }
 
 // ProxyUnrecorded is the value of apigateway.proxy.unrecorded: the Lambda
@@ -184,22 +204,26 @@ func PermissionSwitch() fidelity.Switch[Permission] {
 	}
 }
 
-// MockSelectionSwitch is apigateway.mock.selection (6.2, 6.7).
+// MockSelectionSwitch is apigateway.mock.selection (6.2, 6.7). APIGW1-09,
+// APIGW1-11 and APIGW1-12 recorded on 2026-11-03 the 415 answer, media
+// type essence, the response template (which no longer needs a choice:
+// responseTemplate) and full-match anchoring; of two matching patterns
+// AWS took the one that is both longer and sorts last, so PatternOrder
+// stays inferred.
 func MockSelectionSwitch() fidelity.Switch[MockSelection] {
 	return fidelity.Switch[MockSelection]{
 		Name: "apigateway.mock.selection",
 		Value: MockSelection{
-			UnsupportedMediaType: GatewayAnswer{Status: http.StatusUnsupportedMediaType, Body: `{"message":"Unsupported Media Type"}`},
+			UnsupportedMediaType: GatewayAnswer{Status: http.StatusUnsupportedMediaType, Body: `{"message": "Unsupported Media Type"}`, ErrorType: "BadRequestException"},
 			MediaTypeEssence:     true,
-			TemplateByAccept:     true,
 			PatternFullMatch:     true,
-			AscendingStatus:      true,
+			PatternOrder:         PatternsSortingLastFirst,
 		},
 		Label:   evidence.Inferred,
 		Ref:     researchRef + "62-passthrough-behavior-and-415",
 		Record:  "APIGW1-09, APIGW1-11, APIGW1-12",
 		Ops:     []string{invokeRestAPI},
-		Settles: unrecorded("APIGW1-09, APIGW1-11 and APIGW1-12"),
+		Settles: fidelity.NoScenario{Reason: "unrecorded: which of 'longest first' and 'sorting last first' AWS applies; APIGW1-12's three ties fit both (apigateway-rest.md 6.7)"},
 	}
 }
 
