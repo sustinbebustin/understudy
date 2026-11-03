@@ -84,25 +84,23 @@ func TestUpdateStateMachineErrors(t *testing.T) {
 	})
 }
 
-// A logging destination may name its log group by the ARN DescribeLogGroups
-// gives, ending ":*", or without it; either is echoed as sent. AWS's answer
-// for the form without ":*" is unrecorded.
+// A logging destination names its log group by the ARN DescribeLogGroups
+// gives, ending ":*"; one without it is refused, though the group exists
+// (SFN-07, recorded 2026-11-03). A value that is no log group ARN is not
+// found (inferred).
 func TestSFN07DestinationWithoutStar(t *testing.T) {
 	// inferred, SFN-07
 	run(t, func(h *harness) {
 		must(h, logsapi.OpCreateLogGroup, &logsapi.CreateLogGroupInput{LogGroupName: "g"})
 		bare := fmt.Sprintf("arn:aws:logs:%s:%s:log-group:g", h.Scope.Region, h.Scope.Account)
 		all := sfnapi.LogLevelAll
-		out := must(h, sfnapi.OpCreateStateMachine, &sfnapi.CreateStateMachineInput{
+		_, err := call(h, sfnapi.OpCreateStateMachine, &sfnapi.CreateStateMachineInput{
 			Name: "m", Definition: resultMachine, RoleArn: h.roleArn(),
 			LoggingConfiguration: &sfnapi.LoggingConfiguration{Level: &all, Destinations: []sfnapi.LogDestination{
 				{CloudWatchLogsLogGroup: &sfnapi.CloudWatchLogsLogGroup{LogGroupArn: new(bare)}},
 			}},
 		})
-		d := must(h, sfnapi.OpDescribeStateMachine, &sfnapi.DescribeStateMachineInput{StateMachineArn: out.StateMachineArn})
-		if l := d.LoggingConfiguration; len(l.Destinations) != 1 || val(l.Destinations[0].CloudWatchLogsLogGroup.LogGroupArn) != bare {
-			h.Errorf("loggingConfiguration = %+v, want %s echoed", l, bare)
-		}
+		wantError(h, err, "InvalidLoggingConfiguration", 400, "Invalid Logging Configuration: Log Group ARN must be provided with '*' qualifier.")
 		for _, bad := range []string{"not-an-arn", fmt.Sprintf("arn:aws:sqs:%s:%s:g", h.Scope.Region, h.Scope.Account)} {
 			_, err := call(h, sfnapi.OpCreateStateMachine, &sfnapi.CreateStateMachineInput{
 				Name: "x", Definition: resultMachine, RoleArn: h.roleArn(),

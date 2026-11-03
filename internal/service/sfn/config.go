@@ -38,6 +38,9 @@ func checkRoleArn(raw string) *awserr.Error {
 const (
 	errOneDestination      = "Invalid Logging Configuration: Must specify exactly one Log Destination."
 	errDestinationNotFound = "Invalid Logging Configuration: Log Destination not found."
+	// errNoQualifier is recorded for a log group ARN without ":*" (SFN-07,
+	// 2026-11-03).
+	errNoQualifier = "Invalid Logging Configuration: Log Group ARN must be provided with '*' qualifier."
 )
 
 // checkLogging validates a loggingConfiguration (stepfunctions-api.md 5.1):
@@ -55,7 +58,13 @@ func (s *Service) checkLogging(ctx context.Context, c *kernel.Call, in *sfnapi.L
 		if d.CloudWatchLogsLogGroup == nil || d.CloudWatchLogsLogGroup.LogGroupArn == nil {
 			return sfnapi.ErrInvalidLoggingConfiguration(errDestinationNotFound)
 		}
-		found, err := s.logGroupExists(ctx, c, *d.CloudWatchLogsLogGroup.LogGroupArn)
+		raw := *d.CloudWatchLogsLogGroup.LogGroupArn
+		if a, err := aws.ParseARN(raw); err == nil && a.Service == "logs" && strings.HasPrefix(a.Resource, "log-group:") && !strings.HasSuffix(a.Resource, ":*") {
+			// Checked before the group's existence (inferred: the recording's
+			// group existed).
+			return sfnapi.ErrInvalidLoggingConfiguration(errNoQualifier)
+		}
+		found, err := s.logGroupExists(ctx, c, raw)
 		if err != nil {
 			return err
 		}
@@ -66,9 +75,8 @@ func (s *Service) checkLogging(ctx context.Context, c *kernel.Call, in *sfnapi.L
 	return nil
 }
 
-// logGroupExists reads the log group a destination ARN names, with or
-// without the trailing ":*" DescribeLogGroups gives (an ARN without it is
-// accepted and echoed as sent: inferred, SFN-07). The lookup runs as the
+// logGroupExists reads the log group a destination ARN names, less the
+// trailing ":*" checkLogging requires. The lookup runs as the
 // platform: it is not access-recorded, since the permissions log delivery
 // needs are the caller's and the role's, not this read's
 // (stepfunctions-api.md 9.5). A value that names no log group is not found;
