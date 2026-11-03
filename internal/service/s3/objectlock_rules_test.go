@@ -530,8 +530,8 @@ func TestCheckLockTarget(t *testing.T) {
 
 // TestDefaultRetention: a bucket rule's default dates a new version at its
 // creation plus the period (https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock.html,
-// "Retention periods"), a year being 365 days (switch
-// s3.object-lock.default-years); explicit settings override it and a legal
+// "Retention periods"), a year being a calendar year (S3SOL-13 13-head,
+// recorded 2026-11-03); explicit settings override it and a legal
 // hold comes only from them. A version needs Content-MD5 or a checksum when
 // it gets a retention (testdata/parity/s3/R12/11-put-without-checksum.json:
 // a bucket default and no lock header), and not for a legal hold alone
@@ -551,20 +551,22 @@ func TestDefaultRetention(t *testing.T) {
 	}
 	created := lockNow.Add(123456789)
 	for _, tc := range []struct {
-		cfg  *s3api.ObjectLockConfiguration
-		want defaultRetention
+		cfg   *s3api.ObjectLockConfiguration
+		want  defaultRetention
+		until time.Time
 	}{
-		{lockConfig(gov, new(int32(1)), nil), defaultRetention{mode: RetentionGovernance, period: 24 * time.Hour}},
-		{lockConfig(comp, new(int32(36500)), nil), defaultRetention{mode: RetentionCompliance, period: 36500 * 24 * time.Hour}},
-		{lockConfig(gov, nil, new(int32(1))), defaultRetention{mode: RetentionGovernance, period: 365 * 24 * time.Hour}},
-		{lockConfig(comp, nil, new(int32(4))), defaultRetention{mode: RetentionCompliance, period: 4 * 365 * 24 * time.Hour}},
+		{lockConfig(gov, new(int32(1)), nil), defaultRetention{mode: RetentionGovernance, days: 1}, created.Wire().Add(24 * time.Hour)},
+		{lockConfig(comp, new(int32(36500)), nil), defaultRetention{mode: RetentionCompliance, days: 36500}, created.Wire().Add(36500 * 24 * time.Hour)},
+		{lockConfig(gov, nil, new(int32(1))), defaultRetention{mode: RetentionGovernance, years: 1}, created.Wire().AddDate(1, 0, 0)},
+		// 2026-10-26 plus 2 years crosses 2028-02-29: 731 days.
+		{lockConfig(comp, nil, new(int32(2))), defaultRetention{mode: RetentionCompliance, years: 2}, created.Wire().Add(731 * 24 * time.Hour)},
 	} {
 		got, ok := bucketDefaultRetention(tc.cfg)
 		if !ok || got != tc.want {
 			t.Errorf("bucketDefaultRetention(%+v) = %+v, %v; want %+v", tc.cfg.Rule.DefaultRetention, got, ok, tc.want)
 			continue
 		}
-		dated := Retention{Mode: tc.want.mode, RetainUntil: msInstant(created.Wire().Add(tc.want.period))}
+		dated := Retention{Mode: tc.want.mode, RetainUntil: msInstant(tc.until)}
 		if r := got.from(created); r != dated {
 			t.Errorf("%+v.from(%s) = %+v, want %+v", got, created, r, dated)
 		}

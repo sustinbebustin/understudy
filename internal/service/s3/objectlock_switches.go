@@ -20,7 +20,7 @@ func objectLockSwitches() []fidelity.Entry {
 	return []fidelity.Entry{
 		recordedSwitch("s3.object-lock.retain-until-format", "milliseconds-header-trimmed", "67-response-headers-on-get-and-head", "S3SOL-12",
 			[]string{"s3.PutObject", "s3.CopyObject", "s3.CreateMultipartUpload", "s3.PutObjectRetention", "s3.GetObject", "s3.HeadObject", "s3.GetObjectRetention", "s3.DeleteObject", "s3.DeleteObjects"}),
-		researchSwitch("s3.object-lock.default-years", "365-day", evidence.Inferred, "53-default-retention-dating", "S3SOL-13",
+		recordedSwitch("s3.object-lock.default-years", "calendar-years", "53-default-retention-dating", "S3SOL-13",
 			[]string{"s3.PutObjectLockConfiguration", "s3.PutObject", "s3.CopyObject", "s3.CompleteMultipartUpload"}),
 		researchSwitch("s3.object-lock.checksum-scope", "PutObject-retention", evidence.Inferred, "63-the-content-md5-or-checksum-requirement", "S3SOL-14, S3SOL-15",
 			[]string{"s3.PutObject", "s3.UploadPart"}),

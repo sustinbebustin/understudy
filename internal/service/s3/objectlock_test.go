@@ -426,7 +426,7 @@ func TestObjectLockChecksumRequirement(t *testing.T) {
 // default retention gets its creation instant plus the period
 // (https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock.html,
 // "Retention periods"; LocalStack test_s3.snapshot.json L9711), a year
-// being 365 days (switch s3.object-lock.default-years); explicit headers
+// being a calendar year (switch s3.object-lock.default-years); explicit headers
 // override it; changing the rule changes only later versions; a rule put
 // without a default removes it (LocalStack test_s3_api.snapshot.json L2501).
 // A multipart object is dated at its initiation (testdata/parity/s3/R12/notes.md
@@ -435,7 +435,7 @@ func TestObjectLockChecksumRequirement(t *testing.T) {
 func TestObjectLockDefaultRetention(t *testing.T) {
 	runObjects(t, func(h *harness) {
 		t := h.T
-		h.follows("s3.object-lock.default-years", "365-day")
+		h.follows("s3.object-lock.default-years", "calendar-years")
 		day := 24 * time.Hour
 		h.lockBucket("locked")
 		h.setDefault("locked", s3api.ObjectLockRetentionModeGovernance, new(int32(1)), nil)
@@ -448,10 +448,12 @@ func TestObjectLockDefaultRetention(t *testing.T) {
 		wantRetention(t, "explicit headers over the default", h.headLock("locked", "k", v2), s3api.ObjectLockModeCompliance, explicit)
 
 		h.advance(time.Hour)
-		h.setDefault("locked", s3api.ObjectLockRetentionModeCompliance, nil, new(int32(1)))
+		// Years are calendar years: 2 years from 2026 cross 2028-02-29, 731
+		// days (S3SOL-13 13-head, recorded 2026-11-03).
+		h.setDefault("locked", s3api.ObjectLockRetentionModeCompliance, nil, new(int32(2)))
 		later := h.Clock.Now().Wire()
 		v3 := h.mustPutLocked("locked", "k", "three", s3api.PutObjectInput{})
-		wantRetention(t, "default of 1 year", h.headLock("locked", "k", v3), s3api.ObjectLockModeCompliance, later.Add(365*day))
+		wantRetention(t, "default of 2 years", h.headLock("locked", "k", v3), s3api.ObjectLockModeCompliance, later.AddDate(2, 0, 0))
 		wantRetention(t, "the version written before the rule changed", h.headLock("locked", "k", v1), s3api.ObjectLockModeGovernance, created.Add(day))
 
 		ok(h, who{}, s3api.OpPutObjectLockConfiguration, &s3api.PutObjectLockConfigurationInput{Bucket: "locked", ObjectLockConfiguration: &s3api.ObjectLockConfiguration{
@@ -731,13 +733,16 @@ func TestObjectLegalHold(t *testing.T) {
 // rule as put, Mode and the one of Days or Years (LocalStack
 // test_s3_api.snapshot.json L2486; s3-ssec-object-lock.md 9.2); an enabled
 // configuration without a rule removes it (L2501, L2507); a bad mode is
-// MalformedXML (L2571); periods outside 1..36500 days or 1..100 years are
-// MalformedXML under switch s3.object-lock.default-years; the token header
-// is accepted and ignored (s3-ssec-object-lock.md 11.1).
+// MalformedXML (L2571); a period under 1 is InvalidArgument "Default
+// retention period must be a positive integer value." and one over 36500
+// days or 100 years "Default retention period too large.", each naming
+// Days or Years and echoing the value (s3-ssec-object-lock.md 5.2;
+// S3SOL-13 13-days-0, 13-days-36501, 13-years-101, recorded 2026-11-03;
+// Years 0 is inferred from Days 0); the token header is accepted and
+// ignored (s3-ssec-object-lock.md 11.1).
 func TestObjectLockConfigurationRules(t *testing.T) {
 	runObjects(t, func(h *harness) {
 		t := h.T
-		h.follows("s3.object-lock.default-years", "365-day")
 		h.lockBucket("locked")
 		put := func(mode s3api.ObjectLockRetentionMode, days, years *int32) *awserr.Error {
 			_, err := as(h, who{}, s3api.OpPutObjectLockConfiguration, &s3api.PutObjectLockConfigurationInput{Bucket: "locked", Token: new("token"), ObjectLockConfiguration: &s3api.ObjectLockConfiguration{
@@ -770,15 +775,15 @@ func TestObjectLockConfigurationRules(t *testing.T) {
 				t.Errorf("rule read back as mode %v days %v years %v, want %s days %v years %v", deref(d.Mode), deref(d.Days), deref(d.Years), tc.mode, deref(tc.days), deref(tc.years))
 			}
 		}
-		for name, err := range map[string]*awserr.Error{
-			"Days 0":     put(gov, new(int32(0)), nil),
-			"Days 36501": put(gov, new(int32(36501)), nil),
-			"Years 0":    put(gov, nil, new(int32(0))),
-			"Years 101":  put(gov, nil, new(int32(101))),
-			"bad mode":   put("BAD-VALUE", new(int32(1)), nil),
-		} {
-			errMalformed.is(t, name, err)
+		period := func(message, name, value string) failure {
+			return failure{status: 400, code: "InvalidArgument", message: message, fields: map[string]string{"ArgumentName": name, "ArgumentValue": value}}
 		}
+		const positive, tooLarge = "Default retention period must be a positive integer value.", "Default retention period too large."
+		period(positive, "Days", "0").is(t, "Days 0", put(gov, new(int32(0)), nil))
+		period(tooLarge, "Days", "36501").is(t, "Days 36501", put(gov, new(int32(36501)), nil))
+		period(positive, "Years", "0").is(t, "Years 0", put(gov, nil, new(int32(0))))
+		period(tooLarge, "Years", "101").is(t, "Years 101", put(gov, nil, new(int32(101))))
+		errMalformed.is(t, "bad mode", put("BAD-VALUE", new(int32(1)), nil))
 		ok(h, who{}, s3api.OpPutObjectLockConfiguration, &s3api.PutObjectLockConfigurationInput{Bucket: "locked", ObjectLockConfiguration: &s3api.ObjectLockConfiguration{
 			ObjectLockEnabled: new(s3api.ObjectLockEnabledEnabled),
 		}})

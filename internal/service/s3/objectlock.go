@@ -293,19 +293,14 @@ func checkLockTarget(b *Bucket, explicit ObjectLock) *awserr.Error {
 const missingLockConfigText = "Bucket is missing Object Lock Configuration"
 
 // defaultRetention is a bucket's default retention rule: its mode, and its
-// Days or Years as a duration, a year being 365 days (switch
-// s3.object-lock.default-years).
+// period in Days or in Years, exactly one of which is not zero.
 type defaultRetention struct {
-	mode   RetentionMode
-	period time.Duration
+	mode        RetentionMode
+	days, years int32
 }
 
-// dayLength and yearLength are a default retention's units: a year is 365
-// days (switch s3.object-lock.default-years).
-const (
-	dayLength  = 24 * time.Hour
-	yearLength = 365 * dayLength
-)
+// dayLength is a retention day.
+const dayLength = 24 * time.Hour
 
 // bucketDefaultRetention is cfg's default retention rule; false when cfg
 // has none. checkObjectLock admits only a rule with a mode and one period
@@ -321,18 +316,22 @@ func bucketDefaultRetention(cfg *s3api.ObjectLockConfiguration) (defaultRetentio
 	}
 	switch {
 	case d.Days != nil && d.Years == nil:
-		return defaultRetention{mode: mode, period: time.Duration(*d.Days) * dayLength}, true
+		return defaultRetention{mode: mode, days: *d.Days}, true
 	case d.Years != nil && d.Days == nil:
-		return defaultRetention{mode: mode, period: time.Duration(*d.Years) * yearLength}, true
+		return defaultRetention{mode: mode, years: *d.Years}, true
 	}
 	return defaultRetention{}, false
 }
 
 // from is the retention the rule gives a version created at created: the
 // creation instant plus the period, to the millisecond
-// (s3-ssec-object-lock.md 5.3).
+// (s3-ssec-object-lock.md 5.3). Days are 24 hours and years calendar
+// years in UTC: 2 years from 2026-11-03 end on 2028-11-03, 731 days later
+// (S3SOL-13 13-head, recorded 2026-11-03). How a 29 February creation date
+// moves by a year is UNVERIFIED; Go's AddDate gives 1 March.
 func (d defaultRetention) from(created clock.Instant) Retention {
-	return Retention{Mode: d.mode, RetainUntil: clock.FromWire(created.Add(d.period).Wire().Truncate(time.Millisecond))}
+	until := created.Wire().UTC().AddDate(int(d.years), 0, 0).Add(time.Duration(d.days) * dayLength)
+	return Retention{Mode: d.mode, RetainUntil: clock.FromWire(until.Truncate(time.Millisecond))}
 }
 
 // lockOnWrite is a new version's lock state: the write's explicit

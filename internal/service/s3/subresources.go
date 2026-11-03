@@ -611,7 +611,7 @@ func (s *Service) bindObjectLock(b s3api.Binder) {
 // valid (6.9, 11.3, 11.7); a default retention names a known mode and
 // exactly one of Days and Years, else MalformedXML (LocalStack
 // test_s3_api.snapshot.json L2521-L2581). Days must be 1 to 36,500 and
-// Years 1 to 100, else MalformedXML (switch s3.object-lock.default-years).
+// Years 1 to 100 (checkRetentionPeriod).
 func checkObjectLock(in *s3api.PutObjectLockConfigurationInput) *awserr.Error {
 	cfg := in.ObjectLockConfiguration
 	if cfg == nil || cfg.ObjectLockEnabled == nil || *cfg.ObjectLockEnabled != s3api.ObjectLockEnabledEnabled {
@@ -630,8 +630,22 @@ func checkObjectLock(in *s3api.PutObjectLockConfigurationInput) *awserr.Error {
 	if _, ok := retentionModeTexts.value(string(*d.Mode)); !ok {
 		return errMalformedXML()
 	}
-	if d.Days != nil && (*d.Days < 1 || *d.Days > 36500) || d.Years != nil && (*d.Years < 1 || *d.Years > 100) {
-		return errMalformedXML()
+	if d.Days != nil {
+		return checkRetentionPeriod("Days", *d.Days, 36500)
+	}
+	return checkRetentionPeriod("Years", *d.Years, 100)
+}
+
+// checkRetentionPeriod refuses a default retention period, named name,
+// below 1 or above most, with InvalidArgument naming it and echoing the
+// value (s3-ssec-object-lock.md 5.2; S3SOL-13 13-days-0, 13-days-36501,
+// 13-years-101, recorded 2026-11-03; Years below 1 is inferred from Days).
+func checkRetentionPeriod(name string, v, most int32) *awserr.Error {
+	switch {
+	case v < 1:
+		return errInvalidArgument("Default retention period must be a positive integer value.", name, strconv.Itoa(int(v)))
+	case v > most:
+		return errInvalidArgument("Default retention period too large.", name, strconv.Itoa(int(v)))
 	}
 	return nil
 }
