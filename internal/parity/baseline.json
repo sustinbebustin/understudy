@@ -2,10 +2,67 @@
   "version": 1,
   "scenarios": [
     {
+      "scenario": "cloudwatch/CWA-19",
+      "steps": [
+        {"step": "01-both", "fixture": "cloudwatch/CWA-19/01-both.json", "operation": "cloudwatch.GetMetricStatistics", "outcome": {"kind": "differs", "reason": "status, error/code, error/message, body/Datapoints, body/Label, body/__type, body/message"}},
+        {"step": "02-neither", "fixture": "cloudwatch/CWA-19/02-neither.json", "operation": "cloudwatch.GetMetricStatistics", "outcome": {"kind": "differs", "reason": "body/__type"}},
+        {"step": "03-period-7", "fixture": "cloudwatch/CWA-19/03-period-7.json", "operation": "cloudwatch.GetMetricStatistics", "outcome": {"kind": "differs", "reason": "body/__type"}},
+        {"step": "03-period-61", "fixture": "cloudwatch/CWA-19/03-period-61.json", "operation": "cloudwatch.GetMetricStatistics", "outcome": {"kind": "differs", "reason": "body/__type"}},
+        {"step": "03-period-90", "fixture": "cloudwatch/CWA-19/03-period-90.json", "operation": "cloudwatch.GetMetricStatistics", "outcome": {"kind": "differs", "reason": "body/__type"}},
+        {"step": "11-span-1441", "fixture": "cloudwatch/CWA-19/11-span-1441.json", "operation": "cloudwatch.GetMetricStatistics", "outcome": {"kind": "differs", "reason": "body/__type"}},
+        {"step": "12-span-1440", "fixture": "cloudwatch/CWA-19/12-span-1440.json", "operation": "cloudwatch.GetMetricStatistics", "outcome": {"kind": "differs", "reason": "body/Datapoints/0/Maximum, body/Datapoints/0, body"}},
+        {"step": "13-half-aligned-start", "fixture": "cloudwatch/CWA-19/13-half-aligned-start.json", "operation": "cloudwatch.GetMetricStatistics", "outcome": {"kind": "differs", "reason": "body/Datapoints/0/Maximum, body/Datapoints/0, body"}},
+        {"step": "14-half-unaligned-start", "fixture": "cloudwatch/CWA-19/14-half-unaligned-start.json", "operation": "cloudwatch.GetMetricStatistics", "outcome": {"kind": "differs", "reason": "body/Datapoints/0/Maximum, body/Datapoints/0, body"}},
+        {"step": "15-under-unless-rounded", "fixture": "cloudwatch/CWA-19/15-under-unless-rounded.json", "operation": "cloudwatch.GetMetricStatistics", "outcome": {"kind": "differs", "reason": "body/Datapoints/0/Maximum, body/Datapoints/0, body"}}
+      ]
+    },
+    {
       "scenario": "dynamodb/R11",
       "steps": [
-        {"step": "07-streams-signed-dynamodb", "fixture": "dynamodb/R11/07-streams-signed-dynamodb.json", "outcome": {"kind": "reconstructed"}},
-        {"step": "07-streams-signed-streams.dynamodb", "fixture": "dynamodb/R11/07-streams-signed-streams.dynamodb.json", "outcome": {"kind": "reconstructed"}}
+        {"step": "07-streams-signed-streams.dynamodb", "fixture": "dynamodb/R11/07-streams-signed-streams.dynamodb.json", "outcome": {"kind": "match"}}
+      ]
+    },
+    {
+      "scenario": "events/EBB",
+      "steps": [
+        {"step": "01-delete-with-rule", "fixture": "events/EBB/01-delete-with-rule.json", "operation": "eventbridge.DeleteEventBus", "outcome": {"kind": "match"}},
+        {"step": "02-name-default", "fixture": "events/EBB/02-name-default.json", "operation": "eventbridge.CreateEventBus", "outcome": {"kind": "match"}},
+        {"step": "02-name-slash", "fixture": "events/EBB/02-name-slash.json", "operation": "eventbridge.CreateEventBus", "outcome": {"kind": "match"}},
+        {"step": "02-name-aws-dot", "fixture": "events/EBB/02-name-aws-dot.json", "operation": "eventbridge.CreateEventBus", "outcome": {"kind": "match"}},
+        {"step": "02-name-partner-like", "fixture": "events/EBB/02-name-partner-like.json", "operation": "eventbridge.CreateEventBus", "outcome": {"kind": "match"}},
+        {"step": "03-put-rule", "fixture": "events/EBB/03-put-rule.json", "operation": "eventbridge.PutRule", "outcome": {"kind": "match"}},
+        {"step": "03-put-rule-schedule", "fixture": "events/EBB/03-put-rule-schedule.json", "operation": "eventbridge.PutRule", "outcome": {"kind": "match"}},
+        {"step": "03-describe-rule", "fixture": "events/EBB/03-describe-rule.json", "operation": "eventbridge.DescribeRule", "outcome": {"kind": "match"}},
+        {"step": "03-put-rule-schedule-arn", "fixture": "events/EBB/03-put-rule-schedule-arn.json", "operation": "eventbridge.PutRule", "outcome": {"kind": "match"}},
+        {"step": "03-delete-rule", "fixture": "events/EBB/03-delete-rule.json", "operation": "eventbridge.DeleteRule", "outcome": {"kind": "match"}},
+        {"step": "03-list-rules", "fixture": "events/EBB/03-list-rules.json", "operation": "eventbridge.ListRules", "outcome": {"kind": "match"}},
+        {"step": "03-enable-rule", "fixture": "events/EBB/03-enable-rule.json", "operation": "eventbridge.EnableRule", "outcome": {"kind": "match"}},
+        {"step": "03-put-targets", "fixture": "events/EBB/03-put-targets.json", "operation": "eventbridge.PutTargets", "outcome": {"kind": "match"}},
+        {"step": "03-list-targets", "fixture": "events/EBB/03-list-targets.json", "operation": "eventbridge.ListTargetsByRule", "outcome": {"kind": "match"}},
+        {"step": "03-remove-targets", "fixture": "events/EBB/03-remove-targets.json", "operation": "eventbridge.RemoveTargets", "outcome": {"kind": "match"}},
+        {"step": "03-describe-rule-existing-bus", "fixture": "events/EBB/03-describe-rule-existing-bus.json", "operation": "eventbridge.DescribeRule", "outcome": {"kind": "match"}},
+        {"step": "04-create", "fixture": "events/EBB/04-create.json", "operation": "eventbridge.CreateEventBus", "outcome": {"kind": "differs", "reason": "body"}},
+        {"step": "04-update-name-only", "fixture": "events/EBB/04-update-name-only.json", "operation": "eventbridge.UpdateEventBus", "outcome": {"kind": "differs", "reason": "body"}},
+        {"step": "04-update-desc-empty", "fixture": "events/EBB/04-update-desc-empty.json", "operation": "eventbridge.UpdateEventBus", "outcome": {"kind": "differs", "reason": "body"}},
+        {"step": "04-update-log-off", "fixture": "events/EBB/04-update-log-off.json", "operation": "eventbridge.UpdateEventBus", "outcome": {"kind": "differs", "reason": "body"}},
+        {"step": "04-update-missing", "fixture": "events/EBB/04-update-missing.json", "operation": "eventbridge.UpdateEventBus", "outcome": {"kind": "match"}},
+        {"step": "04-update-no-name", "fixture": "events/EBB/04-update-no-name.json", "operation": "eventbridge.UpdateEventBus", "outcome": {"kind": "differs", "reason": "body"}},
+        {"step": "06-remove-all-empty", "fixture": "events/EBB/06-remove-all-empty.json", "operation": "eventbridge.RemovePermission", "outcome": {"kind": "match"}},
+        {"step": "06-put-1", "fixture": "events/EBB/06-put-1.json", "operation": "eventbridge.PutPermission", "outcome": {"kind": "match"}},
+        {"step": "06-put-1-replace", "fixture": "events/EBB/06-put-1-replace.json", "operation": "eventbridge.PutPermission", "outcome": {"kind": "match"}},
+        {"step": "06-remove-last", "fixture": "events/EBB/06-remove-last.json", "operation": "eventbridge.RemovePermission", "outcome": {"kind": "match"}},
+        {"step": "06-bad-action", "fixture": "events/EBB/06-bad-action.json", "operation": "eventbridge.PutPermission", "outcome": {"kind": "match"}},
+        {"step": "06-condition-account", "fixture": "events/EBB/06-condition-account.json", "operation": "eventbridge.PutPermission", "outcome": {"kind": "match"}},
+        {"step": "06-condition-star", "fixture": "events/EBB/06-condition-star.json", "operation": "eventbridge.PutPermission", "outcome": {"kind": "match"}},
+        {"step": "06-policy-and-sid", "fixture": "events/EBB/06-policy-and-sid.json", "operation": "eventbridge.PutPermission", "outcome": {"kind": "match"}},
+        {"step": "06-too-long", "fixture": "events/EBB/06-too-long.json", "operation": "eventbridge.PutPermission", "outcome": {"kind": "match"}},
+        {"step": "08-input-on-bus-target", "fixture": "events/EBB/08-input-on-bus-target.json", "operation": "eventbridge.PutTargets", "outcome": {"kind": "match"}},
+        {"step": "08-missing-target-bus", "fixture": "events/EBB/08-missing-target-bus.json", "operation": "eventbridge.PutTargets", "outcome": {"kind": "differs", "reason": "body"}},
+        {"step": "08-no-role", "fixture": "events/EBB/08-no-role.json", "operation": "eventbridge.PutTargets", "outcome": {"kind": "differs", "reason": "status, error/code, error/message, body/__type, body/message, body/FailedEntryCount, body/FailedEntries"}}
+      ],
+      "claims": [
+        {"target": {"kind": "switch", "name": "events.delete-bus.with-rules"}, "step": "01-delete-with-rule", "field": "body/message", "result": {"kind": "settled"}},
+        {"target": {"kind": "switch", "name": "events.bus-policy.remove-all-without-policy"}, "step": "06-remove-all-empty", "field": "status", "result": {"kind": "settled"}}
       ]
     },
     {
@@ -35,6 +92,19 @@
       ]
     },
     {
+      "scenario": "iam/IAM-EVAL-35",
+      "steps": [
+        {"step": "02-assumed-role", "fixture": "iam/IAM-EVAL-35/02-assumed-role.json", "operation": "iam.CreatePolicy", "outcome": {"kind": "match"}},
+        {"step": "03-delegation-request", "fixture": "iam/IAM-EVAL-35/03-delegation-request.json", "operation": "iam.CreatePolicy", "outcome": {"kind": "match"}}
+      ]
+    },
+    {
+      "scenario": "iam/IAM-EVAL-36",
+      "steps": [
+        {"step": "11-object-region", "fixture": "iam/IAM-EVAL-36/11-object-region.json", "operation": "iam.CreatePolicy", "outcome": {"kind": "match"}}
+      ]
+    },
+    {
       "scenario": "kms/KMS-alias",
       "steps": [
         {"step": "01-duplicate", "fixture": "kms/KMS-alias/01-duplicate.json", "operation": "kms.CreateAlias", "outcome": {"kind": "match"}},
@@ -43,6 +113,175 @@
       "claims": [
         {"target": {"kind": "overlay", "shape": "com.amazonaws.kms#AlreadyExistsException"}, "step": "01-duplicate", "field": "status", "result": {"kind": "settled"}},
         {"target": {"kind": "overlay", "shape": "com.amazonaws.kms#AlreadyExistsException"}, "step": "02-duplicate-raw", "field": "status", "result": {"kind": "open"}}
+      ]
+    },
+    {
+      "scenario": "ses/SES-00",
+      "steps": [
+        {"step": "01-verify-me", "fixture": "ses/SES-00/01-verify-me.json", "operation": "ses.VerifyEmailIdentity", "outcome": {"kind": "match"}},
+        {"step": "02-me-verified", "fixture": "ses/SES-00/02-me-verified.json", "operation": "ses.GetIdentityVerificationAttributes", "outcome": {"kind": "match"}}
+      ]
+    },
+    {
+      "scenario": "ses/SES-01",
+      "steps": [
+        {"step": "01-cli", "fixture": "ses/SES-01/01-cli.json", "operation": "ses.SendEmail", "outcome": {"kind": "match"}},
+        {"step": "02-raw", "fixture": "ses/SES-01/02-raw.json", "operation": "ses.SendEmail", "outcome": {"kind": "match"}}
+      ],
+      "claims": [
+        {"target": {"kind": "overlay", "shape": "com.amazonaws.ses#SimpleEmailService", "covers": ["dev.understudy#queryErrorEnvelope"]}, "step": "01-cli", "field": "body/ErrorResponse/@xmlns", "result": {"kind": "settled"}}
+      ]
+    },
+    {
+      "scenario": "ses/SES-03",
+      "steps": [
+        {"step": "00-sandbox", "fixture": "ses/SES-03/00-sandbox.json", "outcome": {"kind": "skipped", "reason": "rest-routing"}},
+        {"step": "02-both", "fixture": "ses/SES-03/02-both.json", "operation": "ses.SendEmail", "outcome": {"kind": "match"}},
+        {"step": "03-v2-both", "fixture": "ses/SES-03/03-v2-both.json", "outcome": {"kind": "skipped", "reason": "rest-routing"}}
+      ],
+      "claims": [
+        {"target": {"kind": "switch", "name": "ses.error.unverified.text"}, "step": "02-both", "field": "body/ErrorResponse/Error/Message", "result": {"kind": "settled"}}
+      ]
+    },
+    {
+      "scenario": "ses/SES-04",
+      "steps": [
+        {"step": "v1-empty-source", "fixture": "ses/SES-04/v1-empty-source.json", "operation": "ses.SendEmail", "outcome": {"kind": "match"}},
+        {"step": "v1-verify-bad", "fixture": "ses/SES-04/v1-verify-bad.json", "operation": "ses.VerifyEmailIdentity", "outcome": {"kind": "match"}}
+      ]
+    },
+    {
+      "scenario": "ses/SES-08",
+      "steps": [
+        {"step": "01-mixed", "fixture": "ses/SES-08/01-mixed.json", "operation": "ses.GetIdentityVerificationAttributes", "outcome": {"kind": "match"}},
+        {"step": "02-101", "fixture": "ses/SES-08/02-101.json", "operation": "ses.GetIdentityVerificationAttributes", "outcome": {"kind": "match"}},
+        {"step": "03-notif-raw", "fixture": "ses/SES-08/03-notif-raw.json", "operation": "ses.GetIdentityNotificationAttributes", "outcome": {"kind": "differs", "reason": "body/GetIdentityNotificationAttributesResponse/GetIdentityNotificationAttributesResult/NotificationAttributes/entry/value/BounceTopic, body/GetIdentityNotificationAttributesResponse/GetIdentityNotificationAttributesResult/NotificationAttributes/entry/value/ComplaintTopic, body/GetIdentityNotificationAttributesResponse/GetIdentityNotificationAttributesResult/NotificationAttributes/entry/value/DeliveryTopic"}}
+      ],
+      "claims": [
+        {"target": {"kind": "switch", "name": "ses.verification.unknown-identity"}, "step": "01-mixed", "field": "body/GetIdentityVerificationAttributesResponse/GetIdentityVerificationAttributesResult/VerificationAttributes", "result": {"kind": "settled"}}
+      ]
+    },
+    {
+      "scenario": "ses/SES-10",
+      "steps": [
+        {"step": "01-verify", "fixture": "ses/SES-10/01-verify.json", "operation": "ses.VerifyDomainIdentity", "outcome": {"kind": "match"}},
+        {"step": "02-again", "fixture": "ses/SES-10/02-again.json", "operation": "ses.VerifyDomainIdentity", "outcome": {"kind": "match"}},
+        {"step": "03-attrs", "fixture": "ses/SES-10/03-attrs.json", "operation": "ses.GetIdentityVerificationAttributes", "outcome": {"kind": "match"}}
+      ]
+    },
+    {
+      "scenario": "ses/SES-11",
+      "steps": [
+        {"step": "01-v1-delete-unknown", "fixture": "ses/SES-11/01-v1-delete-unknown.json", "operation": "ses.DeleteIdentity", "outcome": {"kind": "match"}},
+        {"step": "02-v2-get-unknown", "fixture": "ses/SES-11/02-v2-get-unknown.json", "outcome": {"kind": "skipped", "reason": "rest-routing"}},
+        {"step": "03-v2-delete-unknown", "fixture": "ses/SES-11/03-v2-delete-unknown.json", "outcome": {"kind": "skipped", "reason": "rest-routing"}},
+        {"step": "04-v2-create", "fixture": "ses/SES-11/04-v2-create.json", "outcome": {"kind": "skipped", "reason": "rest-routing"}},
+        {"step": "05-v2-create-again", "fixture": "ses/SES-11/05-v2-create-again.json", "outcome": {"kind": "skipped", "reason": "rest-routing"}}
+      ]
+    },
+    {
+      "scenario": "ses/SES-15",
+      "steps": [
+        {"step": "01-account", "fixture": "ses/SES-15/01-account.json", "outcome": {"kind": "skipped", "reason": "rest-routing"}},
+        {"step": "02-quota", "fixture": "ses/SES-15/02-quota.json", "operation": "ses.GetSendQuota", "outcome": {"kind": "differs", "reason": "body/GetSendQuotaResponse/GetSendQuotaResult/SentLast24Hours, body/GetSendQuotaResponse/GetSendQuotaResult/MaxSendRate, body/GetSendQuotaResponse/GetSendQuotaResult/Max24HourSend, body/GetSendQuotaResponse/GetSendQuotaResult"}}
+      ]
+    },
+    {
+      "scenario": "ses/SES-16",
+      "steps": [
+        {"step": "01", "fixture": "ses/SES-16/01.json", "operation": "ses.SendEmail", "outcome": {"kind": "match"}},
+        {"step": "02", "fixture": "ses/SES-16/02.json", "operation": "ses.SendEmail", "outcome": {"kind": "match"}},
+        {"step": "03", "fixture": "ses/SES-16/03.json", "operation": "ses.SendEmail", "outcome": {"kind": "match"}},
+        {"step": "04", "fixture": "ses/SES-16/04.json", "operation": "ses.SendEmail", "outcome": {"kind": "match"}},
+        {"step": "05", "fixture": "ses/SES-16/05.json", "operation": "ses.SendEmail", "outcome": {"kind": "match"}},
+        {"step": "06", "fixture": "ses/SES-16/06.json", "operation": "ses.SendEmail", "outcome": {"kind": "match"}},
+        {"step": "07", "fixture": "ses/SES-16/07.json", "operation": "ses.SendEmail", "outcome": {"kind": "match"}},
+        {"step": "v2-256", "fixture": "ses/SES-16/v2-256.json", "outcome": {"kind": "skipped", "reason": "rest-routing"}}
+      ]
+    },
+    {
+      "scenario": "ses/SES-17",
+      "steps": [
+        {"step": "02-unverified", "fixture": "ses/SES-17/02-unverified.json", "operation": "ses.SendEmail", "outcome": {"kind": "differs", "reason": "status, error/code, error/message, body/ErrorResponse/Error/Type, body/ErrorResponse/Error/Code, body/ErrorResponse/Error/Message"}}
+      ]
+    },
+    {
+      "scenario": "ses/SES-18",
+      "steps": [
+        {"step": "01-create", "fixture": "ses/SES-18/01-create.json", "operation": "ses.CreateTemplate", "outcome": {"kind": "match"}},
+        {"step": "02-dup", "fixture": "ses/SES-18/02-dup.json", "operation": "ses.CreateTemplate", "outcome": {"kind": "match"}},
+        {"step": "03-get-missing", "fixture": "ses/SES-18/03-get-missing.json", "operation": "ses.GetTemplate", "outcome": {"kind": "match"}},
+        {"step": "05-v2-get-missing", "fixture": "ses/SES-18/05-v2-get-missing.json", "outcome": {"kind": "skipped", "reason": "rest-routing"}},
+        {"step": "06-v2-dup", "fixture": "ses/SES-18/06-v2-dup.json", "outcome": {"kind": "skipped", "reason": "rest-routing"}}
+      ]
+    },
+    {
+      "scenario": "ses/SES-20",
+      "steps": [
+        {"step": "03-no-sender", "fixture": "ses/SES-20/03-no-sender.json", "operation": "ses.SendRawEmail", "outcome": {"kind": "match"}}
+      ]
+    },
+    {
+      "scenario": "ses/SES-24",
+      "steps": [
+        {"step": "01-v1-unknown", "fixture": "ses/SES-24/01-v1-unknown.json", "operation": "ses.FooBar", "outcome": {"kind": "differs", "reason": "error/message, body/ErrorResponse/@xmlns, body/ErrorResponse/Error/Message"}},
+        {"step": "02-v2-unknown", "fixture": "ses/SES-24/02-v2-unknown.json", "outcome": {"kind": "skipped", "reason": "rest-routing"}}
+      ]
+    },
+    {
+      "scenario": "ses/SES-27",
+      "steps": [
+        {"step": "01-start", "fixture": "ses/SES-27/01-start.json", "operation": "ses.VerifyEmailIdentity", "outcome": {"kind": "match"}}
+      ]
+    },
+    {
+      "scenario": "ses/SES-29",
+      "steps": [
+        {"step": "list-max-0", "fixture": "ses/SES-29/list-max-0.json", "operation": "ses.ListIdentities", "outcome": {"kind": "match"}},
+        {"step": "list-max-0-raw", "fixture": "ses/SES-29/list-max-0-raw.json", "operation": "ses.ListIdentities", "outcome": {"kind": "match"}},
+        {"step": "list-max-1001-raw", "fixture": "ses/SES-29/list-max-1001-raw.json", "operation": "ses.ListIdentities", "outcome": {"kind": "match"}},
+        {"step": "template-over", "fixture": "ses/SES-29/template-over.json", "outcome": {"kind": "reconstructed"}}
+      ]
+    },
+    {
+      "scenario": "sfn/ASL-01",
+      "steps": [
+        {"step": "16-create-two-errors", "fixture": "sfn/ASL-01/16-create-two-errors.json", "operation": "sfn.CreateStateMachine", "outcome": {"kind": "match"}}
+      ]
+    },
+    {
+      "scenario": "sfn/ASL-09",
+      "steps": [
+        {"step": "05-literal-over-max", "fixture": "sfn/ASL-09/05-literal-over-max.json", "operation": "sfn.CreateStateMachine", "outcome": {"kind": "match"}}
+      ]
+    },
+    {
+      "scenario": "sfn/ASL-14",
+      "steps": [
+        {"step": "05-history", "fixture": "sfn/ASL-14/05-history.json", "operation": "sfn.GetExecutionHistory", "outcome": {"kind": "match"}},
+        {"step": "06-describe", "fixture": "sfn/ASL-14/06-describe.json", "operation": "sfn.DescribeExecution", "outcome": {"kind": "match"}}
+      ]
+    },
+    {
+      "scenario": "sfn/SFN-01",
+      "steps": [
+        {"step": "01-missing-machine", "fixture": "sfn/SFN-01/01-missing-machine.json", "operation": "sfn.DescribeStateMachine", "outcome": {"kind": "match"}},
+        {"step": "02-not-an-arn", "fixture": "sfn/SFN-01/02-not-an-arn.json", "operation": "sfn.DescribeStateMachine", "outcome": {"kind": "match"}},
+        {"step": "03-other-service", "fixture": "sfn/SFN-01/03-other-service.json", "operation": "sfn.DescribeStateMachine", "outcome": {"kind": "match"}},
+        {"step": "04-execution-arn", "fixture": "sfn/SFN-01/04-execution-arn.json", "operation": "sfn.DescribeStateMachine", "outcome": {"kind": "match"}},
+        {"step": "05-other-region", "fixture": "sfn/SFN-01/05-other-region.json", "operation": "sfn.StartExecution", "outcome": {"kind": "match"}},
+        {"step": "06-missing-execution", "fixture": "sfn/SFN-01/06-missing-execution.json", "operation": "sfn.DescribeExecution", "outcome": {"kind": "match"}}
+      ],
+      "claims": [
+        {"target": {"kind": "overlay", "shape": "com.amazonaws.sfn#AWSStepFunctions", "covers": ["dev.understudy#errorNamespace"]}, "step": "01-missing-machine", "field": "body/__type", "result": {"kind": "settled"}}
+      ]
+    },
+    {
+      "scenario": "sfn/SFN-08",
+      "steps": [
+        {"step": "03-bad-role-arn", "fixture": "sfn/SFN-08/03-bad-role-arn.json", "operation": "sfn.CreateStateMachine", "outcome": {"kind": "match"}},
+        {"step": "04-bad-machine-name", "fixture": "sfn/SFN-08/04-bad-machine-name.json", "operation": "sfn.CreateStateMachine", "outcome": {"kind": "match"}},
+        {"step": "05-two-errors", "fixture": "sfn/SFN-08/05-two-errors.json", "operation": "sfn.CreateStateMachine", "outcome": {"kind": "match"}}
       ]
     },
     {
@@ -90,6 +329,280 @@
       "claims": [
         {"target": {"kind": "switch", "name": "sqs.receipt.stale-handle"}, "step": "03-recv-after-6s", "field": "body/Messages", "result": {"kind": "contradicted"}},
         {"target": {"kind": "overlay", "shape": "com.amazonaws.sqs#AmazonSQS", "covers": ["dev.understudy#errorNamespace"]}, "step": "05-cmv-deleted", "field": "body/__type", "result": {"kind": "contradicted"}}
+      ]
+    },
+    {
+      "scenario": "ssm/SSM-01",
+      "steps": [
+        {"step": "01-get-missing", "fixture": "ssm/SSM-01/01-get-missing.json", "operation": "ssm.GetParameter", "outcome": {"kind": "match"}},
+        {"step": "02-put-exists", "fixture": "ssm/SSM-01/02-put-exists.json", "operation": "ssm.PutParameter", "outcome": {"kind": "match"}},
+        {"step": "03-get-bad-name", "fixture": "ssm/SSM-01/03-get-bad-name.json", "operation": "ssm.GetParameter", "outcome": {"kind": "match"}},
+        {"step": "04-tags-missing", "fixture": "ssm/SSM-01/04-tags-missing.json", "operation": "ssm.ListTagsForResource", "outcome": {"kind": "match"}},
+        {"step": "05-label-filter", "fixture": "ssm/SSM-01/05-label-filter.json", "operation": "ssm.DescribeParameters", "outcome": {"kind": "match"}}
+      ]
+    },
+    {
+      "scenario": "ssm/SSM-02",
+      "steps": [
+        {"step": "01-delete", "fixture": "ssm/SSM-02/01-delete.json", "operation": "ssm.DeleteParameter", "outcome": {"kind": "match"}},
+        {"step": "02-history", "fixture": "ssm/SSM-02/02-history.json", "operation": "ssm.GetParameterHistory", "outcome": {"kind": "match"}},
+        {"step": "03-label", "fixture": "ssm/SSM-02/03-label.json", "operation": "ssm.LabelParameterVersion", "outcome": {"kind": "match"}},
+        {"step": "04-unlabel", "fixture": "ssm/SSM-02/04-unlabel.json", "operation": "ssm.UnlabelParameterVersion", "outcome": {"kind": "match"}},
+        {"step": "05-public", "fixture": "ssm/SSM-02/05-public.json", "operation": "ssm.GetParameter", "outcome": {"kind": "differs", "reason": "status, error/code, error/message, body/__type, body/Message, body/message"}}
+      ],
+      "claims": [
+        {"target": {"kind": "switch", "name": "ssm.error.parameter-not-found-message"}, "step": "03-label", "field": "error/message", "result": {"kind": "settled"}}
+      ]
+    },
+    {
+      "scenario": "ssm/SSM-03",
+      "steps": [
+        {"step": "01-exists", "fixture": "ssm/SSM-03/01-exists.json", "operation": "ssm.PutParameter", "outcome": {"kind": "match"}},
+        {"step": "02-tags-overwrite-existing", "fixture": "ssm/SSM-03/02-tags-overwrite-existing.json", "operation": "ssm.PutParameter", "outcome": {"kind": "match"}},
+        {"step": "03-tags-overwrite-new", "fixture": "ssm/SSM-03/03-tags-overwrite-new.json", "operation": "ssm.PutParameter", "outcome": {"kind": "match"}}
+      ]
+    },
+    {
+      "scenario": "ssm/SSM-04",
+      "steps": [
+        {"step": "put-a_b", "fixture": "ssm/SSM-04/put-a_b.json", "operation": "ssm.PutParameter", "outcome": {"kind": "match"}},
+        {"step": "put-us1103_x", "fixture": "ssm/SSM-04/put-us1103_x.json", "operation": "ssm.PutParameter", "outcome": {"kind": "match"}},
+        {"step": "put-_us1103__x", "fixture": "ssm/SSM-04/put-_us1103__x.json", "operation": "ssm.PutParameter", "outcome": {"kind": "match"}},
+        {"step": "put-_us1103_x_", "fixture": "ssm/SSM-04/put-_us1103_x_.json", "operation": "ssm.PutParameter", "outcome": {"kind": "match"}},
+        {"step": "put-awsome", "fixture": "ssm/SSM-04/put-awsome.json", "operation": "ssm.PutParameter", "outcome": {"kind": "match"}},
+        {"step": "put-SSMx", "fixture": "ssm/SSM-04/put-SSMx.json", "operation": "ssm.PutParameter", "outcome": {"kind": "match"}},
+        {"step": "put-_aws_x", "fixture": "ssm/SSM-04/put-_aws_x.json", "operation": "ssm.PutParameter", "outcome": {"kind": "match"}},
+        {"step": "put-_ssm_x", "fixture": "ssm/SSM-04/put-_ssm_x.json", "operation": "ssm.PutParameter", "outcome": {"kind": "match"}},
+        {"step": "put-_us1103_aws_x", "fixture": "ssm/SSM-04/put-_us1103_aws_x.json", "operation": "ssm.PutParameter", "outcome": {"kind": "differs", "reason": "body"}},
+        {"step": "put-padded", "fixture": "ssm/SSM-04/put-padded.json", "operation": "ssm.PutParameter", "outcome": {"kind": "differs", "reason": "body"}},
+        {"step": "get-padded", "fixture": "ssm/SSM-04/get-padded.json", "operation": "ssm.GetParameter", "outcome": {"kind": "differs", "reason": "body/Parameter"}},
+        {"step": "put-a_space_b", "fixture": "ssm/SSM-04/put-a_space_b.json", "operation": "ssm.PutParameter", "outcome": {"kind": "match"}}
+      ]
+    },
+    {
+      "scenario": "ssm/SSM-05",
+      "steps": [
+        {"step": "01-depth-15", "fixture": "ssm/SSM-05/01-depth-15.json", "operation": "ssm.PutParameter", "outcome": {"kind": "differs", "reason": "body"}},
+        {"step": "02-depth-16", "fixture": "ssm/SSM-05/02-depth-16.json", "operation": "ssm.PutParameter", "outcome": {"kind": "differs", "reason": "body"}},
+        {"step": "03-depth-17", "fixture": "ssm/SSM-05/03-depth-17.json", "operation": "ssm.PutParameter", "outcome": {"kind": "match"}}
+      ]
+    },
+    {
+      "scenario": "ssm/SSM-06",
+      "steps": [
+        {"step": "01-arn-1011", "fixture": "ssm/SSM-06/01-arn-1011.json", "operation": "ssm.PutParameter", "outcome": {"kind": "differs", "reason": "body"}},
+        {"step": "02-arn-1012", "fixture": "ssm/SSM-06/02-arn-1012.json", "operation": "ssm.PutParameter", "outcome": {"kind": "match"}}
+      ]
+    },
+    {
+      "scenario": "ssm/SSM-07",
+      "steps": [
+        {"step": "01-get-bare", "fixture": "ssm/SSM-07/01-get-bare.json", "operation": "ssm.GetParameter", "outcome": {"kind": "differs", "reason": "body/Parameter"}},
+        {"step": "02-get-slash", "fixture": "ssm/SSM-07/02-get-slash.json", "operation": "ssm.GetParameter", "outcome": {"kind": "differs", "reason": "body/Parameter"}},
+        {"step": "03-get-parameters", "fixture": "ssm/SSM-07/03-get-parameters.json", "operation": "ssm.GetParameters", "outcome": {"kind": "differs", "reason": "body/Parameters/0, body/Parameters/1, body"}},
+        {"step": "04-describe-slash", "fixture": "ssm/SSM-07/04-describe-slash.json", "operation": "ssm.DescribeParameters", "outcome": {"kind": "differs", "reason": "body/Parameters/0"}},
+        {"step": "05-describe-bare", "fixture": "ssm/SSM-07/05-describe-bare.json", "operation": "ssm.DescribeParameters", "outcome": {"kind": "differs", "reason": "body/Parameters/0"}},
+        {"step": "06-history", "fixture": "ssm/SSM-07/06-history.json", "operation": "ssm.GetParameterHistory", "outcome": {"kind": "differs", "reason": "body/Parameters/0"}},
+        {"step": "07-by-path-root", "fixture": "ssm/SSM-07/07-by-path-root.json", "operation": "ssm.GetParametersByPath", "outcome": {"kind": "differs", "reason": "body/Parameters/0"}},
+        {"step": "08-put-bare", "fixture": "ssm/SSM-07/08-put-bare.json", "operation": "ssm.PutParameter", "outcome": {"kind": "match"}},
+        {"step": "09-tags-slash", "fixture": "ssm/SSM-07/09-tags-slash.json", "operation": "ssm.ListTagsForResource", "outcome": {"kind": "match"}},
+        {"step": "10-tags-arn", "fixture": "ssm/SSM-07/10-tags-arn.json", "operation": "ssm.ListTagsForResource", "outcome": {"kind": "match"}}
+      ]
+    },
+    {
+      "scenario": "ssm/SSM-08",
+      "steps": [
+        {"step": "01-identical", "fixture": "ssm/SSM-08/01-identical.json", "operation": "ssm.PutParameter", "outcome": {"kind": "differs", "reason": "body"}},
+        {"step": "02-describe-before", "fixture": "ssm/SSM-08/02-describe-before.json", "operation": "ssm.DescribeParameters", "outcome": {"kind": "differs", "reason": "body/Parameters/0"}},
+        {"step": "03-describe-after-label", "fixture": "ssm/SSM-08/03-describe-after-label.json", "operation": "ssm.DescribeParameters", "outcome": {"kind": "differs", "reason": "body/Parameters/0"}},
+        {"step": "04-history", "fixture": "ssm/SSM-08/04-history.json", "operation": "ssm.GetParameterHistory", "outcome": {"kind": "differs", "reason": "body/Parameters/0, body/Parameters/1"}}
+      ]
+    },
+    {
+      "scenario": "ssm/SSM-09",
+      "steps": [
+        {"step": "01-hier-to-secure", "fixture": "ssm/SSM-09/01-hier-to-secure.json", "operation": "ssm.PutParameter", "outcome": {"kind": "differs", "reason": "body"}},
+        {"step": "02-hier-to-list", "fixture": "ssm/SSM-09/02-hier-to-list.json", "operation": "ssm.PutParameter", "outcome": {"kind": "differs", "reason": "body"}},
+        {"step": "03-root-to-secure", "fixture": "ssm/SSM-09/03-root-to-secure.json", "operation": "ssm.PutParameter", "outcome": {"kind": "differs", "reason": "body"}}
+      ]
+    },
+    {
+      "scenario": "ssm/SSM-10",
+      "steps": [
+        {"step": "01-value-only", "fixture": "ssm/SSM-10/01-value-only.json", "operation": "ssm.PutParameter", "outcome": {"kind": "differs", "reason": "body"}},
+        {"step": "02-describe", "fixture": "ssm/SSM-10/02-describe.json", "operation": "ssm.DescribeParameters", "outcome": {"kind": "differs", "reason": "body/Parameters/0"}},
+        {"step": "03-history", "fixture": "ssm/SSM-10/03-history.json", "operation": "ssm.GetParameterHistory", "outcome": {"kind": "differs", "reason": "body/Parameters/0, body/Parameters/1"}},
+        {"step": "04-empty-pattern", "fixture": "ssm/SSM-10/04-empty-pattern.json", "operation": "ssm.PutParameter", "outcome": {"kind": "differs", "reason": "body"}},
+        {"step": "05-describe-after-empty", "fixture": "ssm/SSM-10/05-describe-after-empty.json", "operation": "ssm.DescribeParameters", "outcome": {"kind": "differs", "reason": "body/Parameters/0"}}
+      ]
+    },
+    {
+      "scenario": "ssm/SSM-11",
+      "steps": [
+        {"step": "01-no-type", "fixture": "ssm/SSM-11/01-no-type.json", "operation": "ssm.PutParameter", "outcome": {"kind": "match"}},
+        {"step": "02-keyid-on-string", "fixture": "ssm/SSM-11/02-keyid-on-string.json", "operation": "ssm.PutParameter", "outcome": {"kind": "match"}},
+        {"step": "03-empty-value", "fixture": "ssm/SSM-11/03-empty-value.json", "operation": "ssm.PutParameter", "outcome": {"kind": "match"}},
+        {"step": "04-describe", "fixture": "ssm/SSM-11/04-describe.json", "operation": "ssm.DescribeParameters", "outcome": {"kind": "match"}},
+        {"step": "05-nested-reference", "fixture": "ssm/SSM-11/05-nested-reference.json", "operation": "ssm.PutParameter", "outcome": {"kind": "differs", "reason": "error/message, body/message"}}
+      ]
+    },
+    {
+      "scenario": "ssm/SSM-12",
+      "steps": [
+        {"step": "01-4096-ascii", "fixture": "ssm/SSM-12/01-4096-ascii.json", "operation": "ssm.PutParameter", "outcome": {"kind": "differs", "reason": "body"}},
+        {"step": "02-4097-ascii", "fixture": "ssm/SSM-12/02-4097-ascii.json", "operation": "ssm.PutParameter", "outcome": {"kind": "match"}},
+        {"step": "03-2048-chars", "fixture": "ssm/SSM-12/03-2048-chars.json", "operation": "ssm.PutParameter", "outcome": {"kind": "differs", "reason": "body"}},
+        {"step": "04-2049-chars", "fixture": "ssm/SSM-12/04-2049-chars.json", "operation": "ssm.PutParameter", "outcome": {"kind": "differs", "reason": "body"}},
+        {"step": "05-advanced-8192", "fixture": "ssm/SSM-12/05-advanced-8192.json", "operation": "ssm.PutParameter", "outcome": {"kind": "differs", "reason": "body"}},
+        {"step": "06-advanced-8193", "fixture": "ssm/SSM-12/06-advanced-8193.json", "operation": "ssm.PutParameter", "outcome": {"kind": "match"}}
+      ]
+    },
+    {
+      "scenario": "ssm/SSM-13",
+      "steps": [
+        {"step": "01-it-small", "fixture": "ssm/SSM-13/01-it-small.json", "operation": "ssm.PutParameter", "outcome": {"kind": "differs", "reason": "body"}},
+        {"step": "02-it-large", "fixture": "ssm/SSM-13/02-it-large.json", "operation": "ssm.PutParameter", "outcome": {"kind": "differs", "reason": "body"}},
+        {"step": "03-describe", "fixture": "ssm/SSM-13/03-describe.json", "operation": "ssm.DescribeParameters", "outcome": {"kind": "differs", "reason": "body/Parameters/0, body/Parameters/1"}},
+        {"step": "04-downgrade", "fixture": "ssm/SSM-13/04-downgrade.json", "operation": "ssm.PutParameter", "outcome": {"kind": "match"}},
+        {"step": "05-overwrite-no-tier", "fixture": "ssm/SSM-13/05-overwrite-no-tier.json", "operation": "ssm.PutParameter", "outcome": {"kind": "differs", "reason": "body"}},
+        {"step": "06-it-small-on-advanced", "fixture": "ssm/SSM-13/06-it-small-on-advanced.json", "operation": "ssm.PutParameter", "outcome": {"kind": "differs", "reason": "body"}},
+        {"step": "07-describe-after", "fixture": "ssm/SSM-13/07-describe-after.json", "operation": "ssm.DescribeParameters", "outcome": {"kind": "differs", "reason": "body/Parameters/0"}}
+      ]
+    },
+    {
+      "scenario": "ssm/SSM-15",
+      "steps": [
+        {"step": "01-partial-run", "fixture": "ssm/SSM-15/01-partial-run.json", "operation": "ssm.PutParameter", "outcome": {"kind": "match"}},
+        {"step": "04-invalid", "fixture": "ssm/SSM-15/04-invalid.json", "operation": "ssm.PutParameter", "outcome": {"kind": "match"}}
+      ]
+    },
+    {
+      "scenario": "ssm/SSM-16",
+      "steps": [
+        {"step": "01-forms", "fixture": "ssm/SSM-16/01-forms.json", "operation": "ssm.LabelParameterVersion", "outcome": {"kind": "differs", "reason": "body/InvalidLabels/0, body/InvalidLabels/1, body/InvalidLabels/2, body/InvalidLabels/4"}},
+        {"step": "02-101-chars", "fixture": "ssm/SSM-16/02-101-chars.json", "operation": "ssm.LabelParameterVersion", "outcome": {"kind": "differs", "reason": "error/message, body/message"}},
+        {"step": "03-move", "fixture": "ssm/SSM-16/03-move.json", "operation": "ssm.LabelParameterVersion", "outcome": {"kind": "match"}},
+        {"step": "04-history", "fixture": "ssm/SSM-16/04-history.json", "operation": "ssm.GetParameterHistory", "outcome": {"kind": "differs", "reason": "body/Parameters/0, body/Parameters/1"}},
+        {"step": "05-to-ten", "fixture": "ssm/SSM-16/05-to-ten.json", "operation": "ssm.LabelParameterVersion", "outcome": {"kind": "match"}},
+        {"step": "06-eleventh", "fixture": "ssm/SSM-16/06-eleventh.json", "operation": "ssm.LabelParameterVersion", "outcome": {"kind": "match"}},
+        {"step": "07-unlabel", "fixture": "ssm/SSM-16/07-unlabel.json", "operation": "ssm.UnlabelParameterVersion", "outcome": {"kind": "differs", "reason": "body"}}
+      ]
+    },
+    {
+      "scenario": "ssm/SSM-17",
+      "steps": [
+        {"step": "01-version", "fixture": "ssm/SSM-17/01-version.json", "operation": "ssm.GetParameter", "outcome": {"kind": "differs", "reason": "body/Parameter"}},
+        {"step": "02-label", "fixture": "ssm/SSM-17/02-label.json", "operation": "ssm.GetParameter", "outcome": {"kind": "differs", "reason": "body/Parameter"}},
+        {"step": "03-missing-version", "fixture": "ssm/SSM-17/03-missing-version.json", "operation": "ssm.GetParameter", "outcome": {"kind": "match"}},
+        {"step": "04-missing-label", "fixture": "ssm/SSM-17/04-missing-label.json", "operation": "ssm.GetParameter", "outcome": {"kind": "match"}},
+        {"step": "05-version-zero", "fixture": "ssm/SSM-17/05-version-zero.json", "operation": "ssm.GetParameter", "outcome": {"kind": "match"}},
+        {"step": "06-double", "fixture": "ssm/SSM-17/06-double.json", "operation": "ssm.GetParameter", "outcome": {"kind": "match"}},
+        {"step": "07-arn-version", "fixture": "ssm/SSM-17/07-arn-version.json", "operation": "ssm.GetParameter", "outcome": {"kind": "differs", "reason": "body/Parameter"}},
+        {"step": "08-get-parameters", "fixture": "ssm/SSM-17/08-get-parameters.json", "operation": "ssm.GetParameters", "outcome": {"kind": "differs", "reason": "body/Parameters/0, body"}}
+      ]
+    },
+    {
+      "scenario": "ssm/SSM-18",
+      "steps": [
+        {"step": "01-order-dupes", "fixture": "ssm/SSM-18/01-order-dupes.json", "operation": "ssm.GetParameters", "outcome": {"kind": "differs", "reason": "body/Parameters/0, body/Parameters/1, body"}},
+        {"step": "02-invalid-name", "fixture": "ssm/SSM-18/02-invalid-name.json", "operation": "ssm.GetParameters", "outcome": {"kind": "differs", "reason": "body/Parameters/0, body"}},
+        {"step": "03-eleven", "fixture": "ssm/SSM-18/03-eleven.json", "operation": "ssm.GetParameters", "outcome": {"kind": "match"}}
+      ]
+    },
+    {
+      "scenario": "ssm/SSM-19",
+      "steps": [
+        {"step": "01-default-page", "fixture": "ssm/SSM-19/01-default-page.json", "operation": "ssm.GetParametersByPath", "outcome": {"kind": "differs", "reason": "body/Parameters/0, body/Parameters/1/ARN, body/Parameters/1/Name, body/Parameters/1/Value, body/Parameters/1, body/Parameters/2/ARN, body/Parameters/2/Name, body/Parameters/2/Value, body/Parameters/2, body/Parameters/3/ARN, body/Parameters/3/Name, body/Parameters/3/Value, body/Parameters/3, body/Parameters/4/ARN, body/Parameters/4/Name, body/Parameters/4/Value, body/Parameters/4, body/Parameters/5/ARN, body/Parameters/5/Name, body/Parameters/5/Value, body/Parameters/5, body/Parameters/6/ARN, body/Parameters/6/Name, body/Parameters/6/Value, body/Parameters/6, body/Parameters/7/ARN, body/Parameters/7/Name, body/Parameters/7/Value, body/Parameters/7, body/Parameters/8/ARN, body/Parameters/8/Name, body/Parameters/8/Value, body/Parameters/8, body/Parameters/9/ARN, body/Parameters/9/Name, body/Parameters/9/Value, body/Parameters/9, body"}},
+        {"step": "02-no-leading-slash", "fixture": "ssm/SSM-19/02-no-leading-slash.json", "operation": "ssm.GetParametersByPath", "outcome": {"kind": "match"}},
+        {"step": "03-name-filter", "fixture": "ssm/SSM-19/03-name-filter.json", "operation": "ssm.GetParametersByPath", "outcome": {"kind": "match"}},
+        {"step": "04-label-beginswith", "fixture": "ssm/SSM-19/04-label-beginswith.json", "operation": "ssm.GetParametersByPath", "outcome": {"kind": "match"}},
+        {"step": "05-empty", "fixture": "ssm/SSM-19/05-empty.json", "operation": "ssm.GetParametersByPath", "outcome": {"kind": "match"}},
+        {"step": "06-label-filter", "fixture": "ssm/SSM-19/06-label-filter.json", "operation": "ssm.GetParametersByPath", "outcome": {"kind": "differs", "reason": "body/Parameters/0"}}
+      ]
+    },
+    {
+      "scenario": "ssm/SSM-20",
+      "steps": [
+        {"step": "01-default-page", "fixture": "ssm/SSM-20/01-default-page.json", "operation": "ssm.DescribeParameters", "outcome": {"kind": "differs", "reason": "body/Parameters/0, body/Parameters/1, body/Parameters/2, body/Parameters/3, body/Parameters/4, body/Parameters/5, body/Parameters/6, body/Parameters/7/ARN, body/Parameters/7/Name, body/Parameters/7, body/Parameters/8/ARN, body/Parameters/8/Name, body/Parameters/8, body/Parameters/9/ARN, body/Parameters/9/Name, body/Parameters/9, body"}},
+        {"step": "02-empty", "fixture": "ssm/SSM-20/02-empty.json", "operation": "ssm.DescribeParameters", "outcome": {"kind": "match"}}
+      ],
+      "claims": [
+        {"target": {"kind": "switch", "name": "ssm.list.order"}, "step": "01-default-page", "field": "body/Parameters/7/Name", "result": {"kind": "contradicted"}}
+      ]
+    },
+    {
+      "scenario": "ssm/SSM-21",
+      "steps": [
+        {"step": "01-path-default", "fixture": "ssm/SSM-21/01-path-default.json", "operation": "ssm.DescribeParameters", "outcome": {"kind": "differs", "reason": "body/Parameters/0"}},
+        {"step": "02-path-recursive", "fixture": "ssm/SSM-21/02-path-recursive.json", "operation": "ssm.DescribeParameters", "outcome": {"kind": "differs", "reason": "body/Parameters/0, body/Parameters/1"}},
+        {"step": "03-deprecated-name", "fixture": "ssm/SSM-21/03-deprecated-name.json", "operation": "ssm.DescribeParameters", "outcome": {"kind": "differs", "reason": "status, error/code, error/message, body/Parameters, body/__type, body/message"}},
+        {"step": "04-both", "fixture": "ssm/SSM-21/04-both.json", "operation": "ssm.DescribeParameters", "outcome": {"kind": "match"}},
+        {"step": "05-label", "fixture": "ssm/SSM-21/05-label.json", "operation": "ssm.DescribeParameters", "outcome": {"kind": "match"}},
+        {"step": "06-tag-no-values", "fixture": "ssm/SSM-21/06-tag-no-values.json", "operation": "ssm.DescribeParameters", "outcome": {"kind": "differs", "reason": "body/Parameters/0"}},
+        {"step": "07-contains-case", "fixture": "ssm/SSM-21/07-contains-case.json", "operation": "ssm.DescribeParameters", "outcome": {"kind": "differs", "reason": "body/Parameters/0"}},
+        {"step": "08-beginswith-case", "fixture": "ssm/SSM-21/08-beginswith-case.json", "operation": "ssm.DescribeParameters", "outcome": {"kind": "match"}},
+        {"step": "09-bad-option", "fixture": "ssm/SSM-21/09-bad-option.json", "operation": "ssm.DescribeParameters", "outcome": {"kind": "match"}},
+        {"step": "10-name-default-prefix", "fixture": "ssm/SSM-21/10-name-default-prefix.json", "operation": "ssm.DescribeParameters", "outcome": {"kind": "match"}}
+      ]
+    },
+    {
+      "scenario": "ssm/SSM-22",
+      "steps": [
+        {"step": "01-describe", "fixture": "ssm/SSM-22/01-describe.json", "operation": "ssm.DescribeParameters", "outcome": {"kind": "differs", "reason": "body/Parameters/0, body/Parameters/1, body/Parameters/2, body/Parameters/3"}},
+        {"step": "02-history", "fixture": "ssm/SSM-22/02-history.json", "operation": "ssm.GetParameterHistory", "outcome": {"kind": "differs", "reason": "body/Parameters/0"}},
+        {"step": "04-missing-key", "fixture": "ssm/SSM-22/04-missing-key.json", "operation": "ssm.PutParameter", "outcome": {"kind": "differs", "reason": "error/message, body/message"}},
+        {"step": "05-disabled-put", "fixture": "ssm/SSM-22/05-disabled-put.json", "operation": "ssm.PutParameter", "outcome": {"kind": "differs", "reason": "error/message, body/message"}},
+        {"step": "06-disabled-get", "fixture": "ssm/SSM-22/06-disabled-get.json", "operation": "ssm.GetParameter", "outcome": {"kind": "differs", "reason": "error/message, body/message"}}
+      ]
+    },
+    {
+      "scenario": "ssm/SSM-25",
+      "steps": [
+        {"step": "01-list-empty", "fixture": "ssm/SSM-25/01-list-empty.json", "operation": "ssm.ListTagsForResource", "outcome": {"kind": "match"}},
+        {"step": "02-aws-prefix", "fixture": "ssm/SSM-25/02-aws-prefix.json", "operation": "ssm.AddTagsToResource", "outcome": {"kind": "match"}},
+        {"step": "03-fifty", "fixture": "ssm/SSM-25/03-fifty.json", "operation": "ssm.AddTagsToResource", "outcome": {"kind": "match"}},
+        {"step": "04-fifty-first", "fixture": "ssm/SSM-25/04-fifty-first.json", "operation": "ssm.AddTagsToResource", "outcome": {"kind": "match"}},
+        {"step": "05-missing", "fixture": "ssm/SSM-25/05-missing.json", "operation": "ssm.AddTagsToResource", "outcome": {"kind": "match"}},
+        {"step": "06-arn", "fixture": "ssm/SSM-25/06-arn.json", "operation": "ssm.ListTagsForResource", "outcome": {"kind": "differs", "reason": "body/TagList/0/Key, body/TagList/1/Key, body/TagList/2/Key, body/TagList/3/Key, body/TagList/4/Key, body/TagList/5/Key, body/TagList/6/Key, body/TagList/7/Key, body/TagList/8/Key, body/TagList/9/Key, body/TagList/10/Key, body/TagList/11/Key, body/TagList/12/Key, body/TagList/13/Key, body/TagList/14/Key, body/TagList/15/Key, body/TagList/16/Key, body/TagList/17/Key, body/TagList/18/Key, body/TagList/19/Key, body/TagList/20/Key, body/TagList/21/Key, body/TagList/22/Key, body/TagList/23/Key, body/TagList/24/Key, body/TagList/25/Key, body/TagList/26/Key, body/TagList/27/Key, body/TagList/28/Key, body/TagList/29/Key, body/TagList/30/Key, body/TagList/31/Key, body/TagList/32/Key, body/TagList/33/Key, body/TagList/34/Key, body/TagList/35/Key, body/TagList/36/Key, body/TagList/37/Key, body/TagList/38/Key, body/TagList/39/Key, body/TagList/40/Key, body/TagList/41/Key, body/TagList/42/Key, body/TagList/43/Key, body/TagList/44/Key, body/TagList/45/Key, body/TagList/46/Key, body/TagList/47/Key, body/TagList/48/Key, body/TagList/49/Key"}},
+        {"step": "07-remove-absent", "fixture": "ssm/SSM-25/07-remove-absent.json", "operation": "ssm.RemoveTagsFromResource", "outcome": {"kind": "match"}}
+      ]
+    },
+    {
+      "scenario": "ssm/SSM-26",
+      "steps": [
+        {"step": "01-recreate-now", "fixture": "ssm/SSM-26/01-recreate-now.json", "operation": "ssm.PutParameter", "outcome": {"kind": "differs", "reason": "body"}},
+        {"step": "02-history", "fixture": "ssm/SSM-26/02-history.json", "operation": "ssm.GetParameterHistory", "outcome": {"kind": "differs", "reason": "body/Parameters/0"}},
+        {"step": "03-tags", "fixture": "ssm/SSM-26/03-tags.json", "operation": "ssm.ListTagsForResource", "outcome": {"kind": "match"}},
+        {"step": "04-recreate-after-30s", "fixture": "ssm/SSM-26/04-recreate-after-30s.json", "operation": "ssm.PutParameter", "outcome": {"kind": "match"}}
+      ]
+    },
+    {
+      "scenario": "ssm/SSM-27",
+      "steps": [
+        {"step": "01-delete", "fixture": "ssm/SSM-27/01-delete.json", "operation": "ssm.DeleteParameters", "outcome": {"kind": "match"}}
+      ]
+    },
+    {
+      "scenario": "ssm/SSM-28",
+      "steps": [
+        {"step": "01-put", "fixture": "ssm/SSM-28/01-put.json", "operation": "ssm.PutParameter", "outcome": {"kind": "differs", "reason": "body"}},
+        {"step": "02-get", "fixture": "ssm/SSM-28/02-get.json", "operation": "ssm.GetParameter", "outcome": {"kind": "differs", "reason": "body/Parameter"}}
+      ]
+    },
+    {
+      "scenario": "ssm/SSM-29",
+      "steps": [
+        {"step": "01-other-account", "fixture": "ssm/SSM-29/01-other-account.json", "operation": "ssm.GetParameter", "outcome": {"kind": "match"}},
+        {"step": "02-other-region", "fixture": "ssm/SSM-29/02-other-region.json", "operation": "ssm.GetParameter", "outcome": {"kind": "match"}},
+        {"step": "03-document-arn", "fixture": "ssm/SSM-29/03-document-arn.json", "operation": "ssm.GetParameter", "outcome": {"kind": "match"}}
+      ]
+    },
+    {
+      "scenario": "ssm/SSM-32",
+      "steps": [
+        {"step": "01-by-path", "fixture": "ssm/SSM-32/01-by-path.json", "operation": "ssm.GetParametersByPath", "outcome": {"kind": "match"}},
+        {"step": "02-describe", "fixture": "ssm/SSM-32/02-describe.json", "operation": "ssm.DescribeParameters", "outcome": {"kind": "match"}},
+        {"step": "03-history", "fixture": "ssm/SSM-32/03-history.json", "operation": "ssm.GetParameterHistory", "outcome": {"kind": "match"}}
       ]
     },
     {
