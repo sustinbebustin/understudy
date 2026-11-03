@@ -1,7 +1,9 @@
 package apigateway_test
 
 import (
+	"encoding/base64"
 	"maps"
+	"net/url"
 	"slices"
 	"testing"
 
@@ -9,9 +11,10 @@ import (
 )
 
 // GetResources pages by limit and position (documented: limit 1 to 500,
-// apigateway-rest.md 2.5); the items come in creation order, root first
-// (the GetResources coverage note, inferred, APIGW1-04), and every one
-// appears once across the pages.
+// apigateway-rest.md 2.5); the items come sorted by id, the root among
+// them, and a page's position is base64 of "id=S" and its last id,
+// URL-escaped (APIGW1-04, recorded 2026-11-03); every one appears once
+// across the pages.
 func TestGetResourcesPages(t *testing.T) {
 	run(t, func(h *harness) {
 		id, root := h.api("t")
@@ -21,6 +24,7 @@ func TestGetResourcesPages(t *testing.T) {
 		for _, part := range parts {
 			want = append(want, h.resource(id, root, part))
 		}
+		slices.Sort(want)
 		var got []string
 		var position *string
 		for range want {
@@ -33,6 +37,10 @@ func TestGetResourcesPages(t *testing.T) {
 			}
 			if position = page.Position; position == nil {
 				break
+			}
+			last := got[len(got)-1]
+			if token := url.QueryEscape(base64.StdEncoding.EncodeToString([]byte("id=S" + last))); *position != token {
+				t.Errorf("position after %s = %q, want %q", last, *position, token)
 			}
 		}
 		if !slices.Equal(got, want) {

@@ -49,8 +49,8 @@ func errDeploymentNotFound() *awserr.Error {
 	return apigatewayapi.ErrNotFoundException("Invalid Deployment identifier specified")
 }
 
-// errStageNotFound answers a stage name the API does not have (inferred,
-// apigateway-rest.md 12.3, APIGW1-06).
+// errStageNotFound answers a stage name the API does not have (APIGW1-06,
+// recorded 2026-11-03 for GetStage and DeleteStage).
 func errStageNotFound() *awserr.Error {
 	return apigatewayapi.ErrNotFoundException("Invalid stage identifier specified")
 }

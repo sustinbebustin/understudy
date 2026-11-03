@@ -44,11 +44,10 @@ func (s *Service) createResource(_ context.Context, c *kernel.Call, in *apigatew
 		for a.hasChild(id) {
 			id = string(s.ids.APIGatewayResourceID())
 		}
-		r := Resource{ID: id, Seq: a.NextResourceSeq, ParentID: parent.ID, PathPart: in.PathPart, Path: childPath(parent.Path, in.PathPart)}
+		r := Resource{ID: id, ParentID: parent.ID, PathPart: in.PathPart, Path: childPath(parent.Path, in.PathPart)}
 		if err := a.placeable(r); err != nil {
 			return Resource{}, err
 		}
-		a.NextResourceSeq++
 		a.Resources = append(slices.Clone(a.Resources), r)
 		st.APIs[a.ID] = a
 		return r, nil
@@ -76,8 +75,8 @@ func (s *Service) getResource(_ context.Context, c *kernel.Call, in *apigatewaya
 	})
 }
 
-// getResources lists the API's resources in creation order, the root
-// first (inferred, APIGW1-04), paged by limit and position
+// getResources lists the API's resources sorted by id, the root among
+// them (APIGW1-04, recorded 2026-11-03), paged by limit and position
 // (apigateway-rest.md 2.5).
 func (s *Service) getResources(_ context.Context, c *kernel.Call, in *apigatewayapi.GetResourcesInput) (*apigatewayapi.GetResourcesOutput, *awserr.Error) {
 	scope := c.Scope()
@@ -87,7 +86,7 @@ func (s *Service) getResources(_ context.Context, c *kernel.Call, in *apigateway
 		if !ok {
 			return nil, errAPINotFound(scope, in.RestApiId)
 		}
-		items, next, err := page(a.Resources, func(r Resource) uint64 { return r.Seq }, in.Limit, in.Position)
+		items, next, err := pageByID(a.Resources, func(r Resource) string { return r.ID }, in.Limit, in.Position)
 		if err != nil {
 			return nil, err
 		}

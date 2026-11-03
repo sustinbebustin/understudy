@@ -26,17 +26,27 @@ const (
 )
 
 var (
-	// stageNamePattern is a stage name (documented, apigateway-rest.md 3.7).
-	stageNamePattern   = regexp.MustCompile(`^[A-Za-z0-9_-]{1,128}$`)
+	// stageNamePattern is a stage name's characters: the documented set,
+	// hyphen included, though AWS's text leaves it out (apigateway-rest.md
+	// 3.7; a hyphen is unrecorded).
+	stageNamePattern   = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
 	stageVariableName  = regexp.MustCompile(`^[A-Za-z0-9_]{1,64}$`)
 	stageVariableValue = regexp.MustCompile(`^[A-Za-z0-9\-._~:/?#&=,]{1,512}$`)
 )
 
-// checkStageName refuses a name outside the documented pattern; the text
-// is inferred.
+// maxStageName is the longest stage name (documented, apigateway-rest.md
+// 3.7); AWS refused 129 characters.
+const maxStageName = 128
+
+// checkStageName refuses a name outside the documented pattern with AWS's
+// texts (APIGW1-06, recorded 2026-11-03). Which text a name both too long
+// and of other characters gets is unrecorded.
 func checkStageName(name string) *awserr.Error {
+	if len(name) > maxStageName {
+		return errBadRequest("Stage name must be under 128 characters")
+	}
 	if !stageNamePattern.MatchString(name) {
-		return errBadRequest("Stage name only allows a-zA-Z0-9_- and must be 1 to 128 characters long")
+		return errBadRequest("Stage name only allows a-zA-Z0-9_")
 	}
 	return nil
 }
@@ -76,8 +86,8 @@ func (a *RestAPI) roomForStage() *awserr.Error {
 }
 
 // errNoDeployment answers a deployment id the API does not hold where a
-// stage names one (recorded for CreateStage with canary settings,
-// apigateway-rest.md 3.7; held for the other paths).
+// stage names one (recorded for CreateStage, apigateway-rest.md 3.7 and
+// APIGW1-06; held for the other paths).
 func errNoDeployment() *awserr.Error { return errBadRequest("Deployment id does not exist") }
 
 // output is the stage as the stage operations answer it, with the

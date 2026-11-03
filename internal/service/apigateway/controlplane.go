@@ -56,7 +56,7 @@ func (s *Service) createRestAPI(_ context.Context, c *kernel.Call, in *apigatewa
 			APIKeySource:           deref(in.ApiKeySource, apigatewayapi.ApiKeySourceTypeHeader),
 			MinimumCompressionSize: clonePtr(in.MinimumCompressionSize),
 			SecurityPolicy:         clonePtr(in.SecurityPolicy), EndpointAccessMode: clonePtr(in.EndpointAccessMode),
-			RootResourceID: root, Resources: []Resource{{ID: root, Path: "/"}}, NextResourceSeq: 1,
+			RootResourceID: root, Resources: []Resource{{ID: root, Path: "/"}},
 			Models: seededModels(), Tags: maps.Clone(in.Tags),
 		}
 		st.NextSeq++

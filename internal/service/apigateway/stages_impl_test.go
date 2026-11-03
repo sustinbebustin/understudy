@@ -3,6 +3,7 @@ package apigateway_test
 import (
 	"fmt"
 	"maps"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -181,14 +182,19 @@ func TestUpdateStageAllOrNothing(t *testing.T) {
 	})
 }
 
-// CreateStage limits and refusals: the documented name pattern, 10 stages
-// per API (2.6), documentationVersion NotImplemented; DeleteStage of a
-// missing stage NotFoundException.
+// CreateStage limits and refusals: the name texts (APIGW1-06, recorded
+// 2026-11-03), 10 stages per API (2.6), documentationVersion
+// NotImplemented; DeleteStage of a missing stage NotFoundException.
 func TestCreateStageLimits(t *testing.T) {
 	run(t, func(h *harness) {
 		id, _ := h.mockAPI()
 		dep := *must(h, apigatewayapi.OpCreateDeployment, &apigatewayapi.CreateDeploymentInput{RestApiId: id}).Id
-		wantError(t, fail(h, apigatewayapi.OpCreateStage, &apigatewayapi.CreateStageInput{RestApiId: id, StageName: "bad name", DeploymentId: dep}), badRequest)
+		wantText(t, fail(h, apigatewayapi.OpCreateStage, &apigatewayapi.CreateStageInput{RestApiId: id, StageName: "bad.name", DeploymentId: dep}), badRequest,
+			"Stage name only allows a-zA-Z0-9_")
+		wantText(t, fail(h, apigatewayapi.OpCreateStage, &apigatewayapi.CreateStageInput{RestApiId: id, StageName: strings.Repeat("a", 129), DeploymentId: dep}), badRequest,
+			"Stage name must be under 128 characters")
+		wantText(t, fail(h, apigatewayapi.OpCreateStage, &apigatewayapi.CreateStageInput{RestApiId: id, StageName: "s", DeploymentId: "nosuch"}), badRequest,
+			"Deployment id does not exist")
 		wantNotImplemented(t, fail(h, apigatewayapi.OpCreateStage, &apigatewayapi.CreateStageInput{RestApiId: id, StageName: "d", DeploymentId: dep, DocumentationVersion: new("v1")}), "documentationVersion")
 		for i := range 10 {
 			must(h, apigatewayapi.OpCreateStage, &apigatewayapi.CreateStageInput{RestApiId: id, StageName: fmt.Sprintf("s%d", i), DeploymentId: dep})
