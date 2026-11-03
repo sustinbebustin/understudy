@@ -161,8 +161,11 @@ func TestS3ObjectRetention(t *testing.T) {
 	}
 	until := time.Now().UTC().Add(time.Hour).Truncate(time.Second).Add(123 * time.Millisecond)
 	ok(t, retain(until, false), "PutObjectRetention GOVERNANCE")
-	if v := switchValue(t, "s3.object-lock.retain-until-format"); v != "milliseconds" {
-		t.Fatalf("switch s3.object-lock.retain-until-format declares %q; this test checks %q", v, "milliseconds")
+	// GetObjectRetention's body always carries milliseconds
+	// (testdata/parity/s3/S3SOL/12-get-retention.json); the header form
+	// S3SOL-12 recorded trimmed is not read here.
+	if v := switchValue(t, "s3.object-lock.retain-until-format"); v != "milliseconds-header-trimmed" {
+		t.Fatalf("switch s3.object-lock.retain-until-format declares %q; this test checks %q", v, "milliseconds-header-trimmed")
 	}
 	got, err := client.GetObjectRetention(ctx, &s3.GetObjectRetentionInput{Bucket: aws.String(bucket), Key: aws.String("k"), VersionId: version})
 	ok(t, err, "GetObjectRetention")

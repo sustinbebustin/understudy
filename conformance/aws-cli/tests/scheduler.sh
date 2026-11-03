@@ -69,9 +69,9 @@ sch_setup() {
 
 # A rate schedule first fires at its StartDate (aws-doc schedule-types;
 # scheduler.md 5.2), its body carrying the schedule ARN, the scheduled
-# time, a 16-hex execution id and attempt 1 (aws-doc
-# managing-schedule-context-attributes, configuring-schedule-dlq;
-# scheduler.md 6.3, 7.2); the time zone and State read back as sent
+# time, a lower-case UUID execution id and attempt 1 (aws-doc
+# managing-schedule-context-attributes; scheduler.md 6.3; the UUID form is
+# testdata/parity/scheduler/SCH/07-sqs-context.json, aws-recorded); the time zone and State read back as sent
 # (tf-acc schedule_test.go:L1870-L1895; scheduler.md 4.2).
 test_start_date_fire_carries_the_context_attributes() {
   sch_setup
@@ -93,7 +93,7 @@ test_start_date_fire_carries_the_context_attributes() {
   aws_ok sqs receive-message --queue-url "$SCH_QUEUE_URL" --max-number-of-messages 10
   assert_jq_true '(.Messages | length) == 1'
   body=$(jqv '.Messages[0].Body')
-  assert_match "^${arn}\\|${start}\\|[0-9a-f]{16}\\|1\$" "$body" 'the substituted context attributes'
+  assert_match "^${arn}\\|${start}\\|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\|1\$" "$body" 'the substituted context attributes'
   aws_ok scheduler delete-schedule --name "$name"
 }
 
@@ -168,9 +168,11 @@ test_recorded_expression_refusal_and_past_at() {
 }
 
 # A schedule whose target queue was deleted, with MaximumRetryAttempts 0,
-# sends its Input to the dead-letter queue with the String attributes the
-# dead-letter page lists, ERROR_CODE AWS.SimpleQueueService.NonExistentQueue
-# (aws-doc configuring-schedule-dlq; scheduler.md 7.2). RETRY_ATTEMPTS and
+# sends the SQS request it built ({"MessageBody": <Input>, "QueueUrl": ...})
+# to the dead-letter queue with nine String attributes, ERROR_CODE
+# AWS.SimpleQueueService.NonExistentQueue and TARGET_ARN the queue as
+# configured (scheduler.md 7.2; testdata/parity/scheduler/SCH/08-gone.json,
+# aws-recorded). RETRY_ATTEMPTS and
 # EXHAUSTED_RETRY_CONDITION depend on scheduler.retry.permanent-errors and
 # are asserted in Go tests; DeadLetterConfig reads back as sent (4.2).
 test_deleted_target_queue_dead_letters() {
@@ -195,12 +197,13 @@ test_deleted_target_queue_dead_letters() {
   advance 660
   aws_ok sqs receive-message --queue-url "$SCH_QUEUE_URL" --max-number-of-messages 10 --message-attribute-names All
   assert_jq_true '(.Messages | length) == 1'
-  assert_jq '.Messages[0].Body' 'Hello, world!'
+  assert_jq '.Messages[0].Body | fromjson | tojson' "$(jq -cn --arg a "$gone_arn" \
+    '($a | split(":")) as $p | {MessageBody: "Hello, world!", QueueUrl: "https://sqs.\($p[3]).amazonaws.com/\($p[4])/\($p[5])"}')"
   assert_jq '.Messages[0].MessageAttributes.ERROR_CODE.StringValue' AWS.SimpleQueueService.NonExistentQueue
   assert_jq_true '.Messages[0].MessageAttributes as $a
-    | ["ERROR_CODE","ERROR_MESSAGE","EXECUTION_ID","IS_PAYLOAD_TRUNCATED","RETRY_ATTEMPTS","SCHEDULED_TIME","SCHEDULE_ARN","TARGET_ARN"]
+    | ["CONTAINS_INVALID_PAYLOAD","ERROR_CODE","ERROR_MESSAGE","EXECUTION_ID","IS_PAYLOAD_TRUNCATED","RETRY_ATTEMPTS","SCHEDULED_TIME","SCHEDULE_ARN","TARGET_ARN"]
     | all(. as $n | $a[$n].DataType == "String")'
-  assert_jq_match '.Messages[0].MessageAttributes.TARGET_ARN.StringValue' '^arn:aws:scheduler:::aws-sdk:[a-z0-9-]+:[a-zA-Z]+$'
+  assert_jq '.Messages[0].MessageAttributes.TARGET_ARN.StringValue' "$gone_arn"
   assert_jq_match '.Messages[0].MessageAttributes.SCHEDULE_ARN.StringValue' ":schedule/default/${name}\$"
   assert_jq '.Messages[0].MessageAttributes.SCHEDULED_TIME.StringValue' "${at}Z"
   aws_ok scheduler delete-schedule --name "$name"

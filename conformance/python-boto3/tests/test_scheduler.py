@@ -86,9 +86,9 @@ def test_start_date_fire_carries_the_context_attributes(
     scheduler: Any, sqs: Any, make_queue: Callable[..., str], role: str, clock: Admin, cleanup: Any
 ) -> None:
     """A rate schedule first fires at its StartDate (aws-doc schedule-types; scheduler.md 5.2),
-    its body carrying the schedule ARN, the scheduled time, a 16-hex execution id and attempt 1
-    (aws-doc managing-schedule-context-attributes, configuring-schedule-dlq; scheduler.md 6.3,
-    7.2); the time zone, State and StartDate read back as sent (tf-acc schedule_test.go:L365-L419,
+    its body carrying the schedule ARN, the scheduled time, a lower-case UUID execution id and
+    attempt 1 (aws-doc managing-schedule-context-attributes; scheduler.md 6.3; the UUID form is
+    testdata/parity/scheduler/SCH/07-sqs-context.json, aws-recorded); the time zone, State and StartDate read back as sent (tf-acc schedule_test.go:L365-L419,
     L1870-L1895; scheduler.md 4.2, 5.5)."""
     url = make_queue("sch-ctx")
     start = _emulator_now(clock) + datetime.timedelta(minutes=10)
@@ -118,7 +118,7 @@ def test_start_date_fire_carries_the_context_attributes(
     arn, scheduled, execution, attempt = messages[0]["Body"].split("|")
     assert arn == created["ScheduleArn"]
     assert scheduled == start.strftime("%Y-%m-%dT%H:%M:%SZ")
-    assert re.fullmatch(r"[0-9a-f]{16}", execution), execution
+    assert re.fullmatch(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", execution), execution
     assert attempt == "1"
 
 
@@ -182,16 +182,20 @@ def test_recorded_expression_refusal_and_past_at(scheduler: Any, sqs: Any, make_
     assert created["ScheduleArn"].endswith(":schedule/default/" + name)
 
 
-DEAD_LETTER_ATTRIBUTES = ("ERROR_CODE", "ERROR_MESSAGE", "EXECUTION_ID", "IS_PAYLOAD_TRUNCATED", "RETRY_ATTEMPTS", "SCHEDULED_TIME", "SCHEDULE_ARN", "TARGET_ARN")
+DEAD_LETTER_ATTRIBUTES = (
+    "CONTAINS_INVALID_PAYLOAD", "ERROR_CODE", "ERROR_MESSAGE", "EXECUTION_ID", "IS_PAYLOAD_TRUNCATED",
+    "RETRY_ATTEMPTS", "SCHEDULED_TIME", "SCHEDULE_ARN", "TARGET_ARN",
+)
 
 
 def test_deleted_target_queue_dead_letters(
     scheduler: Any, sqs: Any, make_queue: Callable[..., str], role: str, clock: Admin, cleanup: Any
 ) -> None:
-    """A schedule whose target queue was deleted, with MaximumRetryAttempts 0, sends its Input
-    to the dead-letter queue with the String attributes the dead-letter page lists, ERROR_CODE
-    AWS.SimpleQueueService.NonExistentQueue (aws-doc configuring-schedule-dlq; scheduler.md
-    7.2). RETRY_ATTEMPTS and EXHAUSTED_RETRY_CONDITION depend on
+    """A schedule whose target queue was deleted, with MaximumRetryAttempts 0, sends the SQS
+    request it built ({"MessageBody": <Input>, "QueueUrl": ...}) to the dead-letter queue with
+    nine String attributes, ERROR_CODE AWS.SimpleQueueService.NonExistentQueue and TARGET_ARN the
+    queue as configured (scheduler.md 7.2; testdata/parity/scheduler/SCH/08-gone.json,
+    aws-recorded). RETRY_ATTEMPTS and EXHAUSTED_RETRY_CONDITION depend on
     scheduler.retry.permanent-errors and are asserted in Go tests; DeadLetterConfig reads back
     as sent (4.2)."""
     gone_url = sqs.create_queue(QueueName=uniq("sch-gone"))["QueueUrl"]
@@ -222,11 +226,15 @@ def test_deleted_target_queue_dead_letters(
     messages = sqs.receive_message(QueueUrl=dlq_url, MaxNumberOfMessages=10, MessageAttributeNames=["All"]).get("Messages", [])
     assert len(messages) == 1, messages
     attrs = messages[0]["MessageAttributes"]
-    assert messages[0]["Body"] == "Hello, world!"
+    _, _, _, region, account, queue = gone_arn.split(":")
+    assert json.loads(messages[0]["Body"]) == {
+        "MessageBody": "Hello, world!",
+        "QueueUrl": f"https://sqs.{region}.amazonaws.com/{account}/{queue}",
+    }
     for attr in DEAD_LETTER_ATTRIBUTES:
         assert attrs[attr]["DataType"] == "String", (attr, attrs.get(attr))
     assert attrs["ERROR_CODE"]["StringValue"] == "AWS.SimpleQueueService.NonExistentQueue"
-    assert re.fullmatch(r"arn:aws:scheduler:::aws-sdk:[a-z0-9-]+:[a-zA-Z]+", attrs["TARGET_ARN"]["StringValue"])
+    assert attrs["TARGET_ARN"]["StringValue"] == gone_arn
     assert attrs["SCHEDULE_ARN"]["StringValue"] == created["ScheduleArn"]
     assert attrs["SCHEDULED_TIME"]["StringValue"] == at.strftime("%Y-%m-%dT%H:%M:%SZ")
 

@@ -14,6 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/aws/aws-sdk-go-v2/service/sts"
 )
 
 // Research: docs/research/s3-ssec-object-lock.md. Recorded texts cite
@@ -99,7 +100,14 @@ func TestS3SSEC(t *testing.T) {
 
 	_, err := put(client, "blocked", ssecKey1)
 	apiErr(t, err, "SSE-C PutObject to a new bucket", switchValue(t, "s3.sse-c.blocked-write"))
-	wantMessage(t, err, "SSE-C PutObject to a new bucket", "Access Denied")
+	// The 403 names the caller, s3:PutObject and the object
+	// (testdata/parity/s3/S3SOL/01-put.json; s3-ssec-object-lock.md 4.3).
+	caller, err2 := sts.NewFromConfig(awsCfg).GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{})
+	ok(t, err2, "GetCallerIdentity")
+	wantMessage(t, err, "SSE-C PutObject to a new bucket", "User: "+aws.ToString(caller.Arn)+
+		` is not authorized to perform: s3:PutObject on resource: "arn:aws:s3:::`+bucket+`/blocked"`+
+		" because this bucket has blocked upload requests that specify Server Side Encryption with Customer provided keys (SSE-C)."+
+		" Please specify a different server-side encryption type.")
 
 	allowSSEC(t, client, bucket)
 	out, err := put(client, "obj", ssecKey1)

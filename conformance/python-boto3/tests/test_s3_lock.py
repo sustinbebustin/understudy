@@ -139,8 +139,10 @@ def test_default_retention_put_without_a_checksum_is_refused(s3: Any, lock_bucke
     rule = s3.get_object_lock_configuration(Bucket=lock_bucket)["ObjectLockConfiguration"]["Rule"]
     assert rule == {"DefaultRetention": {"Mode": "GOVERNANCE", "Days": 1}}
     # testdata/parity/s3/R12/11-put-without-checksum.json: no Content-MD5 or x-amz-checksum-*.
-    # A signed payload hash does not count (switch s3.object-lock.checksum-scope).
-    assert switch_value(endpoint, "s3.object-lock.checksum-scope") == "PutObject-retention"
+    # A signed payload hash does not count, and any lock parameter or a locked upload's
+    # part needs one too (switch s3.object-lock.checksum-scope; testdata/parity/s3/S3SOL/14-*.json,
+    # 15-part-no-checksum.json).
+    assert switch_value(endpoint, "s3.object-lock.checksum-scope") == "any-lock-parameter-and-parts"
     status, _, body = signed_http(
         "PUT",
         f"{endpoint.rstrip('/')}/{lock_bucket}/o",
