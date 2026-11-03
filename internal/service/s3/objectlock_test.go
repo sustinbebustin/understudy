@@ -84,9 +84,10 @@ func javaDateOf(t time.Time) string {
 	return t.In(zone).Format("Mon Jan 02 15:04:05 MST 2006")
 }
 
-// hundredYears is the longest retention S3 accepts, 36,500 days
+// hundredYears is the documented longest retention, 36,500 days
 // (https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock-managing.html:
-// "The maximum retention period is 100 years").
+// "The maximum retention period is 100 years"); S3 accepts a retain-until
+// date beyond it (S3SOL-18 18-over-100-years, recorded 2026-11-03).
 const hundredYears = 36500 * 24 * time.Hour
 
 // lockBucket creates name with Object Lock, which turns versioning on
@@ -297,9 +298,9 @@ func TestObjectLockEventHoldsAreNotImplemented(t *testing.T) {
 // TestObjectLockHeaderValidation: on a lock bucket the three writes check
 // their lock headers before the body: mode and date must come together,
 // checked before the mode's value (L9754, L17916, L17927), the mode must be
-// GOVERNANCE or COMPLIANCE (L17938, L17950), and the legal hold, the past
-// date and the date over 100 years follow switch
-// s3.object-lock.header-texts. Nothing is written.
+// GOVERNANCE or COMPLIANCE (L17938, L17950), and the legal hold and the
+// past date have the texts S3SOL-18 recorded 2026-11-03 (switch
+// s3.object-lock.header-texts). Nothing is written.
 func TestObjectLockHeaderValidation(t *testing.T) {
 	runObjects(t, func(h *harness) {
 		t := h.T
@@ -307,7 +308,7 @@ func TestObjectLockHeaderValidation(t *testing.T) {
 		h.put("plain", "src", "source")
 		h.lockBucket("locked")
 		now := h.Clock.Now().Wire()
-		future, past, far := now.Add(24*time.Hour), now.Add(-time.Second), now.Add(hundredYears+time.Second)
+		future, past := now.Add(24*time.Hour), now.Add(-time.Second)
 		bad := s3api.ObjectLockMode("BAD-VALUE")
 		gov := s3api.ObjectLockModeGovernance
 		both := "x-amz-object-lock-retain-until-date and x-amz-object-lock-mode must both be supplied"
@@ -325,16 +326,12 @@ func TestObjectLockHeaderValidation(t *testing.T) {
 				fields: map[string]string{"ArgumentName": "x-amz-object-lock-mode", "ArgumentValue": "BAD-VALUE"},
 			}},
 			{"bad legal hold", s3api.PutObjectInput{ObjectLockLegalHoldStatus: new(s3api.ObjectLockLegalHoldStatus("MAYBE"))}, failure{
-				status: status, code: code, message: "Invalid value for the x-amz-object-lock-legal-hold header.",
+				status: status, code: code, message: "Legal Hold must be either of 'ON' or 'OFF'",
 				fields: map[string]string{"ArgumentName": "x-amz-object-lock-legal-hold", "ArgumentValue": "MAYBE"},
 			}},
 			{"past date", retention(gov, past), failure{
 				status: status, code: code, message: "The retain until date must be in the future!",
-				fields: map[string]string{"ArgumentName": "x-amz-object-lock-retain-until-date", "ArgumentValue": javaDateOf(past)},
-			}},
-			{"date over 100 years", retention(gov, far), failure{
-				status: status, code: code, message: "The retain until date in x-amz-object-lock-retain-until-date must be no more than 100 years in the future.",
-				fields: map[string]string{"ArgumentName": "x-amz-object-lock-retain-until-date", "ArgumentValue": javaDateOf(far)},
+				fields: map[string]string{"ArgumentName": "x-amz-object-lock-retain-until-date", "ArgumentValue": past.UTC().Format(time.RFC3339Nano)},
 			}},
 		} {
 			for op, err := range lockWrites(h, "locked", "refused", tc.l) {
@@ -554,8 +551,9 @@ func TestObjectLockReadHeaders(t *testing.T) {
 // a missing bucket (L9436), a bucket without Object Lock (L9510, L9520),
 // checked before the key under switch s3.object-lock.check-order, a missing
 // key (L9447), a delete marker (L9805, L9817), a version never given a
-// retention (L9458), and the date: in the past (L9488) or over 100 years
-// ahead (switch s3.object-lock.header-texts).
+// retention (L9458), and a date in the past (L9488); one over 100 years
+// ahead is accepted (S3SOL-18 18-over-100-years, recorded 2026-11-03, on
+// PutObject; inferred for PutObjectRetention).
 func TestObjectRetentionRefusals(t *testing.T) {
 	runObjects(t, func(h *harness) {
 		t := h.T
@@ -595,13 +593,10 @@ func TestObjectRetentionRefusals(t *testing.T) {
 			status: 400, code: "InvalidArgument", message: "The retain until date must be in the future!",
 			fields: map[string]string{"ArgumentName": "RetainUntilDate", "ArgumentValue": javaDateOf(past)},
 		}.is(t, "a past RetainUntilDate (L9488)", h.putRetention("locked", "k", v, gov, past, nil))
-		far := now.Add(hundredYears + time.Second)
-		farCode, farStatus := h.switchCode("s3.object-lock.header-texts")
-		failure{
-			status: farStatus, code: farCode, message: "The retain until date in RetainUntilDate must be no more than 100 years in the future.",
-			fields: map[string]string{"ArgumentName": "RetainUntilDate", "ArgumentValue": javaDateOf(far)},
-		}.is(t, "a RetainUntilDate over 100 years ahead", h.putRetention("locked", "k", v, gov, far, nil))
 		errNoLockState.is(t, "GetObjectRetention after only refused puts", getRetention("locked", "k", v))
+		if err := h.putRetention("locked", "k", v, gov, now.Add(hundredYears+time.Second), nil); err != nil {
+			t.Errorf("a RetainUntilDate over 100 years ahead: %s %q, want accepted", err.ID.QueryCode, err.Message)
+		}
 
 		marker := ok(h, who{}, s3api.OpDeleteObject, &s3api.DeleteObjectInput{Bucket: "locked", Key: "k"})
 		errMarker("PUT").is(t, "PutObjectRetention on a delete marker (L9805)", h.putRetention("locked", "k", marker.VersionId, gov, future, nil))

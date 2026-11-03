@@ -28,7 +28,7 @@ func objectLockSwitches() []fidelity.Entry {
 			[]string{"s3.CopyObject"}),
 		recordedSwitch("s3.object-lock.headers-without-lock", "InvalidRequest", headerValidation, "S3SOL-17",
 			[]string{"s3.PutObject", "s3.CopyObject", "s3.CreateMultipartUpload"}),
-		researchSwitch("s3.object-lock.header-texts", "InvalidArgument", evidence.Inferred, headerValidation, "S3SOL-18",
+		recordedSwitch("s3.object-lock.header-texts", "InvalidArgument", headerValidation, "S3SOL-18",
 			[]string{"s3.PutObject", "s3.CopyObject", "s3.CreateMultipartUpload", "s3.PutObjectRetention"}),
 		researchSwitch("s3.object-lock.mode-upgrade", "refused", evidence.Inferred, retentionOps, "S3SOL-19",
 			[]string{"s3.PutObjectRetention"}),

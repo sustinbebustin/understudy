@@ -110,12 +110,11 @@ func codeOf(t *testing.T, values map[string]string, name string) (code string, s
 // lockNow is the emulator instant the rule tests decide at.
 var lockNow = clock.FromWire(time.Date(2026, 10, 26, 12, 0, 0, 0, time.UTC))
 
-// maxRetention is the longest retention S3 accepts: 100 years
-// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock-managing.html,
-// "The maximum retention period is 100 years"), counted as 36,500 days, the
-// day bound of a retention duration
-// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock-configure.html).
-const maxRetention = 36500 * 24 * time.Hour
+// farAhead is the span the rule tests draw future retain-until dates from:
+// beyond 100 years, since S3 accepts a retain-until date past the
+// documented 100-year retention (S3SOL-18 18-over-100-years, recorded
+// 2026-11-03: 2127-01-01 accepted).
+const farAhead = 150 * 365 * 24 * time.Hour
 
 // errLocked is the answer to a change or delete Object Lock forbids:
 // 403 AccessDenied (LocalStack test_s3.snapshot.json L9478, L9639, L10044,
@@ -224,10 +223,10 @@ const javaLayout = "Mon Jan 02 15:04:05 MST 2006"
 // TestJavaDate: a retain-until date in an error's ArgumentValue is Java's
 // Date.toString() in US Pacific time. 2020-01-01T00:00:00Z renders as AWS
 // rendered it (LocalStack test_s3.snapshot.json L9488, validated
-// 2026-02-21); the summer form and every other instant follow the switch
-// s3.object-lock.header-texts (s3-ssec-object-lock.md 11.4: PST or PDT).
+// 2026-02-21), and so does the summer form (S3SOL-18
+// 18-retention-past-summer, recorded 2026-11-03); every other instant
+// follows the US daylight-saving rule.
 func TestJavaDate(t *testing.T) {
-	declared(t, switchValues(t), "s3.object-lock.header-texts")
 	for in, want := range map[time.Time]string{
 		time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC): "Tue Dec 31 16:00:00 PST 2019",
 		time.Date(2020, 7, 1, 0, 0, 0, 0, time.UTC): "Tue Jun 30 17:00:00 PDT 2020",
@@ -251,57 +250,38 @@ func TestJavaDate(t *testing.T) {
 }
 
 // pastDate is the refusal of a retain-until date that is not in the
-// future, naming the header or element (LocalStack test_s3.snapshot.json
-// L9488).
-func pastDate(name string, until time.Time) wantError {
+// future, naming the header or element with value, the date as the request
+// gave it: the header's ISO 8601 text, or the element's date in Java's form
+// (S3SOL-18 18-past-date and 18-retention-past-summer, recorded
+// 2026-11-03; LocalStack test_s3.snapshot.json L9488).
+func pastDate(name, value string) wantError {
 	return wantError{
 		status: 400, code: "InvalidArgument", message: "The retain until date must be in the future!",
-		fields: map[string]string{"ArgumentName": name, "ArgumentValue": javaDate(until)},
-	}
-}
-
-// tooFar is the refusal of a retain-until date more than 100 years ahead:
-// the code of the switch s3.object-lock.header-texts, with understudy's
-// text naming the header or element (s3-ssec-object-lock.md 11.4).
-func tooFar(t *testing.T, values map[string]string, name string, until time.Time) wantError {
-	t.Helper()
-	code, status := codeOf(t, values, "s3.object-lock.header-texts")
-	return wantError{
-		status: status, code: code, message: "The retain until date in " + name + " must be no more than 100 years in the future.",
-		fields: map[string]string{"ArgumentName": name, "ArgumentValue": javaDate(until)},
+		fields: map[string]string{"ArgumentName": name, "ArgumentValue": value},
 	}
 }
 
 // TestCheckRetainUntil: a date at or before now is the past-date refusal
 // (LocalStack test_s3.snapshot.json L9488; an equal instant is no longer in
-// the future under switch s3.object-lock.retain-until-format), one up to
-// 100 years ahead is accepted, and one beyond is refused (switch
-// s3.object-lock.header-texts).
+// the future under switch s3.object-lock.retain-until-format), and any
+// later one is accepted, beyond 100 years too (S3SOL-18
+// 18-over-100-years, recorded 2026-11-03).
 func TestCheckRetainUntil(t *testing.T) {
 	values := switchValues(t)
 	declared(t, values, "s3.object-lock.retain-until-format")
 	property(t, func(rt *rapid.T) {
 		name := rapid.SampledFrom([]string{"RetainUntilDate", "x-amz-object-lock-retain-until-date"}).Draw(rt, "name")
-		var offset time.Duration
-		switch rapid.IntRange(0, 2).Draw(rt, "side") {
-		case 0:
-			offset = -time.Duration(rapid.Int64Range(0, int64(200*365*24*time.Hour)).Draw(rt, "past"))
-		case 1:
-			offset = time.Duration(rapid.Int64Range(1, int64(maxRetention)).Draw(rt, "ahead"))
-		default:
-			offset = maxRetention + time.Duration(rapid.Int64Range(1, int64(50*365*24*time.Hour)).Draw(rt, "beyond"))
+		offset := -time.Duration(rapid.Int64Range(0, int64(200*365*24*time.Hour)).Draw(rt, "past"))
+		if rapid.Bool().Draw(rt, "ahead") {
+			offset = time.Duration(rapid.Int64Range(1, int64(farAhead)).Draw(rt, "future"))
 		}
 		until := lockNow.Add(offset)
-		got := checkRetainUntil(until, lockNow, name)
+		got := checkRetainUntil(until, lockNow, name, "the given date")
 		switch {
 		case offset <= 0:
-			pastDate(name, until.Wire()).check(rt, "until "+until.String(), got)
-		case offset <= maxRetention:
-			if got != nil {
-				rt.Fatalf("until %s, %s ahead: %s %q, want accepted", until, offset, got.ID.QueryCode, got.Message)
-			}
-		default:
-			tooFar(t, values, name, until.Wire()).check(rt, "until "+until.String(), got)
+			pastDate(name, "the given date").check(rt, "until "+until.String(), got)
+		case got != nil:
+			rt.Fatalf("until %s, %s ahead: %s %q, want accepted", until, offset, got.ID.QueryCode, got.Message)
 		}
 	})
 }
@@ -418,17 +398,15 @@ func TestCheckDelete(t *testing.T) {
 // PutObject, CopyObject and CreateMultipartUpload in their order: event
 // holds (understudy's 501), the mode and date pairing before the mode value
 // (LocalStack test_s3.snapshot.json L9754, L17916, L17927), the mode value
-// (L17938), the legal-hold value, then the date (switch
-// s3.object-lock.header-texts).
+// (L17938), the legal-hold value, then the date, any future one accepted
+// (switch s3.object-lock.header-texts; S3SOL-18, recorded 2026-11-03).
 func TestObjectLockHeadersParse(t *testing.T) {
 	values := switchValues(t)
 	holdCode, holdStatus := codeOf(t, values, "s3.object-lock.header-texts")
 	future := lockNow.Wire().Add(24*time.Hour + 123456789)
 	past := lockNow.Wire().Add(-time.Second)
-	far := lockNow.Wire().Add(maxRetention + time.Second)
 	bad := s3api.ObjectLockMode("BAD-VALUE")
 	gov := s3api.ObjectLockModeGovernance
-	on := s3api.ObjectLockLegalHoldStatusOn
 	cases := []struct {
 		name string
 		h    objectLockHeaders
@@ -454,11 +432,11 @@ func TestObjectLockHeadersParse(t *testing.T) {
 			fields: map[string]string{"ArgumentName": "x-amz-object-lock-mode", "ArgumentValue": "BAD-VALUE"},
 		}},
 		{"bad legal hold before the date", objectLockHeaders{mode: &gov, retainUntil: &past, legalHold: new(s3api.ObjectLockLegalHoldStatus("MAYBE"))}, wantError{
-			status: holdStatus, code: holdCode, message: "Invalid value for the x-amz-object-lock-legal-hold header.",
+			status: holdStatus, code: holdCode, message: "Legal Hold must be either of 'ON' or 'OFF'",
 			fields: map[string]string{"ArgumentName": "x-amz-object-lock-legal-hold", "ArgumentValue": "MAYBE"},
 		}},
-		{"past date", objectLockHeaders{mode: &gov, retainUntil: &past}, pastDate("x-amz-object-lock-retain-until-date", past)},
-		{"date over 100 years", objectLockHeaders{mode: &gov, retainUntil: &far, legalHold: &on}, tooFar(t, values, "x-amz-object-lock-retain-until-date", far)},
+		{"past date", objectLockHeaders{mode: &gov, retainUntil: &past}, pastDate("x-amz-object-lock-retain-until-date", "2026-10-26T11:59:59Z")},
+		{"past date with milliseconds", objectLockHeaders{mode: &gov, retainUntil: new(past.Add(-250 * time.Millisecond))}, pastDate("x-amz-object-lock-retain-until-date", "2026-10-26T11:59:58.75Z")},
 	}
 	for _, tc := range cases {
 		got, err := tc.h.parse(lockNow)
@@ -472,7 +450,7 @@ func TestObjectLockHeadersParse(t *testing.T) {
 		var want ObjectLock
 		if rapid.Bool().Draw(t, "retention") {
 			mode := rapid.SampledFrom([]s3api.ObjectLockMode{s3api.ObjectLockModeGovernance, s3api.ObjectLockModeCompliance}).Draw(t, "mode")
-			until := lockNow.Wire().Add(time.Duration(rapid.Int64Range(1, int64(maxRetention)).Draw(t, "ahead")))
+			until := lockNow.Wire().Add(time.Duration(rapid.Int64Range(1, int64(farAhead)).Draw(t, "ahead")))
 			h.mode, h.retainUntil = &mode, &until
 			wantMode := RetentionGovernance
 			if mode == s3api.ObjectLockModeCompliance {

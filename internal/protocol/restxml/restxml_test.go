@@ -308,6 +308,28 @@ func TestMalformedRequests(t *testing.T) {
 	}
 }
 
+// A dialect's ArgumentTexts replace the generic text for the values they
+// name; S3 names a retain-until date that is not ISO 8601 (S3SOL-18
+// 18-bad-date, recorded 2026-11-03).
+func TestArgumentTexts(t *testing.T) {
+	const retainUntil = "x-amz-object-lock-retain-until-date"
+	if got, want := restxml.S3Dialect(invalidArgument()).ArgumentTexts[retainUntil], "The retain until date must be provided in ISO 8601 format"; got != want {
+		t.Errorf("S3Dialect ArgumentTexts[%s] = %q, want %q", retainUntil, got, want)
+	}
+	o := op(s3(), "CompleteMultipartUpload", http.MethodPost, "/{Bucket}/{Key+}", completeIn, nil)
+	named := restxml.Codec{Dialect: func(ref.ServiceID) restxml.Dialect {
+		d := restxml.S3Dialect(invalidArgument())
+		d.ArgumentTexts = map[string]string{"x-amz-mp-object-size": "The size must be a number"}
+		return d
+	}}
+	r := newRequest(http.MethodPost, "/b/k?uploadId=u", "", map[string]string{"x-amz-mp-object-size": "big"})
+	err := named.Decode(r, o, edgeBody{r}, &complete{})
+	want := []awserr.Field{{Name: "ArgumentName", Value: "x-amz-mp-object-size"}, {Name: "ArgumentValue", Value: "big"}}
+	if err == nil || err.ID.QueryCode != "InvalidArgument" || err.Message != "The size must be a number" || !reflect.DeepEqual(err.Fields, want) {
+		t.Errorf("named header: %+v", err)
+	}
+}
+
 // A @streaming payload is handed over unread, capped at S3's 5 GiB
 // single PUT; a trailer-bound member resolves at its EOF (restbind).
 func TestStreamingPayload(t *testing.T) {

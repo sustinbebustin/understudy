@@ -204,7 +204,16 @@ SSE-C does not change the checksum rules of [s3.md](s3.md) 6: a raw SSE-C PUT wi
 | bad mode with a date | Unknown wormMode directive. | `ArgumentName=x-amz-object-lock-mode`, `ArgumentValue=BAD-VALUE` | L17938 (PutObject), L17950 (CreateMultipartUpload) |
 
 - Recorded (S3SOL-17, recorded 2026-11-03; `testdata/parity/s3/S3SOL/17-*.json`): lock headers on a bucket without Object Lock get `400 InvalidRequest`, "Bucket is missing ObjectLockConfiguration", with no space in the last word, unlike the retention and legal-hold operations' "Bucket is missing Object Lock Configuration" (6.4). Recorded for a retention and for a legal hold `ON` on PutObject to a versioned bucket, a retention on PutObject to an unversioned one, and a legal hold `ON` on CreateMultipartUpload and CopyObject. A hold `OFF` is inferred to be refused the same way; whether this check runs before the 6.3 checksum rule is inferred (every S3SOL-17 step sent a checksum).
-- UNVERIFIED (S3SOL-18): a past date, an unparsable date, a date more than 100 years out, a bad legal-hold value on PutObject, and the summer-time rendering of the 6.4 past-date `ArgumentValue`. Plausible: the 6.4 past-date text with `ArgumentName=x-amz-object-lock-retain-until-date`.
+- Recorded (S3SOL-18, recorded 2026-11-03; `testdata/parity/s3/S3SOL/18-*.json`), each on PutObject to a lock bucket:
+
+| Request | Status, code | Message | Elements | Step |
+|---|---|---|---|---|
+| past date `2020-07-01T00:00:00Z` | 400 `InvalidArgument` | The retain until date must be in the future! | `ArgumentName=x-amz-object-lock-retain-until-date`, `ArgumentValue=2020-07-01T00:00:00Z` | `18-past-date` |
+| unparsable date `tomorrow` | 400 `InvalidArgument` | The retain until date must be provided in ISO 8601 format | `ArgumentName=x-amz-object-lock-retain-until-date`, `ArgumentValue=tomorrow` | `18-bad-date` |
+| legal hold `MAYBE` | 400 `InvalidArgument` | Legal Hold must be either of 'ON' or 'OFF' | `ArgumentName=x-amz-object-lock-legal-hold`, `ArgumentValue=MAYBE` | `18-bad-hold` |
+| date `2127-01-01T00:00:00Z`, over 100 years out | 200, accepted | | | `18-over-100-years` |
+
+- Unlike the 6.4 element, the header's past date is named in its ISO 8601 form, not Java's. Whether S3 echoes the sent text or renders the parsed date is UNVERIFIED (the recorded value is the same either way); understudy renders the parsed date in UTC, with fractional seconds only when present. The 100-year limit of the docs (5.2) does not bound a retain-until date; PutObjectRetention is inferred to accept one too, and CopyObject and CreateMultipartUpload to answer as PutObject.
 
 ### 6.3 The Content-MD5 or checksum requirement
 
@@ -231,7 +240,7 @@ SSE-C does not change the checksum rules of [s3.md](s3.md) 6: a raw SSE-C PUT wi
 | shortening GOVERNANCE without bypass; any change that shortens COMPLIANCE or turns it into GOVERNANCE | 403 `AccessDenied` | Access Denied because object protected by object lock. | L9478, L9667, L9893, L17884, L17894 |
 | a delete-marker version | 405 `MethodNotAllowed`, `Method=PUT` or `GET`, `ResourceType=DeleteMarker` | The specified method is not allowed against this resource. | L9805, L9817 |
 
-- The past-date `ArgumentValue` is a Java `Date.toString()` in US Pacific time (the UTC instant 2020-01-01T00:00Z rendered as 2019-12-31 16:00 PST); the PDT form in summer is part of S3SOL-18.
+- The past-date `ArgumentValue` is a Java `Date.toString()` in US Pacific time (the UTC instant 2020-01-01T00:00Z rendered as 2019-12-31 16:00 PST). Recorded (S3SOL-18, recorded 2026-11-03; `18-retention-past-summer`): in summer it is PDT, `Tue Jun 30 17:00:00 PDT 2020` for `2020-07-01T00:00:00Z`.
 - Allowed: setting retention on an unprotected version (L9607); extending GOVERNANCE without bypass (L9871; "Any user with permissions to place an object retention period can extend a retention period", [lock](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock.html)); an empty `<Retention/>` with `x-amz-bypass-governance-retention: true` removes GOVERNANCE retention (L9677); after removal a new short retention can be set without bypass (L9683). Bypass also allows "shortening the retention period, or removing the Object Lock retention period by placing a new `PutObjectRetention` request with empty parameters" ([lock-manage](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock-managing.html), "Bypassing governance mode").
 - COMPLIANCE: "its retention mode can't be changed, and its retention period can't be shortened" ([lock](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock.html)); recorded at L17884, L17894.
 - UNVERIFIED (S3SOL-19): GOVERNANCE to COMPLIANCE (a stricter mode, same or later date) without bypass. Plausible: refused with the 403 above ("users can't overwrite or delete an object version or alter its lock settings unless they have special permissions", [lock](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock.html)), or allowed as an extension.
@@ -425,7 +434,7 @@ Run `just coverage-check` after re-marking and commit the regenerated `docs/cove
 | `s3.object-lock.checksum-scope` | PutObject with any lock header, a legal hold alone included, or into a default-retention bucket, and UploadPart of an upload created with lock headers (or under a default, inferred), with the part's own text; satisfied by `Content-MD5` or an `x-amz-checksum-*` header or trailer, not by a signed payload hash | aws-recorded | 6.3 | S3SOL-14, S3SOL-15 |
 | `s3.object-lock.copy-default` | CopyObject into a default-retention bucket applies the default, no checksum needed | inferred | 6.3, 6.8 | S3SOL-16 |
 | `s3.object-lock.headers-without-lock` | 400 `InvalidRequest` "Bucket is missing ObjectLockConfiguration" | aws-recorded | 6.2 | S3SOL-17 |
-| `s3.object-lock.header-texts` | past date: 400 `InvalidArgument` "The retain until date must be in the future!" with `ArgumentName` the header; a date over 100 years ahead, an unparsable date, a bad legal-hold value: 400 `InvalidArgument` with `ArgumentName` and `ArgumentValue` and an understudy text naming the header; date `ArgumentValue`s rendered as Java `Date.toString()` in America/Los_Angeles (PST or PDT) | inferred | 6.2, 6.4 | S3SOL-18 |
+| `s3.object-lock.header-texts` | 400 `InvalidArgument` with `ArgumentName` and `ArgumentValue`: past date "The retain until date must be in the future!" (the header's date in ISO 8601, the element's as Java `Date.toString()` in US Pacific time, PST or PDT), unparsable date "The retain until date must be provided in ISO 8601 format", bad legal hold "Legal Hold must be either of 'ON' or 'OFF'"; a date over 100 years ahead is accepted. Inferred: the same on CopyObject, CreateMultipartUpload and PutObjectRetention | aws-recorded | 6.2, 6.4 | S3SOL-18 |
 | `s3.object-lock.mode-upgrade` | GOVERNANCE to COMPLIANCE without bypass refused with the lock 403 | inferred | 6.4 | S3SOL-19 |
 | `s3.object-lock.date-without-mode` | `MalformedXML` | inferred | 6.4 | S3SOL-20 |
 | `s3.object-lock.cleared-reads` | removed retention reads as 404 `NoSuchObjectLockConfiguration` and HEAD omits mode and date; a hold set `OFF` reads as 200 `Status=OFF` | inferred | 6.4, 6.5 | S3SOL-21 |
@@ -436,7 +445,7 @@ The `Ref` of each switch is `docs/research/s3-ssec-object-lock.md#<section ancho
 
 ### 11.5 Limits and texts
 
-Hand-code every text in 3.2, 3.3, 3.6, 5.1, 5.2, 6.2, 6.4, 7.1-7.3 exactly as quoted, with their elements and element order as recorded. Limits: SSE-C key exactly 32 bytes after base64 decoding; key MD5 is base64 of a 16-byte digest; retention at most 100 years; event-hold durations 1..36,500 days or 1..100 years (refused anyway, 11.3).
+Hand-code every text in 3.2, 3.3, 3.6, 5.1, 5.2, 6.2, 6.4, 7.1-7.3 exactly as quoted, with their elements and element order as recorded. Limits: SSE-C key exactly 32 bytes after base64 decoding; key MD5 is base64 of a 16-byte digest; default retention at most 36,500 days or 100 years, with no bound on a retain-until date (6.2); event-hold durations 1..36,500 days or 1..100 years (refused anyway, 11.3).
 
 ### 11.6 Terraform: apply plus an empty second plan
 
@@ -785,7 +794,7 @@ rec S3SOL/18-retention-past-summer aws s3api put-object-retention --bucket "$L" 
   --retention '{"Mode":"GOVERNANCE","RetainUntilDate":"2020-07-01T00:00:00Z"}'
 ```
 
-Expected: record each status, code, text and `ArgumentName`/`ArgumentValue`; the last should read `Tue Jun 30 17:00:00 PDT 2020` if the PST rendering holds. Cost under USD 0.01, 2 minutes. Teardown: 12.1 (an accepted 2127 object is GOVERNANCE, removable with bypass).
+Expected: record each status, code, text and `ArgumentName`/`ArgumentValue`; the last should read `Tue Jun 30 17:00:00 PDT 2020` if the PST rendering holds. Recorded 2026-11-03: as expected for the last; the header past date names `2020-07-01T00:00:00Z` in ISO 8601, `tomorrow` and `MAYBE` get their own texts, and the 2127 date is accepted (6.2). Cost under USD 0.01, 2 minutes. Teardown: 12.1 (an accepted 2127 object is GOVERNANCE, removable with bypass).
 
 ### 12.20 S3SOL-19. GOVERNANCE to COMPLIANCE without bypass
 
