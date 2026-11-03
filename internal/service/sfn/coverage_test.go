@@ -1,7 +1,6 @@
 package sfn_test
 
 import (
-	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -126,9 +125,9 @@ func TestSwitches(t *testing.T) {
 		{sfn.ChoiceNoMatch().Entry(), "sfn.choice.no-match", "docs/research/stepfunctions-asl.md#64-no-match-and-missing-variables", "ASL-08", evidence.AWSRecorded, []string{"sfn.StartExecution"}, false},
 		{sfn.ChoiceMissingVariable().Entry(), "sfn.choice.missing-variable", "docs/research/stepfunctions-asl.md#64-no-match-and-missing-variables", "ASL-08", evidence.AWSRecorded, []string{"sfn.StartExecution"}, false},
 		{sfn.IntrinsicFailure().Entry(), "sfn.intrinsic.failure-error", "docs/research/stepfunctions-asl.md#54-failures", "ASL-05", evidence.AWSRecorded, []string{"sfn.StartExecution"}, false},
-		{sfn.LambdaError().Entry(), "sfn.integration.lambda-error", "docs/research/stepfunctions-api.md#94-error-names-and-causes-recorded", "SFN-15", evidence.Inferred, []string{"sfn.StartExecution"}, false},
+		{sfn.LambdaError().Entry(), "sfn.integration.lambda-error", "docs/research/stepfunctions-api.md#94-error-names-and-causes-recorded", "SFN-15", evidence.AWSRecorded, []string{"sfn.StartExecution"}, false},
 		{sfn.DeleteRunningExecution().Entry(), "sfn.delete.running-execution", "docs/research/stepfunctions-api.md#54-deletestatemachine", "SFN-06", evidence.AWSRecorded, []string{"sfn.DeleteStateMachine", "sfn.StartExecution"}, true},
-		{sfn.DenialStatus().Entry(), "sfn.denial.status", "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit", "SFN-15", evidence.Inferred, bound, true},
+		{sfn.DenialStatus().Entry(), "sfn.denial.status", "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit", "SFN-15", evidence.AWSRecorded, bound, true},
 	}
 	got := (&sfn.Service{}).Switches()
 	if len(got) != len(want) {
@@ -162,12 +161,14 @@ func TestSwitches(t *testing.T) {
 // v2/error_handling/test_task_service_lambda.snapshot.json:L972-L973):
 // a missing function is Lambda.ResourceNotFoundException with the AWSLambda
 // cause. The naming is switch sfn.integration.lambda-error: a shape Lambda's
-// model declares takes the prefix, any other the unmodeled name; flipping
-// the switch's fields changes the result.
+// model declares takes the prefix, any other the unmodeled name; the cause
+// of a lambda:invoke task is in the AWSLambda form and that of a
+// function-ARN task in the SDK v2 form (SFN-15 02 and 03, recorded
+// 2026-11-03); flipping the switch's fields changes the result.
 func TestLambdaTaskError(t *testing.T) {
 	n := sfn.LambdaError().Value
 	fn := "arn:aws:lambda:us-east-1:000000000000:function:nope"
-	got := sfn.LambdaTaskError(n, lambdaapi.ErrResourceNotFoundException("Function not found: "+fn+":$LATEST"), "req-1")
+	got := sfn.LambdaTaskError(n, asl.LambdaInvoke, lambdaapi.ErrResourceNotFoundException("Function not found: "+fn+":$LATEST"), "req-1")
 	want := asl.StateError{
 		Name:  "Lambda.ResourceNotFoundException",
 		Cause: "Function not found: " + fn + ":$LATEST (Service: AWSLambda; Status Code: 404; Error Code: ResourceNotFoundException; Request ID: req-1; Proxy: null)",
@@ -175,20 +176,24 @@ func TestLambdaTaskError(t *testing.T) {
 	if got != want {
 		t.Errorf("LambdaTaskError(ResourceNotFoundException) = %+v\nwant %+v", got, want)
 	}
-	if got := sfn.LambdaTaskError(n, lambdaapi.ErrTooManyRequestsException("Rate exceeded"), "r"); got.Name != n.Prefix+"TooManyRequestsException" {
+	if got := sfn.LambdaTaskError(n, asl.LambdaInvoke, lambdaapi.ErrTooManyRequestsException("Rate exceeded"), "r"); got.Name != n.Prefix+"TooManyRequestsException" {
 		t.Errorf("TooManyRequestsException named %q, want %q", got.Name, n.Prefix+"TooManyRequestsException")
 	}
 	unmodeled := sfnapi.ErrAccessDeniedException("User is not authorized")
-	got = sfn.LambdaTaskError(n, unmodeled, "r")
-	if wantCause := fmt.Sprintf(n.Cause, "User is not authorized", unmodeled.ID.Status, unmodeled.ID.QueryCode, "r"); got.Name != n.Unmodeled || got.Cause != wantCause {
-		t.Errorf("generic AccessDeniedException = %+v, want %s with cause %q", got, n.Unmodeled, wantCause)
+	got = sfn.LambdaTaskError(n, asl.LambdaInvoke, unmodeled, "r")
+	if wantCause := "User is not authorized (Service: AWSLambda; Status Code: 400; Error Code: AccessDeniedException; Request ID: r; Proxy: null)"; got.Name != "Lambda.AWSLambdaException" || got.Cause != wantCause {
+		t.Errorf("generic AccessDeniedException = %+v, want Lambda.AWSLambdaException with cause %q", got, wantCause)
+	}
+	got = sfn.LambdaTaskError(n, asl.FunctionARN, unmodeled, "r")
+	if wantCause := "User is not authorized (Service: Lambda, Status Code: 400, Request ID: r) (SDK Attempt Count: 1)"; got.Name != "Lambda.AWSLambdaException" || got.Cause != wantCause {
+		t.Errorf("function-ARN task AccessDeniedException = %+v, want Lambda.AWSLambdaException with cause %q", got, wantCause)
 	}
 
-	flip := sfn.LambdaErrorNaming{Prefix: "X.", Unmodeled: "X.Other", Cause: "%s|%d|%s|%s"}
-	if got := sfn.LambdaTaskError(flip, lambdaapi.ErrResourceNotFoundException("m"), "id"); got.Name != "X.ResourceNotFoundException" || got.Cause != "m|404|ResourceNotFoundException|id" {
+	flip := sfn.LambdaErrorNaming{Prefix: "X.", Unmodeled: "X.Other", Cause: "%s|%d|%s|%s", FunctionARNCause: "%s/%d/%s"}
+	if got := sfn.LambdaTaskError(flip, asl.LambdaInvoke, lambdaapi.ErrResourceNotFoundException("m"), "id"); got.Name != "X.ResourceNotFoundException" || got.Cause != "m|404|ResourceNotFoundException|id" {
 		t.Errorf("flipped naming = %+v", got)
 	}
-	if got := sfn.LambdaTaskError(flip, unmodeled, "id"); got.Name != "X.Other" {
+	if got := sfn.LambdaTaskError(flip, asl.FunctionARN, unmodeled, "id"); got.Name != "X.Other" || got.Cause != "User is not authorized/400/id" {
 		t.Errorf("flipped unmodeled naming = %+v", got)
 	}
 }

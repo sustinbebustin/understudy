@@ -84,36 +84,44 @@ type LambdaErrorNaming struct {
 	Prefix string
 	// Unmodeled names every error Lambda's model does not declare.
 	Unmodeled string
-	// Cause is the fmt format of the cause, from the message, the status,
-	// the error code and the request id.
+	// Cause is the fmt format of a lambda:invoke task's cause, from the
+	// message, the status, the error code and the request id.
 	Cause string
+	// FunctionARNCause is the fmt format of a function-ARN task's cause,
+	// from the message, the status and the request id.
+	FunctionARNCause string
 }
 
-// LambdaError names a Lambda service error a task meets
-// (stepfunctions-api.md 9.4 row 4 recorded; the unmodeled rule follows rows
-// 2-3).
+// LambdaError names a Lambda service error a task meets: recorded for
+// ResourceNotFoundException (stepfunctions-api.md 9.4 row 4), for the
+// unmodeled AccessDeniedException of a lambda:invoke task and of a
+// function-ARN task, and for TooManyRequestsException (SFN-15, recorded
+// 2026-11-03).
 func LambdaError() fidelity.Switch[LambdaErrorNaming] {
 	return fidelity.Switch[LambdaErrorNaming]{
 		Name: "sfn.integration.lambda-error",
 		Value: LambdaErrorNaming{
-			Prefix:    "Lambda.",
-			Unmodeled: "Lambda.AWSLambdaException",
-			Cause:     "%s (Service: AWSLambda; Status Code: %d; Error Code: %s; Request ID: %s; Proxy: null)",
+			Prefix:           "Lambda.",
+			Unmodeled:        "Lambda.AWSLambdaException",
+			Cause:            "%s (Service: AWSLambda; Status Code: %d; Error Code: %s; Request ID: %s; Proxy: null)",
+			FunctionARNCause: "%s (Service: Lambda, Status Code: %d, Request ID: %s) (SDK Attempt Count: 1)",
 		},
-		Label:   evidence.Inferred,
+		Label:   evidence.AWSRecorded,
 		Ref:     "docs/research/stepfunctions-api.md#94-error-names-and-causes-recorded",
 		Record:  "SFN-15",
 		Ops:     []string{"sfn.StartExecution"},
-		Settles: fidelity.NoScenario{Reason: "unrecorded for an unmodeled code: recording case SFN-15 (stepfunctions-api.md 14.16)"},
+		Settles: fidelity.NoScenario{Reason: sfnUnreplayed("sfn/SFN-15/02-denied-invoke-history.json and sfn/SFN-15/03-denied-arn-history.json are")},
 	}
 }
 
-// LambdaTaskError is the StateError for e, a Lambda service error a task's
-// invocation returned with request id requestID, named by n: Prefix plus the
-// shape name when e's shape is in Lambda's model namespace, else Unmodeled;
-// the cause is Cause formatted with e's message, status, code and
-// requestID.
-func LambdaTaskError(n LambdaErrorNaming, e *awserr.Error, requestID string) asl.StateError {
+// LambdaTaskError is the StateError for e, a Lambda service error the
+// invocation of a task naming its function as kind returned with request
+// id requestID, named by n: Prefix plus the shape name when e's shape is in
+// Lambda's model namespace, else Unmodeled; the cause is Cause formatted
+// with e's message, status, code and requestID for a lambda:invoke task,
+// FunctionARNCause with e's message, status and requestID for a
+// function-ARN task.
+func LambdaTaskError(n LambdaErrorNaming, kind asl.ResourceKind, e *awserr.Error, requestID string) asl.StateError {
 	name := n.Unmodeled
 	// Every error shape Lambda's model declares shares one namespace,
 	// com.amazonaws.lambda; generic errors carry another. Lambda's denial,
@@ -123,6 +131,9 @@ func LambdaTaskError(n LambdaErrorNaming, e *awserr.Error, requestID string) asl
 	lambda := lambdaapi.Service()
 	if e.ID.Shape.Namespace() == lambdaapi.IdentityServiceException().Shape.Namespace() && e.ID.Shape != lambda.Denial.Identity.Shape {
 		name = n.Prefix + e.ID.Shape.Name()
+	}
+	if kind == asl.FunctionARN {
+		return asl.StateError{Name: name, Cause: fmt.Sprintf(n.FunctionARNCause, e.Message, e.ID.Status, requestID)}
 	}
 	return asl.StateError{Name: name, Cause: fmt.Sprintf(n.Cause, e.Message, e.ID.Status, e.ID.QueryCode, requestID)}
 }
@@ -145,17 +156,18 @@ func DeleteRunningExecution() fidelity.Switch[bool] {
 	}
 }
 
-// DenialStatus is the HTTP status of SFN's AccessDeniedException
-// (iam-enforcement-surfaces.md 12.3).
+// DenialStatus is the HTTP status of SFN's AccessDeniedException: 400
+// (SFN-15, recorded 2026-11-03; iam-enforcement-surfaces.md 12.3).
 func DenialStatus() fidelity.Switch[int] {
 	return fidelity.Switch[int]{
-		Name:    "sfn.denial.status",
-		Value:   http.StatusBadRequest,
-		Label:   evidence.Inferred,
-		Ref:     "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit",
-		Record:  "SFN-15",
-		Ops:     boundOps(),
-		Settles: fidelity.NoScenario{Reason: "unrecorded: recording case SFN-15 (stepfunctions-api.md 14.16)"},
+		Name:   "sfn.denial.status",
+		Value:  http.StatusBadRequest,
+		Label:  evidence.AWSRecorded,
+		Ref:    "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit",
+		Record: "SFN-15",
+		Ops:    boundOps(),
+		Settles: fidelity.NoScenario{Reason: "sfn/SFN-15/01-denied-list.json is recorded 2026-11-03; " +
+			"not replayed: an IAM user signed it, and the replay signs as the account's root"},
 	}
 }
 
