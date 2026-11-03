@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "item": "SSM-06",
+  "account": "123456789012",
+  "region": "us-east-2",
+  "client": "aws-cli",
+  "steps": [
+    {
+      "fixture": "ssm/SSM-06/01-arn-1011.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-06/02-arn-1012.json",
+      "compare": "all"
+    }
+  ]
+}

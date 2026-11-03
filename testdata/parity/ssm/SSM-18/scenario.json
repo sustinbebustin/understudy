@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "item": "SSM-18",
+  "account": "123456789012",
+  "region": "us-east-2",
+  "client": "aws-cli",
+  "setup": [
+    {
+      "service": "ssm",
+      "operation": "PutParameter",
+      "input": {
+        "Name": "/us1103/ssm/g18b",
+        "Type": "String",
+        "Value": "b"
+      }
+    },
+    {
+      "service": "ssm",
+      "operation": "PutParameter",
+      "input": {
+        "Name": "/us1103/ssm/g18a",
+        "Type": "String",
+        "Value": "a"
+      }
+    }
+  ],
+  "steps": [
+    {
+      "fixture": "ssm/SSM-18/01-order-dupes.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-18/02-invalid-name.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-18/03-eleven.json",
+      "compare": "all"
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "item": "SSM-09",
+  "account": "123456789012",
+  "region": "us-east-2",
+  "client": "aws-cli",
+  "setup": [
+    {
+      "service": "ssm",
+      "operation": "PutParameter",
+      "input": {
+        "Name": "/us1103/ssm/t9",
+        "Type": "String",
+        "Value": "v"
+      }
+    },
+    {
+      "service": "ssm",
+      "operation": "PutParameter",
+      "input": {
+        "Name": "us1103-t9",
+        "Type": "String",
+        "Value": "v"
+      },
+      "before": "03-root-to-secure"
+    }
+  ],
+  "steps": [
+    {
+      "fixture": "ssm/SSM-09/01-hier-to-secure.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-09/02-hier-to-list.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-09/03-root-to-secure.json",
+      "compare": "all"
+    }
+  ]
+}

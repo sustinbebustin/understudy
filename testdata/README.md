@@ -65,7 +65,7 @@ It reads the account id from `<recordings>/_scripts/acct` (or `--account-file`),
 
 ## Replay scenarios
 
-`parity/<svc>/<item>/scenario.json` tells `internal/parity` how to replay one item against an in-process understudy: which steps run, in which order, what to set up first, which recorded values stand for the ones understudy mints, and which fidelity switches and overlay evidence items a step settles. The checked-in scenarios are `dynamodb/R11` (step 07, DynamoDB Streams' signing scopes), `events/R14` (the `TestEventPattern` cases H1, H8, H9 and H14), `kms/KMS-alias`, `sqs/R01` and `sts/R15`. An item without one is not replayed.
+`parity/<svc>/<item>/scenario.json` tells `internal/parity` how to replay one item against an in-process understudy: which steps run, in which order, what to set up first, which recorded values stand for the ones understudy mints, and which fidelity switches and overlay evidence items a step settles. The checked-in scenarios are `dynamodb/R11` (step 07, DynamoDB Streams' signing scopes), `events/R14` (the `TestEventPattern` cases H1, H8, H9 and H14), `kms/KMS-alias`, `sqs/R01`, `sts/R15`, and the SSM Parameter Store items `ssm/SSM-01`, `ssm/SSM-02`, `ssm/SSM-03`, `ssm/SSM-04`, `ssm/SSM-05`, `ssm/SSM-06`, `ssm/SSM-07`, `ssm/SSM-08`, `ssm/SSM-09`, `ssm/SSM-10`, `ssm/SSM-11`, `ssm/SSM-12`, `ssm/SSM-13`, `ssm/SSM-15`, `ssm/SSM-16`, `ssm/SSM-17`, `ssm/SSM-18`, `ssm/SSM-19`, `ssm/SSM-20`, `ssm/SSM-21`, `ssm/SSM-22`, `ssm/SSM-25`, `ssm/SSM-26`, `ssm/SSM-27`, `ssm/SSM-28`, `ssm/SSM-29` and `ssm/SSM-32`. An item without one is not replayed.
 
 ```json
 {

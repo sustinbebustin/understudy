@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "item": "SSM-21",
+  "account": "123456789012",
+  "region": "us-east-2",
+  "client": "aws-cli",
+  "setup": [
+    {
+      "service": "ssm",
+      "operation": "PutParameter",
+      "input": {
+        "Name": "/us1103/ssm/f21/x/deep",
+        "Type": "String",
+        "Value": "v"
+      }
+    },
+    {
+      "service": "ssm",
+      "operation": "PutParameter",
+      "input": {
+        "Name": "/us1103/ssm/f21/Top",
+        "Type": "String",
+        "Value": "v",
+        "Tags": [
+          {
+            "Key": "team",
+            "Value": "blue"
+          }
+        ]
+      }
+    }
+  ],
+  "steps": [
+    {
+      "fixture": "ssm/SSM-21/01-path-default.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-21/02-path-recursive.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-21/03-deprecated-name.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-21/04-both.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-21/05-label.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-21/06-tag-no-values.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-21/07-contains-case.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-21/08-beginswith-case.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-21/09-bad-option.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-21/10-name-default-prefix.json",
+      "compare": "all"
+    }
+  ]
+}

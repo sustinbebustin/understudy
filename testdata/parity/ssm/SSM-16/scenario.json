@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "item": "SSM-16",
+  "account": "123456789012",
+  "region": "us-east-2",
+  "client": "aws-cli",
+  "setup": [
+    {
+      "service": "ssm",
+      "operation": "PutParameter",
+      "input": {
+        "Name": "/us1103/ssm/l16",
+        "Type": "String",
+        "Value": "v1"
+      }
+    },
+    {
+      "service": "ssm",
+      "operation": "PutParameter",
+      "input": {
+        "Name": "/us1103/ssm/l16",
+        "Type": "String",
+        "Value": "v2",
+        "Overwrite": true
+      }
+    }
+  ],
+  "steps": [
+    {
+      "fixture": "ssm/SSM-16/01-forms.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-16/02-101-chars.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-16/03-move.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-16/04-history.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-16/05-to-ten.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-16/06-eleventh.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-16/07-unlabel.json",
+      "compare": "all"
+    }
+  ]
+}

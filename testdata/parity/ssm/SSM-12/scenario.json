@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "item": "SSM-12",
+  "account": "123456789012",
+  "region": "us-east-2",
+  "client": "aws-cli",
+  "steps": [
+    {
+      "fixture": "ssm/SSM-12/01-4096-ascii.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-12/02-4097-ascii.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-12/03-2048-chars.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-12/04-2049-chars.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-12/05-advanced-8192.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-12/06-advanced-8193.json",
+      "compare": "all"
+    }
+  ]
+}

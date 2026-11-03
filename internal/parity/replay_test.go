@@ -31,6 +31,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/secretsmanagerapi"
 	"github.com/sustinbebustin/understudy/internal/api/snsapi"
 	"github.com/sustinbebustin/understudy/internal/api/sqsapi"
+	"github.com/sustinbebustin/understudy/internal/api/ssmapi"
 	"github.com/sustinbebustin/understudy/internal/api/stsapi"
 	"github.com/sustinbebustin/understudy/internal/auth"
 	"github.com/sustinbebustin/understudy/internal/aws"
@@ -244,6 +245,7 @@ func replayServices() map[ref.ServiceID]*registry.Service {
 	for _, s := range []*registry.Service{
 		sqsapi.Service(), snsapi.Service(), s3api.Service(), dynamodbapi.Service(), lambdaapi.Service(), logsapi.Service(),
 		secretsmanagerapi.Service(), kmsapi.Service(), iamapi.Service(), stsapi.Service(), eventbridgeapi.Service(), cloudwatchapi.Service(),
+		ssmapi.Service(),
 	} {
 		m[s.ID] = s
 	}

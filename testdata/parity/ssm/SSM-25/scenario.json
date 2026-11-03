@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "item": "SSM-25",
+  "account": "123456789012",
+  "region": "us-east-2",
+  "client": "aws-cli",
+  "setup": [
+    {
+      "service": "ssm",
+      "operation": "PutParameter",
+      "input": {
+        "Name": "/us1103/ssm/t25",
+        "Type": "String",
+        "Value": "v"
+      }
+    }
+  ],
+  "steps": [
+    {
+      "fixture": "ssm/SSM-25/01-list-empty.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-25/02-aws-prefix.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-25/03-fifty.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-25/04-fifty-first.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-25/05-missing.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-25/06-arn.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-25/07-remove-absent.json",
+      "compare": "all"
+    }
+  ]
+}

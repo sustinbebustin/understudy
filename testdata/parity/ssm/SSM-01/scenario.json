@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "item": "SSM-01",
+  "account": "123456789012",
+  "region": "us-east-2",
+  "client": "curl",
+  "setup": [
+    {
+      "service": "ssm",
+      "operation": "PutParameter",
+      "input": {
+        "Name": "/us1103/ssm/e1",
+        "Type": "String",
+        "Value": "v"
+      }
+    }
+  ],
+  "steps": [
+    {
+      "fixture": "ssm/SSM-01/01-get-missing.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-01/02-put-exists.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-01/03-get-bad-name.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-01/04-tags-missing.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-01/05-label-filter.json",
+      "compare": "all"
+    }
+  ]
+}

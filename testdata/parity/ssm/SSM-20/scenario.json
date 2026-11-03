@@ -1,0 +1,141 @@
+{
+  "version": 1,
+  "item": "SSM-20",
+  "account": "123456789012",
+  "region": "us-east-2",
+  "client": "curl",
+  "setup": [
+    {
+      "service": "ssm",
+      "operation": "PutParameter",
+      "input": {
+        "Name": "/us1103/ssm/d20/k12",
+        "Type": "String",
+        "Value": "v"
+      }
+    },
+    {
+      "service": "ssm",
+      "operation": "PutParameter",
+      "input": {
+        "Name": "/us1103/ssm/d20/k03",
+        "Type": "String",
+        "Value": "v"
+      }
+    },
+    {
+      "service": "ssm",
+      "operation": "PutParameter",
+      "input": {
+        "Name": "/us1103/ssm/d20/k07",
+        "Type": "String",
+        "Value": "v"
+      }
+    },
+    {
+      "service": "ssm",
+      "operation": "PutParameter",
+      "input": {
+        "Name": "/us1103/ssm/d20/k01",
+        "Type": "String",
+        "Value": "v"
+      }
+    },
+    {
+      "service": "ssm",
+      "operation": "PutParameter",
+      "input": {
+        "Name": "/us1103/ssm/d20/k05",
+        "Type": "String",
+        "Value": "v"
+      }
+    },
+    {
+      "service": "ssm",
+      "operation": "PutParameter",
+      "input": {
+        "Name": "/us1103/ssm/d20/k09",
+        "Type": "String",
+        "Value": "v"
+      }
+    },
+    {
+      "service": "ssm",
+      "operation": "PutParameter",
+      "input": {
+        "Name": "/us1103/ssm/d20/k11",
+        "Type": "String",
+        "Value": "v"
+      }
+    },
+    {
+      "service": "ssm",
+      "operation": "PutParameter",
+      "input": {
+        "Name": "/us1103/ssm/d20/k02",
+        "Type": "String",
+        "Value": "v"
+      }
+    },
+    {
+      "service": "ssm",
+      "operation": "PutParameter",
+      "input": {
+        "Name": "/us1103/ssm/d20/k04",
+        "Type": "String",
+        "Value": "v"
+      }
+    },
+    {
+      "service": "ssm",
+      "operation": "PutParameter",
+      "input": {
+        "Name": "/us1103/ssm/d20/k06",
+        "Type": "String",
+        "Value": "v"
+      }
+    },
+    {
+      "service": "ssm",
+      "operation": "PutParameter",
+      "input": {
+        "Name": "/us1103/ssm/d20/k08",
+        "Type": "String",
+        "Value": "v"
+      }
+    },
+    {
+      "service": "ssm",
+      "operation": "PutParameter",
+      "input": {
+        "Name": "/us1103/ssm/d20/k10",
+        "Type": "String",
+        "Value": "v"
+      }
+    }
+  ],
+  "steps": [
+    {
+      "fixture": "ssm/SSM-20/01-default-page.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-20/02-empty.json",
+      "compare": "all"
+    }
+  ],
+  "waivers": [
+    {
+      "step": "01-default-page",
+      "field": "body/NextToken",
+      "reason": "a NextToken is opaque: AWS's is an encrypted blob, understudy's its own cursor; only its presence is the contract"
+    }
+  ],
+  "settles": [
+    {
+      "switch": "ssm.list.order",
+      "step": "01-default-page",
+      "field": "body/Parameters/7/Name"
+    }
+  ]
+}

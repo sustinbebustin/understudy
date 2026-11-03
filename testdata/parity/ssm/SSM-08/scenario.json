@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "item": "SSM-08",
+  "account": "123456789012",
+  "region": "us-east-2",
+  "client": "aws-cli",
+  "setup": [
+    {
+      "service": "ssm",
+      "operation": "PutParameter",
+      "input": {
+        "Name": "/us1103/ssm/v8",
+        "Type": "String",
+        "Value": "v",
+        "Description": "d"
+      }
+    },
+    {
+      "service": "ssm",
+      "operation": "LabelParameterVersion",
+      "input": {
+        "Name": "/us1103/ssm/v8",
+        "Labels": [
+          "l8"
+        ]
+      },
+      "before": "03-describe-after-label"
+    }
+  ],
+  "steps": [
+    {
+      "fixture": "ssm/SSM-08/01-identical.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-08/02-describe-before.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-08/03-describe-after-label.json",
+      "compare": "all",
+      "advance": "4s"
+    },
+    {
+      "fixture": "ssm/SSM-08/04-history.json",
+      "compare": "all"
+    }
+  ]
+}

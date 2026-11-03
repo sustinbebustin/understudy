@@ -10,3 +10,5 @@
 - 02 lookahead `^(?=a).*$`: accepted (Java dialect). understudy answers 501 for patterns RE2 cannot compile (disclosed in the coverage note).
 - 03 possessive `a*+`: accepted. Same 501 disclosure in understudy.
 - 04 `(`: InvalidAllowedPatternException `The syntax of the allowedPattern parameter is invalid.` (code matches understudy's; text not recorded before).
+
+Replay (scenario.json): steps 01 and 04 only. Steps 02 and 03 are left out because understudy answers them 501 by design (RE2 cannot compile a Java lookahead or possessive quantifier), so a replay would only restate the coverage note.

@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "item": "SSM-05",
+  "account": "123456789012",
+  "region": "us-east-2",
+  "client": "aws-cli",
+  "steps": [
+    {
+      "fixture": "ssm/SSM-05/01-depth-15.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-05/02-depth-16.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-05/03-depth-17.json",
+      "compare": "all"
+    }
+  ]
+}
