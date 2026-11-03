@@ -260,14 +260,20 @@ No SES response has been recorded against AWS yet, so every SES answer rests on 
 
 ## SSM Parameter Store
 
-Real AWS has not been recorded for SSM yet (there is no `testdata/parity/ssm/`); where AWS's answer is unrecorded, understudy's choice is labelled per operation on the [coverage page](../coverage.md). The [SSM guide](ssm.md) shows each item below.
+Real AWS was recorded for SSM on 2026-11-03 (`testdata/parity/ssm/`), and understudy answers as recorded except where an item below or the [coverage page](../coverage.md) says otherwise. The [SSM guide](ssm.md) shows each item below.
 
 - AWS serves the legacy Query protocol, a POST with `?Action=GetParameter` in the query string and no `X-Amz-Target`, answering with the parameter (recorded in LocalStack's API Gateway SSM tests, 2024-07-12). understudy answers 501 `NotImplemented` naming the protocol, for every SSM operation, and answers a form-encoded POST with `Action` in the body the same way (AWS's answer to that form is unrecorded). Send the JSON 1.1 request the SDKs and the CLI send.
 - AWS public parameters (`/aws/service/...`) and Secrets Manager references (`/aws/reference/secretsmanager/...`) answer 501 `NotImplemented` on every Parameter Store operation. Read the value from its own source, or store a copy under a name of your own.
 - Parameter policies, `DataType` `aws:ec2:image`, an Advanced-tier SecureString and an `AllowedPattern` Go's RE2 cannot compile answer 501 `NotImplemented`; nothing is stored.
+- AWS answers `AccessDeniedException` for a name under `/aws/service/` it does not publish (`ssm/SSM-02/05-public.json`); understudy answers 501 there.
 - No `Parameter Store Change` events reach EventBridge.
 - The default parameter tier is always Standard, since the service settings answer 501.
-- Under `--iam-enforce enforce`, a SecureString on the default key `alias/aws/ssm` is encrypted and decrypted by SSM itself, so an identity policy that explicitly denies `kms:Encrypt` or `kms:Decrypt` on that key does not stop the call. A parameter ARN of another account is denied before understudy looks for it; AWS's answer there is unrecorded.
+- `GetParametersByPath` and `DescribeParameters` list in name order across pages. AWS orders each page by name but not the listing as a whole (`ssm/SSM-19/01-default-page.json`, `ssm/SSM-20/01-default-page.json`); a client that reads every page sees the same set.
+- AWS lists `InvalidLabels` and `TagList` in an order of its own; understudy lists refused labels in request order and tags in the order they were first set.
+- A KMS failure carries KMS's message without the `(Service: AWSKMS; ...; Request ID: ...; Proxy: null)` suffix AWS appends (`ssm/SSM-22/04-missing-key.json`).
+- A `{{...}}` value's refusal leaves out the value AWS's message quotes, since understudy never puts a parameter value in a message.
+- AWS sorts the members of every JSON response body by name; understudy writes them in model order. JSON parsers read both the same.
+- Under `--iam-enforce enforce`, a SecureString on the default key `alias/aws/ssm` is encrypted and decrypted by SSM itself, so an identity policy that explicitly denies `kms:Encrypt` or `kms:Decrypt` on that key does not stop the call.
 
 ## Signatures
 

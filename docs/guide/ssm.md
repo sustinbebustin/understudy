@@ -35,7 +35,7 @@ Writing the name again needs `--overwrite`, which adds version 2. Without it the
 An error occurred (ParameterAlreadyExists) when calling the PutParameter operation: The parameter already exists. To overwrite this value, set the overwrite option in the request to true.
 ```
 
-A parameter keeps its last 100 versions. A name with more than one level must begin with a slash, and a first level beginning with `aws` or `ssm`, in any case, is reserved: understudy refuses `/ssm-config` with `ValidationException`. AWS documents the reservation, but which error it answers, and whether it catches a reserved first level after a leading slash, is unrecorded (SSM-04).
+A parameter keeps its last 100 versions. A name with more than one level must begin with a slash, and a first level beginning with `aws` or `ssm`, in any case, is reserved: understudy refuses `/ssm-config` with `ValidationException`, and a first level of exactly `aws`, such as `/aws/config`, with `AccessDeniedException` (`No access to reserved parameter name: aws/config.`), as AWS does.
 
 ## SecureString
 
