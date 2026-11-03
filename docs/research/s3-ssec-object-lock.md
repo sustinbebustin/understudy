@@ -203,7 +203,7 @@ SSE-C does not change the checksum rules of [s3.md](s3.md) 6: a raw SSE-C PUT wi
 | date without mode | same | `ArgumentName=x-amz-object-lock-mode` | L17927 |
 | bad mode with a date | Unknown wormMode directive. | `ArgumentName=x-amz-object-lock-mode`, `ArgumentValue=BAD-VALUE` | L17938 (PutObject), L17950 (CreateMultipartUpload) |
 
-- UNVERIFIED (S3SOL-17): lock headers on a bucket without Object Lock. Plausible: `400 InvalidRequest` "Bucket is missing Object Lock Configuration", the recorded text of the retention and legal-hold operations (6.4).
+- Recorded (S3SOL-17, recorded 2026-11-03; `testdata/parity/s3/S3SOL/17-*.json`): lock headers on a bucket without Object Lock get `400 InvalidRequest`, "Bucket is missing ObjectLockConfiguration", with no space in the last word, unlike the retention and legal-hold operations' "Bucket is missing Object Lock Configuration" (6.4). Recorded for a retention and for a legal hold `ON` on PutObject to a versioned bucket, a retention on PutObject to an unversioned one, and a legal hold `ON` on CreateMultipartUpload and CopyObject. A hold `OFF` is inferred to be refused the same way; whether this check runs before the 6.3 checksum rule is inferred (every S3SOL-17 step sent a checksum).
 - UNVERIFIED (S3SOL-18): a past date, an unparsable date, a date more than 100 years out, a bad legal-hold value on PutObject, and the summer-time rendering of the 6.4 past-date `ArgumentValue`. Plausible: the 6.4 past-date text with `ArgumentName=x-amz-object-lock-retain-until-date`.
 
 ### 6.3 The Content-MD5 or checksum requirement
@@ -424,7 +424,7 @@ Run `just coverage-check` after re-marking and commit the regenerated `docs/cove
 | `s3.object-lock.default-years` | a year is a calendar year; Days 1..36500 and Years 1..100, else `InvalidArgument` "Default retention period must be a positive integer value." or "Default retention period too large." naming the element | aws-recorded | 5.2, 5.3 | S3SOL-13 |
 | `s3.object-lock.checksum-scope` | PutObject with any lock header, a legal hold alone included, or into a default-retention bucket, and UploadPart of an upload created with lock headers (or under a default, inferred), with the part's own text; satisfied by `Content-MD5` or an `x-amz-checksum-*` header or trailer, not by a signed payload hash | aws-recorded | 6.3 | S3SOL-14, S3SOL-15 |
 | `s3.object-lock.copy-default` | CopyObject into a default-retention bucket applies the default, no checksum needed | inferred | 6.3, 6.8 | S3SOL-16 |
-| `s3.object-lock.headers-without-lock` | 400 `InvalidRequest` "Bucket is missing Object Lock Configuration" | inferred | 6.2 | S3SOL-17 |
+| `s3.object-lock.headers-without-lock` | 400 `InvalidRequest` "Bucket is missing ObjectLockConfiguration" | aws-recorded | 6.2 | S3SOL-17 |
 | `s3.object-lock.header-texts` | past date: 400 `InvalidArgument` "The retain until date must be in the future!" with `ArgumentName` the header; a date over 100 years ahead, an unparsable date, a bad legal-hold value: 400 `InvalidArgument` with `ArgumentName` and `ArgumentValue` and an understudy text naming the header; date `ArgumentValue`s rendered as Java `Date.toString()` in America/Los_Angeles (PST or PDT) | inferred | 6.2, 6.4 | S3SOL-18 |
 | `s3.object-lock.mode-upgrade` | GOVERNANCE to COMPLIANCE without bypass refused with the lock 403 | inferred | 6.4 | S3SOL-19 |
 | `s3.object-lock.date-without-mode` | `MalformedXML` | inferred | 6.4 | S3SOL-20 |
@@ -769,7 +769,7 @@ rec S3SOL/17-mpu-hold aws s3api create-multipart-upload --bucket "$N" --key l17 
 rec S3SOL/17-copy-hold aws s3api copy-object --bucket "$N" --key l17 --copy-source "$N/n1" --object-lock-legal-hold-status ON
 ```
 
-Expected: 400 `InvalidRequest` "Bucket is missing Object Lock Configuration" each (hypothesis). Cost under USD 0.01, 2 minutes. Teardown: abort any upload on `$N`; objects by 12.1.
+Expected: 400 `InvalidRequest` "Bucket is missing Object Lock Configuration" each (hypothesis). Recorded 2026-11-03: 400 `InvalidRequest` each, with the text "Bucket is missing ObjectLockConfiguration" (6.2). Cost under USD 0.01, 2 minutes. Teardown: abort any upload on `$N`; objects by 12.1.
 
 ### 12.19 S3SOL-18. PutObject lock header validation texts
 

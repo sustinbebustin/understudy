@@ -21,8 +21,7 @@ func TestLockTargetBeforeTheChecksumRule(t *testing.T) {
 			Bucket: "plain", Key: "k", Body: bytesBody("v"),
 			ObjectLockMode: new(s3api.ObjectLockModeGovernance), ObjectLockRetainUntilDate: &until,
 		})
-		code, status := h.switchCode("s3.object-lock.headers-without-lock")
-		failure{status: status, code: code, message: "Bucket is missing Object Lock Configuration"}.is(t, "retention without a checksum on a plain bucket", err)
+		errNoLockConfigOnWrite.is(t, "retention without a checksum on a plain bucket", err)
 		nothingWritten(t, h, "plain", "k")
 	})
 }

@@ -279,11 +279,13 @@ func (h *LegalHold) UnmarshalText(text []byte) error {
 }
 
 // checkLockTarget refuses explicit lock settings on a bucket without
-// Object Lock with 400 InvalidRequest (switch
-// s3.object-lock.headers-without-lock).
+// Object Lock with 400 InvalidRequest "Bucket is missing
+// ObjectLockConfiguration", which, unlike missingLockConfigText, has no
+// spaces in its last word (s3-ssec-object-lock.md 6.2; S3SOL-17, recorded
+// 2026-11-03).
 func checkLockTarget(b *Bucket, explicit ObjectLock) *awserr.Error {
 	if explicit != (ObjectLock{}) && b.ObjectLock == nil {
-		return errInvalidRequest(missingLockConfigText)
+		return errInvalidRequest("Bucket is missing ObjectLockConfiguration")
 	}
 	return nil
 }

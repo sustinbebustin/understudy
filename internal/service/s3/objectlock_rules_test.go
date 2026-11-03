@@ -507,11 +507,10 @@ func lockConfig(mode s3api.ObjectLockRetentionMode, days, years *int32) *s3api.O
 }
 
 // TestCheckLockTarget: explicit lock settings on a bucket without Object
-// Lock are refused (switch s3.object-lock.headers-without-lock), none are
-// fine anywhere, and any are fine on a lock bucket.
+// Lock are refused (S3SOL-17, recorded 2026-11-03), none are fine
+// anywhere, and any are fine on a lock bucket.
 func TestCheckLockTarget(t *testing.T) {
-	code, status := codeOf(t, switchValues(t), "s3.object-lock.headers-without-lock")
-	missing := wantError{status: status, code: code, message: "Bucket is missing Object Lock Configuration"}
+	missing := wantError{status: 400, code: "InvalidRequest", message: "Bucket is missing ObjectLockConfiguration"}
 	explicit := []ObjectLock{
 		{LegalHold: LegalHoldOn},
 		{LegalHold: LegalHoldOff},

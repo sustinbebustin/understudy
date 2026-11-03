@@ -34,15 +34,15 @@ func TestIntegrityDeclared(t *testing.T) {
 
 // TestLockRequestCheck: against its bucket a write's lock settings are
 // judged in the order of s3-ssec-object-lock.md 11.3: explicit settings on
-// a bucket without Object Lock first (switch
-// s3.object-lock.headers-without-lock), then the Content-MD5 or checksum
+// a bucket without Object Lock first (S3SOL-17's text; the order is
+// inferred), then the Content-MD5 or checksum
 // requirement of a PutObject with lock settings of its own, a legal hold
 // alone included, or whose version gets the bucket default's retention
 // (testdata/parity/s3/R12/11-put-without-checksum.json; S3SOL-14
 // 14-legal-hold-only, recorded 2026-11-03; a hold set OFF is inferred to
 // count as ON does).
 func TestLockRequestCheck(t *testing.T) {
-	missing := wantError{status: 400, code: "InvalidRequest", message: "Bucket is missing Object Lock Configuration"}
+	missing := wantError{status: 400, code: "InvalidRequest", message: "Bucket is missing ObjectLockConfiguration"}
 	needsSum := wantError{status: 400, code: "InvalidRequest", message: "Content-MD5 OR x-amz-checksum- HTTP header is required for Put Object requests with Object Lock parameters"}
 	gov := s3api.ObjectLockRetentionModeGovernance
 	rapid.Check(t, func(t *rapid.T) {

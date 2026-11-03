@@ -27,6 +27,9 @@ var (
 	errNoLockState = failure{status: 404, code: "NoSuchObjectLockConfiguration", message: "The specified object does not have a ObjectLock configuration"}
 	// L9510, L9520, L9992, L10012.
 	errNoLockConfig = failure{status: 400, code: "InvalidRequest", message: "Bucket is missing Object Lock Configuration"}
+	// A write's lock headers on a bucket without Object Lock (S3SOL-17,
+	// recorded 2026-11-03).
+	errNoLockConfigOnWrite = failure{status: 400, code: "InvalidRequest", message: "Bucket is missing ObjectLockConfiguration"}
 	// LocalStack test_s3_api.snapshot.json L3535, L3546, L3557.
 	errBypassWithoutLock = failure{
 		status: 400, code: "InvalidArgument", message: "x-amz-bypass-governance-retention is only applicable to Object Lock enabled buckets.",
@@ -343,15 +346,17 @@ func TestObjectLockHeaderValidation(t *testing.T) {
 }
 
 // TestObjectLockHeadersNeedALockBucket: valid retention or legal-hold
-// headers on a bucket without Object Lock are refused under switch
-// s3.object-lock.headers-without-lock, and nothing is written.
+// headers on a bucket without Object Lock are refused with 400
+// InvalidRequest "Bucket is missing ObjectLockConfiguration", without the
+// spaces of the retention operations' text, and nothing is written
+// (S3SOL-17, recorded 2026-11-03: PutObject, CreateMultipartUpload and
+// CopyObject, versioned bucket or not; a hold set OFF is inferred).
 func TestObjectLockHeadersNeedALockBucket(t *testing.T) {
 	runObjects(t, func(h *harness) {
 		t := h.T
 		h.createBucket("plain")
 		h.put("plain", "src", "source")
-		code, status := h.switchCode("s3.object-lock.headers-without-lock")
-		missing := failure{status: status, code: code, message: "Bucket is missing Object Lock Configuration"}
+		missing := errNoLockConfigOnWrite
 		until := h.Clock.Now().Wire().Add(24 * time.Hour)
 		for name, l := range map[string]s3api.PutObjectInput{
 			"retention":      retention(s3api.ObjectLockModeGovernance, until),

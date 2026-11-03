@@ -126,7 +126,7 @@ func TestSSECAndObjectLockSwitches(t *testing.T) {
 		{"s3.object-lock.default-years", "calendar-years", recorded, "53-default-retention-dating", "S3SOL-13", []string{"s3.PutObjectLockConfiguration", "s3.PutObject", "s3.CopyObject", "s3.CompleteMultipartUpload"}},
 		{"s3.object-lock.checksum-scope", "any-lock-parameter-and-parts", recorded, "63-the-content-md5-or-checksum-requirement", "S3SOL-14, S3SOL-15", []string{"s3.PutObject", "s3.UploadPart"}},
 		{"s3.object-lock.copy-default", "default-applied", inferred, "68-copyobject-does-not-carry-lock-state", "S3SOL-16", []string{"s3.CopyObject"}},
-		{"s3.object-lock.headers-without-lock", "InvalidRequest", inferred, "62-header-validation-third-party-recorded-all-400-invalidargument", "S3SOL-17", []string{"s3.PutObject", "s3.CopyObject", "s3.CreateMultipartUpload"}},
+		{"s3.object-lock.headers-without-lock", "InvalidRequest", recorded, "62-header-validation-third-party-recorded-all-400-invalidargument", "S3SOL-17", []string{"s3.PutObject", "s3.CopyObject", "s3.CreateMultipartUpload"}},
 		{"s3.object-lock.header-texts", "InvalidArgument", inferred, "62-header-validation-third-party-recorded-all-400-invalidargument", "S3SOL-18", []string{"s3.PutObject", "s3.CopyObject", "s3.CreateMultipartUpload", "s3.PutObjectRetention"}},
 		{"s3.object-lock.mode-upgrade", "refused", inferred, "64-putobjectretention-and-getobjectretention", "S3SOL-19", []string{"s3.PutObjectRetention"}},
 		{"s3.object-lock.date-without-mode", "MalformedXML", inferred, "64-putobjectretention-and-getobjectretention", "S3SOL-20", []string{"s3.PutObjectRetention"}},
