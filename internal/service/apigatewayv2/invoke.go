@@ -508,7 +508,15 @@ func (t toFunction) event(r httpevent.Request, c httpevent.Context) ([]byte, err
 func (t toFunction) response(payload []byte) (httpevent.Response, error) {
 	contentType := PayloadSwitch().Value.DefaultContentType
 	if t.integration.PayloadFormatVersion != payloadV1 {
-		return httpevent.InferV2With(payload, httpevent.V2Defaults{ContentType: contentType})
+		resp, err := httpevent.InferV2With(payload, httpevent.HTTPAPIDefaults(contentType))
+		if err != nil {
+			return httpevent.Response{}, err
+		}
+		// The cookies member's Set-Cookie headers come before a set-cookie
+		// in headers (APIGW2-09, recorded 2026-11-03: 2.0-cookies).
+		resp.Cookies = append(resp.Cookies, resp.Header.Values("Set-Cookie")...)
+		resp.Header.Del("Set-Cookie")
+		return resp, nil
 	}
 	resp, err := httpevent.InferV1(payload)
 	if err != nil {

@@ -369,6 +369,33 @@ func TestResponseV2(t *testing.T) {
 	})
 }
 
+// What APIGW2-09 recorded of 2.0 responses (2026-11-03,
+// apigateway-http.md 5.3): output without a statusCode is relayed as the
+// function wrote it, a statusCode may be a string of digits, a number
+// header value is its JSON text, and cookies are sent before a set-cookie
+// header.
+func TestResponseV2AsRecorded(t *testing.T) {
+	run(t, func(h *harness) {
+		id, _ := h.lambdaAPI("2.0", "GET /hello")
+		h.fn.answer(`{"body": "x", "headers": {"x-a": "b"}}`)
+		if rec := h.get(id, "/hello"); rec.Code != http.StatusOK || rec.Body.String() != `{"body": "x", "headers": {"x-a": "b"}}` || rec.Header().Get("Content-Type") != "application/json" {
+			t.Errorf("object without statusCode = %d %q %q, want 200 application/json and the output as written", rec.Code, rec.Header().Get("Content-Type"), rec.Body)
+		}
+		h.fn.answer(`{"statusCode":"201","body":"x"}`)
+		if rec := h.get(id, "/hello"); rec.Code != http.StatusCreated || rec.Body.String() != "x" {
+			t.Errorf("statusCode \"201\" = %d %q, want 201 x", rec.Code, rec.Body)
+		}
+		h.fn.answer(`{"statusCode":200,"headers":{"x-n":1},"body":"x"}`)
+		if rec := h.get(id, "/hello"); rec.Code != http.StatusOK || rec.Header().Get("X-N") != "1" {
+			t.Errorf("number header = %d %v, want 200 with x-n: 1", rec.Code, rec.Header())
+		}
+		h.fn.answer(`{"statusCode":200,"cookies":["a=1; Path=/","b=2"],"headers":{"set-cookie":"c=3"},"body":"x"}`)
+		if got := h.get(id, "/hello").Header().Values("Set-Cookie"); !slices.Equal(got, []string{"a=1; Path=/", "b=2", "c=3"}) {
+			t.Errorf("set-cookie = %q, want [a=1; Path=/ b=2 c=3]", got)
+		}
+	})
+}
+
 // The answers API Gateway gives before any integration runs, each the
 // apigatewayv2.front.answers or route.matching switch's (apigateway-http.md
 // 4.5: Not Found for no stage and no route is documented, the rest
