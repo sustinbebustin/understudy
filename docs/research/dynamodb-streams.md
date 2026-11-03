@@ -460,10 +460,12 @@ Rejected alternative: proxy the four operations to Local and rewrite only ARNs (
 
 | Operation | Status | Coverage note (exact text) |
 |---|---|---|
-| ListStreams | full | |
+| ListStreams | partial | `a constraint violation's text quotes the value ("Value '0' at 'limit'"), where AWS's omits it ("Value at 'limit'") (dynamodb-streams.md 6.5)`: DDBS-02 recorded AWS's text without the value |
 | DescribeStream | partial | `aws-differs: understudy: a stream has one shard, which never splits or rolls over; AWS opens a shard per table partition and closes shards as it replaces them` (plus, while `dynamodb.streams.status-transitions` is `immediate`: `; StreamStatus is ENABLED or DISABLED at once, never ENABLING or DISABLING`) |
 | GetShardIterator | partial | `AT_TIMESTAMP is refused: the pinned model (api-models-aws 1cfdfb4) predates it` until the pin moves to `60e5ceb` or later; then implement it on the log (3.5) and mark the operation full |
 | GetRecords | partial | `aws-differs: understudy: more than two concurrent readers of a shard are never throttled; inject LimitExceededException with a fault rule` |
+
+The other three rows are the notes as first planned; the recordings since extended them, and the notes as bound are in `internal/service/dynamodb/streams.go` and `docs/coverage.md`.
 
 No Streams operation stays unbound. DynamoDB's Kinesis streaming-destination operations stay unbound (`docs/coverage.md`).
 

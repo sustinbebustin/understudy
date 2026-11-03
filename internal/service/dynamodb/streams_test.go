@@ -12,11 +12,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sustinbebustin/understudy/internal/api/dynamodbstreamsapi"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/evidence"
 	"github.com/sustinbebustin/understudy/internal/fidelity"
 	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/registry"
 	"github.com/sustinbebustin/understudy/internal/service/dynamodb"
 	"github.com/sustinbebustin/understudy/internal/shardlog"
 )
@@ -393,6 +395,28 @@ func TestListStreams(t *testing.T) {
 		e := h.errorOf(h.streamsCall("ListStreams", `{"Limit":101}`, defaultCaller()), http.StatusBadRequest)
 		if e.text() != "One or more parameter values were invalid: Limit cannot be greater than the maximum allowed size: 100" || !strings.HasSuffix(e.Type, "ValidationException") {
 			h.Errorf("Limit 101 = %+v", e)
+		}
+	})
+}
+
+// ListStreams' Limit and TableName constraint failures use the generated
+// Coral text, which quotes the value where AWS's omits it (aws-recorded,
+// dynamodb-streams.md 6.5: DDBS-02), so ListStreams is Partial with the
+// same clause as the other Streams operations, not Full.
+func TestListStreamsNotesTheConstraintTexts(t *testing.T) {
+	runStreams(t, dynamodb.Options{}, func(h *streamsHarness) {
+		const clause = "a constraint violation's text quotes the value (\"Value '0' at 'limit'\"), where AWS's omits it (\"Value at 'limit'\")"
+		i := slices.IndexFunc(dynamodbstreamsapi.Service().Operations, func(op *registry.Operation) bool { return op.ID.Name == "ListStreams" })
+		if i < 0 {
+			h.Fatal("dynamodbstreamsapi has no ListStreams operation")
+		}
+		status := h.Kernel.Bindings().Status(dynamodbstreamsapi.Service().Operations[i])
+		bound, ok := status.(kernel.Bound)
+		if !ok {
+			h.Fatalf("ListStreams is %#v, want bound", status)
+		}
+		if p, ok := bound.Coverage.(registry.Partial); !ok || !strings.Contains(p.Note, clause) {
+			h.Errorf("ListStreams coverage = %#v, want Partial with the note %q", bound.Coverage, clause)
 		}
 	})
 }

@@ -13,7 +13,6 @@ import (
 	"github.com/sustinbebustin/understudy/internal/fidelity"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/ref"
-	"github.com/sustinbebustin/understudy/internal/registry"
 	"github.com/sustinbebustin/understudy/internal/shardlog"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
@@ -57,9 +56,10 @@ const getRecordsNote = "aws-differs: understudy: more than two concurrent reader
 func NewStreams(d kernel.ServiceDeps, svc *Service) *Streams {
 	s := &Streams{svc: svc}
 	b := dynamodbstreamsapi.NewBinder(d.Binder)
-	// Every ListStreams answer DDBS-02, DDBS-03, DDBS-08 and DDBS-17 recorded
-	// is AWS's (dynamodb-streams.md 6.1).
-	b.ListStreams(s.listStreams, registry.Full{})
+	// Every ListStreams answer DDBS-03, DDBS-08 and DDBS-17 recorded is
+	// AWS's (dynamodb-streams.md 6.1); its Limit and TableName constraint
+	// texts are the generated ones (6.5).
+	b.ListStreams(s.listStreams, notes(constraintTexts+" (dynamodb-streams.md 6.5)"))
 	b.DescribeStream(s.describeStream, notes(describeStreamNote))
 	b.GetShardIterator(s.getShardIterator, notes(getShardIteratorNote))
 	b.GetRecords(s.getRecords, notes(getRecordsNote))
