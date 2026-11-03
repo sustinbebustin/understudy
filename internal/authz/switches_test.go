@@ -47,12 +47,13 @@ func TestSwitchesRegisterEveryEvaluationChoice(t *testing.T) {
 			t.Errorf("authz.Switches() registers %s %d times, want once", name, seen[name])
 		}
 	}
-	// iam-evaluation.md 12.3 labels mfa-present aws-doc: S-KEYS documents
-	// that a Bool false test "applies only to temporary credentials that
-	// support using MFA".
+	// mfa-present was aws-doc (S-KEYS: a Bool false test "applies only to
+	// temporary credentials that support using MFA") and is now recorded:
+	// both Null false and Bool false matched in a session without MFA
+	// (iam-evaluation.md 12.3, IAM-EVAL-26).
 	for _, e := range authz.Switches() {
-		if e.Name == "iam.context.mfa-present" && e.Label != evidence.AWSDoc {
-			t.Errorf("iam.context.mfa-present label = %s, want %s (iam-evaluation.md 12.3)", e.Label, evidence.AWSDoc)
+		if e.Name == "iam.context.mfa-present" && e.Label != evidence.AWSRecorded {
+			t.Errorf("iam.context.mfa-present label = %s, want %s (iam-evaluation.md 12.3)", e.Label, evidence.AWSRecorded)
 		}
 	}
 }

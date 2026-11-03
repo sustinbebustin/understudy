@@ -97,8 +97,9 @@ func runGatedStream(t *testing.T, gate *actionGate, f esm.StreamFidelity, fn fun
 // UpdateEventSourceMapping's answer when iam.enforce refuses the execution
 // role's DescribeStream of the stream: switch lambda.esm.create-denied-text
 // with the stream's action and service (spec enforce matrix row 2;
-// iam-enforcement-surfaces.md 8.6, inferred, IAM-ENF-24).
-const streamRoleDenied = "The provided execution role does not have permissions to call DescribeStream on DynamoDB"
+// iam-enforcement-surfaces.md 8.6; the queue's sentence is recorded,
+// IAM-ENF-24, and a stream's follows it).
+const streamRoleDenied = "The function execution role does not have permissions to call DescribeStream on DynamoDB"
 
 // Spec enforce matrix row 2: Create and Update of a stream mapping whose
 // execution role may not read the stream are refused with
@@ -151,7 +152,7 @@ func TestStreamMappingAtLatestRefusesARoleThatMayNotReadRecords(t *testing.T) {
 		gate.refuse("dynamodb:GetShardIterator")
 		latest := lambdaapi.CreateEventSourceMappingInput{StartingPosition: new(lambdaapi.EventSourcePosition("LATEST"))}
 		err := fail(h.harness, lambdaapi.OpCreateEventSourceMapping, h.streamInput(latest))
-		const want = "The provided execution role does not have permissions to call GetShardIterator on DynamoDB"
+		const want = "The function execution role does not have permissions to call GetShardIterator on DynamoDB"
 		if err.ID.Shape.Name() != "InvalidParameterValueException" || err.Message != want {
 			h.Errorf("Create at LATEST = %s %q, want InvalidParameterValueException %q", err.ID.Shape, err.Message, want)
 		}

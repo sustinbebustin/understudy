@@ -6,11 +6,11 @@ import (
 
 	"github.com/sustinbebustin/understudy/internal/authz"
 	"github.com/sustinbebustin/understudy/internal/aws"
-	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/identity"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/policydoc"
 	"github.com/sustinbebustin/understudy/internal/ref"
+	"github.com/sustinbebustin/understudy/internal/registry"
 )
 
 // identity reads p's identity-based side. A user or role IAM does not hold
@@ -164,33 +164,25 @@ func arnRegion(pair kernel.Pair) string {
 	return aws.DefaultRegion().String()
 }
 
-// grammar is the form service writes a denial of pair in
-// (iam-enforcement-surfaces.md 4.1 to 4.3): S3's variant, STS's recorded
-// text, kms:Decrypt's ciphertext text, else the documented grammar.
-func grammar(service ref.ServiceID, pair kernel.Pair) authz.Grammar {
-	switch {
-	case service == "s3":
-		return authz.GrammarS3
-	case service == "sts":
+// grammar is the form a denial of action, asked by a call to service, is
+// written in (iam-enforcement-surfaces.md 4.1 to 4.3): STS's recorded text
+// for a call to STS; else by the service that owns the action, S3's
+// variant, SQS's and SNS's spelling of the action, or the documented
+// grammar, which kms:Decrypt follows too (IAM-ENF-05). The action's own
+// service writes it: S3 relays KMS's text for a refused kms:Decrypt
+// (IAM-ENF-28), and EventBridge SQS's for a refused delivery (IAM-ENF-22).
+// SQS answers the same text over JSON and Query (IAM-ENF-01, IAM-ENF-02).
+func grammar(service ref.ServiceID, action registry.IAMAction) authz.Grammar {
+	if service == "sts" {
 		return authz.GrammarSTS
-	case pair.Action.Prefix == "kms" && pair.Action.Name == "Decrypt":
-		return authz.GrammarKMSCiphertext
+	}
+	switch action.Prefix {
+	case "s3":
+		return authz.GrammarS3
+	case "sqs":
+		return authz.GrammarSQS
+	case "sns":
+		return authz.GrammarSNS
 	}
 	return authz.GrammarIAM
-}
-
-// protocolMessages are the texts a denial carries on one protocol: SQS over
-// Query answers "Access to the resource <url> is denied." with the queue's
-// URL on the endpoint the client addressed, or that endpoint for a pair on
-// no queue (iam-enforcement-surfaces.md 4.3, aws-doc text form; which URL is
-// switch sqs.denial.query-text).
-func protocolMessages(c *kernel.Call, pair kernel.Pair) []awserr.ProtocolMessage {
-	if serviceOf(c) != "sqs" {
-		return nil
-	}
-	url := c.Endpoint().String() + "/"
-	if on, ok := pair.Resource.(kernel.ResourceARN); ok && on.ARN.Service == "sqs" {
-		url += on.ARN.Account + "/" + on.ARN.Resource
-	}
-	return []awserr.ProtocolMessage{{Protocol: ref.AWSQuery, Message: "Access to the resource " + url + " is denied."}}
 }

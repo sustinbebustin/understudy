@@ -670,24 +670,6 @@ func TestAnAuthorizerPanicIsInternal(t *testing.T) {
 	})
 }
 
-// A denial's per-protocol messages ride on the error (SQS over Query names
-// the queue URL, iam-enforcement-surfaces.md 4.3).
-func TestADenialKeepsItsProtocolMessages(t *testing.T) {
-	g := newGuard(guardDenial())
-	query := []awserr.ProtocolMessage{{Protocol: ref.AWSQuery, Message: "Access to the resource http://localhost:4566/000000000000/q is denied."}}
-	a := &fakeAuthorizer{decide: func(kernel.AuthzQuery) kernel.Verdict {
-		return kernel.Denied{Message: "generic", Messages: query}
-	}}
-	runGuard(t, g, a, func(k *kerneltest.K) {
-		bindGuard(k, g.run, guardDone)
-		_, err := k.Invoke(k.Context(), g.run, &guardInput{})
-		wantDenial(k, err, "generic")
-		if !reflect.DeepEqual(err.Messages, query) || err.MessageFor(ref.AWSQuery) != query[0].Message || err.MessageFor(ref.AWSJSON10) != "generic" {
-			k.Errorf("messages = %+v, want the Query override beside the generic text", err.Messages)
-		}
-	})
-}
-
 // authorizeRole is a handler that resolves guardRole itself and asks
 // kernel.Authorize whether it may pass it.
 func authorizeRole(keys kernel.ConditionKeys) kernel.Handler[guardInput, guardOutput] {

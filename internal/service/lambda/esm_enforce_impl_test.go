@@ -80,7 +80,8 @@ func TestESMCreateRefusesARoleThatMayNotReadTheQueue(t *testing.T) {
 		h.quiesce()
 		gate.refusing.Store(true)
 		err := fail(h.harness, lambdaapi.OpCreateEventSourceMapping, &lambdaapi.CreateEventSourceMappingInput{FunctionName: "worker", EventSourceArn: new(arn)})
-		const want = "The provided execution role does not have permissions to call ReceiveMessage on SQS"
+		// testdata/parity/lambda/IAM-ENF/24-create.json
+		const want = "The function execution role does not have permissions to call ReceiveMessage on SQS"
 		if err.ID.Shape.Name() != "InvalidParameterValueException" || err.Message != want {
 			h.Errorf("CreateEventSourceMapping = %s %q, want InvalidParameterValueException %q", err.ID.Shape, err.Message, want)
 		}
@@ -120,9 +121,9 @@ func TestESMStaysEnabledWhenItsRoleLosesTheQueue(t *testing.T) {
 		wantBodies(h, rec.bodies(), [][]string{{"queued"}})
 
 		want := map[string]string{
-			"lambda.esm.create-denied-text": "The provided execution role does not have permissions to call ReceiveMessage on SQS; " +
-				"for a DynamoDB stream: The provided execution role does not have permissions to call DescribeStream on DynamoDB; " +
-				"for a Kinesis stream: The provided execution role does not have permissions to call DescribeStreamSummary on Kinesis",
+			"lambda.esm.create-denied-text": "The function execution role does not have permissions to call ReceiveMessage on SQS; " +
+				"for a DynamoDB stream: The function execution role does not have permissions to call DescribeStream on DynamoDB; " +
+				"for a Kinesis stream: The function execution role does not have permissions to call DescribeStreamSummary on Kinesis",
 			"lambda.esm.permission-loss": "stay-enabled",
 		}
 		for _, e := range h.svc.Switches() {

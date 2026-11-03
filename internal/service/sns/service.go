@@ -148,9 +148,9 @@ func (s *Service) Switches() []fidelity.Entry {
 		pendingInListings().Entry(), fifoSequence().Entry(), lambdaAttributeTypes().Entry(), fifoDuplicate().Entry(),
 		detachedRetention().Entry(),
 		// The code and status are the model's AuthorizationErrorException
-		// (aws-doc); the message is inferred.
-		authz.DenialSwitch("sns.denial.text", "AuthorizationError 403 with the grammar of 4.1", evidence.Inferred, "3.2", "IAM-ENF-03",
-			s.bindings.AuthorizedOps(snsapi.Service())),
+		// (aws-doc); the recorded message writes the action "SNS:<Name>".
+		authz.RecordedSwitch("sns.denial.text", "AuthorizationError 403 with the grammar of 4.1, the action's prefix written SNS", "3.2", "IAM-ENF-03",
+			authz.SessionUnreplayed, s.bindings.AuthorizedOps(snsapi.Service())),
 		deliverySourceAccount(), subscribePolicyCheck(), defaultPolicyDirectCalls(s.bindings.AuthorizedOps(snsapi.Service())),
 		authz.DeliveryResolveFirstSwitch("sns", "8.4", "IAM-ENF-22", s.bindings.DeliveryResolvedFirstOps(snsapi.Service())),
 	}
@@ -166,7 +166,7 @@ func (s *Service) Switches() []fidelity.Entry {
 // the statement does not match and a same-account caller needs an
 // identity-policy allow (iam-enforcement-surfaces.md 7.2, IAM-ENF-17).
 func defaultPolicyDirectCalls(ops []string) fidelity.Entry {
-	return authz.EnforcementSwitch("sns.default-policy.direct-calls", "identity-policy-required", evidence.Inferred, "7.2", "IAM-ENF-17", ops)
+	return authz.RecordedSwitch("sns.default-policy.direct-calls", "identity-policy-required", "7.2", "IAM-ENF-17", authz.SessionUnreplayed, ops)
 }
 
 // deliverySourceAccount is whether SNS sends aws:SourceAccount, the topic's
@@ -176,7 +176,7 @@ func defaultPolicyDirectCalls(ops []string) fidelity.Entry {
 // publish (iam-enforcement-surfaces.md 8.1, IAM-ENF-18). topicRef.deliveryFrom
 // applies it.
 func deliverySourceAccount() fidelity.Entry {
-	return authz.EnforcementSwitch("sns.delivery.source-account", "present", evidence.Inferred, "8.1", "IAM-ENF-18",
+	return authz.RecordedSwitch("sns.delivery.source-account", "present", "8.1", "IAM-ENF-18", authz.DeliveryUnreplayed,
 		[]string{"sns.Publish", "sns.Subscribe"})
 }
 
@@ -185,6 +185,6 @@ func deliverySourceAccount() fidelity.Entry {
 // each delivery instead, under iam.enforce=enforce
 // (iam-enforcement-surfaces.md 8.2, IAM-ENF-19).
 func subscribePolicyCheck() fidelity.Entry {
-	return authz.EnforcementSwitch("sns.subscribe.policy-check", "none", evidence.Inferred, "8.2", "IAM-ENF-19",
+	return authz.RecordedSwitch("sns.subscribe.policy-check", "none", "8.2", "IAM-ENF-19", authz.DeliveryUnreplayed,
 		[]string{"sns.Subscribe"})
 }

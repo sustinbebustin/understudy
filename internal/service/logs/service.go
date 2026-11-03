@@ -127,7 +127,7 @@ func (s *Service) Switches() []fidelity.Entry {
 	table := filterSwitches()
 	out := make([]fidelity.Entry, 0, 3+len(switches))
 	out = append(out, expiryRule().Entry(), deliveryRetention().Entry(),
-		authz.DenialSwitch("logs.denial.status", "AccessDeniedException 400", evidence.ThirdPartyRecorded, "3.2", "IAM-ENF-07", s.k.Bindings().AuthorizedOps(logsapi.Service())))
+		authz.RecordedSwitch("logs.denial.status", "AccessDeniedException 400", "3.2", "IAM-ENF-07", authz.SessionUnreplayed, s.k.Bindings().AuthorizedOps(logsapi.Service())))
 	for _, sw := range switches {
 		m := table[sw.Name]
 		out = append(out, fidelity.Switch[string]{

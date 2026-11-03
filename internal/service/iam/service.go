@@ -8,7 +8,6 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/iamapi"
 	"github.com/sustinbebustin/understudy/internal/authz"
 	"github.com/sustinbebustin/understudy/internal/aws"
-	"github.com/sustinbebustin/understudy/internal/evidence"
 	"github.com/sustinbebustin/understudy/internal/fidelity"
 	"github.com/sustinbebustin/understudy/internal/identity"
 	"github.com/sustinbebustin/understudy/internal/ids"
@@ -71,7 +70,7 @@ func (s *Service) Switches() []fidelity.Entry {
 	stepEight := slices.DeleteFunc(slices.Clone(authorized), func(op string) bool { return slices.Contains(byName, op) })
 	evaluation := authz.SwitchesOf("iam", nil)
 	out := make([]fidelity.Entry, 0, 2+len(evaluation))
-	out = append(out, authz.DenialSwitch("iam.denial.identity", "AccessDenied 403 with the IAM namespace", evidence.Inferred, "3.2", "IAM-ENF-10", authorized))
+	out = append(out, authz.RecordedSwitch("iam.denial.identity", "AccessDenied 403 with the IAM namespace", "3.2", "IAM-ENF-10", authz.SessionUnreplayed, authorized))
 	for _, e := range evaluation {
 		switch {
 		case e.Name == "iam.enforce.missing-resource":

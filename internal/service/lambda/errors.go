@@ -518,12 +518,12 @@ func errSQSFailure(code, message string) *awserr.Error {
 // esmRoleDeniedText is what CreateEventSourceMapping and
 // UpdateEventSourceMapping answer when iam.enforce=enforce refuses the
 // execution role's read of the mapping's source, naming the source's
-// action and service: the Terraform provider retries on the fragment
-// "execution role does not have permissions", and the rest of the sentence
-// is inferred (iam-enforcement-surfaces.md 4.3, 8.6, IAM-ENF-24; spec
-// enforce matrix row 2).
+// action and service: "The function execution role does not have
+// permissions to call ReceiveMessage on SQS" (iam-enforcement-surfaces.md
+// 4.3, 8.6, testdata/parity/lambda/IAM-ENF/24-create.json); a stream's
+// sentence follows the queue's (inferred).
 func esmRoleDeniedText(action, service string) string {
-	return "The provided execution role does not have permissions to call " + action + " on " + service
+	return "The function execution role does not have permissions to call " + action + " on " + service
 }
 
 // esmCreateDeniedValue is switch lambda.esm.create-denied-text's value:

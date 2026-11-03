@@ -26,9 +26,10 @@ func runGatedKinesis(t *testing.T, gate *actionGate, f esm.StreamFidelity, fn fu
 }
 
 // kinesisRoleDenied is lambda.esm.create-denied-text's sentence for a
-// Kinesis stream naming op (08b contract 6.1; inferred, IAM-ENF-24).
+// Kinesis stream naming op (08b contract 6.1; the queue's sentence is
+// recorded, IAM-ENF-24, and a stream's follows it).
 func kinesisRoleDenied(op string) string {
-	return "The provided execution role does not have permissions to call " + op + " on Kinesis"
+	return "The function execution role does not have permissions to call " + op + " on Kinesis"
 }
 
 // Row 2: Create and Update of a Kinesis mapping whose execution role may

@@ -182,8 +182,9 @@ func TestEnforceAnswersTheRecordedSTSDenial(t *testing.T) {
 }
 
 // S3 answers AccessDenied 403 with its variant of the grammar for a
-// principal of the bucket owner's account (iam-enforcement-surfaces.md 4.2,
-// aws-doc): an implicit identity denial names no resource.
+// principal of the bucket owner's account (iam-enforcement-surfaces.md 4.2):
+// an implicit identity denial names the resource quoted (IAM-ENF-12,
+// recorded 2026-11-03).
 func TestEnforceAnswersTheDocumentedS3Denial(t *testing.T) {
 	_, endpoint, u := enforced(t, server.IAMEnforceEnforce)
 	if got := s3Call(t, dummy, http.MethodPut, endpoint+"/docs", ""); got.status != http.StatusOK {
@@ -191,7 +192,7 @@ func TestEnforceAnswersTheDocumentedS3Denial(t *testing.T) {
 	}
 	w := restGet(t, u, "s3", endpoint+"/docs?list-type=2")
 	e := parseXMLError(t, w)
-	const message = "User: arn:aws:iam::000000000000:user/u is not authorized to perform: s3:ListBucket because no identity-based policy allows the s3:ListBucket action"
+	const message = "User: arn:aws:iam::000000000000:user/u is not authorized to perform: s3:ListBucket on resource: \"arn:aws:s3:::docs\" because no identity-based policy allows the s3:ListBucket action"
 	if w.status != http.StatusForbidden || e.S3Code != "AccessDenied" || e.S3Message != message {
 		t.Errorf("ListObjectsV2 denial = %d %s; want 403 AccessDenied %q", w.status, w.body, message)
 	}
@@ -203,8 +204,8 @@ func TestEnforceAnswersTheDocumentedS3Denial(t *testing.T) {
 // 12.8: sqs.denial.json-identity, sqs.denial.query-text,
 // iam.denial.identity, kms.denial.status, secretsmanager.denial.status,
 // logs.denial.status, events.denial.status, cloudwatch.denial.identity,
-// lambda.denial.body). SQS over Query names a URL on the endpoint the
-// client used (4.3, aws-doc text form).
+// lambda.denial.body). TestEnforceDenialsMatchTheRecordings compares the
+// messages with the recordings.
 func TestEnforceAnswersEachServicesDenialIdentity(t *testing.T) {
 	_, endpoint, u := enforced(t, server.IAMEnforceEnforce)
 	probes := []struct {
@@ -258,11 +259,6 @@ func TestEnforceAnswersEachServicesDenialIdentity(t *testing.T) {
 		}
 		if w.status != p.want.Status || code != want {
 			t.Errorf("%s denial = %d %q (%s); want %d %q", p.service, w.status, code, w.body, p.want.Status, want)
-		}
-		if p.service == "sqs query" {
-			if text := parseXMLError(t, w).Message; !strings.HasPrefix(text, "Access to the resource "+endpoint) || !strings.HasSuffix(text, " is denied.") {
-				t.Errorf("SQS Query denial text = %q, want %q", text, "Access to the resource "+endpoint+"/ is denied.")
-			}
 		}
 	}
 	if got := snsapi.DenialError(); got.QueryCode != "AuthorizationError" || got.Status != http.StatusForbidden {
@@ -427,7 +423,7 @@ func TestIAMEvaluate(t *testing.T) {
 		{Action: "sqs:ListQueues", Resource: "*", Decision: "allowed"},
 		{
 			Action: "sqs:CreateQueue", Resource: "*", Decision: "implicitDeny", PolicyType: "identity-based policy",
-			Message: "User: arn:aws:iam::000000000000:user/u is not authorized to perform: sqs:CreateQueue because no identity-based policy allows the sqs:CreateQueue action",
+			Message: "User: arn:aws:iam::000000000000:user/u is not authorized to perform: sqs:createqueue because no identity-based policy allows the sqs:createqueue action",
 		},
 		{Action: "sqs:DeleteQueue", Resource: "arn:aws:sqs:us-east-1:000000000000:q", Decision: "explicitDeny", PolicyType: "identity-based policy"},
 	}

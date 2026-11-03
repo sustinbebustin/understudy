@@ -190,22 +190,22 @@ func lambdaAction(name string) registry.IAMAction {
 // the calls that create or change a function or mapping and the reads that
 // report its state.
 func (s *Service) Switches() []fidelity.Entry {
-	// AccessDeniedException 403 is recorded for another account's ARN
-	// (third-party); the same-account body is inferred.
-	denial := authz.DenialSwitch("lambda.denial.body", `AccessDeniedException 403, {"Message":"<grammar of 4.1>"}`, evidence.Inferred, "3.2", "IAM-ENF-11",
-		s.k.Bindings().AuthorizedOps(lambdaapi.Service()))
+	denial := authz.RecordedSwitch("lambda.denial.body", `AccessDeniedException 403, {"Message":"<grammar of 4.1>"}`, "3.2", "IAM-ENF-11",
+		authz.SessionUnreplayed, s.k.Bindings().AuthorizedOps(lambdaapi.Service()))
 	// checkQueue and checkStream answer esmRoleDeniedText; a poll or a
 	// stream read the role is refused is retried after a backoff, invoking
-	// nothing and changing no field.
-	roleDenied := authz.EnforcementSwitch("lambda.esm.create-denied-text", esmCreateDeniedValue(), evidence.Inferred, "8.6", "IAM-ENF-24",
+	// nothing and changing no field. The queue's sentence is recorded, the
+	// streams' follow it.
+	roleDenied := authz.RecordedSwitch("lambda.esm.create-denied-text", esmCreateDeniedValue(), "8.6", "IAM-ENF-24", authz.SessionUnreplayed,
 		[]string{"lambda.CreateEventSourceMapping", "lambda.UpdateEventSourceMapping"})
 	permissionLoss := authz.EnforcementSwitch("lambda.esm.permission-loss", "stay-enabled", evidence.Inferred, "8.6", "IAM-ENF-25",
 		[]string{"lambda.CreateEventSourceMapping"})
-	// Invoke finds a delivery's function before it is authorized, since
-	// EventBridge fails a deleted target apart from a missing permission
-	// (iam-enforcement-surfaces.md 8.4); other delivering services follow
-	// by extrapolation (8.2).
-	missingDelivery := authz.DeliveryResolveFirstSwitch("lambda", "8.4", "IAM-ENF-22", s.k.Bindings().DeliveryResolvedFirstOps(lambdaapi.Service()))
+	// Invoke authorizes a delivery before it finds the function: AWS
+	// dead-letters an EventBridge delivery to a deleted function with
+	// NO_PERMISSIONS (iam-enforcement-surfaces.md 8.4, IAM-ENF-22); other
+	// delivering services follow by extrapolation (8.2).
+	missingDelivery := authz.RecordedSwitch("lambda.enforce.missing-resource.delivery", "deny-first", "8.4", "IAM-ENF-22", authz.DeliveryUnreplayed,
+		[]string{lambdaapi.OpInvoke.Descriptor().ID.String()})
 	entries := []fidelity.Entry{denial, roleDenied, permissionLoss, missingDelivery, fidelity.Switch[string]{
 		Name:  "lambda.stateTransitions",
 		Value: s.opts.StateTransitions.String(),

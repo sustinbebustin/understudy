@@ -27,22 +27,35 @@ func Switches() []fidelity.Entry {
 	inferred := evidence.Inferred
 	return []fidelity.Entry{
 		// policydoc.Evaluate
-		researchSwitch("iam.condition.bool-variables", "substituted", inferred, evaluationNote, "6.6", "IAM-EVAL-01"),
-		researchSwitch("iam.condition.multivalued-plain-operator", "any-value", inferred, evaluationNote, "6.12", "IAM-EVAL-02"),
-		researchSwitch("iam.condition.empty-value", "null", inferred, evaluationNote, "6.11", "IAM-EVAL-05"),
-		researchSwitch("iam.condition.ipv6-default-prefix", "128", inferred, evaluationNote, "6.8", "IAM-EVAL-07"),
-		researchSwitch("iam.variables.unresolved", "value-null", inferred, evaluationNote, "7.3", "IAM-EVAL-16"),
-		researchSwitch("iam.not-principal.match", "account-and-principal", inferred, evaluationNote, "5.4", "IAM-EVAL-18"),
-		researchSwitch("iam.wildcard-principal.service", "matches", inferred, evaluationNote, "2.9", "IAM-EVAL-33"),
+		recordedSwitch("iam.condition.bool-variables", "literal", evaluationNote, "6.6", "IAM-EVAL-01", SimulatorUnreplayed),
+		recordedSwitch("iam.condition.multivalued-plain-operator", "no-match", evaluationNote, "6.12", "IAM-EVAL-02", SimulatorUnreplayed),
+		recordedSwitch("iam.condition.empty-value", "value", evaluationNote, "6.11", "IAM-EVAL-05", SimulatorUnreplayed),
+		recordedSwitch("iam.condition.ipv6-default-prefix", "128", evaluationNote, "6.8", "IAM-EVAL-07", SimulatorUnreplayed),
+		recordedSwitch("iam.variables.unresolved", "value-null", evaluationNote, "7.3", "IAM-EVAL-16", SimulatorUnreplayed),
+		recordedSwitch("iam.not-principal.match", "every-level", evaluationNote, "5.4", "IAM-EVAL-18", SessionUnreplayed),
+		recordedSwitch("iam.wildcard-principal.service", "matches", evaluationNote, "2.9", "IAM-EVAL-33", DeliveryUnreplayed),
 		// Decide
-		researchSwitch("iam.wildcard-principal.role-session", "direct", inferred, evaluationNote, "2.3", "IAM-EVAL-19"),
-		researchSwitch("kms.key-policy.role-boundary", "limited", inferred, evaluationNote, "4.3", "IAM-EVAL-27"),
+		recordedSwitch("iam.wildcard-principal.role-session", "direct", evaluationNote, "2.3", "IAM-EVAL-19", SessionUnreplayed),
+		recordedSwitch("kms.key-policy.role-boundary", "limited", evaluationNote, "4.3", "IAM-EVAL-27", SessionUnreplayed),
 		// Get and Put are inferred; Delete is aws-doc (iam-enforcement-surfaces.md 6.3).
-		researchSwitch("s3.root.bucket-policy-lockout", "get-put-delete", inferred, enforcementNote, "6.3", "IAM-ENF-31"),
+		fidelity.Switch[string]{
+			Name: "s3.root.bucket-policy-lockout", Value: "get-put-delete", Label: inferred,
+			Ref: "docs/research/" + enforcementNote + "#6.3", Record: "IAM-ENF-31",
+			Settles: fidelity.NoScenario{Reason: "unrecorded: IAM-ENF-31 needs the account's root user, which the " + recordedOn +
+				" session, a free-plan project role, could not provide (" + enforcementNote + " 13.33)"},
+		}.Entry(),
 		// BuildContext
-		researchSwitch("iam.context.mfa-present", "false-in-sessions", evidence.AWSDoc, evaluationNote, "8.1", "IAM-EVAL-26"),
-		researchSwitch("iam.context.service-principal-identity-keys", "absent", inferred, evaluationNote, "2.9", "IAM-EVAL-33"),
-		researchSwitch("iam.resource-tag.case-duplicates", "absent", inferred, evaluationNote, "6.13", "IAM-EVAL-31"),
+		recordedSwitch("iam.context.mfa-present", "false-in-sessions", evaluationNote, "8.1", "IAM-EVAL-26", SessionUnreplayed),
+		// IAM-EVAL-33 recorded all three keys present for sns.amazonaws.com
+		// but not their values, so understudy cannot supply them honestly
+		// (iam-evaluation.md 2.9).
+		fidelity.Switch[string]{
+			Name: "iam.context.service-principal-identity-keys", Value: "absent", Label: inferred,
+			Ref: "docs/research/" + evaluationNote + "#2.9", Record: "IAM-EVAL-33",
+			Settles: fidelity.NoScenario{Reason: "IAM-EVAL-33 recorded " + recordedOn + " that a delivery by sns.amazonaws.com carries aws:PrincipalType, " +
+				"aws:PrincipalAccount and aws:userid, but not their values; the value stays absent until a recording shows them (" + evaluationNote + " 2.9)"},
+		}.Entry(),
+		recordedSwitch("iam.resource-tag.case-duplicates", "exact-case", evaluationNote, "6.13", "IAM-EVAL-31", SessionUnreplayed),
 		fidelity.Switch[string]{
 			Name:  "iam.context.secure-transport",
 			Value: "assume-tls",
@@ -51,9 +64,9 @@ func Switches() []fidelity.Entry {
 			Settles: fidelity.NoScenario{Reason: "none needed: AWS's own value is always true for its HTTPS endpoints, " +
 				"so no recording can tell the values apart and the choice is understudy's (iam-evaluation.md 12.3, iam-enforcement-surfaces.md 12.8)"},
 		}.Entry(),
-		// Denial.Message: the phrases and the one reason are aws-doc, where
-		// "on resource:" goes is inferred (iam-enforcement-surfaces.md 4.1).
-		researchSwitch("iam.denial.grammar", grammarValue, inferred, enforcementNote, "4.1", "IAM-ENF-15"),
+		// Denial.Message: the phrases and the one reason are aws-doc, and
+		// every recorded denial writes "on resource:" (iam-enforcement-surfaces.md 4.1).
+		recordedSwitch("iam.denial.grammar", grammarValue, enforcementNote, "4.1", "IAM-ENF-15", SessionUnreplayed),
 		// The kernel's step 8.
 		researchSwitch("iam.enforce.order", "validate-first", inferred, enforcementNote, "5.3", "IAM-ENF-13"),
 		researchSwitch("iam.enforce.missing-resource", "deny-first", inferred, enforcementNote, "5.3", "IAM-ENF-14"),
@@ -121,8 +134,47 @@ func DeliveryResolveFirstSwitch(service, section, record string, ops []string) f
 
 // grammarValue is switch iam.denial.grammar's value: the reason clauses of
 // iam-enforcement-surfaces.md 4.1, one reason per denial, and "on resource:"
-// written on explicit denials only.
-const grammarValue = "iam-4.1, one reason, on resource on explicit denials"
+// written on every denial of a pair on a resource, as every recorded
+// denial writes it (IAM-ENF-15).
+const grammarValue = "iam-4.1, one reason, on resource whenever the pair has a resource"
+
+// recordedOn is the date of the session that recorded the IAM-ENF and
+// IAM-EVAL items (testdata/parity/<service>/IAM-ENF, iam/IAM-EVAL-*).
+const recordedOn = "2026-11-03"
+
+// Why no parity scenario replays a recorded switch (testdata/README.md,
+// Replay scenarios).
+const (
+	// SessionUnreplayed: the replay signs only as the account's root.
+	SessionUnreplayed = "the recorded caller is a role session, and the replay signs only as the account's root"
+	// DeliveryUnreplayed: the outcome is a delivery between services.
+	DeliveryUnreplayed = "the recorded outcome is a delivery between services, which the replay cannot send"
+	// SimulatorUnreplayed: understudy does not serve the simulator.
+	SimulatorUnreplayed = "the recording is IAM's policy simulator, SimulateCustomPolicy, which understudy leaves unbound"
+)
+
+// RecordedSwitch is a service switch of iam-enforcement-surfaces.md 12.8
+// whose value record settled against AWS: value chosen in section of the
+// note, aws-recorded, governing ops; why says why no parity scenario
+// replays it.
+func RecordedSwitch(name, value, section, record, why string, ops []string) fidelity.Entry {
+	e := recordedSwitch(name, value, enforcementNote, section, record, why)
+	e.Ops = slices.Clone(ops)
+	return e
+}
+
+// recordedSwitch is a switch whose value record, in note's section 13,
+// recorded against AWS; why says why no parity scenario replays it.
+func recordedSwitch(name, value, note, section, record, why string) fidelity.Entry {
+	return fidelity.Switch[string]{
+		Name:    name,
+		Value:   value,
+		Label:   evidence.AWSRecorded,
+		Ref:     "docs/research/" + note + "#" + section,
+		Record:  record,
+		Settles: fidelity.NoScenario{Reason: record + " recorded " + recordedOn + " (testdata/parity); " + why},
+	}.Entry()
+}
 
 // researchSwitch is a switch whose default is chosen in section of note and
 // settled by the recording queue item record of that note's section 13.

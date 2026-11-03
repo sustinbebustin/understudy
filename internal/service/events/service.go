@@ -175,7 +175,7 @@ func (s *Service) Switches() []fidelity.Entry {
 	buses := busSwitches()
 	out := make([]fidelity.Entry, 0, 8+len(buses)+len(profile))
 	out = append(out, rateRestart().Entry(), unmatchedInputPath().Entry(), detailIntegerRange().Entry(),
-		authz.DenialSwitch("events.denial.status", "AccessDeniedException 400", evidence.Inferred, "3.2", "IAM-ENF-08", s.k.Bindings().AuthorizedOps(eventbridgeapi.Service())))
+		authz.RecordedSwitch("events.denial.status", "AccessDeniedException 400", "3.2", "IAM-ENF-08", authz.SessionUnreplayed, s.k.Bindings().AuthorizedOps(eventbridgeapi.Service())))
 	out = append(out, deliverySwitches()...)
 	for _, sw := range buses {
 		out = append(out, sw.Entry())
@@ -206,10 +206,10 @@ func (s *Service) Switches() []fidelity.Entry {
 func deliverySwitches() []fidelity.Entry {
 	ops := []string{"eventbridge.PutTargets"}
 	return []fidelity.Entry{
-		authz.EnforcementSwitch("events.delivery.denied-code", delivery.EventBridgeDeniedCode, evidence.Inferred, "8.4", "IAM-ENF-22", ops),
-		authz.EnforcementSwitch("events.delivery.source-account-lambda", "absent", evidence.AWSDoc, "8.1", "IAM-ENF-22", ops),
-		authz.EnforcementSwitch("events.delivery.source-account-sqs", "present", evidence.Inferred, "8.1", "IAM-ENF-22", ops),
-		authz.EnforcementSwitch("events.put-targets.sns-policy", "unchanged", evidence.Inferred, "8.4", "IAM-ENF-23", ops),
+		authz.RecordedSwitch("events.delivery.denied-code", delivery.EventBridgeDeniedCode, "8.4", "IAM-ENF-22", authz.DeliveryUnreplayed, ops),
+		authz.RecordedSwitch("events.delivery.source-account-lambda", "present", "8.1", "IAM-ENF-22", authz.DeliveryUnreplayed, ops),
+		authz.RecordedSwitch("events.delivery.source-account-sqs", "present", "8.1", "IAM-ENF-22", authz.DeliveryUnreplayed, ops),
+		authz.RecordedSwitch("events.put-targets.sns-policy", "unchanged", "8.4", "IAM-ENF-23", authz.DeliveryUnreplayed, ops),
 	}
 }
 

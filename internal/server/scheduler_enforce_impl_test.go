@@ -121,13 +121,13 @@ func wantSchedulerDenied(t *testing.T, what string, w wire, text string) {
 
 // A GetSchedule the caller's policies do not allow answers
 // AccessDeniedException at scheduler.denial.status's 403 with the
-// documented grammar, which for an implicit identity-based denial names no
-// resource (spec conflict 9; iam-enforcement-surfaces.md 4.1, its
-// "identity-based, implicit" example, and 12.3; scheduler.md 2.4).
+// documented grammar, which names the resource on an implicit
+// identity-based denial too (IAM-ENF-37, recorded 2026-11-03;
+// iam-enforcement-surfaces.md 4.1 and 12.3; scheduler.md 2.4).
 func TestSchedulerDenialIdentityOverTheWire(t *testing.T) {
 	_, endpoint, u := enforced(t, server.IAMEnforceEnforce)
 	w := schCall(t, u, endpoint, http.MethodGet, "/schedules/s", "")
-	const message = "User: " + userU + " is not authorized to perform: scheduler:GetSchedule because no identity-based policy allows the scheduler:GetSchedule action"
+	const message = "User: " + userU + " is not authorized to perform: scheduler:GetSchedule on resource: arn:aws:scheduler:us-east-1:000000000000:schedule/default/s because no identity-based policy allows the scheduler:GetSchedule action"
 	// A map, since a struct field would match the key case-insensitively:
 	// the key is the generated identity's lower-case message (IS 12.3).
 	var body map[string]string
@@ -277,8 +277,9 @@ func TestSchedulerRoleSessionTargetPermission(t *testing.T) {
 	if got := queueBodies(t, c, endpoint, "target"); len(got) != 0 {
 		t.Errorf("the target received %q from a role without sqs:SendMessage", got)
 	}
-	if got := deadLetters(t, endpoint); len(got) != 1 || !strings.Contains(got[0], "sqs:SendMessage") {
-		t.Errorf("dead letters = %q, want one with SQS's denial of sqs:SendMessage", got)
+	// SQS spells the action in lower case (IAM-ENF-22, recorded 2026-11-03).
+	if got := deadLetters(t, endpoint); len(got) != 1 || !strings.Contains(got[0], "sqs:sendmessage") {
+		t.Errorf("dead letters = %q, want one with SQS's denial of sqs:sendmessage", got)
 	}
 	schRolePolicy(t, endpoint, `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"sqs:SendMessage","Resource":"`+schTarget+`"}]}`)
 	schAdvance(t, c)
