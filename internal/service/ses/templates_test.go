@@ -9,8 +9,13 @@ import (
 	"github.com/sustinbebustin/understudy/internal/service/ses"
 )
 
+// createTemplate creates t, with a TextPart "t" when it has neither
+// TextPart nor HtmlPart, which AWS refuses (SES-18, ses.md 7).
 func (h *harness) createTemplate(t sesapi.Template) {
 	h.Helper()
+	if t.TextPart == nil && t.HtmlPart == nil {
+		t.TextPart = new("t")
+	}
 	must(h, sesapi.OpCreateTemplate, &sesapi.CreateTemplateInput{Template: t})
 }
 
@@ -74,14 +79,14 @@ func TestTemplateCRUD(t *testing.T) {
 		wantErr(h, err, sesapi.IdentityTemplateDoesNotExistException(), fmt.Sprintf(ses.TemplateMissingText, "missing"))
 		_, err = call(h, sesapi.OpUpdateTemplate, &sesapi.UpdateTemplateInput{Template: sesapi.Template{TemplateName: "missing"}})
 		wantErr(h, err, sesapi.IdentityTemplateDoesNotExistException(), fmt.Sprintf(ses.TemplateMissingText, "missing"))
-		_, err = call(h, sesapi.OpCreateTemplate, &sesapi.CreateTemplateInput{Template: sesapi.Template{TemplateName: "partial"}})
+		_, err = call(h, sesapi.OpCreateTemplate, &sesapi.CreateTemplateInput{Template: sesapi.Template{TemplateName: "partial", TextPart: new("t")}})
 		wantErr(h, err, sesapi.IdentityAlreadyExistsException(), fmt.Sprintf(ses.TemplateExistsText, "partial"))
 	})
 }
 
 // 500 KB per template, text and HTML parts together (aws-doc quotas,
-// ses.md 7); the bound is read as MaxTemplateBytes and the answer is
-// inferred (SES-29).
+// ses.md 7); the bound is read as MaxTemplateBytes, and the answer is
+// InvalidTemplate naming the template (recorded, SES-29).
 func TestTemplateSizeLimit(t *testing.T) {
 	run(t, func(h *harness) {
 		half := ses.MaxTemplateBytes / 2
@@ -89,7 +94,7 @@ func TestTemplateSizeLimit(t *testing.T) {
 		_, err := call(h, sesapi.OpCreateTemplate, &sesapi.CreateTemplateInput{Template: sesapi.Template{
 			TemplateName: "over", TextPart: new(strings.Repeat("t", half)), HtmlPart: new(strings.Repeat("h", ses.MaxTemplateBytes-half+1)),
 		}})
-		wantErr(h, err, sesapi.IdentityInvalidParameterValue(), fmt.Sprintf(ses.TemplateTooLargeText, ses.MaxTemplateBytes))
+		wantErr(h, err, sesapi.IdentityInvalidTemplateException(), fmt.Sprintf(ses.TemplateTooLargeText, "over"))
 	})
 }
 
@@ -100,7 +105,7 @@ func TestTemplateLimit(t *testing.T) {
 		for i := range ses.MaxTemplates {
 			h.createTemplate(sesapi.Template{TemplateName: fmt.Sprintf("t%d", i)})
 		}
-		_, err := call(h, sesapi.OpCreateTemplate, &sesapi.CreateTemplateInput{Template: sesapi.Template{TemplateName: "over"}})
+		_, err := call(h, sesapi.OpCreateTemplate, &sesapi.CreateTemplateInput{Template: sesapi.Template{TemplateName: "over", TextPart: new("t")}})
 		wantErr(h, err, sesapi.IdentityLimitExceededException(), fmt.Sprintf(ses.TemplateLimitText, ses.MaxTemplates))
 	})
 }

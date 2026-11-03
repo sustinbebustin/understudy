@@ -36,7 +36,8 @@ type Outgoing struct {
 	Target string
 	Header []Header
 	Body   []byte
-	// SigningName is the first DNS label of the recorded host ("kms").
+	// SigningName is the signing name of the recorded host's first DNS
+	// label ("kms"; "ses" for "email").
 	SigningName string
 	Region      string
 }

@@ -102,14 +102,14 @@ func tagEqual(a, b sesv2api.Tag) bool { return a.Key == b.Key && a.Value == b.Va
 
 // GetEmailIdentity and DeleteEmailIdentity of a missing identity answer
 // NotFoundException, which Terraform reads as gone (provider, ses.md 5.4,
-// 9.3; 404 per the model, ses.md 3.3); the text is inferred (SES-11) and
-// read from the constant.
+// 9.3; 404 per the model, ses.md 3.3); the texts are recorded (SES-11) and
+// read from the constants.
 func TestMissingEmailIdentityIsNotFound(t *testing.T) {
 	run(t, func(h *harness) {
 		h.createIdentity("person@example.com")
 		must(h, sesv2api.OpDeleteEmailIdentity, &sesv2api.DeleteEmailIdentityInput{EmailIdentity: "person@example.com"})
 		_, err := call(h, sesv2api.OpGetEmailIdentity, &sesv2api.GetEmailIdentityInput{EmailIdentity: "person@example.com"})
-		wantErr(h, err, sesv2api.IdentityNotFoundException(), fmt.Sprintf(ses.IdentityMissingText, "person@example.com"))
+		wantErr(h, err, sesv2api.IdentityNotFoundException(), fmt.Sprintf(ses.GetIdentityMissingText, "person@example.com"))
 		_, err = call(h, sesv2api.OpDeleteEmailIdentity, &sesv2api.DeleteEmailIdentityInput{EmailIdentity: "person@example.com"})
 		wantErr(h, err, sesv2api.IdentityNotFoundException(), fmt.Sprintf(ses.IdentityMissingText, "person@example.com"))
 	})

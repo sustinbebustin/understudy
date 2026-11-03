@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/api/sesapi"
 	"github.com/sustinbebustin/understudy/internal/api/sesv2api"
@@ -25,7 +27,7 @@ import (
 func (s *Service) bindIdentities(b sesapi.Binder) {
 	verifyEmail := registry.Partial{Note: "the identity stays Pending until its verification link under " + VerificationLinkPath +
 		" is opened or understudy.json lists it; the verification email is recorded, never sent; Failed after 24 hours on the emulator clock; " +
-		"chosen without a recording (docs/research/ses.md 11.4): the invalid-address answers"}
+		"chosen without a recording (docs/research/ses.md 11.4): which addresses are invalid, beyond one without @ (SES-04)"}
 	b.VerifyEmailIdentity(s.verifyEmailIdentity, verifyEmail,
 		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
 		identitiesNamed(func(in *sesapi.VerifyEmailIdentityInput) []string { return []string{in.EmailAddress} }))
@@ -129,11 +131,12 @@ func (s *Service) pend(id *identity, scope aws.Scope, now clock.Instant, tx *ker
 // Pending, Failed or TemporaryFailure one restarts as Pending, its expiry
 // counted again, and a Success one is left as it is (inferred, SES-09).
 // Each start and restart records a verification email, always with the
-// identity's one link token (contract 2.3). An invalid address is refused
-// as a send's address is (ses.md 4.6, SES-04).
+// identity's one link token (contract 2.3). An address a send would refuse
+// answers VerifyAddressText (recorded for an address without "@", SES-04,
+// ses.md 4.6).
 func (s *Service) verifyEmailIdentity(ctx context.Context, c *kernel.Call, in *sesapi.VerifyEmailIdentityInput) (*sesapi.VerifyEmailIdentityOutput, *awserr.Error) {
 	if _, r := parseAddress(in.EmailAddress); r != nil {
-		return nil, r.v1()
+		return nil, sesapi.ErrInvalidParameterValue(fmt.Sprintf(VerifyAddressText, in.EmailAddress))
 	}
 	scope := c.Scope()
 	v := s.view(APIv1)
@@ -262,9 +265,11 @@ func (s *Service) getIdentityVerificationAttributes(_ context.Context, c *kernel
 // getIdentityNotificationAttributes answers each named identity the store
 // holds, keyed by the request string byte for byte (ses.md 9.1), with no
 // topics, forwarding on and headers off, since no notification setter is
-// bound. What AWS answers for an identity without topics is UNVERIFIED
-// (SES-08). An unknown identity is omitted under either value of
-// ses.verification.unknown-identity (contract 1.4).
+// bound, as SES-08 recorded (ses.md 9.1). AWS leaves the three topic
+// elements out; the generated serializer writes them empty, since the model
+// marks them required (a known difference, testdata/parity/ses/SES-08). An
+// unknown identity is omitted under either value of
+// ses.verification.unknown-identity (contract 1.4), as SES-08 recorded.
 func (s *Service) getIdentityNotificationAttributes(_ context.Context, c *kernel.Call, in *sesapi.GetIdentityNotificationAttributesInput) (*sesapi.GetIdentityNotificationAttributesOutput, *awserr.Error) {
 	out := &sesapi.GetIdentityNotificationAttributesOutput{NotificationAttributes: map[string]sesapi.IdentityNotificationAttributes{}}
 	cell, ok := s.cells.Lookup(c.Scope())
@@ -284,17 +289,18 @@ func (s *Service) getIdentityNotificationAttributes(_ context.Context, c *kernel
 }
 
 // listIdentities lists the identities of the caller's scope "regardless of
-// verification status", narrowed by IdentityType (ses.md 5.3), in creation
-// order (the order AWS uses is UNVERIFIED, SES-14). MaxItems is 1 to
-// ListIdentitiesMaxItems, its default the largest (aws-doc; the refusal's
-// text is inferred, SES-29). NextToken is understudy's own: the decimal
-// position of the next identity among those the filter keeps, base64url;
-// an identity deleted between pages moves the later ones up by one.
+// verification status", narrowed by IdentityType (ses.md 5.3), in
+// descending byte order of name (inferred from the one page SES-14
+// recorded). MaxItems is 1 to ListIdentitiesMaxItems, its default the
+// largest (aws-doc; the refusal's text is recorded, SES-29). NextToken is
+// understudy's own: the decimal position of the next identity among those
+// the filter keeps, base64url; an identity created or deleted between
+// pages shifts the later ones by one.
 func (s *Service) listIdentities(_ context.Context, c *kernel.Call, in *sesapi.ListIdentitiesInput) (*sesapi.ListIdentitiesOutput, *awserr.Error) {
 	limit := ListIdentitiesMaxItems
 	if in.MaxItems != nil {
 		if *in.MaxItems < 1 || *in.MaxItems > ListIdentitiesMaxItems {
-			return nil, sesapi.ErrInvalidParameterValue(fmt.Sprintf(MaxItemsText, ListIdentitiesMaxItems))
+			return nil, sesapi.ErrInvalidParameterValue(fmt.Sprintf(ListIdentitiesMaxItemsText, *in.MaxItems, ListIdentitiesMaxItems))
 		}
 		limit = int(*in.MaxItems)
 	}
@@ -319,6 +325,7 @@ func (s *Service) listIdentities(_ context.Context, c *kernel.Call, in *sesapi.L
 			}
 			return out
 		})
+		slices.SortFunc(names, func(a, b string) int { return strings.Compare(b, a) })
 	}
 	items, next := page(names, start, limit)
 	if items == nil {

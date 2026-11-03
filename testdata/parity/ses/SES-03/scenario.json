@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "item": "SES-03",
+  "account": "123456789012",
+  "region": "us-east-2",
+  "client": "aws-cli",
+  "steps": [
+    {
+      "fixture": "ses/SES-03/00-sandbox.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ses/SES-03/02-both.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ses/SES-03/03-v2-both.json",
+      "compare": "all"
+    }
+  ],
+  "settles": [
+    {
+      "switch": "ses.error.unverified.text",
+      "step": "02-both",
+      "field": "body/ErrorResponse/Error/Message"
+    }
+  ]
+}

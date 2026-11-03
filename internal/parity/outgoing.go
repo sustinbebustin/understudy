@@ -27,15 +27,15 @@ func dropped(name string) bool {
 // binding"): each bound AWS value replaced by understudy's within the
 // decoded URL path segments and query values, header values, form values,
 // JSON string values, or else the raw body text; then re-encoded where a
-// value changed. It signs for the first DNS label of the recorded host in
-// region.
+// value changed. It signs in region for the signing name of the recorded
+// host's first DNS label.
 func outgoing(req Request, rs []normalize.Replacement, region string) (Outgoing, error) {
 	u, err := url.Parse(req.URL)
 	if err != nil {
 		return Outgoing{}, fmt.Errorf("the recorded URL %q does not parse: %w", req.URL, err)
 	}
-	signing, _, _ := strings.Cut(u.Hostname(), ".")
-	out := Outgoing{Method: req.Method, Target: substitutePath(u.EscapedPath(), rs), SigningName: signing, Region: region}
+	label, _, _ := strings.Cut(u.Hostname(), ".")
+	out := Outgoing{Method: req.Method, Target: substitutePath(u.EscapedPath(), rs), SigningName: signingName(label), Region: region}
 	if u.RawQuery != "" || u.ForceQuery {
 		out.Target += "?" + substituteForm(u.RawQuery, rs)
 	}
@@ -52,6 +52,17 @@ func outgoing(req Request, rs []normalize.Replacement, region string) (Outgoing,
 	case NoBody, OmittedBody, UnrecordedBody, nil:
 	}
 	return out, nil
+}
+
+// signingName is the SigV4 signing name of a recorded host's first DNS
+// label: the label itself, except SES's endpoint prefix "email", which
+// signs as "ses" (ses.md 2.1). The capture drops Authorization, so the
+// recorded credential scope cannot say.
+func signingName(label string) string {
+	if label == "email" {
+		return "ses"
+	}
+	return label
 }
 
 // substitutePath substitutes within each decoded segment of an escaped

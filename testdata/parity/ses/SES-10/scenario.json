@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "item": "SES-10",
+  "account": "123456789012",
+  "region": "us-east-2",
+  "client": "aws-cli",
+  "steps": [
+    {
+      "fixture": "ses/SES-10/01-verify.json",
+      "compare": "all",
+      "bind": [
+        {
+          "path": "body/VerifyDomainIdentityResponse/VerifyDomainIdentityResult/VerificationToken",
+          "shape": {
+            "kind": "id",
+            "alphabet": "base64",
+            "min": 44,
+            "max": 44
+          }
+        }
+      ]
+    },
+    {
+      "fixture": "ses/SES-10/02-again.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ses/SES-10/03-attrs.json",
+      "compare": "all"
+    }
+  ]
+}

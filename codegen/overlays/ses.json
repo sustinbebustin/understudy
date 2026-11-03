@@ -25,8 +25,9 @@
             "covers": ["dev.understudy#validationError"]
           },
           {
-            "label": "inferred",
-            "source": "docs/research/ses.md#31-v1-awsquery: a captured, not recorded, SES ErrorResponse carries the service xmlns and no Detail, as recorded for SNS, IAM, STS and CloudWatch; UNVERIFIED until recording SES-01",
+            "label": "aws-recorded",
+            "source": "testdata/parity/ses/SES-01/01-cli.json",
+            "validated": "2026-11-03",
             "covers": ["dev.understudy#queryErrorEnvelope"]
           }
         ]

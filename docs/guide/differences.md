@@ -262,15 +262,23 @@ understudy recorded Scheduler against AWS on 2026-11-03 (scheduler.md section 15
 
 ## SES
 
-No SES response has been recorded against AWS yet, so every SES answer rests on documentation, LocalStack's recordings or inference, labelled per item on the [coverage page](../coverage.md#ses). By design:
+SES was recorded against AWS on 2026-11-03 from a sandbox account with no verified sender (`testdata/parity/ses/SES-*`), so the answers to sends that pass the sender check are still unrecorded and labelled per item on the [coverage page](../coverage.md#ses). Recorded differences:
+
+- An unknown v1 `Action` is `InvalidAction` in the `http://webservices.amazon.com/AWSFault/2005-15-09` namespace, "Could not find operation FooBar for version 2010-12-01", on AWS; understudy answers the SES namespace and "The action FooBar is not valid for this endpoint." (`ses/SES-24/01-v1-unknown.json`). An unknown v2 path is a 404 with the body `<UnknownOperationException/>` and no `Content-Type` on AWS; understudy answers `sesv2`'s JSON unknown operation (`ses/SES-24/02-v2-unknown.json`).
+- `ConfigurationSetName` naming a missing set is `ConfigurationSetDoesNotExist` "Configuration set <name> does not exist.", checked before the sender, on AWS; understudy answers 501, since configuration sets are not implemented (`ses/SES-17/02-unverified.json`).
+- `GetIdentityNotificationAttributes` leaves the `BounceTopic`, `ComplaintTopic` and `DeliveryTopic` elements out of an identity with no topics; understudy sends them empty (`ses/SES-08/03-notif-raw.json`).
+- `GetSendQuota` spells its numbers `200.0`, `1.0` and `0.0` and lists `SentLast24Hours` first; understudy writes `200`, `1`, `0` in the model's order. SDKs read both the same (`ses/SES-15/02-quota.json`).
+- v2 answers send unset members as explicit `null` and the GET answers carry `Content-Type: application/x-amz-json-1.1`; understudy omits unset members and sends `application/json` (`ses/SES-13`, `ses/SES-15/01-account.json`). A v2 send without `FromEmailAddress` is `BadRequestException` with `{"message":null}` on AWS; understudy sends a message text (`ses/SES-23/03-no-from.json`).
+- Under `iam.enforce` `enforce`, AWS's denial message is "User '<arn>' is not authorized to perform 'ses:SendEmail' on resource '<identity arn>'", and v2 sends it under `Message`; understudy sends the IAM grammar under `message`. v2 `SendEmail` with `Raw` content is authorized as `ses:SendRawEmail` on AWS, as `ses:SendEmail` by understudy (`ses/SES-28`).
+
+By design:
 
 - No mail is sent and no `Send`, `Delivery`, `Bounce`, `Complaint` or `Reject` event or notification is produced, mailbox simulator addresses included. Accepted sends are recorded for `understudy ses messages` and `GET /_understudy/v1/ses/messages` ([SES](ses-email.md#reading-messages)).
 - An identity is verified only by opening its verification link or by `ses.verifiedIdentities`, never by DNS or a click elsewhere; a domain outside the list stays `Pending` and fails after 72 hours of emulator time.
 - A raw message is recorded as received, without the `Message-ID` and `Date` headers SES would substitute.
 - `MaxSendRate` is reported but not enforced.
 - A templated send renders only `{{name}}` and dotted paths; any other Handlebars construct, a value the data lacks and a value whose rendering on SES is unrecorded leave their part unrendered and are listed as render gaps, where AWS would render the part or, for a rendering failure, drop the mail after accepting it ([SES](ses-email.md#templated-sends)).
-- Texts not yet recorded, and so possibly different from AWS's: the unverified-identity `MessageRejected` text (its region spelling and identity order), invalid-address and recipient-count answers, the daily quota error, and the production quota values -1 and 14.
-- An unknown v1 `Action` or v2 path answers as `sesv2`'s unknown operation; what AWS answers is not recorded.
+- Texts not yet recorded, and so possibly different from AWS's: a send's invalid-address answers other than an empty `Source`, recipient-count answers, the daily quota error, and the production quota values -1 and 14. The order of the identities in the unverified-identity `MessageRejected` text follows a rule inferred from two recorded lists (`ses/SES-03`).
 - A v2 `SendEmail` with `EndpointId`, which the SDKs sign with SigV4A, answers `sesv2`'s unknown operation, since understudy does not accept SigV4A; AWS would route it to a multi-region endpoint.
 
 ## KMS, Secrets Manager, IAM and STS

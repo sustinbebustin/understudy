@@ -12,3 +12,7 @@ session: no verified identity and no readable mailbox; $M = us1103-me@example.co
 - 02-both: differs: identities listed "us1103-rp@example.com, us1103-r1@example.com, us1103-nobody@example.com, us1103-r2@example.com" (Return-Path, To, Source, Cc); switch ses.error.unverified.text default is senders first, then recipients in request order (Source, Return-Path, To, Cc)
 - 03-v2-both: differs: "us1103-r1@example.com, us1103-nobody@example.com" (recipient before sender)
 - 04-reply-to: n/a (sends from $M, which needs a mailbox click to verify)
+
+## Replay (internal/parity)
+
+`scenario.json` replays the three steps; 00-sandbox and 03-v2-both are skipped (v2 REST). 02-both settles `ses.error.unverified.text`, whose default is now the Java HashSet order that reproduces both recorded lists (ses.md 6.1).

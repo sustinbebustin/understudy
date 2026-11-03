@@ -7,14 +7,16 @@ import "time"
 // this package for its id, since coverage-check cannot flag a constant.
 
 // TagMaxLength is the most characters a message tag name or value may have:
-// the recorded text says "cannot exceed 255 characters", but the recordings
-// used 2,100 and 2,200, so 255 against 256 is UNVERIFIED (ses.md 4.5,
-// ses.tags.max-length, SES-16).
-const TagMaxLength = 255
+// 256, the model's "256 characters or fewer". SES-16 recorded a name and a
+// value of 256 passing, although the third-party-recorded text for 2,100
+// says "cannot exceed 255 characters"; that 257 is refused is UNVERIFIED
+// (ses.md 4.5, ses.tags.max-length).
+const TagMaxLength = 256
 
 // FeedbackIDTagNames are the only "ses:"-prefixed tag names a send accepts
-// (ses.md 4.5, recorded for these two); any other "ses:" name fails the
-// charset rule, which is UNVERIFIED (ses.tags.ses-prefix, SES-16).
+// (ses.md 4.5, third-party-recorded for these two); any other "ses:" name
+// fails the charset rule, as SES-16 recorded for ses:feedback-id-c and
+// ses:custom (ses.tags.ses-prefix).
 func FeedbackIDTagNames() []string {
 	return []string{"ses:feedback-id-a", "ses:feedback-id-b"}
 }
@@ -103,8 +105,10 @@ const (
 )
 
 // SendChecks is the order a send's checks run in, the first failing one
-// answering. Tags before the sender is recorded (ses.md 4.5); the rest of
-// the order is UNVERIFIED (ses.md 6.4, ses.send.check-order, SES-17).
+// answering. Tags before the sender is recorded (ses.md 4.5, SES-16), and
+// so is a missing configuration set before the sender (SES-17), a step
+// absent here while ConfigurationSetName answers NotImplemented; the rest
+// of the order is UNVERIFIED (ses.md 6.4, ses.send.check-order).
 func SendChecks() []SendCheck {
 	return []SendCheck{
 		CheckModelValidation, CheckNotImplemented, CheckTags, CheckAddresses,
@@ -152,7 +156,8 @@ const (
 	MaxV1MessageBytes = 10 * 1024 * 1024
 	MaxV2MessageBytes = 40 * 1024 * 1024
 	// MaxTemplateBytes is "500 KB" for a template's text and HTML parts
-	// together (ses.md 7), read as Terraform's 512,000-character bound.
+	// together (ses.md 7), read as Terraform's 512,000-character bound;
+	// SES-29 recorded 512,001 bytes refused, which leaves 500,000 open.
 	MaxTemplateBytes = 512_000
 	// ListEmailIdentitiesDefaultPageSize is the page size of a
 	// ListEmailIdentities without PageSize, or with PageSize 0.
@@ -183,6 +188,17 @@ const (
 	AddressWhitespaceText    = "Local address contains control or whitespace"
 	AddressTrailingDotText   = "Domain ends with dot."
 	AddressIllegalText       = "Illegal address"
+	// EmptyAddressText answers an empty address, recorded for v1
+	// SendEmail's Source (SES-04, ses.md 4.6); the same answer for an
+	// empty recipient is inferred.
+	EmptyAddressText = "Invalid email address ."
+	// VerifyAddressText answers VerifyEmailIdentity of an invalid address;
+	// %s is the address as given, with no space before it (recorded for
+	// "not-an-email", SES-04, ses.md 4.6).
+	VerifyAddressText = "Invalid email address<%s>."
+	// RawMissingFromText answers a raw send with neither Source nor a
+	// From header (recorded, SES-20, ses.md 4.2).
+	RawMissingFromText = "Missing required header 'From'."
 	// NoRecipientsText answers a send with no envelope recipient (ses.md
 	// 4.6, SES-05).
 	NoRecipientsText = "There are no recipients specified."
@@ -208,11 +224,14 @@ const (
 	RawUnparseableText = "Message is not a valid MIME message: it needs header fields, a blank line and the body, with well-formed MIME parts."
 	// TooManyIdentitiesText answers GetIdentityVerificationAttributes
 	// naming more than MaxVerificationAttributesIdentities; %d is that
-	// limit (SES-08).
-	TooManyIdentitiesText = "Too many identities requested: at most %d are allowed."
-	// MaxItemsText answers ListIdentities with MaxItems outside 1 to
-	// ListIdentitiesMaxItems, and ListTemplates with MaxItems below 1; %d
-	// is the operation's largest MaxItems (SES-29).
+	// limit (recorded, SES-08).
+	TooManyIdentitiesText = "Can only get verification attributes for up to %d identities at a time."
+	// ListIdentitiesMaxItemsText answers ListIdentities with MaxItems
+	// outside 1 to ListIdentitiesMaxItems; the verbs are MaxItems as given
+	// and that limit (recorded, SES-29).
+	ListIdentitiesMaxItemsText = "Value %d for parameter MaxItems is invalid. MaxItems must be between 1 and %d."
+	// MaxItemsText answers ListTemplates with MaxItems below 1; %d is
+	// ListTemplatesMaxItems (inferred: SES-29 recorded ListIdentities only).
 	MaxItemsText = "MaxItems must be between 1 and %d."
 	// PageSizeText answers ListEmailIdentities with PageSize above
 	// ListEmailIdentitiesMaxPageSize; %d is that limit.
@@ -227,26 +246,39 @@ const (
 	// TemplateLimitText answers a template past MaxTemplates; %d is
 	// MaxTemplates.
 	TemplateLimitText = "Maximum number of templates (%d) reached."
-	// TemplateTooLargeText answers a template above MaxTemplateBytes; %d
-	// is MaxTemplateBytes.
-	TemplateTooLargeText = "Template text and HTML parts exceed %d bytes."
+	// TemplateTooLargeText answers a template above MaxTemplateBytes; %s
+	// is the template name (recorded for v1 CreateTemplate, Code
+	// InvalidTemplate, SES-29; the v2 text is inferred to be the same).
+	TemplateTooLargeText = "Template %s exceeds maximum allowed size of 500 KB."
+	// TemplateNoPartsText answers a created template with neither a text
+	// nor an HTML part, before its name is checked: v1
+	// InvalidParameterValue, v2 BadRequestException (recorded for a
+	// subject-only template, SES-18, ses.md 7).
+	TemplateNoPartsText = "Template must specify at least one of the parts."
 	// TemplateExistsText and TemplateMissingText answer a duplicate and a
-	// missing template, in v1 and v2; %s is the template name (ses.md 7,
-	// SES-18).
+	// missing template, in v1 and v2; %s is the template name (ses.md 7;
+	// SES-18 recorded the missing text on both APIs, the duplicate text is
+	// inferred).
 	TemplateExistsText  = "Template %s already exists."
 	TemplateMissingText = "Template %s does not exist."
-	// IdentityExistsText and IdentityMissingText answer v2
-	// CreateEmailIdentity of an existing identity and GetEmailIdentity,
-	// DeleteEmailIdentity or a tag operation on a missing one; %s is the
-	// identity (ses.md 5.4, SES-11).
-	IdentityExistsText  = "Email identity %s already exists."
-	IdentityMissingText = "Email identity %s does not exist."
+	// IdentityExistsText answers v2 CreateEmailIdentity of an existing
+	// identity, "exist" as AWS spells it; GetIdentityMissingText
+	// GetEmailIdentity of a missing one, the name in angle brackets; and
+	// IdentityMissingText DeleteEmailIdentity, without them (all recorded,
+	// SES-11, ses.md 5.4), and a tag operation on a missing identity
+	// (inferred). %s is the identity.
+	IdentityExistsText     = "Email identity %s already exist."
+	GetIdentityMissingText = "Email identity <%s> does not exist."
+	IdentityMissingText    = "Email identity %s does not exist."
 	// DkimOnAddressText answers DkimSigningAttributes on an email address
 	// identity, which the model documents as domains only (ses.md 5.4).
 	DkimOnAddressText = "DkimSigningAttributes can only be set on a domain identity."
 	// ContentShapeText answers a v2 Content with none or more than one of
-	// Simple, Raw and Template; MissingFromText a Simple or Template send
-	// without FromEmailAddress (ses.md 4.4, SES-23).
+	// Simple, Raw and Template (inferred, SES-23 steps 01 and 02
+	// unrecorded); MissingFromText a Simple or Template send without
+	// FromEmailAddress, where AWS sends the BadRequestException with a
+	// null message (recorded, SES-23 step 03, ses.md 4.4), which the
+	// restJson1 error writer cannot express yet.
 	ContentShapeText = "Exactly one of Simple, Raw or Template content must be specified."
 	MissingFromText  = "FromEmailAddress is required for Simple and Template content."
 	// TemplateSourceText answers v2 Template content with none or more

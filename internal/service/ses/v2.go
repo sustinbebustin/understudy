@@ -26,7 +26,8 @@ const (
 		"DkimSigningAttributes are stored, never used; verification as VerifyEmailIdentity; ConfigurationSetName answers NotImplemented"
 	listEmailIdentitiesCoverage = "the GET /v2/email/identities binding sent by SDKs generated before 2026-09-29 is not routed and answers sesv2's unknown operation"
 	getAccountCoverage          = "ProductionAccessEnabled and SendQuota from understudy state; SendingEnabled true, since account sending cannot be paused yet; " +
-		"EnforcementStatus HEALTHY; no dedicated IP, VDM, pricing, suppression or account details"
+		"EnforcementStatus HEALTHY; DedicatedIpAutoWarmupEnabled true and SuppressedReasons BOUNCE and COMPLAINT, the recorded defaults (SES-15), " +
+		"which nothing changes; no VDM, pricing plan or account details"
 	v2TagsCoverage = "identity and template ARNs; an ARN with an empty account field names the caller's account, " +
 		"as Terraform sends an identity's under skip_requesting_account_id (what AWS answers is unrecorded)"
 )
@@ -84,8 +85,9 @@ func resourceNamed[In any](arnOf func(*In) string) kernel.BindOption {
 	})
 }
 
-// errIdentityMissing answers a v2 call on an identity the caller's view
-// does not hold (ses.md 5.4; the text is inferred, SES-11).
+// errIdentityMissing answers a v2 call but GetEmailIdentity on an identity
+// the caller's view does not hold (ses.md 5.4; recorded for
+// DeleteEmailIdentity, SES-11, inferred for the tag operations).
 func errIdentityMissing(name string) *awserr.Error {
 	return sesv2api.ErrNotFoundException(fmt.Sprintf(IdentityMissingText, name))
 }
@@ -219,7 +221,7 @@ func (v *V2) getEmailIdentity(_ context.Context, c *kernel.Call, in *sesv2api.Ge
 		}
 	})
 	if out == nil {
-		return nil, errIdentityMissing(in.EmailIdentity)
+		return nil, sesv2api.ErrNotFoundException(fmt.Sprintf(GetIdentityMissingText, in.EmailIdentity))
 	}
 	return out, nil
 }
@@ -253,8 +255,9 @@ func (v *V2) deleteEmailIdentity(_ context.Context, c *kernel.Call, in *sesv2api
 }
 
 // listEmailIdentities lists verified and unverified identities (ses.md
-// 5.4) in creation order (the order AWS uses is UNVERIFIED, SES-14),
-// narrowed by every Filter key given: IDENTITY_NAME_CONTAINS a
+// 5.4) in descending byte order of name, or ascending when a Filter is
+// given (each inferred from the one page SES-14 recorded), narrowed by
+// every Filter key given: IDENTITY_NAME_CONTAINS a
 // case-sensitive substring, IDENTITY_TYPE and VERIFICATION_STATUS exact
 // (contract 2.5). PageSize 0 or absent is
 // ListEmailIdentitiesDefaultPageSize, at most
@@ -292,6 +295,12 @@ func (v *V2) listEmailIdentities(_ context.Context, c *kernel.Call, in *sesv2api
 				})
 			}
 		}
+	})
+	slices.SortFunc(infos, func(a, b sesv2api.IdentityInfo) int {
+		if len(in.Filter) > 0 {
+			return strings.Compare(*a.IdentityName, *b.IdentityName)
+		}
+		return strings.Compare(*b.IdentityName, *a.IdentityName)
 	})
 	items, next := page(infos, start, limit)
 	if items == nil {
@@ -444,7 +453,9 @@ func (v *V2) listTagsForResource(_ context.Context, c *kernel.Call, in *sesv2api
 
 // getAccount answers the sandbox state and the quota GetSendQuota answers
 // (ses.md 6.3; contract 2.5). Sending cannot be paused yet, so
-// SendingEnabled is always true.
+// SendingEnabled is always true. Automatic dedicated-IP warm-up and the
+// account suppression list for bounces and complaints are on, the defaults
+// SES-15 recorded for a sandbox account; no setter for either is bound.
 func (v *V2) getAccount(_ context.Context, c *kernel.Call, _ *sesv2api.GetAccountInput) (*sesv2api.GetAccountOutput, *awserr.Error) {
 	s := v.svc
 	q := &sesv2api.SendQuota{Max24HourSend: SandboxMax24HourSend, MaxSendRate: SandboxMaxSendRate}
@@ -457,6 +468,11 @@ func (v *V2) getAccount(_ context.Context, c *kernel.Call, _ *sesv2api.GetAccoun
 		SendQuota:               q,
 		SendingEnabled:          true,
 		EnforcementStatus:       new(enforcementHealthy),
+		// The defaults SES-15 recorded.
+		DedicatedIpAutoWarmupEnabled: true,
+		SuppressionAttributes: &sesv2api.SuppressionAttributes{SuppressedReasons: []sesv2api.SuppressionListReason{
+			sesv2api.SuppressionListReasonBounce, sesv2api.SuppressionListReasonComplaint,
+		}},
 	}, nil
 }
 

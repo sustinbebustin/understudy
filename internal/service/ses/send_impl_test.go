@@ -1,6 +1,7 @@
 package ses_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/sustinbebustin/understudy/internal/api/sesapi"
@@ -83,11 +84,11 @@ func TestSendEmailChecksBeforeAddresses(t *testing.T) {
 }
 
 // VerifyEmailIdentity refuses an invalid address as a send does and
-// creates nothing (contract 2.3; texts inferred, SES-04).
+// creates nothing (contract 2.3; the text is recorded, SES-04).
 func TestVerifyEmailIdentityRefusesInvalidAddress(t *testing.T) {
 	run(t, func(h *harness) {
 		_, err := call(h, sesapi.OpVerifyEmailIdentity, &sesapi.VerifyEmailIdentityInput{EmailAddress: "no-at-sign"})
-		wantErr(h, err, sesapi.IdentityInvalidParameterValue(), ses.AddressMissingDomainText)
+		wantErr(h, err, sesapi.IdentityInvalidParameterValue(), fmt.Sprintf(ses.VerifyAddressText, "no-at-sign"))
 		if got := h.attributes("no-at-sign"); len(got) != 0 {
 			h.Errorf("VerificationAttributes = %v after a refused verify, want none", got)
 		}

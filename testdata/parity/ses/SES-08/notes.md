@@ -10,3 +10,11 @@ session: no verified identity and no readable mailbox; $M = us1103-me@example.co
 - 01-mixed: unknown identities omitted from VerificationAttributes: matches switch ses.verification.unknown-identity; the email identity's entry has no VerificationToken (recorded with $M Pending, not Success)
 - 02-101: settled (was UNVERIFIED): InvalidParameterValue, Type Sender, 400, "Can only get verification attributes for up to 100 identities at a time."
 - 03-notif-raw (9.1): matches the 11.1 coverage note for a known identity: no BounceTopic/ComplaintTopic/DeliveryTopic elements at all (although the model marks them required), ForwardingEnabled true, the three HeadersIn*NotificationsEnabled false; the unknown identity is omitted from NotificationAttributes
+
+## Replay (internal/parity)
+
+`scenario.json` replays the three steps; internal/parity/baseline.json holds the outcomes.
+
+- Setup: `VerifyEmailIdentity` of us1103-me@example.com, the identity SES-00 step 01 created in the session; not made up.
+- 01-mixed settles `ses.verification.unknown-identity`.
+- 03-notif-raw differs: understudy writes empty BounceTopic, ComplaintTopic and DeliveryTopic elements, since the model marks them required.

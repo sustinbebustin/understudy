@@ -162,12 +162,14 @@ func (s *Service) Switches() []fidelity.Entry {
 // storeSwitch is switch ses.store.shared-v1-v2 at value v. Ops are the v1
 // operations that read or write identities so far; a switch lists only
 // operations of the service that declares it, so the v2 identity and tag
-// operations it governs as well are not listed.
+// operations it governs as well are not listed. SES-12 recorded "shared":
+// each API read the identity and the template the other created (ses.md
+// 2.3).
 func storeSwitch(v StoreSharing) fidelity.Switch[StoreSharing] {
 	return fidelity.Switch[StoreSharing]{
 		Name:   "ses.store.shared-v1-v2",
 		Value:  v,
-		Label:  evidence.Inferred,
+		Label:  evidence.AWSRecorded,
 		Ref:    "docs/research/ses.md#23-decision",
 		Record: "SES-12",
 		Ops: []string{
@@ -175,7 +177,7 @@ func storeSwitch(v StoreSharing) fidelity.Switch[StoreSharing] {
 			"ses.GetIdentityNotificationAttributes", "ses.ListIdentities", "ses.DeleteIdentity",
 			"ses.SendEmail", "ses.SendRawEmail", "ses.SendTemplatedEmail",
 		},
-		Settles: fidelity.NoScenario{Reason: "unrecorded: SES-12 in the recording queue (ses.md 12) settles it"},
+		Settles: fidelity.NoScenario{Reason: "ses/SES-12 is recorded; every step crossing the APIs has a v2 REST request, which the replayer does not route"},
 	}
 }
 
@@ -192,13 +194,14 @@ func messageIDSwitch(v MessageIDFormat) fidelity.Switch[MessageIDFormat] {
 		Ref:     "docs/research/ses.md#47-messageid",
 		Record:  "SES-07",
 		Ops:     []string{"ses.SendEmail", "ses.SendRawEmail", "ses.SendTemplatedEmail", "ses.VerifyEmailIdentity"},
-		Settles: fidelity.NoScenario{Reason: "unrecorded: SES-07 in the recording queue (ses.md 12) settles it"},
+		Settles: fidelity.NoScenario{Reason: "unrecorded: SES-07 (ses.md 12) sends from a verified address, which the 2026-11-03 session did not have"},
 	}
 }
 
 // unverifiedTextSwitch is switch ses.error.unverified.text at value v. It
 // governs v2 SendEmail too, which, being another service's operation, it
-// does not list.
+// does not list. The text is recorded (SES-01); the hash order is a rule
+// inferred from the two lists SES-03 recorded (ses.md 6.1).
 func unverifiedTextSwitch(v UnverifiedText) fidelity.Switch[UnverifiedText] {
 	return fidelity.Switch[UnverifiedText]{
 		Name:    "ses.error.unverified.text",
@@ -207,7 +210,7 @@ func unverifiedTextSwitch(v UnverifiedText) fidelity.Switch[UnverifiedText] {
 		Ref:     "docs/research/ses.md#61-sandbox-rules-per-send",
 		Record:  "SES-01, SES-03",
 		Ops:     []string{"ses.SendEmail", "ses.SendRawEmail", "ses.SendTemplatedEmail"},
-		Settles: fidelity.NoScenario{Reason: "unrecorded: SES-01 and SES-03 in the recording queue (ses.md 12) settle it"},
+		Settles: fidelity.SettledBy{Step: fidelity.StepRef{Scenario: "ses/SES-03", Step: "02-both"}},
 	}
 }
 
@@ -223,21 +226,21 @@ func rawEnvelopeSwitch(v RawEnvelope) fidelity.Switch[RawEnvelope] {
 		Ref:     "docs/research/ses.md#42-v1-sendrawemail",
 		Record:  "SES-20",
 		Ops:     []string{"ses.SendRawEmail"},
-		Settles: fidelity.NoScenario{Reason: "unrecorded: SES-20 in the recording queue (ses.md 12) settles it"},
+		Settles: fidelity.NoScenario{Reason: "unrecorded: SES-20 steps 01, 02 and 04 (ses.md 12) send from a verified address, which the 2026-11-03 session did not have"},
 	}
 }
 
 // unknownIdentitySwitch is switch ses.verification.unknown-identity at
-// value v.
+// value v. SES-08 recorded "omitted" (ses.md 5.3).
 func unknownIdentitySwitch(v UnknownIdentity) fidelity.Switch[UnknownIdentity] {
 	return fidelity.Switch[UnknownIdentity]{
 		Name:    "ses.verification.unknown-identity",
 		Value:   v,
-		Label:   evidence.Inferred,
+		Label:   evidence.AWSRecorded,
 		Ref:     "docs/research/ses.md#53-v1-identity-operations",
 		Record:  "SES-08",
 		Ops:     []string{"ses.GetIdentityVerificationAttributes"},
-		Settles: fidelity.NoScenario{Reason: "unrecorded: SES-08 in the recording queue (ses.md 12) settles it"},
+		Settles: fidelity.SettledBy{Step: fidelity.StepRef{Scenario: "ses/SES-08", Step: "01-mixed"}},
 	}
 }
 

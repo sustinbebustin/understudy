@@ -108,8 +108,13 @@ func (s *Service) checkIdentities(st *state, region aws.Region, o outgoing) *ref
 	if len(senders) == 0 && len(recipients) == 0 {
 		return nil
 	}
-	failed := slices.Concat(senders, recipients)
-	if s.opts.UnverifiedText == UnverifiedRecipientsFirst {
+	var failed []string
+	switch s.opts.UnverifiedText {
+	case UnverifiedHashOrder:
+		failed = hashSetOrder(slices.Concat(senders, recipients))
+	case UnverifiedSendersFirst:
+		failed = slices.Concat(senders, recipients)
+	case UnverifiedRecipientsFirst:
 		failed = slices.Concat(recipients, senders)
 	}
 	return &refusal{class: refusalRejected, text: UnverifiedTextPrefix + strings.ToUpper(region.String()) + ": " + strings.Join(failed, ", ")}

@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "item": "SES-18",
+  "account": "123456789012",
+  "region": "us-east-2",
+  "client": "aws-cli",
+  "steps": [
+    {
+      "fixture": "ses/SES-18/01-create.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ses/SES-18/02-dup.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ses/SES-18/03-get-missing.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ses/SES-18/05-v2-get-missing.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ses/SES-18/06-v2-dup.json",
+      "compare": "all"
+    }
+  ]
+}

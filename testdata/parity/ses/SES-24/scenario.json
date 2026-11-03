@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "item": "SES-24",
+  "account": "123456789012",
+  "region": "us-east-2",
+  "client": "aws-cli",
+  "steps": [
+    {
+      "fixture": "ses/SES-24/01-v1-unknown.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ses/SES-24/02-v2-unknown.json",
+      "compare": "all"
+    }
+  ]
+}

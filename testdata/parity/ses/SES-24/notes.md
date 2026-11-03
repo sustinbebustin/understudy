@@ -9,3 +9,7 @@ session: no verified identity and no readable mailbox; $M = us1103-me@example.co
 
 - 01-v1-unknown: settled: 400 Content-Type text/xml, <ErrorResponse xmlns="http://webservices.amazon.com/AWSFault/2005-15-09">, Type Sender, Code InvalidAction, "Could not find operation FooBar for version 2010-12-01" (the SNS pattern)
 - 02-v2-unknown: settled: 404, no Content-Type, no x-amzn-ErrorType, body <UnknownOperationException/> (29 bytes)
+
+## Replay (internal/parity)
+
+`scenario.json` replays both steps; 02-v2-unknown is skipped (v2 REST). 01-v1-unknown differs: understudy answers the SES namespace and "The action FooBar is not valid for this endpoint."

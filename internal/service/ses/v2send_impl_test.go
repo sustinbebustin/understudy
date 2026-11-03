@@ -29,7 +29,8 @@ func TestV2SimpleAddressAndRecipientChecks(t *testing.T) {
 		_, err = call(h, sesv2api.OpSendEmail, in)
 		wantErr(h, err, sesv2api.IdentityBadRequestException(), ses.NoRecipientsText)
 		_, err = call(h, sesv2api.OpSendEmail, simpleEmail(sender, "a@x.test", "b@x.test"))
-		wantErr(h, err, sesv2api.IdentityMessageRejected(), unverifiedText(h.Scope.Region, "a@x.test", "b@x.test"))
+		// Java HashSet order (ses.md 6.1): b@x.test hashes to bucket 0, a@x.test to 3.
+		wantErr(h, err, sesv2api.IdentityMessageRejected(), unverifiedText(h.Scope.Region, "b@x.test", "a@x.test"))
 	})
 }
 

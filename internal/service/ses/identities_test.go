@@ -139,13 +139,13 @@ func listAll(h *harness, kind *sesapi.IdentityType, maxItems int32) []string {
 }
 
 // MaxItems is 1 to 1000 (aws-doc API_ListIdentities, ses.md 5.3); outside
-// that range the answer is InvalidParameterValue with MaxItemsText, both
-// inferred (SES-29) and read from the overlay and the constant.
+// that range the answer is InvalidParameterValue with
+// ListIdentitiesMaxItemsText (recorded, SES-29).
 func TestListIdentitiesMaxItemsRange(t *testing.T) {
 	run(t, func(h *harness) {
 		for _, n := range []int32{0, ses.ListIdentitiesMaxItems + 1} {
 			_, err := call(h, sesapi.OpListIdentities, &sesapi.ListIdentitiesInput{MaxItems: &n})
-			wantErr(h, err, sesapi.IdentityInvalidParameterValue(), fmt.Sprintf(ses.MaxItemsText, ses.ListIdentitiesMaxItems))
+			wantErr(h, err, sesapi.IdentityInvalidParameterValue(), fmt.Sprintf(ses.ListIdentitiesMaxItemsText, n, ses.ListIdentitiesMaxItems))
 		}
 		for _, n := range []int32{1, ses.ListIdentitiesMaxItems} {
 			must(h, sesapi.OpListIdentities, &sesapi.ListIdentitiesInput{MaxItems: &n})

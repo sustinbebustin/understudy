@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "item": "SES-08",
+  "account": "123456789012",
+  "region": "us-east-2",
+  "client": "aws-cli",
+  "setup": [
+    {
+      "service": "ses",
+      "operation": "VerifyEmailIdentity",
+      "input": {
+        "EmailAddress": "us1103-me@example.com"
+      }
+    }
+  ],
+  "steps": [
+    {
+      "fixture": "ses/SES-08/01-mixed.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ses/SES-08/02-101.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ses/SES-08/03-notif-raw.json",
+      "compare": "all"
+    }
+  ],
+  "settles": [
+    {
+      "switch": "ses.verification.unknown-identity",
+      "step": "01-mixed",
+      "field": "body/GetIdentityVerificationAttributesResponse/GetIdentityVerificationAttributesResult/VerificationAttributes"
+    }
+  ]
+}

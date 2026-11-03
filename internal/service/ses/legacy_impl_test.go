@@ -1,6 +1,7 @@
 package ses_test
 
 import (
+	"fmt"
 	"slices"
 	"testing"
 
@@ -27,7 +28,7 @@ func TestVerifyEmailAddressStartsVerification(t *testing.T) {
 			h.Errorf("recorded = %+v, want one verification email from VerifyEmailAddress", msgs)
 		}
 		_, err := call(h, sesapi.OpVerifyEmailAddress, &sesapi.VerifyEmailAddressInput{EmailAddress: "a b@example.com"})
-		wantErr(h, err, sesapi.IdentityInvalidParameterValue(), ses.AddressWhitespaceText)
+		wantErr(h, err, sesapi.IdentityInvalidParameterValue(), fmt.Sprintf(ses.VerifyAddressText, "a b@example.com"))
 	})
 }
 
