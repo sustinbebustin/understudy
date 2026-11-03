@@ -77,7 +77,7 @@ const (
 	restAPINote = "cloneFrom answers NotImplemented; policy is stored and returned escaped, and under iam.enforce=enforce an invocation of an API with a policy answers 501; " +
 		"binaryMediaTypes, disableExecuteApiEndpoint and endpointConfiguration PRIVATE are stored and returned, and an invocation of an API that has them answers 501; " +
 		"vpcEndpointIds, securityPolicy, endpointAccessMode, minimumCompressionSize and apiKeySource are stored without effect; " +
-		"an EDGE API is served as a REGIONAL one (no CloudFront headers in the event); a second API with the same name is allowed (inferred, APIGW1-14); " +
+		"an EDGE API is served as a REGIONAL one (no CloudFront headers in the event); a second API with the same name is allowed (recorded, APIGW1-14); " +
 		"an endpointConfiguration types value outside the enum answers a ValidationException naming the list member, where AWS names the whole list " +
 		"(recorded, test_apigateway_api.snapshot.json:L4693-L4703); " +
 		"the UpdateRestApi texts for an invalid value, a second or removed endpoint type and PRIVATE on ipv4 are inferred; " +
