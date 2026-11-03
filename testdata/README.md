@@ -2,7 +2,7 @@
 
 Fixtures shared across packages.
 
-- `parity/<svc>/<item>/`: real AWS exchanges for the record backlog items (R01 to R18, KMS-alias), recorded with the interim method of [the recording kit](../docs/recording-kit.md) and distilled by `scripts/distill-parity` into one `<step>.json` per step (format below). Each item directory holds the `notes.md` that marks every expected field `matches`, `differs` or `n/a` against understudy as it stood when the captures were compared; the follow-up fix commit closed some of the `differs` lines, and [Differences from AWS](../docs/guide/differences.md) lists the rest. Files with other extensions (`.time`, `.tsv`, `.txt`, `.jsonl`) are side observations the recording scripts wrote, such as timestamps and tallies, kept as written. A `scenario.json`, written by hand, says how `internal/parity` replays the item ([Replay scenarios](#replay-scenarios)).
+- `parity/<svc>/<item>/`: real AWS exchanges for the record backlog items (R01 to R18, KMS-alias), recorded with the interim method of [the recording kit](../docs/recording-kit.md) and distilled by `scripts/distill-parity` into one `<step>.json` per step (format below). Each item directory holds the `notes.md` that marks every expected field `matches`, `differs` or `n/a` against understudy as it stood when the captures were compared; the follow-up fix commit closed some of the `differs` lines, and [Differences from AWS](../docs/guide/differences.md) lists the rest. Files with other extensions (`.time`, `.tsv`, `.txt`, `.jsonl`, `.hex`) are side observations the recording scripts wrote, such as timestamps, tallies and hex dumps of binary responses, kept as written. A `scenario.json`, written by hand, says how `internal/parity` replays the item ([Replay scenarios](#replay-scenarios)).
 
 `pgregory.net/rapid` failure files do not live here. rapid writes a failing case to `testdata/rapid/<TestName>/*.fail` inside the failing test's own package directory; commit it there as a regression seed and rapid replays it automatically.
 
@@ -58,10 +58,10 @@ Values that identify the recording account are masked consistently across every 
 The raw captures stay outside the repository, in the recording directory the kit sets up (`~/understudy-recordings/<P>`). Rebuild the fixtures from them with
 
 ```sh
-scripts/distill-parity --replace ~/understudy-recordings/usr-rec-20261014
+scripts/distill-parity ~/understudy-recordings/usr-rec-20261014
 ```
 
-It reads the account id from `<recordings>/_scripts/acct` (or `--account-file`), never writes to the recordings, rebuilds `testdata/parity/` from scratch except the replay scenarios (`<svc>/<item>/scenario.json`, written by hand), and fails, naming the steps, when a capture does not parse or a credential or the account id survives. It copies each `notes.md` from the recordings, so first carry the `Replay` section and the `Replay:` remarks a replay added to an item's `notes.md` into the recording's. Its tests: `uv run --with pytest pytest scripts/tests`.
+It reads the account id from `<recordings>/_scripts/acct` (or `--account-file`), never writes to the recordings, and replaces only the steps the recordings hold: each one's fixture is written again, under whichever service held it before, while every other step, every replay scenario (`scenario.json`, written by hand) and every other item's fixtures stay. To retire a step or an item, delete its fixtures by hand. It refuses, writing nothing, when a directory of the recordings names no item id it knows (pass `--skip <dir>` for one that holds no captures) or an item directory holds a file that is neither a capture nor a side observation (`notes.md`, `.time`, `.tsv`, `.txt`, `.jsonl`, `.hex`), such as a helper input. It fails, naming the steps, when a capture does not parse, leaving that step's earlier fixture in place, or when a credential or the account id survives. It copies each `notes.md` from the recordings, so first carry the `Replay` section and the `Replay:` remarks a replay added to an item's `notes.md` into the recording's. Its tests: `uv run --with pytest pytest scripts/tests`.
 
 ## Replay scenarios
 

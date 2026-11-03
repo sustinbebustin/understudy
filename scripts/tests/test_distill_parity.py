@@ -124,6 +124,68 @@ def test_curl_capture_keeps_the_request_and_final_response():
     }
 
 
+def test_curl_capture_keeps_the_request_body_recurl_saved():
+    trace = "> POST / HTTP/1.1\r\n> Host: kinesis.us-east-2.amazonaws.com\r\n> Content-Length: 13\r\n> \r\n* upload completely sent off: 13 bytes\r\n"
+    http = b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\n{}"
+    exchange = dp.curl_exchange(http, trace, b'{"Limit": 10}')
+    assert exchange["request"]["body"] == '{"Limit": 10}'
+    assert "body_unrecorded" not in exchange["request"]
+
+
+def test_curl_request_body_that_disagrees_with_the_trace_is_refused():
+    trace = "> POST / HTTP/1.1\r\n> Host: ssm.us-east-2.amazonaws.com\r\n> Content-Length: 5\r\n> \r\n"
+    try:
+        dp.curl_exchange(b"HTTP/1.1 200 OK\r\n\r\n", trace, b"{}")
+    except dp.DistillError as e:
+        assert "2 bytes" in str(e) and "5" in str(e)
+    else:
+        raise AssertionError("a .req of the wrong length was accepted")
+
+
+def test_curl_step_reads_the_req_file():
+    trace = b"> POST / HTTP/1.1\r\n> Host: states.us-east-2.amazonaws.com\r\n> Content-Length: 2\r\n> \r\n"
+    fixture = dp.distill_step("01-x", {".http": b"HTTP/1.1 200 OK\r\n\r\n{}", ".trace": trace, ".req": b"{}"})
+    assert fixture["client"] == "curl"
+    assert fixture["exchanges"][0]["request"]["body"] == "{}"
+    assert ".req" in dp.EXCHANGE_EXTS
+
+
+def test_queue_items_resolve_to_their_primary_service():
+    cases = {
+        "R01": "sqs", "KMS-alias": "kms", "SCH": "scheduler", "S3": "s3", "S3-01": "s3", "S3SOL": "s3",
+        "IAM-ENF": "iam", "IAM-EVAL-35": "iam", "APIGW1": "apigateway", "APIGW2-08": "apigatewayv2",
+        "SSM-22": "ssm", "CWA-23": "cloudwatch", "KIN-01": "kinesis", "SES-28": "ses", "SFN-15": "sfn",
+        "ASL-09": "sfn", "SCH-10": "scheduler", "DDBS-05": "dynamodb", "ESMS-02": "lambda", "LDL-01": "lambda",
+        "EBB": "events", "SNSH": "sns", "PROTO-05": "dynamodb",
+    }
+    assert {item: dp.primary_of(item) for item in cases} == cases
+    for unknown in ("R19", "LDL-NN", "TC-01", "ESMS-src", "IAM", "KIN-"):
+        assert dp.primary_of(unknown) is None, unknown
+
+
+def test_hosts_name_the_queue_services():
+    def curl(host: str, target: str = "/") -> str:
+        return f"> POST {target} HTTP/1.1\n> Host: {host}\n"
+
+    cases = [
+        (curl("kinesis.us-east-2.amazonaws.com"), "KIN-01", "kinesis"),
+        (curl("ssm.us-east-2.amazonaws.com"), "IAM-ENF", "ssm"),
+        (curl("email.us-east-2.amazonaws.com", "/v2/email/outbound-emails"), "IAM-ENF", "ses"),
+        (curl("states.us-east-2.amazonaws.com"), "IAM-ENF", "sfn"),
+        (curl("apigateway.us-east-2.amazonaws.com", "/restapis"), "IAM-ENF", "apigateway"),
+        (curl("apigateway.us-east-2.amazonaws.com", "/v2/apis"), "IAM-ENF", "apigatewayv2"),
+        (curl("a1b2c3d4e5.execute-api.us-east-2.amazonaws.com", "/prod/e"), "APIGW2-08", "apigatewayv2"),
+        (curl("a1b2c3d4e5.execute-api.us-east-2.amazonaws.com", "/prod/e"), "APIGW1", "apigateway"),
+        (curl("ab12cdesqs.execute-api.us-east-2.amazonaws.com", "/prod/e"), "APIGW2-08", "apigatewayv2"),
+        (curl("abcdefghij0123456789klmnopqrsts3.lambda-url.us-east-2.on.aws"), "APIGW2-08", "lambda"),
+        ("2026-11-03 06:30:18,692 - MainThread - botocore.endpoint - DEBUG - Sending http request: <AWSPreparedRequest "
+         "stream_output=False, method=GET, url=https://apigateway.us-east-2.amazonaws.com/v2/apis/x, headers={}>",
+         "IAM-ENF", "apigatewayv2"),
+    ]
+    for text, item, svc in cases:
+        assert dp.service_of(text, "01-x", item) == svc, text
+
+
 def test_cli_step_keeps_exit_and_error_and_drops_parsed_output():
     http = log("awscli.clidriver - DEBUG - CLI version: aws-cli/2").encode() + b"\naws: [ERROR]: An error occurred (X): bad\n"
     fixture = dp.distill_step("01-x", {".http": http, ".out": b"{\n}\nexit=252\n"})

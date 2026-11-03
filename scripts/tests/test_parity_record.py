@@ -474,7 +474,7 @@ def test_record_runs_the_commands_in_order_then_distills(kit):
     http = (kit.rec / "KMS-alias" / "01-duplicate.http").read_text()
     assert http.startswith("DEBUG - Sending http request: kms create-alias")
     assert kit.distill_calls() == [{
-        "argv": ["--replace", str(kit.rec)],
+        "argv": [str(kit.rec)],
         "files": ["KMS-alias/01-duplicate.http", "KMS-alias/01-duplicate.out", "_scripts/acct"],
     }]
 

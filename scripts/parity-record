@@ -29,7 +29,8 @@ same id; every reference is set or captured by an earlier command of its
 scenario; `aws sts get-caller-identity` signs as UNDERSTUDY_RECORD_ACCOUNT;
 and that account id is typed at the prompt. A rec entry then writes
 $REC/<item>/<step>.out and .http as the kit's rec does, and
-scripts/distill-parity --replace $REC rebuilds testdata/parity at the end.
+scripts/distill-parity $REC rewrites the steps REC holds in testdata/parity at
+the end, leaving every other fixture as it is.
 Agents never use --record.
 
 Exit status: 0 for a printed plan; 2 for a refusal or a scenario that
@@ -400,7 +401,7 @@ def record(scenarios: Sequence[Scenario], env: Mapping[str, str], rec_dir: Path)
                             )
                             return 1
                         captures[name] = r.stdout.rstrip("\n")  # as $(...) strips it
-        distill = [str(SCRIPT_DIR / "distill-parity"), "--replace", str(rec_dir)]
+        distill = [str(SCRIPT_DIR / "distill-parity"), str(rec_dir)]
         print(f"parity-record: {' '.join(distill)}", file=sys.stderr, flush=True)
         return exit_status(subprocess.run(distill).returncode)
     except OSError as e:
