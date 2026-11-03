@@ -528,7 +528,7 @@ So the structured-error work has one real customer today: DynamoDB fault injecti
   | `ValidationError` | ten texts |
 
   The model's documentation of `com.amazonaws.dynamodb#TransactionCanceledException` carries the same text.
-- `CancellationReason` (https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_CancellationReason.html) says instead: "If no error occurred for the associated item an error with a Null code and Null message will be present." This conflicts with the note above on `Code`. The note above is newer and more specific, and the recorded message text lists `None` (12.3), so follow it. The bytes of a `None` entry stay UNVERIFIED (PROTO-02).
+- `CancellationReason` (https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_CancellationReason.html) says instead: "If no error occurred for the associated item an error with a Null code and Null message will be present." This conflicts with the note above on `Code`. The note above is newer and more specific, and the recorded message text lists `None` (12.3), so follow it. A `None` entry is `{"Code":"None"}` (12.4, PROTO-02).
 - Developer guide, Transaction conflict handling (https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/transaction-apis.html#transaction-conflict-handling): "The exception contains the list of CancellationReasons, ordered according to the list of items in the `TransactItems` request parameter. The exception's error message also includes a string representation of the cancellation reason codes." Also: "If that request fails, AWS SDKs do not retry the request."
 - `ReturnValuesOnConditionCheckFailure` (`ALL_OLD` or `NONE`) on `ConditionCheck`, `Put`, `Update` and `Delete` returns "the item attributes if the ... condition fails" (https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_ConditionCheck.html). That is what fills `CancellationReason.Item`.
 - `TransactItems` holds 1 to 100 items (API_TransactWriteItems, Request Parameters), which matches the `@length` of `CancellationReasonList`.
@@ -537,7 +537,7 @@ So the structured-error work has one real customer today: DynamoDB fault injecti
 
 - third-party-recorded, validated against AWS on 2025-10-08 (localstack@8b9a79f `tests/aws/services/dynamodb/test_dynamodb.validation.json`:L311-L312): the test puts `Fred`, then sends `TransactWriteItems` with a `ConditionCheck` `attribute_not_exists(Username)` on `Fred` followed by a `Delete` of `Bert` (`tests/aws/services/dynamodb/test_dynamodb.py`:L1666-L1697). Recorded: "An error occurred (TransactionCanceledException) when calling the TransactWriteItems operation: Transaction cancelled, please refer cancellation reasons for specific reasons [ConditionalCheckFailed, None]" (`tests/aws/services/dynamodb/test_dynamodb.snapshot.json`:L210-L215).
   - This is botocore's rendering of the error. It takes the message from `message` and falls back to `Message` (botocore 1.43.109 `botocore/parsers.py` L737-L741). So the recording fixes the message text and the code order, but neither the key's spelling nor the bytes of the reasons.
-- observed, DynamoDB Local 3.3.1 (not AWS): status 400, `com.amazonaws.dynamodb.v20120810#TransactionCanceledException`, `CancellationReasons:[{"Code":"None"},{"Code":"ConditionalCheckFailed","Message":"The conditional request failed."}]`, and the message "Transaction cancelled, please refer cancellation reasons for specific reasons [None, ConditionalCheckFailed]" ([dynamodb-local.md](dynamodb-local.md) 4.2). understudy passes that body through with the key `Message` (`internal/service/dynamodb/rewrite_test.go` L192-L197).
+- observed, DynamoDB Local 3.3.1 (not AWS): status 400, `com.amazonaws.dynamodb.v20120810#TransactionCanceledException`, `CancellationReasons:[{"Code":"None"},{"Code":"ConditionalCheckFailed","Message":"The conditional request failed."}]`, and the message "Transaction cancelled, please refer cancellation reasons for specific reasons [None, ConditionalCheckFailed]" ([dynamodb-local.md](dynamodb-local.md) 4.2). understudy passes that body through with the key `Message`, its reason texts rewritten to AWS's (12.4; `internal/service/dynamodb/rewrite_test.go` TestLocalErrorsTakeAWSWordsAndSpelling).
 - aws-recorded by understudy (2026-10-14, us-east-2): DynamoDB spells the message key per case.
   - A bare `ConditionalCheckFailedException` uses `"message"`; one that carries `Item` uses `"Message"` (`testdata/parity/dynamodb/R04/05-put-ccf.json`, `05-put-ccf-all-old.json`).
   - Error responses carry `x-amzn-RequestId` and `x-amz-crc32` (`05-put-ccf.json`).
@@ -550,26 +550,27 @@ So the structured-error work has one real customer today: DynamoDB fault injecti
 
 ### 12.4 Expected wire form and open points
 
-For a `Put` followed by a failing `ConditionCheck`:
+For a failing `ConditionCheck` followed by a `Put`, aws-recorded (PROTO-01, recorded 2026-11-03; `testdata/parity/dynamodb/PROTO-01/01-ccf-then-put.json`):
 
 ```
 HTTP/1.1 400 Bad Request
 Content-Type: application/x-amz-json-1.0
-x-amzn-RequestId: <request id>
+x-amzn-requestid: <request id>
 x-amz-crc32: <CRC32 of the body>
 
 {"__type":"com.amazonaws.dynamodb.v20120810#TransactionCanceledException",
- "Message":"Transaction cancelled, please refer cancellation reasons for specific reasons [None, ConditionalCheckFailed]",
- "CancellationReasons":[{"Code":"None"},{"Code":"ConditionalCheckFailed","Message":"The conditional request failed."}]}
+ "CancellationReasons":[{"Code":"ConditionalCheckFailed","Message":"The conditional request failed"},{"Code":"None"}],
+ "Message":"Transaction cancelled, please refer cancellation reasons for specific reasons [ConditionalCheckFailed, None]"}
 ```
 
-- Message format: "Transaction cancelled, please refer cancellation reasons for specific reasons [" + the codes in request order joined by ", " + "]". Sources: third-party-recorded (12.3); DynamoDB Local agrees.
-- UNVERIFIED: the top-level message key, `Message` or `message`. The model spelling, Local and the precedent of a `ConditionalCheckFailedException` with `Item` say `Message`; the bare `ConditionalCheckFailedException` precedent says `message`. Default: `Message` (inferred). Settled by PROTO-01.
-- UNVERIFIED: a `None` entry, `{"Code":"None"}` or `{"Code":"None","Message":null}`. Default: `{"Code":"None"}` (aws-doc; Local agrees). Settled by PROTO-02.
-- UNVERIFIED: the `ConditionalCheckFailed` reason's text, with or without the final period. The recorded exception text has none (`05-put-ccf.json`); the docs' code list and Local have one. Default: "The conditional request failed." (aws-doc). Settled by PROTO-03.
-- UNVERIFIED: under `ALL_OLD`, whether the failing reason carries `"Item"` as an `AttributeValue` map, and which message key the top level uses when it does. Settled by PROTO-04.
-- UNVERIFIED: `ExecuteTransaction`'s message text and reasons for a failed PartiQL condition. Settled by PROTO-05.
-- UNVERIFIED: the wire bytes of a `TransactionConflict` reason ("Transaction is ongoing for the item." per aws-doc), which is the case fault injection exists for. Settled by PROTO-06.
+- Message format: "Transaction cancelled, please refer cancellation reasons for specific reasons [" + the codes in request order joined by ", " + "]". Sources: third-party-recorded (12.3); aws-recorded (PROTO-01, PROTO-02, PROTO-06, recorded 2026-11-03); DynamoDB Local agrees.
+- Member order: `__type`, `CancellationReasons`, `Message` (PROTO-01). TransactWriteItems spells the request-id header `x-amzn-requestid` in lower case; ExecuteTransaction spells it `x-amzn-RequestId` (PROTO-05). Header names are case-insensitive, so neither matters to a client.
+- The top-level message key is `Message`, also when a reason carries `Item` (PROTO-01, PROTO-04, recorded 2026-11-03). understudy's default holds.
+- A `None` entry is exactly `{"Code":"None"}`, no `Message` key (PROTO-02, recorded 2026-11-03). understudy's default holds.
+- The `ConditionalCheckFailed` reason's text has no final period: `{"Code":"ConditionalCheckFailed","Message":"The conditional request failed"}` (PROTO-03, recorded 2026-11-03), as the recorded `ConditionalCheckFailedException` text (`05-put-ccf.json`). The docs' code list (12.2) and DynamoDB Local have the period; understudy rewrites Local's text to AWS's (`internal/service/dynamodb/rewrite.go` fixReasons).
+- Under `ALL_OLD` the failing reason carries `Item` as an `AttributeValue` map, between `Code` and `Message`: `{"Code":"ConditionalCheckFailed","Item":{"v":{"N":"1"},"pk":{"S":"held"}},"Message":"The conditional request failed"}` (PROTO-04, recorded 2026-11-03). understudy passes Local's member order through; no test compares it with AWS's, and JSON clients do not read member order.
+- `ExecuteTransaction` answers the same: 400 `TransactionCanceledException`, reasons in statement order, the same message frame under `Message`; its body is byte-identical to PROTO-01 step 01 (PROTO-05, recorded 2026-11-03).
+- A `TransactionConflict` reason is `{"Code":"TransactionConflict","Message":"Transaction is ongoing for the item"}`, no final period, unlike the aws-doc text (PROTO-06, recorded 2026-11-03: 33 of 40 concurrent transactions cancelled). understudy's fault-rule examples use this text; a rule's members are sent as given.
 
 ---
 
@@ -627,12 +628,12 @@ x-amz-crc32: <CRC32 of the body>
 9. DynamoDB fault injection (section 12): `fault.Error` gains optional `members`, decoded through the error shape's generated deserializer, so unknown members and wrong types are rejected when the rule is added.
    - For `TransactionCanceledException`, each item the rule does not name gets `{"Code":"None"}`, so the list has one reason per request item (12.2). A rule naming an index past the request's last item does not match that call.
    - When the rule gives reasons and no message, the message is AWS's format built from the codes (12.4), not the rule-naming text.
-   - Status 400, `__type` `com.amazonaws.dynamodb.v20120810#TransactionCanceledException`, message key `Message` (inferred; PROTO-01), not retryable (12.2).
+   - Status 400, `__type` `com.amazonaws.dynamodb.v20120810#TransactionCanceledException`, message key `Message` (aws-recorded, 12.4; PROTO-01), not retryable (12.2).
    - The same mechanism lets a rule set `ThrottlingReasons` (11.5).
 10. Coverage notes (`docs/coverage.md` L238 and L237; the same clause in L232, keeping its other clauses). Replace "transactions never conflict; AWS cancels a conflicting transaction with TransactionCanceledException and the cancellation reason TransactionConflict, and a fault rule cannot set cancellation reasons yet" with "transactions never conflict; AWS cancels a conflicting transaction with TransactionCanceledException and the cancellation reason TransactionConflict; inject it with a fault rule whose members set CancellationReasons". Update the source constant (`internal/service/dynamodb/service.go` L69) and `docs/guide/differences.md` L101 with it. The operations stay Partial.
 11. Fidelity switches: none.
     - Defaults, sparse nulls and structured error members are protocol rules that the spec and the normative corpus fix (10.2, 11.2, 13.1), with no AWS-visible variant in the pinned models.
-    - The DynamoDB open points (12.4) are unknowns, not known deviations. Hard-code the defaults with a comment citing this section and the PROTO id, as the `ConditionalCheckFailedException` key rule does (`internal/service/dynamodb/rewrite.go` L208-L214), and revise them when the recordings land.
+    - The DynamoDB points of 12.4 are recorded (PROTO-01 to PROTO-06, 2026-11-03) and hard-coded with a comment citing this section and the PROTO id, as the `ConditionalCheckFailedException` key rule is (`internal/service/dynamodb/rewrite.go` fixError).
 12. Limits and validation texts (understudy's own admin API, not AWS text), in the store's frame `fault rule "<id>" rejected, no rule was added or changed: <field>: <reason>`:
     - `action.members.CancellationReasons: has 0 entries; com.amazonaws.dynamodb#CancellationReasonList holds 1 to 100; give at least one reason`. Leaving `CancellationReasons` out is refused as well, so the text offers no such remedy.
     - `action.members: com.amazonaws.dynamodb#TransactionCanceledException has no member "<name>"; its members are Message and CancellationReasons`.
@@ -688,7 +689,7 @@ Expected:
 
 - status 400 with `x-amzn-RequestId` and `x-amz-crc32`;
 - `__type` `com.amazonaws.dynamodb.v20120810#TransactionCanceledException`;
-- the message under `Message` (UNVERIFIED; `message` is the alternative);
+- the message under `Message` (recorded 2026-11-03: `Message`);
 - the text ends `[ConditionalCheckFailed, None]` for step 01 and `[None, ConditionalCheckFailed]` for step 02.
 
 About 3 minutes, under USD 0.01.
@@ -702,7 +703,7 @@ rec PROTO-02/01-none-ccf-none aws dynamodb transact-write-items \
   --transact-items "[$(put free-3),$(ccheck),$(put free-4)]"
 ```
 
-Expected: `CancellationReasons` has three entries; the first and third are exactly `{"Code":"None"}`, with no `Message` key and no `"Message":null` (UNVERIFIED); the text ends `[None, ConditionalCheckFailed, None]`. About 2 minutes, under USD 0.01.
+Expected: `CancellationReasons` has three entries; the first and third are exactly `{"Code":"None"}`, with no `Message` key and no `"Message":null` (recorded 2026-11-03: so); the text ends `[None, ConditionalCheckFailed, None]`. About 2 minutes, under USD 0.01.
 
 ### 15.4 PROTO-03: the `ConditionalCheckFailed` reason text
 
@@ -712,7 +713,7 @@ Settles 12.4's third point.
 rec PROTO-03/01-single-ccf aws dynamodb transact-write-items --transact-items "[$(ccheck)]"
 ```
 
-Expected: one reason, `{"Code":"ConditionalCheckFailed","Message":"The conditional request failed."}`. Whether the text has a final period is UNVERIFIED; write the exact bytes into `notes.md`. The top-level text ends `[ConditionalCheckFailed]`. About 2 minutes, under USD 0.01.
+Expected: one reason, `{"Code":"ConditionalCheckFailed","Message":"The conditional request failed"}`, no final period (recorded 2026-11-03; the aws-doc text has one); write the exact bytes into `notes.md`. The top-level text ends `[ConditionalCheckFailed]`. About 2 minutes, under USD 0.01.
 
 ### 15.5 PROTO-04: `Item` in a reason under `ALL_OLD`
 
@@ -723,7 +724,7 @@ rec PROTO-04/01-ccf-all-old aws dynamodb transact-write-items \
   --transact-items "[$(ccheck ALL_OLD),$(put free-5)]"
 ```
 
-Expected: the first reason carries `"Item":{"pk":{"S":"held"},"v":{"N":"1"}}` beside `Code` and `Message` (UNVERIFIED). Note whether the top-level message key differs from PROTO-01's, as the `ConditionalCheckFailedException` key does when an item is present (`testdata/parity/dynamodb/R04/05-put-ccf-all-old.json`). About 2 minutes, under USD 0.01.
+Expected: the first reason carries `"Item":{"pk":{"S":"held"},"v":{"N":"1"}}` beside `Code` and `Message` (recorded 2026-11-03: `Item` between them, its attributes in the order `v`, `pk`). Note whether the top-level message key differs from PROTO-01's, as the `ConditionalCheckFailedException` key does when an item is present (`testdata/parity/dynamodb/R04/05-put-ccf-all-old.json`). About 2 minutes, under USD 0.01.
 
 ### 15.6 PROTO-05: `ExecuteTransaction` cancellation
 
@@ -740,7 +741,7 @@ rec PROTO-05/01-partiql-ccf aws dynamodb execute-transaction --transact-statemen
 
 The statements go in through `--arg` because a `'` inside the single-quoted jq program would end the shell string and drop the quotes around `pk`.
 
-Expected (UNVERIFIED throughout): status 400 `TransactionCanceledException`, reasons `[ConditionalCheckFailed, None]` in statement order, and the same message format as PROTO-01. If AWS answers with a different error (for example `ValidationException` for the statement form), record it as found. About 3 minutes, under USD 0.01.
+Expected (recorded 2026-11-03, all as listed): status 400 `TransactionCanceledException`, reasons `[ConditionalCheckFailed, None]` in statement order, and the same message format as PROTO-01. If AWS answers with a different error (for example `ValidationException` for the statement form), record it as found. About 3 minutes, under USD 0.01.
 
 ### 15.7 PROTO-06: a `TransactionConflict` reason
 
@@ -759,7 +760,7 @@ wait
 grep -l TransactionConflict "$REC"/PROTO-06/*.http
 ```
 
-Expected: at least one 400 `TransactionCanceledException` whose single reason is `{"Code":"TransactionConflict","Message":"Transaction is ongoing for the item."}` (aws-doc text; bytes UNVERIFIED), with the message ending `[TransactionConflict]`. If `grep` finds none, run the loop once more; if it still finds none, note "no conflict produced" and keep one 200 capture. About 5 minutes, under USD 0.01.
+Expected: at least one 400 `TransactionCanceledException` whose single reason is `{"Code":"TransactionConflict","Message":"Transaction is ongoing for the item"}` (recorded 2026-11-03, no final period; the aws-doc text has one), with the message ending `[TransactionConflict]`. If `grep` finds none, run the loop once more; if it still finds none, note "no conflict produced" and keep one 200 capture. About 5 minutes, under USD 0.01.
 
 ### 15.8 Teardown
 
