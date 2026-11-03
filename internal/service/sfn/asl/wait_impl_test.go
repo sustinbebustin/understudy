@@ -40,18 +40,18 @@ func TestWaitPastOneYearTimesOutAtTheLimit(t *testing.T) {
 
 // TimestampPath that selects nothing, or a value that is not a string,
 // fails with the SecondsPath texts' form for TimestampPath; SecondsPath
-// holding a numeric string is not a long.
+// holding a string that is not an integer is not a long.
 func TestWaitTimestampPathUnrecordedTexts(t *testing.T) {
 	// inferred, ASL-09
 	for _, tt := range []struct{ input, rest string }{
 		{`{}`, "The TimestampPath parameter does not reference an input value: $.t"},
 		{`{"t":5}`, "The TimestampPath parameter does not reference a valid ISO-8601 extended offset date-time format string: $.t == 5"},
-		{`{"s":"5"}`, ""},
+		{`{"s":"x"}`, ""},
 	} {
 		field := `"TimestampPath":"$.t"`
 		if tt.rest == "" {
 			field = `"SecondsPath":"$.s"`
-			tt.rest = "The SecondsPath parameter cannot be parsed as a long value: $.s == 5"
+			tt.rest = "The SecondsPath parameter cannot be parsed as a long value: $.s == x"
 		}
 		d := newDriver(t, `{"StartAt":"W","States":{"W":{"Type":"Wait",`+field+`,"End":true}}}`, rules())
 		d.start(tt.input)

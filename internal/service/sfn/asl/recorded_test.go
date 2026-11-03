@@ -241,6 +241,30 @@ func TestASL04MapItemSelectorMissingPath(t *testing.T) {
 	d.wantShape("ASL-04 02-map-history", "ExecutionStarted 1<-0", "MapStateEntered 2<-0", "MapStateStarted 3<-2", "ExecutionFailed 4<-3")
 }
 
+// A TimestampPath with a numeric offset or a lower-case "z" and a
+// SecondsPath holding the string "1" are accepted (ASL-09 01-03, recorded
+// 2026-11-03; stepfunctions-asl.md 7.1).
+func TestASL09WaitPathsAccepted(t *testing.T) {
+	for _, tt := range []struct {
+		field, input string
+		wait         time.Duration
+	}{
+		{`"TimestampPath":"$.t"`, `{"t":"2016-03-14T01:59:00+01:00"}`, 0},
+		{`"TimestampPath":"$.t"`, `{"t":"2016-03-14T01:59:00z"}`, 0},
+		{`"SecondsPath":"$.s"`, `{"s":"1"}`, time.Second},
+	} {
+		d := newDriver(t, `{"StartAt":"W","States":{"W":{"Type":"Wait",`+tt.field+`,"End":true}}}`, rules())
+		d.start(tt.input)
+		o := d.runToEnd(10)
+		if _, ok := o.(asl.Succeeded); !ok {
+			t.Fatalf("%s: outcome = %#v, want Succeeded", tt.input, o)
+		}
+		if got := d.event("WaitStateExited").Timestamp.Sub(d.event("WaitStateEntered").Timestamp); got != tt.wait {
+			t.Errorf("%s: waited %v, want %v", tt.input, got, tt.wait)
+		}
+	}
+}
+
 // A Choice Variable that selects nothing fails the execution with an
 // uncatchable States.Runtime and the recorded cause (ASL-08, recorded
 // 2026-11-03; stepfunctions-asl.md 6.4).
