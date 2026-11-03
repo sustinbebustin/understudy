@@ -23,8 +23,9 @@ func TestParseSchedulerAtForms(t *testing.T) {
 			t.Errorf("ParseScheduler(%q) = %v, want %q", expr, err, want)
 		}
 	}
-	if ex, err := ParseScheduler("at(2030-01-01T00:00)", AnyUnitAgreement); err != nil || ex.(At).In(time.UTC) != time.Date(2030, 1, 1, 0, 0, 0, 0, time.UTC) {
-		t.Errorf("ParseScheduler(at without seconds) = %v, %v; want 2030-01-01T00:00:00Z", ex, err)
+	noSeconds, err := ParseScheduler("at(2030-01-01T00:00)", AnyUnitAgreement)
+	if at, ok := noSeconds.(At); err != nil || !ok || !at.In(time.UTC).Equal(time.Date(2030, 1, 1, 0, 0, 0, 0, time.UTC)) {
+		t.Errorf("ParseScheduler(at without seconds) = %v, %v; want 2030-01-01T00:00:00Z", noSeconds, err)
 	}
 	ex, err := ParseScheduler("at(2024-02-29T00:00:00)", AnyUnitAgreement)
 	if err != nil {
