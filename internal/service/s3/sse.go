@@ -383,6 +383,9 @@ const (
 	ssecInsecureText    = "Requests specifying Server Side Encryption with Customer provided keys must be made over a secure connection."
 	ssecInitiateText    = "The multipart upload initiate requested encryption. Subsequent part requests must include the appropriate encryption parameters."
 	ssecMismatchText    = "The provided encryption parameters did not match the ones used originally."
+
+	ssecListPartsChecksumText = "The multipart upload initiate requested encryption. To retrieve Part Checksum data requests must include the appropriate encryption parameters."
+	ssecCompleteChecksumText  = "The object was stored using a form of Server Side Encryption. Correct SSE-C request parameters are required for this request when specifying checksums for each part."
 )
 
 // errSSECConflict answers SSE-C headers beside x-amz-server-side-encryption
@@ -667,15 +670,52 @@ func checkCustomerPart(upload Encryption, h customerHeaders, b *Bucket, key stri
 	return k, nil
 }
 
+// needsCustomerKey reports whether u is SSE-C and declared a checksum
+// algorithm, so ListParts and Complete need its key: the model notes the
+// key "is needed only when the object was created using a checksum
+// algorithm" (s3-ssec-object-lock.md 3.6; switch
+// s3.sse-c.complete-headers, S3SOL-08).
+func needsCustomerKey(u *Upload) bool {
+	return isCustomer(u.Encryption) && u.Checksum.Algorithm != ""
+}
+
 // checkCustomerComplete judges a CompleteMultipartUpload's SSE-C headers
-// against its upload (switch s3.sse-c.complete-headers): headers that are
-// sent are checked as checkCustomerSent checks them; none is needed unless
-// the upload is SSE-C and declared a checksum algorithm, as the model notes
-// the key "is needed only when the object was created using a checksum
-// algorithm" (s3-ssec-object-lock.md 3.6).
+// against its upload: on an upload that needs its key, none or another key
+// is 400 InvalidRequest "... Correct SSE-C request parameters are required
+// for this request when specifying checksums for each part."
+// (s3-ssec-object-lock.md 3.6; S3SOL-08 08-no-key and 08-wrong-key,
+// recorded 2026-11-03); otherwise headers that are sent are checked as
+// checkCustomerSent checks them.
 func checkCustomerComplete(u *Upload, h customerHeaders, scheme string) *awserr.Error {
-	if !h.sent() && isCustomer(u.Encryption) && u.Checksum.Algorithm != "" {
-		return errInvalidRequest(ssecInitiateText)
+	c, isC := u.Encryption.(CustomerEncryption)
+	if !needsCustomerKey(u) || !isC {
+		return checkCustomerSent(u.Encryption, h, scheme)
+	}
+	if !h.sent() {
+		return errInvalidRequest(ssecCompleteChecksumText)
+	}
+	k, err := parseCustomerWrite(h, nil)
+	if err != nil {
+		return err
+	}
+	if err := checkCustomerScheme(scheme); err != nil {
+		return err
+	}
+	if !c.matches(*k) {
+		return errInvalidRequest(ssecCompleteChecksumText)
+	}
+	return nil
+}
+
+// checkCustomerList judges a ListParts's SSE-C headers against its
+// upload: none on an upload that needs its key is 400 InvalidRequest "...
+// To retrieve Part Checksum data requests must include the appropriate
+// encryption parameters." (s3-ssec-object-lock.md 3.6; S3SOL-08
+// 08-list-parts-no-key, recorded 2026-11-03); headers that are sent are
+// checked as checkCustomerSent checks them.
+func checkCustomerList(u *Upload, h customerHeaders, scheme string) *awserr.Error {
+	if !h.sent() && needsCustomerKey(u) {
+		return errInvalidRequest(ssecListPartsChecksumText)
 	}
 	return checkCustomerSent(u.Encryption, h, scheme)
 }
@@ -683,10 +723,10 @@ func checkCustomerComplete(u *Upload, h customerHeaders, scheme string) *awserr.
 // checkCustomerSent judges the SSE-C headers a CompleteMultipartUpload or
 // a ListParts sent against the upload's encryption as UploadPart judges
 // them, without the bucket block: the header checks, plain HTTP, then the
-// match with the upload (switch s3.sse-c.complete-headers, whose
-// operations both are; plain HTTP as for any SSE-C request,
-// s3-ssec-object-lock.md 3.9). None sent passes: ListParts never needs
-// them (3.6), and checkCustomerComplete adds Complete's one exception.
+// match with the upload (inferred for an upload without a checksum
+// algorithm; plain HTTP as for any SSE-C request, s3-ssec-object-lock.md
+// 3.9). None sent passes; checkCustomerComplete and checkCustomerList add
+// the uploads that need their key.
 func checkCustomerSent(upload Encryption, h customerHeaders, scheme string) *awserr.Error {
 	if !h.sent() {
 		return nil

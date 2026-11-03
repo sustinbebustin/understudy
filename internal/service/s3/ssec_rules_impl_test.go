@@ -60,11 +60,12 @@ func TestEncryptionReadKeepsTheStoredRule(t *testing.T) {
 	}
 }
 
-// TestCheckCustomerCompleteWithoutHeaders: under switch
-// s3.sse-c.complete-headers, a Complete without SSE-C headers needs none
-// unless its upload is SSE-C and declared a checksum algorithm, as the
-// model notes for CompleteMultipartUploadRequest$SSECustomerKey
-// (s3-ssec-object-lock.md 3.6).
+// TestCheckCustomerCompleteWithoutHeaders: a Complete without SSE-C
+// headers needs none unless its upload is SSE-C and declared a checksum
+// algorithm, as the model notes for
+// CompleteMultipartUploadRequest$SSECustomerKey; that one is refused with
+// the recorded text (s3-ssec-object-lock.md 3.6; S3SOL-08 08-no-key,
+// recorded 2026-11-03).
 func TestCheckCustomerCompleteWithoutHeaders(t *testing.T) {
 	ssec := CustomerEncryption{Salt: make([]byte, 16), MAC: make([]byte, 32)}
 	for _, tc := range []struct {
@@ -79,8 +80,8 @@ func TestCheckCustomerCompleteWithoutHeaders(t *testing.T) {
 	} {
 		err := checkCustomerComplete(&tc.u, customerHeaders{}, "http")
 		switch {
-		case tc.refused && (err == nil || err.Message != ssecInitiateText):
-			t.Errorf("%s: %v, want the initiate refusal", tc.name, err)
+		case tc.refused && (err == nil || err.Message != "The object was stored using a form of Server Side Encryption. Correct SSE-C request parameters are required for this request when specifying checksums for each part."):
+			t.Errorf("%s: %v, want the recorded checksum refusal", tc.name, err)
 		case !tc.refused && err != nil:
 			t.Errorf("%s: %s %q, want accepted", tc.name, err.ID.QueryCode, err.Message)
 		}

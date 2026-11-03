@@ -22,7 +22,7 @@ func ssecSwitches() []fidelity.Entry {
 	}
 	return []fidelity.Entry{
 		// ListParts checks the trio when sent, so it is refused over plain
-		// HTTP the same way (switch s3.sse-c.complete-headers; 3.9).
+		// HTTP the same way (checkCustomerList; 3.9).
 		researchSwitch("s3.sse-c.plain-http", "refused", evidence.AWSDoc, "39-https", "S3SOL-02", append(slices.Clone(ssecPlainHTTPOps), "s3.ListParts")),
 		recordedSwitch("s3.sse-c.blocked-write", "AccessDenied", "43-what-the-block-refuses", "S3SOL-01",
 			[]string{"s3.PutObject", "s3.CopyObject", "s3.CreateMultipartUpload", "s3.UploadPart", "s3.UploadPartCopy"}),
@@ -37,7 +37,7 @@ func ssecSwitches() []fidelity.Entry {
 			[]string{"s3.CopyObject", "s3.UploadPartCopy"}),
 		recordedSwitch("s3.sse-c.copy-source-wrong-key", "InvalidRequest", "35-copyobject-and-uploadpartcopy", "S3SOL-07",
 			[]string{"s3.CopyObject", "s3.UploadPartCopy"}),
-		researchSwitch("s3.sse-c.complete-headers", "checked-when-sent", evidence.Inferred, "36-multipart-uploads", "S3SOL-08",
+		recordedSwitch("s3.sse-c.complete-headers", "required-with-checksum", "36-multipart-uploads", "S3SOL-08",
 			[]string{"s3.CompleteMultipartUpload", "s3.ListParts"}),
 		researchSwitch("s3.encryption.unblocked-read", "NONE-element", evidence.Inferred, "42-blocking-and-unblocking", "S3SOL-10",
 			[]string{"s3.PutBucketEncryption", "s3.GetBucketEncryption"}),

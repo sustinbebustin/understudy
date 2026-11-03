@@ -122,6 +122,10 @@ const (
 	textInsecure    = "Requests specifying Server Side Encryption with Customer provided keys must be made over a secure connection."
 	textInitiate    = "The multipart upload initiate requested encryption. Subsequent part requests must include the appropriate encryption parameters." // L13133, L13154
 	textMismatch    = "The provided encryption parameters did not match the ones used originally."                                                       // L13164
+
+	// S3SOL-08 08-list-parts-no-key, and 08-no-key and 08-wrong-key (recorded 2026-11-03).
+	textListPartsChecksums = "The multipart upload initiate requested encryption. To retrieve Part Checksum data requests must include the appropriate encryption parameters."
+	textCompleteChecksums  = "The object was stored using a form of Server Side Encryption. Correct SSE-C request parameters are required for this request when specifying checksums for each part."
 )
 
 // sseArgument is the ArgumentName of every SSE-C validation refusal, copy
@@ -654,8 +658,8 @@ func TestSSECCopy(t *testing.T) {
 // key (L13133, L13154, L13164); ListParts and Complete need no headers
 // (L13042, L13083), Complete reports no SSE and no checksum, and the
 // object's ETag keeps "-N" without being the MD5 of the part MD5s (L13083).
-// Complete on an upload with a checksum algorithm checks the key under
-// switch s3.sse-c.complete-headers.
+// ListParts and Complete of an upload with a checksum algorithm need the
+// key (switch s3.sse-c.complete-headers; S3SOL-08, recorded 2026-11-03).
 func TestSSECMultipart(t *testing.T) {
 	runObjects(t, func(h *harness) {
 		t := h.T
@@ -732,7 +736,10 @@ func TestSSECMultipart(t *testing.T) {
 		_, err = as(h, overTLS, s3api.OpUploadPartCopy, &s3api.UploadPartCopyInput{Bucket: "mpu", Key: "big2", UploadId: h.startUploadAs(overTLS, "mpu", "big2", withKey(key1)), PartNumber: 1, CopySource: "mpu/src"})
 		failure{status: 400, code: "InvalidRequest", message: textInitiate}.is(t, "UploadPartCopy into an SSE-C upload without the key", err)
 
-		h.follows("s3.sse-c.complete-headers", "checked-when-sent")
+		// An upload that declared a checksum algorithm needs the key on
+		// ListParts and on Complete, where another key gets the same text
+		// (S3SOL-08 08-list-parts-no-key, 08-no-key, 08-wrong-key, recorded
+		// 2026-11-03).
 		summed := withKey(key1)
 		summed.ChecksumAlgorithm = new(s3api.ChecksumAlgorithmCrc32)
 		sumID := h.startUploadAs(overTLS, "mpu", "summed", summed)
@@ -744,6 +751,7 @@ func TestSSECMultipart(t *testing.T) {
 		if err != nil {
 			t.Fatalf("UploadPart of the CRC32 upload: %s %q", err.ID.QueryCode, err.Message)
 		}
+		var completed *s3api.CompleteMultipartUploadOutput
 		finish := func(c *customer) *awserr.Error {
 			in := &s3api.CompleteMultipartUploadInput{Bucket: "mpu", Key: "summed", UploadId: sumID, MultipartUpload: &s3api.CompletedMultipartUpload{
 				Parts: []s3api.CompletedPart{{PartNumber: new(int32(1)), ETag: out.ETag, ChecksumCRC32: out.ChecksumCRC32}},
@@ -751,13 +759,20 @@ func TestSSECMultipart(t *testing.T) {
 			if c != nil {
 				in.SSECustomerAlgorithm, in.SSECustomerKey, in.SSECustomerKeyMD5 = c.alg(), c.k(), c.m()
 			}
-			_, err := as(h, overTLS, s3api.OpCompleteMultipartUpload, in)
+			var err *awserr.Error
+			completed, err = as(h, overTLS, s3api.OpCompleteMultipartUpload, in)
 			return err
 		}
-		failure{status: 400, code: "InvalidRequest", message: textInitiate}.is(t, "Complete of a CRC32 SSE-C upload without the key", finish(nil))
-		failure{status: 400, code: "InvalidRequest", message: textMismatch}.is(t, "Complete of a CRC32 SSE-C upload with another key", finish(&key2))
+		_, err = as(h, overTLS, s3api.OpListParts, &s3api.ListPartsInput{Bucket: "mpu", Key: "summed", UploadId: sumID})
+		failure{status: 400, code: "InvalidRequest", message: textListPartsChecksums}.is(t, "ListParts of a CRC32 SSE-C upload without the key", err)
+		needsKey := failure{status: 400, code: "InvalidRequest", message: textCompleteChecksums}
+		needsKey.is(t, "Complete of a CRC32 SSE-C upload without the key", finish(nil))
+		needsKey.is(t, "Complete of a CRC32 SSE-C upload with another key", finish(&key2))
 		if err := finish(&key1); err != nil {
 			t.Errorf("Complete of a CRC32 SSE-C upload with its key: %s %q", err.ID.QueryCode, err.Message)
+		} else if completed.ChecksumType == nil || *completed.ChecksumType != s3api.ChecksumTypeComposite || !strings.HasSuffix(str(completed.ChecksumCRC32), "-1") {
+			// 08-right-key reports the composite CRC32 and COMPOSITE.
+			t.Errorf("Complete of a CRC32 SSE-C upload reports checksum %v %v, want a CRC32 ending -1 and COMPOSITE", deref(completed.ChecksumCRC32), deref(completed.ChecksumType))
 		}
 	})
 }

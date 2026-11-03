@@ -119,7 +119,7 @@ func TestSSECAndObjectLockSwitches(t *testing.T) {
 		{"s3.sse-c.metadata-without-key", "InvalidRequest", inferred, "33-reads-getobject-headobject-getobjectattributes", "S3SOL-05", []string{"s3.HeadObject", "s3.GetObjectAttributes"}},
 		{"s3.sse-c.copy-source-not-applicable", "InvalidRequest", recorded, "35-copyobject-and-uploadpartcopy", "S3SOL-06", []string{"s3.CopyObject", "s3.UploadPartCopy"}},
 		{"s3.sse-c.copy-source-wrong-key", "InvalidRequest", recorded, "35-copyobject-and-uploadpartcopy", "S3SOL-07", []string{"s3.CopyObject", "s3.UploadPartCopy"}},
-		{"s3.sse-c.complete-headers", "checked-when-sent", inferred, "36-multipart-uploads", "S3SOL-08", []string{"s3.CompleteMultipartUpload", "s3.ListParts"}},
+		{"s3.sse-c.complete-headers", "required-with-checksum", recorded, "36-multipart-uploads", "S3SOL-08", []string{"s3.CompleteMultipartUpload", "s3.ListParts"}},
 		{"s3.encryption.unblocked-read", "NONE-element", inferred, "42-blocking-and-unblocking", "S3SOL-10", []string{"s3.PutBucketEncryption", "s3.GetBucketEncryption"}},
 		{"s3.encryption.blocked-types-omitted", "kept", inferred, "42-blocking-and-unblocking", "S3SOL-11", []string{"s3.PutBucketEncryption", "s3.DeleteBucketEncryption"}},
 		{"s3.object-lock.retain-until-format", "milliseconds", inferred, "67-response-headers-on-get-and-head", "S3SOL-12", []string{"s3.PutObject", "s3.CopyObject", "s3.CreateMultipartUpload", "s3.PutObjectRetention", "s3.GetObject", "s3.HeadObject", "s3.GetObjectRetention", "s3.DeleteObject", "s3.DeleteObjects"}},

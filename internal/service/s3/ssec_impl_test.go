@@ -164,17 +164,18 @@ func TestSelfCopyUnderABlockOnlyRule(t *testing.T) {
 	})
 }
 
-// TestSSECCompleteHeaders: under switch s3.sse-c.complete-headers, SSE-C
-// headers sent on CompleteMultipartUpload are judged as UploadPart's are:
-// over plain HTTP they are refused, and on an upload that is not SSE-C they
-// get the initiate text (LocalStack test_s3.snapshot.json L13133); the
-// upload is still there afterwards. ListParts, the switch's other
-// operation, judges them the same way when sent, another key getting the
-// mismatch text (L13164).
+// TestSSECCompleteHeaders: SSE-C headers sent on CompleteMultipartUpload
+// of an upload without a checksum algorithm are judged as UploadPart's
+// are: over plain HTTP they are refused, and on an upload that is not
+// SSE-C they get the initiate text (LocalStack test_s3.snapshot.json
+// L13133); the upload is still there afterwards. ListParts judges them the
+// same way when sent, another key getting the mismatch text (L13164).
+// S3SOL-08 recorded only uploads with a checksum algorithm (switch
+// s3.sse-c.complete-headers), so this half is inferred
+// (s3-ssec-object-lock.md 3.6).
 func TestSSECCompleteHeaders(t *testing.T) {
 	runObjects(t, func(h *harness) {
 		t := h.T
-		h.follows("s3.sse-c.complete-headers", "checked-when-sent")
 		h.createBucket("mpu")
 		h.allowSSEC("mpu")
 		ssecID := h.startUploadAs(overTLS, "mpu", "enc", s3api.CreateMultipartUploadInput{SSECustomerAlgorithm: key1.alg(), SSECustomerKey: key1.k(), SSECustomerKeyMD5: key1.m()})

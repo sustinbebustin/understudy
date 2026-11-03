@@ -191,15 +191,16 @@ func (s *Service) commitPart(ctx context.Context, c *kernel.Call, a access, id, 
 // part-number-marker (s3.md 9.2): NextPartNumberMarker is the last part
 // listed, 0 when none is. A zero max-parts lists nothing and is not
 // truncated, as the other listings do, so a paginator cannot loop on it
-// (UNVERIFIED: AWS's answer is unrecorded). SSE-C headers are never
-// needed, but sent over scheme they are judged (checkCustomerSent).
+// (UNVERIFIED: AWS's answer is unrecorded). SSE-C headers are needed only
+// on an SSE-C upload with a checksum algorithm, and sent over scheme they
+// are judged (checkCustomerList).
 func listParts(in *s3api.ListPartsInput, b *Bucket, scheme string) (*s3api.ListPartsOutput, *awserr.Error) {
 	u, err := b.Uploads.find(in.UploadId, in.Key)
 	if err != nil {
 		return nil, err
 	}
 	customer := customerHeaders{algorithm: in.SSECustomerAlgorithm, key: in.SSECustomerKey, keyMD5: in.SSECustomerKeyMD5}
-	if err := checkCustomerSent(u.Encryption, customer, scheme); err != nil {
+	if err := checkCustomerList(u, customer, scheme); err != nil {
 		return nil, err
 	}
 	m, merr := u.Checksum.mode()

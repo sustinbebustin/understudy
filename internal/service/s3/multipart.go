@@ -383,8 +383,11 @@ func (s *Service) completeMultipartUpload(ctx context.Context, c *kernel.Call, i
 	// keeps one that reads report (REC test_s3_multipart_upload_sse steps
 	// multi-sse-compete-multipart and get-obj; LocalStack
 	// test_s3.snapshot.json L13083 for SSE-C; recorded for an undeclared
-	// upload, UNVERIFIED for a declared one).
-	if !opaqueETag(obj.Encryption) {
+	// upload). An SSE-C upload that declared an algorithm, whose Complete
+	// sent the key, reports it (s3-ssec-object-lock.md 3.6; S3SOL-08
+	// 08-right-key, recorded 2026-11-03); a declared SSE-KMS upload is
+	// UNVERIFIED.
+	if !opaqueETag(obj.Encryption) || needsCustomerKey(&u) {
 		out.ChecksumType = new(obj.Checksum.Type)
 		completeMultipartUploadOutputFields(out).set(membersOf(obj.Checksum))
 	}
