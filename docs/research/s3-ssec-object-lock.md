@@ -67,8 +67,8 @@ All 400, all with `ArgumentName` `x-amz-server-side-encryption` (sic, even for c
 - Order: the SSE-header conflict is checked before the algorithm value (the L12706 request also sent algorithm `KMS`; test inputs at LS test_s3.py:L12123-L12131).
 - Two snapshot steps named `get-obj-sse-c-wrong-key-size` and `get-obj-sse-c-bad-md5` are PutObject calls (LS test_s3.py:L12287, L12299), so they are write-side evidence.
 - The `put-obj-sse-c-no-md5` step (L12752) does not test a missing MD5: botocore fills the MD5 in itself when the caller omits it (3.12), base64-encoding the already-base64 key string, so AWS saw a 44-byte key with a matching MD5. The response is the key-size error.
-- UNVERIFIED (S3SOL-03): a raw request with algorithm and key but no MD5 header. Options: an `InvalidArgument` naming the missing MD5 (Cloudflare's R2 emulator and MinIO both use "Requests specifying Server Side Encryption with Customer provided keys must provide the client calculated MD5 of the secret key.", emu, `cloudflare/workers-sdk packages/miniflare/src/workers/r2/s3/operations.worker.ts`, `minio/minio cmd/api-errors.go` `ErrMissingSSECustomerKeyMD5`), or S3 computing it. Docs say all three headers are required.
-- UNVERIFIED (S3SOL-04): a key header that is not valid base64, and the read-side key checks (an MD5 mismatch or a short key on GET). Plausible: the write-side texts above for a key that is not base64 and for an MD5 mismatch. A short key with a matching MD5 on GET plausibly gets the 403 that a 44-byte key got (3.3).
+- Recorded (S3SOL-03, recorded 2026-11-03): a raw PutObject with algorithm and key but no MD5 header gets `400 InvalidArgument`, "Requests specifying Server Side Encryption with Customer provided keys must provide the client calculated MD5 of the secret key.", `ArgumentName=x-amz-server-side-encryption`, the text Cloudflare's R2 emulator and MinIO use (`testdata/parity/s3/S3SOL/03-put.json`). A raw GetObject of an SSE-C object with algorithm and key but no MD5 **succeeds**: 200 with the body and `x-amz-server-side-encryption-customer-key-MD5` set to the MD5 S3 computed (`03-get.json`). So the docs' "all three headers are required" holds for writes only. HEAD, GetObjectAttributes and a copy source without the MD5 are inferred to behave as GET (UNVERIFIED; understudy computes it on every read).
+- Recorded (S3SOL-04, recorded 2026-11-03): a PutObject key header that is not base64 (`not base64!`) with the MD5 of a valid key gets the MD5-mismatch text of the table above, not the key-size text (`04-put-not-base64.json`); whether a key that is not base64 without its MD5 is refused for the MD5 or the encoding is UNVERIFIED. On GET, a 10-byte key with its matching MD5 gets the 403 "must provide the correct secret key" (`04-get-short-key.json`), as the 44-byte key did (3.3), and the right key with another key's MD5 gets `400 InvalidArgument` with the MD5-mismatch text and `ArgumentName=x-amz-server-side-encryption` (`04-get-bad-md5.json`).
 
 ### 3.3 Reads: GetObject, HeadObject, GetObjectAttributes
 
@@ -391,7 +391,7 @@ Run `just coverage-check` after re-marking and commit the regenerated `docs/cove
 ### 11.3 Rules to implement
 
 - `resolveSSE` (`internal/service/s3/sse.go:L77`): replace the unconditional `errSSECBlocked` with: 3.2 validation in the order conflict, algorithm, presence, key length, MD5 (only "conflict before algorithm" is recorded, 3.2; the rest of the order is inferred, because each recorded request had a single fault), then the bucket block (order against validation from S3SOL-01), then HTTPS (switch).
-- Reads: GET, HEAD, GetObjectAttributes, copy source and UploadPartCopy source compare the request against the stored variant: SSE-C object without headers → 400 "stored using a form"; with headers on a non-SSE-C object → 400 "not applicable" (aws-recorded); wrong key → 403, including a wrong-length key with a matching MD5 (3.3; this is recorded for 44 bytes only, and a short key is S3SOL-04).
+- Reads: GET, HEAD, GetObjectAttributes, copy source and UploadPartCopy source compare the request against the stored variant: SSE-C object without headers → 400 "stored using a form"; with headers on a non-SSE-C object → 400 "not applicable" (aws-recorded); wrong key → 403, including a wrong-length key with a matching MD5 (3.3; recorded for 44 bytes and, S3SOL-04, 10 bytes); a key without its MD5 passes with the MD5 computed (S3SOL-03, recorded on GET).
 - ETags: random 32 hex for SSE-C single writes, SSE-C copy targets and SSE-C parts, and random 32 hex plus `-N` for an SSE-C multipart object, because AWS's value is not the MD5 of the part ETags (3.4). The random digits are inferred; no recording can pin a value AWS derives from state it never returns. Never derive an SSE-C ETag from content or from part ETags.
 - Omit `x-amz-server-side-encryption` on every SSE-C response; echo the SSE-C pair on PutObject, CopyObject, CreateMultipartUpload, UploadPart, UploadPartCopy, GetObject, HeadObject; none on CompleteMultipartUpload and GetObjectAttributes (3.4).
 - `checkEncryption` (`internal/service/s3/subresources.go:L546`): accept a rule whose only member is `BlockedEncryptionTypes` (4.2); keep `MalformedXML` for zero or two rules ([s3.md](s3.md) 4.2.2) and for a rule with neither member (inferred; S3SOL-10).
@@ -407,8 +407,8 @@ Run `just coverage-check` after re-marking and commit the regenerated `docs/cove
 |---|---|---|---|---|
 | `s3.sse-c.plain-http` | `refused`: 400 `InvalidRequest` "Requests specifying Server Side Encryption with Customer provided keys must be made over a secure connection." (text from other S3 servers, 3.9) on the plain-HTTP listener, reads included; SSE-C works over `--tls` | aws-doc | 3.9 | S3SOL-02 |
 | `s3.sse-c.blocked-write` | 403 `AccessDenied` with the recorded "is not authorized to perform ... has blocked upload requests" text, checked after header validation | aws-recorded | 4.3 | S3SOL-01 |
-| `s3.sse-c.missing-key-md5` | 400 `InvalidArgument` "Requests specifying Server Side Encryption with Customer provided keys must provide the client calculated MD5 of the secret key.", `ArgumentName=x-amz-server-side-encryption` | inferred | 3.2 | S3SOL-03 |
-| `s3.sse-c.key-encoding` | a key that is not base64, and an MD5 mismatch on reads, get the write-side texts of 3.2; a short key with a matching MD5 on reads gets the 403 of 3.3, as the 44-byte key did | inferred | 3.2, 3.3 | S3SOL-04 |
+| `s3.sse-c.missing-key-md5` | on writes, 400 `InvalidArgument` "Requests specifying Server Side Encryption with Customer provided keys must provide the client calculated MD5 of the secret key.", `ArgumentName=x-amz-server-side-encryption`; reads compute the MD5 and succeed | aws-recorded | 3.2 | S3SOL-03 |
+| `s3.sse-c.key-encoding` | a key that is not base64 gets the MD5-mismatch text; an MD5 mismatch on reads gets it too; a short key with a matching MD5 on reads gets the 403 of 3.3, as the 44-byte key did | aws-recorded | 3.2, 3.3 | S3SOL-04 |
 | `s3.sse-c.metadata-without-key` | HEAD 400 no body; GetObjectAttributes 400 `InvalidRequest` "stored using a form" text | inferred | 3.3 | S3SOL-05 |
 | `s3.sse-c.copy-source-not-applicable` | 400 `InvalidRequest` "The encryption parameters are not applicable to this object." | inferred | 3.5 | S3SOL-06 |
 | `s3.sse-c.copy-source-wrong-key` | 403 `AccessDenied` "correct secret key" text | inferred | 3.5 | S3SOL-07 |
@@ -550,7 +550,7 @@ recurl S3SOL/03-get -H "x-amz-content-sha256: $E" -H 'x-amz-server-side-encrypti
   -H "x-amz-server-side-encryption-customer-key: $K1B" "$(url "$B" c1)"
 ```
 
-Expected: 400 `InvalidArgument` naming the MD5 (text to record). Cost under USD 0.01, 2 minutes. Teardown: `aws s3api delete-object --bucket "$B" --key m3`.
+Expected: 400 `InvalidArgument` naming the MD5 (text to record). Recorded 2026-11-03: the PUT matched (3.2); the GET differed, 200 with the computed MD5 echoed (3.2). Cost under USD 0.01, 2 minutes. Teardown: `aws s3api delete-object --bucket "$B" --key m3`.
 
 ### 12.5 S3SOL-04. Key encoding, and key checks on reads
 
@@ -566,7 +566,7 @@ recurl S3SOL/04-get-bad-md5 -H "x-amz-content-sha256: $E" -H 'x-amz-server-side-
   -H "x-amz-server-side-encryption-customer-key: $K1B" -H "x-amz-server-side-encryption-customer-key-MD5: $K2M" "$(url "$B" c1)"
 ```
 
-Expected: 400 `InvalidArgument` with the key-size text, then key-size or 403, then the MD5-mismatch text. Cost under USD 0.01, 2 minutes. Teardown: `aws s3api delete-object --bucket "$B" --key m4`.
+Expected: 400 `InvalidArgument` with the key-size text, then key-size or 403, then the MD5-mismatch text. Recorded 2026-11-03: the first differed (the MD5-mismatch text, not the key-size one); the second was the 403; the third matched (3.2). Cost under USD 0.01, 2 minutes. Teardown: `aws s3api delete-object --bucket "$B" --key m4`.
 
 ### 12.6 S3SOL-05. Metadata reads of an SSE-C object without the key
 

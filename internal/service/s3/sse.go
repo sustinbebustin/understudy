@@ -366,8 +366,9 @@ const sseArgumentName = "x-amz-server-side-encryption"
 
 // The SSE-C refusal texts of s3-ssec-object-lock.md 3.2, 3.3 and 3.6, as
 // LocalStack's AWS-validated snapshots record them (localstack@8b9a79f
-// tests/aws/services/s3/test_s3.snapshot.json, validated 2026-02-21), and
-// the texts of the switches s3.sse-c.missing-key-md5 and
+// tests/aws/services/s3/test_s3.snapshot.json, validated 2026-02-21) and
+// the 2026-11-03 session records them (testdata/parity/s3/S3SOL; the
+// missing-MD5 text S3SOL-03 03-put), and the text of the switch
 // s3.sse-c.plain-http, which no AWS recording shows (11.4).
 const (
 	ssecConflictText    = "Server Side Encryption with Customer provided key is incompatible with the encryption method specified"
@@ -477,7 +478,13 @@ func parseCustomerWrite(h customerHeaders, sse *s3api.ServerSideEncryption) (*cu
 	if sse != nil {
 		return nil, errSSECConflict(*sse)
 	}
-	key, err := decodeCustomerKey(h)
+	if err := checkCustomerPresence(h); err != nil {
+		return nil, err
+	}
+	if h.keyMD5 == nil {
+		return nil, errSSECHeader(ssecNoKeyMD5Text)
+	}
+	key, err := decodeCustomerKey(*h.key)
 	if err != nil {
 		return nil, err
 	}
@@ -490,45 +497,65 @@ func parseCustomerWrite(h customerHeaders, sse *s3api.ServerSideEncryption) (*cu
 // parseCustomerRead checks a read's or a copy source's SSE-C headers as
 // parseCustomerWrite does, without the conflict and the length checks: a
 // key of another length with a matching MD5 then fails the fingerprint
-// with 403, as S3 answers it (s3-ssec-object-lock.md 3.3; switch
-// s3.sse-c.key-encoding). It returns nil when none was sent.
+// with 403, as S3 answers it (s3-ssec-object-lock.md 3.3). A key sent
+// without its MD5 passes with the MD5 S3 computes, which the response
+// echoes: recorded on GetObject (S3SOL-03 03-get, recorded 2026-11-03),
+// inferred for the other reads and a copy source. It returns nil when none
+// was sent.
 func parseCustomerRead(h customerHeaders) (*customerKey, *awserr.Error) {
 	if !h.sent() {
 		return nil, nil
 	}
-	key, err := decodeCustomerKey(h)
+	if err := checkCustomerPresence(h); err != nil {
+		return nil, err
+	}
+	key, err := decodeCustomerKey(*h.key)
 	if err != nil {
 		return nil, err
+	}
+	if h.keyMD5 == nil {
+		return &customerKey{key: key, keyMD5: customerKeyMD5(key)}, nil
 	}
 	return checkCustomerKeyMD5(key, *h.keyMD5)
 }
 
-// decodeCustomerKey checks a sent trio's algorithm and the presence of all
-// three headers, then decodes the key, which must be standard base64
-// (switch s3.sse-c.key-encoding for one that is not).
-func decodeCustomerKey(h customerHeaders) ([]byte, *awserr.Error) {
+// checkCustomerPresence checks a sent trio's algorithm, then that it holds
+// the algorithm and the key (s3-ssec-object-lock.md 3.2).
+func checkCustomerPresence(h customerHeaders) *awserr.Error {
 	switch {
 	case h.algorithm != nil && *h.algorithm != customerAlgorithm:
-		return nil, errSSECAlgorithm(*h.algorithm)
+		return errSSECAlgorithm(*h.algorithm)
 	case h.algorithm == nil:
-		return nil, errSSECHeader(ssecNoAlgorithmText)
+		return errSSECHeader(ssecNoAlgorithmText)
 	case h.key == nil:
-		return nil, errSSECHeader(ssecNoKeyText)
-	case h.keyMD5 == nil:
-		return nil, errSSECHeader(ssecNoKeyMD5Text)
+		return errSSECHeader(ssecNoKeyText)
 	}
-	key, err := base64.StdEncoding.DecodeString(*h.key)
+	return nil
+}
+
+// decodeCustomerKey decodes a key header, which must be standard base64.
+// One that is not gets the MD5-mismatch text, as S3 answered a write whose
+// key was not base64 (s3-ssec-object-lock.md 3.2; S3SOL-04
+// 04-put-not-base64, recorded 2026-11-03); a read is inferred to answer
+// the same.
+func decodeCustomerKey(header string) ([]byte, *awserr.Error) {
+	key, err := base64.StdEncoding.DecodeString(header)
 	if err != nil {
-		return nil, errSSECHeader(ssecBadKeyText)
+		return nil, errSSECHeader(ssecBadKeyMD5Text)
 	}
 	return key, nil
+}
+
+// customerKeyMD5 is the key-MD5 header value of key: the base64 of its MD5.
+func customerKeyMD5(key []byte) string {
+	sum := md5.Sum(key) //nolint:gosec // see the import
+	return base64.StdEncoding.EncodeToString(sum[:])
 }
 
 // checkCustomerKeyMD5 refuses a key whose MD5 header is not the base64 MD5
 // of its bytes, and otherwise returns the parsed key.
 func checkCustomerKeyMD5(key []byte, keyMD5 string) (*customerKey, *awserr.Error) {
-	sum := md5.Sum(key) //nolint:gosec // see the import
-	if base64.StdEncoding.EncodeToString(sum[:]) != keyMD5 {
+	if customerKeyMD5(key) != keyMD5 {
 		return nil, errSSECHeader(ssecBadKeyMD5Text)
 	}
 	return &customerKey{key: key, keyMD5: keyMD5}, nil

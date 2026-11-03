@@ -114,8 +114,8 @@ func TestSSECAndObjectLockSwitches(t *testing.T) {
 	want := []wantSwitch{
 		{"s3.sse-c.plain-http", "refused", evidence.AWSDoc, "39-https", "S3SOL-02", append(slices.Clone(plainHTTPOps), "s3.ListParts")},
 		{"s3.sse-c.blocked-write", "AccessDenied", recorded, "43-what-the-block-refuses", "S3SOL-01", []string{"s3.PutObject", "s3.CopyObject", "s3.CreateMultipartUpload", "s3.UploadPart", "s3.UploadPartCopy"}},
-		{"s3.sse-c.missing-key-md5", "InvalidArgument", inferred, "32-write-side-validation-third-party-recorded", "S3SOL-03", plainHTTPOps},
-		{"s3.sse-c.key-encoding", "write-side-texts", inferred, "32-write-side-validation-third-party-recorded", "S3SOL-04", plainHTTPOps},
+		{"s3.sse-c.missing-key-md5", "InvalidArgument", recorded, "32-write-side-validation-third-party-recorded", "S3SOL-03", []string{"s3.PutObject", "s3.CopyObject", "s3.CreateMultipartUpload", "s3.UploadPart", "s3.UploadPartCopy", "s3.CompleteMultipartUpload"}},
+		{"s3.sse-c.key-encoding", "write-side-texts", recorded, "32-write-side-validation-third-party-recorded", "S3SOL-04", plainHTTPOps},
 		{"s3.sse-c.metadata-without-key", "InvalidRequest", inferred, "33-reads-getobject-headobject-getobjectattributes", "S3SOL-05", []string{"s3.HeadObject", "s3.GetObjectAttributes"}},
 		{"s3.sse-c.copy-source-not-applicable", "InvalidRequest", inferred, "35-copyobject-and-uploadpartcopy", "S3SOL-06", []string{"s3.CopyObject", "s3.UploadPartCopy"}},
 		{"s3.sse-c.copy-source-wrong-key", "AccessDenied", inferred, "35-copyobject-and-uploadpartcopy", "S3SOL-07", []string{"s3.CopyObject", "s3.UploadPartCopy"}},
