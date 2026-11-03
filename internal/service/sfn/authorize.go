@@ -126,10 +126,10 @@ func checkExecutionRole(ctx context.Context, c *kernel.Call, rc roleCheck) *awse
 		return nil
 	}
 	if rc.trust {
-		// AWS documents trust policies conditioned on the machine and its
-		// account (aws:SourceArn, aws:SourceAccount) against the confused
-		// deputy; that it sends them when checking the role at create is
-		// UNVERIFIED (SFN-08).
+		// This trust check is understudy's own: AWS checks no trust at
+		// create (SFN-08, recorded 2026-11-03). The aws:SourceArn and
+		// aws:SourceAccount keys follow AWS's confused-deputy documentation
+		// for the role's assumption at invocation.
 		as := kernel.AsService{Name: statesPrincipal, Source: rc.machine.arn(), SourceAccount: rc.machine.scope.Account}
 		q := kernel.AuthzQuery{Pairs: []kernel.Pair{{Action: assumeRoleAction(), Resource: kernel.ResourceARN{ARN: roleARN}}}}
 		if err := kernel.AuthorizeAs(ctx, c, as, q); err != nil {

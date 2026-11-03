@@ -200,8 +200,13 @@ func messageIDSwitch(v MessageIDFormat) fidelity.Switch[MessageIDFormat] {
 
 // unverifiedTextSwitch is switch ses.error.unverified.text at value v. It
 // governs v2 SendEmail too, which, being another service's operation, it
-// does not list. The text is recorded (SES-01); the hash order is a rule
-// inferred from the two lists SES-03 recorded (ses.md 6.1).
+// does not list. The text is recorded (SES-01), and so are the two lists
+// SES-03 recorded, which send_test.go pins. The order, Java HashSet
+// iteration, is a model fitted to those two samples (ses.md 6.1): an
+// arbitrary order matches both with probability 1/48, too likely to
+// settle it, and ties within a bucket, sets over 12 identities, display
+// names and case are unrecorded. So the switch stays inferred, and its
+// coverage row pending retirement, until a larger list is recorded.
 func unverifiedTextSwitch(v UnverifiedText) fidelity.Switch[UnverifiedText] {
 	return fidelity.Switch[UnverifiedText]{
 		Name:    "ses.error.unverified.text",

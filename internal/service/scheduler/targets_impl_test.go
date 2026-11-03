@@ -15,8 +15,9 @@ import (
 // a qualified ARN passed through as Invoke's Qualifier (scheduler.md 6.4;
 // UNVERIFIED SCH-07), SQS FIFO with the message group and no deduplication
 // id (14.4.3), SNS with the payload as the message and no Subject
-// (UNVERIFIED SCH-07), and one PutEvents entry on the bus with no
-// resources (UNVERIFIED SCH-07, 14.4.5). The context attributes are
+// (SCH-07 07-recv-sns-*, recorded 2026-11-03), and one PutEvents entry on
+// the bus with no resources (SCH-07 07-recv-events-*, recorded
+// 2026-11-03; 14.4.5). The context attributes are
 // substituted in every target's payload (6.3).
 func TestServedTargetsAreInvokedOverTheirMechanisms(t *testing.T) {
 	run(t, func(h *harness) {

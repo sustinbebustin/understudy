@@ -140,9 +140,10 @@ func (s *Service) getScheduleGroup(_ context.Context, c *kernel.Call, in *schedu
 }
 
 // listScheduleGroups lists the scope's groups by NamePrefix, a page at a
-// time: default first, then the others in name order. UNVERIFIED
-// (SCH-06), scheduler.md 3.1, 3.2: whether default is listed, the order,
-// the page size and the token format are unrecorded.
+// time: default first, then the others in name order (scheduler.md 3.1,
+// 3.2). That default is listed, first, is recorded (SCH-06 06-list,
+// 2026-11-03); the order of the others, the page size and the token
+// format are unrecorded, understudy's choice.
 func (s *Service) listScheduleGroups(_ context.Context, c *kernel.Call, in *schedulerapi.ListScheduleGroupsInput) (*schedulerapi.ListScheduleGroupsOutput, *awserr.Error) {
 	views := s.readGroups(c, func(name string) bool { return in.NamePrefix == nil || strings.HasPrefix(name, *in.NamePrefix) })
 	items := make([]schedulerapi.ScheduleGroupSummary, 0, len(views))
@@ -230,7 +231,8 @@ func (s *Service) tagResource(_ context.Context, c *kernel.Call, in *schedulerap
 }
 
 // untagResource removes tags from a group; a key it does not carry is
-// ignored (scheduler.md 14.8). UNVERIFIED (SCH-06).
+// ignored, as AWS answers 200 (SCH-06 06-untag-absent, recorded
+// 2026-11-03; scheduler.md 14.8).
 func (s *Service) untagResource(_ context.Context, c *kernel.Call, in *schedulerapi.UntagResourceInput) (*schedulerapi.UntagResourceOutput, *awserr.Error) {
 	err := s.retag(c, in.ResourceArn, func(tags []groupTag) []groupTag {
 		return slices.DeleteFunc(slices.Clone(tags), func(t groupTag) bool { return slices.Contains(in.TagKeys, t.Key) })
@@ -266,8 +268,11 @@ func (s *Service) retag(c *kernel.Call, resource string, change func([]groupTag)
 	return err
 }
 
-// listTagsForResource lists a group's tags in insertion order, a present
-// empty list when it has none (G1, G2; scheduler.md 3.4, 14.8).
+// listTagsForResource lists a group's tags sorted by key, a present empty
+// list when it has none (SCH-06 06-tags, 06-tags-2, recorded 2026-11-03;
+// G1, G2; scheduler.md 3.4, 14.8). It sorts here as well as in upsertTags
+// because a snapshot written before tags were sorted stores them in
+// insertion order.
 func (s *Service) listTagsForResource(_ context.Context, c *kernel.Call, in *schedulerapi.ListTagsForResourceInput) (*schedulerapi.ListTagsForResourceOutput, *awserr.Error) {
 	name, inScope := parseGroupARN(c.Scope(), in.ResourceArn)
 	views := s.readGroups(c, func(n string) bool { return inScope && n == name })
@@ -278,6 +283,7 @@ func (s *Service) listTagsForResource(_ context.Context, c *kernel.Call, in *sch
 	for _, t := range views[0].g.Tags {
 		out.Tags = append(out.Tags, schedulerapi.Tag{Key: t.Key, Value: t.Value})
 	}
+	slices.SortFunc(out.Tags, func(a, b schedulerapi.Tag) int { return strings.Compare(a.Key, b.Key) })
 	return out, nil
 }
 

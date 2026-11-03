@@ -44,7 +44,7 @@ const createNote = targetsNote + "; Lambda, SQS, SNS and Step Functions targets 
 	"a qualified Lambda target's version or alias is passed as Invoke's Qualifier, " +
 	"a Step Functions version or alias ARN is passed to StartExecution as given, " +
 	"an event bus target in another Region or without EventBridgeParameters is refused with ValidationException, " +
-	"the flexible window is checked after the expression and before the dates, then iam:PassRole and KMS after the role's trust, " +
+	"the flexible window is checked after the expression and before the dates, the group before the target service, then iam:PassRole and KMS after the role's trust, " +
 	"under iam.enforce=enforce an execution role that cannot be assumed or may not decrypt at invocation fails the invocation before its target call as a client-side target error does, " +
 	"and the refusal of a target ARN that is not a templated target's resource carries understudy's own message"
 

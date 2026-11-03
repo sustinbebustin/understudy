@@ -12,10 +12,11 @@ import (
 // starts with 16 buckets and doubles them whenever it holds more than three
 // quarters as many entries; it iterates bucket by bucket, each bucket in
 // insertion order, and a doubling keeps that order within the buckets it
-// splits. Java converts a bucket of eight or more entries to a tree, which
-// orders it differently, only from 64 buckets up (doubling instead below):
-// at most 50 recipients and three senders never get there, so it is left
-// out.
+// splits. Left out, and so inferred not to arise: Java converts a bucket
+// that reaches nine entries to a tree, which inserts after a tree parent
+// rather than at the tail, from 64 buckets up (25 or more ids here), and
+// below 64 doubles the buckets early instead. Nine ids in one bucket is
+// negligible for real addresses.
 func hashSetOrder(ids []string) []string {
 	var set []string
 	for _, id := range ids {
