@@ -687,7 +687,7 @@ Hand-coded rules and texts (exact where a source gives them):
 | more than 10 labels on a version | `ParameterVersionLabelLimitExceeded` (400) | `A parameter version can have maximum 10 labels.Move one or more labels to another version and try again.` | SSM-16 |
 | label rule broken | none (200, `InvalidLabels`) | | SSM-16 |
 | name defects, prefix rules, inner spaces | `ValidationException` (400) | the texts of 3.1 (path, fully qualified, trailing slash, aws/ssm prefix) | SSM-04 |
-| a first level of `aws` | `AccessDeniedException` (400, key `Message`) | `No access to reserved parameter name: <name without its leading slash>.` | SSM-04 |
+| a first level of `aws` | `AccessDeniedException` (400, key `Message`) | `No access to reserved parameter name: <name without its leading slash>.` (recorded for `PutParameter`; UNVERIFIED for the other operations, which understudy answers the same way: `GetParameter` under `/aws/service/` answers `No access to "/aws/" namespace: aws/service/nonexistent is not a valid namespace`, SSM-02 step 05, so their text may differ) | SSM-04 |
 | a bad path (GetParametersByPath) | `ValidationException` (400) | the long path text of 7.4 | SSM-19 |
 | missing version / missing label | `ParameterVersionNotFound` (400) | the texts of 6.3 | SSM-17 |
 | more than 50 tags | `TooManyTagsError` (400) | none | SSM-25 |

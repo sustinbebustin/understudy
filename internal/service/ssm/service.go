@@ -41,24 +41,24 @@ func New(d kernel.ServiceDeps, _ Options) *Service {
 	b.DescribeParameters(s.describeParameters, registry.Partial{Note: noteDescribeParameters})
 	b.GetParameterHistory(s.getParameterHistory, registry.Partial{Note: noteGetParameterHistory},
 		byName(func(in *ssmapi.GetParameterHistoryInput) string { return in.Name }))
-	b.DeleteParameter(s.deleteParameter, registry.Partial{Note: reserved + "; no Parameter Store Change events are sent"},
+	b.DeleteParameter(s.deleteParameter, registry.Partial{Note: noteDeleteParameters},
 		byName(func(in *ssmapi.DeleteParameterInput) string { return in.Name }))
 	b.DeleteParameters(s.deleteParameters, registry.Partial{Note: noteDeleteParameters},
 		byNames(func(in *ssmapi.DeleteParametersInput) []string { return in.Names }))
 	b.LabelParameterVersion(s.labelParameterVersion, registry.Partial{Note: noteLabelParameterVersion},
 		byName(func(in *ssmapi.LabelParameterVersionInput) string { return in.Name }))
-	b.UnlabelParameterVersion(s.unlabelParameterVersion, registry.Partial{Note: reserved},
+	b.UnlabelParameterVersion(s.unlabelParameterVersion, registry.Partial{Note: reserved + "; " + reservedText},
 		byName(func(in *ssmapi.UnlabelParameterVersionInput) string { return in.Name }))
-	b.AddTagsToResource(s.addTagsToResource, registry.Partial{Note: reserved + "; " + parameterOnly},
+	b.AddTagsToResource(s.addTagsToResource, registry.Partial{Note: reserved + "; " + parameterOnly + "; " + reservedText},
 		byTagTarget(func(in *ssmapi.AddTagsToResourceInput) (ssmapi.ResourceTypeForTagging, string) {
 			return in.ResourceType, in.ResourceId
 		}))
-	b.RemoveTagsFromResource(s.removeTagsFromResource, registry.Partial{Note: reserved + "; " + parameterOnly},
+	b.RemoveTagsFromResource(s.removeTagsFromResource, registry.Partial{Note: reserved + "; " + parameterOnly + "; " + reservedText},
 		byTagTarget(func(in *ssmapi.RemoveTagsFromResourceInput) (ssmapi.ResourceTypeForTagging, string) {
 			return in.ResourceType, in.ResourceId
 		}))
 	b.ListTagsForResource(s.listTagsForResource, registry.Partial{Note: reserved + "; " + parameterOnly +
-		"; TagList lists tags in the order they were first set, where AWS's order is its own"},
+		"; TagList lists tags in the order they were first set, where AWS's order is its own; " + reservedText},
 		byTagTarget(func(in *ssmapi.ListTagsForResourceInput) (ssmapi.ResourceTypeForTagging, string) {
 			return in.ResourceType, in.ResourceId
 		}))
@@ -69,6 +69,11 @@ func New(d kernel.ServiceDeps, _ Options) *Service {
 const (
 	reserved      = "a name under /aws/service/ or /aws/reference/secretsmanager/ makes the call answer 501"
 	parameterOnly = "ResourceType Parameter only: the other resource types name nothing understudy stores, so they answer InvalidResourceId"
+
+	// reservedText is the reserved-name answer outside PutParameter
+	// (ssm-parameters.md 3.1; SSM-04 records PutParameter only).
+	reservedText = "unrecorded, understudy's choice: another name whose first level is aws answers PutParameter's recorded " +
+		"AccessDeniedException text (No access to reserved parameter name: <name>.), where AWS's text for this operation may differ"
 
 	// The default key is called as ssm.amazonaws.com (spec conflict 9;
 	// ssm-parameters.md 5.6, inferred), so step 8 never sees the caller's
@@ -95,11 +100,11 @@ const (
 		"Secrets Manager references (names under /aws/reference/secretsmanager/) answer 501; " +
 		"the legacy Query protocol (?Action= without X-Amz-Target), which AWS also serves, answers 501 for this and every SSM operation; " +
 		kmsMessage + "; " +
-		defaultKeyDecrypt
+		defaultKeyDecrypt + "; " + reservedText
 	noteGetParameters = "no AWS public parameters: a name under /aws/service/ makes the call answer 501; " +
 		"a Secrets Manager reference (a name under /aws/reference/secretsmanager/) makes the call answer 501; " +
 		"unrecorded, understudy's choice: a parameter asked by name and by ARN is answered once per spelling; " +
-		kmsMessage + "; " + defaultKeyDecrypt
+		kmsMessage + "; " + defaultKeyDecrypt + "; " + reservedText
 	noteGetParametersByPath = "no AWS public parameters or Secrets Manager references: paths under /aws/service/ or /aws/reference/secretsmanager/ answer 501; " +
 		"results come in name order across pages, where AWS's pages are ordered within but not across (switch ssm.list.order); " +
 		kmsMessage + "; " + defaultKeyDecrypt
@@ -109,10 +114,10 @@ const (
 		"the deprecated Filters member alone answers 501 (use ParameterFilters); " +
 		"results come in name order across pages, where AWS's pages are ordered within but not across (switch ssm.list.order); " +
 		"unrecorded, understudy's choice: the values of one filter match any of them"
-	noteGetParameterHistory   = reserved + "; " + kmsMessage + "; " + defaultKeyDecrypt
-	noteDeleteParameters      = reserved + "; no Parameter Store Change events are sent"
+	noteGetParameterHistory   = reserved + "; " + kmsMessage + "; " + defaultKeyDecrypt + "; " + reservedText
+	noteDeleteParameters      = reserved + "; no Parameter Store Change events are sent; " + reservedText
 	noteLabelParameterVersion = reserved + "; no Parameter Store Change events are sent; " +
-		"InvalidLabels lists the refused labels in request order, where AWS's order is its own"
+		"InvalidLabels lists the refused labels in request order, where AWS's order is its own; " + reservedText
 )
 
 // Switches lists the behaviors chosen before AWS's were recorded

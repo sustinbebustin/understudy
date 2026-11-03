@@ -105,6 +105,11 @@ func parseName(raw string, a asker) (name, *awserr.Error) {
 		// [R-weak]). UNVERIFIED (SSM-04): the other operations' answer.
 		return name{}, ssmapi.ErrValidationException(textPath)
 	case hierarchical && lower == "aws":
+		// UNVERIFIED (SSM-04), ssm-parameters.md 3.1: this text is
+		// recorded for PutParameter only; GetParameter's answer under
+		// /aws/service/ (SSM-02 step 05) carries the namespace text
+		// `No access to "/aws/" namespace: ...`, so the other operations'
+		// text may differ.
 		return name{}, ssmapi.ErrAccessDeniedException("No access to reserved parameter name: " + rest + ".")
 	case hierarchical && (strings.HasPrefix(lower, "aws") || strings.HasPrefix(lower, "ssm")):
 		return name{}, ssmapi.ErrValidationException(textPath)
