@@ -468,6 +468,17 @@ func TestSQSMappingRefusesStreamMembers(t *testing.T) {
 	})
 }
 
+// An Update of an unknown UUID answers ResourceNotFoundException
+// (aws-recorded, lambda-events.md 1.1), also when it carries a member of
+// the stream type, which only a known SQS mapping refuses.
+func TestUpdateOfAnUnknownMappingWithAStreamMemberIsNotFound(t *testing.T) {
+	runStream(t, esm.StreamFidelity{}, func(h *streamHarness) {
+		errorIs(h, fail(h.harness, lambdaapi.OpUpdateEventSourceMapping, &lambdaapi.UpdateEventSourceMappingInput{
+			UUID: "00000000-0000-4000-8000-000000000000", MaximumRetryAttempts: new(int32(1)),
+		}), "ResourceNotFoundException", "The resource you requested does not exist.")
+	})
+}
+
 // A FIFO queue is refused as a stream mapping's on-failure destination
 // (aws-recorded, lambda-stream-sources.md 3.7: ESMS-05 04).
 func TestStreamMappingRefusesAFIFOOnFailure(t *testing.T) {
