@@ -630,11 +630,14 @@ test_custom_bus_rule_and_put_events() {
   assert_jq '(.Messages // []) | length' '0' 'messages on the default bus rule'
 }
 
-# A schedule on a custom bus is refused, the bus never created included
-# (testdata/parity/events/R14/04-custom-bus-schedule.json, aws-recorded).
+# A schedule on a custom bus is refused
+# (testdata/parity/events/R14/04-custom-bus-schedule.json, aws-recorded). The
+# bus exists: AWS looks the bus up first, so a missing one is
+# ResourceNotFoundException instead (events/EBB/03-put-rule-schedule.json).
 test_custom_bus_schedule_refused() {
+  new_bus
   aws_error ValidationException 400 events put-rule --name "$(new_name events-busrule)" \
-    --schedule-expression 'rate(5 minutes)' --event-bus-name "$(new_name events-bus)"
+    --schedule-expression 'rate(5 minutes)' --event-bus-name "$BUS"
   aws_error_message_contains 'ScheduleExpression is supported only on the default event bus.'
 }
 

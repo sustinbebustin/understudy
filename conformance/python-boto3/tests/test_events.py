@@ -190,10 +190,12 @@ def test_rules_on_a_bus_match_only_its_events(
     assert delivered(sqs, admin, on_default, expect=False) == []
 
 
-def test_schedule_is_refused_on_a_custom_bus(events: Any) -> None:
-    # testdata/parity/events/R14/04-custom-bus-schedule.json (aws-recorded): before the bus lookup.
+def test_schedule_is_refused_on_a_custom_bus(events: Any, make_bus: Callable[..., str]) -> None:
+    # testdata/parity/events/R14/04-custom-bus-schedule.json (aws-recorded). The bus exists: AWS
+    # looks it up first, so a missing bus is ResourceNotFoundException (events/EBB/03-put-rule-schedule.json).
+    bus = make_bus()
     with raises("ValidationException") as info:
-        events.put_rule(Name=uniq("conf-busrule"), ScheduleExpression="rate(5 minutes)", EventBusName=uniq("conf-bus"))
+        events.put_rule(Name=uniq("conf-busrule"), ScheduleExpression="rate(5 minutes)", EventBusName=bus)
     assert info.value.response["Error"]["Message"] == "ScheduleExpression is supported only on the default event bus."
     assert status_of(info.value) == 400
 
