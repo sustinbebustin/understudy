@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "item": "CWA-19",
+  "account": "123456789012",
+  "region": "us-east-2",
+  "client": "aws-cli",
+  "setup": [
+    {
+      "service": "cloudwatch",
+      "operation": "PutMetricData",
+      "input": {
+        "Namespace": "us1103/cwa",
+        "MetricData": [
+          {
+            "MetricName": "g",
+            "Timestamp": 1793675520,
+            "Value": 5
+          }
+        ]
+      },
+      "before": "12-span-1440"
+    }
+  ],
+  "steps": [
+    {
+      "fixture": "cloudwatch/CWA-19/01-both.json",
+      "compare": "all",
+      "advance": "483h14m20s"
+    },
+    {
+      "fixture": "cloudwatch/CWA-19/02-neither.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "cloudwatch/CWA-19/03-period-7.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "cloudwatch/CWA-19/03-period-61.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "cloudwatch/CWA-19/03-period-90.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "cloudwatch/CWA-19/11-span-1441.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "cloudwatch/CWA-19/12-span-1440.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "cloudwatch/CWA-19/13-half-aligned-start.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "cloudwatch/CWA-19/14-half-unaligned-start.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "cloudwatch/CWA-19/15-under-unless-rounded.json",
+      "compare": "all"
+    }
+  ]
+}
