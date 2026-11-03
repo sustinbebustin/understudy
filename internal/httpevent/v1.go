@@ -6,6 +6,7 @@ import (
 	"maps"
 	"net/http"
 	"slices"
+	"strconv"
 	"strings"
 )
 
@@ -17,9 +18,9 @@ import (
 type V1Front interface{ isV1Front() }
 
 // HTTPAPI is an API Gateway HTTP API (apigateway-http.md 5.2): header
-// names lowercased, the last value of a repeated header and the first of
-// a repeated query parameter in the single-value maps, and the path as
-// sent.
+// names in the client's case but accept, the last value of a repeated
+// header and the first of a repeated query parameter in the single-value
+// maps, and the path as sent.
 type HTTPAPI struct{}
 
 func (HTTPAPI) isV1Front() {}
@@ -119,7 +120,8 @@ type identityV1 struct {
 }
 
 // EventV1 builds the payload format version 1.0 event for r as front f
-// reports it (apigateway-http.md 5.2): header names lowercase, every value
+// reports it (apigateway-http.md 5.2): header names as v1HeaderNames and
+// the front's own in canonical case (APIGW2-08, recorded), every value
 // of a repeated header in multiValueHeaders and one in headers, every
 // URL-decoded value of a repeated query parameter in
 // multiValueQueryStringParameters and one in queryStringParameters, path
@@ -149,9 +151,9 @@ func EventV1(r Request, c Context, f V1Front) ([]byte, error) {
 	case nil:
 		return nil, errNoAuthorizer
 	}
-	multiHeaders := lowerHeaders(r.Header)
-	for name, value := range frontHeaders(r, c.TraceID) {
-		multiHeaders[name] = []string{value}
+	multiHeaders := v1HeaderNames(r.Header)
+	for name, value := range httpAPIFrontHeaders(r, c.TraceID) {
+		multiHeaders[http.CanonicalHeaderKey(name)] = []string{value}
 	}
 	headers := make(map[string]string, len(multiHeaders))
 	for name, values := range multiHeaders {
@@ -204,6 +206,33 @@ func EventV1(r Request, c Context, f V1Front) ([]byte, error) {
 	}
 	ev.Body, ev.IsBase64Encoded = eventBody(r)
 	return encode(ev)
+}
+
+// v1HeaderNames is h under the names an HTTP API's 1.0 event reports: the
+// client's spelling, except accept, which arrives lowercased (APIGW2-08,
+// recorded 2026-11-03; apigateway-http.md 5.2). net/http has canonicalized
+// the client's names, so a client that sent another case is reported in
+// canonical case. Spellings that canonicalize alike merge in sorted order.
+func v1HeaderNames(h http.Header) map[string][]string {
+	out := make(map[string][]string, len(h))
+	for _, name := range slices.Sorted(maps.Keys(h)) {
+		key := http.CanonicalHeaderKey(name)
+		if key == "Accept" {
+			key = "accept"
+		}
+		out[key] = append(out[key], h[name]...)
+	}
+	return out
+}
+
+// httpAPIFrontHeaders are the headers an HTTP API's front adds, in lower
+// case: frontHeaders and content-length, the body's length, "0" without
+// one (APIGW2-07 and APIGW2-08, recorded 2026-11-03; apigateway-http.md
+// 5.1, 5.2). A function URL adds no content-length (lambda-events.md 7.3).
+func httpAPIFrontHeaders(r Request, trace string) map[string]string {
+	h := frontHeaders(r, trace)
+	h["content-length"] = strconv.Itoa(len(r.Body))
+	return h
 }
 
 // nilIfEmpty is m, or nil when m is empty, so the 1.0 event writes null.

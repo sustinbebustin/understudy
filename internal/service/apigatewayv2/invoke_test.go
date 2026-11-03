@@ -332,8 +332,9 @@ func TestPayloadV1(t *testing.T) {
 		if got := strs(ev["queryStringParameters"])["q"]; got != pick(choices.V1Query, "1", "2") {
 			t.Errorf("queryStringParameters.q = %q, want V1Query %v of 1, 2", got, choices.V1Query)
 		}
-		if got := strs(ev["headers"])["x-h"]; got != pick(choices.V1Header, "first", "last") {
-			t.Errorf("headers.x-h = %q, want V1Header %v of first, last", got, choices.V1Header)
+		// The header name keeps the case it was sent in (APIGW2-08).
+		if got := strs(ev["headers"])["X-H"]; got != pick(choices.V1Header, "first", "last") {
+			t.Errorf("headers.X-H = %q, want V1Header %v of first, last", got, choices.V1Header)
 		}
 		if mv, ok := obj(h, ev, "multiValueQueryStringParameters")["q"].([]any); !ok || !slices.Equal(mv, []any{"1", "2"}) {
 			t.Errorf("multiValueQueryStringParameters.q = %v, want [1 2]", mv)

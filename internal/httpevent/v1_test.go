@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"maps"
 	"net/http"
 	"net/url"
 	"slices"
@@ -150,7 +151,9 @@ func TestEventV1KeyOrder(t *testing.T) {
 }
 
 // The members the guide's example fixes: version "1.0", the method twice,
-// lowercased header names with every value in multiValueHeaders, every
+// header names in the case sent (APIGW2-08, recorded 2026-11-03, against
+// the guide's "All headernames are lowercased") with every value in
+// multiValueHeaders, every
 // decoded query value in multiValueQueryStringParameters, the context's
 // ids, requestTime as 04/Mar/2020:19:15:17 +0000 with requestTimeEpoch in
 // milliseconds, resourceId null, resourcePath equal to resource, the
@@ -168,12 +171,12 @@ func TestEventV1Members(t *testing.T) {
 		t.Errorf("requestContext.resourcePath %q, resource %q; want them equal", ev.RequestContext.ResourcePath, ev.Resource)
 	}
 	for name := range ev.Headers {
-		if name != strings.ToLower(name) {
-			t.Errorf("header %q is not lowercased", name)
+		if name != http.CanonicalHeaderKey(name) {
+			t.Errorf("header %q is not in the case it was sent in", name)
 		}
 	}
-	if got := ev.MultiValueHeaders["header2"]; !slices.Equal(got, []string{"value1", "value2"}) {
-		t.Errorf("multiValueHeaders.header2 = %q, want [value1 value2]", got)
+	if got := ev.MultiValueHeaders["Header2"]; !slices.Equal(got, []string{"value1", "value2"}) {
+		t.Errorf("multiValueHeaders.Header2 = %q, want [value1 value2]", got)
 	}
 	if got := ev.MultiValueQueryStringParameters["parameter1"]; !slices.Equal(got, []string{"value1", "value2"}) {
 		t.Errorf("multiValueQueryStringParameters.parameter1 = %q, want [value1 value2]", got)
@@ -200,6 +203,44 @@ func TestEventV1Members(t *testing.T) {
 	}
 	if ev.Body == nil || *ev.Body != "Hello from Lambda!" || ev.IsBase64Encoded {
 		t.Errorf("body %v, isBase64Encoded %v; want the text body as sent and false\nfrom %s", ev.Body, ev.IsBase64Encoded, raw)
+	}
+}
+
+// An HTTP API's 1.0 event keeps header names in the client's case and names
+// the front's own headers in canonical case, Content-Length included on a
+// bodyless GET, with accept the one name lowercased (APIGW2-08, recorded
+// 2026-11-03: 01-get, apigateway-http.md 5.2). net/http hands the client's
+// names over canonicalized, which is how curl sent them.
+func TestEventV1HeaderNamesAsAnHTTPAPIRecordedThem(t *testing.T) {
+	r := httpevent.Request{
+		Method: http.MethodGet, RawPath: "/v1/a/b", Protocol: "HTTP/1.1",
+		Host:     "roj3rnqmie.execute-api.us-east-2.amazonaws.com",
+		Header:   http.Header{"User-Agent": {"curl/8.23.0"}, "Accept": {"*/*"}},
+		SourceIP: "198.51.100.2", Scheme: "https", Port: "443",
+	}
+	c := v1Context()
+	c.TraceID = "Root=1-6ae957b1-04e2cd734698c4f569a95d02"
+	_, ev := eventV1(t, r, c)
+	want := map[string]string{
+		"Content-Length":    "0",
+		"Host":              "roj3rnqmie.execute-api.us-east-2.amazonaws.com",
+		"User-Agent":        "curl/8.23.0",
+		"X-Amzn-Trace-Id":   "Root=1-6ae957b1-04e2cd734698c4f569a95d02",
+		"X-Forwarded-For":   "198.51.100.2",
+		"X-Forwarded-Port":  "443",
+		"X-Forwarded-Proto": "https",
+		"accept":            "*/*",
+	}
+	if !maps.Equal(ev.Headers, want) {
+		t.Errorf("headers = %v\nwant      %v", ev.Headers, want)
+	}
+	for name, value := range want {
+		if got := ev.MultiValueHeaders[name]; !slices.Equal(got, []string{value}) {
+			t.Errorf("multiValueHeaders.%s = %q, want [%q]", name, got, value)
+		}
+	}
+	if len(ev.MultiValueHeaders) != len(want) {
+		t.Errorf("multiValueHeaders = %v, want the names of headers", ev.MultiValueHeaders)
 	}
 }
 
@@ -298,11 +339,16 @@ func TestEventV1SingleValueMapsFollowTheSwitch(t *testing.T) {
 		}
 		for name, values := range r.Header {
 			lower := strings.ToLower(name)
-			if lower == "host" || strings.HasPrefix(lower, "x-forwarded-") || lower == "x-amzn-trace-id" {
+			if lower == "host" || strings.HasPrefix(lower, "x-forwarded-") || lower == "x-amzn-trace-id" || lower == "content-length" {
 				continue // the front's own headers are set over the client's
 			}
-			if got := ev.MultiValueHeaders[lower]; !slices.Equal(got, values) {
-				t.Fatalf("multiValueHeaders.%s = %q, want the values sent, %q", lower, got, values)
+			// The client's names keep their case, but accept (APIGW2-08).
+			key := http.CanonicalHeaderKey(name)
+			if lower == "accept" {
+				key = lower
+			}
+			if got := ev.MultiValueHeaders[key]; !slices.Equal(got, values) {
+				t.Fatalf("multiValueHeaders.%s = %q, want the values sent, %q", key, got, values)
 			}
 		}
 		query, err := url.ParseQuery(r.RawQuery)
