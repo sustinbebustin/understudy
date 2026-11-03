@@ -45,16 +45,6 @@ func FormatNumber(v float64) string {
 	return mantissa + "E" + sign + strings.TrimLeft(digits, "0")
 }
 
-// FormatConfigNumber prints a number inside an EventBridge configuration
-// object: whole numbers without ".0", others as FormatNumber
-// (cloudwatch.alarm.number-format; cloudwatch-alarms.md 4.3).
-func FormatConfigNumber(v float64) string {
-	if v == math.Trunc(v) && !math.IsInf(v, 0) {
-		return strconv.FormatFloat(v, 'f', -1, 64)
-	}
-	return FormatNumber(v)
-}
-
 // FormatReasonDate prints a datapoint's timestamp inside a StateReason:
 // dd/MM/yy HH:mm:ss in UTC (cloudwatch-alarms.md 4.3).
 func FormatReasonDate(t time.Time) string {

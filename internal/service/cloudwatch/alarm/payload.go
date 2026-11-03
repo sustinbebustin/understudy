@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -94,7 +95,7 @@ func SNSMessage(s Subject, ch Change) string {
 	b = jsonx.AppendString(b, s.ARN.String())
 	b = append(b, `,"OldStateValue":`...)
 	b = jsonx.AppendString(b, string(ch.Old.Value))
-	b = append(b, `,"OKActions":`...)
+	b = append(b, `,"ActionExecutedAfterMuteWindow":false,"OKActions":`...)
 	b = appendStrings(b, c.OKActions)
 	b = append(b, `,"AlarmActions":`...)
 	b = appendStrings(b, c.AlarmActions)
@@ -102,22 +103,27 @@ func SNSMessage(s Subject, ch Change) string {
 	b = appendStrings(b, c.InsufficientDataActions)
 	b = append(b, `,"Trigger":`...)
 	b = appendTrigger(b, c)
-	b = append(b, `,"ActionExecutedAfterMuteWindow":false}`...)
-	return string(b)
+	return string(append(b, '}'))
 }
 
 // appendTrigger appends the notification's Trigger object
-// (cloudwatch-alarms.md 5.1).
+// (cloudwatch-alarms.md 5.1): an ExtendedStatistic alarm's names its
+// percentile and has no Statistic, and Dimensions are sorted by name
+// (CWA-11).
 func appendTrigger(b []byte, c *cloudwatchapi.PutMetricAlarmInput) []byte {
 	b = append(b, `{"MetricName":`...)
 	b = appendOptString(b, c.MetricName)
 	b = append(b, `,"Namespace":`...)
 	b = appendOptString(b, c.Namespace)
-	b = append(b, `,"StatisticType":"Statistic","Statistic":`...)
-	if c.Statistic != nil {
+	switch {
+	case c.ExtendedStatistic != nil:
+		b = append(b, `,"StatisticType":"ExtendedStatistic","ExtendedStatistic":`...)
+		b = jsonx.AppendString(b, *c.ExtendedStatistic)
+	case c.Statistic != nil:
+		b = append(b, `,"StatisticType":"Statistic","Statistic":`...)
 		b = jsonx.AppendString(b, upperSnake(string(*c.Statistic)))
-	} else {
-		b = append(b, "null"...)
+	default:
+		b = append(b, `,"StatisticType":"Statistic","Statistic":null`...)
 	}
 	b = append(b, `,"Unit":`...)
 	if c.Unit != nil {
@@ -126,7 +132,8 @@ func appendTrigger(b []byte, c *cloudwatchapi.PutMetricAlarmInput) []byte {
 		b = append(b, "null"...)
 	}
 	b = append(b, `,"Dimensions":[`...)
-	for i, d := range c.Dimensions {
+	dims := slices.SortedStableFunc(slices.Values(c.Dimensions), func(x, y cloudwatchapi.Dimension) int { return strings.Compare(x.Name, y.Name) })
+	for i, d := range dims {
 		if i > 0 {
 			b = append(b, ',')
 		}
@@ -221,11 +228,17 @@ func FIFOGroupID(alarmARN string) string {
 }
 
 // FIFODedupID is the MessageDeduplicationId of a notification to a FIFO
-// topic: lower-case hex SHA-256 of the alarm ARN followed by the
-// StateChangeTime as FormatTimestamp prints it
-// (cloudwatch.alarm.sns.fifo-group; cloudwatch-alarms.md 5.3).
-func FIFODedupID(alarmARN string, changeTime time.Time) string {
-	return FIFOGroupID(alarmARN + FormatTimestamp(changeTime))
+// topic: a v4 UUID, one per transition (cloudwatch.alarm.sns.fifo-group;
+// cloudwatch-alarms.md 5.3; CWA-13). AWS's is random; understudy derives it
+// from the alarm ARN and the transition, the id of the call or evaluation
+// that made it, so it is reproducible without a seeded id stream and two
+// transitions never share it.
+func FIFODedupID(alarmARN, transition string) string {
+	sum := sha256.Sum256([]byte(alarmARN + "\n" + transition))
+	sum[6] = sum[6]&0x0f | 0x40 // version 4
+	sum[8] = sum[8]&0x3f | 0x80 // RFC 4122 variant
+	h := hex.EncodeToString(sum[:16])
+	return h[0:8] + "-" + h[8:12] + "-" + h[12:16] + "-" + h[16:20] + "-" + h[20:32]
 }
 
 // MetricID is the generated id of the metric of an alarm configured at
@@ -266,18 +279,19 @@ func LambdaEvent(s Subject, ch Change) []byte {
 }
 
 // StateChangeDetail is the detail JSON of a "CloudWatch Alarm State
-// Change" event (cloudwatch-alarms.md 6.2). It never carries muteDetail,
-// since mute rules are unbound, nor alarmTags, since tag propagation is
-// not emulated.
+// Change" event, its keys in AWS's order: alarmName, state, previousState,
+// configuration (cloudwatch-alarms.md 6.2, CWA-15). It never carries
+// muteDetail, since mute rules are unbound, nor alarmTags, since tag
+// propagation is not emulated.
 func StateChangeDetail(s Subject, ch Change) string {
 	b := []byte(`{"alarmName":`)
 	b = jsonx.AppendString(b, s.Config.AlarmName)
-	b = append(b, `,"configuration":`...)
-	b = appendStateConfiguration(b, s)
-	b = append(b, `,"previousState":`...)
-	b = appendState(b, ch.Old)
 	b = append(b, `,"state":`...)
 	b = appendState(b, ch.New)
+	b = append(b, `,"previousState":`...)
+	b = appendState(b, ch.Old)
+	b = append(b, `,"configuration":`...)
+	b = appendStateConfiguration(b, s)
 	return string(append(b, '}'))
 }
 
@@ -298,18 +312,17 @@ func appendState(b []byte, r StateRecord) []byte {
 	return append(b, '}')
 }
 
-// appendStateConfiguration appends the {description?, metrics} object of
+// appendStateConfiguration appends the {metrics, description?} object of
 // the Lambda event and the state change detail; description is absent
 // without an AlarmDescription (cloudwatch.alarm.events.metric-id, CWA-15).
+// The order is the state change event's; the Lambda event's is unrecorded.
 func appendStateConfiguration(b []byte, s Subject) []byte {
-	b = append(b, '{')
-	if s.Config.AlarmDescription != nil {
-		b = append(b, `"description":`...)
-		b = jsonx.AppendString(b, *s.Config.AlarmDescription)
-		b = append(b, ',')
-	}
-	b = append(b, `"metrics":`...)
+	b = append(b, `{"metrics":`...)
 	b = appendMetrics(b, s)
+	if s.Config.AlarmDescription != nil {
+		b = append(b, `,"description":`...)
+		b = jsonx.AppendString(b, *s.Config.AlarmDescription)
+	}
 	return append(b, '}')
 }
 
@@ -418,9 +431,9 @@ func (op ConfigOp) String() string {
 
 // ConfigurationChangeDetail is the detail JSON of a "CloudWatch Alarm
 // Configuration Change" event: previous is the replaced configuration on
-// an update and nil otherwise; state is the alarm's state at the change
-// (cloudwatch.alarm.events.metric-id; cloudwatch-alarms.md 6.2). Create and
-// delete carry the update example's configuration fields (CWA-15).
+// an update and nil otherwise; state is the alarm's state at the change,
+// its reason carried by a delete only (cloudwatch.alarm.events.metric-id;
+// cloudwatch-alarms.md 6.2; CWA-14, CWA-15).
 func ConfigurationChangeDetail(op ConfigOp, s Subject, previous *Subject, state StateRecord) string {
 	b := []byte(`{"alarmName":`)
 	b = jsonx.AppendString(b, s.Config.AlarmName)
@@ -428,6 +441,10 @@ func ConfigurationChangeDetail(op ConfigOp, s Subject, previous *Subject, state 
 	b = jsonx.AppendString(b, op.String())
 	b = append(b, `,"state":{"value":`...)
 	b = jsonx.AppendString(b, string(state.Value))
+	if op == ConfigDelete {
+		b = append(b, `,"reason":`...)
+		b = jsonx.AppendString(b, state.Reason)
+	}
 	b = append(b, `,"timestamp":`...)
 	b = jsonx.AppendString(b, FormatTimestamp(state.Timestamp))
 	b = append(b, `},"configuration":`...)
@@ -440,15 +457,20 @@ func ConfigurationChangeDetail(op ConfigOp, s Subject, previous *Subject, state 
 }
 
 // appendConfiguration appends a configuration object of a configuration
-// change event, numbers printed by FormatConfigNumber
-// (cloudwatch.alarm.number-format; cloudwatch-alarms.md 6.2).
+// change event, datapointsToAlarm when set and numbers printed by
+// FormatNumber (cloudwatch.alarm.number-format; cloudwatch-alarms.md 6.2;
+// CWA-15).
 func appendConfiguration(b []byte, s Subject) []byte {
 	c := s.Config
 	b = append(b, `{"evaluationPeriods":`...)
 	b = appendOptInt(b, c.EvaluationPeriods)
+	if c.DatapointsToAlarm != nil {
+		b = append(b, `,"datapointsToAlarm":`...)
+		b = appendOptInt(b, c.DatapointsToAlarm)
+	}
 	if c.Threshold != nil {
 		b = append(b, `,"threshold":`...)
-		b = append(b, FormatConfigNumber(*c.Threshold)...)
+		b = append(b, FormatNumber(*c.Threshold)...)
 	}
 	if c.ComparisonOperator != nil {
 		b = append(b, `,"comparisonOperator":`...)

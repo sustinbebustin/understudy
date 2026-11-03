@@ -277,7 +277,7 @@ func TestEvaluateFollowsTheAlgorithm(t *testing.T) {
 // (https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/Double.html#toString(double);
 // cwa 4.3, cloudwatch.alarm.number-format).
 func TestFormatNumberRoundTrips(t *testing.T) {
-	followsSwitch(t, "cloudwatch.alarm.number-format", "java-double,event-configuration-plain-whole-numbers")
+	followsSwitch(t, "cloudwatch.alarm.number-format", "java-double")
 	rapid.Check(t, func(t *rapid.T) {
 		v := rapid.Float64().Filter(func(f float64) bool { return !math.IsInf(f, 0) && !math.IsNaN(f) }).Draw(t, "v")
 		s := alarm.FormatNumber(v)

@@ -25,9 +25,6 @@ func alarmActionOps() []string {
 // missing-data algorithm, warm-up, the texts, the notification and event
 // payloads, and what a refused action does (12.4).
 func alarmSwitches() []fidelity.Entry {
-	unrecorded := func(item string) fidelity.NoScenario {
-		return fidelity.NoScenario{Reason: "unrecorded: " + item}
-	}
 	// The alarm recordings are evidence only: their steps wait on AWS's
 	// evaluations or read SQS queues the deliveries filled, which the
 	// replayer cannot drive.
@@ -102,15 +99,15 @@ func alarmSwitches() []fidelity.Entry {
 			Settles: unreplayed("CWA-06, CWA-07, CWA-08 recorded"),
 		},
 		{
-			Name: "cloudwatch.alarm.number-format", Value: "java-double,event-configuration-plain-whole-numbers",
-			Label: evidence.Inferred, Ref: alarmResearch + "#43-formatting", Record: "CWA-09, CWA-15",
+			Name: "cloudwatch.alarm.number-format", Value: "java-double",
+			Label: evidence.AWSRecorded, Ref: alarmResearch + "#43-formatting", Record: "CWA-09, CWA-15",
 			Ops:     append(alarmEvaluationOps(), "cloudwatch.DescribeAlarmHistory"),
-			Settles: unrecorded("CWA-09, CWA-15"),
+			Settles: unreplayed("CWA-09, CWA-15 recorded"),
 		},
 		{
 			Name: "cloudwatch.alarm.sns.unset-fields", Value: "description-null,treat-missing-data-empty,unit-null,low-sample-empty,datapoints-to-alarm-omitted,mute-window-false",
-			Label: evidence.Inferred, Ref: alarmResearch + "#51-message-body", Record: "CWA-11", Ops: alarmActionOps(),
-			Settles: unrecorded("CWA-11"),
+			Label: evidence.AWSRecorded, Ref: alarmResearch + "#51-message-body", Record: "CWA-11", Ops: alarmActionOps(),
+			Settles: unreplayed("CWA-11 recorded"),
 		},
 		{
 			Name: "cloudwatch.alarm.sns.subject", Value: "state-quoted-name-in-region-long-name,100-chars",
@@ -118,9 +115,9 @@ func alarmSwitches() []fidelity.Entry {
 			Settles: unreplayed("CWA-11, CWA-12 recorded"),
 		},
 		{
-			Name: "cloudwatch.alarm.sns.fifo-group", Value: "sha256-hex-of-alarm-arn",
-			Label: evidence.Inferred, Ref: alarmResearch + "#53-delivery", Record: "CWA-13", Ops: alarmActionOps(),
-			Settles: unrecorded("CWA-13"),
+			Name: "cloudwatch.alarm.sns.fifo-group", Value: "sha256-hex-of-alarm-arn,uuid-dedup-id",
+			Label: evidence.AWSRecorded, Ref: alarmResearch + "#53-delivery", Record: "CWA-13", Ops: alarmActionOps(),
+			Settles: unreplayed("CWA-13 recorded"),
 		},
 		{
 			Name: "cloudwatch.alarm.events.actions-disabled", Value: "events-sent",
@@ -130,9 +127,9 @@ func alarmSwitches() []fidelity.Entry {
 		},
 		{
 			Name: "cloudwatch.alarm.events.metric-id", Value: "one-per-configuration",
-			Label: evidence.Inferred, Ref: alarmResearch + "#62-eventbridge-events", Record: "CWA-15",
-			Ops:     append(alarmActionOps(), "cloudwatch.DeleteAlarms"),
-			Settles: unrecorded("CWA-15"),
+			Label: evidence.AWSRecorded, Ref: alarmResearch + "#62-eventbridge-events", Record: "CWA-15",
+			Ops:     append(alarmActionOps(), "cloudwatch.DeleteAlarms", "cloudwatch.EnableAlarmActions", "cloudwatch.DisableAlarmActions"),
+			Settles: unreplayed("CWA-14, CWA-15 recorded"),
 		},
 		{
 			Name: "cloudwatch.alarm.actions.denied", Value: "dropped",

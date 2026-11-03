@@ -39,15 +39,18 @@ func TestFormatNumber(t *testing.T) {
 // At or above 10^7 and below 10^-3 Java switches to its E notation with at
 // least one fractional digit and no "+"
 // (https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/Double.html#toString(double));
-// that CloudWatch prints those values so is UNVERIFIED (CWA-09) and
-// follows cloudwatch.alarm.number-format.
+// CloudWatch printed 1.23456789E7, 1.23E-4 and 5.0E-4 so
+// (cloudwatch.alarm.number-format; CWA-09, recorded 2026-11-03:
+// testdata/parity/cloudwatch/CWA-09).
 func TestFormatNumberJavaExponent(t *testing.T) {
-	followsSwitch(t, "cloudwatch.alarm.number-format", "java-double,event-configuration-plain-whole-numbers")
+	followsSwitch(t, "cloudwatch.alarm.number-format", "java-double")
 	for _, tc := range []struct {
 		v    float64
 		want string
 	}{
 		{1.23456789e7, "1.23456789E7"},
+		{0.000123, "1.23E-4"},
+		{0.0005, "5.0E-4"},
 		{1e7, "1.0E7"},
 		{1e-4, "1.0E-4"},
 		{-2.5e-5, "-2.5E-5"},
@@ -57,26 +60,6 @@ func TestFormatNumberJavaExponent(t *testing.T) {
 		if got := alarm.FormatNumber(tc.v); got != tc.want {
 			t.Errorf("FormatNumber(%v) = %q, want %q", tc.v, got, tc.want)
 		}
-	}
-}
-
-// Numbers inside an EventBridge configuration object print whole without
-// ".0": AWS's metric alarm examples carry "threshold": 80, 70 and 10000
-// (cwa 4.3, aws-doc); a fraction keeps its digits, as the research's
-// default under cloudwatch.alarm.number-format reads it (UNVERIFIED,
-// CWA-15).
-func TestFormatConfigNumber(t *testing.T) {
-	for _, tc := range []struct {
-		v    float64
-		want string
-	}{{80, "80"}, {70, "70"}, {10000, "10000"}} {
-		if got := alarm.FormatConfigNumber(tc.v); got != tc.want {
-			t.Errorf("FormatConfigNumber(%v) = %q, want %q", tc.v, got, tc.want)
-		}
-	}
-	followsSwitch(t, "cloudwatch.alarm.number-format", "java-double,event-configuration-plain-whole-numbers")
-	if got := alarm.FormatConfigNumber(31.5); got != "31.5" {
-		t.Errorf("FormatConfigNumber(31.5) = %q, want 31.5", got)
 	}
 }
 

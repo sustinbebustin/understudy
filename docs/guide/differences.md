@@ -231,7 +231,7 @@ understudy has not recorded Scheduler against AWS yet. Its behavior comes from A
 - `PutMetricData` with `StrictEntityValidation` false stores the data without the `X-Amzn-Failure-Message` header.
 - understudy publishes no `AWS/*` metrics, so an alarm on one sees only missing data; put the data with `PutMetricData` instead. Data stamped with wall time can fall outside alarm windows while the clock is frozen, set or scaled; leave `Timestamp` out ([CloudWatch alarms](clock.md#cloudwatch-alarms)).
 - Alarms on an `ExtendedStatistic`, `Metrics`, a `ThresholdMetricId` or `EvaluationCriteria`, or with a wall-clock window, are stored and never evaluated. EC2, Auto Scaling, Systems Manager and investigation actions are journaled and never run. `DescribeAlarmHistory` records `StateUpdate` items only, and `GetMetricStatistics` answers `ExtendedStatistics` with 501.
-- Alarm notifications to a FIFO topic get a deduplication id from the alarm ARN and the state change time. While the clock is frozen, several state changes share that time and that id, and SNS keeps only the first; advance the clock between `SetAlarmState` calls ([CloudWatch alarms](clock.md#cloudwatch-alarms)).
+- Alarm notifications to a FIFO topic get a deduplication id derived from the alarm ARN and the call or evaluation that made the change; AWS's is a random UUID (`sqs/CWA-13/receive-1.json`).
 
 ## SES
 

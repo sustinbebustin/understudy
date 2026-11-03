@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"reflect"
+	"regexp"
 	"slices"
 	"strings"
 	"sync"
@@ -395,8 +396,7 @@ func TestEvaluationThatRetainsWritesNothing(t *testing.T) {
 // and never claimed (cwa 7.2, 12.4, 12.7; contract 3.3).
 func TestTransitionRunsItsActions(t *testing.T) {
 	runAlarms(t, func(h *harness, fx *effects) {
-		followsSwitch(h, "cloudwatch.alarm.sns.fifo-group", "sha256-hex-of-alarm-arn")
-		t0 := h.now()
+		followsSwitch(h, "cloudwatch.alarm.sns.fifo-group", "sha256-hex-of-alarm-arn,uuid-dedup-id")
 		h.put("Load", cloudwatchapi.StandardUnitCount, 20)
 		in := evalAlarm("cpu")
 		in.AlarmActions = []string{onAlarmFn + ":prod", ec2Stop, fifoTopic}
@@ -433,7 +433,8 @@ func TestTransitionRunsItsActions(t *testing.T) {
 			b := sha256.Sum256([]byte(s))
 			return hex.EncodeToString(b[:])
 		}
-		if !ok || topic.ARN.String() != fifoTopic || topic.GroupID != sum(arn) || topic.DedupID != sum(arn+stamp(t0.Add(time.Minute))) {
+		uuidV4 := regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
+		if !ok || topic.ARN.String() != fifoTopic || topic.GroupID != sum(arn) || !uuidV4.MatchString(topic.DedupID) {
 			h.Errorf("second delivery = %+v, want %s with the FIFO ids", deliveries[1].Request, fifoTopic)
 		}
 		notRun := h.advisories(journal.AdvisoryAlarmActionNotRun)
@@ -782,12 +783,12 @@ func TestAlarmSwitches(t *testing.T) {
 			"cloudwatch.alarm.dynamodb-missing-data":           {"as-configured", evidence.AWSRecorded},
 			"cloudwatch.alarm.warm-up-end":                     {"every-period-has-data", evidence.AWSRecorded},
 			"cloudwatch.alarm.reason-format":                   {"count-form-unless-datapoints-to-alarm", evidence.AWSRecorded},
-			"cloudwatch.alarm.number-format":                   {"java-double,event-configuration-plain-whole-numbers", evidence.Inferred},
-			"cloudwatch.alarm.sns.unset-fields":                {"description-null,treat-missing-data-empty,unit-null,low-sample-empty,datapoints-to-alarm-omitted,mute-window-false", evidence.Inferred},
+			"cloudwatch.alarm.number-format":                   {"java-double", evidence.AWSRecorded},
+			"cloudwatch.alarm.sns.unset-fields":                {"description-null,treat-missing-data-empty,unit-null,low-sample-empty,datapoints-to-alarm-omitted,mute-window-false", evidence.AWSRecorded},
 			"cloudwatch.alarm.sns.subject":                     {"state-quoted-name-in-region-long-name,100-chars", evidence.AWSRecorded},
-			"cloudwatch.alarm.sns.fifo-group":                  {"sha256-hex-of-alarm-arn", evidence.Inferred},
+			"cloudwatch.alarm.sns.fifo-group":                  {"sha256-hex-of-alarm-arn,uuid-dedup-id", evidence.AWSRecorded},
 			"cloudwatch.alarm.events.actions-disabled":         {"events-sent", evidence.AWSRecorded},
-			"cloudwatch.alarm.events.metric-id":                {"one-per-configuration", evidence.Inferred},
+			"cloudwatch.alarm.events.metric-id":                {"one-per-configuration", evidence.AWSRecorded},
 			"cloudwatch.alarm.history.page-size":               {"50", evidence.AWSRecorded},
 			"cloudwatch.get-metric-statistics.datapoint-limit": {"ceil-unrounded", evidence.Inferred},
 			"cloudwatch.get-metric-statistics.order":           {"timestamp-ascending,then-unit", evidence.Inferred},

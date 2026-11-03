@@ -107,6 +107,51 @@ func TestEachConfigurationHasItsOwnMetricID(t *testing.T) {
 	})
 }
 
+// DisableAlarmActions is a configuration update: AWS moved
+// AlarmConfigurationUpdatedTimestamp and sent an "update" configuration
+// change event whose configuration has actionsEnabled false, the previous
+// one true, and both the same metric id (cloudwatch-alarms.md 6.2; CWA-14,
+// recorded 2026-11-03: testdata/parity/sqs/CWA-14/retry-events-*.json).
+func TestDisableAlarmActionsIsAConfigurationUpdate(t *testing.T) {
+	runAlarms(t, func(h *harness, fx *effects) {
+		followsSwitch(h, "cloudwatch.alarm.events.metric-id", "one-per-configuration")
+		must(h, cloudwatchapi.OpPutMetricAlarm, evalAlarm("cpu"))
+		created := h.now()
+		h.advance(time.Second)
+		must(h, cloudwatchapi.OpDisableAlarmActions, &cloudwatchapi.DisableAlarmActionsInput{AlarmNames: []string{"cpu"}})
+		synctest.Wait()
+		if got := h.one("cpu"); !got.AlarmConfigurationUpdatedTimestamp.Equal(created.Add(time.Second)) || *got.ActionsEnabled {
+			h.Errorf("after DisableAlarmActions: AlarmConfigurationUpdatedTimestamp %v, ActionsEnabled %v; want %v, false",
+				*got.AlarmConfigurationUpdatedTimestamp, *got.ActionsEnabled, created.Add(time.Second))
+		}
+		type config struct {
+			ActionsEnabled bool   `json:"actionsEnabled"`
+			Timestamp      string `json:"timestamp"`
+			Metrics        []struct {
+				ID string `json:"id"`
+			} `json:"metrics"`
+		}
+		var d struct {
+			Operation             string  `json:"operation"`
+			Configuration         config  `json:"configuration"`
+			PreviousConfiguration *config `json:"previousConfiguration"`
+		}
+		events := fx.bus.of("CloudWatch Alarm Configuration Change")
+		if len(events) != 2 {
+			h.Fatalf("configuration change events = %d, want the create and the update", len(events))
+		}
+		if err := json.Unmarshal([]byte(events[1].in.Detail), &d); err != nil {
+			h.Fatalf("detail is not JSON: %v", err)
+		}
+		p := d.PreviousConfiguration
+		if d.Operation != "update" || d.Configuration.ActionsEnabled || p == nil || !p.ActionsEnabled ||
+			d.Configuration.Timestamp != stamp(created.Add(time.Second)) || p.Timestamp != stamp(created) ||
+			len(d.Configuration.Metrics) != 1 || len(p.Metrics) != 1 || d.Configuration.Metrics[0].ID != p.Metrics[0].ID {
+			h.Errorf("DisableAlarmActions event = %s", events[1].in.Detail)
+		}
+	})
+}
+
 // A topic ARN in no account understudy serves cannot be delivered to: it is
 // journaled as not run, and the transition still answers, writes its
 // history item, runs the actions after it and sends its event

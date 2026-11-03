@@ -48,8 +48,10 @@ func actionsOf(cfg *cloudwatchapi.PutMetricAlarmInput, v cloudwatchapi.StateValu
 // each an effect to apply in a write tx: SNS and Lambda actions are
 // deliveries with no retry schedule, as CloudWatch "doesn't test or
 // validate the actions" (cloudwatch-alarms.md 5.3), and every other kind
-// is journaled as not run (cloudwatch-alarms.md 12.7).
-func actionRuns(r alarmRef, a *Alarm, ch alarm.Change) []func(tx *kernel.Tx) {
+// is journaled as not run (cloudwatch-alarms.md 12.7). transition is the
+// id of the call that made the change, which a FIFO deduplication id
+// derives from.
+func actionRuns(r alarmRef, a *Alarm, ch alarm.Change, transition string) []func(tx *kernel.Tx) {
 	if !a.ActionsEnabled {
 		return nil
 	}
@@ -64,7 +66,7 @@ func actionRuns(r alarmRef, a *Alarm, ch alarm.Change) []func(tx *kernel.Tx) {
 			if strings.HasSuffix(act.Topic.Resource, ".fifo") {
 				// cloudwatch.alarm.sns.fifo-group (cloudwatch-alarms.md 5.3)
 				topic.GroupID = alarm.FIFOGroupID(source.String())
-				topic.DedupID = alarm.FIFODedupID(source.String(), ch.New.Timestamp)
+				topic.DedupID = alarm.FIFODedupID(source.String(), transition)
 			}
 			req.Mechanism, req.Target = delivery.CloudWatchToSNS, topic
 			runs = append(runs, func(tx *kernel.Tx) { tx.Deliver(req) })
@@ -120,14 +122,15 @@ func stateChangeEvent(r alarmRef, a *Alarm, ch alarm.Change) alarmEvent {
 }
 
 // configChangeEvent is the "CloudWatch Alarm Configuration Change" event
-// of a PutMetricAlarm or DeleteAlarms; previous is the replaced alarm on
-// an update and nil otherwise (cloudwatch-alarms.md 6.2).
+// of a PutMetricAlarm, DeleteAlarms, EnableAlarmActions or
+// DisableAlarmActions; previous is the replaced alarm on an update and nil
+// otherwise (cloudwatch-alarms.md 6.2, CWA-14).
 func configChangeEvent(op alarm.ConfigOp, r alarmRef, a, previous *Alarm) alarmEvent {
 	var prev *alarm.Subject
 	if previous != nil {
 		prev = new(subjectOf(r, previous))
 	}
-	state := alarm.StateRecord{Value: a.State.Value, Timestamp: a.State.Updated.Wire()}
+	state := alarm.StateRecord{Value: a.State.Value, Reason: a.State.Reason, Timestamp: a.State.Updated.Wire()}
 	return alarmEvent{
 		scope: r.scope, alarm: r.arn(), detailType: alarm.DetailTypeConfigChange,
 		detail: alarm.ConfigurationChangeDetail(op, subjectOf(r, a), prev, state),

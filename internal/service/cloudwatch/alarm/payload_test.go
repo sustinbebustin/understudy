@@ -73,8 +73,8 @@ func recordedChange() alarm.Change {
 // "", no DatapointsToAlarm, ActionExecutedAfterMuteWindow false, and no
 // reason data (cwa 11). AlarmDescription null, the value-then-name order
 // inside a dimension and the place of ActionExecutedAfterMuteWindow follow
-// cloudwatch.alarm.sns.unset-fields (UNVERIFIED, CWA-11); Region's long
-// name follows cloudwatch.alarm.sns.subject (CWA-12).
+// cloudwatch.alarm.sns.unset-fields (CWA-11); Region's long name follows
+// cloudwatch.alarm.sns.subject (CWA-12).
 func TestSNSMessageMatchesTheRecording(t *testing.T) {
 	followsSwitch(t, "cloudwatch.alarm.sns.unset-fields", "description-null,treat-missing-data-empty,unit-null,low-sample-empty,datapoints-to-alarm-omitted,mute-window-false")
 	followsSwitch(t, "cloudwatch.alarm.sns.subject", "state-quoted-name-in-region-long-name,100-chars")
@@ -83,11 +83,11 @@ func TestSNSMessageMatchesTheRecording(t *testing.T) {
 		`"AlarmConfigurationUpdatedTimestamp":"2026-02-26T10:00:00.000+0000","NewStateValue":"ALARM",` +
 		`"NewStateReason":"` + breachReason + `","StateChangeTime":"2026-02-26T10:00:50.123+0000",` +
 		`"Region":"US East (N. Virginia)","AlarmArn":"` + alarmARN + `","OldStateValue":"INSUFFICIENT_DATA",` +
-		`"OKActions":[],"AlarmActions":["` + topicARN + `"],"InsufficientDataActions":[],` +
+		`"ActionExecutedAfterMuteWindow":false,"OKActions":[],"AlarmActions":["` + topicARN + `"],"InsufficientDataActions":[],` +
 		`"Trigger":{"MetricName":"CPUUtilization","Namespace":"tst","StatisticType":"Statistic","Statistic":"AVERAGE",` +
 		`"Unit":"Seconds","Dimensions":[{"value":"abc","name":"InstanceId"}],"Period":10,"EvaluationPeriods":1,` +
 		`"ComparisonOperator":"GreaterThanThreshold","Threshold":21.0,"TreatMissingData":"ignore",` +
-		`"EvaluateLowSampleCountPercentile":""},"ActionExecutedAfterMuteWindow":false}`
+		`"EvaluateLowSampleCountPercentile":""}}`
 	if got != want {
 		t.Errorf("SNSMessage =\n%s\nwant\n%s", got, want)
 	}
@@ -98,8 +98,8 @@ func TestSNSMessageMatchesTheRecording(t *testing.T) {
 // tests/aws/services/cloudwatch/test_cloudwatch_metrics.snapshot.json:L183, L187);
 // SUM, MAXIMUM captured and MINIMUM by the same rule (cwa 5.1);
 // DatapointsToAlarm an integer after EvaluationPeriods when set,
-// TreatMissingData "" when unset, a description as sent, dimensions in
-// configured order (cloudwatch.alarm.sns.unset-fields, CWA-11).
+// TreatMissingData "" when unset, a description as sent, dimensions sorted
+// by name (cloudwatch.alarm.sns.unset-fields, CWA-11).
 func TestSNSMessageFields(t *testing.T) {
 	followsSwitch(t, "cloudwatch.alarm.sns.unset-fields", "description-null,treat-missing-data-empty,unit-null,low-sample-empty,datapoints-to-alarm-omitted,mute-window-false")
 	s := recordedSubject(t)
@@ -114,7 +114,7 @@ func TestSNSMessageFields(t *testing.T) {
 	for _, part := range []string{
 		`"AlarmDescription":"queue depth",`,
 		`"Statistic":"SAMPLE_COUNT","Unit":null,`,
-		`"Dimensions":[{"value":"b","name":"Zone"},{"value":"a","name":"App"}]`,
+		`"Dimensions":[{"value":"a","name":"App"},{"value":"b","name":"Zone"}]`,
 		`"EvaluationPeriods":3,"DatapointsToAlarm":2,"ComparisonOperator":`,
 		`"TreatMissingData":"",`,
 	} {
@@ -190,24 +190,13 @@ func TestRegionName(t *testing.T) {
 }
 
 // A FIFO topic's message group id is a hash of the alarm ARN (cwa 5.3,
-// aws-doc); lower-case hex SHA-256, and the deduplication id as the same
-// hash of the ARN and StateChangeTime, are cloudwatch.alarm.sns.fifo-group
-// (UNVERIFIED, CWA-13).
-func TestFIFOIDs(t *testing.T) {
-	followsSwitch(t, "cloudwatch.alarm.sns.fifo-group", "sha256-hex-of-alarm-arn")
-	sum := func(s string) string {
-		h := sha256.Sum256([]byte(s))
-		return hex.EncodeToString(h[:])
-	}
-	if got := alarm.FIFOGroupID(alarmARN); got != sum(alarmARN) {
-		t.Errorf("FIFOGroupID = %q, want %q", got, sum(alarmARN))
-	}
-	at := time.Date(2026, 2, 26, 10, 0, 50, 123_000_000, time.UTC)
-	if got := alarm.FIFODedupID(alarmARN, at); got != sum(alarmARN+"2026-02-26T10:00:50.123+0000") {
-		t.Errorf("FIFODedupID = %q, want the SHA-256 of the ARN and 2026-02-26T10:00:50.123+0000", got)
-	}
-	if alarm.FIFODedupID(alarmARN, at) == alarm.FIFODedupID(alarmARN, at.Add(time.Minute)) {
-		t.Error("FIFODedupID is the same for two state changes")
+// aws-doc): lower-case hex SHA-256 (cloudwatch.alarm.sns.fifo-group,
+// CWA-13).
+func TestFIFOGroupID(t *testing.T) {
+	followsSwitch(t, "cloudwatch.alarm.sns.fifo-group", "sha256-hex-of-alarm-arn,uuid-dedup-id")
+	h := sha256.Sum256([]byte(alarmARN))
+	if got, want := alarm.FIFOGroupID(alarmARN), hex.EncodeToString(h[:]); got != want {
+		t.Errorf("FIFOGroupID = %q, want %q", got, want)
 	}
 }
 
@@ -329,20 +318,20 @@ func configChangeSubject(t *testing.T, threshold float64, metricID string) alarm
 
 // The "CloudWatch Alarm Configuration Change" detail of an update carries
 // the configuration and the previous one, each with its own metric id
-// (AWS's update example, cwa 6.2, aws-doc); whole numbers print without
-// ".0" ("threshold": 80 and 70 there), under
+// (AWS's update example, cwa 6.2, aws-doc); numbers print as Java doubles
+// ("threshold":3.0 recorded, where the documented example prints 80), under
 // cloudwatch.alarm.number-format and cloudwatch.alarm.events.metric-id
-// (UNVERIFIED, CWA-15).
+// (CWA-15).
 func TestConfigurationChangeDetail(t *testing.T) {
 	followsSwitch(t, "cloudwatch.alarm.events.metric-id", "one-per-configuration")
-	followsSwitch(t, "cloudwatch.alarm.number-format", "java-double,event-configuration-plain-whole-numbers")
+	followsSwitch(t, "cloudwatch.alarm.number-format", "java-double")
 	cur := configChangeSubject(t, 80, "86bfa85f-b14c-ebf7-8916-7da014ce23c0")
 	prev := configChangeSubject(t, 70, "d6bfa85f-893e-b052-a58b-4f9295c9111a")
 	state := alarm.StateRecord{Value: stateAlarm, Timestamp: time.Date(2026, 2, 26, 10, 0, 50, 123_000_000, time.UTC)}
 	raw := alarm.ConfigurationChangeDetail(alarm.ConfigUpdate, cur, &prev, state)
 	got := parseJSON(t, "ConfigurationChangeDetail", []byte(raw))
 	config := func(threshold int, id string) string {
-		return `{"evaluationPeriods":1,"threshold":` + map[int]string{80: "80", 70: "70"}[threshold] + `,
+		return `{"evaluationPeriods":1,"threshold":` + map[int]string{80: "80.0", 70: "70.0"}[threshold] + `,
 			"comparisonOperator":"GreaterThanThreshold","treatMissingData":"ignore",
 			"metrics":[{"id":"` + id + `","metricStat":{"metric":{"namespace":"tst","name":"CPUUtilization","dimensions":{"InstanceId":"abc"}},"period":10,"stat":"Average","unit":"Seconds"},"returnData":true}],
 			"alarmName":"cpu-high","description":"cpu","actionsEnabled":true,"timestamp":"2026-02-26T10:00:00.000+0000",
@@ -354,8 +343,8 @@ func TestConfigurationChangeDetail(t *testing.T) {
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ConfigurationChangeDetail =\n%v\nwant\n%v", got, want)
 	}
-	if !regexp.MustCompile(`"threshold":\s*80\s*[,}]`).MatchString(raw) || !regexp.MustCompile(`"threshold":\s*70\s*[,}]`).MatchString(raw) {
-		t.Errorf("thresholds do not print as plain whole numbers: %s", raw)
+	if !regexp.MustCompile(`"threshold":80\.0[,}]`).MatchString(raw) || !regexp.MustCompile(`"threshold":70\.0[,}]`).MatchString(raw) {
+		t.Errorf("thresholds do not print as Java doubles: %s", raw)
 	}
 
 	for op, name := range map[alarm.ConfigOp]string{alarm.ConfigCreate: "create", alarm.ConfigDelete: "delete"} {

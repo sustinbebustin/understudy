@@ -328,7 +328,7 @@ func echoQueries(qs []cloudwatchapi.MetricDataQuery) []cloudwatchapi.MetricDataQ
 // succeeds (wire-cbor.md 3.5).
 func (s *Service) deleteAlarms(ctx context.Context, c *kernel.Call, in *cloudwatchapi.DeleteAlarmsInput) (*cloudwatchapi.DeleteAlarmsOutput, *awserr.Error) {
 	var last *queuedEvent
-	err := s.eachAlarm(c, in.AlarmNames, func(st *State, name string, a Alarm, tx *kernel.Tx) {
+	err := s.eachAlarm(c, in.AlarmNames, func(st *State, name string, a Alarm, _ clock.Instant, tx *kernel.Tx) {
 		delete(st.Alarms, name)
 		ref := named(c, name)
 		tx.Disarm(s.evaluation, ref.arn().String())
@@ -341,41 +341,50 @@ func (s *Service) deleteAlarms(ctx context.Context, c *kernel.Call, in *cloudwat
 	return &cloudwatchapi.DeleteAlarmsOutput{}, nil
 }
 
-func (s *Service) enableAlarmActions(_ context.Context, c *kernel.Call, in *cloudwatchapi.EnableAlarmActionsInput) (*cloudwatchapi.EnableAlarmActionsOutput, *awserr.Error) {
-	if err := s.setActionsEnabled(c, in.AlarmNames, true); err != nil {
+func (s *Service) enableAlarmActions(ctx context.Context, c *kernel.Call, in *cloudwatchapi.EnableAlarmActionsInput) (*cloudwatchapi.EnableAlarmActionsOutput, *awserr.Error) {
+	if err := s.setActionsEnabled(ctx, c, in.AlarmNames, true); err != nil {
 		return nil, err
 	}
 	return &cloudwatchapi.EnableAlarmActionsOutput{}, nil
 }
 
-func (s *Service) disableAlarmActions(_ context.Context, c *kernel.Call, in *cloudwatchapi.DisableAlarmActionsInput) (*cloudwatchapi.DisableAlarmActionsOutput, *awserr.Error) {
-	if err := s.setActionsEnabled(c, in.AlarmNames, false); err != nil {
+func (s *Service) disableAlarmActions(ctx context.Context, c *kernel.Call, in *cloudwatchapi.DisableAlarmActionsInput) (*cloudwatchapi.DisableAlarmActionsOutput, *awserr.Error) {
+	if err := s.setActionsEnabled(ctx, c, in.AlarmNames, false); err != nil {
 		return nil, err
 	}
 	return &cloudwatchapi.DisableAlarmActionsOutput{}, nil
 }
 
-// setActionsEnabled sets ActionsEnabled on the named alarms; names that
-// match no alarm are skipped, as DeleteAlarms skips them (inferred: the
-// documentation is silent).
-func (s *Service) setActionsEnabled(c *kernel.Call, names []string, enabled bool) *awserr.Error {
-	return s.eachAlarm(c, names, func(st *State, name string, a Alarm, _ *kernel.Tx) {
-		a.ActionsEnabled = enabled
+// setActionsEnabled sets ActionsEnabled on the named alarms as a
+// configuration update: AlarmConfigurationUpdatedTimestamp moves and an
+// "update" configuration change event is sent, with the metric id kept
+// (CWA-14 recorded DisableAlarmActions; EnableAlarmActions is inferred to
+// match, and whether setting the value an alarm already has is an update
+// is unrecorded). Names that match no alarm are skipped, as DeleteAlarms
+// skips them (inferred: the documentation is silent).
+func (s *Service) setActionsEnabled(ctx context.Context, c *kernel.Call, names []string, enabled bool) *awserr.Error {
+	var last *queuedEvent
+	err := s.eachAlarm(c, names, func(st *State, name string, a Alarm, now clock.Instant, _ *kernel.Tx) {
+		previous := a
+		a.ActionsEnabled, a.ConfigUpdated = enabled, now
 		st.Alarms[name] = a
+		last = s.pushEvent(c, clock.Instant{}, configChangeEvent(alarm.ConfigUpdate, named(c, name), &a, &previous))
 	})
+	s.flushEvents(ctx, last)
+	return err
 }
 
 // eachAlarm runs fn on every named alarm that exists, under the scope's
-// lock.
-func (s *Service) eachAlarm(c *kernel.Call, names []string, fn func(st *State, name string, a Alarm, tx *kernel.Tx)) *awserr.Error {
+// lock, at the write's instant now.
+func (s *Service) eachAlarm(c *kernel.Call, names []string, fn func(st *State, name string, a Alarm, now clock.Instant, tx *kernel.Tx)) *awserr.Error {
 	if _, ok := s.cells.Lookup(c.Scope()); !ok {
 		return nil
 	}
-	_, err := kernel.Write(c, s.cells, c.Scope(), func(st *State, _ clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
+	_, err := kernel.Write(c, s.cells, c.Scope(), func(st *State, now clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
 		found := false
 		for _, name := range names {
 			if a, ok := st.Alarms[name]; ok {
-				fn(st, name, a, tx)
+				fn(st, name, a, now, tx)
 				found = true
 			}
 		}
@@ -412,7 +421,7 @@ func (s *Service) setAlarmState(ctx context.Context, c *kernel.Call, in *cloudwa
 			return struct{}{}, nil
 		}
 		next := AlarmState{Value: in.StateValue, Reason: in.StateReason, ReasonData: in.StateReasonData, Updated: now, Transitioned: now}
-		done = new(s.transition(tx, ref, &a, next))
+		done = new(s.transition(tx, ref, &a, next, c))
 		st.Alarms[in.AlarmName] = a
 		return struct{}{}, nil
 	})
