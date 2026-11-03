@@ -65,7 +65,7 @@ It reads the account id from `<recordings>/_scripts/acct` (or `--account-file`),
 
 ## Replay scenarios
 
-`parity/<svc>/<item>/scenario.json` tells `internal/parity` how to replay one item against an in-process understudy: which steps run, in which order, what to set up first, which recorded values stand for the ones understudy mints, and which fidelity switches and overlay evidence items a step settles. The checked-in scenarios are `dynamodb/R11` (step 07, DynamoDB Streams' signing scopes), `events/R14` (the `TestEventPattern` cases H1, H8, H9 and H14), `kms/KMS-alias`, `sqs/R01` and `sts/R15`. An item without one is not replayed.
+`parity/<svc>/<item>/scenario.json` tells `internal/parity` how to replay one item against an in-process understudy: which steps run, in which order, what to set up first, which recorded values stand for the ones understudy mints, and which fidelity switches and overlay evidence items a step settles. The checked-in scenarios are `dynamodb/R11` (step 07, DynamoDB Streams' signing scopes), `events/EBB` (the event bus steps a request alone settles: refusal texts, missing-bus answers, `UpdateEventBus`, the bus policy and bus-target refusals), `events/R14` (step 04, a schedule on a custom bus its setup creates, and the `TestEventPattern` cases H1, H8, H9 and H14), `kms/KMS-alias`, `sqs/R01` and `sts/R15`. An item without one is not replayed.
 
 ```json
 {
