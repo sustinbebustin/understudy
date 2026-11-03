@@ -82,7 +82,7 @@ func (s *stepper) startRun(st state, v visit, previous int64) {
 	// iteration it starts before the execution's last event (inferred,
 	// ASL-16).
 	if s.x.lastEvent+int64(min(len(inputs), limit))+4 > maxHistoryEvents {
-		s.fail(errRuntime, "The execution reached the limit of "+strconv.Itoa(maxHistoryEvents)+" history events.", s.x.lastEvent)
+		s.fail(errRuntime, HistoryLimitCause, s.x.lastEvent)
 		return
 	}
 	var details document.Value

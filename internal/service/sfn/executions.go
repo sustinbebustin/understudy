@@ -217,6 +217,12 @@ func (s *Service) describeExecution(_ context.Context, c *kernel.Call, in *sfnap
 		// v2/base/test_base.snapshot.json:L184-L199).
 		out.Error, out.Cause = optional(o.Error), optional(o.Cause)
 		out.RedriveStatus = new(sfnapi.ExecutionRedriveStatusRedrivable)
+		if o.Cause == asl.HistoryLimitCause {
+			// ASL-16, recorded 2026-11-03, not the documented "Execution
+			// history event limit exceeded." (stepfunctions-api.md 6.3).
+			out.RedriveStatus = new(sfnapi.ExecutionRedriveStatusNotRedrivable)
+			out.RedriveStatusReason = new("Execution has exceeded the maximum history event limit")
+		}
 	case asl.TimedOut:
 		// Recorded REDRIVABLE (stepfunctions-api.md 6.3).
 		out.Error, out.Cause = optional(o.Error), optional(o.Cause)

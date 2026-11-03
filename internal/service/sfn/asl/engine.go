@@ -2,7 +2,6 @@ package asl
 
 import (
 	"slices"
-	"strconv"
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/protocol/jsonx"
@@ -13,6 +12,23 @@ import (
 // maxHistoryEvents is the history quota of a Standard execution
 // (stepfunctions-asl.md 11.1, aws-doc dg/service-quotas).
 const maxHistoryEvents = 25_000
+
+// HistoryLimitCause is the cause of the States.Runtime that ends an
+// execution at maxHistoryEvents, without the 4.6 prefix (ASL-16, recorded
+// 2026-11-03).
+const HistoryLimitCause = "The execution reached the maximum number of history events (25000)."
+
+// stepMargin is how many events a state step leaves room for before it
+// starts: its entered and exited events and the execution's last. ASL-16
+// recorded the failure as event 25,000 in place of the next state's entered
+// event, after an exited event at 24,999 (recorded 2026-11-03).
+const stepMargin = 3
+
+// taskMargin is stepMargin for a Task, which writes its entered,
+// scheduled, started, result and exited events before the execution's
+// last, so it never passes the limit; where AWS stops a Task near the
+// limit is unrecorded (inferred, ASL-16).
+const taskMargin = 6
 
 // errRuntime is the name of the terminal runtime error
 // (stepfunctions-asl.md 8.1).
@@ -242,11 +258,12 @@ func (s *stepper) machineDeleted() {
 
 // step runs one state transition (contract 5.5 item 2).
 func (s *stepper) step(j stepJob) {
-	// A state writes at most its entered and exited events before the
-	// execution's last event; reaching the quota fails the execution
-	// (inferred, ASL-16).
-	if s.x.lastEvent+4 > maxHistoryEvents {
-		s.fail(errRuntime, "The execution reached the limit of "+strconv.Itoa(maxHistoryEvents)+" history events.", s.x.lastEvent)
+	margin := int64(stepMargin)
+	if _, isTask := s.d.states[j.state].(taskState); isTask {
+		margin = taskMargin
+	}
+	if s.x.lastEvent+margin > maxHistoryEvents {
+		s.fail(errRuntime, HistoryLimitCause, s.x.lastEvent)
 		return
 	}
 	switch st := s.d.states[j.state].(type) {

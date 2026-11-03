@@ -28,10 +28,10 @@ func (s *stepper) task(st taskState, j stepJob) {
 // (stepfunctions-asl.md 8.2). A retry writes no event of its own: the
 // attempt's first event points at the failure retried (11.2 rule 7).
 func (s *stepper) retry(j retryJob) {
-	// An attempt writes at most its scheduled and started events before the
-	// execution's last event, within step's quota margin (inferred, ASL-16).
-	if s.x.lastEvent+4 > maxHistoryEvents {
-		s.fail(errRuntime, "The execution reached the limit of "+strconv.Itoa(maxHistoryEvents)+" history events.", s.x.lastEvent)
+	// An attempt writes its scheduled, started, result and exited events
+	// before the execution's last event (inferred, ASL-16).
+	if s.x.lastEvent+taskMargin-1 > maxHistoryEvents {
+		s.fail(errRuntime, HistoryLimitCause, s.x.lastEvent)
 		return
 	}
 	st, ok := s.d.states[j.state].(taskState)

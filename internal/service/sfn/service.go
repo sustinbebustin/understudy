@@ -70,30 +70,28 @@ const (
 	noteDelete   = "An idle machine is removed at once, and one with running executions once the last of them ends; " +
 		"AWS still describes a deleted machine as DELETING, idle or not, for a time no recording has measured " +
 		"(at least 45 seconds after its last execution ended; SFN-06, ASL-17)"
-	noteStop = "error and cause are kept in DescribeExecution and ExecutionAborted; stopping a closed execution answers 200 with its stopDate " +
-		"and changes nothing (UNVERIFIED, SFN-04)"
 	noteStart = "Standard executions. Unrecorded AWS behavior understudy chooses, each with its recording case: " +
-		"same-name idempotency compares input byte for byte (SFN-03); malformed input other than the recorded cases answers " +
-		"'Invalid execution input.' (SFN-08); ResultPath into a non-object and a missing path in a Task, Parallel or Map template " +
-		"fail with States.Runtime (ASL-03, ASL-04); a Fail state in a Parallel branch fails the Parallel with the branch's error (ASL-13); " +
-		"States.DataLimitExceeded from a non-Task state is terminal at any depth (ASL-15); " +
+		"malformed input other than the recorded cases answers 'Invalid execution input.' (SFN-08); " +
+		"a missing path in a Task or Parallel template fails with States.Runtime (ASL-04); " +
+		"a ResultPath conflict deeper than one step names the node it stops at (ASL-03); " +
 		"a Wait past the one-year execution limit ends with States.Timeout at the limit (ASL-09); " +
-		"the 25,000-event history limit fails the execution with States.Runtime (ASL-16); " +
-		"retry delays keep milliseconds and FULL jitter is uniform from understudy's seeded stream (ASL-10); " +
+		"a Task or Map leaves a wider margin before the 25,000-event history limit than the recorded Pass and Choice steps (ASL-16); " +
+		"FULL jitter is drawn uniformly from understudy's seeded stream (ASL-10); " +
 		"IsTimestamp follows the documented RFC 3339 profile (ASL-07). " +
+		"Known differences from AWS: a runtime error's cause quotes the state's input as compact JSON, where AWS quotes the input as sent (ASL-04); " +
+		"JSONPath functions such as length() are refused at create, where AWS accepts them and fails at run time (ASL-19). " +
 		"A lambda:invoke InvocationType that resolves to anything but RequestResponse fails with States.Runtime (SFN-13). " +
 		"lambda:invoke results carry SdkHttpMetadata with AWS's recorded header names; the X-Amzn-Trace-Id value is understudy's. " +
 		"traceHeader, or the X-Amzn-Trace-Id request header when both are sent, " +
 		"is stored and returned by DescribeExecution; no X-Ray trace is emitted. A Lambda task in flight when a snapshot was saved is invoked again after load. " +
 		"States.MathRandom never reproduces AWS's sequence for a seed"
 	noteListExecutions    = "mapRunArn and redriveFilter are validated; no Map Run or redrive exists, so they match nothing"
-	noteDescribeExecution = "redriveStatus is NOT_REDRIVABLE for SUCCEEDED executions and REDRIVABLE for FAILED, TIMED_OUT and ABORTED ones, " +
-		"however long ago they closed; a RUNNING execution has none. The other NOT_REDRIVABLE reasons AWS documents " +
-		"(a running execution, a DELETING machine, the 14-day redrive period) are not given: none is recorded"
-	noteHistory = "includeExecutionData false removes input and output and keeps the *Details members (UNVERIFIED, SFN-05). " +
-		"Events of concurrent Parallel branches and Map iterations are appended in the order understudy runs them, " +
-		"steps due at the same emulator instant in branch or item order (UNVERIFIED, ASL-13); " +
-		"payload-template output keeps template key order (UNVERIFIED, ASL-02)"
+	noteDescribeExecution = "redriveStatus is NOT_REDRIVABLE for SUCCEEDED executions and for one failed at the history event limit, " +
+		"and REDRIVABLE for other FAILED, TIMED_OUT and ABORTED ones, however long ago they closed; a RUNNING execution has none. " +
+		"The other NOT_REDRIVABLE reasons AWS documents (a running execution, a DELETING machine, the 14-day redrive period) are not given: none is recorded"
+	noteHistory = "Events of concurrent Parallel branches and Map iterations are appended in the order understudy runs them, " +
+		"steps due at the same emulator instant in branch or item order, as AWS recorded for the runs of ASL-13; other interleavings are unrecorded. " +
+		"Payload-template output keeps template key order, where AWS writes an order of its own, hash-like (ASL-02)"
 )
 
 // bindMachines binds the state machine control plane and tags.
@@ -124,7 +122,7 @@ func (s *Service) bindExecutions(b sfnapi.Binder) {
 			}
 			return []aws.ARN{a}
 		}))
-	b.StopExecution(s.stopExecution, registry.Partial{Note: noteStop})
+	b.StopExecution(s.stopExecution, registry.Full{})
 	b.ListExecutions(s.listExecutions, registry.Partial{Note: noteListExecutions}, kernel.WithValidator(validateListExecutions))
 	b.DescribeExecution(s.describeExecution, registry.Partial{Note: noteDescribeExecution})
 	b.DescribeStateMachineForExecution(s.describeStateMachineForExecution, registry.Full{})
