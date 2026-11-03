@@ -153,9 +153,10 @@ func TestSwitches(t *testing.T) {
 // (the HTTP API Lambda troubleshooting page, apigateway-http.md finding 9,
 // 4.5), the no-stage and no-route bodies {"message":"Not Found"} (the
 // routes page, 4.2, 4.3), and the request body cap is the documented
-// 10 MB payload quota read as 10,000,000 bytes (4.7: APIGW2-10 recorded
-// 10,000,001 refused, 2026-11-03). Lambda's synchronous event limit is
-// 6 MB (4.7).
+// 10 MB payload quota read as 10,000,000 bytes, an inferred reading: the
+// 10,000,001-byte body APIGW2-10 sent was also over the 6 MB event limit,
+// so its 413 does not settle the cap (4.7). Lambda's synchronous event
+// limit is 6 MB (4.7).
 func TestSwitchValuesKeepTheDocumentedParts(t *testing.T) {
 	fa := apigatewayv2.FailureAnswersSwitch().Value
 	if fa.FunctionError.Message != "Internal Server Error" {
