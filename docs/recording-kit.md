@@ -12,7 +12,7 @@ The placeholders below are yours to fill: `<profile>` is the AWS CLI profile for
 scripts/parity-record <service>/<item-id>
 ```
 
-With `--record`, in the recording shell of section 1, it runs them itself, writing each capture where `rec` would, then runs `scripts/distill-parity --replace "$REC"` (section 6), so `$REC` must hold every item:
+With `--record`, in the recording shell of section 1, it runs them itself, writing each capture where `rec` would, then runs `scripts/distill-parity "$REC"` (section 6), which rewrites only the steps `$REC` holds:
 
 ```sh
 export UNDERSTUDY_RECORD_ACCOUNT=$A
@@ -68,7 +68,7 @@ The session credentials expire. When a call fails with `ExpiredToken`, run `aws 
 
 ## 2. Capturing
 
-Every step stores the raw exchange, not the CLI's parsed output. The parsed output hides the bytes that matter, such as an empty body versus `{}`, key order and `&quot;`. Define these two helpers in the recording shell:
+Every step stores the raw exchange, not the CLI's parsed output. The parsed output hides the bytes that matter, such as an empty body versus `{}`, key order and `&quot;`. Define these helpers in the recording shell:
 
 ```sh
 # rec <item>/<step> <command...>: run an AWS CLI command and keep its wire log.
@@ -79,13 +79,53 @@ rec() {
   echo "exit=$?" >>"$out.out"
 }
 
+# recreq <out> <curl args...>: write the request body those curl args send to
+# <out>.req, byte for byte as curl builds it: data args joined with &, -d and
+# --data-ascii @file without CR and LF, --data-urlencode percent-encoded with
+# space as + (curl 7.86 and later; jq 1.7 or later, whose @uri encodes !*'()
+# as curl does; text file content only, since jq reads a file as UTF-8). No
+# data arg, -G or -F (body in the URL, or a multipart boundary curl picks), or
+# a body read from stdin (@-, which recreq would consume before curl): no .req.
+recreq() {
+  local out="$1.req" a v n has= enc='@uri|gsub("%20";"+")'; shift
+  rm -f "$out"
+  for a; do case $a in -G|--get|-F|--form) return 0 ;; esac; done
+  while [ $# -gt 1 ]; do
+    a=$1 v=$2; shift
+    case $a in -d|--data|--data-ascii|--data-binary|--data-raw|--data-urlencode) shift ;; *) continue ;; esac
+    case $a:$v in
+      --data-raw:*) ;;
+      *:@-|--data-urlencode:*@-) rm -f "$out"; return 0 ;;
+      --data-urlencode:*) [ "$(jq -nr '"!"|@uri')" = %21 ] || {
+        rm -f "$out"; echo "recreq: --data-urlencode needs jq 1.7 or later; no $out written, the step keeps only the body length" >&2
+        return 0; } ;;
+    esac
+    [ -n "$has" ] && printf '&' >>"$out"; has=1
+    case $a:$v in
+      --data-raw:*) printf %s "$v" ;;
+      --data-binary:@*) cat -- "${v#@}" ;;
+      --data-urlencode:*)
+        case $v in   # as curl: name=content first, then name@file
+          *=*) n=${v%%=*}; [ -n "$n" ] && printf '%s=' "$n"; jq -nj --arg s "${v#*=}" "\$s|$enc" ;;
+          *@*) n=${v%%@*}; [ -n "$n" ] && printf '%s=' "$n"; jq -Rsj "$enc" <"${v#*@}" ;;
+          *) jq -nj --arg s "$v" "\$s|$enc" ;;
+        esac ;;
+      *:@*) tr -d '\r\n' <"${v#@}" ;;
+      *) printf %s "$v" ;;
+    esac >>"$out"
+  done
+}
+
 # recurl <item>/<step> <curl args...>: a raw signed request. The response
-# (status line, headers, body) goes to .http, the request headers to .trace.
+# (status line, headers, body) goes to .http, the request headers to .trace,
+# the request body to .req (recreq).
 recurl() {
   local out="$REC/$1"; shift
+  : "${SVC:?set SVC to the signing name}"   # before any file is written
   mkdir -p "$(dirname "$out")"
+  recreq "$out" "$@"
   curl -sS -i -v --http1.1 \
-    --aws-sigv4 "aws:amz:$R:${SVC:?set SVC to the signing name}" \
+    --aws-sigv4 "aws:amz:$R:$SVC" \
     --user "$AWS_ACCESS_KEY_ID:$AWS_SECRET_ACCESS_KEY" \
     -H "x-amz-security-token: $AWS_SESSION_TOKEN" "$@" >"$out.http" 2>"$out.trace"
 }
@@ -93,6 +133,10 @@ E=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855   # SHA-256 o
 ```
 
 For example: `rec R01/03-delete-stale aws sqs delete-message --queue-url "$Q/$P-std" --receipt-handle "$H1"`.
+
+curl's `-v` trace shows only the request body's length, so `recurl` also keeps the body it sends in `<step>.req`, which `scripts/distill-parity` reads. `recreq` needs `jq` 1.7 or later for `--data-urlencode`; with an older `jq` it writes no `.req` and says so. A helper that calls curl itself, such as `gw` in [apigateway-http.md 14.1](research/apigateway-http.md#141-shared-setup), calls `recreq` the same way; one that calls `recurl` (`kin`, `ssmraw`, `enf_curl`) gets the `.req` file from it.
+
+Run each recording queue, from its setup through its teardown, in a kit shell of its own: a new terminal set up with the section 1 block and these helpers, closed after the queue's teardown, so what the queue sets ends with it. A `( ... )` subshell of one kit shell isolates the names too, but bash runs nothing inside it until the closing `)`, so a pasted setup's output cannot be checked before the cases, and a login refresh, a root session or a second profile cannot be switched to partway; use it only for a queue run from a script file. The queues reuse short names for different things: `B` is a bucket in s3.md 15.1, iam-enforcement-surfaces.md 13.1, s3-ssec-object-lock.md 12.1 and iam-evaluation.md, and a request body in the R12 additions below; `K` and `KA` are a different KMS key in iam-enforcement-surfaces.md 13.1, ssm-parameters.md 13.23 and iam-evaluation.md 13.28; `TRUST` trusts the account in iam-evaluation.md 13.1 and API Gateway in apigateway-http.md 14.1; `SH` is a hash in s3-ssec-object-lock.md, a stage URL in apigateway-http.md 14.5 and a shard id in dynamodb-streams.md; `G` and `FN` differ between iam-enforcement-surfaces.md 13.36, apigateway-http.md and cloudwatch-alarms.md; `N`, `U`, `T` and an exported `SVC` also recur. In one shell, a later setup overwrites an earlier queue's value while that queue still has cases or a teardown to run: its teardown then deletes the other queue's key or bucket and leaks its own, and its roles trust the wrong principal.
 
 In a `--debug` log, four lines carry the exchange: `Sending http request:` (method, URL and request headers), `urllib3.connectionpool ... "POST / HTTP/1.1" <status> <length>`, `Response headers:` and `Response body:`. The `Making request for OperationModel` line carries the request body. For the boto3 steps (R08), call `boto3.set_stream_logger("botocore", logging.DEBUG)` first and redirect stderr the same way.
 
@@ -384,7 +428,7 @@ A free-plan project's account cannot be closed from inside it (an SCP denies `ac
 
 ## 6. How the results land in the repository
 
-1. Redact (section 2) and keep the raw captures in `$REC`, outside the repository; they are the source of record. Then distill them into the repository with `scripts/distill-parity --replace "$REC"` (rebuilding every item, so `$REC` must hold all of them; testdata/README.md describes the output). It reads the account id it masks from `$REC/_scripts/acct`; create that file once with `mkdir -p "$REC/_scripts" && echo "$A" > "$REC/_scripts/acct"`. It writes one `testdata/parity/<service>/<item-id>/<step>.json` per step with the request, the response and the CLI exit code, and drops the debug log noise, the CLI's restatement of the response and curl's connection chatter. `<service>` is the directory name under `internal/service/` (`sqs`, `sns`, `s3`, `dynamodb`, `lambda`, `logs`, `secretsmanager`, `kms`, `iam`, `sts`, `events`, `cloudwatch`) for the service the step's request host names. An item that touches several services is split this way, and its `notes.md` is copied into each of its directories. For example, R01's `03-delete-stale` lands at `testdata/parity/sqs/R01/03-delete-stale.json`, R05's SNS steps under `testdata/parity/sns/R05/`, R03's `lsend` log reads under `testdata/parity/logs/R03/`, and the H cases under the item that ran them (R03, R09 or R14). That is the location ARCHITECTURE.md 2 gives parity recordings. The script masks the account id, the IAM unique ids, role session ids, S3 canonical and owner ids and the caller's IP address, and fails if a credential remains.
+1. Redact (section 2) and keep the raw captures in `$REC`, outside the repository; they are the source of record. Then distill them into the repository with `scripts/distill-parity "$REC"`. It rewrites only the steps `$REC` holds and leaves every other fixture and every `scenario.json` as it is, so a `$REC` that holds one new step of an item adds that step and keeps the rest; testdata/README.md describes the output. It refuses, writing nothing, when an item directory holds a file that is neither a capture nor a side observation, so keep helper inputs (request body files, function zips) in a directory whose name starts with `_`, such as `$REC/_work`. It reads the account id it masks from `$REC/_scripts/acct`; create that file once with `mkdir -p "$REC/_scripts" && echo "$A" > "$REC/_scripts/acct"`. It writes one `testdata/parity/<service>/<item-id>/<step>.json` per step with the request, the response and the CLI exit code, and drops the debug log noise, the CLI's restatement of the response and curl's connection chatter. `<service>` is the directory name under `internal/service/` (`sqs`, `sns`, `s3`, `dynamodb`, `lambda`, `logs`, `secretsmanager`, `kms`, `iam`, `sts`, `events`, `cloudwatch`) for the service the step's request host names. An item that touches several services is split this way, and its `notes.md` is copied into each of its directories. For example, R01's `03-delete-stale` lands at `testdata/parity/sqs/R01/03-delete-stale.json`, R05's SNS steps under `testdata/parity/sns/R05/`, R03's `lsend` log reads under `testdata/parity/logs/R03/`, and the H cases under the item that ran them (R03, R09 or R14). That is the location ARCHITECTURE.md 2 gives parity recordings. The script masks the account id, the IAM unique ids, role session ids, S3 canonical and owner ids and the caller's IP address, and fails if a credential remains.
 2. Hand the item to an agent with this instruction: "settle R0x from `testdata/parity/*/R0x`". Each backlog item's "Expected / decision" paragraph says what changes. The work is:
    - Overlay entries (`codegen/overlays/<service>.json`): change the trait if AWS differs, and set the entry's evidence to `{"label": "aws-recorded", "source": "testdata/parity/<service>/<item-id>/<step>.json", "validated": "<date>"}`. Then run `just generate`.
    - Replay scenario: add or extend `testdata/parity/<service>/<item-id>/scenario.json` ([testdata/README.md](../testdata/README.md#replay-scenarios)) so the item's steps replay, with `settles` naming the switches and overlay entries each step decides. `go test ./internal/parity` then fails on the new outcomes. A new `match` is recorded with `just parity-baseline`. A new `differs` is a finding (CLAUDE.md invariant 2): fix understudy or the research, or, to keep it as a known difference, give it a fidelity switch or the operation's coverage note and a line in the item's `notes.md` and `docs/guide/differences.md`, before `just parity-baseline` records it.

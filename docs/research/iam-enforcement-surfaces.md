@@ -603,14 +603,14 @@ Leave unbound (501): EventBridge `PutPermission`/`RemovePermission`, Logs `PutRe
 
 ## 13. Recording queue
 
-Run in the recording-kit shell (`docs/recording-kit.md` sections 1-2: `$P`, `$R`, `$A`, `$Q`, `$REC`, `rec`, `recurl`, `$E`). Agents never run these. On a free-plan project, an `explicit deny in a service control policy` answer is the guardrail, not the service: note it as `n/a (free-plan SCP)`. The helpers need `jq` and GNU `date` (on macOS, `date -u -v-15M +%FT%TZ` for `date -u -d '-15 min' +%FT%TZ`). Every case below names its expected cost and time; together they cost under USD 0.50 (one KMS key for its 7-day pending window, about USD 0.25, and fractions of a cent of requests) and take about 3 hours.
+Run in the recording-kit shell (`docs/recording-kit.md` sections 1-2: `$P`, `$R`, `$A`, `$Q`, `$REC`, `rec`, `recurl`, `$E`). Agents never run these. On a free-plan project, an `explicit deny in a service control policy` answer is the guardrail, not the service: note it as `n/a (free-plan SCP)`. The helpers need `jq` and GNU `date` (on macOS, `date -u -v-15M +%FT%TZ` for `date -u -d '-15 min' +%FT%TZ`). Run 13.1, the cases and the 13.2 teardown in a kit shell of its own: 13.1 sets `B`, `K` and `KA`, and 13.36 sets `G`, which other queues set to other values (recording-kit.md 2); a queue run inside this one's lifetime would have 13.2 schedule its key for deletion and leak this one's. Every case below names its expected cost and time; together they cost under USD 0.50 (one KMS key for its 7-day pending window, about USD 0.25, and fractions of a cent of requests) and take about 3 hours.
 
 ### 13.1 Shared setup
 
 Run once per session before any case (10 minutes, included in the totals above):
 
 ```sh
-mkdir -p "$REC/IAM-ENF"
+mkdir -p "$REC/IAM-ENF" "$REC/_work/IAM-ENF"   # helper inputs go in _work, which distill-parity skips
 TRUST_ACCT=$(jq -nc --arg a "arn:aws:iam::$A:root" '{Version:"2012-10-17",Statement:[{Effect:"Allow",Principal:{AWS:$a},Action:"sts:AssumeRole"}]}')
 TRUST_LAMBDA='{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"lambda.amazonaws.com"},"Action":"sts:AssumeRole"}]}'
 aws iam create-role --role-name "$P-enf-none" --assume-role-policy-document "$TRUST_ACCT"
@@ -633,11 +633,11 @@ K=$(aws kms create-key --description "$P-enf" --query KeyMetadata.KeyId --output
 KA="arn:aws:kms:$R:$A:key/$K"
 aws secretsmanager create-secret --name "$P-enf-s" --secret-string x
 aws logs create-log-group --log-group-name "/$P/enf"
-printf 'def handler(event, context):\n    print(event)\n    return {}\n' >"$REC/IAM-ENF/fn.py"
-(cd "$REC/IAM-ENF" && zip -q fn.zip fn.py)
+printf 'def handler(event, context):\n    print(event)\n    return {}\n' >"$REC/_work/IAM-ENF/fn.py"
+(cd "$REC/_work/IAM-ENF" && zip -q fn.zip fn.py)
 sleep 15   # role propagation
 aws lambda create-function --function-name "$P-enf-fn" --runtime python3.13 --handler fn.handler \
-  --role "arn:aws:iam::$A:role/$P-enf-exec" --zip-file "fileb://$REC/IAM-ENF/fn.zip"
+  --role "arn:aws:iam::$A:role/$P-enf-exec" --zip-file "fileb://$REC/_work/IAM-ENF/fn.zip"
 FN_ARN="arn:aws:lambda:$R:$A:function:$P-enf-fn"
 
 enf_assume() {  # enf_assume <role name> [assume-role options]: a session of that role in EK, ES, ET
@@ -645,10 +645,15 @@ enf_assume() {  # enf_assume <role name> [assume-role options]: a session of tha
   read -r EK ES ET <<<"$(aws sts assume-role --role-arn "arn:aws:iam::$A:role/$role" --role-session-name enf "$@" \
     --query 'Credentials.[AccessKeyId,SecretAccessKey,SessionToken]' --output text)"
 }
+enf_session() {  # an empty key would let the CLI fall back to another profile, recording the wrong identity
+  [ -n "$ET" ] || { echo "no enf_assume session: its assume-role failed; nothing was sent, run enf_assume again" >&2; return 1; }
+}
 as_role() {  # as_role <aws args...>: the AWS CLI as the enf_assume session
+  enf_session || return
   env -u AWS_PROFILE AWS_ACCESS_KEY_ID="$EK" AWS_SECRET_ACCESS_KEY="$ES" AWS_SESSION_TOKEN="$ET" aws "$@"
 }
 enf_curl() {  # SVC=<signing name> enf_curl <item>/<step> <curl args...>: recurl as the enf_assume session
+  enf_session || return
   AWS_ACCESS_KEY_ID="$EK" AWS_SECRET_ACCESS_KEY="$ES" AWS_SESSION_TOKEN="$ET" recurl "$@"
 }
 J10='Content-Type: application/x-amz-json-1.0'; J11='Content-Type: application/x-amz-json-1.1'; FORM='Content-Type: application/x-www-form-urlencoded'
@@ -1088,7 +1093,7 @@ rec IAM-ENF/22-dlq-sa aws sqs receive-message --queue-url "$DLQ" --attribute-nam
 # Deliveries to a deleted function and a deleted topic: NO_RESOURCE, not a denial.
 aws sqs purge-queue --queue-url "$DLQ"; sleep 60
 aws lambda create-function --function-name "$P-enf-gone" --runtime python3.13 --handler fn.handler \
-  --role "arn:aws:iam::$A:role/$P-enf-exec" --zip-file "fileb://$REC/IAM-ENF/fn.zip"
+  --role "arn:aws:iam::$A:role/$P-enf-exec" --zip-file "fileb://$REC/_work/IAM-ENF/fn.zip"
 GFA="arn:aws:lambda:$R:$A:function:$P-enf-gone"
 GTA=$(aws sns create-topic --name "$P-enf-gone" --query TopicArn --output text)
 aws events put-targets --rule "$P-enf-r" --targets "$(jq -nc --arg f "$GFA" --arg t "$GTA" --arg d "$DLQA" \
@@ -1137,7 +1142,9 @@ aws iam put-role-policy --role-name "$P-enf-exec" --policy-name sqs --policy-doc
   '{Version:"2012-10-17",Statement:[{Effect:"Allow",Action:["sqs:ReceiveMessage","sqs:DeleteMessage","sqs:GetQueueAttributes"],Resource:$q}]}')"
 sleep 15
 U=$(aws lambda create-event-source-mapping --function-name "$P-enf-fn" --event-source-arn "$MQA" --batch-size 1 --query UUID --output text)
-until [ "$(aws lambda get-event-source-mapping --uuid "$U" --query State --output text)" = Enabled ]; do sleep 5; done
+for i in $(seq 60); do   # at most 5 minutes, so a failed create still reaches the teardown
+  [ "$(aws lambda get-event-source-mapping --uuid "$U" --query State --output text)" = Enabled ] && break; sleep 5
+done
 aws sqs send-message --queue-url "$MQ" --message-body before-revoke; sleep 60
 rec IAM-ENF/25-before aws lambda get-event-source-mapping --uuid "$U"
 aws iam delete-role-policy --role-name "$P-enf-exec" --policy-name sqs
@@ -1160,10 +1167,10 @@ aws iam put-role-policy --role-name "$P-enf-dev" --policy-name lambda --policy-d
 sleep 15
 enf_assume "$P-enf-dev"
 rec IAM-ENF/26-no-passrole as_role lambda create-function --function-name "$P-enf-fn2" --runtime python3.13 --handler fn.handler \
-  --role "arn:aws:iam::$A:role/$P-enf-exec" --zip-file "fileb://$REC/IAM-ENF/fn.zip"
+  --role "arn:aws:iam::$A:role/$P-enf-exec" --zip-file "fileb://$REC/_work/IAM-ENF/fn.zip"
 enf_assume "$P-enf-none"
 rec IAM-ENF/26-bad-trust aws lambda create-function --function-name "$P-enf-fn3" --runtime python3.13 --handler fn.handler \
-  --role "arn:aws:iam::$A:role/$P-enf-none" --zip-file "fileb://$REC/IAM-ENF/fn.zip"
+  --role "arn:aws:iam::$A:role/$P-enf-none" --zip-file "fileb://$REC/_work/IAM-ENF/fn.zip"
 ```
 
 Cost: free, 4 minutes. Teardown: `aws iam delete-role-policy --role-name "$P-enf-dev" --policy-name lambda; aws iam delete-role --role-name "$P-enf-dev"`; delete `$P-enf-fn2` or `$P-enf-fn3` if either was created.
@@ -1193,7 +1200,7 @@ printf k | aws s3 cp - "s3://$B/kms-obj" --sse aws:kms --sse-kms-key-id "$K"
 sleep 15
 enf_assume "$P-enf-data"
 rec IAM-ENF/28-get as_role s3api get-object --bucket "$B" --key kms-obj /dev/null
-rec IAM-ENF/28-put as_role s3api put-object --bucket "$B" --key kms-put --body "$REC/IAM-ENF/fn.py" --server-side-encryption aws:kms --ssekms-key-id "$K"
+rec IAM-ENF/28-put as_role s3api put-object --bucket "$B" --key kms-put --body "$REC/_work/IAM-ENF/fn.py" --server-side-encryption aws:kms --ssekms-key-id "$K"
 enf_assume "$P-enf-none"
 ```
 
@@ -1226,12 +1233,12 @@ aws s3api put-bucket-encryption --bucket "$B2" --server-side-encryption-configur
 aws s3api put-bucket-policy --bucket "$B2" --policy "$(jq -nc --arg b "arn:aws:s3:::$B2/*" \
   '{Version:"2012-10-17",Statement:[{Sid:"DenyNoKmsKeyHeader",Effect:"Deny",Principal:"*",Action:"s3:PutObject",Resource:$b,Condition:{Null:{"s3:x-amz-server-side-encryption-aws-kms-key-id":"true"}}}]}')"
 sleep 15
-rec IAM-ENF/30-no-header aws s3api put-object --bucket "$B2" --key a --body "$REC/IAM-ENF/fn.py"
-rec IAM-ENF/30-with-header aws s3api put-object --bucket "$B2" --key b --body "$REC/IAM-ENF/fn.py" --server-side-encryption aws:kms --ssekms-key-id "$KA"
+rec IAM-ENF/30-no-header aws s3api put-object --bucket "$B2" --key a --body "$REC/_work/IAM-ENF/fn.py"
+rec IAM-ENF/30-with-header aws s3api put-object --bucket "$B2" --key b --body "$REC/_work/IAM-ENF/fn.py" --server-side-encryption aws:kms --ssekms-key-id "$KA"
 aws s3api put-bucket-policy --bucket "$B2" --policy "$(jq -nc --arg b "arn:aws:s3:::$B2/*" \
   '{Version:"2012-10-17",Statement:[{Sid:"DenyNoSseHeader",Effect:"Deny",Principal:"*",Action:"s3:PutObject",Resource:$b,Condition:{Null:{"s3:x-amz-server-side-encryption":"true"}}}]}')"
 sleep 15
-rec IAM-ENF/30-no-header-sse aws s3api put-object --bucket "$B2" --key c --body "$REC/IAM-ENF/fn.py"
+rec IAM-ENF/30-no-header-sse aws s3api put-object --bucket "$B2" --key c --body "$REC/_work/IAM-ENF/fn.py"
 ```
 
 Cost under USD 0.01, 5 minutes. Teardown: `aws s3api delete-bucket-policy --bucket "$B2"; aws s3 rm "s3://$B2" --recursive; aws s3api delete-bucket --bucket "$B2"`.
@@ -1333,6 +1340,46 @@ done
 enf_assume "$P-enf-none"
 ```
 
-Then the Lambda path: create a function `$P-enf-lg-fn` whose execution role trusts `lambda.amazonaws.com` and holds only `logs:*` on `arn:aws:logs:$R:$A:log-group:/aws/lambda/$P-enf-lg-fn:*`, invoke it once, wait one minute, and note whether `aws logs describe-log-groups --log-group-name-prefix "/aws/lambda/$P-enf-lg-fn"` lists the group.
+Then the Lambda path: a function `$P-enf-lg-fn` whose execution role, also `$P-enf-lg-fn`, trusts `lambda.amazonaws.com` and holds only `logs:*` on the `:*` form of its own log group. The function prints one line, so Lambda creates the group and a stream with that role's permissions on the first invoke:
 
-Cost: free, 10 minutes. Teardown: `aws lambda delete-function --function-name "$P-enf-lg-fn"; aws logs delete-log-group --log-group-name "/aws/lambda/$P-enf-lg-fn"; aws logs delete-log-group --log-group-name "/$P/r28"`, then for each of `wild`, `bare` and the function's role: `aws iam delete-role-policy` and `aws iam delete-role`.
+```sh
+LG="/aws/lambda/$P-enf-lg-fn"
+aws iam create-role --role-name "$P-enf-lg-fn" --assume-role-policy-document "$TRUST_LAMBDA"
+aws iam put-role-policy --role-name "$P-enf-lg-fn" --policy-name lg --policy-document "$(jq -nc \
+  --arg r "arn:aws:logs:$R:$A:log-group:$LG:*" '{Version:"2012-10-17",Statement:[{Effect:"Allow",Action:"logs:*",Resource:$r}]}')"
+printf 'def handler(event, context):\n    print("enf-42")\n    return {}\n' >"$REC/_work/IAM-ENF/lg.py"
+(cd "$REC/_work/IAM-ENF" && zip -q lg.zip lg.py)
+for try in 1 2 3 4; do   # Lambda refuses a role that has not propagated yet ("cannot be assumed by Lambda")
+  sleep 15
+  aws lambda create-function --function-name "$P-enf-lg-fn" --runtime python3.13 --handler lg.handler \
+    --role "arn:aws:iam::$A:role/$P-enf-lg-fn" --zip-file "fileb://$REC/_work/IAM-ENF/lg.zip" >/dev/null && break
+done
+aws lambda wait function-active-v2 --function-name "$P-enf-lg-fn"
+rec IAM-ENF/42-fn-invoke aws lambda invoke --function-name "$P-enf-lg-fn" "$REC/IAM-ENF/42-fn-invoke.payload"
+sleep 60   # Lambda writes logs asynchronously
+rec IAM-ENF/42-fn-log-groups aws logs describe-log-groups --log-group-name-prefix "$LG"
+rec IAM-ENF/42-fn-log-streams aws logs describe-log-streams --log-group-name "$LG"
+sleep 120  # an inline policy not yet in effect at the first invoke is by now
+aws lambda update-function-configuration --function-name "$P-enf-lg-fn" --environment 'Variables={TRY=2}' >/dev/null
+aws lambda wait function-updated-v2 --function-name "$P-enf-lg-fn"   # a new execution environment, which tries the group again
+rec IAM-ENF/42-fn-invoke-2 aws lambda invoke --function-name "$P-enf-lg-fn" "$REC/IAM-ENF/42-fn-invoke-2.payload"
+sleep 60
+rec IAM-ENF/42-fn-log-groups-2 aws logs describe-log-groups --log-group-name-prefix "$LG"
+```
+
+`42-fn-invoke` succeeds either way: Lambda does not fail an invocation it cannot log. `42-fn-log-groups` listing the group means the `:*` statement allowed CreateLogGroup, the outcome the `eventbridge-schedule-to-lambda-terraform-go` pattern expects denied. Only when `42-fn-log-groups-2` is also empty was it denied: an empty first list with a listed group in the second means the role policy had not yet taken effect at the first invoke, so the statement allowed it. `42-fn-log-streams` answers `ResourceNotFoundException` when the group is missing, and lists a stream when CreateLogStream was allowed.
+
+Cost: free, 15 minutes. Teardown:
+
+```sh
+aws lambda delete-function --function-name "$P-enf-lg-fn"
+aws logs delete-log-group --log-group-name "/aws/lambda/$P-enf-lg-fn"
+aws logs delete-log-group --log-group-name "/$P/r28"
+for r in "$P-enf-lg-wild" "$P-enf-lg-bare" "$P-enf-lg-fn"; do
+  aws iam delete-role-policy --role-name "$r" --policy-name lg
+  aws iam delete-role --role-name "$r"
+done
+rm -f "$REC/_work/IAM-ENF/lg.py" "$REC/_work/IAM-ENF/lg.zip"
+```
+
+The two `delete-log-group` calls answer `ResourceNotFoundException` when the group was never created or the loop already deleted it.

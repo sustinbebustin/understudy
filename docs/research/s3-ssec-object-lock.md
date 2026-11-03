@@ -452,7 +452,7 @@ Hand-code every text in 3.2, 3.3, 3.6, 5.1, 5.2, 6.2, 6.4, 7.1-7.3 exactly as qu
 
 ## 12. Recording queue
 
-Agents never run these. A human runs them in the recording-kit shell ([recording-kit.md](../recording-kit.md) 1-2), which defines `P`, `R`, `A`, `REC`, `E`, `rec` and `recurl`. Costs are S3 request charges (fractions of a cent per case) and assume the shared buckets of 12.1. Each case writes under `$REC/S3SOL/`. Free-plan SCP refusals are noted `n/a (free-plan SCP)`, as in the kit.
+Agents never run these. A human runs them in the recording-kit shell ([recording-kit.md](../recording-kit.md) 1-2), which defines `P`, `R`, `A`, `REC`, `E`, `rec` and `recurl`. Costs are S3 request charges (fractions of a cent per case) and assume the shared buckets of 12.1. Run 12.1's setup, the cases and 12.1's teardown in a kit shell of its own: 12.1 exports `SVC` and sets `B`, `N`, `U` and `SH`, which other queues set to other values (recording-kit.md 2). Each case writes under `$REC/S3SOL/`. Free-plan SCP refusals are noted `n/a (free-plan SCP)`, as in the kit.
 
 WARNING: COMPLIANCE retention cannot be shortened or removed by anyone. Only S3SOL-19 may create COMPLIANCE state, and only with a date at most 2 minutes ahead. Every other case uses GOVERNANCE, which the shared teardown removes with bypass.
 
@@ -613,8 +613,9 @@ Settles 3.6 and `s3.sse-c.complete-headers`. Each variant uses a fresh upload wi
 mk8() { UP=$(aws s3api create-multipart-upload --bucket "$B" --key "$1" --checksum-algorithm CRC32 \
     --sse-customer-algorithm AES256 --sse-customer-key "$K1" --query UploadId --output text)
   aws s3api upload-part --bucket "$B" --key "$1" --upload-id "$UP" --part-number 1 --body "$REC/body10" --checksum-algorithm CRC32 \
-    --sse-customer-algorithm AES256 --sse-customer-key "$K1" > "$REC/S3SOL/08-$1-part.json"
-  MPU=$(jq -c '{Parts:[{PartNumber:1, ETag:.ETag, ChecksumCRC32:.ChecksumCRC32}]}' "$REC/S3SOL/08-$1-part.json"); }
+    --sse-customer-algorithm AES256 --sse-customer-key "$K1" > "$REC/_work/S3SOL/08-$1-part.json"
+  MPU=$(jq -c '{Parts:[{PartNumber:1, ETag:.ETag, ChecksumCRC32:.ChecksumCRC32}]}' "$REC/_work/S3SOL/08-$1-part.json"); }
+mkdir -p "$REC/_work/S3SOL"   # helper outputs stay out of the item directory, which distill-parity reads
 mk8 m8a; rec S3SOL/08-list-parts-no-key aws s3api list-parts --bucket "$B" --key m8a --upload-id "$UP"
 rec S3SOL/08-no-key aws s3api complete-multipart-upload --bucket "$B" --key m8a --upload-id "$UP" --multipart-upload "$MPU"
 mk8 m8b; rec S3SOL/08-wrong-key aws s3api complete-multipart-upload --bucket "$B" --key m8b --upload-id "$UP" --multipart-upload "$MPU" \

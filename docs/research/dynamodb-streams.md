@@ -511,7 +511,7 @@ Only `dynamodb.streams.sequence-number` and `dynamodb.streams.iterator-reuse` ar
 
 ## 12. Recording queue
 
-Agents never run these. A maintainer runs them in the recording-kit shell (docs/recording-kit.md sections 1-2: `$P`, `$R`, `$A`, `rec`, `recurl`, `$REC`), in bash, with `jq` installed.
+Agents never run these. A maintainer runs them in the recording-kit shell (docs/recording-kit.md sections 1-2: `$P`, `$R`, `$A`, `rec`, `recurl`, `$REC`), in bash, with `jq` installed. Run 12.1 and the cases of one sitting in a kit shell of its own: 12.1 sets `T`, `S` and `SH`, which other queues set to other values (recording-kit.md 2).
 
 ### 12.1 Shared setup, run order and teardown
 

@@ -655,7 +655,7 @@ Agents never run these. A human runs them in the recording-kit shell ([recording
 
 ### 13.1 Setup and sweep
 
-Run once per session, after the kit's section 1 shell:
+Run once per session, after the kit's section 1 shell. Run this block and the cases in a kit shell of its own: it sets `N`, and SSM-22 sets `K` and `KA`, which other queues set to other values (recording-kit.md 2). A case run on its own, such as SSM-22, still runs this block first in the same shell.
 
 ```sh
 case "$P" in [Aa][Ww][Ss]*|[Ss][Ss][Mm]*) echo "P must not start with aws or ssm: parameter names derive from it";; esac
@@ -688,11 +688,13 @@ ssmcreds() {  # ssmcreds <role name>: key, secret and token of a fresh session o
 ssmas() {  # ssmas <role name> <aws args...>: the AWS CLI as a fresh session of that role
   local k s t role=$1; shift
   read -r k s t <<<"$(ssmcreds "$role")"
+  [ -n "$t" ] || { echo "ssmas: assume-role $role failed; nothing was sent (empty keys would fall back to another profile)" >&2; return 1; }
   env -u AWS_PROFILE AWS_ACCESS_KEY_ID="$k" AWS_SECRET_ACCESS_KEY="$s" AWS_SESSION_TOKEN="$t" aws "$@"
 }
 ssmasraw() {  # ssmasraw <case>/<step> <role name> <Operation> <json body>: ssmraw as a fresh session of that role
   local k s t
   read -r k s t <<<"$(ssmcreds "$2")"
+  [ -n "$t" ] || { echo "ssmasraw: assume-role $2 failed; nothing was sent" >&2; return 1; }
   AWS_ACCESS_KEY_ID="$k" AWS_SECRET_ACCESS_KEY="$s" AWS_SESSION_TOKEN="$t" ssmraw "$1" "$3" "$4"
 }
 ```

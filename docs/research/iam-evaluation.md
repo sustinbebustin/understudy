@@ -1194,7 +1194,7 @@ Defaults that a recording overturns change value and label to aws-recorded; none
 
 ### 13.1 Shared setup
 
-Run in the recording shell of `docs/recording-kit.md` 1 and 2 (`$P`, `$R`, `$A`, `$Q`, `$REC`, `rec`, `recurl` set). Agents never run these. `POL` is used for policy text so that `$P` (the prefix) is never overwritten. IAM, STS and `simulate-custom-policy` calls are free; SQS, SNS and S3 at these volumes are within the free tier (`docs/recording-kit.md` 4).
+Run in the recording shell of `docs/recording-kit.md` 1 and 2 (`$P`, `$R`, `$A`, `$Q`, `$REC`, `rec`, `recurl` set). Agents never run these. `POL` is used for policy text so that `$P` (the prefix) is never overwritten. Run this setup, the cases and the shared teardown in a kit shell of its own: 13.1 sets `TRUST`, and the cases set `B`, `K` and `KA`, which other queues set to other values (recording-kit.md 2). Run apart from the queue, IAM-EVAL-35 and IAM-EVAL-36 need only `$A` and `rec`. IAM, STS and `simulate-custom-policy` calls are free; SQS, SNS and S3 at these volumes are within the free tier (`docs/recording-kit.md` 4).
 
 ```sh
 export CALLER=$(aws sts get-caller-identity --query Arn --output text); echo "$CALLER"

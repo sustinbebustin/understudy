@@ -477,7 +477,7 @@ Evaluation writes only state fields and never `Config`, `ActionsEnabled` or `Ala
 
 ## 13. Recording queue
 
-Agents never run these. A maintainer runs them in the recording shell of [recording-kit.md](../recording-kit.md) sections 1 and 2 (`$P`, `$R`, `$A`, `$Q`, `$REC`, `rec`, `recurl`), with `jq` installed. Each case lists what it settles; record `notes.md` per case as the kit describes, one line per expectation (`matches`, `differs: <what>`). Costs use the [CloudWatch pricing page](https://aws.amazon.com/cloudwatch/pricing/): USD 0.10 per standard alarm metric per month and USD 0.30 per custom metric per month, both billed by the hour, so an alarm or metric that lives an hour costs well under a cent; SNS, SQS, Lambda, EventBridge and DynamoDB on demand stay in the free tier at these volumes. CWA-01 waits 45 minutes: start it first, then run the rest from a second recording shell set up the same way, with 13.1's helpers defined there too.
+Agents never run these. A maintainer runs them in the recording shell of [recording-kit.md](../recording-kit.md) sections 1 and 2 (`$P`, `$R`, `$A`, `$Q`, `$REC`, `rec`, `recurl`), with `jq` installed. Each case lists what it settles; record `notes.md` per case as the kit describes, one line per expectation (`matches`, `differs: <what>`). Costs use the [CloudWatch pricing page](https://aws.amazon.com/cloudwatch/pricing/): USD 0.10 per standard alarm metric per month and USD 0.30 per custom metric per month, both billed by the hour, so an alarm or metric that lives an hour costs well under a cent; SNS, SQS, Lambda, EventBridge and DynamoDB on demand stay in the free tier at these volumes. CWA-01 waits 45 minutes: start it first, then run the rest from a second recording shell set up the same way, with 13.1's helpers defined there too. In each shell, run 13.1, the cases and the 13.25 teardown in a kit shell of its own: 13.1 sets `FN` and `T`, which other queues set to other values (recording-kit.md 2).
 
 ### 13.1 Shared helpers
 
@@ -560,7 +560,7 @@ cwperm() {  # cwperm <alarm>: let the alarm invoke $P-cwa
 Settles `cloudwatch.alarm.evaluation-range` (3.4). One breaching point, then nothing: an N = 1 alarm under `missing` goes to ALARM and returns to INSUFFICIENT_DATA when the point leaves the range; the N = 3 alarm under `notBreaching` goes to OK when its oldest point leaves.
 
 ```sh
-mkdir -p "$REC/CWA-01" && date -u +%FT%TZ >"$REC/CWA-01/start"
+mkdir -p "$REC/CWA-01" && date -u +%FT%TZ >"$REC/CWA-01/start.time"
 cwput r1 0 5;                                 cwalarm r1 r1 60 1 '' missing
 cwput r3 150 5; cwput r3 90 5; cwput r3 30 5; cwalarm r3 r3 60 3 3 notBreaching
 cwput r5 0 5;                                 cwalarm r5 r5 300 1 '' missing
@@ -791,7 +791,7 @@ sleep 30
 cwdrain CWA-13/receive "$P-cwa.fifo"
 rec CWA-13/history aws cloudwatch describe-alarm-history --alarm-name "$P-fifo"
 for h in md5 sha1 sha256; do
-  printf %s "arn:aws:cloudwatch:$R:$A:alarm:$P-fifo" | openssl dgst "-$h" >>"$REC/CWA-13/arn-digests"
+  printf %s "arn:aws:cloudwatch:$R:$A:alarm:$P-fifo" | openssl dgst "-$h" >>"$REC/CWA-13/arn-digests.txt"
 done
 ```
 

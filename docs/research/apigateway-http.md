@@ -562,15 +562,15 @@ The conformance suite applies an API with routes, a Lambda integration in each p
 
 ## 14. Recording queue
 
-For a human with credentials, in the recording-kit shell (`docs/recording-kit.md` sections 1 and 2: `$P`, `$R`, `$A`, `$Q`, `rec`, `recurl`, the redaction step). Agents never run these. Run the cases in order after 14.1; each builds on the shared API. Costs: HTTP API requests bill USD 1.00 per million in the first tier, metered in 512 KB increments, with one million free a month in the first 12 months ([API Gateway pricing](https://aws.amazon.com/api-gateway/pricing/)); the queue makes a few hundred requests, the large uploads of APIGW2-10 counting as about 20 each. Lambda, SQS, EventBridge and CloudWatch Logs stay in the free tier at these volumes. The queue costs under USD 0.01 in total and takes about 2 h 25 min. On a free-plan project, a call the guardrail denies is noted `n/a (free-plan SCP)` (kit section 1). Add `aws apigatewayv2 get-apis --query "Items[?starts_with(Name, '$P')].Name"` to the kit's section 5 sweep when this queue lands.
+For a human with credentials, in the recording-kit shell (`docs/recording-kit.md` sections 1 and 2: `$P`, `$R`, `$A`, `$Q`, `rec`, `recurl`, the redaction step). Agents never run these. Run the cases in order after 14.1; each builds on the shared API. Run 14.1 through the 14.17 teardown in a kit shell of its own: 14.1 sets `TRUST` and `FN`, 14.5 `SH` and 14.7 `G`, which other queues set to other values (recording-kit.md 2). Costs: HTTP API requests bill USD 1.00 per million in the first tier, metered in 512 KB increments, with one million free a month in the first 12 months ([API Gateway pricing](https://aws.amazon.com/api-gateway/pricing/)); the queue makes a few hundred requests, the large uploads of APIGW2-10 counting as about 20 each. Lambda, SQS, EventBridge and CloudWatch Logs stay in the free tier at these volumes. The queue costs under USD 0.01 in total and takes about 2 h 25 min. On a free-plan project, a call the guardrail denies is noted `n/a (free-plan SCP)` (kit section 1). Add `aws apigatewayv2 get-apis --query "Items[?starts_with(Name, '$P')].Name"` to the kit's section 5 sweep when this queue lands.
 
 ### 14.1 Shared setup
 
 Ten minutes. Creates a function that echoes its event or returns a shape chosen by the `mode` query parameter (and a second copy, `$P-gw-perm`, with no permission for APIGW2-11), an API `$P-gw` with routes for every case, a `$default` auto-deploy stage, the queue `$P-gw-q`, the API Gateway roles `$P-gw-int` and `$P-gw-none`, and the helper `gw` for unsigned data-plane requests.
 
 ```sh
-mkdir -p "$REC/APIGW2"
-cat >"$REC/APIGW2/gw.py" <<'EOF'
+mkdir -p "$REC/_work/APIGW2"
+cat >"$REC/_work/APIGW2/gw.py" <<'EOF'
 import base64, json, time
 
 SHAPES = {
@@ -601,7 +601,7 @@ def handler(event, context):
         return SHAPES[mode]
     return {"statusCode": 200, "headers": {"content-type": "application/json"}, "body": json.dumps(event)}
 EOF
-(cd "$REC/APIGW2" && zip -q gw.zip gw.py)
+(cd "$REC/_work/APIGW2" && zip -q gw.zip gw.py)
 aws iam create-role --role-name "$P-gw-fn" --assume-role-policy-document \
   '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"lambda.amazonaws.com"},"Action":"sts:AssumeRole"}]}' >/dev/null
 aws iam attach-role-policy --role-name "$P-gw-fn" \
@@ -609,7 +609,7 @@ aws iam attach-role-policy --role-name "$P-gw-fn" \
 sleep 15                                   # the new role must propagate before Lambda accepts it
 for f in "$P-gw" "$P-gw-perm"; do
   aws lambda create-function --function-name "$f" --runtime python3.13 --handler gw.handler --timeout 10 \
-    --role "arn:aws:iam::$A:role/$P-gw-fn" --zip-file "fileb://$REC/APIGW2/gw.zip" >/dev/null
+    --role "arn:aws:iam::$A:role/$P-gw-fn" --zip-file "fileb://$REC/_work/APIGW2/gw.zip" >/dev/null
   aws lambda wait function-active-v2 --function-name "$f"
 done
 FN=arn:aws:lambda:$R:$A:function:$P-gw
@@ -641,6 +641,7 @@ aws iam put-role-policy --role-name "$P-gw-int" --policy-name gw --policy-docume
 gw() {  # gw <item>/<step> <curl args...>: an unsigned data-plane request, kept as recurl keeps its exchange
   local out="$REC/$1"; shift
   mkdir -p "$(dirname "$out")"
+  recreq "$out" "$@"
   curl -sS -i -v --http1.1 --path-as-is "$@" >"$out.http" 2>"$out.trace"
 }
 sleep 20                                   # the automatic deployment; APIGW2-04 measures it
@@ -852,11 +853,11 @@ Settles: section 5.1's open items; switch `apigatewayv2.payload.unrecorded`, its
 ```sh
 aws apigatewayv2 create-stage --api-id "$API" --stage-name prod --auto-deploy --stage-variables sv=one,sv2=two >/dev/null
 sleep 20
-head -c 16 /dev/urandom >"$REC/APIGW2/bin"
+head -c 16 /dev/urandom >"$REC/_work/APIGW2/bin"
 gw APIGW2-07/01-get "$GW/pets/dog/abc"
 gw APIGW2-07/02-text -H 'Content-Type: text/plain' --data-binary 'hello' "$GW/e"
 gw APIGW2-07/03-json -H 'Content-Type: application/json' --data-binary '{"a":1}' "$GW/e"
-gw APIGW2-07/04-octet -H 'Content-Type: application/octet-stream' --data-binary @"$REC/APIGW2/bin" "$GW/e"
+gw APIGW2-07/04-octet -H 'Content-Type: application/octet-stream' --data-binary @"$REC/_work/APIGW2/bin" "$GW/e"
 gw APIGW2-07/05-multipart -F a=1 "$GW/e"
 gw APIGW2-07/06-urlencoded --data 'a=1&b=2' "$GW/e"
 gw APIGW2-07/07-no-content-type -H 'Content-Type:' --data-binary 'x' "$GW/e"
@@ -875,14 +876,14 @@ The later `--http2` overrides `gw`'s `--http1.1`. Teardown: none (the `prod` sta
 
 ### 14.9 APIGW2-08: the 1.0 request event
 
-Settles: section 5.2's open items; switch `apigatewayv2.payload.unrecorded`, its 1.0 fields. Five minutes, USD 0.
+Settles: section 5.2's open items; switch `apigatewayv2.payload.unrecorded`, its 1.0 fields. Five minutes, USD 0. Steps 04 and 05 need the `prod` stage and `$REC/_work/APIGW2/bin` that the first three lines of 14.8 create; run those first when this case runs without APIGW2-07.
 
 ```sh
 gw APIGW2-08/01-get "$GW/v1/a/b?x=1&x=2&y=%2F"
 gw APIGW2-08/02-dup-headers -H 'X-Dup: a' -H 'X-Dup: b' "$GW/v1/a"
 gw APIGW2-08/03-json -H 'Content-Type: application/json' --data-binary '{"a":1}' "$GW/v1/a"
 gw APIGW2-08/04-named-stage "$GW/prod/v1/a"
-gw APIGW2-08/05-octet -H 'Content-Type: application/octet-stream' --data-binary @"$REC/APIGW2/bin" "$GW/v1/a"
+gw APIGW2-08/05-octet -H 'Content-Type: application/octet-stream' --data-binary @"$REC/_work/APIGW2/bin" "$GW/v1/a"
 gw APIGW2-08/06-cookies -H 'Cookie: a=1; b=2' "$GW/v1/a"
 ```
 
@@ -915,14 +916,14 @@ IT=$(aws apigatewayv2 create-integration --api-id "$API" --integration-type AWS_
 route 'GET /slow' "$IT" >/dev/null
 sleep 20
 gw APIGW2-10/03-timeout "$GW/slow?mode=sleep"
-head -c 10000001 /dev/zero >"$REC/APIGW2/big-dec"   # one byte over 10 MB decimal
-head -c 10485761 /dev/zero >"$REC/APIGW2/big-bin"   # one byte over 10 MiB
-gw APIGW2-10/04-over-10mb-decimal -H 'Content-Type: application/octet-stream' --data-binary @"$REC/APIGW2/big-dec" "$GW/e"
-gw APIGW2-10/05-over-10mib -H 'Content-Type: application/octet-stream' --data-binary @"$REC/APIGW2/big-bin" "$GW/e"
-head -c 7000000 /dev/zero | tr '\0' a >"$REC/APIGW2/seven"
-gw APIGW2-10/06-over-lambda-6mb -H 'Content-Type: text/plain' --data-binary @"$REC/APIGW2/seven" "$GW/e"
+head -c 10000001 /dev/zero >"$REC/_work/APIGW2/big-dec"   # one byte over 10 MB decimal
+head -c 10485761 /dev/zero >"$REC/_work/APIGW2/big-bin"   # one byte over 10 MiB
+gw APIGW2-10/04-over-10mb-decimal -H 'Content-Type: application/octet-stream' --data-binary @"$REC/_work/APIGW2/big-dec" "$GW/e"
+gw APIGW2-10/05-over-10mib -H 'Content-Type: application/octet-stream' --data-binary @"$REC/_work/APIGW2/big-bin" "$GW/e"
+head -c 7000000 /dev/zero | tr '\0' a >"$REC/_work/APIGW2/seven"
+gw APIGW2-10/06-over-lambda-6mb -H 'Content-Type: text/plain' --data-binary @"$REC/_work/APIGW2/seven" "$GW/e"
 gw APIGW2-10/07-headers-over-10kb -H "X-Big: $(head -c 11000 /dev/zero | tr '\0' a)" "$GW/e"
-rm "$REC/APIGW2/big-dec" "$REC/APIGW2/big-bin" "$REC/APIGW2/seven"
+rm "$REC/_work/APIGW2/big-dec" "$REC/_work/APIGW2/big-bin" "$REC/_work/APIGW2/seven"
 ```
 
 Teardown: none.
@@ -1107,7 +1108,7 @@ aws iam detach-role-policy --role-name "$P-gw-fn" \
   --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
 aws iam delete-role-policy --role-name "$P-gw-int" --policy-name gw
 for r in "$P-gw-fn" "$P-gw-int" "$P-gw-none" "$P-gw-caller"; do aws iam delete-role --role-name "$r"; done
-rm -f "$REC/APIGW2/gw.zip" "$REC/APIGW2/bin"
+rm -rf "$REC/_work/APIGW2"
 aws apigatewayv2 get-apis --query "Items[?starts_with(Name, '$P-gw')].Name"   # expect []
 ```
 

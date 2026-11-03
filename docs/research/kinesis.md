@@ -842,18 +842,18 @@ Expected `ShardId`: `a` 0, `b` 2, `c` 1, `d` 2, `1` 3, `ééé` 3 (big-endian ov
 Settles the size rows of 13.3 (5.8).
 
 ```sh
-mkdir -p "$REC/KIN-14"
+mkdir -p "$REC/_work/KIN-14"
 mk() {  # mk <file> <data bytes> <partition key>: a PutRecord body
   python3 -I -c 'import base64, json, sys; n = int(sys.argv[2]); print(json.dumps({"StreamName": sys.argv[1], "PartitionKey": sys.argv[3], "Data": base64.b64encode(b"x" * n).decode()}))' "$P-k1" "$2" "$3" > "$1"
 }
-mk "$REC/KIN-14/at-limit.json" 1048575 a
-mk "$REC/KIN-14/over-by-1.json" 1048576 a
-mk "$REC/KIN-14/multibyte-key.json" 1048575 é
-kin KIN-14/01-at-limit PutRecord @"$REC/KIN-14/at-limit.json"
-kin KIN-14/02-over-by-1 PutRecord @"$REC/KIN-14/over-by-1.json"
-kin KIN-14/03-multibyte-key PutRecord @"$REC/KIN-14/multibyte-key.json"
-python3 -I -c 'import base64, json, sys; d = base64.b64encode(b"x" * 1000000).decode(); print(json.dumps({"StreamName": sys.argv[1], "Records": [{"Data": d, "PartitionKey": str(i)} for i in range(11)]}))' "$P-k4" > "$REC/KIN-14/eleven-mb.json"
-kin KIN-14/04-request-over-10mib PutRecords @"$REC/KIN-14/eleven-mb.json"
+mk "$REC/_work/KIN-14/at-limit.json" 1048575 a
+mk "$REC/_work/KIN-14/over-by-1.json" 1048576 a
+mk "$REC/_work/KIN-14/multibyte-key.json" 1048575 é
+kin KIN-14/01-at-limit PutRecord @"$REC/_work/KIN-14/at-limit.json"
+kin KIN-14/02-over-by-1 PutRecord @"$REC/_work/KIN-14/over-by-1.json"
+kin KIN-14/03-multibyte-key PutRecord @"$REC/_work/KIN-14/multibyte-key.json"
+python3 -I -c 'import base64, json, sys; d = base64.b64encode(b"x" * 1000000).decode(); print(json.dumps({"StreamName": sys.argv[1], "Records": [{"Data": d, "PartitionKey": str(i)} for i in range(11)]}))' "$P-k4" > "$REC/_work/KIN-14/eleven-mb.json"
+kin KIN-14/04-request-over-10mib PutRecords @"$REC/_work/KIN-14/eleven-mb.json"
 ```
 
 `--data-binary @file` reads the file. Expected: 01 succeeds (1048576 bytes with the key), 02 fails with the size error, 03 succeeds if the key counts in characters (1048576) and fails if it counts in UTF-8 bytes (1048577), 04 fails before any write. Cost about USD 0.01 in PUT units, 4 minutes. Teardown: none.
@@ -928,7 +928,9 @@ aws kinesis create-stream --stream-name "$P-cs" --shard-count 1; aws kinesis wai
 SC=arn:aws:kinesis:$R:$A:stream/$P-cs
 kin KIN-17/01-register RegisterStreamConsumer "{\"StreamARN\":\"$SC\",\"ConsumerName\":\"$P-c1\"}"
 kin KIN-17/02-register-duplicate RegisterStreamConsumer "{\"StreamARN\":\"$SC\",\"ConsumerName\":\"$P-c1\"}"
-start=$(date +%s); until aws kinesis describe-stream-consumer --stream-arn "$SC" --consumer-name "$P-c1" --query ConsumerDescription.ConsumerStatus --output text | grep -q ACTIVE; do sleep 2; done
+start=$(date +%s); for i in $(seq 150); do   # at most 5 minutes, so a failed register still reaches the teardown
+  aws kinesis describe-stream-consumer --stream-arn "$SC" --consumer-name "$P-c1" --query ConsumerDescription.ConsumerStatus --output text | grep -q ACTIVE && break; sleep 2
+done
 echo "consumer active after $(( $(date +%s) - start )) s" >> "$REC/KIN-17/notes.md"
 kin KIN-17/03-describe DescribeStreamConsumer "{\"StreamARN\":\"$SC\",\"ConsumerName\":\"$P-c1\"}"
 kin KIN-17/04-summary DescribeStreamSummary "{\"StreamName\":\"$P-cs\"}"
@@ -967,7 +969,9 @@ Settles 7.2 (framing, for a later decision to bind it).
 ```sh
 aws kinesis create-stream --stream-name "$P-efo" --shard-count 1; aws kinesis wait stream-exists --stream-name "$P-efo"
 CA=$(aws kinesis register-stream-consumer --stream-arn "arn:aws:kinesis:$R:$A:stream/$P-efo" --consumer-name "$P-e1" --query Consumer.ConsumerARN --output text)
-until aws kinesis describe-stream-consumer --consumer-arn "$CA" --query ConsumerDescription.ConsumerStatus --output text | grep -q ACTIVE; do sleep 2; done
+for i in $(seq 150); do   # at most 5 minutes, so a failed register still reaches the teardown
+  aws kinesis describe-stream-consumer --consumer-arn "$CA" --query ConsumerDescription.ConsumerStatus --output text | grep -q ACTIVE && break; sleep 2
+done
 put "$P-efo" a hello
 SVC=kinesis recurl KIN-19/01-subscribe --max-time 15 -H 'Content-Type: application/x-amz-json-1.1' \
   -H 'X-Amz-Target: Kinesis_20131202.SubscribeToShard' \
@@ -987,7 +991,7 @@ curl exits 28 when `--max-time` ends a stream; that is expected. Step 02 starts 
 Settles 2.3.
 
 ```sh
-mkdir -p "$REC/KIN-20"
+mkdir -p "$REC/_work/KIN-20"
 cbor() {  # cbor <file> <key> <value> ...: a CBOR map of text strings, built with the standard library only
   python3 -I -c '
 import sys
@@ -1002,12 +1006,12 @@ kcbor() {  # kcbor <item>/<step> <Operation> <file>
   SVC=kinesis recurl "$1" -H 'Content-Type: application/x-amz-cbor-1.1' \
     -H "X-Amz-Target: Kinesis_20131202.$2" --data-binary @"$3" "$KE"
 }
-cbor "$REC/KIN-20/missing.cbor" StreamName "$P-missing"
-kcbor KIN-20/01-not-found DescribeStreamSummary "$REC/KIN-20/missing.cbor"
-cbor "$REC/KIN-20/k1.cbor" StreamName "$P-k1"
-kcbor KIN-20/02-summary DescribeStreamSummary "$REC/KIN-20/k1.cbor"
-cbor "$REC/KIN-20/get.cbor" ShardIterator "$(iter "$P-k1" shardId-000000000000)"
-kcbor KIN-20/03-get-records GetRecords "$REC/KIN-20/get.cbor"
+cbor "$REC/_work/KIN-20/missing.cbor" StreamName "$P-missing"
+kcbor KIN-20/01-not-found DescribeStreamSummary "$REC/_work/KIN-20/missing.cbor"
+cbor "$REC/_work/KIN-20/k1.cbor" StreamName "$P-k1"
+kcbor KIN-20/02-summary DescribeStreamSummary "$REC/_work/KIN-20/k1.cbor"
+cbor "$REC/_work/KIN-20/get.cbor" ShardIterator "$(iter "$P-k1" shardId-000000000000)"
+kcbor KIN-20/03-get-records GetRecords "$REC/_work/KIN-20/get.cbor"
 for s in 01-not-found 02-summary 03-get-records; do xxd "$REC/KIN-20/$s.http" > "$REC/KIN-20/$s.hex"; done
 ```
 
@@ -1018,19 +1022,21 @@ Expected: `Content-Type: application/x-amz-cbor-1.1` on all three; timestamps as
 Settles 8.1.
 
 ```sh
-mkdir -p "$REC/KIN-21"
-echo '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"lambda.amazonaws.com"},"Action":"sts:AssumeRole"}]}' > "$REC/KIN-21/trust.json"
-aws iam create-role --role-name "$P-kin-role" --assume-role-policy-document "file://$REC/KIN-21/trust.json"
+mkdir -p "$REC/_work/KIN-21"
+echo '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"lambda.amazonaws.com"},"Action":"sts:AssumeRole"}]}' > "$REC/_work/KIN-21/trust.json"
+aws iam create-role --role-name "$P-kin-role" --assume-role-policy-document "file://$REC/_work/KIN-21/trust.json"
 aws iam attach-role-policy --role-name "$P-kin-role" --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaKinesisExecutionRole
 sleep 15
-printf 'import json\n\ndef handler(event, context):\n    print(json.dumps(event))\n' > "$REC/KIN-21/index.py"
-(cd "$REC/KIN-21" && python3 -I -m zipfile -c fn.zip index.py)
+printf 'import json\n\ndef handler(event, context):\n    print(json.dumps(event))\n' > "$REC/_work/KIN-21/index.py"
+(cd "$REC/_work/KIN-21" && python3 -I -m zipfile -c fn.zip index.py)
 aws lambda create-function --function-name "$P-kin-fn" --runtime python3.12 --handler index.handler \
-  --role "arn:aws:iam::$A:role/$P-kin-role" --zip-file "fileb://$REC/KIN-21/fn.zip"
+  --role "arn:aws:iam::$A:role/$P-kin-role" --zip-file "fileb://$REC/_work/KIN-21/fn.zip"
 aws lambda wait function-active-v2 --function-name "$P-kin-fn"
 rec KIN-21/01-esm aws lambda create-event-source-mapping --function-name "$P-kin-fn" --event-source-arn "$SA1" --starting-position LATEST --batch-size 10
 UUID=$(aws lambda list-event-source-mappings --function-name "$P-kin-fn" --query 'EventSourceMappings[0].UUID' --output text)
-until aws lambda get-event-source-mapping --uuid "$UUID" --query State --output text | grep -q Enabled; do sleep 5; done
+for i in $(seq 60); do   # at most 5 minutes, so a failed create still reaches the teardown
+  aws lambda get-event-source-mapping --uuid "$UUID" --query State --output text | grep -q Enabled && break; sleep 5
+done
 sleep 30; put "$P-k1" pk-1 one; put "$P-k1" pk-2 two; sleep 90
 rec KIN-21/02-logs aws logs filter-log-events --log-group-name "/aws/lambda/$P-kin-fn"
 ```
@@ -1042,11 +1048,11 @@ Cost below USD 0.01, 15 minutes. Teardown: `aws lambda delete-event-source-mappi
 Settles section 9.
 
 ```sh
-mkdir -p "$REC/KIN-22"
+mkdir -p "$REC/_work/KIN-22"
 aws kinesis create-stream --stream-name "$P-ebk" --shard-count 1; aws kinesis wait stream-exists --stream-name "$P-ebk"
 SE=arn:aws:kinesis:$R:$A:stream/$P-ebk
-echo '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"events.amazonaws.com"},"Action":"sts:AssumeRole"}]}' > "$REC/KIN-22/trust.json"
-aws iam create-role --role-name "$P-kin-eb" --assume-role-policy-document "file://$REC/KIN-22/trust.json"
+echo '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"events.amazonaws.com"},"Action":"sts:AssumeRole"}]}' > "$REC/_work/KIN-22/trust.json"
+aws iam create-role --role-name "$P-kin-eb" --assume-role-policy-document "file://$REC/_work/KIN-22/trust.json"
 aws iam put-role-policy --role-name "$P-kin-eb" --policy-name put --policy-document "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":\"kinesis:PutRecord\",\"Resource\":\"$SE\"}]}"
 EBR=arn:aws:iam::$A:role/$P-kin-eb; sleep 15
 aws events put-rule --name "$P-kin-rule" --event-pattern "{\"source\":[\"$P.kin\"]}"
@@ -1071,9 +1077,10 @@ for i in $(seq -w 1 40); do kin "KIN-23/ctl-$i" DescribeStream "{\"StreamName\":
 IT=$(iter "$P-k1" shardId-000000000000)
 for i in $(seq -w 1 20); do kin "KIN-23/get-$i" GetRecords "{\"ShardIterator\":\"$IT\"}" & done; wait
 for i in $(seq -w 1 20); do kin "KIN-23/iter-$i" GetShardIterator "{\"StreamName\":\"$P-k1\",\"ShardId\":\"shardId-000000000000\",\"ShardIteratorType\":\"LATEST\"}" & done; wait
-python3 -I -c 'import base64, json, sys; d = base64.b64encode(b"x" * 1024).decode(); print(json.dumps({"StreamName": sys.argv[1], "Records": [{"Data": d, "PartitionKey": "a"}] * 500}))' "$P-k1" > "$REC/KIN-23/burst.json"
-for i in 1 2 3 4; do kin "KIN-23/burst-$i" PutRecords @"$REC/KIN-23/burst.json" & done; wait
-for i in $(seq -w 1 30); do kin "KIN-23/put-$i" PutRecord @"$REC/KIN-14/at-limit.json" & done; wait
+mkdir -p "$REC/_work/KIN-23"
+python3 -I -c 'import base64, json, sys; d = base64.b64encode(b"x" * 1024).decode(); print(json.dumps({"StreamName": sys.argv[1], "Records": [{"Data": d, "PartitionKey": "a"}] * 500}))' "$P-k1" > "$REC/_work/KIN-23/burst.json"
+for i in 1 2 3 4; do kin "KIN-23/burst-$i" PutRecords @"$REC/_work/KIN-23/burst.json" & done; wait
+for i in $(seq -w 1 30); do kin "KIN-23/put-$i" PutRecord @"$REC/_work/KIN-14/at-limit.json" & done; wait
 unset AWS_MAX_ATTEMPTS
 grep -l -E 'LimitExceeded|ProvisionedThroughputExceeded|Throttling' "$REC"/KIN-23/*.http
 ```
@@ -1146,11 +1153,13 @@ Settles 2.5.
 echo "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"AWS\":\"arn:aws:iam::$A:root\"},\"Action\":\"sts:AssumeRole\"}]}" > "$REC/kin-deny-trust.json"
 aws iam create-role --role-name "$P-kin-deny" --assume-role-policy-document "file://$REC/kin-deny-trust.json"; sleep 15
 (
-  eval "$(aws sts assume-role --role-arn "arn:aws:iam::$A:role/$P-kin-deny" --role-session-name kin \
-    --query 'Credentials.[AccessKeyId,SecretAccessKey,SessionToken]' --output text |
-    awk '{print "export AWS_ACCESS_KEY_ID="$1" AWS_SECRET_ACCESS_KEY="$2" AWS_SESSION_TOKEN="$3}')"
+  CREDS=$(aws sts assume-role --role-arn "arn:aws:iam::$A:role/$P-kin-deny" --role-session-name kin \
+    --query 'Credentials.[AccessKeyId,SecretAccessKey,SessionToken]' --output text) && [ -n "$CREDS" ] ||
+    { echo "KIN-27: assume-role failed, so 01-denied was not recorded (it would have run as the recording keys)" >&2; exit 1; }
+  read -r AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN <<<"$CREDS"
+  export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
   kin KIN-27/01-denied DescribeStreamSummary "{\"StreamName\":\"$P-k1\"}"
 )
 ```
 
-The subshell keeps the recording shell's own keys. Redact before sharing (recording-kit section 2). Cost 0, 3 minutes. Teardown: `aws iam delete-role --role-name "$P-kin-deny"; rm "$REC/kin-deny-trust.json"`.
+The subshell keeps the recording shell's own keys. When `assume-role` fails (the role not yet propagated), it records nothing rather than recording an allowed call as the denial; wait and run it again. Redact before sharing (recording-kit section 2). Cost 0, 3 minutes. Teardown: `aws iam delete-role --role-name "$P-kin-deny"; rm "$REC/kin-deny-trust.json"`.
