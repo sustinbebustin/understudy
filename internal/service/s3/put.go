@@ -62,7 +62,7 @@ func (s *Service) putObject(ctx context.Context, c *kernel.Call, in *s3api.PutOb
 	}
 	a := at(in.Bucket, in.ExpectedBucketOwner)
 	pre, err := read(ctx, s, c, a, func(b *Bucket) (preWrite, *awserr.Error) {
-		return prepareWrite(b, in.Key, req.cond, req.sse, req.acl, req.lock, c.Endpoint().Scheme)
+		return prepareWrite(b, in.Key, req.cond, req.sse, req.acl, req.lock, writeCallOf(c, "s3:PutObject"))
 	})
 	if err != nil {
 		return nil, err
@@ -199,12 +199,12 @@ type preWrite struct {
 // prepareWrite judges a write against its bucket before the body is read:
 // its ACL, the encryption it resolves to, its Object Lock settings
 // (s3-ssec-object-lock.md 11.3) and its condition, which is judged again
-// at commit. scheme is the call's, which SSE-C needs to be https.
-func prepareWrite(b *Bucket, key string, cond writeCondition, r sseRequest, acl objectACL, lock lockRequest, scheme string) (preWrite, *awserr.Error) {
+// at commit. w is the call, which SSE-C needs over https.
+func prepareWrite(b *Bucket, key string, cond writeCondition, r sseRequest, acl objectACL, lock lockRequest, w writeCall) (preWrite, *awserr.Error) {
 	if err := acl.check(b); err != nil {
 		return preWrite{}, err
 	}
-	choice, err := resolveSSE(r, b, objectResource(b.Name, key).String(), scheme)
+	choice, err := resolveSSE(r, b, key, w)
 	if err != nil {
 		return preWrite{}, err
 	}
@@ -539,7 +539,8 @@ func (u upload) verify(got received, decoder *awschunked.Reader, payload hash.Ha
 // integrityDeclared reports whether the write states its bytes' integrity
 // the way an Object Lock retention needs (s3-ssec-object-lock.md 6.3):
 // Content-MD5, or an x-amz-checksum-* header or trailer. A signed payload
-// hash does not count (switch s3.object-lock.checksum-scope).
+// hash does not count (S3SOL-14 14-retention-signed-sha256, recorded
+// 2026-11-03).
 func (u upload) integrityDeclared() bool {
 	if u.md5 != nil {
 		return true

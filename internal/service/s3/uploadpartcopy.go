@@ -88,7 +88,7 @@ func (s *Service) uploadPartCopy(ctx context.Context, c *kernel.Call, in *s3api.
 		return nil, err
 	}
 	a := at(in.Bucket, in.ExpectedBucketOwner)
-	t, err := s.readTarget(ctx, c, a, in.UploadId, in.Key, customerHeaders{algorithm: in.SSECustomerAlgorithm, key: in.SSECustomerKey, keyMD5: in.SSECustomerKeyMD5})
+	t, err := s.readTarget(ctx, c, a, in.UploadId, in.Key, customerHeaders{algorithm: in.SSECustomerAlgorithm, key: in.SSECustomerKey, keyMD5: in.SSECustomerKeyMD5}, false)
 	if err != nil {
 		return nil, err
 	}

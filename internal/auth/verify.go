@@ -372,17 +372,31 @@ func expired(expiry time.Time, emuNow clock.Instant, v Vocabulary, lifetime ...a
 	return err
 }
 
+// s3UnsignedExempt reports whether S3 lets a presigned request carry the
+// lower-case x-amz-* header name unsigned: the SSE-C key and its MD5. With
+// all three SSE-C headers unsigned S3 named only the algorithm (S3SOL-09
+// 09-presign-unsigned-ssec, recorded 2026-11-03; s3-ssec-object-lock.md
+// 3.10), and it names every unsigned header it does refuse
+// (error-matrix.md 5.4 T8).
+func s3UnsignedExempt(name string) bool {
+	return name == "x-amz-server-side-encryption-customer-key" || name == "x-amz-server-side-encryption-customer-key-md5"
+}
+
 // checkAllAmzHeadersSigned refuses a presigned request carrying x-amz-*
 // headers it did not sign, naming them as S3 does: sorted, joined with ", "
 // (error-matrix.md 5.4 T8). S3 names them in its HeadersNotSigned element;
 // no recording shows a Coral answer, so the Coral text, which names them in
 // the message since Coral has no such member, is understudy's own
-// (UNVERIFIED). No x-amz-* header is exempt; no recording shows S3 exempting
-// one.
+// (UNVERIFIED). S3 exempts the SSE-C key and its MD5 (s3UnsignedExempt);
+// every other x-amz-* header must be signed.
 func checkAllAmzHeadersSigned(req Normalized, signed []string, v Vocabulary) *awserr.Error {
 	var unsigned []string
 	for name := range req.Header {
-		if lower := strings.ToLower(name); strings.HasPrefix(lower, "x-amz-") && !slices.Contains(signed, lower) {
+		lower := strings.ToLower(name)
+		if v.Dialect == S3Dialect && s3UnsignedExempt(lower) {
+			continue
+		}
+		if strings.HasPrefix(lower, "x-amz-") && !slices.Contains(signed, lower) {
 			unsigned = append(unsigned, lower)
 		}
 	}

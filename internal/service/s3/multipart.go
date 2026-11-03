@@ -73,8 +73,9 @@ type Upload struct {
 	// Lock is the retention and legal hold Create's headers asked for,
 	// which the completed object takes, with the bucket default's retention
 	// dated at Initiated when they name none (completeWrite). Whether
-	// Create's headers land on the object at all is UNVERIFIED (S3SOL-15,
-	// s3-ssec-object-lock.md 6.3).
+	// Create's headers land on the object at all is UNVERIFIED: S3SOL-15
+	// recorded that they make each part need a checksum, but its Complete
+	// failed (s3-ssec-object-lock.md 6.3).
 	Lock ObjectLock `json:"lock,omitzero"`
 }
 
@@ -211,7 +212,7 @@ func (s *Service) createMultipartUpload(ctx context.Context, c *kernel.Call, in 
 	}
 	a := at(in.Bucket, in.ExpectedBucketOwner)
 	pre, err := read(ctx, s, c, a, func(b *Bucket) (preWrite, *awserr.Error) {
-		return prepareWrite(b, in.Key, unconditional{}, req.sse, req.acl, lockRequest{explicit: req.lock}, c.Endpoint().Scheme)
+		return prepareWrite(b, in.Key, unconditional{}, req.sse, req.acl, lockRequest{explicit: req.lock}, writeCallOf(c, "s3:PutObject"))
 	})
 	if err != nil {
 		return nil, err
@@ -383,8 +384,11 @@ func (s *Service) completeMultipartUpload(ctx context.Context, c *kernel.Call, i
 	// keeps one that reads report (REC test_s3_multipart_upload_sse steps
 	// multi-sse-compete-multipart and get-obj; LocalStack
 	// test_s3.snapshot.json L13083 for SSE-C; recorded for an undeclared
-	// upload, UNVERIFIED for a declared one).
-	if !opaqueETag(obj.Encryption) {
+	// upload). An SSE-C upload that declared an algorithm, whose Complete
+	// sent the key, reports it (s3-ssec-object-lock.md 3.6; S3SOL-08
+	// 08-right-key, recorded 2026-11-03); a declared SSE-KMS upload is
+	// UNVERIFIED.
+	if !opaqueETag(obj.Encryption) || needsCustomerKey(&u) {
 		out.ChecksumType = new(obj.Checksum.Type)
 		completeMultipartUploadOutputFields(out).set(membersOf(obj.Checksum))
 	}

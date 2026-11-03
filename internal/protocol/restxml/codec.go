@@ -29,16 +29,21 @@ type Dialect struct {
 	// bare <Error> root with RequestId and HostId (S3), not
 	// <ErrorResponse><Error>...</Error><RequestId/></ErrorResponse>.
 	NoErrorWrapping bool
-	// MillisecondTimestamps writes date-time values with milliseconds
-	// always, in bodies and response headers, as S3 does:
-	// 2009-10-12T17:50:30.000Z (s3-ssec-object-lock.md 6.7, switch
-	// s3.object-lock.retain-until-format, for the one such header).
+	// MillisecondTimestamps writes date-time values as S3 does: with
+	// milliseconds always in bodies, 2009-10-12T17:50:30.000Z, and in
+	// response headers only when they are not zero,
+	// 2026-11-03T04:40:14Z and 2028-11-03T03:40:47.030Z
+	// (s3-ssec-object-lock.md 6.7, for the one such header).
 	MillisecondTimestamps bool
 	// InvalidArgument answers a label, query or header value that does not
 	// parse, with ArgumentName and ArgumentValue (S3's InvalidArgument,
 	// error-matrix.md 5.4 T2). Zero means the service's
 	// malformedRequestError.
 	InvalidArgument awserr.Identity
+	// ArgumentTexts is the InvalidArgument message for an unparsable
+	// value of the label, query or header it names, in place of
+	// "Invalid value for the <name> <location>.".
+	ArgumentTexts map[string]string
 	// Internal renders an awserr.Internal origin (a handler or codec bug,
 	// a kernel panic) with S3's own identity and text, "We encountered an
 	// internal error. Please try again.", in place of the generic
@@ -76,7 +81,11 @@ const internalMessage = "We encountered an internal error. Please try again."
 // bodiless output, 206 for a partial read, and inert object bodies. The
 // composition root sets Internal to S3's InternalError identity.
 func S3Dialect(invalidArgument awserr.Identity) Dialect {
-	return Dialect{NoErrorWrapping: true, MillisecondTimestamps: true, InvalidArgument: invalidArgument, OmitEmptyDocumentType: true, PartialContent: true, InertStreams: true}
+	return Dialect{
+		NoErrorWrapping: true, MillisecondTimestamps: true, InvalidArgument: invalidArgument, OmitEmptyDocumentType: true, PartialContent: true, InertStreams: true,
+		// s3-ssec-object-lock.md 6.2: S3SOL-18 18-bad-date, recorded 2026-11-03.
+		ArgumentTexts: map[string]string{"x-amz-object-lock-retain-until-date": "The retain until date must be provided in ISO 8601 format"},
+	}
 }
 
 // S3ControlDialect is S3 Control's: S3's, but with Smithy's wrapped
@@ -185,7 +194,7 @@ func (c Codec) Encode(r *http.Request, op *registry.Operation, requestID string,
 		unwrapped:  unwrapped(op.Output),
 	}
 	stamp := func(t time.Time, f smithy.TimestampFormat) string {
-		return formatTimestamp(t, f, d.MillisecondTimestamps)
+		return formatHeaderTimestamp(t, f, d.MillisecondTimestamps)
 	}
 	enc, err := restbind.EncodeTimestamps(op, out, status, restbind.HasResponseDocument, func() restbind.DocumentWriter { return newWriter(opts) }, stamp)
 	if err != nil {
@@ -335,13 +344,18 @@ func (c Codec) dialect(svc *registry.Service) Dialect {
 
 // invalidArgument answers a head value that does not parse.
 func (c Codec) invalidArgument(svc *registry.Service, bind *restbind.BindError) *awserr.Error {
-	id := c.dialect(svc).InvalidArgument
+	d := c.dialect(svc)
+	id := d.InvalidArgument
 	if id.Shape == "" {
 		return malformedRequest(svc, bind.Error())
 	}
+	message, ok := d.ArgumentTexts[bind.Name]
+	if !ok {
+		message = fmt.Sprintf("Invalid value for the %s %s.", bind.Name, bind.Location)
+	}
 	return &awserr.Error{
 		ID:      id,
-		Message: fmt.Sprintf("Invalid value for the %s %s.", bind.Name, bind.Location),
+		Message: message,
 		Fields:  []awserr.Field{{Name: "ArgumentName", Value: bind.Name}, {Name: "ArgumentValue", Value: bind.Value}},
 		Origin:  awserr.Generic{},
 	}

@@ -130,7 +130,7 @@ func (s *Service) readSource(blobs *blob.Store, src copySource, owner *string, c
 		if err != nil {
 			return source{}, err
 		}
-		if _, err := checkCustomerRead(v.Object.Encryption, key, scheme); err != nil {
+		if err := checkCustomerSource(v.Object.Encryption, key, scheme); err != nil {
 			return source{}, err
 		}
 		if err := copySourceError(conds.evaluate(v.validator(), now), conds); err != nil {
@@ -244,7 +244,7 @@ func (s *Service) copyObject(ctx context.Context, c *kernel.Call, in *s3api.Copy
 		if inPlace && !req.changes(in, so, b) {
 			return preWrite{}, errInvalidRequest(selfCopyMessage)
 		}
-		return prepareWrite(b, in.Key, req.cond, req.sse, req.acl, lockRequest{explicit: req.lock}, c.Endpoint().Scheme)
+		return prepareWrite(b, in.Key, req.cond, req.sse, req.acl, lockRequest{explicit: req.lock}, writeCallOf(c, "s3:CopyObject"))
 	})
 	if err != nil {
 		return nil, err

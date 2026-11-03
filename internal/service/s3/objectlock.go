@@ -23,11 +23,6 @@ const (
 // (errEventHold).
 const eventHoldNote = "Object Lock event-hold headers are refused with NotImplemented"
 
-// retentionLimit is the longest retention S3 accepts, 100 years counted
-// as 36,500 days, the day bound of a retention period
-// (s3-ssec-object-lock.md 5.2, 11.5).
-const retentionLimit = 36500 * dayLength
-
 // objectLockHeaders are the per-object Object Lock members of PutObject,
 // CopyObject and CreateMultipartUpload, the only writes that carry them
 // (s3-ssec-object-lock.md 6.1).
@@ -44,7 +39,8 @@ type objectLockHeaders struct {
 // s3-ssec-object-lock.md 11.3: event holds refused with 501 (11.7), then
 // the mode and date pairing, checked before the mode's value (6.2), the
 // mode, the legal hold, and the date against now (switch
-// s3.object-lock.header-texts). It returns the settings they ask for, the
+// s3.object-lock.header-texts; an unparsable date never reaches here: the
+// codec refuses it with S3Dialect's text). It returns the settings they ask for, the
 // zero ObjectLock when none was sent; the date keeps its milliseconds
 // (switch s3.object-lock.retain-until-format).
 func (h objectLockHeaders) parse(now clock.Instant) (ObjectLock, *awserr.Error) {
@@ -78,12 +74,16 @@ func (h objectLockHeaders) parse(now clock.Instant) (ObjectLock, *awserr.Error) 
 	if h.legalHold != nil {
 		hold, ok := legalHoldTexts.value(string(*h.legalHold))
 		if !ok {
-			return ObjectLock{}, errInvalidArgument("Invalid value for the "+headerLockLegalHold+" header.", headerLockLegalHold, string(*h.legalHold))
+			return ObjectLock{}, errInvalidArgument("Legal Hold must be either of 'ON' or 'OFF'", headerLockLegalHold, string(*h.legalHold))
 		}
 		l.LegalHold = hold
 	}
 	if h.retainUntil != nil {
-		if err := checkRetainUntil(clock.FromWire(*h.retainUntil), now, headerLockRetainUntil); err != nil {
+		// The header's date is named in its ISO 8601 form, not Java's
+		// (S3SOL-18 18-past-date); whether S3 echoes the sent text or
+		// renders the parsed date is not recorded.
+		value := h.retainUntil.UTC().Format(time.RFC3339Nano)
+		if err := checkRetainUntil(clock.FromWire(*h.retainUntil), now, headerLockRetainUntil, value); err != nil {
 			return ObjectLock{}, err
 		}
 		l.Retention = &Retention{Mode: mode, RetainUntil: clock.FromWire(h.retainUntil.Truncate(time.Millisecond))}
@@ -114,15 +114,15 @@ type lockRequest struct {
 	explicit ObjectLock
 	// undeclared is set for a PutObject that sent neither Content-MD5 nor a
 	// checksum. CopyObject and CreateMultipartUpload never set it: neither
-	// needs one (switches s3.object-lock.copy-default and
-	// s3.object-lock.checksum-scope).
+	// carries a body (S3SOL-15 15-create and S3SOL-16, recorded
+	// 2026-11-03); the parts do (errPartNeedsIntegrity).
 	undeclared bool
 }
 
 // check judges the request against its bucket (s3-ssec-object-lock.md
 // 11.3): explicit settings need a bucket with Object Lock, and a PutObject
-// whose version gets a retention, its own or the bucket default's, needs
-// Content-MD5 or a checksum (testdata/parity/s3/R12/11-put-without-checksum.json).
+// with lock settings, or whose version gets the bucket default's
+// retention, needs Content-MD5 or a checksum (needsIntegrity).
 func (r lockRequest) check(b *Bucket) *awserr.Error {
 	if err := checkLockTarget(b, r.explicit); err != nil {
 		return err
@@ -279,11 +279,13 @@ func (h *LegalHold) UnmarshalText(text []byte) error {
 }
 
 // checkLockTarget refuses explicit lock settings on a bucket without
-// Object Lock with 400 InvalidRequest (switch
-// s3.object-lock.headers-without-lock).
+// Object Lock with 400 InvalidRequest "Bucket is missing
+// ObjectLockConfiguration", which, unlike missingLockConfigText, has no
+// spaces in its last word (s3-ssec-object-lock.md 6.2; S3SOL-17, recorded
+// 2026-11-03).
 func checkLockTarget(b *Bucket, explicit ObjectLock) *awserr.Error {
 	if explicit != (ObjectLock{}) && b.ObjectLock == nil {
-		return errInvalidRequest(missingLockConfigText)
+		return errInvalidRequest("Bucket is missing ObjectLockConfiguration")
 	}
 	return nil
 }
@@ -293,19 +295,14 @@ func checkLockTarget(b *Bucket, explicit ObjectLock) *awserr.Error {
 const missingLockConfigText = "Bucket is missing Object Lock Configuration"
 
 // defaultRetention is a bucket's default retention rule: its mode, and its
-// Days or Years as a duration, a year being 365 days (switch
-// s3.object-lock.default-years).
+// period in Days or in Years, exactly one of which is not zero.
 type defaultRetention struct {
-	mode   RetentionMode
-	period time.Duration
+	mode        RetentionMode
+	days, years int32
 }
 
-// dayLength and yearLength are a default retention's units: a year is 365
-// days (switch s3.object-lock.default-years).
-const (
-	dayLength  = 24 * time.Hour
-	yearLength = 365 * dayLength
-)
+// dayLength is a retention day.
+const dayLength = 24 * time.Hour
 
 // bucketDefaultRetention is cfg's default retention rule; false when cfg
 // has none. checkObjectLock admits only a rule with a mode and one period
@@ -321,18 +318,22 @@ func bucketDefaultRetention(cfg *s3api.ObjectLockConfiguration) (defaultRetentio
 	}
 	switch {
 	case d.Days != nil && d.Years == nil:
-		return defaultRetention{mode: mode, period: time.Duration(*d.Days) * dayLength}, true
+		return defaultRetention{mode: mode, days: *d.Days}, true
 	case d.Years != nil && d.Days == nil:
-		return defaultRetention{mode: mode, period: time.Duration(*d.Years) * yearLength}, true
+		return defaultRetention{mode: mode, years: *d.Years}, true
 	}
 	return defaultRetention{}, false
 }
 
 // from is the retention the rule gives a version created at created: the
 // creation instant plus the period, to the millisecond
-// (s3-ssec-object-lock.md 5.3).
+// (s3-ssec-object-lock.md 5.3). Days are 24 hours and years calendar
+// years in UTC: 2 years from 2026-11-03 end on 2028-11-03, 731 days later
+// (S3SOL-13 13-head, recorded 2026-11-03). How a 29 February creation date
+// moves by a year is UNVERIFIED; Go's AddDate gives 1 March.
 func (d defaultRetention) from(created clock.Instant) Retention {
-	return Retention{Mode: d.mode, RetainUntil: clock.FromWire(created.Add(d.period).Wire().Truncate(time.Millisecond))}
+	until := created.Wire().UTC().AddDate(int(d.years), 0, 0).Add(time.Duration(d.days) * dayLength)
+	return Retention{Mode: d.mode, RetainUntil: clock.FromWire(until.Truncate(time.Millisecond))}
 }
 
 // lockOnWrite is a new version's lock state: the write's explicit
@@ -358,16 +359,26 @@ func lockedAt(b *Bucket, obj *Object, created clock.Instant) *Object {
 	return &o
 }
 
-// needsIntegrity reports whether a PutObject's new version gets a
-// retention period, explicit or the bucket default's, and so needs
-// Content-MD5 or a checksum (s3-ssec-object-lock.md 6.3). A legal hold
-// alone does not (switch s3.object-lock.checksum-scope).
+// needsIntegrity reports whether a write with explicit lock settings into
+// a bucket configured cfg needs Content-MD5 or a checksum
+// (s3-ssec-object-lock.md 6.3): any explicit setting, a legal hold alone
+// included (S3SOL-14 14-legal-hold-only, recorded 2026-11-03; a hold set
+// OFF is inferred to count), or a bucket default retention
+// (testdata/parity/s3/R12/11-put-without-checksum.json).
 func needsIntegrity(cfg *s3api.ObjectLockConfiguration, explicit ObjectLock) bool {
-	if explicit.Retention != nil {
+	if explicit != (ObjectLock{}) {
 		return true
 	}
 	_, ok := bucketDefaultRetention(cfg)
 	return ok
+}
+
+// errPartNeedsIntegrity answers an UploadPart without Content-MD5 or a
+// checksum to an upload that needsIntegrity (s3-ssec-object-lock.md 6.3;
+// S3SOL-15 15-part-no-checksum, recorded 2026-11-03, for an upload created
+// with lock headers; for one under a bucket default it is inferred).
+func errPartNeedsIntegrity() *awserr.Error {
+	return errInvalidRequest("Content-MD5 OR x-amz-checksum- HTTP header is required for Put Part requests with Object Lock parameters")
 }
 
 // parseRetentionBody reads a PutObjectRetention body
@@ -399,16 +410,14 @@ func parseRetentionBody(r *s3api.ObjectLockRetention) (*Retention, *awserr.Error
 
 // checkRetainUntil refuses a retain-until date that is not in the future
 // (LocalStack test_s3.snapshot.json L9488; an instant equal to now is no
-// longer in the future under switch s3.object-lock.retain-until-format),
-// or more than 100 years ahead, with InvalidArgument naming the header or
-// element name and rendering the date as Java does (switch
-// s3.object-lock.header-texts).
-func checkRetainUntil(until, now clock.Instant, name string) *awserr.Error {
-	switch {
-	case !now.Before(until):
-		return errInvalidArgument("The retain until date must be in the future!", name, javaDate(until.Wire()))
-	case until.Compare(now.Add(retentionLimit)) > 0:
-		return errInvalidArgument("The retain until date in "+name+" must be no more than 100 years in the future.", name, javaDate(until.Wire()))
+// longer in the future under switch s3.object-lock.retain-until-format)
+// with InvalidArgument naming the header or element name and value, the
+// date in the form the caller's input gave it. No later date is refused:
+// S3 accepted one beyond the documented 100-year retention (S3SOL-18
+// 18-over-100-years, recorded 2026-11-03).
+func checkRetainUntil(until, now clock.Instant, name, value string) *awserr.Error {
+	if !now.Before(until) {
+		return errInvalidArgument("The retain until date must be in the future!", name, value)
 	}
 	return nil
 }
@@ -429,9 +438,11 @@ func parseLegalHoldBody(h *s3api.ObjectLockLegalHold) (LegalHold, *awserr.Error)
 }
 
 // javaDate renders t as Java's Date.toString() in US Pacific time, as S3
-// writes a refused date's ArgumentValue: "Tue Dec 31 16:00:00 PST 2019"
-// for 2020-01-01T00:00:00Z (LocalStack test_s3.snapshot.json L9488). The
-// summer form, PDT, follows switch s3.object-lock.header-texts. The US
+// writes a refused RetainUntilDate element's ArgumentValue: "Tue Dec 31
+// 16:00:00 PST 2019" for 2020-01-01T00:00:00Z (LocalStack
+// test_s3.snapshot.json L9488) and "Tue Jun 30 17:00:00 PDT 2020" for
+// 2020-07-01T00:00:00Z (S3SOL-18 18-retention-past-summer, recorded
+// 2026-11-03). The US
 // rule in force since 2007 is applied to every year, with fixed zones, so
 // no tzdata is read: PDT (UTC-7) from 2:00 PST on the second Sunday of
 // March to 2:00 PDT on the first Sunday of November, PST (UTC-8)

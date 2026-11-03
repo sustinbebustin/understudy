@@ -36,11 +36,11 @@ Lines that [s3.md](s3.md) or the code marked UNVERIFIED and that `testdata/parit
 |---|---|---|
 | s3.md 4.1: the wire form of the April 2026 SSE-C block on a new bucket is UNVERIFIED | A fresh bucket's `GetBucketEncryption` rule is, in this order: `<BucketKeyEnabled>false</BucketKeyEnabled>`, `<ApplyServerSideEncryptionByDefault><SSEAlgorithm>AES256</SSEAlgorithm></ApplyServerSideEncryptionByDefault>`, `<BlockedEncryptionTypes><EncryptionType>SSE-C</EncryptionType></BlockedEncryptionTypes>` | `testdata/parity/s3/R06/01-get-get-bucket-encryption.json` |
 | s3.md 4.1: `GetBucketEncryption` after `DeleteBucketEncryption` returns the default rule again (UNVERIFIED; switch `s3.encryption.after-delete`, label aws-doc) | 200 with the same default rule, SSE-C still blocked | `testdata/parity/s3/R06/02-get-encryption-after-delete.json`; the switch can be relabelled aws-recorded |
-| (new) a `PutBucketEncryption` that omits `BlockedEncryptionTypes` | the GET still reports SSE-C blocked (starting from the default; starting from `NONE` is S3SOL-11) | `testdata/parity/s3/R06/02-put-encryption-valid-arn.json` then `02-get-encryption-arn.json` |
+| (new) a `PutBucketEncryption` that omits `BlockedEncryptionTypes` | the GET still reports SSE-C blocked (starting from the default; starting from `NONE` too, S3SOL-11, 4.2) | `testdata/parity/s3/R06/02-put-encryption-valid-arn.json` then `02-get-encryption-arn.json` |
 | s3.md 4.2.10: the error for an Object Lock upload without `Content-MD5` or a checksum is UNVERIFIED (moto's `MissingUploadObjectWithObjectLockHeaders`) | `400 InvalidRequest`, "Content-MD5 OR x-amz-checksum- HTTP header is required for Put Object requests with Object Lock parameters", no extra elements, even when the request carries no lock header and the retention comes from the bucket default | `testdata/parity/s3/R12/11-put-default-retention.json`, `11-put-without-checksum.json` |
 | `internal/service/s3/sse.go` `errSSECNotApplicable`: "The text is UNVERIFIED" | `400 InvalidRequest`, "The encryption parameters are not applicable to this object." for SSE-C headers on a GET of a non-SSE-C object. The bucket was created on 2026-10-14 and R15 did not unblock it, so it blocks SSE-C. That state is inferred from 4.1 and row 3 here: R15 did not record the bucket's encryption configuration | `testdata/parity/s3/R15/x-ssec-on-non-ssec-read.json` |
 
-Still open: `internal/service/s3/sse.go` `errSSECBlocked` (the 403 text, S3SOL-01). `testdata/parity/s3/R12/notes.md` step 11 also records that understudy stores an Object Lock upload it should refuse.
+`internal/service/s3/sse.go` `errSSECBlocked` (the 403 text) is settled by S3SOL-01 (4.3). `testdata/parity/s3/R12/notes.md` step 11 also records that understudy stores an Object Lock upload it should refuse.
 
 ## 3. SSE-C on objects
 
@@ -67,8 +67,8 @@ All 400, all with `ArgumentName` `x-amz-server-side-encryption` (sic, even for c
 - Order: the SSE-header conflict is checked before the algorithm value (the L12706 request also sent algorithm `KMS`; test inputs at LS test_s3.py:L12123-L12131).
 - Two snapshot steps named `get-obj-sse-c-wrong-key-size` and `get-obj-sse-c-bad-md5` are PutObject calls (LS test_s3.py:L12287, L12299), so they are write-side evidence.
 - The `put-obj-sse-c-no-md5` step (L12752) does not test a missing MD5: botocore fills the MD5 in itself when the caller omits it (3.12), base64-encoding the already-base64 key string, so AWS saw a 44-byte key with a matching MD5. The response is the key-size error.
-- UNVERIFIED (S3SOL-03): a raw request with algorithm and key but no MD5 header. Options: an `InvalidArgument` naming the missing MD5 (Cloudflare's R2 emulator and MinIO both use "Requests specifying Server Side Encryption with Customer provided keys must provide the client calculated MD5 of the secret key.", emu, `cloudflare/workers-sdk packages/miniflare/src/workers/r2/s3/operations.worker.ts`, `minio/minio cmd/api-errors.go` `ErrMissingSSECustomerKeyMD5`), or S3 computing it. Docs say all three headers are required.
-- UNVERIFIED (S3SOL-04): a key header that is not valid base64, and the read-side key checks (an MD5 mismatch or a short key on GET). Plausible: the write-side texts above for a key that is not base64 and for an MD5 mismatch. A short key with a matching MD5 on GET plausibly gets the 403 that a 44-byte key got (3.3).
+- Recorded (S3SOL-03, recorded 2026-11-03): a raw PutObject with algorithm and key but no MD5 header gets `400 InvalidArgument`, "Requests specifying Server Side Encryption with Customer provided keys must provide the client calculated MD5 of the secret key.", `ArgumentName=x-amz-server-side-encryption`, the text Cloudflare's R2 emulator and MinIO use (`testdata/parity/s3/S3SOL/03-put.json`). A raw GetObject of an SSE-C object with algorithm and key but no MD5 **succeeds**: 200 with the body and `x-amz-server-side-encryption-customer-key-MD5` set to the MD5 S3 computed (`03-get.json`). So the docs' "all three headers are required" holds for writes only. HEAD, GetObjectAttributes and a copy source without the MD5 are inferred to behave as GET (UNVERIFIED; understudy computes it on every read).
+- Recorded (S3SOL-04, recorded 2026-11-03): a PutObject key header that is not base64 (`not base64!`) with the MD5 of a valid key gets the MD5-mismatch text of the table above, not the key-size text (`04-put-not-base64.json`); whether a key that is not base64 without its MD5 is refused for the MD5 or the encoding is UNVERIFIED. On GET, a 10-byte key with its matching MD5 gets the 403 "must provide the correct secret key" (`04-get-short-key.json`), as the 44-byte key did (3.3), and the right key with another key's MD5 gets `400 InvalidArgument` with the MD5-mismatch text and `ArgumentName=x-amz-server-side-encryption` (`04-get-bad-md5.json`).
 
 ### 3.3 Reads: GetObject, HeadObject, GetObjectAttributes
 
@@ -85,12 +85,12 @@ All 400, all with `ArgumentName` `x-amz-server-side-encryption` (sic, even for c
 - With the right key, GET, HEAD and GetObjectAttributes succeed (LS test_s3.snapshot.json:L13190, L13204, L13221); `DeleteObject` needs no key (L13230, 204).
 - On GET a key of the wrong length is answered like a wrong key (row 3), so the stored-key comparison runs before, or instead of, the length check on reads (inferred from one recording).
 - HEAD errors have no body, as for every HEAD ([API_HeadObject](https://docs.aws.amazon.com/AmazonS3/latest/API/API_HeadObject.html)).
-- UNVERIFIED (S3SOL-05): HEAD and GetObjectAttributes of an SSE-C object without SSE-C headers. Plausible: HEAD 400 with no body, GetObjectAttributes 400 `InvalidRequest` with the "stored using a form of Server Side Encryption" text. The docs say these headers "must" be sent to "retrieve the object's metadata" ([API_HeadObject](https://docs.aws.amazon.com/AmazonS3/latest/API/API_HeadObject.html)). This decides Terraform's `aws_s3_object_copy` refresh (9.4).
+- Recorded (S3SOL-05, recorded 2026-11-03; `testdata/parity/s3/S3SOL/05-*.json`): HEAD of an SSE-C object without SSE-C headers is 400 with no body (`05-head`); GetObjectAttributes is 400 `InvalidRequest`, "The object was stored using a form of Server Side Encryption. The correct parameters must be provided to retrieve the object." (`05-attrs`), and 200 with the key (`05-attrs-with-key`). The docs say these headers "must" be sent to "retrieve the object's metadata" ([API_HeadObject](https://docs.aws.amazon.com/AmazonS3/latest/API/API_HeadObject.html)). This decides Terraform's `aws_s3_object_copy` refresh (9.4).
 
 ### 3.4 Response headers and ETag
 
 - SSE-C writes and reads report `x-amz-server-side-encryption-customer-algorithm: AES256` and `x-amz-server-side-encryption-customer-key-MD5: <request MD5>`, and **no** `x-amz-server-side-encryption` header (PutObject LS test_s3.snapshot.json:L12790; HEAD L13190; GET L13204; CopyObject L12926; CreateMultipartUpload L13001; UploadPart L13012). Every non-SSE-C object reports `x-amz-server-side-encryption: AES256` ([s3.md](s3.md) 5.2), so this is a branch, not an omission.
-- `CompleteMultipartUpload` echoes no SSE-C header (LS test_s3.snapshot.json:L13083), matching `com.amazonaws.s3#CompleteMultipartUploadOutput`, which has no SSE-C members. `com.amazonaws.s3#GetObjectAttributesOutput` has no SSE members at all.
+- `CompleteMultipartUpload` sent without SSE-C headers echoes none (LS test_s3.snapshot.json:L13083), matching `com.amazonaws.s3#CompleteMultipartUploadOutput`, which has no SSE-C members; one sent with the key gets the pair echoed all the same (S3SOL-08 `08-right-key`, recorded 2026-11-03; 3.6). `com.amazonaws.s3#GetObjectAttributesOutput` has no SSE members at all.
 - ETag of an SSE-C single PUT or SSE-C copy is not the MD5 of the data ([s3.md](s3.md) 5.3, `API_Object`): three PUTs of `test_data` gave `b68bda52...`, `b876fdc9...`, `b84c1aee...` (L12790, L12902, L13179) and an SSE-C copy of it gave `5e04d65f...` (L12930), while `md5("test_data")` is `6af8307c2460f2d208ad254f04be4b0d` (computed). A random 128-bit hex value per write matches.
 - SSE-C parts get random ETags too: three identical 5,242,881-byte parts got three different ETags (L13012-L13032; the MD5 of that content is `c4c753e6...`). The object's ETag keeps the `-N` suffix but is **not** the MD5 of the returned part ETags: AWS answered `"2d296eb6540ecd21430c385336c5dc9c-3"` on Complete and GET (L13083), while the MD5 of the three 16-byte part ETags `cf96b8ba... baa1d9ab... 6e702181...` is `f65e8fc76274ff489bb2b9cb55d378a4` and the MD5 of the three plaintext part MD5s is `c7cb0938a47e31f70cf07028d22e6913` (both computed). The hex digits come from nothing the client sees (inferred).
 - Copying an SSE-C source to a non-SSE-C target gives the plaintext MD5 ETag (`6af8307c...`, L12913) and `x-amz-server-side-encryption: AES256`.
@@ -99,17 +99,21 @@ All 400, all with `ArgumentName` `x-amz-server-side-encryption` (sic, even for c
 
 - Source SSE-C headers decrypt the source, target SSE-C headers encrypt the target; either can appear without the other; `x-amz-server-side-encryption` selects another target encryption ([ssec-spec](https://docs.aws.amazon.com/AmazonS3/latest/userguide/specifying-s3-c-encryption.html), "Copy operation"). Recorded: SSE-C source to SSE-S3 target (L12913) and to SSE-C target (L12926).
 - Copying an SSE-C source without the source headers: 400 `InvalidRequest`, "The object was stored using a form of Server Side Encryption. The correct parameters must be provided to retrieve the object." (L12950).
-- UNVERIFIED (S3SOL-06): copy-source SSE-C headers on a source that is not SSE-C. Plausible: the R15 GET text "The encryption parameters are not applicable to this object." (what `internal/service/s3/copy.go` answers today).
-- UNVERIFIED (S3SOL-07): copy-source headers with the wrong key, on CopyObject and UploadPartCopy. Plausible: 403 `AccessDenied` with the GET "correct secret key" text.
-- UploadPartCopy "see CopyObject and UploadPart" ([API_UploadPartCopy](https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPartCopy.html)); no recording. Treat it as CopyObject's source rules plus UploadPart's target rules (inferred; S3SOL-07 includes an UploadPartCopy step).
+- Copy-source SSE-C headers on a source that is not SSE-C: `400 InvalidRequest`, "The encryption parameters are not applicable to this object.", the R15 GET text (S3SOL-06, recorded 2026-11-03; `testdata/parity/s3/S3SOL/06-copy.json`).
+- Copy-source headers with the wrong key: `400 InvalidRequest`, "The provided encryption parameters did not match the ones used originally.", on CopyObject and UploadPartCopy alike (S3SOL-07, recorded 2026-11-03; `07-copy.json`, `07-upload-part-copy.json`). This is UploadPart's mismatch text (3.6), not the GET's 403 "correct secret key" that was guessed.
+- UploadPartCopy "see CopyObject and UploadPart" ([API_UploadPartCopy](https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPartCopy.html)). Its source answers as CopyObject's did in S3SOL-07; its other source and target rules are treated as CopyObject's source rules plus UploadPart's target rules (inferred).
 
 ### 3.6 Multipart uploads
 
 - "If you request server-side encryption using a customer-provided encryption key (SSE-C) in your initiate multipart upload request, you must provide identical encryption information in each part upload" ([API_UploadPart](https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPart.html)).
 - Part without SSE-C on an SSE-C upload, and part with SSE-C on a non-SSE-C upload: both 400 `InvalidRequest`, "The multipart upload initiate requested encryption. Subsequent part requests must include the appropriate encryption parameters." (LS test_s3.snapshot.json:L13154, L13133). Part with another key: 400 `InvalidRequest`, "The provided encryption parameters did not match the ones used originally." (L13164).
 - Complete needs no SSE-C headers ([ssec-spec](https://docs.aws.amazon.com/AmazonS3/latest/userguide/specifying-s3-c-encryption.html): "You do not need to provide any encryption-specific headers in your CompleteMultipartUploadRequest"; recorded at L13083 for an upload without a checksum algorithm), except that the model says the key "is needed only when the object was created using a checksum algorithm" (`com.amazonaws.s3#CompleteMultipartUploadRequest$SSECustomerKey`).
-- UNVERIFIED (S3SOL-08): Complete without SSE-C headers on an SSE-C upload that declared a checksum algorithm, Complete with a mismatching key, and `ListParts` without SSE-C headers on such an upload. Plausible: the UploadPart texts above for Complete; ListParts answering 200 as below.
-- `ListParts` works without SSE-C headers on an SSE-C upload without a checksum algorithm (L13042). `com.amazonaws.s3#ListPartsRequest$SSECustomerKey` carries the same "needed only when the object was created using a checksum algorithm" note as Complete (model), so the checksum-algorithm case is part of S3SOL-08.
+- Recorded (S3SOL-08, recorded 2026-11-03; `testdata/parity/s3/S3SOL/08-*.json`), on SSE-C uploads created with `--checksum-algorithm CRC32` whose one part carried the key and a CRC32:
+  - Complete without SSE-C headers: `400 InvalidRequest`, "The object was stored using a form of Server Side Encryption. Correct SSE-C request parameters are required for this request when specifying checksums for each part." (`08-no-key`).
+  - Complete with another (valid) key: the same 400 and text, not UploadPart's mismatch text (`08-wrong-key`).
+  - Complete with the right key: 200 with `ChecksumCRC32` `WcQMlQ==-1` and `ChecksumType` `COMPOSITE`, and the response **echoes** `x-amz-server-side-encryption-customer-algorithm: AES256` and the key MD5 (`08-right-key`), which `com.amazonaws.s3#CompleteMultipartUploadOutput` has no member for; understudy does not echo them yet.
+  - `ListParts` without SSE-C headers: `400 InvalidRequest`, "The multipart upload initiate requested encryption. To retrieve Part Checksum data requests must include the appropriate encryption parameters." (`08-list-parts-no-key`), not the 200 that was guessed.
+- `ListParts` works without SSE-C headers on an SSE-C upload without a checksum algorithm (L13042). `com.amazonaws.s3#ListPartsRequest$SSECustomerKey` carries the same "needed only when the object was created using a checksum algorithm" note as Complete (model), which S3SOL-08 bears out. Still UNVERIFIED: SSE-C headers sent on ListParts or Complete of an upload without a checksum algorithm (understudy judges them as UploadPart's), and ListParts with another key.
 
 ### 3.7 Versions
 
@@ -130,7 +134,7 @@ SSE-C does not change the checksum rules of [s3.md](s3.md) 6: a raw SSE-C PUT wi
 
 "When creating a presigned URL, you must specify the algorithm by using the `x-amz-server-side-encryption-customer-algorithm` header in the signature calculation", and the client must send all three headers when it uses the URL ([ssec-spec](https://docs.aws.amazon.com/AmazonS3/latest/userguide/specifying-s3-c-encryption.html), "Presigned URLs and SSE-C"). S3 refuses a presigned request carrying `x-amz-*` headers it did not sign with `403 AccessDenied` "There were headers present in the request which were not signed" and `HeadersNotSigned` ([s3.md](s3.md) 12; `internal/auth/verify.go` `checkAllAmzHeadersSigned`).
 
-- UNVERIFIED (S3SOL-09): that a URL signing only `host` and used with the three SSE-C headers gets that `HeadersNotSigned` refusal (rather than SSE-C being exempt).
+- Recorded (S3SOL-09, recorded 2026-11-03; `testdata/parity/s3/S3SOL/09-*.json`): a URL signing only `host`, used with the three SSE-C headers, gets `403 AccessDenied` "There were headers present in the request which were not signed" with `HeadersNotSigned` naming only `x-amz-server-side-encryption-customer-algorithm` (`09-presign-unsigned-ssec`). S3 names every unsigned header it refuses (error-matrix.md 5.4 T8), so the key and its MD5 are exempt from signing; that a URL signing the algorithm then serves the object with the key and MD5 unsigned is inferred. Without SSE-C headers the URL gets the 3.3 400 (`09-presign-no-ssec`).
 
 ### 3.11 What S3 keeps
 
@@ -152,15 +156,16 @@ SSE-C does not change the checksum rules of [s3.md](s3.md) 6: a raw SSE-C PUT wi
 ### 4.2 Blocking and unblocking
 
 - `BlockedEncryptionTypes` is a member of `com.amazonaws.s3#ServerSideEncryptionRule`, a flattened list of `com.amazonaws.s3#EncryptionType` with values `NONE` and `SSE-C` (model; [API_BlockedEncryptionTypes](https://docs.aws.amazon.com/AmazonS3/latest/API/API_BlockedEncryptionTypes.html): "Valid Values: NONE | SSE-C"). "If your workload requires SSE-C, you must explicitly enable it by setting `BlockedEncryptionTypes` to `NONE`" ([ssec](https://docs.aws.amazon.com/AmazonS3/latest/userguide/ServerSideEncryptionCustomerKeys.html)).
-- Rule shapes AWS documents: with a default (`ApplyServerSideEncryptionByDefault` + `BlockedEncryptionTypes`, the boto3 and Java examples in [ssec-block](https://docs.aws.amazon.com/AmazonS3/latest/userguide/blocking-unblocking-s3-c-encryption-gpb.html)), and **without** a default: the CLI examples there and `API_PutBucketEncryption` Example 4 send a `Rule` holding only `BlockedEncryptionTypes` ([API_PutBucketEncryption](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketEncryption.html)). `ApplyServerSideEncryptionByDefault` is "Required: No" ([API_ServerSideEncryptionRule](https://docs.aws.amazon.com/AmazonS3/latest/API/API_ServerSideEncryptionRule.html)). `internal/service/s3/subresources.go` `checkEncryption` (L546) refuses that second form with `MalformedXML`, contradicting the docs.
-- UNVERIFIED (S3SOL-10): what `GetBucketEncryption` returns after an unblock, in either form (an `<EncryptionType>NONE</EncryptionType>` element, or no element, and whether the default-free form gains the `AES256` default), and whether an empty `Rule` is refused with `MalformedXML`. Terraform's second plan depends on the first (9.5).
-- UNVERIFIED (S3SOL-11): a later `PutBucketEncryption` that omits `BlockedEncryptionTypes`, and `DeleteBucketEncryption`, on a bucket set to `NONE`: keep `NONE` or return to `SSE-C`. Recorded only from the default state (section 2).
+- Rule shapes AWS documents: with a default (`ApplyServerSideEncryptionByDefault` + `BlockedEncryptionTypes`, the boto3 and Java examples in [ssec-block](https://docs.aws.amazon.com/AmazonS3/latest/userguide/blocking-unblocking-s3-c-encryption-gpb.html)), and **without** a default: the CLI examples there and `API_PutBucketEncryption` Example 4 send a `Rule` holding only `BlockedEncryptionTypes` ([API_PutBucketEncryption](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketEncryption.html)). `ApplyServerSideEncryptionByDefault` is "Required: No" ([API_ServerSideEncryptionRule](https://docs.aws.amazon.com/AmazonS3/latest/API/API_ServerSideEncryptionRule.html)). `internal/service/s3/subresources.go` `checkEncryption` accepts both, and the empty rule (S3SOL-10, below).
+- Recorded (S3SOL-10, recorded 2026-11-03; `testdata/parity/s3/S3SOL/10-*.json`): a rule holding only `BlockedEncryptionTypes` `NONE` is accepted (200), and `GetBucketEncryption` then reads, byte for byte, `<Rule><BucketKeyEnabled>false</BucketKeyEnabled><ApplyServerSideEncryptionByDefault><SSEAlgorithm>AES256</SSEAlgorithm></ApplyServerSideEncryptionByDefault><BlockedEncryptionTypes><EncryptionType>NONE</EncryptionType></BlockedEncryptionTypes></Rule>`: the default-free form gains the `AES256` default and `BucketKeyEnabled` `false` (`10-get-rule-only`). The full form put in 12.1 reads back the same (`10-get-full-form`). An SSE-C PutObject then succeeds (`10-put-ssec`). An empty `<Rule />` is **accepted** (200), not `MalformedXML`, and reads back as a new bucket's rule, `AES256` with `SSE-C` blocked (`10-put-empty-rule`, `10-get-after-empty-rule`).
+- Recorded (S3SOL-11, recorded 2026-11-03; `11-*.json`): on a bucket set to `NONE`, a `PutBucketEncryption` whose rule omits `BlockedEncryptionTypes` and a `DeleteBucketEncryption` each put the block **back to `SSE-C`**: the GET reads `SSE-C` and an SSE-C PutObject is refused with the 4.3 403 (`11-get-after-omit`, `11-ssec-after-omit`, `11-get-after-delete`, `11-ssec-after-delete`). A Put without the element is a whole new rule, not a merge. In me-south-1 and me-central-1 the reset is inferred to go to their new-bucket state, `NONE` (4.1); unrecorded. A rule with only `BucketKeyEnabled` is inferred to be accepted like the empty rule (unrecorded).
 
 ### 4.3 What the block refuses
 
 - "While SSE-C is blocked, any `PutObject`, `CopyObject`, `PostObject`, Multipart Upload, or replication request that specifies SSE-C encryption is rejected with an HTTP 403 `AccessDenied` error." ([ssec](https://docs.aws.amazon.com/AmazonS3/latest/userguide/ServerSideEncryptionCustomerKeys.html); [API_UploadPart](https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPart.html) and [API_UploadPartCopy](https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPartCopy.html) say the same for parts.)
 - Reads are not blocked: existing SSE-C objects can still be read "with `GetObject` or `HeadObject` by providing the required SSE-C headers" ([ssec-block](https://docs.aws.amazon.com/AmazonS3/latest/userguide/blocking-unblocking-s3-c-encryption-gpb.html)); SSE-C headers on a read of a plain object in a blocked bucket get the 400 "not applicable" answer, not the 403 (`testdata/parity/s3/R15/x-ssec-on-non-ssec-read.json`). The bucket was created on 2026-10-14, so it is blocked; that is inferred, because R15 did not record its encryption configuration (section 2). Copy-source SSE-C headers are a read of the source, so a blocked target bucket refuses only target SSE-C headers (inferred).
-- UNVERIFIED (S3SOL-01): the 403 message, whether the block is checked before or after the 3.2 header validation, and that copy-source-only SSE-C headers pass a blocked target bucket. `internal/service/s3/sse.go` `errSSECBlocked` (L260) uses an invented sentence today. Plausible: S3's generic "Access Denied" ([API_Error](https://docs.aws.amazon.com/AmazonS3/latest/API/API_Error.html) description for `AccessDenied`) or a specific sentence.
+- Recorded (S3SOL-01, recorded 2026-11-03; `testdata/parity/s3/S3SOL/01-*.json`): the refusal is `403 AccessDenied` with no element but `Message`, a specific sentence naming the caller, an action and the object: `User: arn:aws:sts::123456789012:assumed-role/AccountFullAccessRole/<session> is not authorized to perform: s3:PutObject on resource: "arn:aws:s3:::<bucket>/<key>" because this bucket has blocked upload requests that specify Server Side Encryption with Customer provided keys (SSE-C). Please specify a different server-side encryption type.` PutObject and CreateMultipartUpload name `s3:PutObject`; CopyObject names `s3:CopyObject`, which is not an IAM action. The 3.2 header validation runs first: algorithm `KMS` to a blocked bucket got `InvalidEncryptionAlgorithmError`, not the 403 (`01-put-bad-algo`). A copy with copy-source SSE-C headers only into a blocked bucket succeeds, 200 with `x-amz-server-side-encryption: AES256` (`01-copy-source-only`).
+- Still UNVERIFIED: the action UploadPart and UploadPartCopy name (understudy names `s3:PutObject`, their IAM action), and the text for a caller outside the owner's account or an anonymous one (understudy renders the recorded form for any caller).
 
 ## 5. Object Lock bucket configuration
 
@@ -176,13 +181,13 @@ SSE-C does not change the checksum rules of [s3.md](s3.md) 6: a raw SSE-C PUT wi
 - `PUT /?object-lock`, body root `ObjectLockConfiguration` with `ObjectLockEnabled` (only value `Enabled`, `com.amazonaws.s3#ObjectLockEnabled`) and optional `Rule/DefaultRetention{Mode, Days | Years, DefaultEventHold{Days | Years}}`; headers `x-amz-bucket-object-lock-token` ("A token to allow Object Lock to be enabled for an existing bucket"), `Content-MD5`, `x-amz-sdk-checksum-algorithm`, `x-amz-expected-bucket-owner`, `x-amz-request-payer`; response 200 empty ([API_PutObjectLockConfiguration](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObjectLockConfiguration.html); aws-recorded `testdata/parity/s3/R12/11-put-default-retention.json`).
 - `MalformedXML` (standard text) for: no `ObjectLockEnabled`, an empty configuration, an empty `Rule`, an empty `DefaultRetention`, `Mode` without a period, a bad `Mode`, `Days` and `Years` together (LS test_s3_api.snapshot.json:L2521-L2581). "The `DefaultRetention` settings require both a mode and a period" and "You cannot specify `Days` and `Years` at the same time" (`com.amazonaws.s3#DefaultRetention` documentation).
 - `Get` echoes the stored rule (`Days=1`, `Mode=GOVERNANCE`, LS test_s3_api.snapshot.json:L2486); a later Put of `ObjectLockEnabled` alone removes the default (L2501, L2507; also the documented removal command in [lock-config](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock-configure.html)).
-- The model has no `@range` on `com.amazonaws.s3#Days`, `#Years` or `#EventHoldDuration` members. "The maximum retention period is 100 years." ([lock-manage](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock-managing.html), retention limits). UNVERIFIED (S3SOL-13, with 5.3): the refusal for `Days` 0 or above 36,500, and `Years` 0 or above 100.
+- The model has no `@range` on `com.amazonaws.s3#Days`, `#Years` or `#EventHoldDuration` members. "The maximum retention period is 100 years." ([lock-manage](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock-managing.html), retention limits). Recorded (S3SOL-13, recorded 2026-11-03; `testdata/parity/s3/S3SOL/13-*.json`): `Days` 0 gets `400 InvalidArgument`, "Default retention period must be a positive integer value.", `ArgumentName=Days`, `ArgumentValue=0`; `Days` 36501 and `Years` 101 get `400 InvalidArgument`, "Default retention period too large.", with `ArgumentName` `Days` or `Years` and the value. Not `MalformedXML`, as was guessed. `Years` 0 is inferred to get the "positive integer" text (unrecorded).
 
 ### 5.3 Default retention dating
 
 - "Amazon S3 calculates a Retain Until Date for the object version by adding the specified duration to the object version's creation timestamp"; explicit per-object settings override the default ([lock](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock.html), "Retention periods"). Recorded: a PUT into a `GOVERNANCE`/`Days=1` bucket reports `ObjectLockMode=GOVERNANCE` and a retain-until date within 2 minutes of `LastModified` + 1 day, which the test asserts as "precise" (LS test_s3.snapshot.json:L9711; assertion LS test_s3.py:L9945-L9953).
 - The PUT response does not echo the lock state (L9700, L9656): `com.amazonaws.s3#PutObjectOutput` has no lock members.
-- UNVERIFIED (S3SOL-13): how `Years` is converted. Plausible: calendar years, or 365-day years. The only AWS statement is about event-hold durations checked against a policy condition key: "When you set a duration in years, Amazon S3 converts it to days for evaluation against the `s3:object-lock-event-hold-duration-days` condition key. Amazon S3 counts 1 year as 365 days and doesn't count leap years" ([lock-manage](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock-managing.html), "Bucket policy doesn't match a duration that is set in years").
+- Recorded (S3SOL-13, recorded 2026-11-03): `Years` are calendar years. A PUT into a `GOVERNANCE`/`Years=2` bucket at 2026-11-03T03:40:47Z got `x-amz-object-lock-retain-until-date: 2028-11-03T03:40:47.030Z` (`13-head`), 731 days later, as the span holds 2028-02-29; 365-day years would have given 2028-11-02. CopyObject into the same bucket dates the same way (S3SOL-16 `16-head`, `16-head-b`). The base instant has milliseconds and falls between the request's `X-Amz-Date` and its response `Date` (03:40:46 and 03:40:48 for `13-put`), with `Last-Modified` 03:40:48, so S3 dates from the start of the write while `Last-Modified` is its end (inferred from one sample). How 29 February moves by a year is UNVERIFIED. For contrast, the only earlier AWS statement is about event-hold durations checked against a policy condition key: "When you set a duration in years, Amazon S3 converts it to days for evaluation against the `s3:object-lock-event-hold-duration-days` condition key. Amazon S3 counts 1 year as 365 days and doesn't count leap years" ([lock-manage](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock-managing.html), "Bucket policy doesn't match a duration that is set in years").
 
 ## 6. Per-object lock state
 
@@ -198,17 +203,26 @@ SSE-C does not change the checksum rules of [s3.md](s3.md) 6: a raw SSE-C PUT wi
 | date without mode | same | `ArgumentName=x-amz-object-lock-mode` | L17927 |
 | bad mode with a date | Unknown wormMode directive. | `ArgumentName=x-amz-object-lock-mode`, `ArgumentValue=BAD-VALUE` | L17938 (PutObject), L17950 (CreateMultipartUpload) |
 
-- UNVERIFIED (S3SOL-17): lock headers on a bucket without Object Lock. Plausible: `400 InvalidRequest` "Bucket is missing Object Lock Configuration", the recorded text of the retention and legal-hold operations (6.4).
-- UNVERIFIED (S3SOL-18): a past date, an unparsable date, a date more than 100 years out, a bad legal-hold value on PutObject, and the summer-time rendering of the 6.4 past-date `ArgumentValue`. Plausible: the 6.4 past-date text with `ArgumentName=x-amz-object-lock-retain-until-date`.
+- Recorded (S3SOL-17, recorded 2026-11-03; `testdata/parity/s3/S3SOL/17-*.json`): lock headers on a bucket without Object Lock get `400 InvalidRequest`, "Bucket is missing ObjectLockConfiguration", with no space in the last word, unlike the retention and legal-hold operations' "Bucket is missing Object Lock Configuration" (6.4). Recorded for a retention and for a legal hold `ON` on PutObject to a versioned bucket, a retention on PutObject to an unversioned one, and a legal hold `ON` on CreateMultipartUpload and CopyObject. A hold `OFF` is inferred to be refused the same way; whether this check runs before the 6.3 checksum rule is inferred (every S3SOL-17 step sent a checksum).
+- Recorded (S3SOL-18, recorded 2026-11-03; `testdata/parity/s3/S3SOL/18-*.json`), each on PutObject to a lock bucket:
+
+| Request | Status, code | Message | Elements | Step |
+|---|---|---|---|---|
+| past date `2020-07-01T00:00:00Z` | 400 `InvalidArgument` | The retain until date must be in the future! | `ArgumentName=x-amz-object-lock-retain-until-date`, `ArgumentValue=2020-07-01T00:00:00Z` | `18-past-date` |
+| unparsable date `tomorrow` | 400 `InvalidArgument` | The retain until date must be provided in ISO 8601 format | `ArgumentName=x-amz-object-lock-retain-until-date`, `ArgumentValue=tomorrow` | `18-bad-date` |
+| legal hold `MAYBE` | 400 `InvalidArgument` | Legal Hold must be either of 'ON' or 'OFF' | `ArgumentName=x-amz-object-lock-legal-hold`, `ArgumentValue=MAYBE` | `18-bad-hold` |
+| date `2127-01-01T00:00:00Z`, over 100 years out | 200, accepted | | | `18-over-100-years` |
+
+- Unlike the 6.4 element, the header's past date is named in its ISO 8601 form, not Java's. Whether S3 echoes the sent text or renders the parsed date is UNVERIFIED (the recorded value is the same either way); understudy renders the parsed date in UTC, with fractional seconds only when present. The 100-year limit of the docs (5.2) does not bound a retain-until date; PutObjectRetention is inferred to accept one too, and CopyObject and CreateMultipartUpload to answer as PutObject.
 
 ### 6.3 The Content-MD5 or checksum requirement
 
 - "The `Content-MD5` or `x-amz-sdk-checksum-algorithm` header is required for any request to upload an object with a retention period configured using Object Lock." ([lock-manage](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock-managing.html), "Uploading objects to an Object Lock enabled bucket"; `com.amazonaws.s3#PutObjectRequest$ContentMD5` documentation). `x-amz-sdk-checksum-algorithm` must come with an `x-amz-checksum-*` or `x-amz-trailer` header or the request fails 400 ([API_PutObjectRetention](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObjectRetention.html), header description).
 - Recorded (aws-recorded `testdata/parity/s3/R12/11-put-without-checksum.json`): a PutObject with `x-amz-content-sha256: UNSIGNED-PAYLOAD`, no lock headers, into a bucket whose default retention is `GOVERNANCE`/1 day → `400 InvalidRequest`, "Content-MD5 OR x-amz-checksum- HTTP header is required for Put Object requests with Object Lock parameters".
 - Current SDKs and the CLI send a checksum on every PutObject by default ([s3.md](s3.md) 1 item 5), and Terraform forces CRC32 when any lock argument is set (9.3), so the refusal hits raw clients and older SDKs.
-- UNVERIFIED (S3SOL-14): whether a legal hold alone triggers it (the message says "Object Lock parameters", the docs say "retention period"), and whether a signed `x-amz-content-sha256` payload hash satisfies it (UploadPart says SigV4's payload hash replaces `Content-MD5` there, [API_UploadPart](https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPart.html)).
-- UNVERIFIED (S3SOL-15): multipart uploads under retention: whether `UploadPart` without a checksum is refused, and whether lock headers on `CreateMultipartUpload` land on the completed object (the model carries them only on Create).
-- UNVERIFIED (S3SOL-16): `CopyObject` into a bucket with default retention: whether the new version gets the bucket default (the docs say "every object version placed in the bucket") and whether the copy needs a checksum (it has no body).
+- Recorded (S3SOL-14, recorded 2026-11-03; `testdata/parity/s3/S3SOL/14-*.json`): a raw PutObject with only `x-amz-object-lock-legal-hold: ON` and no checksum is refused with the same `400 InvalidRequest` (`14-legal-hold-only`): the message's "Object Lock parameters", not the docs' "retention period", is the rule. A signed `x-amz-content-sha256` payload hash does not satisfy it (`14-retention-signed-sha256`), and the `UNSIGNED-PAYLOAD` control is refused too (`14-retention-unsigned`). Whether a hold set `OFF` alone triggers it is inferred (understudy: yes).
+- Recorded (S3SOL-15, recorded 2026-11-03): CreateMultipartUpload with `x-amz-object-lock-mode` and `-retain-until-date` and no checksum succeeds (`15-create`); an UploadPart of that upload without a checksum is refused, `400 InvalidRequest`, "Content-MD5 OR x-amz-checksum- HTTP header is required for Put Part requests with Object Lock parameters" (`15-part-no-checksum`). A part of an upload under a bucket default retention, without lock headers on Create, is inferred to be refused the same way (unrecorded). Still UNVERIFIED: whether Create's lock headers land on the completed object; the recipe's Complete sent the refused part's empty ETag and got `InvalidPart` (`15-complete`), so HEAD found no object (`15-head`, 404), and the CRC32 fallback of 12.16 was not run.
+- Recorded (S3SOL-16, recorded 2026-11-03; `testdata/parity/s3/S3SOL/16-*.json`): `CopyObject` into a bucket with a GOVERNANCE 2-year default retention, without a checksum, succeeds, and the new version gets the bucket default (HEAD: GOVERNANCE, a date two years out), whether the source was locked (`16-copy-locked-source`, `16-head`) or in a bucket without Object Lock (`16-copy-plain-source`, `16-head-b`); the source's own date is not carried (6.8).
 
 ### 6.4 PutObjectRetention and GetObjectRetention
 
@@ -226,19 +240,19 @@ SSE-C does not change the checksum rules of [s3.md](s3.md) 6: a raw SSE-C PUT wi
 | shortening GOVERNANCE without bypass; any change that shortens COMPLIANCE or turns it into GOVERNANCE | 403 `AccessDenied` | Access Denied because object protected by object lock. | L9478, L9667, L9893, L17884, L17894 |
 | a delete-marker version | 405 `MethodNotAllowed`, `Method=PUT` or `GET`, `ResourceType=DeleteMarker` | The specified method is not allowed against this resource. | L9805, L9817 |
 
-- The past-date `ArgumentValue` is a Java `Date.toString()` in US Pacific time (the UTC instant 2020-01-01T00:00Z rendered as 2019-12-31 16:00 PST); the PDT form in summer is part of S3SOL-18.
+- The past-date `ArgumentValue` is a Java `Date.toString()` in US Pacific time (the UTC instant 2020-01-01T00:00Z rendered as 2019-12-31 16:00 PST). Recorded (S3SOL-18, recorded 2026-11-03; `18-retention-past-summer`): in summer it is PDT, `Tue Jun 30 17:00:00 PDT 2020` for `2020-07-01T00:00:00Z`.
 - Allowed: setting retention on an unprotected version (L9607); extending GOVERNANCE without bypass (L9871; "Any user with permissions to place an object retention period can extend a retention period", [lock](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock.html)); an empty `<Retention/>` with `x-amz-bypass-governance-retention: true` removes GOVERNANCE retention (L9677); after removal a new short retention can be set without bypass (L9683). Bypass also allows "shortening the retention period, or removing the Object Lock retention period by placing a new `PutObjectRetention` request with empty parameters" ([lock-manage](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock-managing.html), "Bypassing governance mode").
 - COMPLIANCE: "its retention mode can't be changed, and its retention period can't be shortened" ([lock](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock.html)); recorded at L17884, L17894.
-- UNVERIFIED (S3SOL-19): GOVERNANCE to COMPLIANCE (a stricter mode, same or later date) without bypass. Plausible: refused with the 403 above ("users can't overwrite or delete an object version or alter its lock settings unless they have special permissions", [lock](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock.html)), or allowed as an extension.
-- UNVERIFIED (S3SOL-20): `RetainUntilDate` without `Mode`. Plausible: `MalformedXML`, mirroring the recorded `Mode`-without-date case.
-- UNVERIFIED (S3SOL-21): `GetObjectRetention` after the retention was removed (404 `NoSuchObjectLockConfiguration`, or 200 with an empty `Retention`), and whether HEAD then omits the retention headers.
+- Recorded (S3SOL-19, recorded 2026-11-03; `testdata/parity/s3/S3SOL/19-*.json`): GOVERNANCE to COMPLIANCE with a later date, without bypass, is refused with the 403 above (`19-upgrade`); HEAD still shows GOVERNANCE and its date (`19-head`), and a delete of the version gets the same 403 text (`19-delete-locked`, section 10). With bypass it is inferred to be allowed (unrecorded).
+- Recorded (S3SOL-20, recorded 2026-11-03): `RetainUntilDate` without `Mode` is 400 `MalformedXML` with the text above, with or without bypass (`20-date-only`, `20-date-only-bypass`).
+- Recorded (S3SOL-21, recorded 2026-11-03; `testdata/parity/s3/S3SOL/21-*.json`): after the retention was removed (empty `<Retention/>` with bypass), `GetObjectRetention` is 404 `NoSuchObjectLockConfiguration`, "The specified object does not have a ObjectLock configuration" (`21-get-retention`), and HEAD omits the mode and date headers (`21-head`).
 
 ### 6.5 PutObjectLegalHold and GetObjectLegalHold
 
 - `PUT /{Key+}?legal-hold&versionId=`, body `LegalHold{Status}`; `GET` returns `LegalHold{Status}` ([API_PutObjectLegalHold](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObjectLegalHold.html), [API_GetObjectLegalHold](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectLegalHold.html)); `requestChecksumRequired: true` (model). No bypass header: "Legal holds can be freely placed and removed by any user who has the `s3:PutObjectLegalHold` permission" ([lock](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock.html)).
 - Recorded: never set → 404 `NoSuchObjectLockConfiguration` (LS test_s3.snapshot.json:L9919); `ON` → GET `Status=ON` (L9950); missing bucket / key / bucket without Object Lock as in 6.4 (L9970, L9981, L9992, L10012); a request without a body on a bucket **without** Object Lock → `MalformedXML` (L10002), so the body is validated before the bucket's lock state.
-- UNVERIFIED (S3SOL-21): `GetObjectLegalHold` after `OFF`. Plausible: 200 `Status=OFF`, since HEAD then reports `OFF` (6.7).
-- UNVERIFIED (S3SOL-22): which error wins for a missing key on a bucket without Object Lock, and the legal-hold answer for a delete-marker version (plausible: the 405 of 6.4).
+- Recorded (S3SOL-21, recorded 2026-11-03): `GetObjectLegalHold` after `OFF` is 200 `Status=OFF` (`21-get-legal-hold`), and HEAD reports `x-amz-object-lock-legal-hold: OFF` (`21-head`, 6.7).
+- Recorded (S3SOL-22, recorded 2026-11-03; `testdata/parity/s3/S3SOL/22-*.json`): for a missing key on a bucket without Object Lock, the lock state wins: PutObjectLegalHold and GetObjectRetention get 400 `InvalidRequest` "Bucket is missing Object Lock Configuration" (`22-hold-missing-key-nolock`, `22-retention-missing-key-nolock`). PutObjectLegalHold and GetObjectLegalHold of a delete-marker version get the 405 of 6.4 with `Method` and `ResourceType=DeleteMarker`, and the headers `x-amz-delete-marker`, `x-amz-version-id` (the marker's) and `Allow`, without the `Last-Modified` GetObject's 405 carries (`22-hold-delete-marker`, `22-get-hold-delete-marker`); the retention operations' 405 is inferred to match. None of the S3SOL error responses carries `x-amz-bucket-region`.
 - Legal holds are independent of retention: an expired retention does not lift a hold, and lifting a hold does not end a retention ([lock](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock.html), "Legal holds"). Bypass does not lift a hold ([lock-manage](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock-managing.html): "If an object version has a legal hold enabled, the legal hold remains and prevents requests to overwrite or delete the object version").
 
 ### 6.6 GOVERNANCE, COMPLIANCE and bypass
@@ -254,17 +268,28 @@ SSE-C does not change the checksum rules of [s3.md](s3.md) 6: a raw SSE-C PUT wi
 - The legal-hold header "is not returned if the specified version of this object has never had a legal hold applied" ([API_HeadObject](https://docs.aws.amazon.com/AmazonS3/latest/API/API_HeadObject.html)). Recorded: `ON` (LS test_s3.snapshot.json:L9935, L10247), and `OFF` after removal (L10149).
 - Mode and date appear whenever retention is set, from headers, PutObjectRetention or the bucket default (L9623, L9711, L9738).
 - Event-hold duration headers are "Only returned when the event hold is enabled" (same pages).
-- UNVERIFIED (S3SOL-12): the exact form of `x-amz-object-lock-retain-until-date` and of `GetObjectRetention`'s `RetainUntilDate` (`2030-01-01T00:00:00.000Z` or without fraction), and whether sub-second precision of a requested date is kept. Snapshots replace the value with `datetime`.
+- Recorded (S3SOL-12, recorded 2026-11-03; `testdata/parity/s3/S3SOL/12-*.json`, with S3SOL-13 and -16): the `x-amz-object-lock-retain-until-date` header is ISO 8601 UTC with milliseconds only when they are not zero, `2026-11-03T04:40:14Z` for a whole-second date (`12-head`) and `2028-11-03T03:40:47.030Z` for a default-retention date (`13-head`; also `16-head`, `24-head`), the way Java's `Instant.toString()` writes a millisecond instant. `GetObjectRetention`'s `RetainUntilDate` always has them: `2026-11-03T04:40:14.000Z` (`12-get-retention`), `2026-11-04T03:43:27.296Z` (`24-get`). A version whose GOVERNANCE date has passed is deleted by version id without bypass, 204 (`12-delete-after-expiry`, 25 s after a 20 s retention).
+- Still UNVERIFIED: whether a requested date's sub-second part is kept (the CLI sent `2026-11-03T04:40:14Z`, dropping the `.123` the recipe asked for; understudy keeps milliseconds), and the boundary instant equal to the date.
 
 ### 6.8 CopyObject does not carry lock state
 
-A copy of a version under GOVERNANCE retention, or with a legal hold, has neither (LS test_s3.snapshot.json:L9562-L9577, L10202-L10217). Lock state on the target comes only from the copy's own headers or the target bucket's default (S3SOL-16).
+A copy of a version under GOVERNANCE retention, or with a legal hold, has neither (LS test_s3.snapshot.json:L9562-L9577, L10202-L10217). Lock state on the target comes only from the copy's own headers or the target bucket's default (S3SOL-16, recorded 2026-11-03: the default applies, 6.3).
 
 ### 6.9 Variable retention (event holds), new since the LocalStack recordings
 
 - Doc-only. An object stays protected while its event hold is `ON`; releasing the hold fixes the retain-until date at release time plus the duration; a `RetainUntilDate` given alongside is a minimum; while the hold is on, reads return "current time plus the duration"; decreasing the duration never moves the date earlier ([lock](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock.html), "Retain-until-date behavior with variable retention"). Durations are 1 to 36,500 days or 1 to 100 years ([lock-config](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock-configure.html)). A bucket default can carry `DefaultEventHold` ([API_PutObjectLockConfiguration](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObjectLockConfiguration.html)).
 - Refusals are documented as "a `400 Bad Request` response" without codes: no mode; missing or duplicate duration; a duration with `OFF`; `OFF` with no date; a duration out of range ([lock-manage](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock-managing.html), "Request that sets an event hold is rejected").
-- UNVERIFIED (S3SOL-24): the codes and texts of those refusals. Not needed while understudy refuses event holds (11.1).
+- Recorded (S3SOL-24, recorded 2026-11-03; `testdata/parity/s3/S3SOL/24-*.json`), PutObjectRetention on an unprotected version of a lock bucket:
+
+| Body | Status, code | Message | Elements | Step |
+|---|---|---|---|---|
+| `Mode`, `EventHold=ON`, no duration | 400 `InvalidRequest` | EventHold:ON must be supplied with an EventHoldDuration. | | `24-no-duration` |
+| `EventHold=ON`, `Days=1`, no `Mode` | 400 `MalformedXML` | the 6.4 text | | `24-no-mode` |
+| `Days=1` and `Years=1` | 400 `MalformedXML` | the 6.4 text | | `24-both-units` |
+| `Days=36501` | 400 `InvalidArgument` | Event hold duration must be at most 36500 days. | `ArgumentName=Days`, `ArgumentValue=36501` | `24-over-range` |
+| `Mode=GOVERNANCE`, `EventHold=ON`, `Days=1` | 200, with `x-amz-version-id` | | | `24-ok` |
+
+- While the hold is on, GetObjectRetention returns `Mode`, `RetainUntilDate` (the read time plus the duration, with milliseconds), `EventHold=ON` and `EventHoldDuration{Days=1}` (`24-get`), and HEAD sends `x-amz-object-lock-event-hold: ON`, `x-amz-object-lock-event-hold-duration-days: 1` and a retain-until date that moves with the read time (`24-head`). `EventHold=OFF` with `Mode` and no date releases it, 200 with `x-amz-version-id` (`24-release`); GetObjectRetention then returns the release time plus one day, fixed, with `EventHold=OFF` and no duration (`24-get-released`). understudy still refuses event holds with 501 (11.1, 11.7); the model's PutObjectRetentionOutput has no member for the `x-amz-version-id` header, and whether a plain retention put sends it is unrecorded.
 
 ## 7. Deletes under Object Lock
 
@@ -272,7 +297,7 @@ A copy of a version under GOVERNANCE retention, or with a legal hold, has neithe
 
 - Without `versionId` (simple delete) on a locked version: a new delete marker, whatever the lock ([lock](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock.html), "How deletes work"). The status is `204`, with `DeleteMarker=true` (recorded at LS test_s3.snapshot.json:L9797 and L17866; the model binds DeleteObject to 204, section 8). The doc page says "`200 OK`" here (section 10). "Delete markers are not WORM-protected" ([lock-manage](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock-managing.html)).
 - With `versionId` on a protected version: `403 AccessDenied`, "Access Denied because object protected by object lock." (L9639 GOVERNANCE, L17856 COMPLIANCE, L10044 legal hold). GOVERNANCE with `x-amz-bypass-governance-retention: true` → 204 (L9649); COMPLIANCE with bypass → 403 (L17874).
-- After the retain-until date passes, a versioned delete without bypass succeeds (L17904; LS test_s3.py:L9871-L9883 deletes after sleeping past a 5-second retention, validated). The comparison runs on S3's clock; the boundary (equal instant) is part of S3SOL-12.
+- After the retain-until date passes, a versioned delete without bypass succeeds (L17904; LS test_s3.py:L9871-L9883 deletes after sleeping past a 5-second retention, validated; S3SOL-12 `12-delete-after-expiry`, recorded 2026-11-03). The comparison runs on S3's clock; the boundary (equal instant) is UNVERIFIED: S3SOL-12 deleted 5 s after the date.
 
 ### 7.2 DeleteObjects
 
@@ -282,7 +307,7 @@ A locked version in the batch is reported per key, HTTP 200: `<Error><Key>..</Ke
 
 `DeleteObject` with `x-amz-bypass-governance-retention: true` **or `false`**, and `DeleteObjects` with `true`, on an unversioned bucket without Object Lock → `400 InvalidArgument`, "x-amz-bypass-governance-retention is only applicable to Object Lock enabled buckets.", `ArgumentName=x-amz-bypass-governance-retention` (LS test_s3_api.snapshot.json:L3535, L3546, L3557). The header's presence, not its value, triggers it.
 
-- UNVERIFIED (S3SOL-23): the same on a versioned bucket without Object Lock, with a `versionId`, and what `false` means on a bucket with Object Lock. Plausible: the same 400, and no bypass. Terraform's `aws_s3_object` sends the header with `true` on destroy with `force_destroy = true` (9.6).
+- Recorded (S3SOL-23, recorded 2026-11-03; `testdata/parity/s3/S3SOL/23-*.json`): on a versioned bucket without Object Lock, `DeleteObject` with a `versionId` and `true` (`23-delete-version-bypass`) and `DeleteObjects` naming a version with `true` (`23-delete-objects-version-bypass`) get the same 400 with `ArgumentName`; on a lock bucket, `false` is no bypass: deleting a GOVERNANCE version gets the lock 403 (`23-lock-bucket-false`). Terraform's `aws_s3_object` sends the header with `true` on destroy with `force_destroy = true` (9.6).
 
 ### 7.4 Lifecycle, replication, notifications
 
@@ -325,11 +350,11 @@ A locked version in the batch is reported per key, HTTP 200: `<Error><Key>..</Ke
 ### 9.4 `aws_s3_object_copy`
 
 - SSE-C: `customer_algorithm`, `customer_key` (Sensitive), `customer_key_md5`, and `source_customer_algorithm`, `source_customer_key` (Sensitive), `source_customer_key_md5` (TF object_copy.go:L144-L158, L325-L337), passed to CopyObject as given (L599-L608, L669-L678), so the user supplies base64 and MD5; changing any re-copies (L455-L490).
-- Read is `findObjectByBucketAndKey` with no SSE-C headers (L390), so against AWS the refresh of an SSE-C target hits the 3.3 refusal (inferred; S3SOL-05 settles the HEAD form). understudy must refuse the same way rather than make this resource work.
+- Read is `findObjectByBucketAndKey` with no SSE-C headers (L390), so against AWS the refresh of an SSE-C target hits the 3.3 refusal (inferred; the HEAD form is S3SOL-05's 400 with no body, recorded 2026-11-03). understudy must refuse the same way rather than make this resource work.
 
 ### 9.5 `aws_s3_bucket_server_side_encryption_configuration`
 
-`rule.blocked_encryption_types` is Optional+Computed, a list of `EncryptionType` (TF bucket_server_side_encryption_configuration.go:L84-L92), sent only when non-empty (L332-L334) and set from the GET only when the element has values (L356-L360, L398-L404). Omitted in config: the computed value from the GET (`["SSE-C"]` on AWS, section 2) is accepted. Set to `["NONE"]`: an empty second plan needs the GET to return `NONE` (S3SOL-10).
+`rule.blocked_encryption_types` is Optional+Computed, a list of `EncryptionType` (TF bucket_server_side_encryption_configuration.go:L84-L92), sent only when non-empty (L332-L334) and set from the GET only when the element has values (L356-L360, L398-L404). Omitted in config: the computed value from the GET (`["SSE-C"]` on AWS, section 2) is accepted. Set to `["NONE"]`: an empty second plan needs the GET to return `NONE`, which it does (S3SOL-10, 4.2).
 
 ### 9.6 Destroy paths that touch Object Lock
 
@@ -341,7 +366,7 @@ A locked version in the batch is reported per key, HTTP 200: `<Error><Key>..</Ke
 
 - `InvalidEncryptionAlgorithmError` text: [API_Error](https://docs.aws.amazon.com/AmazonS3/latest/API/API_Error.html) says "The encryption request you specified is not valid. The valid value is AES256."; AWS answered "The Encryption request you specified is not valid. Supported value: AES256." (3.2). The recording wins.
 - Locked-delete text: the AWS SDK examples' Object Lock scenario shows `Access Denied` for a locked delete in its sample output (`awsdocs/aws-doc-sdk-examples scenarios/features/s3_object_lock/SPECIFICATION.md:L259` @ a352b04, date unknown; a .NET exception message), while the 2026-02-21 recordings say "Access Denied because object protected by object lock." (7.1). The recording wins; S3SOL-19 captures a fresh one as a side step.
-- Unblocking rule shape: the API reference and CLI examples send a rule without `ApplyServerSideEncryptionByDefault` (4.2); understudy refuses it. The docs win.
+- Unblocking rule shape: the API reference and CLI examples send a rule without `ApplyServerSideEncryptionByDefault` (4.2); understudy refused it. The docs won, and S3SOL-10 recorded AWS accepting it (4.2).
 - Status of a simple delete under lock: [lock](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock.html), "How deletes work", says S3 "returns a `200 OK` response and inserts a delete marker". The 2026-02-21 recordings got 204 (LS test_s3.snapshot.json:L9797, L17866), and the model binds `DeleteObject` to 204 (7.1). The recordings win.
 - Checksum requirement: the docs name `Content-MD5` or `x-amz-sdk-checksum-algorithm`; the recorded message names `Content-MD5` or an `x-amz-checksum-` header (6.3). Both are satisfied by a real `x-amz-checksum-*` header, which is what clients send.
 - `docs/coverage.md` marks Put/Get/DeleteBucketEncryption `stored-only ... not applied`, but `internal/service/s3/sse.go` `bucketDefault` applies the default algorithm and KMS key to writes. The coverage note is stale. Its source is the `stored("the default encryption rule is")` registration in `internal/service/s3/subresources.go` `bindEncryption` (L523-L543), which generates those rows, so the fix belongs in that registration, followed by `just coverage-check`.
@@ -355,8 +380,8 @@ Note texts are the exact `registry.Partial{Note: ...}` strings proposed; parts o
 | Operation | Today | Target | Note |
 |---|---|---|---|
 | PutObject | partial | partial | an object ACL a bucket accepts is not stored; user metadata is stored as sent, without RFC 2047 decoding; chunk signatures are verified under sigv4 verify; Object Lock event-hold headers are refused with NotImplemented |
-| GetObject | partial | partial | presigned URLs are verified and expire on the emulator clock under sigv4 verify; x-amz-checksum-mode is accepted in any case, and a value other than ENABLED is refused with InvalidArgument, where AWS's answer is UNVERIFIED (s3.md 5.8, recording S3-01) |
-| HeadObject | partial | partial | presigned URLs are verified and expire on the emulator clock under sigv4 verify; x-amz-checksum-mode is accepted in any case, and a value other than ENABLED is refused with InvalidArgument, where AWS's answer is UNVERIFIED (s3.md 5.8, recording S3-01) |
+| GetObject | partial | partial | presigned URLs are verified and expire on the emulator clock under sigv4 verify |
+| HeadObject | partial | partial | presigned URLs are verified and expire on the emulator clock under sigv4 verify |
 | GetObjectAttributes | partial | full | |
 | CopyObject | partial | partial | an object ACL a bucket accepts is not stored; errors after the copy starts are not sent as 200-with-error; Object Lock event-hold headers are refused with NotImplemented |
 | CreateMultipartUpload | partial | partial | an object ACL a bucket accepts is not stored; no lifecycle abort date; Object Lock event-hold headers are refused with NotImplemented |
@@ -382,22 +407,22 @@ Run `just coverage-check` after re-marking and commit the regenerated `docs/cove
 
 - Object encryption becomes a closed sum of SSE-S3, SSE-KMS and SSE-C (today `Encryption{KMS *KMSEncryption}` with nil for SSE-S3, `internal/service/s3/sse.go`). The SSE-C variant holds a per-version random salt and HMAC-SHA256(salt, key), never the key (3.11). Bytes may be stored as sent, as SSE-KMS already does (`internal/service/s3/doc.go`); the observable contract is the key check, not ciphertext at rest.
 - Responses echo the request's key MD5; nothing needs to store it.
-- A multipart upload records its SSE choice, including the SSE-C fingerprint, so UploadPart can compare (3.6); ListParts needs none (recorded without a checksum algorithm; with one it follows `s3.sse-c.complete-headers`, S3SOL-08).
+- A multipart upload records its SSE choice, including the SSE-C fingerprint, so UploadPart can compare (3.6); ListParts needs none without a checksum algorithm (L13042) and needs the key with one (S3SOL-08, `s3.sse-c.complete-headers`).
 - Per version lock state: `Retention` = none, or `{Mode, RetainUntil}` with `RetainUntil` an emulator-clock instant; `LegalHold` = never, on, or off (three states, since HEAD omits the header only for never, 6.7). Delete markers carry no lock state.
-- Bucket: `ObjectLock` config (today stored, `internal/service/s3/state.go`) becomes applied at write time (5.3). Encryption config keeps `BlockedEncryptionTypes` as a separate field so that a Put omitting it follows S3SOL-11's answer instead of erasing it (today `bindEncryption` stores the input verbatim, `internal/service/s3/subresources.go:L523`).
+- Bucket: `ObjectLock` config (today stored, `internal/service/s3/state.go`) becomes applied at write time (5.3). Encryption config keeps `BlockedEncryptionTypes` as a separate field, which a Put omitting it, or a Delete, puts back to the new-bucket block (S3SOL-11, 4.2).
 - New buckets get SSE-C blocked unless their region is `me-south-1` or `me-central-1` (4.1). The overlay default already carries the element (`codegen/overlays/s3.json`, `GetBucketEncryption` `notConfigured`).
 
 ### 11.3 Rules to implement
 
 - `resolveSSE` (`internal/service/s3/sse.go:L77`): replace the unconditional `errSSECBlocked` with: 3.2 validation in the order conflict, algorithm, presence, key length, MD5 (only "conflict before algorithm" is recorded, 3.2; the rest of the order is inferred, because each recorded request had a single fault), then the bucket block (order against validation from S3SOL-01), then HTTPS (switch).
-- Reads: GET, HEAD, GetObjectAttributes, copy source and UploadPartCopy source compare the request against the stored variant: SSE-C object without headers → 400 "stored using a form"; with headers on a non-SSE-C object → 400 "not applicable" (aws-recorded); wrong key → 403, including a wrong-length key with a matching MD5 (3.3; this is recorded for 44 bytes only, and a short key is S3SOL-04).
+- Reads: GET, HEAD, GetObjectAttributes, copy source and UploadPartCopy source compare the request against the stored variant: SSE-C object without headers → 400 "stored using a form"; with headers on a non-SSE-C object → 400 "not applicable" (aws-recorded); wrong key → 403 on a read, and 400 `InvalidRequest` "did not match the ones used originally" on a copy source (S3SOL-07), including a wrong-length key with a matching MD5 (3.3; recorded for 44 bytes and, S3SOL-04, 10 bytes); a key without its MD5 passes with the MD5 computed (S3SOL-03, recorded on GET).
 - ETags: random 32 hex for SSE-C single writes, SSE-C copy targets and SSE-C parts, and random 32 hex plus `-N` for an SSE-C multipart object, because AWS's value is not the MD5 of the part ETags (3.4). The random digits are inferred; no recording can pin a value AWS derives from state it never returns. Never derive an SSE-C ETag from content or from part ETags.
 - Omit `x-amz-server-side-encryption` on every SSE-C response; echo the SSE-C pair on PutObject, CopyObject, CreateMultipartUpload, UploadPart, UploadPartCopy, GetObject, HeadObject; none on CompleteMultipartUpload and GetObjectAttributes (3.4).
-- `checkEncryption` (`internal/service/s3/subresources.go:L546`): accept a rule whose only member is `BlockedEncryptionTypes` (4.2); keep `MalformedXML` for zero or two rules ([s3.md](s3.md) 4.2.2) and for a rule with neither member (inferred; S3SOL-10).
-- PutObject, CopyObject, CreateMultipartUpload: 6.2 pairing check, then mode value, then (S3SOL-17) the bucket's lock state, then the 6.3 checksum rule for PutObject, then apply explicit settings or the bucket default with `RetainUntil = creation instant + Days` (Years per switch).
-- Retention and legal hold operations: 6.4/6.5 tables in order: body (`MalformedXML`), bucket exists, bucket has Object Lock, key/version exists, delete marker (405), date in the future. Only "body before the bucket's lock state" is recorded (6.5). Body before bucket existence is inferred, and lock state before key is S3SOL-22 (`s3.object-lock.check-order`). Then come the change rules: extend always; shorten or remove GOVERNANCE only with bypass true; COMPLIANCE never shortened or changed to GOVERNANCE.
+- `checkEncryption` (`internal/service/s3/subresources.go`): accept a rule whose only member is `BlockedEncryptionTypes`, and an empty rule (4.2; S3SOL-10); keep `MalformedXML` for zero or two rules ([s3.md](s3.md) 4.2.2).
+- PutObject, CopyObject, CreateMultipartUpload: 6.2 pairing check, then mode value, then (S3SOL-17) the bucket's lock state, then the 6.3 checksum rule for PutObject (and, per part, for UploadPart), then apply explicit settings or the bucket default with `RetainUntil = creation instant + Days`, or plus calendar `Years` (5.3).
+- Retention and legal hold operations: 6.4/6.5 tables in order: body (`MalformedXML`), bucket exists, bucket has Object Lock, key/version exists, delete marker (405), date in the future. "Body before the bucket's lock state" is recorded (6.5), and so is lock state before key (S3SOL-22, recorded 2026-11-03; `s3.object-lock.check-order`). Body before bucket existence is inferred. Then come the change rules: extend always; shorten or remove GOVERNANCE only with bypass true; COMPLIANCE never shortened or changed to GOVERNANCE.
 - Deletes: simple delete always adds a marker on a lock bucket; versioned delete of a version with a legal hold `ON`, or with `RetainUntil` after now (emulator clock) and COMPLIANCE, or GOVERNANCE without bypass true → 403 `AccessDenied` (7.1); DeleteObjects reports it per key with `VersionId` (7.2); the bypass header on any bucket without Object Lock, whatever its value → 400 (7.3; this is recorded on an unversioned bucket only, and a versioned bucket follows `s3.object-lock.bypass-without-lock`, S3SOL-23).
-- `x-amz-bypass-governance-retention: false` on a lock bucket means no bypass (inferred from the boolean shape; S3SOL-23).
+- `x-amz-bypass-governance-retention: false` on a lock bucket means no bypass (S3SOL-23, recorded 2026-11-03; 7.3).
 - Event-hold headers and elements (`x-amz-object-lock-event-hold*`, `EventHold`, `EventHoldDuration`, `DefaultEventHold`): 501 `NotImplemented` with a `Header` element, in the style of `internal/service/s3/conditional.go` `errConditionNotImplemented`, naming understudy as the source.
 
 ### 11.4 Fidelity switches
@@ -405,32 +430,32 @@ Run `just coverage-check` after re-marking and commit the regenerated `docs/cove
 | Name | Default | Label | Grounds | Record |
 |---|---|---|---|---|
 | `s3.sse-c.plain-http` | `refused`: 400 `InvalidRequest` "Requests specifying Server Side Encryption with Customer provided keys must be made over a secure connection." (text from other S3 servers, 3.9) on the plain-HTTP listener, reads included; SSE-C works over `--tls` | aws-doc | 3.9 | S3SOL-02 |
-| `s3.sse-c.blocked-write` | 403 `AccessDenied` "Access Denied", checked after header validation | inferred | 4.3 | S3SOL-01 |
-| `s3.sse-c.missing-key-md5` | 400 `InvalidArgument` "Requests specifying Server Side Encryption with Customer provided keys must provide the client calculated MD5 of the secret key.", `ArgumentName=x-amz-server-side-encryption` | inferred | 3.2 | S3SOL-03 |
-| `s3.sse-c.key-encoding` | a key that is not base64, and an MD5 mismatch on reads, get the write-side texts of 3.2; a short key with a matching MD5 on reads gets the 403 of 3.3, as the 44-byte key did | inferred | 3.2, 3.3 | S3SOL-04 |
-| `s3.sse-c.metadata-without-key` | HEAD 400 no body; GetObjectAttributes 400 `InvalidRequest` "stored using a form" text | inferred | 3.3 | S3SOL-05 |
-| `s3.sse-c.copy-source-not-applicable` | 400 `InvalidRequest` "The encryption parameters are not applicable to this object." | inferred | 3.5 | S3SOL-06 |
-| `s3.sse-c.copy-source-wrong-key` | 403 `AccessDenied` "correct secret key" text | inferred | 3.5 | S3SOL-07 |
-| `s3.sse-c.complete-headers` | Complete checks SSE-C headers like UploadPart when sent, and requires them when the upload has a checksum algorithm; ListParts never requires them | inferred | 3.6 | S3SOL-08 |
-| `s3.encryption.unblocked-read` | after `NONE`, GET returns `<BlockedEncryptionTypes><EncryptionType>NONE</EncryptionType></BlockedEncryptionTypes>`; a default-free rule reads back with the `AES256` default added; an empty `Rule` is `MalformedXML` | inferred | 4.2 | S3SOL-10 |
-| `s3.encryption.blocked-types-omitted` | a Put without the element, and DeleteBucketEncryption, keep the previous blocked setting | inferred | 4.2 | S3SOL-11 |
-| `s3.object-lock.retain-until-format` | ISO 8601 UTC with milliseconds (`2030-01-01T00:00:00.000Z`), milliseconds of the request kept; a version is deletable once now >= RetainUntil | inferred | 6.7, 7.1 | S3SOL-12 |
-| `s3.object-lock.default-years` | a year is 365 days; Days 1..36500 and Years 1..100, else `MalformedXML` | inferred | 5.2, 5.3 | S3SOL-13 |
-| `s3.object-lock.checksum-scope` | PutObject only, when the new version gets a retention period; satisfied by `Content-MD5` or an `x-amz-checksum-*` header or trailer, not by a signed payload hash | inferred | 6.3 | S3SOL-14, S3SOL-15 |
-| `s3.object-lock.copy-default` | CopyObject into a default-retention bucket applies the default, no checksum needed | inferred | 6.3, 6.8 | S3SOL-16 |
-| `s3.object-lock.headers-without-lock` | 400 `InvalidRequest` "Bucket is missing Object Lock Configuration" | inferred | 6.2 | S3SOL-17 |
-| `s3.object-lock.header-texts` | past date: 400 `InvalidArgument` "The retain until date must be in the future!" with `ArgumentName` the header; a date over 100 years ahead, an unparsable date, a bad legal-hold value: 400 `InvalidArgument` with `ArgumentName` and `ArgumentValue` and an understudy text naming the header; date `ArgumentValue`s rendered as Java `Date.toString()` in America/Los_Angeles (PST or PDT) | inferred | 6.2, 6.4 | S3SOL-18 |
-| `s3.object-lock.mode-upgrade` | GOVERNANCE to COMPLIANCE without bypass refused with the lock 403 | inferred | 6.4 | S3SOL-19 |
-| `s3.object-lock.date-without-mode` | `MalformedXML` | inferred | 6.4 | S3SOL-20 |
-| `s3.object-lock.cleared-reads` | removed retention reads as 404 `NoSuchObjectLockConfiguration` and HEAD omits mode and date; a hold set `OFF` reads as 200 `Status=OFF` | inferred | 6.4, 6.5 | S3SOL-21 |
-| `s3.object-lock.check-order` | the bucket's lock state is checked before the key; legal hold on a delete marker is the 405 of 6.4 | inferred | 6.5 | S3SOL-22 |
-| `s3.object-lock.bypass-without-lock` | the 7.3 400 on every bucket without Object Lock, versioned or not, with or without `versionId`; `false` on a lock bucket is no bypass | third-party-recorded (unversioned only) | 7.3 | S3SOL-23 |
+| `s3.sse-c.blocked-write` | 403 `AccessDenied` with the recorded "is not authorized to perform ... has blocked upload requests" text, checked after header validation | aws-recorded | 4.3 | S3SOL-01 |
+| `s3.sse-c.missing-key-md5` | on writes, 400 `InvalidArgument` "Requests specifying Server Side Encryption with Customer provided keys must provide the client calculated MD5 of the secret key.", `ArgumentName=x-amz-server-side-encryption`; reads compute the MD5 and succeed | aws-recorded | 3.2 | S3SOL-03 |
+| `s3.sse-c.key-encoding` | a key that is not base64 gets the MD5-mismatch text; an MD5 mismatch on reads gets it too; a short key with a matching MD5 on reads gets the 403 of 3.3, as the 44-byte key did | aws-recorded | 3.2, 3.3 | S3SOL-04 |
+| `s3.sse-c.metadata-without-key` | HEAD 400 no body; GetObjectAttributes 400 `InvalidRequest` "stored using a form" text | aws-recorded | 3.3 | S3SOL-05 |
+| `s3.sse-c.copy-source-not-applicable` | 400 `InvalidRequest` "The encryption parameters are not applicable to this object." | aws-recorded | 3.5 | S3SOL-06 |
+| `s3.sse-c.copy-source-wrong-key` | 400 `InvalidRequest` "The provided encryption parameters did not match the ones used originally." | aws-recorded | 3.5 | S3SOL-07 |
+| `s3.sse-c.complete-headers` | ListParts and Complete of an SSE-C upload with a checksum algorithm require the key, with the 3.6 texts (another key on Complete gets the same text); headers sent otherwise are checked like UploadPart's (inferred) | aws-recorded | 3.6 | S3SOL-08 |
+| `s3.encryption.unblocked-read` | after `NONE`, GET returns `<BlockedEncryptionTypes><EncryptionType>NONE</EncryptionType></BlockedEncryptionTypes>`; a default-free rule reads back with the `AES256` default and `BucketKeyEnabled` `false` added; an empty `Rule` is accepted | aws-recorded | 4.2 | S3SOL-10 |
+| `s3.encryption.blocked-types-omitted` | a Put without the element (the empty rule included), and DeleteBucketEncryption, put the block back to a new bucket's, `SSE-C` | aws-recorded | 4.2 | S3SOL-11 |
+| `s3.object-lock.retain-until-format` | ISO 8601 UTC; bodies with milliseconds always (`2026-11-03T04:40:14.000Z`), the header with them only when not zero (`2026-11-03T04:40:14Z`, `2028-11-03T03:40:47.030Z`); a version past its date is deletable. Inferred: milliseconds of the request kept, deletable once now >= RetainUntil | aws-recorded | 6.7, 7.1 | S3SOL-12 |
+| `s3.object-lock.default-years` | a year is a calendar year; Days 1..36500 and Years 1..100, else `InvalidArgument` "Default retention period must be a positive integer value." or "Default retention period too large." naming the element | aws-recorded | 5.2, 5.3 | S3SOL-13 |
+| `s3.object-lock.checksum-scope` | PutObject with any lock header, a legal hold alone included, or into a default-retention bucket, and UploadPart of an upload created with lock headers (or under a default, inferred), with the part's own text; satisfied by `Content-MD5` or an `x-amz-checksum-*` header or trailer, not by a signed payload hash | aws-recorded | 6.3 | S3SOL-14, S3SOL-15 |
+| `s3.object-lock.copy-default` | CopyObject into a default-retention bucket applies the default, no checksum needed | aws-recorded | 6.3, 6.8 | S3SOL-16 |
+| `s3.object-lock.headers-without-lock` | 400 `InvalidRequest` "Bucket is missing ObjectLockConfiguration" | aws-recorded | 6.2 | S3SOL-17 |
+| `s3.object-lock.header-texts` | 400 `InvalidArgument` with `ArgumentName` and `ArgumentValue`: past date "The retain until date must be in the future!" (the header's date in ISO 8601, the element's as Java `Date.toString()` in US Pacific time, PST or PDT), unparsable date "The retain until date must be provided in ISO 8601 format", bad legal hold "Legal Hold must be either of 'ON' or 'OFF'"; a date over 100 years ahead is accepted. Inferred: the same on CopyObject, CreateMultipartUpload and PutObjectRetention | aws-recorded | 6.2, 6.4 | S3SOL-18 |
+| `s3.object-lock.mode-upgrade` | GOVERNANCE to COMPLIANCE without bypass refused with the lock 403 | aws-recorded | 6.4 | S3SOL-19 |
+| `s3.object-lock.date-without-mode` | `MalformedXML` | aws-recorded | 6.4 | S3SOL-20 |
+| `s3.object-lock.cleared-reads` | removed retention reads as 404 `NoSuchObjectLockConfiguration` and HEAD omits mode and date; a hold set `OFF` reads as 200 `Status=OFF` | aws-recorded | 6.4, 6.5 | S3SOL-21 |
+| `s3.object-lock.check-order` | the bucket's lock state is checked before the key; legal hold on a delete marker is the 405 of 6.4, without `Last-Modified` | aws-recorded | 6.5 | S3SOL-22 |
+| `s3.object-lock.bypass-without-lock` | the 7.3 400 on every bucket without Object Lock, versioned or not, with or without `versionId`; `false` on a lock bucket is no bypass | aws-recorded | 7.3 | S3SOL-23 |
 
 The `Ref` of each switch is `docs/research/s3-ssec-object-lock.md#<section anchor>`; `s3.encryption.after-delete` moves to aws-recorded (section 2).
 
 ### 11.5 Limits and texts
 
-Hand-code every text in 3.2, 3.3, 3.6, 5.1, 5.2, 6.2, 6.4, 7.1-7.3 exactly as quoted, with their elements and element order as recorded. Limits: SSE-C key exactly 32 bytes after base64 decoding; key MD5 is base64 of a 16-byte digest; retention at most 100 years; event-hold durations 1..36,500 days or 1..100 years (refused anyway, 11.3).
+Hand-code every text in 3.2, 3.3, 3.6, 5.1, 5.2, 6.2, 6.4, 7.1-7.3 exactly as quoted, with their elements and element order as recorded. Limits: SSE-C key exactly 32 bytes after base64 decoding; key MD5 is base64 of a 16-byte digest; default retention at most 36,500 days or 100 years, with no bound on a retain-until date (6.2); event-hold durations 1..36,500 days or 1..100 years (refused anyway, 11.3).
 
 ### 11.6 Terraform: apply plus an empty second plan
 
@@ -438,8 +463,8 @@ Hand-code every text in 3.2, 3.3, 3.6, 5.1, 5.2, 6.2, 6.4, 7.1-7.3 exactly as qu
 - `aws_s3_bucket_object_lock_configuration`: Get must echo `Mode` and exactly the one of `Days`/`Years` that was put; Delete's enabled-only Put must drop the rule (9.2). Already true; keep it when the config becomes applied.
 - `aws_s3_object` with lock arguments: HEAD must return the three headers in a form that `time.RFC3339` re-renders to the configured string (whole seconds, `Z`), and the CRC32 the provider adds satisfies 6.3 (9.3). Retention updates send bypass when lowering; the 6.4 rules must accept that.
 - Destroy: per-key `AccessDenied` from DeleteObjects and `AccessDenied` from DeleteObject on locked versions, legal-hold removal, then bypass deletes (9.6). A version with both a hold and GOVERNANCE retention must fail the first `terraform destroy` with the lock 403 and go on the second, as on AWS (9.6); understudy must not make the first one succeed.
-- `aws_s3_bucket_server_side_encryption_configuration` with `blocked_encryption_types = ["NONE"]` needs S3SOL-10's read form; without the attribute, the default GET form already round-trips.
-- `aws_s3_object_copy` with `customer_key`: its refresh is expected to fail on AWS (inferred, 9.4; S3SOL-05 records the HEAD); understudy must fail it the same way.
+- `aws_s3_bucket_server_side_encryption_configuration` with `blocked_encryption_types = ["NONE"]` needs S3SOL-10's read form, which understudy writes; without the attribute, the default GET form already round-trips. Dropping the attribute later sends a rule without the element, which re-blocks SSE-C (S3SOL-11).
+- `aws_s3_object_copy` with `customer_key`: its refresh is expected to fail on AWS (inferred, 9.4; S3SOL-05 recorded the HEAD refusal 2026-11-03); understudy must fail it the same way.
 
 ### 11.7 Never fake
 
@@ -521,7 +546,7 @@ rec S3SOL/01-copy-target aws s3api copy-object --bucket "$BB" --key c --copy-sou
 rec S3SOL/01-copy-source-only aws s3api copy-object --bucket "$BB" --key c2 --copy-source "$B/c1" --copy-source-sse-customer-algorithm AES256 --copy-source-sse-customer-key "$K1"
 ```
 
-Expected: 403 `AccessDenied` for the first four (text to record); the bad-algo step shows the order; the last copies (copy-source headers are a read). Cost under USD 0.01, 3 minutes. Teardown: `aws s3api list-multipart-uploads --bucket "$BB"` and abort any upload listed.
+Expected: 403 `AccessDenied` for the first four (text to record); the bad-algo step shows the order; the last copies (copy-source headers are a read). Recorded 2026-11-03: three 403s with the 4.3 text; the bad-algo step got `InvalidEncryptionAlgorithmError` (validation first), not a 403; the last copied (4.3). Cost under USD 0.01, 3 minutes. Teardown: `aws s3api list-multipart-uploads --bucket "$BB"` and abort any upload listed.
 
 ### 12.3 S3SOL-02. SSE-C over plain HTTP
 
@@ -536,7 +561,7 @@ recurl S3SOL/02-get-plain-http -H "x-amz-content-sha256: $E" "${C1[@]}" "http://
 recurl S3SOL/02-put-blocked-http -X PUT -H "x-amz-content-sha256: $U" "${C1[@]}" --data-binary @"$REC/body10" "http://$BB.s3.$R.amazonaws.com/h1"
 ```
 
-Expected: 400 `InvalidRequest` with the "secure connection" text on all four (hypothesis); the last shows HTTPS versus block order. Cost under USD 0.01, 2 minutes. Teardown: `aws s3api delete-object --bucket "$B" --key h1`.
+Expected: 400 `InvalidRequest` with the "secure connection" text on all four (hypothesis); the last shows HTTPS versus block order. Not run in the 2026-11-03 session: it sends credentials over plain HTTP, so it is opt-in, and 3.9 stays UNVERIFIED. Cost under USD 0.01, 2 minutes. Teardown: `aws s3api delete-object --bucket "$B" --key h1`.
 
 ### 12.4 S3SOL-03. SSE-C key without its MD5
 
@@ -549,7 +574,7 @@ recurl S3SOL/03-get -H "x-amz-content-sha256: $E" -H 'x-amz-server-side-encrypti
   -H "x-amz-server-side-encryption-customer-key: $K1B" "$(url "$B" c1)"
 ```
 
-Expected: 400 `InvalidArgument` naming the MD5 (text to record). Cost under USD 0.01, 2 minutes. Teardown: `aws s3api delete-object --bucket "$B" --key m3`.
+Expected: 400 `InvalidArgument` naming the MD5 (text to record). Recorded 2026-11-03: the PUT matched (3.2); the GET differed, 200 with the computed MD5 echoed (3.2). Cost under USD 0.01, 2 minutes. Teardown: `aws s3api delete-object --bucket "$B" --key m3`.
 
 ### 12.5 S3SOL-04. Key encoding, and key checks on reads
 
@@ -565,7 +590,7 @@ recurl S3SOL/04-get-bad-md5 -H "x-amz-content-sha256: $E" -H 'x-amz-server-side-
   -H "x-amz-server-side-encryption-customer-key: $K1B" -H "x-amz-server-side-encryption-customer-key-MD5: $K2M" "$(url "$B" c1)"
 ```
 
-Expected: 400 `InvalidArgument` with the key-size text, then key-size or 403, then the MD5-mismatch text. Cost under USD 0.01, 2 minutes. Teardown: `aws s3api delete-object --bucket "$B" --key m4`.
+Expected: 400 `InvalidArgument` with the key-size text, then key-size or 403, then the MD5-mismatch text. Recorded 2026-11-03: the first differed (the MD5-mismatch text, not the key-size one); the second was the 403; the third matched (3.2). Cost under USD 0.01, 2 minutes. Teardown: `aws s3api delete-object --bucket "$B" --key m4`.
 
 ### 12.6 S3SOL-05. Metadata reads of an SSE-C object without the key
 
@@ -578,7 +603,7 @@ rec S3SOL/05-attrs-with-key aws s3api get-object-attributes --bucket "$B" --key 
   --sse-customer-algorithm AES256 --sse-customer-key "$K1B" --sse-customer-key-md5 "$K1M"
 ```
 
-Expected: HEAD 400 without body; attributes 400 `InvalidRequest`; the control 200. Cost under USD 0.01, 1 minute. Teardown: none.
+Expected: HEAD 400 without body; attributes 400 `InvalidRequest`; the control 200. Recorded 2026-11-03: matches (3.3). Cost under USD 0.01, 1 minute. Teardown: none.
 
 ### 12.7 S3SOL-06. Copy-source SSE-C headers on a plain source
 
@@ -589,7 +614,7 @@ rec S3SOL/06-copy aws s3api copy-object --bucket "$B" --key t6 --copy-source "$B
   --copy-source-sse-customer-algorithm AES256 --copy-source-sse-customer-key "$K1"
 ```
 
-Expected: 400 `InvalidRequest` "not applicable" (hypothesis). Cost under USD 0.01, 1 minute. Teardown: `aws s3api delete-object --bucket "$B" --key t6`.
+Expected: 400 `InvalidRequest` "not applicable" (hypothesis). Recorded 2026-11-03: matches (3.5). Cost under USD 0.01, 1 minute. Teardown: `aws s3api delete-object --bucket "$B" --key t6`.
 
 ### 12.8 S3SOL-07. Copy with the wrong source key
 
@@ -603,7 +628,7 @@ rec S3SOL/07-upload-part-copy aws s3api upload-part-copy --bucket "$B" --key t7p
   --copy-source "$B/c1" --copy-source-sse-customer-algorithm AES256 --copy-source-sse-customer-key "$K2"
 ```
 
-Expected: 403 `AccessDenied` "correct secret key" on both. Cost under USD 0.01, 1 minute. Teardown: `aws s3api delete-object --bucket "$B" --key t7`; `aws s3api abort-multipart-upload --bucket "$B" --key t7p --upload-id "$UP7"`.
+Expected: 403 `AccessDenied` "correct secret key" on both. Recorded 2026-11-03: differs on both, 400 `InvalidRequest` "The provided encryption parameters did not match the ones used originally." (3.5). Cost under USD 0.01, 1 minute. Teardown: `aws s3api delete-object --bucket "$B" --key t7`; `aws s3api abort-multipart-upload --bucket "$B" --key t7p --upload-id "$UP7"`.
 
 ### 12.9 S3SOL-08. CompleteMultipartUpload and SSE-C
 
@@ -624,7 +649,7 @@ mk8 m8c; rec S3SOL/08-right-key aws s3api complete-multipart-upload --bucket "$B
   --sse-customer-algorithm AES256 --sse-customer-key "$K1"
 ```
 
-Expected: list-parts 200 (hypothesis) or a refusal; refusal (text to record) for the first two completes, 200 for the third. Cost under USD 0.01, 3 minutes. Teardown: `aws s3api list-multipart-uploads --bucket "$B"`, abort each listed upload; `aws s3 rm "s3://$B/" --recursive --exclude '*' --include 'm8*'`.
+Expected: list-parts 200 (hypothesis) or a refusal; refusal (text to record) for the first two completes, 200 for the third. Recorded 2026-11-03: list-parts was refused, both completes refused with one text, the third 200 with the key echoed (3.6). Cost under USD 0.01, 3 minutes. Teardown: `aws s3api list-multipart-uploads --bucket "$B"`, abort each listed upload; `aws s3 rm "s3://$B/" --recursive --exclude '*' --include 'm8*'`.
 
 ### 12.10 S3SOL-09. Presigned URL used with unsigned SSE-C headers
 
@@ -636,7 +661,7 @@ curl -sS -i --http1.1 "${C1[@]}" "$URL" > "$REC/S3SOL/09-presign-unsigned-ssec.h
 curl -sS -i --http1.1 "$URL" > "$REC/S3SOL/09-presign-no-ssec.http"
 ```
 
-Expected: 403 `AccessDenied` with `HeadersNotSigned` listing the three headers; the control is the 400 "stored using a form". Cost under USD 0.01, 1 minute. Teardown: none.
+Expected: 403 `AccessDenied` with `HeadersNotSigned` listing the three headers; the control is the 400 "stored using a form". Recorded 2026-11-03: the 403 names only the algorithm header; the control matches (3.10). Cost under USD 0.01, 1 minute. Teardown: none.
 
 ### 12.11 S3SOL-10. GetBucketEncryption after unblocking
 
@@ -653,7 +678,7 @@ rec S3SOL/10-put-empty-rule aws s3api put-bucket-encryption --bucket "$BR" --ser
 rec S3SOL/10-get-after-empty-rule aws s3api get-bucket-encryption --bucket "$BR"
 ```
 
-Expected: the rule-only put accepted; record both GET bodies byte for byte; the empty rule refused with `MalformedXML` (if it is accepted, the last GET shows what it did). Cost under USD 0.01, 2 minutes. Teardown: kept for S3SOL-11; removed by 12.1.
+Expected: the rule-only put accepted; record both GET bodies byte for byte; the empty rule refused with `MalformedXML` (if it is accepted, the last GET shows what it did). Recorded 2026-11-03: as expected but for the empty rule, which was accepted and reset the block to `SSE-C` (4.2). Cost under USD 0.01, 2 minutes. Teardown: kept for S3SOL-11; removed by 12.1.
 
 ### 12.12 S3SOL-11. Omitting BlockedEncryptionTypes, and deleting, after NONE
 
@@ -671,7 +696,7 @@ rec S3SOL/11-get-after-delete aws s3api get-bucket-encryption --bucket "$BR"
 rec S3SOL/11-ssec-after-delete aws s3api put-object --bucket "$BR" --key c3 --body "$REC/body10" --sse-customer-algorithm AES256 --sse-customer-key "$K1"
 ```
 
-Expected: keep `NONE` (hypothesis) or fall back to `SSE-C`; the SSE-C puts confirm. Cost under USD 0.01, 2 minutes. Teardown: 12.1.
+Expected: keep `NONE` (hypothesis) or fall back to `SSE-C`; the SSE-C puts confirm. Recorded 2026-11-03: falls back to `SSE-C` on both paths, and both SSE-C puts got the 4.3 403 (4.2). Cost under USD 0.01, 2 minutes. Teardown: 12.1.
 
 ### 12.13 S3SOL-12. Retain-until-date wire form and precision
 
@@ -688,7 +713,7 @@ rec S3SOL/12-delete-after-expiry aws s3api delete-object --bucket "$L" --key e12
   --version-id "$(aws s3api list-object-versions --bucket "$L" --prefix e12 --query 'Versions[0].VersionId' --output text)"
 ```
 
-Expected: record the raw `x-amz-object-lock-retain-until-date` header and the XML `RetainUntilDate` against the sent `.123Z`; the expired delete succeeds. Cost under USD 0.01, 2 minutes. Teardown: 12.1.
+Expected: record the raw `x-amz-object-lock-retain-until-date` header and the XML `RetainUntilDate` against the sent `.123Z`; the expired delete succeeds. Recorded 2026-11-03: the CLI sent the date without its `.123`, so precision is unrecorded; the header had no fraction, the XML `.000Z`, and the expired delete succeeded (6.7). To record precision, send the date with `recurl`. Cost under USD 0.01, 2 minutes. Teardown: 12.1.
 
 ### 12.14 S3SOL-13. Default retention in years, and range refusals
 
@@ -705,7 +730,7 @@ rec S3SOL/13-put aws s3api put-object --bucket "$LY" --key y --body "$REC/body10
 rec S3SOL/13-head aws s3api head-object --bucket "$LY" --key y
 ```
 
-Expected: the three refusals (texts to record); the HEAD date minus `Last-Modified` is 730 days (365-day years) or 731 (calendar years; the span includes 2028-02-29). Cost under USD 0.01, 2 minutes. Teardown: 12.1 (GOVERNANCE, bypass).
+Expected: the three refusals (texts to record); the HEAD date minus `Last-Modified` is 730 days (365-day years) or 731 (calendar years; the span includes 2028-02-29). Recorded 2026-11-03: the three refusals are `InvalidArgument`, not `MalformedXML` (5.2); 731 days, calendar years (5.3). Cost under USD 0.01, 2 minutes. Teardown: 12.1 (GOVERNANCE, bypass).
 
 ### 12.15 S3SOL-14. Checksum requirement: legal hold alone, signed payload hash
 
@@ -720,7 +745,7 @@ recurl S3SOL/14-retention-unsigned -X PUT -H "x-amz-content-sha256: $U" -H 'x-am
   -H "x-amz-object-lock-retain-until-date: $(soon 3600)" --data-binary @"$REC/body10" "$(url "$L" u14)"
 ```
 
-Expected: the third is the R12 refusal (control); record the first two. Cost under USD 0.01, 2 minutes. Teardown: 12.1.
+Expected: the third is the R12 refusal (control); record the first two. Recorded 2026-11-03: all three refused with the R12 text (6.3). Cost under USD 0.01, 2 minutes. Teardown: 12.1.
 
 ### 12.16 S3SOL-15. Multipart upload under retention
 
@@ -736,7 +761,7 @@ rec S3SOL/15-complete aws s3api complete-multipart-upload --bucket "$L" --key m1
 rec S3SOL/15-head aws s3api head-object --bucket "$L" --key m15
 ```
 
-If the part is refused, upload it with `aws s3api upload-part ... --checksum-algorithm CRC32` and complete with that ETag. Expected: record whether the part is refused and whether HEAD shows the Create's lock settings. Cost under USD 0.01, 3 minutes. Teardown: abort any open upload (`aws s3api abort-multipart-upload --bucket "$L" --key m15 --upload-id "$UP"`); objects by 12.1.
+If the part is refused, upload it with `aws s3api upload-part ... --checksum-algorithm CRC32` and complete with that ETag. Expected: record whether the part is refused and whether HEAD shows the Create's lock settings. Recorded 2026-11-03: the part was refused (6.3); the fallback was not run, so the Complete (empty ETag) failed and whether HEAD shows Create's settings stays UNVERIFIED. Re-run with the fallback. Cost under USD 0.01, 3 minutes. Teardown: abort any open upload (`aws s3api abort-multipart-upload --bucket "$L" --key m15 --upload-id "$UP"`); objects by 12.1.
 
 ### 12.17 S3SOL-16. CopyObject into a bucket with default retention
 
@@ -749,7 +774,7 @@ rec S3SOL/16-copy-plain-source aws s3api copy-object --bucket "$LY" --key c16b -
 rec S3SOL/16-head-b aws s3api head-object --bucket "$LY" --key c16b
 ```
 
-Expected: both targets show GOVERNANCE and the 2-year default, not the source's date. Cost under USD 0.01, 2 minutes. Teardown: 12.1.
+Expected: both targets show GOVERNANCE and the 2-year default, not the source's date. Recorded 2026-11-03: matches, with no checksum sent (6.3). Cost under USD 0.01, 2 minutes. Teardown: 12.1.
 
 ### 12.18 S3SOL-17. Lock headers on a bucket without Object Lock
 
@@ -763,7 +788,7 @@ rec S3SOL/17-mpu-hold aws s3api create-multipart-upload --bucket "$N" --key l17 
 rec S3SOL/17-copy-hold aws s3api copy-object --bucket "$N" --key l17 --copy-source "$N/n1" --object-lock-legal-hold-status ON
 ```
 
-Expected: 400 `InvalidRequest` "Bucket is missing Object Lock Configuration" each (hypothesis). Cost under USD 0.01, 2 minutes. Teardown: abort any upload on `$N`; objects by 12.1.
+Expected: 400 `InvalidRequest` "Bucket is missing Object Lock Configuration" each (hypothesis). Recorded 2026-11-03: 400 `InvalidRequest` each, with the text "Bucket is missing ObjectLockConfiguration" (6.2). Cost under USD 0.01, 2 minutes. Teardown: abort any upload on `$N`; objects by 12.1.
 
 ### 12.19 S3SOL-18. PutObject lock header validation texts
 
@@ -779,7 +804,7 @@ rec S3SOL/18-retention-past-summer aws s3api put-object-retention --bucket "$L" 
   --retention '{"Mode":"GOVERNANCE","RetainUntilDate":"2020-07-01T00:00:00Z"}'
 ```
 
-Expected: record each status, code, text and `ArgumentName`/`ArgumentValue`; the last should read `Tue Jun 30 17:00:00 PDT 2020` if the PST rendering holds. Cost under USD 0.01, 2 minutes. Teardown: 12.1 (an accepted 2127 object is GOVERNANCE, removable with bypass).
+Expected: record each status, code, text and `ArgumentName`/`ArgumentValue`; the last should read `Tue Jun 30 17:00:00 PDT 2020` if the PST rendering holds. Recorded 2026-11-03: as expected for the last; the header past date names `2020-07-01T00:00:00Z` in ISO 8601, `tomorrow` and `MAYBE` get their own texts, and the 2127 date is accepted (6.2). Cost under USD 0.01, 2 minutes. Teardown: 12.1 (an accepted 2127 object is GOVERNANCE, removable with bypass).
 
 ### 12.20 S3SOL-19. GOVERNANCE to COMPLIANCE without bypass
 
@@ -795,7 +820,7 @@ rec S3SOL/19-delete-locked aws s3api delete-object --bucket "$L" --key g19 --ver
 sleep 130
 ```
 
-Expected: refusal with the lock 403 (hypothesis); the delete step re-records the current locked-delete text (section 10). Cost under USD 0.01, 4 minutes including the wait. Teardown: after the wait, 12.1.
+Expected: refusal with the lock 403 (hypothesis); the delete step re-records the current locked-delete text (section 10). Recorded 2026-11-03: matches; HEAD still shows GOVERNANCE, and the delete got the 403 with the section 10 text (6.4). Cost under USD 0.01, 4 minutes including the wait. Teardown: after the wait, 12.1.
 
 ### 12.21 S3SOL-20. RetainUntilDate without Mode
 
@@ -807,7 +832,7 @@ rec S3SOL/20-date-only-bypass aws s3api put-object-retention --bucket "$L" --key
   --retention "{\"RetainUntilDate\":\"$(soon 7200)\"}"
 ```
 
-Expected: `MalformedXML` both (hypothesis). Cost under USD 0.01, 1 minute. Teardown: 12.1.
+Expected: `MalformedXML` both (hypothesis). Recorded 2026-11-03: matches (6.4). Cost under USD 0.01, 1 minute. Teardown: 12.1.
 
 ### 12.22 S3SOL-21. Reads after retention is removed and a hold is lifted
 
@@ -823,7 +848,7 @@ rec S3SOL/21-get-legal-hold aws s3api get-object-legal-hold --bucket "$L" --key 
 rec S3SOL/21-head aws s3api head-object --bucket "$L" --key r21
 ```
 
-Expected: 404 `NoSuchObjectLockConfiguration`, 200 `Status=OFF`, HEAD with only the legal-hold header `OFF` (hypotheses). Cost under USD 0.01, 1 minute. Teardown: 12.1.
+Expected: 404 `NoSuchObjectLockConfiguration`, 200 `Status=OFF`, HEAD with only the legal-hold header `OFF` (hypotheses). Recorded 2026-11-03: matches (6.4, 6.5). Cost under USD 0.01, 1 minute. Teardown: 12.1.
 
 ### 12.23 S3SOL-22. Error order for legal holds
 
@@ -837,7 +862,7 @@ rec S3SOL/22-hold-delete-marker aws s3api put-object-legal-hold --bucket "$L" --
 rec S3SOL/22-get-hold-delete-marker aws s3api get-object-legal-hold --bucket "$L" --key d12 --version-id "$DM"
 ```
 
-Expected: `InvalidRequest` "Bucket is missing..." for the first two (hypothesis), 405 for the last two. Cost under USD 0.01, 1 minute. Teardown: 12.1.
+Expected: `InvalidRequest` "Bucket is missing..." for the first two (hypothesis), 405 for the last two. Recorded 2026-11-03: matches; the 405s carry `x-amz-delete-marker`, `x-amz-version-id` and `Allow` but no `Last-Modified` (6.5). Cost under USD 0.01, 1 minute. Teardown: 12.1.
 
 ### 12.24 S3SOL-23. Bypass header on a versioned bucket without Object Lock
 
@@ -853,7 +878,7 @@ V23=$(aws s3api head-object --bucket "$L" --key f23 --query VersionId --output t
 rec S3SOL/23-lock-bucket-false aws s3api delete-object --bucket "$L" --key f23 --version-id "$V23" --no-bypass-governance-retention
 ```
 
-Expected: 400 `InvalidArgument` "x-amz-bypass-governance-retention is only applicable to Object Lock enabled buckets." on the first two (hypothesis); the lock 403 on the third (`false` is no bypass). If the first deletes the version, the second records a missing version; note it. Cost under USD 0.01, 1 minute. Teardown: 12.1.
+Expected: 400 `InvalidArgument` "x-amz-bypass-governance-retention is only applicable to Object Lock enabled buckets." on the first two (hypothesis); the lock 403 on the third (`false` is no bypass). If the first deletes the version, the second records a missing version; note it. Recorded 2026-11-03: matches; the first deleted nothing (7.3). Cost under USD 0.01, 1 minute. Teardown: 12.1.
 
 ### 12.25 S3SOL-24. Event-hold refusals
 
@@ -873,4 +898,4 @@ pr release '{"Mode":"GOVERNANCE","EventHold":"OFF"}'
 rec S3SOL/24-get-released aws s3api get-object-retention --bucket "$L" --key e24
 ```
 
-Expected: four 400s (codes and texts to record), then the hold, its read forms, and the release fixing a date one day out. Cost under USD 0.01, 2 minutes. Teardown: the release step must succeed before 12.1 can delete `e24` with bypass.
+Expected: four 400s (codes and texts to record), then the hold, its read forms, and the release fixing a date one day out. Recorded 2026-11-03: as expected; the 400s are one `InvalidRequest`, two `MalformedXML` and one `InvalidArgument` (6.9). Cost under USD 0.01, 2 minutes. Teardown: the release step must succeed before 12.1 can delete `e24` with bypass.

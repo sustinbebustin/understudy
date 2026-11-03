@@ -6,8 +6,11 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"net/http"
+	"slices"
 	"testing"
 	"time"
+
+	"github.com/google/go-cmp/cmp"
 
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
 	"github.com/sustinbebustin/understudy/internal/awserr"
@@ -27,6 +30,9 @@ var (
 	errNoLockState = failure{status: 404, code: "NoSuchObjectLockConfiguration", message: "The specified object does not have a ObjectLock configuration"}
 	// L9510, L9520, L9992, L10012.
 	errNoLockConfig = failure{status: 400, code: "InvalidRequest", message: "Bucket is missing Object Lock Configuration"}
+	// A write's lock headers on a bucket without Object Lock (S3SOL-17,
+	// recorded 2026-11-03).
+	errNoLockConfigOnWrite = failure{status: 400, code: "InvalidRequest", message: "Bucket is missing ObjectLockConfiguration"}
 	// LocalStack test_s3_api.snapshot.json L3535, L3546, L3557.
 	errBypassWithoutLock = failure{
 		status: 400, code: "InvalidArgument", message: "x-amz-bypass-governance-retention is only applicable to Object Lock enabled buckets.",
@@ -35,6 +41,13 @@ var (
 	// testdata/parity/s3/R12/11-put-without-checksum.json.
 	errNeedsChecksum = failure{status: 400, code: "InvalidRequest", message: "Content-MD5 OR x-amz-checksum- HTTP header is required for Put Object requests with Object Lock parameters"}
 )
+
+// withMD5 is a part declaring data's Content-MD5, which a part of an
+// upload under Object Lock needs (S3SOL-15 15-part-no-checksum, recorded
+// 2026-11-03).
+func withMD5(data string) s3api.UploadPartInput {
+	return s3api.UploadPartInput{ContentMD5: new(base64.StdEncoding.EncodeToString(md5Sum([]byte(data))))}
+}
 
 // errMarker is the 405 for a lock operation on a delete marker by version
 // id (L9805, L9817).
@@ -74,9 +87,10 @@ func javaDateOf(t time.Time) string {
 	return t.In(zone).Format("Mon Jan 02 15:04:05 MST 2006")
 }
 
-// hundredYears is the longest retention S3 accepts, 36,500 days
+// hundredYears is the documented longest retention, 36,500 days
 // (https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock-managing.html:
-// "The maximum retention period is 100 years").
+// "The maximum retention period is 100 years"); S3 accepts a retain-until
+// date beyond it (S3SOL-18 18-over-100-years, recorded 2026-11-03).
 const hundredYears = 36500 * 24 * time.Hour
 
 // lockBucket creates name with Object Lock, which turns versioning on
@@ -287,9 +301,9 @@ func TestObjectLockEventHoldsAreNotImplemented(t *testing.T) {
 // TestObjectLockHeaderValidation: on a lock bucket the three writes check
 // their lock headers before the body: mode and date must come together,
 // checked before the mode's value (L9754, L17916, L17927), the mode must be
-// GOVERNANCE or COMPLIANCE (L17938, L17950), and the legal hold, the past
-// date and the date over 100 years follow switch
-// s3.object-lock.header-texts. Nothing is written.
+// GOVERNANCE or COMPLIANCE (L17938, L17950), and the legal hold and the
+// past date have the texts S3SOL-18 recorded 2026-11-03 (switch
+// s3.object-lock.header-texts). Nothing is written.
 func TestObjectLockHeaderValidation(t *testing.T) {
 	runObjects(t, func(h *harness) {
 		t := h.T
@@ -297,7 +311,7 @@ func TestObjectLockHeaderValidation(t *testing.T) {
 		h.put("plain", "src", "source")
 		h.lockBucket("locked")
 		now := h.Clock.Now().Wire()
-		future, past, far := now.Add(24*time.Hour), now.Add(-time.Second), now.Add(hundredYears+time.Second)
+		future, past := now.Add(24*time.Hour), now.Add(-time.Second)
 		bad := s3api.ObjectLockMode("BAD-VALUE")
 		gov := s3api.ObjectLockModeGovernance
 		both := "x-amz-object-lock-retain-until-date and x-amz-object-lock-mode must both be supplied"
@@ -315,16 +329,12 @@ func TestObjectLockHeaderValidation(t *testing.T) {
 				fields: map[string]string{"ArgumentName": "x-amz-object-lock-mode", "ArgumentValue": "BAD-VALUE"},
 			}},
 			{"bad legal hold", s3api.PutObjectInput{ObjectLockLegalHoldStatus: new(s3api.ObjectLockLegalHoldStatus("MAYBE"))}, failure{
-				status: status, code: code, message: "Invalid value for the x-amz-object-lock-legal-hold header.",
+				status: status, code: code, message: "Legal Hold must be either of 'ON' or 'OFF'",
 				fields: map[string]string{"ArgumentName": "x-amz-object-lock-legal-hold", "ArgumentValue": "MAYBE"},
 			}},
 			{"past date", retention(gov, past), failure{
 				status: status, code: code, message: "The retain until date must be in the future!",
-				fields: map[string]string{"ArgumentName": "x-amz-object-lock-retain-until-date", "ArgumentValue": javaDateOf(past)},
-			}},
-			{"date over 100 years", retention(gov, far), failure{
-				status: status, code: code, message: "The retain until date in x-amz-object-lock-retain-until-date must be no more than 100 years in the future.",
-				fields: map[string]string{"ArgumentName": "x-amz-object-lock-retain-until-date", "ArgumentValue": javaDateOf(far)},
+				fields: map[string]string{"ArgumentName": "x-amz-object-lock-retain-until-date", "ArgumentValue": past.UTC().Format(time.RFC3339Nano)},
 			}},
 		} {
 			for op, err := range lockWrites(h, "locked", "refused", tc.l) {
@@ -336,15 +346,17 @@ func TestObjectLockHeaderValidation(t *testing.T) {
 }
 
 // TestObjectLockHeadersNeedALockBucket: valid retention or legal-hold
-// headers on a bucket without Object Lock are refused under switch
-// s3.object-lock.headers-without-lock, and nothing is written.
+// headers on a bucket without Object Lock are refused with 400
+// InvalidRequest "Bucket is missing ObjectLockConfiguration", without the
+// spaces of the retention operations' text, and nothing is written
+// (S3SOL-17, recorded 2026-11-03: PutObject, CreateMultipartUpload and
+// CopyObject, versioned bucket or not; a hold set OFF is inferred).
 func TestObjectLockHeadersNeedALockBucket(t *testing.T) {
 	runObjects(t, func(h *harness) {
 		t := h.T
 		h.createBucket("plain")
 		h.put("plain", "src", "source")
-		code, status := h.switchCode("s3.object-lock.headers-without-lock")
-		missing := failure{status: status, code: code, message: "Bucket is missing Object Lock Configuration"}
+		missing := errNoLockConfigOnWrite
 		until := h.Clock.Now().Wire().Add(24 * time.Hour)
 		for name, l := range map[string]s3api.PutObjectInput{
 			"retention":      retention(s3api.ObjectLockModeGovernance, until),
@@ -359,18 +371,20 @@ func TestObjectLockHeadersNeedALockBucket(t *testing.T) {
 	})
 }
 
-// TestObjectLockChecksumRequirement: a PutObject whose version gets a
-// retention needs Content-MD5 or a checksum: from the bucket default with no
-// lock header it is refused without one (testdata/parity/s3/R12/11-put-without-checksum.json),
-// and under switch s3.object-lock.checksum-scope an explicit retention
-// needs one too, a legal hold alone does not, a signed payload hash does
-// not count, and a header or trailer checksum does. UploadPart needs none
-// (same switch) and CopyObject needs none and gets the default (switch
+// TestObjectLockChecksumRequirement: a PutObject with Object Lock
+// parameters needs Content-MD5 or a checksum: from the bucket default with
+// no lock header it is refused without one (testdata/parity/s3/R12/11-put-without-checksum.json),
+// as are an explicit retention and a legal hold alone, a signed payload
+// hash does not count, and a header or trailer checksum does (S3SOL-14,
+// recorded 2026-11-03). UploadPart of an upload created with lock headers
+// needs one too, with its own text (S3SOL-15 15-part-no-checksum, recorded
+// 2026-11-03; under a bucket default it is inferred to need one as
+// PutObject does), and CopyObject needs none and gets the default (switch
 // s3.object-lock.copy-default).
 func TestObjectLockChecksumRequirement(t *testing.T) {
 	runObjects(t, func(h *harness) {
 		t := h.T
-		h.follows("s3.object-lock.checksum-scope", "PutObject-retention")
+		h.follows("s3.object-lock.checksum-scope", "any-lock-parameter-and-parts")
 		h.follows("s3.object-lock.copy-default", "default-applied")
 		h.createBucket("plain")
 		h.put("plain", "src", "source")
@@ -402,10 +416,10 @@ func TestObjectLockChecksumRequirement(t *testing.T) {
 		if state.mode == nil || *state.mode != s3api.ObjectLockModeGovernance || state.until == nil {
 			t.Errorf("a copy into the default-retention bucket reports %v until %v, want the GOVERNANCE default", deref(state.mode), deref(state.until))
 		}
+		errNeedsPartChecksum := failure{status: 400, code: "InvalidRequest", message: "Content-MD5 OR x-amz-checksum- HTTP header is required for Put Part requests with Object Lock parameters"}
 		id := h.startUpload("defaulted", "parts", s3api.CreateMultipartUploadInput{})
-		if _, err := uploadPart(h, "defaulted", "parts", id, 1, []byte("part"), s3api.UploadPartInput{}); err != nil {
-			t.Errorf("UploadPart without a checksum into a default-retention bucket: %s %q", err.ID.QueryCode, err.Message)
-		}
+		_, err = uploadPart(h, "defaulted", "parts", id, 1, []byte("part"), s3api.UploadPartInput{})
+		errNeedsPartChecksum.is(t, "UploadPart without a checksum into a default-retention bucket", err)
 
 		h.lockBucket("locked")
 		until := h.Clock.Now().Wire().Add(time.Hour)
@@ -414,10 +428,18 @@ func TestObjectLockChecksumRequirement(t *testing.T) {
 			ObjectLockMode: new(s3api.ObjectLockModeGovernance), ObjectLockRetainUntilDate: &until,
 		})
 		errNeedsChecksum.is(t, "PutObject with a retention and no checksum", err)
-		if _, err := as(h, who{}, s3api.OpPutObject, &s3api.PutObjectInput{
-			Bucket: "locked", Key: "held", Body: bytesBody("v"), ObjectLockLegalHoldStatus: new(s3api.ObjectLockLegalHoldStatusOn),
-		}); err != nil {
-			t.Errorf("PutObject with only a legal hold and no checksum: %s %q", err.ID.QueryCode, err.Message)
+		_, err = as(h, who{}, s3api.OpPutObject, &s3api.PutObjectInput{
+			Bucket: "locked", Key: "held", Body: &body{r: unreadable{t: h.T}, n: 1}, ObjectLockLegalHoldStatus: new(s3api.ObjectLockLegalHoldStatusOn),
+		})
+		errNeedsChecksum.is(t, "PutObject with only a legal hold and no checksum", err)
+
+		locked := h.startUpload("locked", "parts", s3api.CreateMultipartUploadInput{ObjectLockMode: new(s3api.ObjectLockModeGovernance), ObjectLockRetainUntilDate: &until})
+		_, err = uploadPart(h, "locked", "parts", locked, 1, []byte("part"), s3api.UploadPartInput{})
+		errNeedsPartChecksum.is(t, "UploadPart without a checksum of an upload with lock headers", err)
+		h.sendPart("locked", "parts", locked, 1, []byte("part"), withMD5("part"))
+		plain := h.startUpload("locked", "plain", s3api.CreateMultipartUploadInput{})
+		if _, err := uploadPart(h, "locked", "plain", plain, 1, []byte("part"), s3api.UploadPartInput{}); err != nil {
+			t.Errorf("UploadPart without a checksum of an upload without lock settings: %s %q", err.ID.QueryCode, err.Message)
 		}
 	})
 }
@@ -426,7 +448,7 @@ func TestObjectLockChecksumRequirement(t *testing.T) {
 // default retention gets its creation instant plus the period
 // (https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock.html,
 // "Retention periods"; LocalStack test_s3.snapshot.json L9711), a year
-// being 365 days (switch s3.object-lock.default-years); explicit headers
+// being a calendar year (switch s3.object-lock.default-years); explicit headers
 // override it; changing the rule changes only later versions; a rule put
 // without a default removes it (LocalStack test_s3_api.snapshot.json L2501).
 // A multipart object is dated at its initiation (testdata/parity/s3/R12/notes.md
@@ -435,7 +457,7 @@ func TestObjectLockChecksumRequirement(t *testing.T) {
 func TestObjectLockDefaultRetention(t *testing.T) {
 	runObjects(t, func(h *harness) {
 		t := h.T
-		h.follows("s3.object-lock.default-years", "365-day")
+		h.follows("s3.object-lock.default-years", "calendar-years")
 		day := 24 * time.Hour
 		h.lockBucket("locked")
 		h.setDefault("locked", s3api.ObjectLockRetentionModeGovernance, new(int32(1)), nil)
@@ -448,10 +470,12 @@ func TestObjectLockDefaultRetention(t *testing.T) {
 		wantRetention(t, "explicit headers over the default", h.headLock("locked", "k", v2), s3api.ObjectLockModeCompliance, explicit)
 
 		h.advance(time.Hour)
-		h.setDefault("locked", s3api.ObjectLockRetentionModeCompliance, nil, new(int32(1)))
+		// Years are calendar years: 2 years from 2026 cross 2028-02-29, 731
+		// days (S3SOL-13 13-head, recorded 2026-11-03).
+		h.setDefault("locked", s3api.ObjectLockRetentionModeCompliance, nil, new(int32(2)))
 		later := h.Clock.Now().Wire()
 		v3 := h.mustPutLocked("locked", "k", "three", s3api.PutObjectInput{})
-		wantRetention(t, "default of 1 year", h.headLock("locked", "k", v3), s3api.ObjectLockModeCompliance, later.Add(365*day))
+		wantRetention(t, "default of 2 years", h.headLock("locked", "k", v3), s3api.ObjectLockModeCompliance, later.AddDate(2, 0, 0))
 		wantRetention(t, "the version written before the rule changed", h.headLock("locked", "k", v1), s3api.ObjectLockModeGovernance, created.Add(day))
 
 		ok(h, who{}, s3api.OpPutObjectLockConfiguration, &s3api.PutObjectLockConfigurationInput{Bucket: "locked", ObjectLockConfiguration: &s3api.ObjectLockConfiguration{
@@ -464,7 +488,7 @@ func TestObjectLockDefaultRetention(t *testing.T) {
 		initiated := h.Clock.Now().Wire()
 		id := h.startUpload("locked", "mpu", s3api.CreateMultipartUploadInput{})
 		h.advance(time.Hour)
-		part := h.sendPart("locked", "mpu", id, 1, []byte("only part"), s3api.UploadPartInput{})
+		part := h.sendPart("locked", "mpu", id, 1, []byte("only part"), withMD5("only part"))
 		done, err := complete(h, "locked", "mpu", id, []s3api.CompletedPart{listed(1, part)}, s3api.CompleteMultipartUploadInput{})
 		if err != nil {
 			t.Fatalf("Complete in a default-retention bucket: %s %q", err.ID.QueryCode, err.Message)
@@ -475,7 +499,7 @@ func TestObjectLockDefaultRetention(t *testing.T) {
 		id = h.startUpload("locked", "mpu", s3api.CreateMultipartUploadInput{
 			ObjectLockMode: new(s3api.ObjectLockModeCompliance), ObjectLockRetainUntilDate: &until, ObjectLockLegalHoldStatus: new(s3api.ObjectLockLegalHoldStatusOn),
 		})
-		part = h.sendPart("locked", "mpu", id, 1, []byte("only part"), s3api.UploadPartInput{})
+		part = h.sendPart("locked", "mpu", id, 1, []byte("only part"), withMD5("only part"))
 		done, err = complete(h, "locked", "mpu", id, []s3api.CompletedPart{listed(1, part)}, s3api.CompleteMultipartUploadInput{})
 		if err != nil {
 			t.Fatalf("Complete of an upload with lock headers: %s %q", err.ID.QueryCode, err.Message)
@@ -497,7 +521,7 @@ func TestObjectLockDefaultRetention(t *testing.T) {
 func TestObjectLockReadHeaders(t *testing.T) {
 	runObjects(t, func(h *harness) {
 		t := h.T
-		h.follows("s3.object-lock.retain-until-format", "milliseconds")
+		h.follows("s3.object-lock.retain-until-format", "milliseconds-header-trimmed")
 		h.lockBucket("locked")
 		until := h.Clock.Now().Wire().Add(time.Hour + 123456789)
 		l := retention(s3api.ObjectLockModeGovernance, until)
@@ -530,8 +554,9 @@ func TestObjectLockReadHeaders(t *testing.T) {
 // a missing bucket (L9436), a bucket without Object Lock (L9510, L9520),
 // checked before the key under switch s3.object-lock.check-order, a missing
 // key (L9447), a delete marker (L9805, L9817), a version never given a
-// retention (L9458), and the date: in the past (L9488) or over 100 years
-// ahead (switch s3.object-lock.header-texts).
+// retention (L9458), and a date in the past (L9488); one over 100 years
+// ahead is accepted (S3SOL-18 18-over-100-years, recorded 2026-11-03, on
+// PutObject; inferred for PutObjectRetention).
 func TestObjectRetentionRefusals(t *testing.T) {
 	runObjects(t, func(h *harness) {
 		t := h.T
@@ -571,13 +596,10 @@ func TestObjectRetentionRefusals(t *testing.T) {
 			status: 400, code: "InvalidArgument", message: "The retain until date must be in the future!",
 			fields: map[string]string{"ArgumentName": "RetainUntilDate", "ArgumentValue": javaDateOf(past)},
 		}.is(t, "a past RetainUntilDate (L9488)", h.putRetention("locked", "k", v, gov, past, nil))
-		far := now.Add(hundredYears + time.Second)
-		farCode, farStatus := h.switchCode("s3.object-lock.header-texts")
-		failure{
-			status: farStatus, code: farCode, message: "The retain until date in RetainUntilDate must be no more than 100 years in the future.",
-			fields: map[string]string{"ArgumentName": "RetainUntilDate", "ArgumentValue": javaDateOf(far)},
-		}.is(t, "a RetainUntilDate over 100 years ahead", h.putRetention("locked", "k", v, gov, far, nil))
 		errNoLockState.is(t, "GetObjectRetention after only refused puts", getRetention("locked", "k", v))
+		if err := h.putRetention("locked", "k", v, gov, now.Add(hundredYears+time.Second), nil); err != nil {
+			t.Errorf("a RetainUntilDate over 100 years ahead: %s %q, want accepted", err.ID.QueryCode, err.Message)
+		}
 
 		marker := ok(h, who{}, s3api.OpDeleteObject, &s3api.DeleteObjectInput{Bucket: "locked", Key: "k"})
 		errMarker("PUT").is(t, "PutObjectRetention on a delete marker (L9805)", h.putRetention("locked", "k", marker.VersionId, gov, future, nil))
@@ -600,7 +622,7 @@ func TestObjectRetentionChanges(t *testing.T) {
 		t := h.T
 		h.follows("s3.object-lock.cleared-reads", "404-and-OFF")
 		h.follows("s3.object-lock.mode-upgrade", "refused")
-		h.follows("s3.object-lock.retain-until-format", "milliseconds")
+		h.follows("s3.object-lock.retain-until-format", "milliseconds-header-trimmed")
 		h.lockBucket("locked")
 		v := h.mustPutLocked("locked", "k", "v", s3api.PutObjectInput{})
 		now := h.Clock.Now().Wire()
@@ -721,23 +743,49 @@ func TestObjectLegalHold(t *testing.T) {
 		wantRetention(t, "HEAD retention after the hold was lifted", state, s3api.ObjectLockModeGovernance, until)
 
 		marker := ok(h, who{}, s3api.OpDeleteObject, &s3api.DeleteObjectInput{Bucket: "locked", Key: "k"})
-		errMarker("PUT").is(t, "PutObjectLegalHold on a delete marker", h.putHold("locked", "k", marker.VersionId, on))
+		err = h.putHold("locked", "k", marker.VersionId, on)
+		errMarker("PUT").is(t, "PutObjectLegalHold on a delete marker", err)
+		wantLockMarkerHeaders(t, "PutObjectLegalHold on a delete marker", err, marker.VersionId)
 		_, err = getHold("locked", "k", marker.VersionId)
 		errMarker("GET").is(t, "GetObjectLegalHold on a delete marker", err)
+		wantLockMarkerHeaders(t, "GetObjectLegalHold on a delete marker", err, marker.VersionId)
 	})
+}
+
+// wantLockMarkerHeaders checks the headers of a legal-hold operation's 405
+// on a delete marker: x-amz-delete-marker, the marker's x-amz-version-id
+// and Allow: DELETE, without the Last-Modified a GetObject's 405 carries
+// (S3SOL-22 22-hold-delete-marker and 22-get-hold-delete-marker, recorded
+// 2026-11-03). x-amz-bucket-region is left out of the comparison: ADR 0013
+// puts it on every error about a found bucket, and those recordings answer
+// without it, a difference not yet settled for S3's errors as a whole.
+func wantLockMarkerHeaders(t *testing.T, name string, err *awserr.Error, version *string) {
+	t.Helper()
+	if err == nil || version == nil {
+		t.Errorf("%s: error %v for marker version %v, want the 405 for a marker", name, err, version)
+		return
+	}
+	want := []awserr.Header{{Name: "x-amz-delete-marker", Value: "true"}, {Name: "x-amz-version-id", Value: *version}, {Name: "Allow", Value: http.MethodDelete}}
+	got := slices.DeleteFunc(slices.Clone(err.Headers), func(h awserr.Header) bool { return h.Name == "x-amz-bucket-region" })
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("%s: headers (-want +got):\n%s", name, diff)
+	}
 }
 
 // TestObjectLockConfigurationRules: GetObjectLockConfiguration echoes the
 // rule as put, Mode and the one of Days or Years (LocalStack
 // test_s3_api.snapshot.json L2486; s3-ssec-object-lock.md 9.2); an enabled
 // configuration without a rule removes it (L2501, L2507); a bad mode is
-// MalformedXML (L2571); periods outside 1..36500 days or 1..100 years are
-// MalformedXML under switch s3.object-lock.default-years; the token header
-// is accepted and ignored (s3-ssec-object-lock.md 11.1).
+// MalformedXML (L2571); a period under 1 is InvalidArgument "Default
+// retention period must be a positive integer value." and one over 36500
+// days or 100 years "Default retention period too large.", each naming
+// Days or Years and echoing the value (s3-ssec-object-lock.md 5.2;
+// S3SOL-13 13-days-0, 13-days-36501, 13-years-101, recorded 2026-11-03;
+// Years 0 is inferred from Days 0); the token header is accepted and
+// ignored (s3-ssec-object-lock.md 11.1).
 func TestObjectLockConfigurationRules(t *testing.T) {
 	runObjects(t, func(h *harness) {
 		t := h.T
-		h.follows("s3.object-lock.default-years", "365-day")
 		h.lockBucket("locked")
 		put := func(mode s3api.ObjectLockRetentionMode, days, years *int32) *awserr.Error {
 			_, err := as(h, who{}, s3api.OpPutObjectLockConfiguration, &s3api.PutObjectLockConfigurationInput{Bucket: "locked", Token: new("token"), ObjectLockConfiguration: &s3api.ObjectLockConfiguration{
@@ -770,15 +818,15 @@ func TestObjectLockConfigurationRules(t *testing.T) {
 				t.Errorf("rule read back as mode %v days %v years %v, want %s days %v years %v", deref(d.Mode), deref(d.Days), deref(d.Years), tc.mode, deref(tc.days), deref(tc.years))
 			}
 		}
-		for name, err := range map[string]*awserr.Error{
-			"Days 0":     put(gov, new(int32(0)), nil),
-			"Days 36501": put(gov, new(int32(36501)), nil),
-			"Years 0":    put(gov, nil, new(int32(0))),
-			"Years 101":  put(gov, nil, new(int32(101))),
-			"bad mode":   put("BAD-VALUE", new(int32(1)), nil),
-		} {
-			errMalformed.is(t, name, err)
+		period := func(message, name, value string) failure {
+			return failure{status: 400, code: "InvalidArgument", message: message, fields: map[string]string{"ArgumentName": name, "ArgumentValue": value}}
 		}
+		const positive, tooLarge = "Default retention period must be a positive integer value.", "Default retention period too large."
+		period(positive, "Days", "0").is(t, "Days 0", put(gov, new(int32(0)), nil))
+		period(tooLarge, "Days", "36501").is(t, "Days 36501", put(gov, new(int32(36501)), nil))
+		period(positive, "Years", "0").is(t, "Years 0", put(gov, nil, new(int32(0))))
+		period(tooLarge, "Years", "101").is(t, "Years 101", put(gov, nil, new(int32(101))))
+		errMalformed.is(t, "bad mode", put("BAD-VALUE", new(int32(1)), nil))
 		ok(h, who{}, s3api.OpPutObjectLockConfiguration, &s3api.PutObjectLockConfigurationInput{Bucket: "locked", ObjectLockConfiguration: &s3api.ObjectLockConfiguration{
 			ObjectLockEnabled: new(s3api.ObjectLockEnabledEnabled),
 		}})
@@ -802,7 +850,7 @@ func TestObjectLockDeletes(t *testing.T) {
 	runObjects(t, func(h *harness) {
 		t := h.T
 		h.follows("s3.object-lock.bypass-without-lock", "refused")
-		h.follows("s3.object-lock.retain-until-format", "milliseconds")
+		h.follows("s3.object-lock.retain-until-format", "milliseconds-header-trimmed")
 		h.lockBucket("locked")
 		now := h.Clock.Now().Wire()
 		gov := h.mustPutLocked("locked", "gov", "v", retention(s3api.ObjectLockModeGovernance, now.Add(time.Hour)))

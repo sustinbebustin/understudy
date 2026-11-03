@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
+	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/registry"
@@ -530,34 +531,35 @@ func (s *Service) bindEncryption(b s3api.Binder) {
 	put := func(in *s3api.PutBucketEncryptionInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.PutBucketEncryption(writer[s3api.PutBucketEncryptionInput, s3api.PutBucketEncryptionOutput](s, put, func(in *s3api.PutBucketEncryptionInput, b *Bucket) *awserr.Error {
 		// The rule is kept without BlockedEncryptionTypes, which the bucket
-		// holds apart, so a rule that omits it keeps the block (switch
-		// s3.encryption.blocked-types-omitted).
+		// holds apart; a rule that omits it, the empty rule included, puts
+		// the block back to a new bucket's (blockedEncryptionOf; S3SOL-10,
+		// S3SOL-11).
 		rule := in.ServerSideEncryptionConfiguration.Rules[0]
-		block, sent, err := blockedEncryptionOf(rule)
+		block, err := blockedEncryptionOf(rule, b.Home.Region)
 		if err != nil {
 			return err
 		}
-		if sent {
-			b.BlockedEncryption = block
-		}
+		b.BlockedEncryption = block
 		rule.BlockedEncryptionTypes = nil
 		b.Encryption = &s3api.ServerSideEncryptionConfiguration{Rules: []s3api.ServerSideEncryptionRule{rule}}
 		return nil
 	}), registry.Full{}, touches(put), kernel.WithCheck(checkEncryption))
 	del := func(in *s3api.DeleteBucketEncryptionInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.DeleteBucketEncryption(writer[s3api.DeleteBucketEncryptionInput, s3api.DeleteBucketEncryptionOutput](s, del, func(_ *s3api.DeleteBucketEncryptionInput, b *Bucket) *awserr.Error {
-		// The SSE-C block stays as it was (switch
-		// s3.encryption.blocked-types-omitted;
-		// testdata/parity/s3/R06/02-get-encryption-after-delete.json).
+		// The SSE-C block goes back to a new bucket's: SSE-C blocked after
+		// NONE in us-east-2 (s3-ssec-object-lock.md 4.2; S3SOL-11
+		// 11-get-after-delete, recorded 2026-11-03), NONE in me-south-1 and
+		// me-central-1 (inferred from 4.1).
 		b.Encryption = nil
+		b.BlockedEncryption = newBucketBlock(b.Home.Region)
 		return nil
 	}), registry.Full{}, touches(del))
 }
 
 // checkEncryption checks a default encryption configuration (s3.md 4.2.2):
-// exactly one rule, holding a default, a BlockedEncryptionTypes or both
-// (API_PutBucketEncryption Example 4 sends the block alone; a rule with
-// neither is MalformedXML under switch s3.encryption.unblocked-read), a
+// exactly one rule, which may hold neither a default nor a
+// BlockedEncryptionTypes (API_PutBucketEncryption Example 4 sends the block
+// alone; S3SOL-10 10-put-empty-rule, recorded 2026-11-03, an empty rule), a
 // block that blockedEncryptionOf reads, and a KMS key only for the KMS
 // algorithms.
 func checkEncryption(in *s3api.PutBucketEncryptionInput) *awserr.Error {
@@ -566,10 +568,7 @@ func checkEncryption(in *s3api.PutBucketEncryptionInput) *awserr.Error {
 		return errMalformedXML()
 	}
 	rule := rules[0]
-	if rule.ApplyServerSideEncryptionByDefault == nil && rule.BlockedEncryptionTypes == nil {
-		return errMalformedXML()
-	}
-	if _, _, err := blockedEncryptionOf(rule); err != nil {
+	if _, err := blockedEncryptionOf(rule, aws.DefaultRegion()); err != nil {
 		return err
 	}
 	d := rule.ApplyServerSideEncryptionByDefault
@@ -612,7 +611,7 @@ func (s *Service) bindObjectLock(b s3api.Binder) {
 // valid (6.9, 11.3, 11.7); a default retention names a known mode and
 // exactly one of Days and Years, else MalformedXML (LocalStack
 // test_s3_api.snapshot.json L2521-L2581). Days must be 1 to 36,500 and
-// Years 1 to 100, else MalformedXML (switch s3.object-lock.default-years).
+// Years 1 to 100 (checkRetentionPeriod).
 func checkObjectLock(in *s3api.PutObjectLockConfigurationInput) *awserr.Error {
 	cfg := in.ObjectLockConfiguration
 	if cfg == nil || cfg.ObjectLockEnabled == nil || *cfg.ObjectLockEnabled != s3api.ObjectLockEnabledEnabled {
@@ -631,8 +630,22 @@ func checkObjectLock(in *s3api.PutObjectLockConfigurationInput) *awserr.Error {
 	if _, ok := retentionModeTexts.value(string(*d.Mode)); !ok {
 		return errMalformedXML()
 	}
-	if d.Days != nil && (*d.Days < 1 || *d.Days > 36500) || d.Years != nil && (*d.Years < 1 || *d.Years > 100) {
-		return errMalformedXML()
+	if d.Days != nil {
+		return checkRetentionPeriod("Days", *d.Days, 36500)
+	}
+	return checkRetentionPeriod("Years", *d.Years, 100)
+}
+
+// checkRetentionPeriod refuses a default retention period, named name,
+// below 1 or above most, with InvalidArgument naming it and echoing the
+// value (s3-ssec-object-lock.md 5.2; S3SOL-13 13-days-0, 13-days-36501,
+// 13-years-101, recorded 2026-11-03; Years below 1 is inferred from Days).
+func checkRetentionPeriod(name string, v, most int32) *awserr.Error {
+	switch {
+	case v < 1:
+		return errInvalidArgument("Default retention period must be a positive integer value.", name, strconv.Itoa(int(v)))
+	case v > most:
+		return errInvalidArgument("Default retention period too large.", name, strconv.Itoa(int(v)))
 	}
 	return nil
 }

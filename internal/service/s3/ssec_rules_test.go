@@ -12,6 +12,7 @@ import (
 
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
 	"github.com/sustinbebustin/understudy/internal/aws"
+	"github.com/sustinbebustin/understudy/internal/identity"
 )
 
 // The SSE-C refusals of s3-ssec-object-lock.md 3.2 and 3.3, each with
@@ -27,7 +28,7 @@ const (
 	msgSSECNoAlgorithm = "Requests specifying Server Side Encryption with Customer provided keys must provide a valid encryption algorithm."
 	// L12741.
 	msgSSECNoKey = "Requests specifying Server Side Encryption with Customer provided keys must provide an appropriate secret key."
-	// Switch s3.sse-c.missing-key-md5 (s3-ssec-object-lock.md 11.4).
+	// S3SOL-03 03-put, recorded 2026-11-03.
 	msgSSECNoMD5 = "Requests specifying Server Side Encryption with Customer provided keys must provide the client calculated MD5 of the secret key."
 	// L12763.
 	msgSSECBadKey = "The secret key was invalid for the specified algorithm."
@@ -121,9 +122,11 @@ func (tr trio) sent() bool { return tr.h.algorithm != nil || tr.h.key != nil || 
 // tr, in their order (conflict, algorithm, presence, key, MD5), or nil when
 // it passes. read leaves out the conflict and key-length checks, as a read
 // compares a wrong-length key with the stored one instead (3.3, LocalStack
-// test_s3.snapshot.json L12855).
-func expectCustomer(t *testing.T, values map[string]string, tr trio, sse *s3api.ServerSideEncryption, read bool) *wantError {
-	t.Helper()
+// test_s3.snapshot.json L12855; S3SOL-04 for a 10-byte key), and the MD5's
+// presence, as a read computes a missing one (S3SOL-03 03-get, recorded
+// 2026-11-03). A key that is not base64 gets the MD5-mismatch text
+// (S3SOL-04 04-put-not-base64).
+func expectCustomer(tr trio, sse *s3api.ServerSideEncryption, read bool) *wantError {
 	arg := map[string]string{"ArgumentName": sseArg}
 	switch {
 	case !read && sse != nil:
@@ -134,10 +137,11 @@ func expectCustomer(t *testing.T, values map[string]string, tr trio, sse *s3api.
 		return &wantError{status: 400, code: "InvalidArgument", message: msgSSECNoAlgorithm, fields: arg}
 	case tr.key == keyAbsent:
 		return &wantError{status: 400, code: "InvalidArgument", message: msgSSECNoKey, fields: arg}
-	case tr.md5 == md5Absent:
-		code, status := codeOf(t, values, "s3.sse-c.missing-key-md5")
-		return &wantError{status: status, code: code, message: msgSSECNoMD5, fields: arg}
-	case tr.key == keyNotBase64, !read && tr.key != keyValid:
+	case !read && tr.md5 == md5Absent:
+		return &wantError{status: 400, code: "InvalidArgument", message: msgSSECNoMD5, fields: arg}
+	case tr.key == keyNotBase64:
+		return &wantError{status: 400, code: "InvalidArgument", message: msgSSECBadMD5, fields: arg}
+	case !read && tr.key != keyValid:
 		return &wantError{status: 400, code: "InvalidArgument", message: msgSSECBadKey, fields: arg}
 	case tr.md5 == md5Other:
 		return &wantError{status: 400, code: "InvalidArgument", message: msgSSECBadMD5, fields: arg}
@@ -158,13 +162,11 @@ func TestCustomerHeadersSent(t *testing.T) {
 // TestParseCustomerWrite checks every drawn trio against the write-side
 // order of s3-ssec-object-lock.md 3.2: only "conflict before algorithm" is
 // recorded (LocalStack test_s3.py L12123-L12131), the rest follows 11.3. A
-// key that is not base64 gets the key-size text (switch
-// s3.sse-c.key-encoding), a missing MD5 the switch s3.sse-c.missing-key-md5.
+// key that is not base64 gets the MD5-mismatch text (S3SOL-04), a missing
+// MD5 the recorded InvalidArgument (S3SOL-03, both recorded 2026-11-03).
 // A trio that passes yields its decoded key and the MD5 header as sent;
 // none sent is no SSE-C, whatever x-amz-server-side-encryption says.
 func TestParseCustomerWrite(t *testing.T) {
-	values := switchValues(t)
-	declared(t, values, "s3.sse-c.key-encoding")
 	property(t, func(rt *rapid.T) {
 		tr := drawTrio(rt)
 		sse := rapid.SampledFrom([]*s3api.ServerSideEncryption{nil, new(s3api.ServerSideEncryptionAes256), new(s3api.ServerSideEncryptionAwsKms)}).Draw(rt, "sse")
@@ -175,7 +177,7 @@ func TestParseCustomerWrite(t *testing.T) {
 			}
 			return
 		}
-		if want := expectCustomer(t, values, tr, sse, false); want != nil {
+		if want := expectCustomer(tr, sse, false); want != nil {
 			want.check(rt, "parseCustomerWrite", err)
 			return
 		}
@@ -189,29 +191,30 @@ func TestParseCustomerWrite(t *testing.T) {
 }
 
 // TestParseCustomerRead: a read checks the trio as a write does, minus the
-// conflict and the key length. A decodable key of the wrong length with
-// its MD5 passes, to fail the stored-key comparison with 403 as the 44-byte
-// key did (LocalStack test_s3.snapshot.json L12855; switch
-// s3.sse-c.key-encoding for other lengths), and a key that is not base64 or
-// an MD5 mismatch gets the write-side texts (same switch).
+// conflict, the key length and the MD5's presence. A decodable key of the
+// wrong length with its MD5 passes, to fail the stored-key comparison with
+// 403 as the 44-byte key did (LocalStack test_s3.snapshot.json L12855) and
+// a 10-byte one does (S3SOL-04 04-get-short-key); a key without its MD5
+// passes with the MD5 S3 computes, which the response echoes (S3SOL-03
+// 03-get); a key that is not base64 or an MD5 mismatch gets the
+// MD5-mismatch text (S3SOL-04 04-get-bad-md5; all recorded 2026-11-03).
 func TestParseCustomerRead(t *testing.T) {
-	values := switchValues(t)
-	declared(t, values, "s3.sse-c.key-encoding")
 	property(t, func(rt *rapid.T) {
 		tr := drawTrio(rt)
 		if !tr.sent() {
 			return
 		}
 		got, err := parseCustomerRead(tr.h)
-		if want := expectCustomer(t, values, tr, nil, true); want != nil {
+		if want := expectCustomer(tr, nil, true); want != nil {
 			want.check(rt, "parseCustomerRead", err)
 			return
 		}
 		if err != nil {
 			rt.Fatalf("parseCustomerRead(%+v) = %s %q, want accepted", tr.h, err.ID.QueryCode, err.Message)
 		}
-		if got == nil || !bytes.Equal(got.key, tr.raw) || got.keyMD5 != *tr.h.keyMD5 {
-			rt.Fatalf("parseCustomerRead = %+v, want key %x and MD5 %s", got, tr.raw, *tr.h.keyMD5)
+		_, wantMD5 := keyWire(tr.raw)
+		if got == nil || !bytes.Equal(got.key, tr.raw) || got.keyMD5 != wantMD5 {
+			rt.Fatalf("parseCustomerRead = %+v, want key %x and MD5 %s", got, tr.raw, wantMD5)
 		}
 	})
 }
@@ -268,40 +271,53 @@ func TestNewBucketBlock(t *testing.T) {
 
 // TestBlockedEncryptionOf reads a PutBucketEncryption rule's
 // BlockedEncryptionTypes (model EncryptionType, s3-ssec-object-lock.md 4.2):
-// absent is reported as absent, so the stored block is kept (switch
-// s3.encryption.blocked-types-omitted); [SSE-C] blocks and [NONE] unblocks.
+// absent is the new-bucket block of the bucket's Region, SSE-C in
+// us-east-2 (S3SOL-11 11-get-after-omit, recorded 2026-11-03; NONE in
+// me-south-1 is inferred from 4.1); [SSE-C] blocks and [NONE] unblocks
+// wherever the bucket is.
 func TestBlockedEncryptionOf(t *testing.T) {
-	declared(t, switchValues(t), "s3.encryption.blocked-types-omitted")
 	aes := &s3api.ServerSideEncryptionByDefault{SSEAlgorithm: s3api.ServerSideEncryptionAes256}
-	if _, ok, err := blockedEncryptionOf(s3api.ServerSideEncryptionRule{ApplyServerSideEncryptionByDefault: aes}); ok || err != nil {
-		t.Errorf("rule without the element: ok %v, err %v; want absent", ok, err)
-	}
-	for types, want := range map[s3api.EncryptionType]BlockedEncryption{s3api.EncryptionTypeSseC: BlockSSEC, s3api.EncryptionTypeNone: BlockNone} {
-		rule := s3api.ServerSideEncryptionRule{BlockedEncryptionTypes: &s3api.BlockedEncryptionTypes{EncryptionType: []s3api.EncryptionType{types}}}
-		got, ok, err := blockedEncryptionOf(rule)
-		if !ok || err != nil || got != want {
-			t.Errorf("[%s]: %d, %v, %v; want %d", types, got, ok, err, want)
+	for name, want := range map[string]BlockedEncryption{"us-east-2": BlockSSEC, "me-south-1": BlockNone} {
+		r, perr := aws.KnownRegions().Parse(name)
+		if perr != nil {
+			t.Fatal(perr)
+		}
+		if got, err := blockedEncryptionOf(s3api.ServerSideEncryptionRule{ApplyServerSideEncryptionByDefault: aes}, r); err != nil || got != want {
+			t.Errorf("rule without the element in %s: %d, %v; want %d", name, got, err, want)
+		}
+		for types, want := range map[s3api.EncryptionType]BlockedEncryption{s3api.EncryptionTypeSseC: BlockSSEC, s3api.EncryptionTypeNone: BlockNone} {
+			rule := s3api.ServerSideEncryptionRule{BlockedEncryptionTypes: &s3api.BlockedEncryptionTypes{EncryptionType: []s3api.EncryptionType{types}}}
+			if got, err := blockedEncryptionOf(rule, r); err != nil || got != want {
+				t.Errorf("[%s] in %s: %d, %v; want %d", types, name, got, err, want)
+			}
 		}
 	}
 }
 
 // TestCheckCustomerWrite: an SSE-C write to a bucket that blocks SSE-C is
-// refused (switch s3.sse-c.blocked-write: "Access Denied", checked before
-// the scheme), and one over plain HTTP to a bucket that allows it is
-// refused under switch s3.sse-c.plain-http; HTTPS to an unblocked bucket
-// passes.
+// refused with 403 AccessDenied naming the caller, the action and the
+// object, checked before the scheme (s3-ssec-object-lock.md 4.3; S3SOL-01,
+// recorded 2026-11-03), and one over plain HTTP to a bucket that allows it
+// is refused under switch s3.sse-c.plain-http; HTTPS to an unblocked
+// bucket passes.
 func TestCheckCustomerWrite(t *testing.T) {
 	values := switchValues(t)
-	blockCode, blockStatus := codeOf(t, values, "s3.sse-c.blocked-write")
-	blocked := wantError{status: blockStatus, code: blockCode, message: "Access Denied"}
+	role := identity.Root{Account: aws.DefaultAccount()}
+	blocked := wantError{status: 403, code: "AccessDenied", message: "User: arn:aws:iam::" + aws.DefaultAccount().String() + ":root is not authorized to perform: s3:CopyObject" +
+		` on resource: "arn:aws:s3:::b/k" because this bucket has blocked upload requests that specify Server Side Encryption with Customer provided keys (SSE-C).` +
+		" Please specify a different server-side encryption type."}
 	if v := declared(t, values, "s3.sse-c.plain-http"); v != "refused" {
 		t.Fatalf("switch s3.sse-c.plain-http declares %q; this test knows %q", v, "refused")
 	}
 	insecure := wantError{status: 400, code: "InvalidRequest", message: msgSSECInsecure}
-	blocked.check(t, "blocked bucket over HTTPS", checkCustomerWrite(&Bucket{BlockedEncryption: BlockSSEC}, "https"))
-	blocked.check(t, "blocked bucket over HTTP", checkCustomerWrite(&Bucket{BlockedEncryption: BlockSSEC}, "http"))
-	insecure.check(t, "unblocked bucket over HTTP", checkCustomerWrite(&Bucket{BlockedEncryption: BlockNone}, "http"))
-	if err := checkCustomerWrite(&Bucket{BlockedEncryption: BlockNone}, "https"); err != nil {
+	call := func(scheme string) writeCall {
+		return writeCall{principal: role, action: "s3:CopyObject", scheme: scheme}
+	}
+	b := func(block BlockedEncryption) *Bucket { return &Bucket{Name: "b", BlockedEncryption: block} }
+	blocked.check(t, "blocked bucket over HTTPS", checkCustomerWrite(b(BlockSSEC), "k", call("https")))
+	blocked.check(t, "blocked bucket over HTTP", checkCustomerWrite(b(BlockSSEC), "k", call("http")))
+	insecure.check(t, "unblocked bucket over HTTP", checkCustomerWrite(b(BlockNone), "k", call("http")))
+	if err := checkCustomerWrite(b(BlockNone), "k", call("https")); err != nil {
 		t.Errorf("unblocked bucket over HTTPS: %s %q, want accepted", err.ID.QueryCode, err.Message)
 	}
 }

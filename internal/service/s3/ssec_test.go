@@ -16,6 +16,7 @@ import (
 
 	"github.com/sustinbebustin/understudy/internal/api/kmsapi"
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
+	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/blob"
 	"github.com/sustinbebustin/understudy/internal/checksum"
@@ -108,19 +109,23 @@ func (f failure) is(t *testing.T, what string, err *awserr.Error) {
 // cite LocalStack's test_s3.snapshot.json (localstack@8b9a79f, validated
 // 2026-02-21).
 const (
-	textConflict    = "Server Side Encryption with Customer provided key is incompatible with the encryption method specified"            // L12706
-	textAlgorithm   = "The Encryption request you specified is not valid. Supported value: AES256."                                       // L12718
-	textNoAlgorithm = "Requests specifying Server Side Encryption with Customer provided keys must provide a valid encryption algorithm." // L12730
-	textNoKey       = "Requests specifying Server Side Encryption with Customer provided keys must provide an appropriate secret key."    // L12741
-	textNoMD5       = "Requests specifying Server Side Encryption with Customer provided keys must provide the client calculated MD5 of the secret key."
-	textBadKey      = "The secret key was invalid for the specified algorithm."                                                                       // L12763
-	textBadMD5      = "The calculated MD5 hash of the key did not match the hash that was provided."                                                  // L12774
-	textNeedsKey    = "The object was stored using a form of Server Side Encryption. The correct parameters must be provided to retrieve the object." // L12801, L12950
-	textWrongKey    = "Requests specifying Server Side Encryption with Customer provided keys must provide the correct secret key."                   // L12811, L12855
-	textNotSSEC     = "The encryption parameters are not applicable to this object."                                                                  // testdata/parity/s3/R15/x-ssec-on-non-ssec-read.json
+	textConflict    = "Server Side Encryption with Customer provided key is incompatible with the encryption method specified"                           // L12706
+	textAlgorithm   = "The Encryption request you specified is not valid. Supported value: AES256."                                                      // L12718
+	textNoAlgorithm = "Requests specifying Server Side Encryption with Customer provided keys must provide a valid encryption algorithm."                // L12730
+	textNoKey       = "Requests specifying Server Side Encryption with Customer provided keys must provide an appropriate secret key."                   // L12741
+	textNoMD5       = "Requests specifying Server Side Encryption with Customer provided keys must provide the client calculated MD5 of the secret key." // S3SOL-03 03-put
+	textBadKey      = "The secret key was invalid for the specified algorithm."                                                                          // L12763
+	textBadMD5      = "The calculated MD5 hash of the key did not match the hash that was provided."                                                     // L12774
+	textNeedsKey    = "The object was stored using a form of Server Side Encryption. The correct parameters must be provided to retrieve the object."    // L12801, L12950
+	textWrongKey    = "Requests specifying Server Side Encryption with Customer provided keys must provide the correct secret key."                      // L12811, L12855
+	textNotSSEC     = "The encryption parameters are not applicable to this object."                                                                     // testdata/parity/s3/R15/x-ssec-on-non-ssec-read.json
 	textInsecure    = "Requests specifying Server Side Encryption with Customer provided keys must be made over a secure connection."
 	textInitiate    = "The multipart upload initiate requested encryption. Subsequent part requests must include the appropriate encryption parameters." // L13133, L13154
 	textMismatch    = "The provided encryption parameters did not match the ones used originally."                                                       // L13164
+
+	// S3SOL-08 08-list-parts-no-key, and 08-no-key and 08-wrong-key (recorded 2026-11-03).
+	textListPartsChecksums = "The multipart upload initiate requested encryption. To retrieve Part Checksum data requests must include the appropriate encryption parameters."
+	textCompleteChecksums  = "The object was stored using a form of Server Side Encryption. Correct SSE-C request parameters are required for this request when specifying checksums for each part."
 )
 
 // sseArgument is the ArgumentName of every SSE-C validation refusal, copy
@@ -337,6 +342,19 @@ func TestSSECReads(t *testing.T) {
 		badAlg.is(t, "GetObjectAttributes with algorithm KMS (L12843)", attrs(overTLS, "enc", kms, key1.k(), key1.m()))
 		failure{status: 400, code: "InvalidRequest", message: textNotSSEC}.is(t, "GET of a plain object with SSE-C headers (R15)", get(overTLS, "plain", key1.alg(), key1.k(), key1.m()))
 
+		// S3SOL-03 and S3SOL-04, recorded 2026-11-03: a GET with the key and
+		// no MD5 succeeds and echoes the MD5 S3 computed (03-get); a 10-byte
+		// key with its MD5 is a wrong key (04-get-short-key); an MD5 of
+		// another key is the write-side MD5 text (04-get-bad-md5).
+		if got, out := h.readAs(overTLS, &s3api.GetObjectInput{Bucket: "ssec", Key: "enc", SSECustomerAlgorithm: key1.alg(), SSECustomerKey: key1.k()}); got != "test_data" {
+			t.Errorf("GET with the key and no MD5 = %q, want test_data", got)
+		} else {
+			echoesKey(t, "GET with the key and no MD5", out.SSECustomerAlgorithm, out.SSECustomerKeyMD5, out.ServerSideEncryption, out.SSEKMSKeyId, key1)
+		}
+		short := customerKey("0123456789")
+		wrongKey.is(t, "GET with a 10-byte key and its MD5", get(overTLS, "enc", short.alg(), short.k(), short.m()))
+		failure{status: 400, code: "InvalidArgument", message: textBadMD5, fields: map[string]string{"ArgumentName": sseArgument}}.is(t, "GET with another key's MD5", get(overTLS, "enc", key1.alg(), key1.k(), key2.m()))
+
 		// Switch s3.sse-c.metadata-without-key: HEAD and GetObjectAttributes
 		// without the key are refused as GET is.
 		code, status := h.switchCode("s3.sse-c.metadata-without-key")
@@ -367,11 +385,10 @@ func TestSSECReads(t *testing.T) {
 
 // ssecCase is one SSE-C header trio and the refusal it gets.
 type ssecCase struct {
-	name         string
-	sse          *s3api.ServerSideEncryption
-	alg, k, m    *string
-	want         failure
-	switchedCode string // the code-valued switch that decides the code, if any
+	name      string
+	sse       *s3api.ServerSideEncryption
+	alg, k, m *string
+	want      failure
 }
 
 // writeCases are the write-side refusals of s3-ssec-object-lock.md 3.2 in
@@ -390,35 +407,25 @@ func writeCases() []ssecCase {
 		},
 		{name: "no algorithm (L12730)", k: key1.k(), m: key1.m(), want: failure{status: 400, code: "InvalidArgument", message: textNoAlgorithm, fields: arg}},
 		{name: "no key (L12741)", alg: key1.alg(), m: key1.m(), want: failure{status: 400, code: "InvalidArgument", message: textNoKey, fields: arg}},
-		{name: "no MD5", alg: key1.alg(), k: key1.k(), want: failure{message: textNoMD5, fields: arg}, switchedCode: "s3.sse-c.missing-key-md5"},
+		{name: "no MD5 (S3SOL-03 03-put)", alg: key1.alg(), k: key1.k(), want: failure{status: 400, code: "InvalidArgument", message: textNoMD5, fields: arg}},
 		{name: "10-byte key (L12763)", alg: short.alg(), k: short.k(), m: short.m(), want: failure{status: 400, code: "InvalidArgument", message: textBadKey, fields: arg}},
 		{name: "44-byte key (L12752)", alg: doubled.alg(), k: doubled.k(), m: doubled.m(), want: failure{status: 400, code: "InvalidArgument", message: textBadKey, fields: arg}},
-		{name: "key not base64 (switch s3.sse-c.key-encoding)", alg: key1.alg(), k: new("%%not*base64%%"), m: key1.m(), want: failure{status: 400, code: "InvalidArgument", message: textBadKey, fields: arg}},
+		{name: "key not base64 (S3SOL-04 04-put-not-base64)", alg: key1.alg(), k: new("not base64!"), m: key1.m(), want: failure{status: 400, code: "InvalidArgument", message: textBadMD5, fields: arg}},
 		{name: "MD5 of another key (L12774)", alg: key1.alg(), k: key1.k(), m: key2.m(), want: failure{status: 400, code: "InvalidArgument", message: textBadMD5, fields: arg}},
 	}
 }
 
-// resolve fills a switched case's status and code from its switch.
-func (c ssecCase) resolve(h *harness) failure {
-	h.Helper()
-	if c.switchedCode != "" {
-		c.want.code, c.want.status = h.switchCode(c.switchedCode)
-	}
-	return c.want
-}
-
 // TestSSECWriteValidation: PutObject, CopyObject and CreateMultipartUpload
 // validate the SSE-C trio as s3-ssec-object-lock.md 3.2 orders it, before
-// the bucket's block (switch s3.sse-c.blocked-write: "checked after header
-// validation") and before the body is read; nothing is written.
+// the bucket's block (4.3; S3SOL-01 01-put-bad-algo, recorded 2026-11-03)
+// and before the body is read; nothing is written.
 func TestSSECWriteValidation(t *testing.T) {
 	runObjects(t, func(h *harness) {
 		t := h.T
 		h.createBucket("blocked")
 		h.put("blocked", "src", "source")
-		h.follows("s3.sse-c.key-encoding", "write-side-texts")
 		for _, c := range writeCases() {
-			want := c.resolve(h)
+			want := c.want
 			_, err := as(h, overTLS, s3api.OpPutObject, &s3api.PutObjectInput{
 				Bucket: "blocked", Key: "refused", Body: &body{r: unreadable{t: h.T}, n: 1},
 				ServerSideEncryption: c.sse, SSECustomerAlgorithm: c.alg, SSECustomerKey: c.k, SSECustomerKeyMD5: c.m,
@@ -444,27 +451,36 @@ func TestSSECWriteValidation(t *testing.T) {
 	})
 }
 
+// blocked is the 403 of an SSE-C write by the default account's root to
+// bucket/key while the bucket blocks SSE-C, naming action: s3:PutObject
+// for PutObject and CreateMultipartUpload, s3:CopyObject for CopyObject
+// (s3-ssec-object-lock.md 4.3; S3SOL-01, recorded 2026-11-03).
+func blocked(action, bucket, key string) failure {
+	return failure{status: 403, code: "AccessDenied", message: "User: arn:aws:iam::" + aws.DefaultAccount().String() + ":root is not authorized to perform: " + action +
+		` on resource: "arn:aws:s3:::` + bucket + "/" + key + `" because this bucket has blocked upload requests that specify Server Side Encryption with Customer provided keys (SSE-C).` +
+		" Please specify a different server-side encryption type."}
+}
+
 // TestSSECBlockedBucket: a new bucket blocks SSE-C writes (testdata/parity/s3/R06/01-get-get-bucket-encryption.json;
 // s3-ssec-object-lock.md 4.1): PutObject, CopyObject's target,
-// CreateMultipartUpload and UploadPart are refused under switch
-// s3.sse-c.blocked-write, before the scheme is checked, while copy-source
-// SSE-C headers are a read the block does not refuse (4.3). A bucket in
-// me-south-1 allows SSE-C from the start (4.1).
+// CreateMultipartUpload and UploadPart are refused with the recorded 403
+// (4.3; S3SOL-01, recorded 2026-11-03), before the scheme is checked,
+// while copy-source SSE-C headers are a read the block does not refuse
+// (S3SOL-01 01-copy-source-only). A bucket in me-south-1 allows SSE-C from
+// the start (4.1).
 func TestSSECBlockedBucket(t *testing.T) {
 	runObjects(t, func(h *harness) {
 		t := h.T
-		code, status := h.switchCode("s3.sse-c.blocked-write")
-		blocked := failure{status: status, code: code, message: "Access Denied"}
 		h.createBucket("blocked")
 		h.put("blocked", "src", "source")
 		_, err := h.putSSEC("blocked", "k", "v", key1)
-		blocked.is(t, "PutObject", err)
+		blocked("s3:PutObject", "blocked", "k").is(t, "PutObject", err)
 		_, err = as(h, who{}, s3api.OpPutObject, &s3api.PutObjectInput{Bucket: "blocked", Key: "k", Body: bytesBody("v"), SSECustomerAlgorithm: key1.alg(), SSECustomerKey: key1.k(), SSECustomerKeyMD5: key1.m()})
-		blocked.is(t, "PutObject over HTTP", err)
+		blocked("s3:PutObject", "blocked", "k").is(t, "PutObject over HTTP", err)
 		_, err = as(h, overTLS, s3api.OpCopyObject, &s3api.CopyObjectInput{Bucket: "blocked", Key: "k", CopySource: "blocked/src", SSECustomerAlgorithm: key1.alg(), SSECustomerKey: key1.k(), SSECustomerKeyMD5: key1.m()})
-		blocked.is(t, "CopyObject target", err)
+		blocked("s3:CopyObject", "blocked", "k").is(t, "CopyObject target", err)
 		_, err = as(h, overTLS, s3api.OpCreateMultipartUpload, &s3api.CreateMultipartUploadInput{Bucket: "blocked", Key: "k", SSECustomerAlgorithm: key1.alg(), SSECustomerKey: key1.k(), SSECustomerKeyMD5: key1.m()})
-		blocked.is(t, "CreateMultipartUpload", err)
+		blocked("s3:PutObject", "blocked", "k").is(t, "CreateMultipartUpload", err)
 		if _, err := as(h, who{}, s3api.OpHeadObject, &s3api.HeadObjectInput{Bucket: "blocked", Key: "k"}); err == nil {
 			t.Error("a blocked SSE-C write left an object")
 		}
@@ -489,9 +505,11 @@ func TestSSECBlockedBucket(t *testing.T) {
 			Bucket: "open", Key: "parts", UploadId: id, PartNumber: 1, Body: bytesBody("part"),
 			SSECustomerAlgorithm: key1.alg(), SSECustomerKey: key1.k(), SSECustomerKeyMD5: key1.m(),
 		})
-		blocked.is(t, "UploadPart after the bucket blocked SSE-C again", err)
+		// UploadPart names s3:PutObject, its IAM action (inferred: S3SOL-01
+		// recorded no part).
+		blocked("s3:PutObject", "open", "parts").is(t, "UploadPart after the bucket blocked SSE-C again", err)
 		_, err = h.putSSEC("open", "late", "v", key1)
-		blocked.is(t, "PutObject after the bucket blocked SSE-C again", err)
+		blocked("s3:PutObject", "open", "late").is(t, "PutObject after the bucket blocked SSE-C again", err)
 
 		ok(h, signed("me-south-1"), s3api.OpCreateBucket, &s3api.CreateBucketInput{Bucket: "bahrain", CreateBucketConfiguration: &s3api.CreateBucketConfiguration{
 			LocationConstraint: new(s3api.BucketLocationConstraint("me-south-1")),
@@ -549,9 +567,11 @@ func TestSSECPlainHTTP(t *testing.T) {
 // encrypt the target (s3-ssec-object-lock.md 3.5). An SSE-C source copied
 // to a plain target gets the plaintext MD5 ETag and SSE-S3 (LocalStack
 // test_s3.snapshot.json L12913), to an SSE-C target a random ETag and the
-// target key's echo (L12926, L12930); source refusals follow 3.3 and the
-// switches s3.sse-c.copy-source-not-applicable and
-// s3.sse-c.copy-source-wrong-key, on CopyObject and UploadPartCopy alike.
+// target key's echo (L12926, L12930); source refusals follow 3.3 and 3.5,
+// on CopyObject and UploadPartCopy alike: SSE-C headers on a plain source
+// are "not applicable" (S3SOL-06), and another key is 400 InvalidRequest
+// "did not match the ones used originally", not the GET's 403 (S3SOL-07
+// 07-copy, 07-upload-part-copy; both recorded 2026-11-03).
 func TestSSECCopy(t *testing.T) {
 	runObjects(t, func(h *harness) {
 		t := h.T
@@ -604,12 +624,12 @@ func TestSSECCopy(t *testing.T) {
 		_, err = copyAs("x", "enc", s3api.CopyObjectInput{CopySourceSSECustomerAlgorithm: key1.alg(), CopySourceSSECustomerKey: key1.k(), CopySourceSSECustomerKeyMD5: key2.m()})
 		failure{status: 400, code: "InvalidArgument", message: textBadMD5, fields: map[string]string{"ArgumentName": sseArgument}}.is(t, "copy source MD5 mismatch", err)
 
-		notApplicable, naStatus := h.switchCode("s3.sse-c.copy-source-not-applicable")
-		wrongKey, wkStatus := h.switchCode("s3.sse-c.copy-source-wrong-key")
+		notApplicable := failure{status: 400, code: "InvalidRequest", message: textNotSSEC}
+		mismatch := failure{status: 400, code: "InvalidRequest", message: textMismatch}
 		_, err = copyAs("x", "plain", srcKey(key1))
-		failure{status: naStatus, code: notApplicable, message: textNotSSEC}.is(t, "copy-source SSE-C headers on a plain source", err)
+		notApplicable.is(t, "copy-source SSE-C headers on a plain source", err)
 		_, err = copyAs("x", "enc", srcKey(key2))
-		failure{status: wkStatus, code: wrongKey, message: textWrongKey}.is(t, "copy source with another key", err)
+		mismatch.is(t, "copy source with another key", err)
 		if _, err := as(h, who{}, s3api.OpHeadObject, &s3api.HeadObjectInput{Bucket: "ssec", Key: "x"}); err == nil {
 			t.Error("a refused copy left an object")
 		}
@@ -624,8 +644,8 @@ func TestSSECCopy(t *testing.T) {
 			return err
 		}
 		failure{status: 400, code: "InvalidRequest", message: textNeedsKey}.is(t, "UploadPartCopy of an SSE-C source without its key", partCopy("enc", nil))
-		failure{status: wkStatus, code: wrongKey, message: textWrongKey}.is(t, "UploadPartCopy source with another key", partCopy("enc", &key2))
-		failure{status: naStatus, code: notApplicable, message: textNotSSEC}.is(t, "UploadPartCopy SSE-C headers on a plain source", partCopy("plain", &key1))
+		mismatch.is(t, "UploadPartCopy source with another key", partCopy("enc", &key2))
+		notApplicable.is(t, "UploadPartCopy SSE-C headers on a plain source", partCopy("plain", &key1))
 		if err := partCopy("enc", &key1); err != nil {
 			t.Errorf("UploadPartCopy of an SSE-C source with its key: %s %q", err.ID.QueryCode, err.Message)
 		}
@@ -638,8 +658,8 @@ func TestSSECCopy(t *testing.T) {
 // key (L13133, L13154, L13164); ListParts and Complete need no headers
 // (L13042, L13083), Complete reports no SSE and no checksum, and the
 // object's ETag keeps "-N" without being the MD5 of the part MD5s (L13083).
-// Complete on an upload with a checksum algorithm checks the key under
-// switch s3.sse-c.complete-headers.
+// ListParts and Complete of an upload with a checksum algorithm need the
+// key (switch s3.sse-c.complete-headers; S3SOL-08, recorded 2026-11-03).
 func TestSSECMultipart(t *testing.T) {
 	runObjects(t, func(h *harness) {
 		t := h.T
@@ -716,7 +736,10 @@ func TestSSECMultipart(t *testing.T) {
 		_, err = as(h, overTLS, s3api.OpUploadPartCopy, &s3api.UploadPartCopyInput{Bucket: "mpu", Key: "big2", UploadId: h.startUploadAs(overTLS, "mpu", "big2", withKey(key1)), PartNumber: 1, CopySource: "mpu/src"})
 		failure{status: 400, code: "InvalidRequest", message: textInitiate}.is(t, "UploadPartCopy into an SSE-C upload without the key", err)
 
-		h.follows("s3.sse-c.complete-headers", "checked-when-sent")
+		// An upload that declared a checksum algorithm needs the key on
+		// ListParts and on Complete, where another key gets the same text
+		// (S3SOL-08 08-list-parts-no-key, 08-no-key, 08-wrong-key, recorded
+		// 2026-11-03).
 		summed := withKey(key1)
 		summed.ChecksumAlgorithm = new(s3api.ChecksumAlgorithmCrc32)
 		sumID := h.startUploadAs(overTLS, "mpu", "summed", summed)
@@ -728,6 +751,7 @@ func TestSSECMultipart(t *testing.T) {
 		if err != nil {
 			t.Fatalf("UploadPart of the CRC32 upload: %s %q", err.ID.QueryCode, err.Message)
 		}
+		var completed *s3api.CompleteMultipartUploadOutput
 		finish := func(c *customer) *awserr.Error {
 			in := &s3api.CompleteMultipartUploadInput{Bucket: "mpu", Key: "summed", UploadId: sumID, MultipartUpload: &s3api.CompletedMultipartUpload{
 				Parts: []s3api.CompletedPart{{PartNumber: new(int32(1)), ETag: out.ETag, ChecksumCRC32: out.ChecksumCRC32}},
@@ -735,13 +759,20 @@ func TestSSECMultipart(t *testing.T) {
 			if c != nil {
 				in.SSECustomerAlgorithm, in.SSECustomerKey, in.SSECustomerKeyMD5 = c.alg(), c.k(), c.m()
 			}
-			_, err := as(h, overTLS, s3api.OpCompleteMultipartUpload, in)
+			var err *awserr.Error
+			completed, err = as(h, overTLS, s3api.OpCompleteMultipartUpload, in)
 			return err
 		}
-		failure{status: 400, code: "InvalidRequest", message: textInitiate}.is(t, "Complete of a CRC32 SSE-C upload without the key", finish(nil))
-		failure{status: 400, code: "InvalidRequest", message: textMismatch}.is(t, "Complete of a CRC32 SSE-C upload with another key", finish(&key2))
+		_, err = as(h, overTLS, s3api.OpListParts, &s3api.ListPartsInput{Bucket: "mpu", Key: "summed", UploadId: sumID})
+		failure{status: 400, code: "InvalidRequest", message: textListPartsChecksums}.is(t, "ListParts of a CRC32 SSE-C upload without the key", err)
+		needsKey := failure{status: 400, code: "InvalidRequest", message: textCompleteChecksums}
+		needsKey.is(t, "Complete of a CRC32 SSE-C upload without the key", finish(nil))
+		needsKey.is(t, "Complete of a CRC32 SSE-C upload with another key", finish(&key2))
 		if err := finish(&key1); err != nil {
 			t.Errorf("Complete of a CRC32 SSE-C upload with its key: %s %q", err.ID.QueryCode, err.Message)
+		} else if completed.ChecksumType == nil || *completed.ChecksumType != s3api.ChecksumTypeComposite || !strings.HasSuffix(str(completed.ChecksumCRC32), "-1") {
+			// 08-right-key reports the composite CRC32 and COMPOSITE.
+			t.Errorf("Complete of a CRC32 SSE-C upload reports checksum %v %v, want a CRC32 ending -1 and COMPOSITE", deref(completed.ChecksumCRC32), deref(completed.ChecksumType))
 		}
 	})
 }
@@ -898,18 +929,16 @@ func TestSSECKeyNeverStored(t *testing.T) {
 // TestBucketEncryptionBlock: PutBucketEncryption accepts a rule holding
 // only BlockedEncryptionTypes (API_PutBucketEncryption Example 4,
 // https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketEncryption.html);
-// GetBucketEncryption then reads back the AES256 default with NONE (switch
-// s3.encryption.unblocked-read); a Put without the element and a Delete
-// keep the block as it was (switch s3.encryption.blocked-types-omitted;
-// from the default state, testdata/parity/s3/R06/02-get-encryption-arn.json
-// and 02-get-encryption-after-delete.json); a rule with neither member is
-// MalformedXML (switch s3.encryption.unblocked-read), as is a
-// configuration without rules (s3.md 4.2.2).
+// GetBucketEncryption then reads back the AES256 default with NONE
+// (S3SOL-10 10-get-rule-only). A Put without the element, an empty rule and
+// a Delete each return the bucket to blocking SSE-C (S3SOL-10
+// 10-get-after-empty-rule, S3SOL-11 11-get-after-omit, 11-get-after-delete,
+// all recorded 2026-11-03). A rule with only BucketKeyEnabled is inferred
+// to be accepted as the empty rule is; a configuration without rules is
+// MalformedXML (s3.md 4.2.2).
 func TestBucketEncryptionBlock(t *testing.T) {
 	runObjects(t, func(h *harness) {
 		t := h.T
-		h.follows("s3.encryption.unblocked-read", "NONE-element")
-		h.follows("s3.encryption.blocked-types-omitted", "kept")
 		aes := &s3api.ServerSideEncryptionByDefault{SSEAlgorithm: s3api.ServerSideEncryptionAes256}
 		kmsArn := ok(h, who{}, kmsapi.OpCreateKey, &kmsapi.CreateKeyInput{}).KeyMetadata.Arn
 		kms := &s3api.ServerSideEncryptionByDefault{SSEAlgorithm: s3api.ServerSideEncryptionAwsKms, KMSMasterKeyID: kmsArn}
@@ -942,16 +971,30 @@ func TestBucketEncryptionBlock(t *testing.T) {
 		if err := put("unblocked", s3api.ServerSideEncryptionRule{ApplyServerSideEncryptionByDefault: kms, BucketKeyEnabled: new(true)}); err != nil {
 			t.Fatalf("a KMS rule without the element: %s %q", err.ID.QueryCode, err.Message)
 		}
-		read("KMS rule after NONE", "unblocked", s3api.ServerSideEncryptionRule{ApplyServerSideEncryptionByDefault: kms, BucketKeyEnabled: new(true), BlockedEncryptionTypes: types(s3api.EncryptionTypeNone)})
+		read("KMS rule after NONE", "unblocked", s3api.ServerSideEncryptionRule{ApplyServerSideEncryptionByDefault: kms, BucketKeyEnabled: new(true), BlockedEncryptionTypes: types(s3api.EncryptionTypeSseC)})
+		_, err := h.putSSEC("unblocked", "k", "v", key1)
+		blocked("s3:PutObject", "unblocked", "k").is(t, "SSE-C PutObject after a rule without the element (11-ssec-after-omit)", err)
+
+		h.allowSSEC("unblocked")
 		ok(h, who{}, s3api.OpDeleteBucketEncryption, &s3api.DeleteBucketEncryptionInput{Bucket: "unblocked"})
-		read("deleted after NONE", "unblocked", s3api.ServerSideEncryptionRule{ApplyServerSideEncryptionByDefault: aes, BucketKeyEnabled: new(false), BlockedEncryptionTypes: types(s3api.EncryptionTypeNone)})
-		h.mustPutSSEC("unblocked", "k", "v", key1)
+		read("deleted after NONE", "unblocked", s3api.ServerSideEncryptionRule{ApplyServerSideEncryptionByDefault: aes, BucketKeyEnabled: new(false), BlockedEncryptionTypes: types(s3api.EncryptionTypeSseC)})
+		_, err = h.putSSEC("unblocked", "k", "v", key1)
+		blocked("s3:PutObject", "unblocked", "k").is(t, "SSE-C PutObject after DeleteBucketEncryption (11-ssec-after-delete)", err)
+
+		h.allowSSEC("unblocked")
+		if err := put("unblocked", s3api.ServerSideEncryptionRule{}); err != nil {
+			t.Fatalf("an empty rule (10-put-empty-rule): %s %q", err.ID.QueryCode, err.Message)
+		}
+		read("empty rule after NONE", "unblocked", s3api.ServerSideEncryptionRule{ApplyServerSideEncryptionByDefault: aes, BucketKeyEnabled: new(false), BlockedEncryptionTypes: types(s3api.EncryptionTypeSseC)})
+		if err := put("unblocked", s3api.ServerSideEncryptionRule{BucketKeyEnabled: new(true)}); err != nil {
+			t.Fatalf("a rule with only BucketKeyEnabled: %s %q", err.ID.QueryCode, err.Message)
+		}
+		read("rule with only BucketKeyEnabled", "unblocked", s3api.ServerSideEncryptionRule{ApplyServerSideEncryptionByDefault: aes, BucketKeyEnabled: new(true), BlockedEncryptionTypes: types(s3api.EncryptionTypeSseC)})
 
 		h.setBlock("unblocked", s3api.EncryptionTypeSseC)
 		read("blocked again", "unblocked", s3api.ServerSideEncryptionRule{ApplyServerSideEncryptionByDefault: aes, BucketKeyEnabled: new(false), BlockedEncryptionTypes: types(s3api.EncryptionTypeSseC)})
-		code, status := h.switchCode("s3.sse-c.blocked-write")
-		_, err := h.putSSEC("unblocked", "k", "v", key1)
-		failure{status: status, code: code, message: "Access Denied"}.is(t, "SSE-C PutObject after blocking again", err)
+		_, err = h.putSSEC("unblocked", "k", "v", key1)
+		blocked("s3:PutObject", "unblocked", "k").is(t, "SSE-C PutObject after blocking again", err)
 
 		h.createBucket("default")
 		if err := put("default", s3api.ServerSideEncryptionRule{ApplyServerSideEncryptionByDefault: kms}); err != nil {
@@ -960,8 +1003,6 @@ func TestBucketEncryptionBlock(t *testing.T) {
 		read("KMS rule from the default state (R06/02-get-encryption-arn)", "default", s3api.ServerSideEncryptionRule{ApplyServerSideEncryptionByDefault: kms, BucketKeyEnabled: new(false), BlockedEncryptionTypes: types(s3api.EncryptionTypeSseC)})
 
 		malformed := failure{status: 400, code: "MalformedXML", message: "The XML you provided was not well-formed or did not validate against our published schema"}
-		malformed.is(t, "a rule with neither member", put("default", s3api.ServerSideEncryptionRule{}))
-		malformed.is(t, "a rule with only BucketKeyEnabled", put("default", s3api.ServerSideEncryptionRule{BucketKeyEnabled: new(true)}))
 		malformed.is(t, "no rules", put("default"))
 	})
 }

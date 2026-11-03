@@ -13,6 +13,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/identity"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/ref"
 )
@@ -128,12 +129,27 @@ func customerOf(choice sseChoice) *customerKey {
 	return nil
 }
 
+// writeCall is the call a write arrives on: its caller and the IAM action
+// that a bucket blocking SSE-C names in its refusal
+// (s3-ssec-object-lock.md 4.3), and its scheme, which SSE-C needs to be
+// https.
+type writeCall struct {
+	principal identity.Principal
+	action    string
+	scheme    string
+}
+
+// writeCallOf is c as a write the block's refusal names action for.
+func writeCallOf(c *kernel.Call, action string) writeCall {
+	return writeCall{principal: c.Principal(), action: action, scheme: c.Endpoint().Scheme}
+}
+
 // resolveSSE applies s3.md 5.7: the request's headers win; without them
-// the bucket's default rule decides. objectARN is the object's ARN, the
-// encryption context S3 adds. SSE-C headers are checked in the order of
-// s3-ssec-object-lock.md 11.3: the trio, then the bucket's block, then the
-// call's scheme.
-func resolveSSE(r sseRequest, b *Bucket, objectARN, scheme string) (sseChoice, *awserr.Error) {
+// the bucket's default rule decides. key is the object's key, whose ARN is
+// the encryption context S3 adds. SSE-C headers are checked in the order
+// of s3-ssec-object-lock.md 11.3: the trio, then the bucket's block, then
+// the call's scheme.
+func resolveSSE(r sseRequest, b *Bucket, key string, w writeCall) (sseChoice, *awserr.Error) {
 	k, err := parseCustomerWrite(r.customer, r.algorithm)
 	if err != nil {
 		return nil, err
@@ -145,11 +161,12 @@ func resolveSSE(r sseRequest, b *Bucket, objectARN, scheme string) (sseChoice, *
 			alg, _, _ := bucketDefault(b)
 			return nil, errKMSKeyWithoutKMS(alg)
 		}
-		if err := checkCustomerWrite(b, scheme); err != nil {
+		if err := checkCustomerWrite(b, key, w); err != nil {
 			return nil, err
 		}
 		return sseC{key: *k}, nil
 	}
+	objectARN := objectResource(b.Name, key).String()
 	alg, keyID, bucketKey := bucketDefault(b)
 	if r.algorithm != nil {
 		alg, keyID = *r.algorithm, r.keyID
@@ -349,8 +366,9 @@ const sseArgumentName = "x-amz-server-side-encryption"
 
 // The SSE-C refusal texts of s3-ssec-object-lock.md 3.2, 3.3 and 3.6, as
 // LocalStack's AWS-validated snapshots record them (localstack@8b9a79f
-// tests/aws/services/s3/test_s3.snapshot.json, validated 2026-02-21), and
-// the texts of the switches s3.sse-c.missing-key-md5 and
+// tests/aws/services/s3/test_s3.snapshot.json, validated 2026-02-21) and
+// the 2026-11-03 session records them (testdata/parity/s3/S3SOL; the
+// missing-MD5 text S3SOL-03 03-put), and the text of the switch
 // s3.sse-c.plain-http, which no AWS recording shows (11.4).
 const (
 	ssecConflictText    = "Server Side Encryption with Customer provided key is incompatible with the encryption method specified"
@@ -365,6 +383,9 @@ const (
 	ssecInsecureText    = "Requests specifying Server Side Encryption with Customer provided keys must be made over a secure connection."
 	ssecInitiateText    = "The multipart upload initiate requested encryption. Subsequent part requests must include the appropriate encryption parameters."
 	ssecMismatchText    = "The provided encryption parameters did not match the ones used originally."
+
+	ssecListPartsChecksumText = "The multipart upload initiate requested encryption. To retrieve Part Checksum data requests must include the appropriate encryption parameters."
+	ssecCompleteChecksumText  = "The object was stored using a form of Server Side Encryption. Correct SSE-C request parameters are required for this request when specifying checksums for each part."
 )
 
 // errSSECConflict answers SSE-C headers beside x-amz-server-side-encryption
@@ -393,20 +414,28 @@ func errSSECHeader(text string) *awserr.Error {
 func errSSECNeedsKey() *awserr.Error { return errInvalidRequest(ssecNeedsKeyText) }
 
 // errSSECWrongKey answers a read of an SSE-C version with another key
-// (LocalStack test_s3.snapshot.json L12811, L12855; switch
-// s3.sse-c.copy-source-wrong-key for a copy source).
+// (LocalStack test_s3.snapshot.json L12811, L12855; S3SOL-04
+// 04-get-short-key). A copy source answers another key otherwise
+// (checkCustomerSource).
 func errSSECWrongKey() *awserr.Error { return s3api.ErrAccessDenied(ssecWrongKeyText) }
 
 // errSSECNotApplicable answers SSE-C headers on a read of a version that
-// is not SSE-C (testdata/parity/s3/R15/x-ssec-on-non-ssec-read.json;
-// switch s3.sse-c.copy-source-not-applicable for a copy source).
+// is not SSE-C (testdata/parity/s3/R15/x-ssec-on-non-ssec-read.json), a
+// copy source's included (S3SOL-06, recorded 2026-11-03).
 func errSSECNotApplicable() *awserr.Error {
 	return errInvalidRequest("The encryption parameters are not applicable to this object.")
 }
 
-// errSSECBlocked answers an SSE-C write to a bucket whose
-// BlockedEncryptionTypes is SSE-C (switch s3.sse-c.blocked-write).
-func errSSECBlocked() *awserr.Error { return s3api.ErrAccessDenied("Access Denied") }
+// errSSECBlocked answers an SSE-C write w to bucket/key while the bucket's
+// BlockedEncryptionTypes is SSE-C: 403 AccessDenied naming the caller, the
+// action and the object, with no other element (s3-ssec-object-lock.md
+// 4.3; S3SOL-01, recorded 2026-11-03, for an assumed role in the owner's
+// account; the same form for any other caller is inferred).
+func errSSECBlocked(w writeCall, bucket, key string) *awserr.Error {
+	return s3api.ErrAccessDenied("User: " + identity.Render(w.principal) + " is not authorized to perform: " + w.action +
+		` on resource: "` + objectResource(bucket, key).String() + `" because this bucket has blocked upload requests that specify` +
+		" Server Side Encryption with Customer provided keys (SSE-C). Please specify a different server-side encryption type.")
+}
 
 // errSSECInsecure answers SSE-C headers over plain HTTP (switch
 // s3.sse-c.plain-http).
@@ -453,7 +482,13 @@ func parseCustomerWrite(h customerHeaders, sse *s3api.ServerSideEncryption) (*cu
 	if sse != nil {
 		return nil, errSSECConflict(*sse)
 	}
-	key, err := decodeCustomerKey(h)
+	if err := checkCustomerPresence(h); err != nil {
+		return nil, err
+	}
+	if h.keyMD5 == nil {
+		return nil, errSSECHeader(ssecNoKeyMD5Text)
+	}
+	key, err := decodeCustomerKey(*h.key)
 	if err != nil {
 		return nil, err
 	}
@@ -466,45 +501,65 @@ func parseCustomerWrite(h customerHeaders, sse *s3api.ServerSideEncryption) (*cu
 // parseCustomerRead checks a read's or a copy source's SSE-C headers as
 // parseCustomerWrite does, without the conflict and the length checks: a
 // key of another length with a matching MD5 then fails the fingerprint
-// with 403, as S3 answers it (s3-ssec-object-lock.md 3.3; switch
-// s3.sse-c.key-encoding). It returns nil when none was sent.
+// with 403, as S3 answers it (s3-ssec-object-lock.md 3.3). A key sent
+// without its MD5 passes with the MD5 S3 computes, which the response
+// echoes: recorded on GetObject (S3SOL-03 03-get, recorded 2026-11-03),
+// inferred for the other reads and a copy source. It returns nil when none
+// was sent.
 func parseCustomerRead(h customerHeaders) (*customerKey, *awserr.Error) {
 	if !h.sent() {
 		return nil, nil
 	}
-	key, err := decodeCustomerKey(h)
+	if err := checkCustomerPresence(h); err != nil {
+		return nil, err
+	}
+	key, err := decodeCustomerKey(*h.key)
 	if err != nil {
 		return nil, err
+	}
+	if h.keyMD5 == nil {
+		return &customerKey{key: key, keyMD5: customerKeyMD5(key)}, nil
 	}
 	return checkCustomerKeyMD5(key, *h.keyMD5)
 }
 
-// decodeCustomerKey checks a sent trio's algorithm and the presence of all
-// three headers, then decodes the key, which must be standard base64
-// (switch s3.sse-c.key-encoding for one that is not).
-func decodeCustomerKey(h customerHeaders) ([]byte, *awserr.Error) {
+// checkCustomerPresence checks a sent trio's algorithm, then that it holds
+// the algorithm and the key (s3-ssec-object-lock.md 3.2).
+func checkCustomerPresence(h customerHeaders) *awserr.Error {
 	switch {
 	case h.algorithm != nil && *h.algorithm != customerAlgorithm:
-		return nil, errSSECAlgorithm(*h.algorithm)
+		return errSSECAlgorithm(*h.algorithm)
 	case h.algorithm == nil:
-		return nil, errSSECHeader(ssecNoAlgorithmText)
+		return errSSECHeader(ssecNoAlgorithmText)
 	case h.key == nil:
-		return nil, errSSECHeader(ssecNoKeyText)
-	case h.keyMD5 == nil:
-		return nil, errSSECHeader(ssecNoKeyMD5Text)
+		return errSSECHeader(ssecNoKeyText)
 	}
-	key, err := base64.StdEncoding.DecodeString(*h.key)
+	return nil
+}
+
+// decodeCustomerKey decodes a key header, which must be standard base64.
+// One that is not gets the MD5-mismatch text, as S3 answered a write whose
+// key was not base64 (s3-ssec-object-lock.md 3.2; S3SOL-04
+// 04-put-not-base64, recorded 2026-11-03); a read is inferred to answer
+// the same.
+func decodeCustomerKey(header string) ([]byte, *awserr.Error) {
+	key, err := base64.StdEncoding.DecodeString(header)
 	if err != nil {
-		return nil, errSSECHeader(ssecBadKeyText)
+		return nil, errSSECHeader(ssecBadKeyMD5Text)
 	}
 	return key, nil
+}
+
+// customerKeyMD5 is the key-MD5 header value of key: the base64 of its MD5.
+func customerKeyMD5(key []byte) string {
+	sum := md5.Sum(key) //nolint:gosec // see the import
+	return base64.StdEncoding.EncodeToString(sum[:])
 }
 
 // checkCustomerKeyMD5 refuses a key whose MD5 header is not the base64 MD5
 // of its bytes, and otherwise returns the parsed key.
 func checkCustomerKeyMD5(key []byte, keyMD5 string) (*customerKey, *awserr.Error) {
-	sum := md5.Sum(key) //nolint:gosec // see the import
-	if base64.StdEncoding.EncodeToString(sum[:]) != keyMD5 {
+	if customerKeyMD5(key) != keyMD5 {
 		return nil, errSSECHeader(ssecBadKeyMD5Text)
 	}
 	return &customerKey{key: key, keyMD5: keyMD5}, nil
@@ -528,14 +583,14 @@ func fingerprint(salt, key []byte) []byte {
 	return mac.Sum(nil)
 }
 
-// checkCustomerWrite refuses an SSE-C write whose headers parsed: 403 on a
-// bucket that blocks SSE-C (switch s3.sse-c.blocked-write), then 400 over
-// plain HTTP (switch s3.sse-c.plain-http); scheme is the call's.
-func checkCustomerWrite(b *Bucket, scheme string) *awserr.Error {
+// checkCustomerWrite refuses an SSE-C write w of key whose headers parsed:
+// 403 on a bucket that blocks SSE-C (errSSECBlocked), then 400 over plain
+// HTTP (switch s3.sse-c.plain-http).
+func checkCustomerWrite(b *Bucket, key string, w writeCall) *awserr.Error {
 	if b.BlockedEncryption == BlockSSEC {
-		return errSSECBlocked()
+		return errSSECBlocked(w, b.Name, key)
 	}
-	return checkCustomerScheme(scheme)
+	return checkCustomerScheme(w.scheme)
 }
 
 // checkCustomerScheme refuses SSE-C headers sent over plain HTTP: "Amazon
@@ -555,6 +610,22 @@ func checkCustomerScheme(scheme string) *awserr.Error {
 // 403. It returns the key whose MD5 the response echoes, nil without
 // headers. A blocked bucket never refuses a read (4.3).
 func checkCustomerRead(stored Encryption, h customerHeaders, scheme string) (*customerKey, *awserr.Error) {
+	return judgeCustomerRead(stored, h, scheme, errSSECWrongKey)
+}
+
+// checkCustomerSource judges a CopyObject's or UploadPartCopy's source
+// SSE-C headers as checkCustomerRead judges a read's, except that another
+// key is 400 InvalidRequest "The provided encryption parameters did not
+// match the ones used originally.", not the read's 403
+// (s3-ssec-object-lock.md 3.5; S3SOL-07, recorded 2026-11-03).
+func checkCustomerSource(stored Encryption, h customerHeaders, scheme string) *awserr.Error {
+	_, err := judgeCustomerRead(stored, h, scheme, func() *awserr.Error { return errInvalidRequest(ssecMismatchText) })
+	return err
+}
+
+// judgeCustomerRead is checkCustomerRead with wrongKey the answer to
+// another key.
+func judgeCustomerRead(stored Encryption, h customerHeaders, scheme string, wrongKey func() *awserr.Error) (*customerKey, *awserr.Error) {
 	c, isC := stored.(CustomerEncryption)
 	if !h.sent() {
 		if isC {
@@ -573,7 +644,7 @@ func checkCustomerRead(stored Encryption, h customerHeaders, scheme string) (*cu
 	case !isC:
 		return nil, errSSECNotApplicable()
 	case !c.matches(*k):
-		return nil, errSSECWrongKey()
+		return nil, wrongKey()
 	}
 	return k, nil
 }
@@ -583,13 +654,13 @@ func checkCustomerRead(stored Encryption, h customerHeaders, scheme string) (*cu
 // 3.6): the header checks, the bucket block, plain HTTP, then the match
 // with the upload. It returns the key whose MD5 the response echoes, nil
 // for an upload that is not SSE-C.
-func checkCustomerPart(upload Encryption, h customerHeaders, b *Bucket, scheme string) (*customerKey, *awserr.Error) {
+func checkCustomerPart(upload Encryption, h customerHeaders, b *Bucket, key string, w writeCall) (*customerKey, *awserr.Error) {
 	k, err := parseCustomerWrite(h, nil)
 	if err != nil {
 		return nil, err
 	}
 	if k != nil {
-		if err := checkCustomerWrite(b, scheme); err != nil {
+		if err := checkCustomerWrite(b, key, w); err != nil {
 			return nil, err
 		}
 	}
@@ -599,15 +670,52 @@ func checkCustomerPart(upload Encryption, h customerHeaders, b *Bucket, scheme s
 	return k, nil
 }
 
+// needsCustomerKey reports whether u is SSE-C and declared a checksum
+// algorithm, so ListParts and Complete need its key: the model notes the
+// key "is needed only when the object was created using a checksum
+// algorithm" (s3-ssec-object-lock.md 3.6; switch
+// s3.sse-c.complete-headers, S3SOL-08).
+func needsCustomerKey(u *Upload) bool {
+	return isCustomer(u.Encryption) && u.Checksum.Algorithm != ""
+}
+
 // checkCustomerComplete judges a CompleteMultipartUpload's SSE-C headers
-// against its upload (switch s3.sse-c.complete-headers): headers that are
-// sent are checked as checkCustomerSent checks them; none is needed unless
-// the upload is SSE-C and declared a checksum algorithm, as the model notes
-// the key "is needed only when the object was created using a checksum
-// algorithm" (s3-ssec-object-lock.md 3.6).
+// against its upload: on an upload that needs its key, none or another key
+// is 400 InvalidRequest "... Correct SSE-C request parameters are required
+// for this request when specifying checksums for each part."
+// (s3-ssec-object-lock.md 3.6; S3SOL-08 08-no-key and 08-wrong-key,
+// recorded 2026-11-03); otherwise headers that are sent are checked as
+// checkCustomerSent checks them.
 func checkCustomerComplete(u *Upload, h customerHeaders, scheme string) *awserr.Error {
-	if !h.sent() && isCustomer(u.Encryption) && u.Checksum.Algorithm != "" {
-		return errInvalidRequest(ssecInitiateText)
+	c, isC := u.Encryption.(CustomerEncryption)
+	if !needsCustomerKey(u) || !isC {
+		return checkCustomerSent(u.Encryption, h, scheme)
+	}
+	if !h.sent() {
+		return errInvalidRequest(ssecCompleteChecksumText)
+	}
+	k, err := parseCustomerWrite(h, nil)
+	if err != nil {
+		return err
+	}
+	if err := checkCustomerScheme(scheme); err != nil {
+		return err
+	}
+	if !c.matches(*k) {
+		return errInvalidRequest(ssecCompleteChecksumText)
+	}
+	return nil
+}
+
+// checkCustomerList judges a ListParts's SSE-C headers against its
+// upload: none on an upload that needs its key is 400 InvalidRequest "...
+// To retrieve Part Checksum data requests must include the appropriate
+// encryption parameters." (s3-ssec-object-lock.md 3.6; S3SOL-08
+// 08-list-parts-no-key, recorded 2026-11-03); headers that are sent are
+// checked as checkCustomerSent checks them.
+func checkCustomerList(u *Upload, h customerHeaders, scheme string) *awserr.Error {
+	if !h.sent() && needsCustomerKey(u) {
+		return errInvalidRequest(ssecListPartsChecksumText)
 	}
 	return checkCustomerSent(u.Encryption, h, scheme)
 }
@@ -615,10 +723,10 @@ func checkCustomerComplete(u *Upload, h customerHeaders, scheme string) *awserr.
 // checkCustomerSent judges the SSE-C headers a CompleteMultipartUpload or
 // a ListParts sent against the upload's encryption as UploadPart judges
 // them, without the bucket block: the header checks, plain HTTP, then the
-// match with the upload (switch s3.sse-c.complete-headers, whose
-// operations both are; plain HTTP as for any SSE-C request,
-// s3-ssec-object-lock.md 3.9). None sent passes: ListParts never needs
-// them (3.6), and checkCustomerComplete adds Complete's one exception.
+// match with the upload (inferred for an upload without a checksum
+// algorithm; plain HTTP as for any SSE-C request, s3-ssec-object-lock.md
+// 3.9). None sent passes; checkCustomerComplete and checkCustomerList add
+// the uploads that need their key.
 func checkCustomerSent(upload Encryption, h customerHeaders, scheme string) *awserr.Error {
 	if !h.sent() {
 		return nil
@@ -690,14 +798,16 @@ func newBucketBlock(region aws.Region) BlockedEncryption {
 }
 
 // blockedEncryptionOf reads a PutBucketEncryption rule's
-// BlockedEncryptionTypes; false when the rule has none, so the bucket
-// keeps its setting (switch s3.encryption.blocked-types-omitted). [SSE-C]
-// blocks and [NONE] unblocks; an empty list, or one that holds both, is
-// MalformedXML, which no recording shows (inferred).
-func blockedEncryptionOf(rule s3api.ServerSideEncryptionRule) (BlockedEncryption, bool, *awserr.Error) {
+// BlockedEncryptionTypes for a bucket in region. A rule without it puts
+// the bucket back to a new bucket's block: SSE-C blocked in us-east-2
+// (s3-ssec-object-lock.md 4.2; S3SOL-11 11-get-after-omit, recorded
+// 2026-11-03), and NONE in me-south-1 and me-central-1, inferred from 4.1.
+// [SSE-C] blocks and [NONE] unblocks; an empty list, or one that holds
+// both, is MalformedXML, which no recording shows (inferred).
+func blockedEncryptionOf(rule s3api.ServerSideEncryptionRule, region aws.Region) (BlockedEncryption, *awserr.Error) {
 	t := rule.BlockedEncryptionTypes
 	if t == nil {
-		return BlockSSEC, false, nil
+		return newBucketBlock(region), nil
 	}
 	var sseC, none bool
 	for _, e := range t.EncryptionType {
@@ -707,16 +817,16 @@ func blockedEncryptionOf(rule s3api.ServerSideEncryptionRule) (BlockedEncryption
 		case s3api.EncryptionTypeNone:
 			none = true
 		default:
-			return BlockSSEC, false, errMalformedXML()
+			return BlockSSEC, errMalformedXML()
 		}
 	}
 	switch {
 	case sseC == none:
-		return BlockSSEC, false, errMalformedXML()
+		return BlockSSEC, errMalformedXML()
 	case none:
-		return BlockNone, true, nil
+		return BlockNone, nil
 	}
-	return BlockSSEC, true, nil
+	return BlockSSEC, nil
 }
 
 // encryptionRead is GetBucketEncryption's document: the stored rule or the

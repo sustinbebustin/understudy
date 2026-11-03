@@ -32,7 +32,7 @@ import (
 func TestSSECAndObjectLockCoverageMarks(t *testing.T) {
 	const (
 		putNote      = "an object ACL a bucket accepts is not stored; user metadata is stored as sent, without RFC 2047 decoding; chunk signatures are verified under sigv4 verify; Object Lock event-hold headers are refused with NotImplemented"
-		readNote     = "presigned URLs are verified and expire on the emulator clock under sigv4 verify; x-amz-checksum-mode is accepted in any case, and a value other than ENABLED is refused with InvalidArgument, where AWS's answer is UNVERIFIED (s3.md 5.8, recording S3-01)"
+		readNote     = "presigned URLs are verified and expire on the emulator clock under sigv4 verify"
 		copyNote     = "an object ACL a bucket accepts is not stored; errors after the copy starts are not sent as 200-with-error; Object Lock event-hold headers are refused with NotImplemented"
 		createNote   = "an object ACL a bucket accepts is not stored; no lifecycle abort date; Object Lock event-hold headers are refused with NotImplemented"
 		partNote     = "chunk signatures are verified under sigv4 verify"
@@ -103,36 +103,38 @@ type wantSwitch struct {
 
 // TestSSECAndObjectLockSwitches: the service lists the switches of
 // s3-ssec-object-lock.md 11.4 after its earlier five, in that table's
-// order, each pointing at its section and its recording-queue item and
-// settled by no scenario yet (section 12); s3.encryption.after-delete is
-// now backed by the recording of section 2. IAM enforcement's two S3
-// switches (s3.denial.text, s3.root.bucket-policy-lockout) follow them
+// order, each pointing at its section and its recording-queue item
+// (section 12): recorded on 2026-11-03 and settled by no scenario, since
+// the replayer skips S3's REST requests, except s3.sse-c.plain-http, whose
+// item was not recorded; s3.encryption.after-delete is backed by the
+// recording of section 2. IAM enforcement's two S3 switches
+// (s3.denial.text, s3.root.bucket-policy-lockout) follow them
 // (iam-enforcement-surfaces.md 12.8).
 func TestSSECAndObjectLockSwitches(t *testing.T) {
 	plainHTTPOps := []string{"s3.PutObject", "s3.CopyObject", "s3.CreateMultipartUpload", "s3.UploadPart", "s3.UploadPartCopy", "s3.CompleteMultipartUpload", "s3.GetObject", "s3.HeadObject", "s3.GetObjectAttributes"}
-	inferred := evidence.Inferred
+	recorded := evidence.AWSRecorded
 	want := []wantSwitch{
 		{"s3.sse-c.plain-http", "refused", evidence.AWSDoc, "39-https", "S3SOL-02", append(slices.Clone(plainHTTPOps), "s3.ListParts")},
-		{"s3.sse-c.blocked-write", "AccessDenied", inferred, "43-what-the-block-refuses", "S3SOL-01", []string{"s3.PutObject", "s3.CopyObject", "s3.CreateMultipartUpload", "s3.UploadPart", "s3.UploadPartCopy"}},
-		{"s3.sse-c.missing-key-md5", "InvalidArgument", inferred, "32-write-side-validation-third-party-recorded", "S3SOL-03", plainHTTPOps},
-		{"s3.sse-c.key-encoding", "write-side-texts", inferred, "32-write-side-validation-third-party-recorded", "S3SOL-04", plainHTTPOps},
-		{"s3.sse-c.metadata-without-key", "InvalidRequest", inferred, "33-reads-getobject-headobject-getobjectattributes", "S3SOL-05", []string{"s3.HeadObject", "s3.GetObjectAttributes"}},
-		{"s3.sse-c.copy-source-not-applicable", "InvalidRequest", inferred, "35-copyobject-and-uploadpartcopy", "S3SOL-06", []string{"s3.CopyObject", "s3.UploadPartCopy"}},
-		{"s3.sse-c.copy-source-wrong-key", "AccessDenied", inferred, "35-copyobject-and-uploadpartcopy", "S3SOL-07", []string{"s3.CopyObject", "s3.UploadPartCopy"}},
-		{"s3.sse-c.complete-headers", "checked-when-sent", inferred, "36-multipart-uploads", "S3SOL-08", []string{"s3.CompleteMultipartUpload", "s3.ListParts"}},
-		{"s3.encryption.unblocked-read", "NONE-element", inferred, "42-blocking-and-unblocking", "S3SOL-10", []string{"s3.PutBucketEncryption", "s3.GetBucketEncryption"}},
-		{"s3.encryption.blocked-types-omitted", "kept", inferred, "42-blocking-and-unblocking", "S3SOL-11", []string{"s3.PutBucketEncryption", "s3.DeleteBucketEncryption"}},
-		{"s3.object-lock.retain-until-format", "milliseconds", inferred, "67-response-headers-on-get-and-head", "S3SOL-12", []string{"s3.PutObject", "s3.CopyObject", "s3.CreateMultipartUpload", "s3.PutObjectRetention", "s3.GetObject", "s3.HeadObject", "s3.GetObjectRetention", "s3.DeleteObject", "s3.DeleteObjects"}},
-		{"s3.object-lock.default-years", "365-day", inferred, "53-default-retention-dating", "S3SOL-13", []string{"s3.PutObjectLockConfiguration", "s3.PutObject", "s3.CopyObject", "s3.CompleteMultipartUpload"}},
-		{"s3.object-lock.checksum-scope", "PutObject-retention", inferred, "63-the-content-md5-or-checksum-requirement", "S3SOL-14, S3SOL-15", []string{"s3.PutObject", "s3.UploadPart"}},
-		{"s3.object-lock.copy-default", "default-applied", inferred, "68-copyobject-does-not-carry-lock-state", "S3SOL-16", []string{"s3.CopyObject"}},
-		{"s3.object-lock.headers-without-lock", "InvalidRequest", inferred, "62-header-validation-third-party-recorded-all-400-invalidargument", "S3SOL-17", []string{"s3.PutObject", "s3.CopyObject", "s3.CreateMultipartUpload"}},
-		{"s3.object-lock.header-texts", "InvalidArgument", inferred, "62-header-validation-third-party-recorded-all-400-invalidargument", "S3SOL-18", []string{"s3.PutObject", "s3.CopyObject", "s3.CreateMultipartUpload", "s3.PutObjectRetention"}},
-		{"s3.object-lock.mode-upgrade", "refused", inferred, "64-putobjectretention-and-getobjectretention", "S3SOL-19", []string{"s3.PutObjectRetention"}},
-		{"s3.object-lock.date-without-mode", "MalformedXML", inferred, "64-putobjectretention-and-getobjectretention", "S3SOL-20", []string{"s3.PutObjectRetention"}},
-		{"s3.object-lock.cleared-reads", "404-and-OFF", inferred, "64-putobjectretention-and-getobjectretention", "S3SOL-21", []string{"s3.GetObjectRetention", "s3.GetObjectLegalHold", "s3.GetObject", "s3.HeadObject"}},
-		{"s3.object-lock.check-order", "lock-state-first", inferred, "65-putobjectlegalhold-and-getobjectlegalhold", "S3SOL-22", []string{"s3.PutObjectRetention", "s3.GetObjectRetention", "s3.PutObjectLegalHold", "s3.GetObjectLegalHold"}},
-		{"s3.object-lock.bypass-without-lock", "refused", evidence.ThirdPartyRecorded, "73-the-bypass-header-on-a-bucket-without-object-lock", "S3SOL-23", []string{"s3.DeleteObject", "s3.DeleteObjects"}},
+		{"s3.sse-c.blocked-write", "AccessDenied", recorded, "43-what-the-block-refuses", "S3SOL-01", []string{"s3.PutObject", "s3.CopyObject", "s3.CreateMultipartUpload", "s3.UploadPart", "s3.UploadPartCopy"}},
+		{"s3.sse-c.missing-key-md5", "InvalidArgument", recorded, "32-write-side-validation-third-party-recorded", "S3SOL-03", []string{"s3.PutObject", "s3.CopyObject", "s3.CreateMultipartUpload", "s3.UploadPart", "s3.UploadPartCopy", "s3.CompleteMultipartUpload"}},
+		{"s3.sse-c.key-encoding", "write-side-texts", recorded, "32-write-side-validation-third-party-recorded", "S3SOL-04", plainHTTPOps},
+		{"s3.sse-c.metadata-without-key", "InvalidRequest", recorded, "33-reads-getobject-headobject-getobjectattributes", "S3SOL-05", []string{"s3.HeadObject", "s3.GetObjectAttributes"}},
+		{"s3.sse-c.copy-source-not-applicable", "InvalidRequest", recorded, "35-copyobject-and-uploadpartcopy", "S3SOL-06", []string{"s3.CopyObject", "s3.UploadPartCopy"}},
+		{"s3.sse-c.copy-source-wrong-key", "InvalidRequest", recorded, "35-copyobject-and-uploadpartcopy", "S3SOL-07", []string{"s3.CopyObject", "s3.UploadPartCopy"}},
+		{"s3.sse-c.complete-headers", "required-with-checksum", recorded, "36-multipart-uploads", "S3SOL-08", []string{"s3.CompleteMultipartUpload", "s3.ListParts"}},
+		{"s3.encryption.unblocked-read", "NONE-element", recorded, "42-blocking-and-unblocking", "S3SOL-10", []string{"s3.PutBucketEncryption", "s3.GetBucketEncryption"}},
+		{"s3.encryption.blocked-types-omitted", "reset-to-new-bucket", recorded, "42-blocking-and-unblocking", "S3SOL-11", []string{"s3.PutBucketEncryption", "s3.DeleteBucketEncryption"}},
+		{"s3.object-lock.retain-until-format", "milliseconds-header-trimmed", recorded, "67-response-headers-on-get-and-head", "S3SOL-12", []string{"s3.PutObject", "s3.CopyObject", "s3.CreateMultipartUpload", "s3.PutObjectRetention", "s3.GetObject", "s3.HeadObject", "s3.GetObjectRetention", "s3.DeleteObject", "s3.DeleteObjects"}},
+		{"s3.object-lock.default-years", "calendar-years", recorded, "53-default-retention-dating", "S3SOL-13", []string{"s3.PutObjectLockConfiguration", "s3.PutObject", "s3.CopyObject", "s3.CompleteMultipartUpload"}},
+		{"s3.object-lock.checksum-scope", "any-lock-parameter-and-parts", recorded, "63-the-content-md5-or-checksum-requirement", "S3SOL-14, S3SOL-15", []string{"s3.PutObject", "s3.UploadPart"}},
+		{"s3.object-lock.copy-default", "default-applied", recorded, "68-copyobject-does-not-carry-lock-state", "S3SOL-16", []string{"s3.CopyObject"}},
+		{"s3.object-lock.headers-without-lock", "InvalidRequest", recorded, "62-header-validation-third-party-recorded-all-400-invalidargument", "S3SOL-17", []string{"s3.PutObject", "s3.CopyObject", "s3.CreateMultipartUpload"}},
+		{"s3.object-lock.header-texts", "InvalidArgument", recorded, "62-header-validation-third-party-recorded-all-400-invalidargument", "S3SOL-18", []string{"s3.PutObject", "s3.CopyObject", "s3.CreateMultipartUpload", "s3.PutObjectRetention"}},
+		{"s3.object-lock.mode-upgrade", "refused", recorded, "64-putobjectretention-and-getobjectretention", "S3SOL-19", []string{"s3.PutObjectRetention"}},
+		{"s3.object-lock.date-without-mode", "MalformedXML", recorded, "64-putobjectretention-and-getobjectretention", "S3SOL-20", []string{"s3.PutObjectRetention"}},
+		{"s3.object-lock.cleared-reads", "404-and-OFF", recorded, "64-putobjectretention-and-getobjectretention", "S3SOL-21", []string{"s3.GetObjectRetention", "s3.GetObjectLegalHold", "s3.GetObject", "s3.HeadObject"}},
+		{"s3.object-lock.check-order", "lock-state-first", recorded, "65-putobjectlegalhold-and-getobjectlegalhold", "S3SOL-22", []string{"s3.PutObjectRetention", "s3.GetObjectRetention", "s3.PutObjectLegalHold", "s3.GetObjectLegalHold"}},
+		{"s3.object-lock.bypass-without-lock", "refused", recorded, "73-the-bypass-header-on-a-bucket-without-object-lock", "S3SOL-23", []string{"s3.DeleteObject", "s3.DeleteObjects"}},
 	}
 	run(t, s3.Options{}, func(h *harness) {
 		t := h.T
@@ -161,6 +163,12 @@ func TestSSECAndObjectLockSwitches(t *testing.T) {
 					w.name, e.Value, e.Label, e.Ref, e.Record, e.Ops, w.value, w.label, "docs/research/s3-ssec-object-lock.md#"+w.anchor, w.record, w.ops)
 			}
 			reason, unsettled := e.Settles.(fidelity.NoScenario)
+			if w.label == evidence.AWSRecorded {
+				if want := w.record + " is recorded; the replayer skips S3's REST requests"; !unsettled || reason.Reason != want {
+					t.Errorf("switch %s settles %#v, want NoScenario %q", w.name, e.Settles, want)
+				}
+				continue
+			}
 			if !unsettled || !strings.HasPrefix(reason.Reason, "unrecorded: "+w.record+" ") || !strings.HasSuffix(reason.Reason, "queued in docs/research/s3-ssec-object-lock.md 12") {
 				t.Errorf("switch %s settles %#v, want NoScenario naming %s queued in s3-ssec-object-lock.md 12", w.name, e.Settles, w.record)
 			}
@@ -308,15 +316,16 @@ func objectOf(v any) map[string]any {
 }
 
 // TestRetainUntilHeaderForm: S3's restXml dialect writes the retain-until
-// date in GET and HEAD headers as ISO 8601 UTC with milliseconds always,
-// as its bodies already do (switch s3.object-lock.retain-until-format;
-// s3-ssec-object-lock.md 6.7), while the zero dialect keeps Smithy's
-// date-time form without a fraction for whole seconds
-// (https://smithy.io/2.0/spec/protocol-traits.html#timestampformat-trait).
+// date in GET and HEAD headers as ISO 8601 UTC with milliseconds only when
+// they are not zero, 2026-11-03T04:40:14Z and 2028-11-03T03:40:47.030Z,
+// and in GetObjectRetention's body with them always,
+// 2026-11-03T04:40:14.000Z (s3-ssec-object-lock.md 6.7; S3SOL-12 12-head
+// and 12-get-retention, S3SOL-13 13-head, recorded 2026-11-03), while the
+// zero dialect keeps Smithy's date-time form without a fraction for whole
+// seconds (https://smithy.io/2.0/spec/protocol-traits.html#timestampformat-trait).
 func TestRetainUntilHeaderForm(t *testing.T) {
 	run(t, s3.Options{}, func(h *harness) {
 		t := h.T
-		h.follows("s3.object-lock.retain-until-format", "milliseconds")
 		s3Codec := restxml.Codec{Dialect: func(ref.ServiceID) restxml.Dialect { return restxml.S3Dialect(s3api.IdentityInvalidArgument()) }}
 		encodeWith := func(c restxml.Codec, op *registry.Operation, out smithy.Serializable) (http.Header, string) {
 			resp, err := c.Encode(httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", http.NoBody), op, requestID, out, op.SuccessCode)
@@ -331,26 +340,32 @@ func TestRetainUntilHeaderForm(t *testing.T) {
 			}
 			return resp.Header, b.String()
 		}
-		whole := time.Date(2030, 1, 1, 0, 0, 0, 0, time.UTC)
-		fraction := whole.Add(123 * time.Millisecond)
-		for in, want := range map[time.Time]string{whole: "2030-01-01T00:00:00.000Z", fraction: "2030-01-01T00:00:00.123Z"} {
-			head, _ := encodeWith(s3Codec, s3api.OpHeadObject.Descriptor(), &s3api.HeadObjectOutput{ObjectLockMode: new(s3api.ObjectLockModeGovernance), ObjectLockRetainUntilDate: &in})
-			if got := head.Get("X-Amz-Object-Lock-Retain-Until-Date"); got != want {
-				t.Errorf("HeadObject x-amz-object-lock-retain-until-date = %q, want %q", got, want)
+		whole := time.Date(2026, 11, 3, 4, 40, 14, 0, time.UTC)
+		fraction := time.Date(2028, 11, 3, 3, 40, 47, 30*int(time.Millisecond), time.UTC)
+		for _, tc := range []struct {
+			in           time.Time
+			header, body string
+		}{
+			{whole, "2026-11-03T04:40:14Z", "2026-11-03T04:40:14.000Z"},
+			{fraction, "2028-11-03T03:40:47.030Z", "2028-11-03T03:40:47.030Z"},
+		} {
+			head, _ := encodeWith(s3Codec, s3api.OpHeadObject.Descriptor(), &s3api.HeadObjectOutput{ObjectLockMode: new(s3api.ObjectLockModeGovernance), ObjectLockRetainUntilDate: &tc.in})
+			if got := head.Get("X-Amz-Object-Lock-Retain-Until-Date"); got != tc.header {
+				t.Errorf("HeadObject x-amz-object-lock-retain-until-date = %q, want %q", got, tc.header)
 			}
-			get, _ := encodeWith(s3Codec, s3api.OpGetObject.Descriptor(), &s3api.GetObjectOutput{ObjectLockMode: new(s3api.ObjectLockModeGovernance), ObjectLockRetainUntilDate: &in})
-			if got := get.Get("X-Amz-Object-Lock-Retain-Until-Date"); got != want {
-				t.Errorf("GetObject x-amz-object-lock-retain-until-date = %q, want %q", got, want)
+			get, _ := encodeWith(s3Codec, s3api.OpGetObject.Descriptor(), &s3api.GetObjectOutput{ObjectLockMode: new(s3api.ObjectLockModeGovernance), ObjectLockRetainUntilDate: &tc.in})
+			if got := get.Get("X-Amz-Object-Lock-Retain-Until-Date"); got != tc.header {
+				t.Errorf("GetObject x-amz-object-lock-retain-until-date = %q, want %q", got, tc.header)
 			}
 			gov := s3api.ObjectLockRetentionModeGovernance
-			_, body := encodeWith(s3Codec, s3api.OpGetObjectRetention.Descriptor(), &s3api.GetObjectRetentionOutput{Retention: &s3api.ObjectLockRetention{Mode: &gov, RetainUntilDate: &in}})
-			if !strings.Contains(body, "<RetainUntilDate>"+want+"</RetainUntilDate>") {
-				t.Errorf("GetObjectRetention body = %q, want RetainUntilDate %s", body, want)
+			_, body := encodeWith(s3Codec, s3api.OpGetObjectRetention.Descriptor(), &s3api.GetObjectRetentionOutput{Retention: &s3api.ObjectLockRetention{Mode: &gov, RetainUntilDate: &tc.in}})
+			if !strings.Contains(body, "<RetainUntilDate>"+tc.body+"</RetainUntilDate>") {
+				t.Errorf("GetObjectRetention body = %q, want RetainUntilDate %s", body, tc.body)
 			}
 		}
 		zeroDialect, _ := encodeWith(restxml.Codec{}, s3api.OpHeadObject.Descriptor(), &s3api.HeadObjectOutput{ObjectLockRetainUntilDate: &whole})
-		if got := zeroDialect.Get("X-Amz-Object-Lock-Retain-Until-Date"); got != "2030-01-01T00:00:00Z" {
-			t.Errorf("the zero dialect writes %q, want Smithy's %q unchanged", got, "2030-01-01T00:00:00Z")
+		if got := zeroDialect.Get("X-Amz-Object-Lock-Retain-Until-Date"); got != "2026-11-03T04:40:14Z" {
+			t.Errorf("the zero dialect writes %q, want Smithy's %q unchanged", got, "2026-11-03T04:40:14Z")
 		}
 	})
 }

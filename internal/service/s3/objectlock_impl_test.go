@@ -21,8 +21,7 @@ func TestLockTargetBeforeTheChecksumRule(t *testing.T) {
 			Bucket: "plain", Key: "k", Body: bytesBody("v"),
 			ObjectLockMode: new(s3api.ObjectLockModeGovernance), ObjectLockRetainUntilDate: &until,
 		})
-		code, status := h.switchCode("s3.object-lock.headers-without-lock")
-		failure{status: status, code: code, message: "Bucket is missing Object Lock Configuration"}.is(t, "retention without a checksum on a plain bucket", err)
+		errNoLockConfigOnWrite.is(t, "retention without a checksum on a plain bucket", err)
 		nothingWritten(t, h, "plain", "k")
 	})
 }
@@ -104,7 +103,7 @@ func TestUploadLockSurvivesASnapshot(t *testing.T) {
 		if err := h.svc.Import(sections); err != nil {
 			t.Fatalf("Import: %v", err)
 		}
-		part := h.sendPart("locked", "mpu", id, 1, []byte("only part"), s3api.UploadPartInput{})
+		part := h.sendPart("locked", "mpu", id, 1, []byte("only part"), withMD5("only part"))
 		done, cerr := complete(h, "locked", "mpu", id, []s3api.CompletedPart{listed(1, part)}, s3api.CompleteMultipartUploadInput{})
 		if cerr != nil {
 			t.Fatalf("Complete after a snapshot round trip: %s %q", cerr.ID.QueryCode, cerr.Message)

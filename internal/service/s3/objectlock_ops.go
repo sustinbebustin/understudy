@@ -2,6 +2,7 @@ package s3
 
 import (
 	"context"
+	"slices"
 
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
 	"github.com/sustinbebustin/understudy/internal/awserr"
@@ -52,8 +53,10 @@ func (s *Service) putObjectRetention(ctx context.Context, c *kernel.Call, in *s3
 			return struct{}{}, nil, err
 		}
 		if next != nil {
-			// LocalStack test_s3.snapshot.json L9488 names the element.
-			if err := checkRetainUntil(next.RetainUntil, w.now, "RetainUntilDate"); err != nil {
+			// LocalStack test_s3.snapshot.json L9488 and S3SOL-18
+			// 18-retention-past-summer name the element and its date in
+			// Java's form.
+			if err := checkRetainUntil(next.RetainUntil, w.now, "RetainUntilDate", javaDate(next.RetainUntil.Wire())); err != nil {
 				return struct{}{}, nil, err
 			}
 		}
@@ -136,7 +139,15 @@ func findLockVersion(b *Bucket, key string, id *string, method string) (Version,
 	if b.ObjectLock == nil {
 		return Version{}, errInvalidRequest(missingLockConfigText)
 	}
-	return findVersion(b, key, id, method)
+	v, err := findVersion(b, key, id, method)
+	if err != nil {
+		// The 405 on a delete marker carries no Last-Modified here, unlike
+		// GetObject's (S3SOL-22 22-hold-delete-marker and
+		// 22-get-hold-delete-marker, recorded 2026-11-03; inferred for the
+		// retention operations).
+		err.Headers = slices.DeleteFunc(err.Headers, func(h awserr.Header) bool { return h.Name == "Last-Modified" })
+	}
+	return v, err
 }
 
 // relock gives version v of key the lock state l. The Object is replaced

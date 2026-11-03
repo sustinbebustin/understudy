@@ -770,7 +770,6 @@ func TestPutObjectRefusals(t *testing.T) {
 	runObjects(t, func(h *harness) {
 		h.createBucket("refusals")
 		sum := sha256.Sum256([]byte("other"))
-		md5Code, md5Status := h.switchCode("s3.sse-c.missing-key-md5")
 		for _, tc := range []struct {
 			name   string
 			in     s3api.PutObjectInput
@@ -818,11 +817,12 @@ func TestPutObjectRefusals(t *testing.T) {
 				code: "InvalidStorageClass", status: http.StatusBadRequest, fields: map[string]string{"StorageClassRequested": "OUTPOSTS"},
 			},
 			{
-				// The SSE-C trio is validated before the bucket's SSE-C block
-				// (switch s3.sse-c.blocked-write), so a key without its MD5
-				// gets the refusal of switch s3.sse-c.missing-key-md5.
+				// The SSE-C trio is validated before the bucket's SSE-C block,
+				// so a key without its MD5 gets the missing-MD5 refusal
+				// (S3SOL-01 01-put-bad-algo and S3SOL-03 03-put, recorded
+				// 2026-11-03).
 				name: "SSE-C key without its MD5", in: s3api.PutObjectInput{SSECustomerAlgorithm: new("AES256"), SSECustomerKey: new("a2V5")},
-				code: md5Code, status: md5Status, fields: map[string]string{"ArgumentName": "x-amz-server-side-encryption"},
+				code: "InvalidArgument", status: http.StatusBadRequest, fields: map[string]string{"ArgumentName": "x-amz-server-side-encryption"},
 				message: textNoMD5,
 			},
 			{

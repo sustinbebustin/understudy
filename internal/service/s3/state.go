@@ -143,9 +143,10 @@ type Bucket struct {
 	// BlockedEncryptionTypes.
 	Encryption *s3api.ServerSideEncryptionConfiguration `json:"encryption,omitempty"`
 	// BlockedEncryption is the rule's BlockedEncryptionTypes, kept apart
-	// from Encryption so that a Put omitting it, or a Delete, keeps it
-	// (switch s3.encryption.blocked-types-omitted). Its zero value, SSE-C
-	// blocked, is never written.
+	// from Encryption so that a bucket without a rule still has one; a Put
+	// omitting it, or a Delete, puts back a new bucket's (switch
+	// s3.encryption.blocked-types-omitted). Its zero value, SSE-C blocked,
+	// is never written.
 	BlockedEncryption BlockedEncryption                     `json:"blockedEncryption,omitzero"`
 	ObjectLock        *s3api.ObjectLockConfiguration        `json:"objectLock,omitempty"`
 	RequestPayment    *s3api.RequestPaymentConfiguration    `json:"requestPayment,omitempty"`

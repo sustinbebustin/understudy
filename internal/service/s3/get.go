@@ -307,18 +307,15 @@ func override(field **string, v *string) {
 	}
 }
 
-// readNote is the coverage note of GetObject and HeadObject; the checksum
-// mode half is parseChecksumMode's.
-const readNote = "presigned URLs are verified and expire on the emulator clock under sigv4 verify; " +
-	"x-amz-checksum-mode is accepted in any case, and a value other than ENABLED is refused with InvalidArgument, " +
-	"where AWS's answer is UNVERIFIED (s3.md 5.8, recording S3-01)"
+// readNote is the coverage note of GetObject and HeadObject.
+const readNote = "presigned URLs are verified and expire on the emulator clock under sigv4 verify"
 
 // parseChecksumMode reads x-amz-checksum-mode and reports whether the read
-// returns checksums. S3 takes enabled, which the CRT S3 client behind the
-// AWS CLI's s3 commands sends, as ENABLED (s3.md 5.8); other mixes of case
-// are inferred to count the same. Any other value is refused with the
-// InvalidArgument the model's enum yields; AWS's answer to it is
-// UNVERIFIED until recording S3-01 (s3.md 15.1).
+// returns checksums. S3 takes ENABLED in any case: enabled, which the CRT
+// S3 client behind the AWS CLI's s3 commands sends, and Enabled (s3.md
+// 5.8). Any other value is refused with 400 InvalidRequest "Value for
+// x-amz-checksum-mode header is invalid." and no other element (s3.md 5.8;
+// S3-01, recorded 2026-11-03).
 func parseChecksumMode(mode *s3api.ChecksumMode) (bool, *awserr.Error) {
 	switch {
 	case mode == nil:
@@ -326,11 +323,7 @@ func parseChecksumMode(mode *s3api.ChecksumMode) (bool, *awserr.Error) {
 	case strings.EqualFold(string(*mode), string(s3api.ChecksumModeEnabled)):
 		return true, nil
 	}
-	return false, s3api.ErrInvalidArgument(awserr.CoralMessage([]awserr.Violation{{
-		Path:       awserr.Path{"checksumMode"},
-		Value:      awserr.RenderedText{Text: string(*mode)},
-		Constraint: awserr.Enum{Values: []string{string(s3api.ChecksumModeEnabled)}},
-	}}))
+	return false, errInvalidRequest("Value for x-amz-checksum-mode header is invalid.")
 }
 
 // headOf is the response head of a read: the headers GetObject and
