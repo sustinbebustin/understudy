@@ -25,7 +25,7 @@ func TestFailCausePathMissing(t *testing.T) {
 // sfn.intrinsic.failure-error's error (stepfunctions-asl.md 5.4); a Fail
 // state has no Catch, so the execution ends with it either way.
 func TestFailErrorPathIntrinsicFailure(t *testing.T) {
-	const def = `{"StartAt":"F","States":{"F":{"Type":"Fail","ErrorPath":"States.ArrayGetItem($.list, 5)"}}}`
+	const def = `{"StartAt":"F","States":{"F":{"Type":"Fail","ErrorPath":"States.ArrayGetItem($.list, -1)"}}}`
 	r := rules()
 	d := newDriver(t, def, r)
 	d.start(`{"list":["a"]}`)

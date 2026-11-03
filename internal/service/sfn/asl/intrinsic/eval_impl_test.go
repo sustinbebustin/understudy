@@ -11,37 +11,49 @@ import (
 	"github.com/sustinbebustin/understudy/internal/service/sfn/asl/intrinsic"
 )
 
-// TestASL05FunctionErrorCauses: no recording shows an intrinsic failing at
-// run time (stepfunctions-asl.md 5.4), so every cause is understudy's. The
-// test pins them so a change is deliberate.
-func TestASL05FunctionErrorCauses(t *testing.T) {
-	// inferred, ASL-05
-	tests := []struct{ expr, input, cause string }{
-		{`States.JsonMerge($.a, $.b, true)`, `{"a":{},"b":{}}`, "a deep merge (true) is not supported; only false is"},
-		{`States.ArrayGetItem($.v, 5)`, `{"v":[1]}`, "the index 5 is outside the array of 1 items"},
-		{`States.ArrayGetItem($.v, 0.5)`, `{"v":[1]}`, "the second argument must be an integer, not 0.5"},
-		{`States.ArrayPartition($.v, 0)`, `{"v":[1]}`, "the chunk size must be a positive integer, not 0"},
-		{`States.ArrayRange(0, 2000, 1)`, `{}`, "the range has 2001 items, more than 1000"},
-		{`States.ArrayRange(0, 10, 0)`, `{}`, "the step must not be 0"},
-		{`States.Base64Decode($.v)`, `{"v":"not base64!"}`, "the argument is not Base64: illegal base64 data at input byte 3"},
-		{`States.Hash($.v, 'SHA-3')`, `{"v":"x"}`, `the algorithm "SHA-3" is not one of MD5, SHA-1, SHA-256, SHA-384 and SHA-512`},
-		{`States.MathAdd(2147483647, 1)`, `{}`, "the sum 2147483648 is outside -2147483648..2147483647"},
-		{`States.MathAdd(2147483648, -1)`, `{}`, "the first argument 2147483648 is outside -2147483648..2147483647"},
-		{`States.Format('{} {}', $.v)`, `{"v":"x"}`, "the format string has more {} placeholders than the 1 arguments after it"},
-		{`States.Format('{}', $.v, $.v)`, `{"v":"x"}`, "the format string has 1 {} placeholders for 2 arguments"},
-		{`States.Format($.v)`, `{"v":1}`, "the first argument must be a string, not a number"},
-		{`States.ArrayLength($.v)`, `{"v":{}}`, "the first argument must be an array, not an object"},
-		{`States.StringSplit($.v, ',')`, `{"v":null}`, "the first argument must be a string, not null"},
-		{`States.MathRandom(5, 5)`, `{}`, "the start 5 must be less than the end 5"},
+// TestASL05FunctionErrorDetails: the detail a failing function gives, AWS's
+// recorded text where ASL-05 recorded one (2026-11-03,
+// stepfunctions-asl.md 5.4) and the generic "Invalid arguments in
+// <function>" inferred for the rest.
+func TestASL05FunctionErrorDetails(t *testing.T) {
+	tests := []struct{ expr, input, detail string }{
+		// Recorded.
+		{`States.JsonMerge($.a, $.b, true)`, `{"a":{},"b":{}}`, "Deep merge not supported in States.JsonMerge"},
+		{`States.ArrayGetItem($.v, -1)`, `{"v":[1]}`, "Invalid arguments in States.ArrayGetItem"},
+		{`States.ArrayPartition($.v, 0)`, `{"v":[1]}`, "Invalid arguments in States.ArrayPartition"},
+		{`States.ArrayRange(1, 1001, 1)`, `{}`, "Invalid arguments in States.ArrayRange"},
+		{`States.ArrayRange(1, 5, 0)`, `{}`, "Invalid arguments in States.ArrayRange"},
+		{`States.Hash($.v, 'SHA-3')`, `{"v":"x"}`, "Invalid arguments in States.Hash"},
+		{`States.MathAdd(2147483647, 1)`, `{}`, "Invalid arguments in States.MathAdd"},
+		{`States.Format('{} {}', $.v)`, `{"v":"x"}`, "Invalid arguments in States.Format: number of arguments do not match the occurrences of {}."},
+		// Inferred.
+		{`States.ArrayGetItem($.v, 0.5)`, `{"v":[1]}`, "Invalid arguments in States.ArrayGetItem"},
+		{`States.Base64Decode($.v)`, `{"v":"not base64!"}`, "Invalid arguments in States.Base64Decode"},
+		{`States.MathAdd(2147483648, -1)`, `{}`, "Invalid arguments in States.MathAdd"},
+		{`States.Format('{}', $.v, $.v)`, `{"v":"x"}`, "Invalid arguments in States.Format: number of arguments do not match the occurrences of {}."},
+		{`States.Format($.v)`, `{"v":1}`, "Invalid arguments in States.Format"},
+		{`States.ArrayLength($.v)`, `{"v":{}}`, "Invalid arguments in States.ArrayLength"},
+		{`States.StringSplit($.v, ',')`, `{"v":null}`, "Invalid arguments in States.StringSplit"},
+		{`States.MathRandom(5, 5)`, `{}`, "Invalid arguments in States.MathRandom"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.expr, func(t *testing.T) {
 			_, err := eval(t, tt.expr, decode(t, tt.input), nil, &source{})
 			var fe *intrinsic.FunctionError
-			if !errors.As(err, &fe) || fe.Cause != tt.cause {
-				t.Fatalf("%s = %v, want a *FunctionError with cause %q", tt.expr, err, tt.cause)
+			if !errors.As(err, &fe) || fe.Detail != tt.detail {
+				t.Fatalf("%s = %v, want a *FunctionError with detail %q", tt.expr, err, tt.detail)
 			}
 		})
+	}
+}
+
+// The parsed call keeps its text as written, which a failure's cause
+// quotes (ASL-05, recorded 2026-11-03).
+func TestCallTextAsWritten(t *testing.T) {
+	const expr = `States.Format('{} {}',   1)`
+	c, err := intrinsic.Parse(expr)
+	if err != nil || c.Text() != expr {
+		t.Fatalf("Parse(%q).Text() = %q, %v; want the text as written", expr, c.Text(), err)
 	}
 }
 

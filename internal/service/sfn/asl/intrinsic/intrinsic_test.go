@@ -166,6 +166,8 @@ func TestFunctionResults(t *testing.T) {
 		{"Base64Decode", `States.Base64Decode($.v)`, `{"v":"RGF0YSB0byBlbmNvZGU="}`, `"Data to encode"`, "aws-recorded, same lines"},
 		{"Base64Encode empty", `States.Base64Encode($.v)`, `{"v":""}`, `""`, "aws-recorded, same lines"},
 		{"Base64Decode empty", `States.Base64Decode($.v)`, `{"v":""}`, `""`, "aws-recorded, same lines"},
+		{"ArrayGetItem past the end", `States.ArrayGetItem($.v, 5)`, `{"v":[1]}`, `null`, "aws-recorded, ASL-05 01 (2026-11-03)"},
+		{"Base64Decode no Base64 character", `States.Base64Decode($.v)`, `{"v":"%%%"}`, `""`, "aws-recorded, ASL-05 06 (2026-11-03)"},
 		{"Hash MD5", `States.Hash($.v, 'MD5')`, `{"v":"input data"}`, `"812f45842bc6d66ee14572ce20db8e86"`, "aws-recorded, test_hash_calculations.snapshot.json:L70-L362"},
 		{"Hash SHA-1", `States.Hash($.v, 'SHA-1')`, `{"v":"input data"}`, `"aaff4a450a104cd177d28d18d74485e8cae074b7"`, "aws-recorded, same lines"},
 		{"Hash SHA-256", `States.Hash($.v, 'SHA-256')`, `{"v":"input data"}`, `"b4a697a057313163aee33cd8d40c66e9f0f177e00cac2de32475ffff6169c3e3"`, "aws-recorded, same lines"},
@@ -275,11 +277,11 @@ func TestUUIDAndMathRandom(t *testing.T) {
 // JsonMerge with deep true is unsupported in AWS (aws-doc
 // dg/intrinsic-functions); a function failing at run time is a
 // *FunctionError, which the engine names by switch sfn.intrinsic.failure-error
-// (contract section 4; the causes are understudy's, ASL-05).
+// (contract section 4; the details are TestASL05FunctionErrorDetails').
 func TestRuntimeFailuresAreFunctionErrors(t *testing.T) {
 	tests := []struct{ name, expr, input string }{
 		{"JsonMerge deep", `States.JsonMerge($.a, $.b, true)`, `{"a":{},"b":{}}`},
-		{"ArrayGetItem out of range", `States.ArrayGetItem($.v, 5)`, `{"v":[1]}`},
+		{"ArrayGetItem negative index", `States.ArrayGetItem($.v, -1)`, `{"v":[1]}`},
 		{"ArrayPartition zero chunk", `States.ArrayPartition($.v, 0)`, `{"v":[1]}`},
 		{"ArrayRange over 1000 items", `States.ArrayRange(0, 2000, 1)`, `{}`},
 		{"ArrayRange step zero", `States.ArrayRange(0, 10, 0)`, `{}`},

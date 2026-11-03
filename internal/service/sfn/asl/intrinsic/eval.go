@@ -98,7 +98,7 @@ func (e evaluator) call(c Call) (document.Value, error) {
 		return document.String(e.src.UUID()), nil
 	}
 	// Parse admits only the functions above.
-	return nil, f.fail("is not a function understudy evaluates")
+	return nil, f.invalid()
 }
 
 // arg is one argument's value.
@@ -122,44 +122,18 @@ type fn struct {
 	args []document.Value
 }
 
-func (f fn) fail(cause string) error {
-	return &FunctionError{Function: f.name, Cause: cause}
+// fail is the function failing with AWS's detail text.
+func (f fn) fail(detail string) error {
+	return &FunctionError{Function: f.name, Detail: detail}
 }
 
-// ordinal names argument i for a cause.
-func ordinal(i int) string {
-	switch i {
-	case 0:
-		return "first"
-	case 1:
-		return "second"
-	case 2:
-		return "third"
-	}
-	return "argument " + strconv.Itoa(i+1)
-}
-
-// typeName is a JSON type's name for a cause.
-func typeName(v document.Value) string {
-	switch v.(type) {
-	case document.Map:
-		return "an object"
-	case document.List:
-		return "an array"
-	case document.String:
-		return "a string"
-	case document.Number:
-		return "a number"
-	case document.Bool:
-		return "a boolean"
-	case document.Null:
-		return "null"
-	}
-	return "null"
-}
-
-func (f fn) wrongType(i int, want string) error {
-	return f.fail("the " + ordinal(i) + " argument must be " + want + ", not " + typeName(f.args[i]))
+// invalid is the function failing with AWS's generic detail, "Invalid
+// arguments in <function>": recorded for a negative ArrayGetItem index, an
+// ArrayPartition chunk of 0, an ArrayRange of over 1000 items or step 0, an
+// unknown Hash algorithm and a MathAdd overflow (ASL-05, recorded
+// 2026-11-03), and inferred for every other argument a function refuses.
+func (f fn) invalid() error {
+	return f.fail("Invalid arguments in " + f.name)
 }
 
 // array is the first argument, which every Array function takes as its
@@ -168,21 +142,21 @@ func (f fn) array() (document.List, error) {
 	if l, ok := f.args[0].(document.List); ok {
 		return l, nil
 	}
-	return nil, f.wrongType(0, "an array")
+	return nil, f.invalid()
 }
 
 func (f fn) object(i int) (document.Map, error) {
 	if m, ok := f.args[i].(document.Map); ok {
 		return m, nil
 	}
-	return nil, f.wrongType(i, "an object")
+	return nil, f.invalid()
 }
 
 func (f fn) str(i int) (string, error) {
 	if s, ok := f.args[i].(document.String); ok {
 		return string(s), nil
 	}
-	return "", f.wrongType(i, "a string")
+	return "", f.invalid()
 }
 
 // data is a string argument of at most maxDataChars characters.
@@ -192,7 +166,7 @@ func (f fn) data(i int) (string, error) {
 		return "", err
 	}
 	if utf8.RuneCountInString(s) > maxDataChars {
-		return "", f.fail("the " + ordinal(i) + " argument is longer than " + strconv.Itoa(maxDataChars) + " characters")
+		return "", f.invalid()
 	}
 	return s, nil
 }
@@ -204,18 +178,18 @@ func (f fn) data(i int) (string, error) {
 func (f fn) rounded(i int) (int64, error) {
 	n, ok := f.args[i].(document.Number)
 	if !ok {
-		return 0, f.wrongType(i, "a number")
+		return 0, f.invalid()
 	}
 	r, ok := new(big.Rat).SetString(string(n))
 	if !ok {
-		return 0, f.wrongType(i, "a number")
+		return 0, f.invalid()
 	}
 	// floor(x + 1/2): big.Int.Div is Euclidean, so with the positive
 	// denominator a Rat keeps it is floor division.
 	r.Add(r, big.NewRat(1, 2))
 	q := new(big.Int).Div(r.Num(), r.Denom())
 	if !q.IsInt64() {
-		return 0, f.fail("the " + ordinal(i) + " argument " + string(n) + " is out of range")
+		return 0, f.invalid()
 	}
 	return q.Int64(), nil
 }
@@ -224,11 +198,11 @@ func (f fn) rounded(i int) (int64, error) {
 func (f fn) integer(i int) (int64, error) {
 	n, ok := f.args[i].(document.Number)
 	if !ok {
-		return 0, f.wrongType(i, "a number")
+		return 0, f.invalid()
 	}
 	r, ok := new(big.Rat).SetString(string(n))
 	if !ok || !r.IsInt() || !r.Num().IsInt64() {
-		return 0, f.fail("the " + ordinal(i) + " argument must be an integer, not " + string(n))
+		return 0, f.invalid()
 	}
 	return r.Num().Int64(), nil
 }
@@ -252,8 +226,7 @@ func (e evaluator) format(c Call) (document.Value, error) {
 		}
 		s, ok := v.(document.String)
 		if !ok {
-			f.args = []document.Value{v}
-			return nil, f.wrongType(0, "a string")
+			return nil, f.invalid()
 		}
 		pattern = string(s)
 	}
@@ -274,7 +247,7 @@ func (e evaluator) format(c Call) (document.Value, error) {
 			b.WriteByte(pattern[i])
 		case pattern[i] == '{' && i+1 < len(pattern) && pattern[i+1] == '}':
 			if used == len(values) {
-				return nil, f.fail("the format string has more {} placeholders than the " + strconv.Itoa(len(values)) + " arguments after it")
+				return nil, f.fail(errFormatCount)
 			}
 			b.WriteString(values[used])
 			used++
@@ -284,10 +257,15 @@ func (e evaluator) format(c Call) (document.Value, error) {
 		}
 	}
 	if used != len(values) {
-		return nil, f.fail("the format string has " + strconv.Itoa(used) + " {} placeholders for " + strconv.Itoa(len(values)) + " arguments")
+		return nil, f.fail(errFormatCount)
 	}
 	return document.String(b.String()), nil
 }
+
+// errFormatCount is States.Format's detail when the placeholders and the
+// arguments differ in number: recorded for more placeholders than
+// arguments (ASL-05, recorded 2026-11-03), inferred for fewer.
+const errFormatCount = "Invalid arguments in States.Format: number of arguments do not match the occurrences of {}."
 
 // javaString is how States.Format writes a value: strings unquoted, objects
 // as {k=v, ...} and arrays as [a, b], as Java's toString does
@@ -349,7 +327,9 @@ func (f fn) stringToJSON() (document.Value, error) {
 		err = d.End()
 	}
 	if err != nil {
-		return nil, f.fail("the argument is not JSON text: " + err.Error())
+		// AWS's text after "caused by: " is the Jackson parser's (ASL-05,
+		// recorded 2026-11-03); understudy's parser words its own.
+		return nil, f.fail("Cannot convert String to Json in States.StringToJson, caused by: " + err.Error())
 	}
 	return zeroSign(v), nil
 }
@@ -389,7 +369,7 @@ func (f fn) arrayPartition() (document.Value, error) {
 		return nil, err
 	}
 	if n <= 0 {
-		return nil, f.fail("the chunk size must be a positive integer, not " + strconv.FormatInt(n, 10))
+		return nil, f.invalid()
 	}
 	out := document.List{}
 	for start := int64(0); start < int64(len(arr)); {
@@ -427,7 +407,7 @@ func (f fn) arrayRange() (document.Value, error) {
 	}
 	start, end, step := b[0], b[1], b[2]
 	if step == 0 {
-		return nil, f.fail("the step must not be 0")
+		return nil, f.invalid()
 	}
 	out := document.List{}
 	// (end - start) / step truncated, plus one, is the item count; it is
@@ -439,7 +419,7 @@ func (f fn) arrayRange() (document.Value, error) {
 		return out, nil
 	}
 	if count.Cmp(big.NewInt(maxRangeItems)) > 0 {
-		return nil, f.fail("the range has " + count.String() + " items, more than " + strconv.Itoa(maxRangeItems))
+		return nil, f.invalid()
 	}
 	for i, v := int64(0), start; i < count.Int64(); i, v = i+1, v+step {
 		out = append(out, intNumber(v))
@@ -456,8 +436,13 @@ func (f fn) arrayGetItem() (document.Value, error) {
 	if err != nil {
 		return nil, err
 	}
-	if i < 0 || i >= int64(len(arr)) {
-		return nil, f.fail("the index " + strconv.FormatInt(i, 10) + " is outside the array of " + strconv.Itoa(len(arr)) + " items")
+	// A negative index fails and one past the end is null (ASL-05,
+	// recorded 2026-11-03).
+	switch {
+	case i < 0:
+		return nil, f.invalid()
+	case i >= int64(len(arr)):
+		return document.Null{}, nil
 	}
 	return arr[i], nil
 }
@@ -495,20 +480,33 @@ func (f fn) base64Encode() (document.Value, error) {
 	return document.String(base64.StdEncoding.EncodeToString([]byte(s))), nil
 }
 
+// base64Decode decodes as Java's MIME decoder does: characters outside the
+// Base64 alphabet are skipped, padding is optional and ends the data. Text
+// with no Base64 character decodes to "" (ASL-05 06, recorded 2026-11-03,
+// for "%%%"); the MIME reading of other text is inferred from it.
 func (f fn) base64Decode() (document.Value, error) {
 	s, err := f.data(0)
 	if err != nil {
 		return nil, err
 	}
-	b, err := base64.StdEncoding.Strict().DecodeString(s)
-	if err != nil {
-		return nil, f.fail("the argument is not Base64: " + err.Error())
+	var kept strings.Builder
+	for _, r := range s {
+		if r == '=' {
+			break
+		}
+		if strings.ContainsRune(base64Alphabet, r) {
+			kept.WriteRune(r)
+		}
 	}
-	if !utf8.Valid(b) {
-		return nil, f.fail("the decoded bytes are not UTF-8 text")
+	b, err := base64.RawStdEncoding.DecodeString(kept.String())
+	if err != nil || !utf8.Valid(b) {
+		return nil, f.invalid()
 	}
 	return document.String(b), nil
 }
+
+// base64Alphabet is the standard Base64 alphabet, without padding.
+const base64Alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
 
 // hashFor is States.Hash's algorithm named alg (stepfunctions-asl.md 5.2).
 func hashFor(alg string) (hash.Hash, bool) {
@@ -539,7 +537,7 @@ func (f fn) hash() (document.Value, error) {
 	}
 	h, ok := hashFor(alg)
 	if !ok {
-		return nil, f.fail("the algorithm " + strconv.Quote(alg) + " is not one of MD5, SHA-1, SHA-256, SHA-384 and SHA-512")
+		return nil, f.invalid()
 	}
 	h.Write([]byte(s))
 	return document.String(hex.EncodeToString(h.Sum(nil))), nil
@@ -558,10 +556,11 @@ func (f fn) jsonMerge() (document.Value, error) {
 	}
 	deep, ok := f.args[2].(document.Bool)
 	if !ok {
-		return nil, f.wrongType(2, "a boolean")
+		return nil, f.invalid()
 	}
 	if deep {
-		return nil, f.fail("a deep merge (true) is not supported; only false is")
+		// ASL-05, recorded 2026-11-03.
+		return nil, f.fail("Deep merge not supported in States.JsonMerge")
 	}
 	out := make(document.Map, len(a), len(a)+len(b))
 	copy(out, a)
@@ -595,7 +594,7 @@ func (f fn) mathRandom(src Source) (document.Value, error) {
 		return nil, err
 	}
 	if start >= end || end-start <= 0 {
-		return nil, f.fail("the start " + strconv.FormatInt(start, 10) + " must be less than the end " + strconv.FormatInt(end, 10))
+		return nil, f.invalid()
 	}
 	if len(f.args) < 3 {
 		return intNumber(src.Random(start, end)), nil
@@ -622,12 +621,12 @@ func (f fn) mathAdd() (document.Value, error) {
 			return nil, err
 		}
 		if n < math.MinInt32 || n > math.MaxInt32 {
-			return nil, f.fail("the " + ordinal(i) + " argument " + strconv.FormatInt(n, 10) + " is outside -2147483648..2147483647")
+			return nil, f.invalid()
 		}
 		sum += n
 	}
 	if sum < math.MinInt32 || sum > math.MaxInt32 {
-		return nil, f.fail("the sum " + strconv.FormatInt(sum, 10) + " is outside -2147483648..2147483647")
+		return nil, f.invalid()
 	}
 	return intNumber(sum), nil
 }

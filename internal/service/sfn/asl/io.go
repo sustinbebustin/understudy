@@ -178,7 +178,7 @@ func (sc scope) render(t template, input document.Value) (document.Value, Failur
 	case templateCall:
 		v, err := t.call.Eval(input, sc.context, sc.src)
 		if err != nil {
-			return nil, sc.callFailure(t.field, input, err)
+			return nil, sc.callFailure(t.call, t.field, input, err)
 		}
 		return v, nil
 	}
@@ -198,13 +198,14 @@ func missingInTemplate(field string, input document.Value, err error) Failure {
 		"' could not be found in the input '" + text(input) + "'"}
 }
 
-// callFailure names an intrinsic call's failure: a function failing is the
-// sfn.intrinsic.failure-error switch's error (stepfunctions-asl.md 5.4);
-// anything else, a path argument that selects nothing included, reads as a
-// missing ".$" path.
-func (sc scope) callFailure(field string, input document.Value, err error) Failure {
-	if _, ok := errors.AsType[*intrinsic.FunctionError](err); ok {
-		return ruleFailure(sc.rules.IntrinsicFailure, err.Error())
+// callFailure names a failure of call: a function failing is the
+// sfn.intrinsic.failure-error switch's error, its cause quoting the call as
+// written before the function's detail (ASL-05, recorded 2026-11-03;
+// stepfunctions-asl.md 5.4); anything else, a path argument that selects
+// nothing included, reads as a missing ".$" path.
+func (sc scope) callFailure(call intrinsic.Call, field string, input document.Value, err error) Failure {
+	if fe, ok := errors.AsType[*intrinsic.FunctionError](err); ok {
+		return ruleFailure(sc.rules.IntrinsicFailure, "There was an error while evaluating the intrinsic function: "+call.Text()+". "+fe.Detail)
 	}
 	return missingInTemplate(field, input, err)
 }

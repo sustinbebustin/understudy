@@ -92,7 +92,7 @@ func TestSwitchChoiceMissingVariable(t *testing.T) {
 
 // sfn.intrinsic.failure-error: an intrinsic function failing at run time.
 func TestSwitchIntrinsicFailure(t *testing.T) {
-	inner := `{"Type":"Pass","Parameters":{"x.$":"States.ArrayGetItem($.a, 5)"},"Next":"Fallback"}`
+	inner := `{"Type":"Pass","Parameters":{"x.$":"States.ArrayGetItem($.a, -1)"},"Next":"Fallback"}`
 	rule := sfn.IntrinsicFailure().Value
 	for _, r := range []asl.ErrorRule{rule, flipped(rule)} {
 		rules := withRule(func(x *asl.Rules) { x.IntrinsicFailure = r })

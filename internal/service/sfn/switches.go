@@ -62,17 +62,18 @@ func ChoiceMissingVariable() fidelity.Switch[asl.ErrorRule] {
 	}
 }
 
-// IntrinsicFailure is the error of an intrinsic function failing at run time
-// (stepfunctions-asl.md 5.4).
+// IntrinsicFailure is the error of an intrinsic function failing at run
+// time: States.Runtime, uncatchable, not the spec's States.IntrinsicFailure
+// (ASL-05, recorded 2026-11-03; stepfunctions-asl.md 5.4).
 func IntrinsicFailure() fidelity.Switch[asl.ErrorRule] {
 	return fidelity.Switch[asl.ErrorRule]{
 		Name:    "sfn.intrinsic.failure-error",
-		Value:   asl.ErrorRule{Name: "States.IntrinsicFailure", Terminal: false},
-		Label:   evidence.Inferred,
+		Value:   asl.ErrorRule{Name: "States.Runtime", Terminal: true},
+		Label:   evidence.AWSRecorded,
 		Ref:     "docs/research/stepfunctions-asl.md#54-failures",
 		Record:  "ASL-05",
 		Ops:     []string{"sfn.StartExecution"},
-		Settles: fidelity.NoScenario{Reason: "unrecorded: recording case ASL-05 (stepfunctions-asl.md 16.2)"},
+		Settles: fidelity.NoScenario{Reason: sfnUnreplayed("sfn/ASL-05/02-history.json is")},
 	}
 }
 

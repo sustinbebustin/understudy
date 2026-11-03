@@ -10,13 +10,13 @@ import (
 
 // A function failing in a top-level Pass ends the execution with switch
 // sfn.intrinsic.failure-error's error, after the state's entered event; the
-// cause names the function (stepfunctions-asl.md 5.4; the cause is
-// understudy's, ASL-05).
+// cause quotes the call and names the function (stepfunctions-asl.md 5.4;
+// ASL-05, recorded 2026-11-03).
 func TestIntrinsicFailureEndsTopLevelExecution(t *testing.T) {
-	d := newDriver(t, passMachine(`"Parameters":{"x.$":"States.ArrayGetItem($.a, 5)"},`), rules())
+	d := newDriver(t, passMachine(`"Parameters":{"x.$":"States.ArrayGetItem($.a, -1)"},`), rules())
 	d.start(`{"a":[1]}`)
 	o := d.runToEnd(10)
-	want := "States.ArrayGetItem: the index 5 is outside the array of 1 items"
+	want := runtimePrefix("S", 2) + "There was an error while evaluating the intrinsic function: States.ArrayGetItem($.a, -1). Invalid arguments in States.ArrayGetItem"
 	failedWith(t, o, sfn.IntrinsicFailure().Value.Name, func(c string) bool { return c == want })
 	d.wantShape("stepfunctions-asl.md 4.6", "ExecutionStarted 1<-0", "PassStateEntered 2<-0", "ExecutionFailed 3<-2")
 }

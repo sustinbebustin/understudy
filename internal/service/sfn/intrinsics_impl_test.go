@@ -40,13 +40,16 @@ func TestIntrinsicsRunThroughTheService(t *testing.T) {
 	})
 }
 
-// A failing function fails the execution with the switch's error
-// (stepfunctions-asl.md 5.4, switch sfn.intrinsic.failure-error).
+// A failing function fails the execution with the switch's error and AWS's
+// cause (stepfunctions-asl.md 5.4, switch sfn.intrinsic.failure-error;
+// ASL-05, recorded 2026-11-03).
 func TestIntrinsicFailureThroughTheService(t *testing.T) {
 	run(t, func(h *harness) {
 		machine := h.create("fails", `{"StartAt":"P","States":{"P":{"Type":"Pass","Parameters":{"x.$":"States.ArrayRange(0, 10, 0)"},"End":true}}}`)
 		out := h.describeExecution(h.start(machine, "e", new(`{}`)))
-		if out.Status != sfnapi.ExecutionStatusFailed || val(out.Error) != sfn.IntrinsicFailure().Value.Name || val(out.Cause) != "States.ArrayRange: the step must not be 0" {
+		const cause = "An error occurred while executing the state 'P' (entered at the event id #2). " +
+			"There was an error while evaluating the intrinsic function: States.ArrayRange(0, 10, 0). Invalid arguments in States.ArrayRange"
+		if out.Status != sfnapi.ExecutionStatusFailed || val(out.Error) != sfn.IntrinsicFailure().Value.Name || val(out.Cause) != cause {
 			h.Fatalf("execution: status %s, error %q, cause %q; want FAILED with %s", out.Status, val(out.Error), val(out.Cause), sfn.IntrinsicFailure().Value.Name)
 		}
 	})

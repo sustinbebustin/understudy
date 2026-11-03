@@ -39,7 +39,7 @@ func (sc scope) message(m message, field string, input document.Value) (string, 
 	case callMessage:
 		got, err := m.call.Eval(input, sc.context, sc.src)
 		if err != nil {
-			return "", sc.callFailure(field, input, err)
+			return "", sc.callFailure(m.call, field, input, err)
 		}
 		v = got
 	}

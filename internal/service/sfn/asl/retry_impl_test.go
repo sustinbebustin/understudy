@@ -175,19 +175,22 @@ func TestRuntimeErrorIsNotRetried(t *testing.T) {
 	}
 }
 
-// A catchable error raised before the task is scheduled, an intrinsic
-// failure in Parameters, goes to Catch: TaskStateExited points at
-// TaskStateEntered (11.2 rule 4).
+// A catchable error raised before the task is scheduled goes to Catch:
+// TaskStateExited points at TaskStateEntered (11.2 rule 4). AWS's intrinsic
+// failure is uncatchable (ASL-05, recorded 2026-11-03), so a catchable one,
+// switch sfn.intrinsic.failure-error flipped, stands in for the case.
 func TestCatchBeforeScheduling(t *testing.T) {
 	def := `{"StartAt":"T","States":{"T":{"Type":"Task","Resource":"arn:aws:states:::lambda:invoke",
 		"Parameters":{"FunctionName":"` + functionArn + `","Payload.$":"States.StringToJson('{')"},
 		"Catch":[{"ErrorEquals":["States.ALL"],"Next":"Done"}],"End":true}` + doneState + `}}`
-	d := newDriver(t, def, rules())
+	r := rules()
+	r.IntrinsicFailure = asl.ErrorRule{Name: "Catchable.Error", Terminal: false}
+	d := newDriver(t, def, r)
 	d.start(`{}`)
 	o := d.runToEnd(10)
 	d.wantShape("11.2 rule 4", "ExecutionStarted 1<-0", "TaskStateEntered 2<-0", "TaskStateExited 3<-2",
 		"PassStateEntered 4<-3", "PassStateExited 5<-4", "ExecutionSucceeded 6<-5")
-	if s, ok := o.(asl.Succeeded); !ok || at(s.Output, "Error") != document.String(rules().IntrinsicFailure.Name) {
+	if s, ok := o.(asl.Succeeded); !ok || at(s.Output, "Error") != document.String("Catchable.Error") {
 		t.Errorf("outcome = %#v, want the intrinsic failure's error output", o)
 	}
 }

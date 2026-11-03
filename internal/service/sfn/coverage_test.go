@@ -125,7 +125,7 @@ func TestSwitches(t *testing.T) {
 	}{
 		{sfn.ChoiceNoMatch().Entry(), "sfn.choice.no-match", "docs/research/stepfunctions-asl.md#64-no-match-and-missing-variables", "ASL-08", evidence.AWSRecorded, []string{"sfn.StartExecution"}, false},
 		{sfn.ChoiceMissingVariable().Entry(), "sfn.choice.missing-variable", "docs/research/stepfunctions-asl.md#64-no-match-and-missing-variables", "ASL-08", evidence.AWSRecorded, []string{"sfn.StartExecution"}, false},
-		{sfn.IntrinsicFailure().Entry(), "sfn.intrinsic.failure-error", "docs/research/stepfunctions-asl.md#54-failures", "ASL-05", evidence.Inferred, []string{"sfn.StartExecution"}, false},
+		{sfn.IntrinsicFailure().Entry(), "sfn.intrinsic.failure-error", "docs/research/stepfunctions-asl.md#54-failures", "ASL-05", evidence.AWSRecorded, []string{"sfn.StartExecution"}, false},
 		{sfn.LambdaError().Entry(), "sfn.integration.lambda-error", "docs/research/stepfunctions-api.md#94-error-names-and-causes-recorded", "SFN-15", evidence.Inferred, []string{"sfn.StartExecution"}, false},
 		{sfn.DeleteRunningExecution().Entry(), "sfn.delete.running-execution", "docs/research/stepfunctions-api.md#54-deletestatemachine", "SFN-06", evidence.Inferred, []string{"sfn.DeleteStateMachine", "sfn.StartExecution"}, true},
 		{sfn.DenialStatus().Entry(), "sfn.denial.status", "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit", "SFN-15", evidence.Inferred, bound, true},
