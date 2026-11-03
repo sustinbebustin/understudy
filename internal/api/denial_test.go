@@ -6,6 +6,7 @@ import (
 
 	"github.com/sustinbebustin/understudy/internal/api/dynamodbapi"
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
+	"github.com/sustinbebustin/understudy/internal/api/sfnapi"
 	"github.com/sustinbebustin/understudy/internal/api/snsapi"
 	"github.com/sustinbebustin/understudy/internal/api/sqsapi"
 	"github.com/sustinbebustin/understudy/internal/api/stsapi"
@@ -50,7 +51,7 @@ func TestEveryServiceNamesItsDenialIdentity(t *testing.T) {
 		"scheduler":       {evidence.Inferred, "switch scheduler.denial.status, cases IAM-ENF-37 and scheduler.md SCH-10 step 01"},
 		"ses":             {evidence.Inferred, "switch ses.denial.identity, cases IAM-ENF-38 and ses.md SES-28; inferred from STS and IAM"},
 		"sesv2":           {evidence.Inferred, "switch ses.denial.identity, cases IAM-ENF-39 and ses.md SES-28"},
-		"sfn":             {evidence.Inferred, "switch sfn.denial.status, case SFN-15"},
+		"sfn":             {evidence.AWSRecorded, "testdata/parity/sfn/SFN-15/01-denied-list.json"},
 		"ssm":             {evidence.Inferred, "no source"},
 	}
 	for _, svc := range generated() {
@@ -112,6 +113,19 @@ func TestDocumentedDenialIdentities(t *testing.T) {
 					id.QueryCode == "AccessDenied" && id.Status == http.StatusForbidden && id.Fault == awserr.Sender
 			},
 			"com.amazonaws.sts#AccessDenied, AccessDenied, 403, Sender",
+		},
+		{
+			// HTTP/1.1 400 with __type
+			// com.amazon.coral.service#AccessDeniedException
+			// (testdata/parity/sfn/SFN-15/01-denied-list.json, aws-recorded).
+			// AWS's message key there is "Message", which the shared Coral
+			// shape does not spell; that is not asserted here.
+			"sfn", sfnapi.Service().Denial.Identity,
+			func(id awserr.Identity) bool {
+				return id == sfnapi.IdentityAccessDeniedException() && id.JSONType == "com.amazon.coral.service#AccessDeniedException" &&
+					id.Status == http.StatusBadRequest
+			},
+			"com.amazon.coral.service#AccessDeniedException, 400",
 		},
 		{
 			// Over Query the code is AccessDenied: "An error occurred
