@@ -583,10 +583,10 @@ func (s *Service) unsubscribe(c *kernel.Call, ref subscriptionRef, by caller) *a
 func mayUnsubscribe(sub *Subscription, by caller) *awserr.Error {
 	switch status := sub.Status.(type) {
 	case Pending:
-		return errInvalidParameter("Cannot unsubscribe a subscription that is pending confirmation")
+		return errUnsubscribePending()
 	case Confirmed:
-		if why := status.credentialsRequired(); why != "" && by != authenticated {
-			return errUnsubscribeNeedsCredentials(why)
+		if status.credentialsRequired() && by != authenticated {
+			return errUnsubscribeNeedsCredentials()
 		}
 	}
 	return nil
@@ -644,7 +644,7 @@ func (s *Service) listSubscriptionsByTopic(_ context.Context, c *kernel.Call, in
 
 // listed renders t's subscriptions for a listing, without those expired by
 // now; a pending one shows PendingConfirmation in place of its ARN
-// (sns.md 3.4).
+// (sns.md 3.4), and an endpoint's password is masked (maskedEndpoint).
 func listed(ref topicRef, t *Topic, now clock.Instant) []snsapi.Subscription {
 	out := make([]snsapi.Subscription, 0, len(t.Subscriptions))
 	topicARN := ref.arn().String()
@@ -660,11 +660,35 @@ func listed(ref topicRef, t *Topic, now clock.Instant) []snsapi.Subscription {
 			SubscriptionArn: new(arn),
 			Owner:           new(sub.OwnerAccountID),
 			Protocol:        new(sub.Protocol.String()),
-			Endpoint:        new(sub.Endpoint),
+			Endpoint:        new(maskedEndpoint(sub.Endpoint)),
 			TopicArn:        new(topicARN),
 		})
 	}
 	return out
+}
+
+// maskedEndpoint is endpoint as a listing shows it: the password of a
+// URL's user info replaced by ****, the rest as sent (SNSH-22,
+// sns-http-delivery.md 2.1). GetSubscriptionAttributes returns it
+// verbatim. The user info ends at the last @ before the path.
+func maskedEndpoint(endpoint string) string {
+	scheme, rest, ok := strings.Cut(endpoint, "://")
+	if !ok {
+		return endpoint
+	}
+	authority := rest
+	if i := strings.IndexAny(rest, "/?#"); i >= 0 {
+		authority = rest[:i]
+	}
+	at := strings.LastIndex(authority, "@")
+	if at < 0 {
+		return endpoint
+	}
+	user, _, hasPassword := strings.Cut(authority[:at], ":")
+	if !hasPassword {
+		return endpoint
+	}
+	return scheme + "://" + user + ":****" + rest[at:]
 }
 
 // nonNil returns an empty list for none, so the member is sent.

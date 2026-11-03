@@ -98,11 +98,15 @@ type NotificationPost struct {
 // SubscriptionConfirmationPost is a SubscriptionConfirmation POST.
 type SubscriptionConfirmationPost struct {
 	MessageID, TopicARN string
+	// ContentType is as NotificationPost's.
+	ContentType string
 }
 
 // UnsubscribeConfirmationPost is an UnsubscribeConfirmation POST.
 type UnsubscribeConfirmationPost struct {
 	MessageID, TopicARN, SubscriptionARN string
+	// ContentType is as NotificationPost's.
+	ContentType string
 }
 
 func (NotificationPost) isHTTPPost()             {}
@@ -118,9 +122,9 @@ func (UnsubscribeConfirmationPost) isHTTPPost()  {}
 //   - x-amz-sns-message-id and x-amz-sns-topic-arn;
 //   - x-amz-sns-subscription-arn, except on a SubscriptionConfirmation;
 //   - x-amz-sns-rawdelivery: true, on a raw notification only (4.5);
-//   - Content-Type: a notification's ContentType, sent verbatim, else
-//     DefaultContentType; both confirmations always send DefaultContentType
-//     (3.3, sns.http.control-content-type);
+//   - Content-Type: the post's ContentType, sent verbatim, else
+//     DefaultContentType, for the confirmations as for a notification
+//     (3.3, sns.http.control-content-type, SNSH-03);
 //   - User-Agent and Accept-Encoding;
 //   - Authorization: Basic credentials from user when it is non-nil, on
 //     the first request (2.1, 3.1, sns.http.basic-auth); a user without a
@@ -130,23 +134,22 @@ func (UnsubscribeConfirmationPost) isHTTPPost()  {}
 // client's to write. A nil p has no headers.
 func HTTPHeaders(p HTTPPost, user *url.Userinfo) []delivery.HTTPHeader {
 	var (
-		kind                                 delivery.HTTPKind
-		messageID, topicARN, subscriptionARN string
-		raw                                  bool
-		contentType                          = DefaultContentType
+		kind                                              delivery.HTTPKind
+		messageID, topicARN, subscriptionARN, contentType string
+		raw                                               bool
 	)
 	switch p := p.(type) {
 	case NotificationPost:
-		kind, messageID, topicARN, subscriptionARN, raw = delivery.HTTPNotification, p.MessageID, p.TopicARN, p.SubscriptionARN, p.Raw
-		if p.ContentType != "" {
-			contentType = p.ContentType
-		}
+		kind, messageID, topicARN, subscriptionARN, raw, contentType = delivery.HTTPNotification, p.MessageID, p.TopicARN, p.SubscriptionARN, p.Raw, p.ContentType
 	case SubscriptionConfirmationPost:
-		kind, messageID, topicARN = delivery.HTTPSubscriptionConfirmation, p.MessageID, p.TopicARN
+		kind, messageID, topicARN, contentType = delivery.HTTPSubscriptionConfirmation, p.MessageID, p.TopicARN, p.ContentType
 	case UnsubscribeConfirmationPost:
-		kind, messageID, topicARN, subscriptionARN = delivery.HTTPUnsubscribeConfirmation, p.MessageID, p.TopicARN, p.SubscriptionARN
+		kind, messageID, topicARN, subscriptionARN, contentType = delivery.HTTPUnsubscribeConfirmation, p.MessageID, p.TopicARN, p.SubscriptionARN, p.ContentType
 	case nil:
 		return nil
+	}
+	if contentType == "" {
+		contentType = DefaultContentType
 	}
 	hs := make([]delivery.HTTPHeader, 0, 9)
 	add := func(name, value string) { hs = append(hs, delivery.HTTPHeader{Name: name, Value: value}) }

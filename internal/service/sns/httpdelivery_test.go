@@ -245,27 +245,32 @@ func systemHTTPPolicy() delivery.SNSHTTP {
 }
 
 // Every switch of sns-http-delivery.md 8.4 is listed with its value, its
-// inferred label, its section and the recording that settles it.
+// label, its section and the recording that settles it: aws-recorded where
+// SNSH (2026-11-03) recorded the value, inferred where AWS contradicted it
+// or the recording left it open.
 func TestHTTPSwitchesAreListed(t *testing.T) {
 	A := []string{"sns.Subscribe", "sns.Publish", "sns.PublishBatch", "sns.UnsubscribeLink"}
 	P := []string{"sns.Publish", "sns.PublishBatch"}
 	C := []string{"sns.Subscribe", "sns.UnsubscribeLink"}
+	const rec, inf = evidence.AWSRecorded, evidence.Inferred
 	want := []struct {
-		name, value, anchor, record string
-		ops                         []string
+		name, value    string
+		label          evidence.Label
+		anchor, record string
+		ops            []string
 	}{
-		{"sns.http.status-classes", "retries-doc", "61-response-classes", "SNSH-05, SNSH-24", A},
-		{"sns.http.redirects", "not-followed", "31-method-url-and-connection", "SNSH-06", A},
-		{"sns.http.retry-body", "identical", "46-field-values", "SNSH-07", A},
-		{"sns.http.dlq-body", "as-sqs", "65-dead-letter-queue", "SNSH-08", P},
-		{"sns.http.backoff-curves", "linear-for-all", "63-retry-schedule", "SNSH-09", A},
-		{"sns.http.retry-jitter", "none", "63-retry-schedule", "SNSH-10", A},
-		{"sns.http.pending-messages", "dropped", "22-the-confirmation-post-and-the-pending-period", "SNSH-11", P},
-		{"sns.http.resubscribe-pending", "resend-same-token", "22-the-confirmation-post-and-the-pending-period", "SNSH-12", []string{"sns.Subscribe"}},
-		{"sns.http.unsubscribe-confirmation", "unauthenticated-only", "24-unsubscribing-and-the-unsubscribeconfirmation", "SNSH-15", []string{"sns.Unsubscribe", "sns.UnsubscribeLink"}},
-		{"sns.http.control-dlq", "never", "65-dead-letter-queue", "SNSH-17", C},
-		{"sns.http.control-content-type", "text-plain", "33-content-type", "SNSH-03", C},
-		{"sns.http.basic-auth", "preemptive", "31-method-url-and-connection", "SNSH-22", A},
+		{"sns.http.status-classes", "retries-doc", inf, "61-response-classes", "SNSH-05, SNSH-24", A},
+		{"sns.http.redirects", "not-followed", rec, "31-method-url-and-connection", "SNSH-06", A},
+		{"sns.http.retry-body", "identical", rec, "46-field-values", "SNSH-07", A},
+		{"sns.http.dlq-body", "as-sqs", rec, "65-dead-letter-queue", "SNSH-08", P},
+		{"sns.http.backoff-curves", "linear-for-all", inf, "63-retry-schedule", "SNSH-09", A},
+		{"sns.http.retry-jitter", "none", rec, "63-retry-schedule", "SNSH-10", A},
+		{"sns.http.pending-messages", "dropped", rec, "22-the-confirmation-post-and-the-pending-period", "SNSH-11", P},
+		{"sns.http.resubscribe-pending", "resend-same-token", inf, "22-the-confirmation-post-and-the-pending-period", "SNSH-12", []string{"sns.Subscribe"}},
+		{"sns.http.unsubscribe-confirmation", "unauthenticated-only", rec, "24-unsubscribing-and-the-unsubscribeconfirmation", "SNSH-15", []string{"sns.Unsubscribe", "sns.UnsubscribeLink"}},
+		{"sns.http.control-dlq", "never", rec, "65-dead-letter-queue", "SNSH-17", C},
+		{"sns.http.control-content-type", "as-request-policy", rec, "33-content-type", "SNSH-03", C},
+		{"sns.http.basic-auth", "preemptive", inf, "31-method-url-and-connection", "SNSH-22", A},
 	}
 	run(t, func(h *harness) {
 		listed := map[string]fidelity.Entry{}
@@ -279,9 +284,9 @@ func TestHTTPSwitchesAreListed(t *testing.T) {
 				continue
 			}
 			wantRef := "docs/research/sns-http-delivery.md#" + w.anchor
-			if e.Value != w.value || e.Label != evidence.Inferred || e.Ref != wantRef || e.Record != w.record || !slices.Equal(e.Ops, w.ops) {
-				h.Errorf("switch %s = value %q label %s ref %s record %q ops %v; want %q inferred %s %q %v",
-					w.name, e.Value, e.Label, e.Ref, e.Record, e.Ops, w.value, wantRef, w.record, w.ops)
+			if e.Value != w.value || e.Label != w.label || e.Ref != wantRef || e.Record != w.record || !slices.Equal(e.Ops, w.ops) {
+				h.Errorf("switch %s = value %q label %s ref %s record %q ops %v; want %q %s %s %q %v",
+					w.name, e.Value, e.Label, e.Ref, e.Record, e.Ops, w.value, w.label, wantRef, w.record, w.ops)
 			}
 			reason, unsettled := e.Settles.(fidelity.NoScenario)
 			if !unsettled || !strings.Contains(reason.Reason, strings.SplitN(w.record, ",", 2)[0]) {
@@ -758,7 +763,8 @@ func TestConfirmationsHaveNoDeadLetterQueue(t *testing.T) {
 // requestPolicy.headerContentType sets a notification's Content-Type,
 // verbatim (sns-http-delivery.md 3.3, third-party-recorded for a topic's
 // application/json and a raw subscription's text/csv); under
-// sns.http.control-content-type the confirmations keep text/plain.
+// sns.http.control-content-type the confirmations carry it too (SNSH-03,
+// recorded 2026-11-03), and one with none keeps text/plain.
 func TestRequestPolicyContentType(t *testing.T) {
 	run(t, func(h *harness) {
 		topic := h.topic("events", map[string]string{"DeliveryPolicy": `{"http":{"defaultRequestPolicy":{"headerContentType":"application/json"}}}`})
@@ -767,12 +773,18 @@ func TestRequestPolicyContentType(t *testing.T) {
 			"RawMessageDelivery": "true",
 			"DeliveryPolicy":     `{"requestPolicy":{"headerContentType":"text/csv"}}`,
 		})
+		plainTopic := h.topic("plain", nil)
+		h.subscribe(plainTopic, "http", "http://127.0.0.1:8080/plain", nil)
 		_, cs := ofKind(h, delivery.HTTPSubscriptionConfirmation)
 		switch v := switchValue(h, "sns.http.control-content-type"); v {
-		case "text-plain":
+		case "as-request-policy":
+			want := map[string]string{hookURL: "application/json", "http://127.0.0.1:8080/raw": "text/csv", "http://127.0.0.1:8080/plain": "text/plain; charset=UTF-8"}
+			if len(cs) != len(want) {
+				h.Fatalf("%d SubscriptionConfirmations, want %d", len(cs), len(want))
+			}
 			for _, c := range cs {
-				if got := headerMap(h, c.Headers)["Content-Type"]; got != "text/plain; charset=UTF-8" {
-					h.Errorf("a SubscriptionConfirmation to %s has Content-Type %q, want text/plain; charset=UTF-8", c.URL.String(), got)
+				if got := headerMap(h, c.Headers)["Content-Type"]; got != want[c.URL.String()] {
+					h.Errorf("a SubscriptionConfirmation to %s has Content-Type %q, want %q", c.URL.String(), got, want[c.URL.String()])
 				}
 			}
 		default:

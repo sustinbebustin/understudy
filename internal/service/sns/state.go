@@ -242,23 +242,19 @@ func (c Confirmed) authenticated() bool {
 	}
 }
 
-// credentialsRequired is why only an Unsubscribe call with credentials may
-// remove the subscription, never the unsigned UnsubscribeURL: it was
-// confirmed with AuthenticateOnUnsubscribe, or is a queue its owner
-// subscribed. It is "" when an unsigned request may remove it.
-func (c Confirmed) credentialsRequired() string {
+// credentialsRequired reports whether only an Unsubscribe call with
+// credentials may remove the subscription, never the unsigned
+// UnsubscribeURL: it was confirmed with AuthenticateOnUnsubscribe, or is a
+// queue its owner subscribed, which sets it.
+func (c Confirmed) credentialsRequired() bool {
 	switch by := c.By.(type) {
 	case AtSubscribe:
-		if by.AuthenticateOnUnsubscribe {
-			return "the queue owner subscribed its own queue, which sets AuthenticateOnUnsubscribe=true"
-		}
+		return by.AuthenticateOnUnsubscribe
 	case ByCall:
-		if by.AuthenticateOnUnsubscribe {
-			return "the subscription was confirmed with AuthenticateOnUnsubscribe=true"
-		}
+		return by.AuthenticateOnUnsubscribe
 	case ByLink:
 	}
-	return ""
+	return false
 }
 
 // tokenConfirmation is a confirmation made with a token: ByCall or ByLink.
