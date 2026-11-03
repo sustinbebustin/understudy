@@ -1,7 +1,6 @@
 package awsquery_test
 
 import (
-	"cmp"
 	"encoding/json"
 	"encoding/xml"
 	"net/http"
@@ -14,7 +13,6 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/stsapi"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/protocol/awsquery"
-	"github.com/sustinbebustin/understudy/internal/ref"
 )
 
 // queryError is the part of an ErrorResponse a denial is compared on.
@@ -102,23 +100,20 @@ func TestSNSDenialRendersAuthorizationError(t *testing.T) {
 	}
 }
 
-// SQS over Query answers code AccessDenied with the text "Access to the
-// resource <url> is denied." (iam-enforcement-surfaces.md 3.2, 4.3,
-// aws-doc), which the denial carries as its Query message. The status is
-// inferred (sqs.denial.query-text, IAM-ENF-02), so it is read from the
-// identity.
-func TestSQSQueryDenialRendersAccessDenied(t *testing.T) {
+// SQS over Query answers the recorded denial: 403, Type Sender, code
+// AccessDenied and the Authorizer's lower-case grammar text, with no
+// Query-only message (testdata/parity/sqs/IAM-ENF/02-query.json,
+// aws-recorded; iam-enforcement-surfaces.md 3.2).
+func TestSQSQueryDenialRendersTheRecordedAnswer(t *testing.T) {
 	t.Parallel()
-	const text = "Access to the resource http://localhost:4566/000000000000/q is denied."
-	id := sqsapi.Service().Denial.Identity
-	denial := &awserr.Error{
-		ID: id, Message: "User: u is not authorized to perform: sqs:SendMessage",
-		Messages: []awserr.ProtocolMessage{{Protocol: ref.AWSQuery, Message: text}}, Origin: awserr.Denial{},
+	status, contentType, body := recordedError(t, "sqs/IAM-ENF/02-query.json")
+	want := parseQueryError(t, body)
+	denial := &awserr.Error{ID: sqsapi.Service().Denial.Identity, Message: want.Error.Message, Origin: awserr.Denial{}}
+	got := awsquery.Codec{}.EncodeError(sqsapi.Service(), want.RequestID, denial)
+	if got.Status != status || got.Header.Get("Content-Type") != contentType {
+		t.Errorf("status %d Content-Type %q, recorded %d %q", got.Status, got.Header.Get("Content-Type"), status, contentType)
 	}
-	got := awsquery.Codec{}.EncodeError(sqsapi.Service(), requestID, denial)
-	e := parseQueryError(t, got.Body)
-	status := cmp.Or(id.QueryModeStatus, id.Status)
-	if e.Error.Code != "AccessDenied" || e.Error.Message != text || status == 0 || got.Status != status {
-		t.Errorf("rendered %d %+v, want AccessDenied with the Query text and the identity's status %d", got.Status, e.Error, status)
+	if g := parseQueryError(t, got.Body); g != want {
+		t.Errorf("rendered %+v, recorded %+v", g, want)
 	}
 }
