@@ -13,21 +13,24 @@ import (
 )
 
 // The five switches of the unit (spec 6b "Fidelity switches"), in its
-// order, each inferred, with a Ref into apigateway-rest.md, the recording
-// cases that settle it and no parity scenario yet; Switches lists each
-// constructor's value.
+// order, with a Ref into apigateway-rest.md, the recording cases that
+// settle it and no parity scenario (the replayer does not route
+// execute-api requests); api-status and proxy.unrecorded are AWS's as
+// APIGW1-03, -10 and -16 recorded them, the others keep an unrecorded
+// part; Switches lists each constructor's value.
 func TestSwitches(t *testing.T) {
 	invoke := []string{"apigateway.InvokeRestApi"}
 	want := []struct {
 		name, value string
+		label       evidence.Label
 		records     []string
 		ops         []string
 	}{
-		{"apigateway.restapi.api-status", fmt.Sprint(apigateway.APIStatusSwitch().Value), []string{"APIGW1-03"}, []string{"apigateway.CreateRestApi", "apigateway.UpdateRestApi", "apigateway.GetRestApi", "apigateway.GetRestApis"}},
-		{"apigateway.invoke.routing", fmt.Sprint(apigateway.RoutingSwitch().Value), []string{"APIGW1-07", "APIGW1-08"}, invoke},
-		{"apigateway.lambda.permission", fmt.Sprint(apigateway.PermissionSwitch().Value), []string{"APIGW1-15"}, invoke},
-		{"apigateway.mock.selection", fmt.Sprint(apigateway.MockSelectionSwitch().Value), []string{"APIGW1-09", "APIGW1-11", "APIGW1-12"}, invoke},
-		{"apigateway.proxy.unrecorded", fmt.Sprint(apigateway.ProxyUnrecordedSwitch().Value), []string{"APIGW1-10", "APIGW1-16"}, invoke},
+		{"apigateway.restapi.api-status", fmt.Sprint(apigateway.APIStatusSwitch().Value), evidence.AWSRecorded, []string{"APIGW1-03"}, []string{"apigateway.CreateRestApi", "apigateway.UpdateRestApi", "apigateway.GetRestApi", "apigateway.GetRestApis"}},
+		{"apigateway.invoke.routing", fmt.Sprint(apigateway.RoutingSwitch().Value), evidence.Inferred, []string{"APIGW1-07", "APIGW1-08"}, invoke},
+		{"apigateway.lambda.permission", fmt.Sprint(apigateway.PermissionSwitch().Value), evidence.Inferred, []string{"APIGW1-15"}, invoke},
+		{"apigateway.mock.selection", fmt.Sprint(apigateway.MockSelectionSwitch().Value), evidence.Inferred, []string{"APIGW1-09", "APIGW1-11", "APIGW1-12"}, invoke},
+		{"apigateway.proxy.unrecorded", fmt.Sprint(apigateway.ProxyUnrecordedSwitch().Value), evidence.AWSRecorded, []string{"APIGW1-10", "APIGW1-16"}, invoke},
 	}
 	run(t, func(h *harness) {
 		got := h.svc.Switches()
@@ -40,8 +43,8 @@ func TestSwitches(t *testing.T) {
 				t.Errorf("switch %d = %s, want %s", i, e.Name, w.name)
 				continue
 			}
-			if e.Value != w.value || e.Label != evidence.Inferred || !slices.Equal(e.Ops, w.ops) {
-				t.Errorf("%s = value %q, label %s, ops %v\nwant value %q, label inferred, ops %v", e.Name, e.Value, e.Label, e.Ops, w.value, w.ops)
+			if e.Value != w.value || e.Label != w.label || !slices.Equal(e.Ops, w.ops) {
+				t.Errorf("%s = value %q, label %s, ops %v\nwant value %q, label %s, ops %v", e.Name, e.Value, e.Label, e.Ops, w.value, w.label, w.ops)
 			}
 			if !strings.HasPrefix(e.Ref, "docs/research/apigateway-rest.md#") {
 				t.Errorf("%s Ref = %q, want an anchor in docs/research/apigateway-rest.md", e.Name, e.Ref)
@@ -52,7 +55,7 @@ func TestSwitches(t *testing.T) {
 				}
 			}
 			if _, ok := e.Settles.(fidelity.NoScenario); !ok {
-				t.Errorf("%s Settles = %#v, want NoScenario until %v is recorded", e.Name, e.Settles, w.records)
+				t.Errorf("%s Settles = %#v, want NoScenario", e.Name, e.Settles)
 			}
 		}
 	})
@@ -64,8 +67,14 @@ func TestSwitches(t *testing.T) {
 // 415 UNSUPPORTED_MEDIA_TYPE and 504 INTEGRATION_TIMEOUT (aws-doc
 // supported-gateway-response-types, apigateway-rest.md 4.7).
 func TestSwitchValuesKeepTheDocumentedParts(t *testing.T) {
-	if d := apigateway.PermissionSwitch().Value.Denial; !strings.Contains(d.Body, "Internal server error") {
-		t.Errorf("permission Denial body = %q, want the recorded Internal server error message", d.Body)
+	// APIGW1-15 and APIGW1-10, recorded 2026-11-03.
+	for name, c := range map[string]struct{ got, want apigateway.GatewayAnswer }{
+		"permission Denial": {apigateway.PermissionSwitch().Value.Denial, apigateway.GatewayAnswer{Status: 500, Body: `{"message": "Internal server error"}`, ErrorType: "InternalServerErrorException"}},
+		"Timeout":           {apigateway.ProxyUnrecordedSwitch().Value.Timeout, apigateway.GatewayAnswer{Status: 504, Body: `{"message": "Endpoint request timed out"}`, ErrorType: "InternalServerErrorException"}},
+	} {
+		if c.got != c.want {
+			t.Errorf("%s = %+v, want %+v", name, c.got, c.want)
+		}
 	}
 	if s := apigateway.MockSelectionSwitch().Value.UnsupportedMediaType.Status; s != http.StatusUnsupportedMediaType {
 		t.Errorf("UnsupportedMediaType status = %d, want 415", s)

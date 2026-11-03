@@ -152,25 +152,31 @@ const researchRef = "docs/research/apigateway-rest.md#"
 // invokeRestAPI is the data plane's operation id.
 const invokeRestAPI = "apigateway.InvokeRestApi"
 
-// unrecorded is the Settles of a switch the named recording cases settle.
-func unrecorded(cases string) fidelity.Settles {
-	return fidelity.NoScenario{Reason: "unrecorded: " + cases + " (apigateway-rest.md 13) records it"}
+// recorded is the Settles of a switch the named cases recorded: the
+// replayer does not route execute-api requests, so no scenario replays
+// them.
+func recorded(cases string) fidelity.Settles {
+	return fidelity.NoScenario{Reason: cases + " recorded 2026-11-03 (testdata/parity/apigateway/APIGW1); the replayer does not route execute-api requests"}
 }
 
-// APIStatusSwitch is apigateway.restapi.api-status (3.1, finding 2).
+// APIStatusSwitch is apigateway.restapi.api-status (3.1, finding 2):
+// AVAILABLE throughout, as APIGW1-03 recorded.
 func APIStatusSwitch() fidelity.Switch[APIStatus] {
 	return fidelity.Switch[APIStatus]{
 		Name:    "apigateway.restapi.api-status",
 		Value:   APIStatus{AfterCreate: apigatewayapi.ApiStatusAvailable, AfterUpdate: apigatewayapi.ApiStatusAvailable},
-		Label:   evidence.Inferred,
+		Label:   evidence.AWSRecorded,
 		Ref:     researchRef + "31-restapi",
 		Record:  "APIGW1-03",
 		Ops:     []string{"apigateway.CreateRestApi", "apigateway.UpdateRestApi", "apigateway.GetRestApi", "apigateway.GetRestApis"},
-		Settles: unrecorded("APIGW1-03"),
+		Settles: recorded("APIGW1-03"),
 	}
 }
 
-// RoutingSwitch is apigateway.invoke.routing (4.4, 4.7).
+// RoutingSwitch is apigateway.invoke.routing (4.4, 4.7). APIGW1-07 and
+// APIGW1-08 recorded the unknown-stage answer and the method choices; the
+// answer to an unknown API id cannot be recorded (the host does not
+// resolve), so the switch stays inferred.
 func RoutingSwitch() fidelity.Switch[Routing] {
 	forbidden := GatewayAnswer{Status: http.StatusForbidden, Body: `{"message":"Forbidden"}`, ErrorType: "ForbiddenException"}
 	return fidelity.Switch[Routing]{
@@ -184,23 +190,25 @@ func RoutingSwitch() fidelity.Switch[Routing] {
 		Ref:     researchRef + "47-gateway-responses-and-error-bodies",
 		Record:  "APIGW1-07, APIGW1-08",
 		Ops:     []string{invokeRestAPI},
-		Settles: unrecorded("APIGW1-07 and APIGW1-08"),
+		Settles: fidelity.NoScenario{Reason: "unrecorded: the answer to an unknown API id, whose host does not resolve (APIGW1-07 recorded the rest)"},
 	}
 }
 
-// PermissionSwitch is apigateway.lambda.permission (5.4, 3.10).
+// PermissionSwitch is apigateway.lambda.permission (5.4, 3.10). APIGW1-15
+// recorded the denial; its permission named the API with a wildcard, so
+// the SourceARN form stays inferred.
 func PermissionSwitch() fidelity.Switch[Permission] {
 	return fidelity.Switch[Permission]{
 		Name: "apigateway.lambda.permission",
 		Value: Permission{
 			SourceARN: "<api-id>/<stage>/<METHOD>/<resource path template without its leading slash>; ANY as written for an ANY method; an empty last segment for the root resource",
-			Denial:    GatewayAnswer{Status: http.StatusInternalServerError, Body: `{"message": "Internal server error"}`},
+			Denial:    GatewayAnswer{Status: http.StatusInternalServerError, Body: `{"message": "Internal server error"}`, ErrorType: "InternalServerErrorException"},
 		},
 		Label:   evidence.Inferred,
 		Ref:     researchRef + "54-how-api-gateway-invokes-the-function",
 		Record:  "APIGW1-15",
 		Ops:     []string{invokeRestAPI},
-		Settles: unrecorded("APIGW1-15"),
+		Settles: fidelity.NoScenario{Reason: "unrecorded: the SourceARN form; APIGW1-15 granted <api-id>/* and recorded only the denial"},
 	}
 }
 
@@ -227,25 +235,26 @@ func MockSelectionSwitch() fidelity.Switch[MockSelection] {
 	}
 }
 
-// ProxyUnrecordedSwitch is apigateway.proxy.unrecorded (5.1, 5.3).
+// ProxyUnrecordedSwitch is apigateway.proxy.unrecorded (5.1, 5.3), named
+// before APIGW1-10 and APIGW1-16 recorded every part of it.
 func ProxyUnrecordedSwitch() fidelity.Switch[ProxyUnrecorded] {
 	return fidelity.Switch[ProxyUnrecorded]{
 		Name: "apigateway.proxy.unrecorded",
 		Value: ProxyUnrecorded{
-			Timeout:        GatewayAnswer{Status: http.StatusGatewayTimeout, Body: `{"message": "Endpoint request timed out"}`},
+			Timeout:        GatewayAnswer{Status: http.StatusGatewayTimeout, Body: `{"message": "Endpoint request timed out"}`, ErrorType: "InternalServerErrorException"},
 			BodylessNull:   true,
 			BodylessBase64: false,
 		},
-		Label:   evidence.Inferred,
+		Label:   evidence.AWSRecorded,
 		Ref:     researchRef + "53-failures",
 		Record:  "APIGW1-10, APIGW1-16",
 		Ops:     []string{invokeRestAPI},
-		Settles: unrecorded("APIGW1-10 and APIGW1-16"),
+		Settles: recorded("APIGW1-10 and APIGW1-16"),
 	}
 }
 
-// Switches lists the behaviors the service chose without AWS-recorded
-// evidence, in the order of the spec's switch table.
+// Switches lists the behaviors the spec's switch table names, in its
+// order, each labelled by the evidence it now has.
 func (*Service) Switches() []fidelity.Entry {
 	return []fidelity.Entry{
 		APIStatusSwitch().Entry(),
