@@ -151,8 +151,9 @@ func TestRearmDeletesASkippedDeleteAt(t *testing.T) {
 	})
 }
 
-// MaximumWindowInMinutes reads back under FLEXIBLE and is dropped under
-// OFF (scheduler.md 4.2). UNVERIFIED (SCH-04): dropping it under OFF.
+// MaximumWindowInMinutes reads back under FLEXIBLE and is absent under OFF
+// (SCH-01 01-get-full, 01-get-min, recorded 2026-11-03; scheduler.md 4.2);
+// OFF with a window is refused (TestDatesAndWindowRefusals).
 func TestFlexibleWindowEcho(t *testing.T) {
 	run(t, func(h *harness) {
 		in := schedule("flex", "rate(1 hour)", h.queueTarget("q", nil))
@@ -161,11 +162,9 @@ func TestFlexibleWindowEcho(t *testing.T) {
 		if w := h.get("", "flex").FlexibleTimeWindow; w == nil || w.Mode != schedulerapi.FlexibleTimeWindowModeFlexible || val32(w.MaximumWindowInMinutes) != 15 {
 			h.Errorf("FLEXIBLE window read back as %+v, want FLEXIBLE 15", w)
 		}
-		off := schedule("off", "rate(1 hour)", h.queueTarget("q", nil))
-		off.FlexibleTimeWindow = schedulerapi.FlexibleTimeWindow{Mode: schedulerapi.FlexibleTimeWindowModeOff, MaximumWindowInMinutes: new(int32(15))}
-		h.create(off)
-		if w := h.get("", "off").FlexibleTimeWindow; w == nil || w.MaximumWindowInMinutes != nil {
-			h.Errorf("OFF window read back as %+v, want no MaximumWindowInMinutes", w)
+		h.create(schedule("off", "rate(1 hour)", h.queueTarget("q", nil)))
+		if w := h.get("", "off").FlexibleTimeWindow; w == nil || w.Mode != schedulerapi.FlexibleTimeWindowModeOff || w.MaximumWindowInMinutes != nil {
+			h.Errorf("OFF window read back as %+v, want OFF without MaximumWindowInMinutes", w)
 		}
 	})
 }

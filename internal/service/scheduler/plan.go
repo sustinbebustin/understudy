@@ -2,6 +2,8 @@ package scheduler
 
 import (
 	"encoding/binary"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -212,45 +214,65 @@ func (disabled) isRun()  {}
 func (completed) isRun() {}
 func (ended) isRun()     {}
 
-// dateCheck is the dates step of accept: at a write, the EndDate order and
-// the future-fire check against the write instant; at a snapshot load,
-// nothing, since the write checked them and time has moved on.
-type dateCheck func(m *members, e expression, loc *time.Location) *awserr.Error
+// admission is how accept admits members: at a write, with the checks
+// that depend on the write instant, the scope's groups and what AWS
+// refuses at create; at a snapshot load, without them, since the write
+// made them and time has moved on.
+//
+//sumtype:decl
+type admission interface{ isAdmission() }
 
-// atWrite is the dates step of a write admitted at now.
-func atWrite(now time.Time) dateCheck {
-	return func(m *members, e expression, loc *time.Location) *awserr.Error { return checkDates(m, e, loc, now) }
+// atWrite admits a write at now; group answers whether the schedule's
+// group is held.
+type atWrite struct {
+	now   time.Time
+	group func() *awserr.Error
 }
 
-// atLoad is the dates step of a snapshot load.
-func atLoad(*members, expression, *time.Location) *awserr.Error { return nil }
+// atLoad admits a schedule a snapshot holds.
+type atLoad struct{}
+
+func (atWrite) isAdmission() {}
+func (atLoad) isAdmission()  {}
 
 // accept parses m into the schedule's plan, refusing what AWS refuses and,
-// with 501, what no ticket has built yet. The order is scheduler.md
-// 14.9.3's: expression, time zone, flexible window, dates and the
-// future-fire check (in either State), target ARN; only "expression
-// before role" is evidenced (G3; scheduler.md 4.7), the rest is
-// UNVERIFIED (SCH-04). The 501s for what is not built come last, so a
+// with 501, what no ticket has built yet. The order is what SCH-04
+// recorded with two faults per request (scheduler.md 4.7): the time zone,
+// then the expression, the flexible window, the dates and the future-fire
+// check (in either State) and the group, then the target; the role's
+// trust is checked after accept (authorizeWrite). Where the window falls
+// among them is inferred. The 501s for what is not built come last, so a
 // request AWS refuses is refused as AWS would. units is
 // scheduler.rate.unit-agreement.
-func accept(scope aws.Scope, m *members, units schedexpr.RateUnits, dates dateCheck) (plan, *awserr.Error) {
-	expr, err := parseExpression(m.expression, units)
-	if err != nil {
-		return plan{}, err
-	}
+func accept(scope aws.Scope, m *members, units schedexpr.RateUnits, adm admission) (plan, *awserr.Error) {
 	loc, err := parseZone(m.timezone)
 	if err != nil {
 		return plan{}, err
 	}
-	if m.window.Mode == schedulerapi.FlexibleTimeWindowModeFlexible && m.window.MaximumWindowInMinutes == nil {
-		return plan{}, errFlexibleWithoutWindow()
-	}
-	if err := dates(m, expr, loc); err != nil {
+	expr, err := parseExpression(m.expression, units)
+	if err != nil {
 		return plan{}, err
+	}
+	write, isWrite := adm.(atWrite)
+	if isWrite {
+		if err := checkWindow(m.window); err != nil {
+			return plan{}, err
+		}
+		if err := checkDates(m, expr, loc, write.now); err != nil {
+			return plan{}, err
+		}
+		if err := write.group(); err != nil {
+			return plan{}, err
+		}
 	}
 	tgt, role, err := parseTarget(scope, &m.target)
 	if err != nil {
 		return plan{}, err
+	}
+	if isWrite {
+		if err := checkTargetMembers(tgt, &m.target); err != nil {
+			return plan{}, err
+		}
 	}
 	key, err := parseKey(m.kmsKeyArn)
 	if err != nil {
@@ -315,15 +337,35 @@ func parseZone(name *string) (*time.Location, *awserr.Error) {
 	return loc, nil
 }
 
-// checkDates refuses an EndDate not after StartDate, then a cron or rate
-// schedule with no fire in [max(now, StartDate), EndDate) (scheduler.md
-// 14.3.6). An at() ignores both dates (scheduler.md 5.1).
+// checkWindow refuses FLEXIBLE without MaximumWindowInMinutes and OFF
+// with one (SCH-04, recorded 2026-11-03; scheduler.md 2.4).
+func checkWindow(w schedulerapi.FlexibleTimeWindow) *awserr.Error {
+	switch {
+	case w.Mode == schedulerapi.FlexibleTimeWindowModeFlexible && w.MaximumWindowInMinutes == nil:
+		return errFlexibleWithoutWindow()
+	case w.Mode == schedulerapi.FlexibleTimeWindowModeOff && w.MaximumWindowInMinutes != nil:
+		return errOffWithWindow()
+	}
+	return nil
+}
+
+// checkDates refuses an EndDate not after StartDate, or not after now when
+// no StartDate is sent, in either State; then a cron or rate schedule with
+// no fire in [max(now, StartDate), EndDate), whose text names the request
+// instant as the StartDate of an ENABLED schedule sent without one and
+// null for a DISABLED one (SCH-03, SCH-04, recorded 2026-11-03;
+// scheduler.md 2.4, 5.5, 14.3.6). An at() ignores both dates (scheduler.md
+// 5.1); the EndDate order is recorded for rate() and inferred for cron().
 func checkDates(m *members, e expression, loc *time.Location, now time.Time) *awserr.Error {
 	if _, ok := e.(atExpr); ok {
 		return nil
 	}
-	if m.start != nil && m.end != nil && !m.end.After(*m.start) {
-		return errEndNotAfterStart(*m.start, *m.end)
+	begin := now
+	if m.start != nil {
+		begin = *m.start
+	}
+	if m.end != nil && !m.end.After(begin) {
+		return errEndNotAfterStart()
 	}
 	from := now
 	if m.start != nil && m.start.After(now) {
@@ -331,9 +373,78 @@ func checkDates(m *members, e expression, loc *time.Location, now time.Time) *aw
 	}
 	first, ok := firstFireFrom(e, m.start, from, loc)
 	if !ok || (m.end != nil && !first.Before(*m.end)) {
-		return errNoFutureFire(m.expression, m.start, m.end)
+		shown := m.start
+		if shown == nil && (m.state == nil || *m.state == schedulerapi.ScheduleStateEnabled) {
+			shown = &now
+		}
+		return errNoFutureFire(m.expression, shown, m.end)
 	}
 	return nil
+}
+
+// checkTargetMembers refuses what AWS refuses about a target's members at
+// create (SCH-04, recorded 2026-11-03; scheduler.md 6.1, 6.3): an Input
+// over maxInputBytes, a parameter block of another target kind, and an
+// Input that is not JSON for a target that takes JSON.
+func checkTargetMembers(tgt target, t *schedulerapi.Target) *awserr.Error {
+	if t.Input != nil && len(*t.Input) > maxInputBytes {
+		return errInputTooLarge()
+	}
+	_, sqs := tgt.(sqsTarget)
+	_, bus := tgt.(busTarget)
+	// The model's member order (scheduler.md 2.3); the first block the
+	// target does not take is named.
+	for _, b := range []struct {
+		name  string
+		sent  bool
+		takes bool
+	}{
+		{"EcsParameters", t.EcsParameters != nil, false},
+		{"EventBridgeParameters", t.EventBridgeParameters != nil, bus},
+		{"KinesisParameters", t.KinesisParameters != nil, false},
+		{"SageMakerPipelineParameters", t.SageMakerPipelineParameters != nil, false},
+		{"SqsParameters", t.SqsParameters != nil, sqs},
+	} {
+		if b.sent && !b.takes {
+			return errParametersNotSupported(b.name)
+		}
+	}
+	switch tgt.(type) {
+	case lambdaTarget, stateMachineTarget, busTarget:
+		if t.Input != nil {
+			return checkJSON(*t.Input)
+		}
+	case sqsTarget, snsTarget:
+	}
+	return nil
+}
+
+// checkJSON refuses input that is not one well-formed JSON value, naming
+// the 1-based line and column of the token the decoder stopped in: the
+// start of a run of letters and digits, as Jackson names an unrecognized
+// token ("not json" is column 1, SCH-04), else the byte it stopped at.
+func checkJSON(input string) *awserr.Error {
+	if json.Valid([]byte(input)) {
+		return nil
+	}
+	var v any
+	err := json.Unmarshal([]byte(input), &v)
+	offset := 0
+	var syn *json.SyntaxError
+	if errors.As(err, &syn) && syn.Offset > 0 {
+		offset = min(int(syn.Offset)-1, len(input))
+	}
+	for offset > 0 && isWordByte(input[offset-1]) && (offset == len(input) || isWordByte(input[offset])) {
+		offset--
+	}
+	before := input[:offset]
+	line := strings.Count(before, "\n") + 1
+	column := len(before) - strings.LastIndexByte(before, '\n')
+	return errInputNotJSON(line, column)
+}
+
+func isWordByte(b byte) bool {
+	return b >= 'a' && b <= 'z' || b >= 'A' && b <= 'Z' || b >= '0' && b <= '9'
 }
 
 // firstFireFrom is e's first scheduled instant at or after from (an at()'s
@@ -361,9 +472,8 @@ func firstFireFrom(e expression, start *time.Time, from time.Time, loc *time.Loc
 }
 
 // maxInputBytes is the largest Input a target takes: "The maximum size of
-// the Input field is 256 KB" (aws-doc API_Target; scheduler.md 6.3), read
-// as 262,144 bytes. UNVERIFIED (SCH-04): the exact bound and its unit are
-// unrecorded.
+// the Input field is 256 KB" (aws-doc API_Target; scheduler.md 6.3):
+// 262,144 bytes (SCH-04 04-input-too-big, recorded 2026-11-03).
 const maxInputBytes = 262144
 
 // unimplementedTarget is the name the 501 gives a templated target
@@ -396,9 +506,8 @@ func unimplementedTarget(service string) (string, bool) {
 // in scope's Region, each in any
 // served account. A universal (aws-sdk) target or another templated
 // service answers 501 naming it; any other service ValidationException.
-// The target need not exist (4.1). A parameter block that does not match
-// the target is stored, echoed and ignored, and Input is not checked for
-// JSON. UNVERIFIED (SCH-04), scheduler.md 6.1, 6.3: both are inferred.
+// The target need not exist (4.1). Its other members are checked at a
+// write by checkTargetMembers.
 func parseTarget(scope aws.Scope, t *schedulerapi.Target) (target, aws.ARN, *awserr.Error) {
 	role, err := aws.ParseARN(t.RoleArn)
 	if name, ok := strings.CutPrefix(role.Resource, "role/"); err != nil || role.Service != "iam" || !ok || name == "" {
@@ -407,9 +516,6 @@ func parseTarget(scope aws.Scope, t *schedulerapi.Target) (target, aws.ARN, *aws
 	tgt, aerr := parseTargetARN(scope, t)
 	if aerr != nil {
 		return nil, aws.ARN{}, aerr
-	}
-	if t.Input != nil && len(*t.Input) > maxInputBytes {
-		return nil, aws.ARN{}, errInputTooLarge(len(*t.Input))
 	}
 	return tgt, role, nil
 }
@@ -687,9 +793,9 @@ func (t *targetEcho) parameters(out *schedulerapi.Target) {
 	out.SageMakerPipelineParameters, out.SqsParameters = t.SageMaker, t.Sqs
 }
 
-// echoOf is m as accepted. A MaximumWindowInMinutes sent with OFF is not
-// kept: it is ignored and not read back. UNVERIFIED (SCH-04), scheduler.md
-// 4.2.
+// echoOf is m as accepted. A write refuses MaximumWindowInMinutes with OFF
+// (checkWindow); a snapshot written before that refusal may hold one, and
+// it is not kept.
 func echoOf(m *members) echo {
 	e := echo{
 		Expression: m.expression, Timezone: m.timezone, StartDate: m.start, EndDate: m.end, State: m.state, Description: m.description,
@@ -771,15 +877,6 @@ func (t *targetEcho) retryPolicy() (age, retries int32) {
 	return age, retries
 }
 
-// emptyJSONObject is the payload of a target without Input under
-// scheduler.input.default empty-json-object (scheduler.md 6.3).
+// emptyJSONObject is an event bus target's detail without Input, and the
+// Scheduled Event envelope's detail string (scheduler.md 6.3).
 const emptyJSONObject = "{}"
-
-// template is the payload template the target is sent: its Input, or the
-// scheduler.input.default payload.
-func (t *targetEcho) template() string {
-	if t.Input != nil {
-		return *t.Input
-	}
-	return emptyJSONObject
-}

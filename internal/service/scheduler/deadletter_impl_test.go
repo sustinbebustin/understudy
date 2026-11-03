@@ -66,12 +66,10 @@ func TestDeadLetterQueueSurvivesASnapshot(t *testing.T) {
 }
 
 // The fire hands the schedule's dead-letter queue to the delivery: a
-// missing target queue leaves one dead letter whose body is the payload
-// with its context attributes substituted, whose EXECUTION_ID is the one
-// substituted, and whose TARGET_ARN is the universal sqs:sendMessage form
-// (aws-doc configuring-schedule-dlq; scheduler.md 7.2, 14.5.3).
-// UNVERIFIED (SCH-08): the substituted body and the universal TARGET_ARN
-// for a templated target are inferred.
+// missing target queue leaves one dead letter whose body is the SendMessage
+// request with the payload's context attributes substituted, whose
+// EXECUTION_ID is the one substituted, and whose TARGET_ARN is the queue
+// as configured (SCH-08 x1, recorded 2026-11-03; scheduler.md 7.2).
 func TestFireDeadLettersThePayload(t *testing.T) {
 	run(t, func(h *harness) {
 		h.answerQueues(func(queue string, _ int) *awserr.Error {
@@ -89,11 +87,12 @@ func TestFireDeadLettersThePayload(t *testing.T) {
 			h.Fatalf("dead letters = %d, want 1", len(dead))
 		}
 		id, _ := attr(dead[0], "EXECUTION_ID")
-		if body := dead[0].sqs.MessageBody; body != "run 1 "+id || !executionID.MatchString(id) {
-			h.Errorf("body = %q, EXECUTION_ID %q; want run 1 and that id", body, id)
+		want := `{"MessageBody":"run 1 ` + id + `","QueueUrl":"https://sqs.` + h.Scope.Region.String() + `.amazonaws.com/` + h.Scope.Account.String() + `/gone"}`
+		if body := dead[0].sqs.MessageBody; body != want || !executionID.MatchString(id) {
+			h.Errorf("body = %q, EXECUTION_ID %q; want %q and a UUID", body, id, want)
 		}
-		if v, _ := attr(dead[0], "TARGET_ARN"); v != "arn:aws:scheduler:::aws-sdk:sqs:sendMessage" {
-			h.Errorf("TARGET_ARN = %q, want arn:aws:scheduler:::aws-sdk:sqs:sendMessage", v)
+		if v, _ := attr(dead[0], "TARGET_ARN"); v != h.queueArn("gone") {
+			h.Errorf("TARGET_ARN = %q, want %s", v, h.queueArn("gone"))
 		}
 		if v, _ := attr(dead[0], "ERROR_MESSAGE"); !strings.Contains(v, "does not exist") {
 			h.Errorf("ERROR_MESSAGE = %q, want the queue's message", v)

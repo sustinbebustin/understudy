@@ -51,9 +51,10 @@ const (
 // configuring-schedule-dlq; scheduler.md 7.2, 9).
 var sessionName = regexp.MustCompile(`^[0-9a-f]{32}$`)
 
-// executionID is the EXECUTION_ID form, 16 lower-case hex digits
-// (aws-doc configuring-schedule-dlq; scheduler.md 7.2, 13).
-var executionID = regexp.MustCompile(`^[0-9a-f]{16}$`)
+// executionID is the EXECUTION_ID form, a lower-case UUID
+// (bc6aea1a-2f2f-426c-9fad-c723f66b6085; SCH-07, SCH-08, recorded
+// 2026-11-03; scheduler.md 6.3, 7.2).
+var executionID = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 
 // targetCall is one call a stubbed target received.
 type targetCall struct {

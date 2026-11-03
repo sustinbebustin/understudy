@@ -47,13 +47,18 @@ func TestDeleteScheduleDisarmsItsFire(t *testing.T) {
 }
 
 // A second CreateSchedule of a name the group holds is ConflictException
-// 409 (model; scheduler.md 2.4); the text is understudy's, UNVERIFIED
-// (SCH-02).
+// 409 "Schedule <name> already exists.", the same ClientToken included:
+// the token does not make a repeat succeed (SCH-02 02-create-dup,
+// 02-create-same-token, recorded 2026-11-03; scheduler.md 2.4, 2.5).
 func TestCreateScheduleConflict(t *testing.T) {
 	run(t, func(h *harness) {
-		h.create(schedule("s", "rate(1 hour)", h.queueTarget("q", nil)))
-		err := errOf(call(h, schedulerapi.OpCreateSchedule, schedule("s", "rate(2 hours)", h.queueTarget("q", nil))))
-		wantError(h, err, "ConflictException", 409, "Schedule default/s already exists.")
+		first := schedule("s", "rate(1 hour)", h.queueTarget("q", nil))
+		first.ClientToken = new("t1")
+		h.create(first)
+		again := schedule("s", "rate(2 hours)", h.queueTarget("q", nil))
+		again.ClientToken = new("t1")
+		err := errOf(call(h, schedulerapi.OpCreateSchedule, again))
+		wantError(h, err, "ConflictException", 409, "Schedule s already exists.")
 		if got := val(h.get("", "s").ScheduleExpression); got != "rate(1 hour)" {
 			h.Errorf("expression after the refused create = %s, want rate(1 hour)", got)
 		}

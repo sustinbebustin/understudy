@@ -1,6 +1,7 @@
 package scheduler_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"slices"
 	"strings"
@@ -103,7 +104,7 @@ func TestContextAttributesFromStartDate(t *testing.T) {
 			scheduled := start.Add(time.Duration(i) * time.Hour)
 			parts := strings.Split(c.sqs.MessageBody, "|")
 			if len(parts) != 4 || parts[0] != arn || parts[1] != rfc3339(scheduled) || !executionID.MatchString(parts[2]) || parts[3] != "1" {
-				h.Errorf("fire %d body = %q, want %s|%s|<16 hex>|1", i+1, c.sqs.MessageBody, arn, rfc3339(scheduled))
+				h.Errorf("fire %d body = %q, want %s|%s|<UUID>|1", i+1, c.sqs.MessageBody, arn, rfc3339(scheduled))
 			}
 			if !inWindow(c.at, scheduled, precision) {
 				h.Errorf("fire %d at %v, want within a minute of %v", i+1, c.at.Wire(), scheduled)
@@ -207,32 +208,62 @@ func TestDisabledScheduleDoesNotFire(t *testing.T) {
 	})
 }
 
-// scheduler.input.default: without Input, an SQS target receives the
-// switch's payload ({} for empty-json-object) and a Lambda target the
-// same event, invoked asynchronously ("EventBridge Scheduler invokes your
+// scheduledEvent is the default payload SCH-07 recorded (2026-11-03;
+// scheduler.md 6.3) for an SQS, SNS or Lambda target without Input, the
+// "Scheduled Event" envelope, compact, with id the execution id's form
+// (a UUID), time the scheduled time and detail the string "{}":
+// {"version":"0","id":...,"detail-type":"Scheduled Event","source":"aws.scheduler","account":...,"time":...,"region":...,"resources":[<schedule ARN>],"detail":"{}"}.
+func scheduledEvent(h *harness, name string, scheduled time.Time, body string) {
+	h.Helper()
+	var e struct {
+		Version, ID, DetailType, Source, Account, Time, Region, Detail string
+		Resources                                                      []string
+	}
+	keys := `{"version":"0","id":"`
+	if !strings.HasPrefix(body, keys) {
+		h.Errorf("%s payload = %s, want the Scheduled Event envelope starting %s", name, body, keys)
+		return
+	}
+	if err := json.Unmarshal([]byte(strings.NewReplacer(`"detail-type"`, `"DetailType"`).Replace(body)), &e); err != nil {
+		h.Fatalf("%s payload %s: %v", name, body, err)
+	}
+	want := fmt.Sprintf(`{"version":"0","id":%q,"detail-type":"Scheduled Event","source":"aws.scheduler","account":%q,"time":%q,"region":%q,"resources":[%q],"detail":"{}"}`,
+		e.ID, h.Scope.Account.String(), rfc3339(scheduled), h.Scope.Region.String(), h.scheduleArn("default", name))
+	if body != want || !executionID.MatchString(e.ID) {
+		h.Errorf("%s payload =\n%s\nwant\n%s", name, body, want)
+	}
+}
+
+// scheduler.input.default: without Input, SQS, SNS and Lambda targets
+// receive the Scheduled Event envelope (SCH-07 07-sqs-no-input,
+// 07-sns-no-input, 07-lambda-no-input, recorded 2026-11-03), the Lambda
+// target invoked asynchronously ("EventBridge Scheduler invokes your
 // Lambda Event Function asynchronously", aws-doc with-eventbridge-scheduler;
-// spec switch table; scheduler.md 6.3, 6.4).
+// scheduler.md 6.3, 6.4).
 func TestInputDefaultSwitch(t *testing.T) {
-	payload := map[string]string{"empty-json-object": "{}"}[scheduler.InputDefault().Value]
-	if payload == "" {
+	if scheduler.InputDefault().Value != "scheduled-event" {
 		t.Fatalf("scheduler.input.default = %q, which this test does not know", scheduler.InputDefault().Value)
 	}
 	run(t, func(h *harness) {
-		when := atExpr(h.now().Add(10 * time.Minute))
+		at := h.now().Add(10 * time.Minute).Truncate(time.Second)
+		when := atExpr(at)
 		h.create(schedule("q", when, h.queueTarget("plain", nil)))
 		h.create(schedule("f", when, schedulerapi.Target{Arn: h.functionArn("f"), RoleArn: h.roleArn()}))
 		h.advance(15 * time.Minute)
-		if got := h.sentTo("plain"); len(got) != 1 || got[0].sqs.MessageBody != payload {
-			h.Errorf("SQS without Input received %+v, want one message %s", got, payload)
+		if got := h.sentTo("plain"); len(got) != 1 {
+			h.Errorf("SQS without Input received %+v, want one message", got)
+		} else {
+			scheduledEvent(h, "q", at, got[0].sqs.MessageBody)
 		}
 		got := h.callsOf("Invoke")
 		if len(got) != 1 {
 			h.Fatalf("Lambda invoked %d times, want once", len(got))
 		}
 		in := got[0].lambda
-		if string(in.Payload) != payload || in.InvocationType == nil || *in.InvocationType != lambdaapi.InvocationTypeEvent ||
+		scheduledEvent(h, "f", at, string(in.Payload))
+		if in.InvocationType == nil || *in.InvocationType != lambdaapi.InvocationTypeEvent ||
 			(in.FunctionName != h.functionArn("f") && in.FunctionName != "f") {
-			h.Errorf("Invoke = %s type %v payload %s, want f, Event, %s", in.FunctionName, in.InvocationType, in.Payload, payload)
+			h.Errorf("Invoke = %s type %v, want f, Event", in.FunctionName, in.InvocationType)
 		}
 		wantSchedulerCall(h, got[0])
 	})
@@ -408,7 +439,7 @@ func TestPermanentErrorsSwitch(t *testing.T) {
 					h.Errorf("SCHEDULED_TIME = %q, want %s", v, rfc3339(fire))
 				}
 				if v, _ := attr(dl, "EXECUTION_ID"); !executionID.MatchString(v) {
-					h.Errorf("EXECUTION_ID = %q, want 16 lower-case hex", v)
+					h.Errorf("EXECUTION_ID = %q, want a lower-case UUID", v)
 				}
 				exhausted, present := attr(dl, "EXHAUSTED_RETRY_CONDITION")
 				switch scheduler.PermanentErrors(o).Value {

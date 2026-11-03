@@ -1,6 +1,8 @@
 package outbox
 
 import (
+	"encoding/json"
+	"fmt"
 	"slices"
 	"strconv"
 	"strings"
@@ -90,12 +92,9 @@ func (e ending) reason(f failure) string {
 // FIFO dead-letter queue. An event bus target's body is the forwarded
 // event, which deadLetterOf writes, since writing it can fail. An
 // EventBridge dead letter also carries the failure as message attributes
-// (eventBridgeAttributes). A Scheduler dead letter has its own form
-// (schedulerDeadLetter).
+// (eventBridgeAttributes). A Scheduler dead letter has its own form,
+// which deadLetterOf writes (schedulerDeadLetter).
 func deadLetterMessage(e *Entry, dlq aws.ARN, f failure, end ending) sqsMessage {
-	if inv := e.Request.Invocation; inv != nil {
-		return schedulerDeadLetter(e, inv, dlq, f, end)
-	}
 	m := sqsMessage{queue: dlq}
 	switch t := e.Request.Target.(type) {
 	case delivery.SQSQueue:
@@ -139,6 +138,9 @@ func deadLetterMessage(e *Entry, dlq aws.ARN, f failure, end ending) sqsMessage 
 // A Scheduler bus target's dead letter is its payload instead
 // (schedulerDeadLetter).
 func deadLetterOf(e *Entry, dlq aws.ARN, f failure, end ending) (sqsMessage, error) {
+	if inv := e.Request.Invocation; inv != nil {
+		return schedulerDeadLetter(e, inv, dlq, f, end)
+	}
 	m := deadLetterMessage(e, dlq, f, end)
 	if t, ok := e.Request.Target.(delivery.EventBus); ok && e.Request.Invocation == nil {
 		body, err := t.Entries[0].Envelope()
@@ -205,18 +207,23 @@ const schedulerDeadLetterLimit = 262_144
 
 // schedulerDeadLetter is the dead letter of the Scheduler invocation inv
 // in e (scheduler.md 7.2, 14.5.3), f being how its last attempt failed and
-// end why it ended. Its body is the failed attempt's payload, the
-// context attributes substituted, for every target: a bus target's
-// payload is its entry's Detail, never an envelope. UNVERIFIED (SCH-08): the substituted body and the bus form
-// are inferred. A body over schedulerDeadLetterLimit is cut at the last
-// whole UTF-8 character within it, which SQS accepts, and
-// IS_PAYLOAD_TRUNCATED says so. The String attributes are 7.2's, in its
-// order; EXHAUSTED_RETRY_CONDITION is present only when retries ran out,
-// as the aws-doc reserves it for retryable errors.
-func schedulerDeadLetter(e *Entry, inv *delivery.SchedulerInvocation, dlq aws.ARN, f failure, end ending) sqsMessage {
-	body, truncated := truncateUTF8(inv.Payload(e.Attempt+1), schedulerDeadLetterLimit)
+// end why it ended. Its body is schedulerDeadLetterBody. The String
+// attributes are those SCH-08 recorded (2026-11-03), in name order:
+// CONTAINS_INVALID_PAYLOAD false, the target's error, EXECUTION_ID,
+// EXHAUSTED_RETRY_CONDITION only when retries ran out (absent for the
+// permanent errors recorded, as the aws-doc reserves it for retryable
+// ones), IS_PAYLOAD_TRUNCATED, RETRY_ATTEMPTS, SCHEDULED_TIME,
+// SCHEDULE_ARN and TARGET_ARN, the target as configured.
+// CONTAINS_INVALID_PAYLOAD is never true here: what makes AWS set it is
+// unrecorded.
+func schedulerDeadLetter(e *Entry, inv *delivery.SchedulerInvocation, dlq aws.ARN, f failure, end ending) (sqsMessage, error) {
+	body, truncated, err := schedulerDeadLetterBody(e.Request.Target, inv.Payload(e.Attempt+1))
+	if err != nil {
+		return sqsMessage{}, err
+	}
 	code, message := schedulerError(f)
 	attrs := []delivery.MessageAttribute{
+		stringAttribute("CONTAINS_INVALID_PAYLOAD", "false"),
 		stringAttribute("ERROR_CODE", code),
 		stringAttribute("ERROR_MESSAGE", message),
 		stringAttribute("EXECUTION_ID", inv.ExecutionID),
@@ -229,9 +236,51 @@ func schedulerDeadLetter(e *Entry, inv *delivery.SchedulerInvocation, dlq aws.AR
 		stringAttribute("RETRY_ATTEMPTS", strconv.Itoa(e.Attempt)),
 		stringAttribute("SCHEDULED_TIME", inv.Scheduled.UTC().Format("2006-01-02T15:04:05Z")),
 		stringAttribute("SCHEDULE_ARN", inv.ScheduleARN.String()),
-		stringAttribute("TARGET_ARN", schedulerTargetARN(e.Request.Mechanism)),
+		stringAttribute("TARGET_ARN", inv.TargetARN),
 	)
-	return sqsMessage{queue: dlq, body: body, attributes: attrs}
+	return sqsMessage{queue: dlq, body: body, attributes: attrs}, nil
+}
+
+// schedulerDeadLetterBody is a Scheduler dead letter's body for the failed
+// attempt's payload, and whether the payload was cut. For an SQS target it
+// is the SendMessage request Scheduler built, {"MessageBody", then
+// "MessageGroupId" for a FIFO queue, then "QueueUrl"}, compact (SCH-08
+// 08-recv-dlq-*, recorded 2026-11-03; scheduler.md 7.2); for any other
+// target it is the payload, a bus target's being its entry's Detail, never
+// an envelope. UNVERIFIED (SCH-08 recorded SQS targets only): the other
+// targets' bodies are inferred. A body over schedulerDeadLetterLimit has
+// its payload cut at a whole UTF-8 character until the body fits, which
+// SQS accepts, and IS_PAYLOAD_TRUNCATED says so.
+func schedulerDeadLetterBody(target delivery.Target, payload string) (body string, cut bool, err error) {
+	q, ok := target.(delivery.SQSQueue)
+	if !ok {
+		body, cut = truncateUTF8(payload, schedulerDeadLetterLimit)
+		return body, cut, nil
+	}
+	body, err = sqsRequestBody(payload, q)
+	for err == nil && len(body) > schedulerDeadLetterLimit && payload != "" {
+		payload, _ = truncateUTF8(payload, max(0, len(payload)-(len(body)-schedulerDeadLetterLimit)))
+		body, err = sqsRequestBody(payload, q)
+		cut = true
+	}
+	return body, cut, err
+}
+
+// sqsRequestBody is the SendMessage request a Scheduler SQS target sends
+// with body: <, > and & are written as they are, as AWS's dead letters
+// carry them (encoding/json escapes them by default).
+func sqsRequestBody(body string, q delivery.SQSQueue) (string, error) {
+	var out strings.Builder
+	enc := json.NewEncoder(&out)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(struct {
+		MessageBody    string `json:"MessageBody"`
+		MessageGroupID string `json:"MessageGroupId,omitempty"`
+		QueueURL       string `json:"QueueUrl"`
+	}{body, q.GroupID, queueURL(q.ARN)}); err != nil {
+		return "", fmt.Errorf("outbox: writing a Scheduler dead letter's SendMessage request: %w", err)
+	}
+	return strings.TrimSuffix(out.String(), "\n"), nil
 }
 
 // schedulerError is a Scheduler dead letter's ERROR_CODE and
@@ -256,41 +305,6 @@ func schedulerError(f failure) (code, message string) {
 		return f.code, f.message
 	}
 	return "AWS.Scheduler.InternalServerError", describeFailure(f)
-}
-
-// schedulerTargetAction is the API action a Scheduler mechanism calls, as
-// its dead letter's TARGET_ARN names it; "" for any other mechanism.
-func schedulerTargetAction(m delivery.Mechanism) string {
-	switch m {
-	case delivery.SchedulerToLambda:
-		return "invoke"
-	case delivery.SchedulerToSQS:
-		return "sendMessage"
-	case delivery.SchedulerToSNS:
-		return "publish"
-	case delivery.SchedulerToEvents:
-		return "putEvents"
-	case delivery.SchedulerToStates:
-		// The aws-doc's universal example: aws-sdk:sfn:startExecution
-		// (scheduler.md 6.2).
-		return "startExecution"
-	case delivery.SNSToSQS, delivery.SNSToLambda, delivery.SNSToHTTP, delivery.S3ToSQS, delivery.S3ToSNS, delivery.S3ToLambda,
-		delivery.EventsToLambda, delivery.EventsToSQS, delivery.EventsToSNS, delivery.EventsToEvents,
-		delivery.LambdaToSQS, delivery.LambdaToSNS, delivery.LambdaToLambda, delivery.LambdaToEvents, delivery.LambdaToS3,
-		delivery.ESMToSQS, delivery.ESMToSNS, delivery.CloudWatchToSNS, delivery.CloudWatchToLambda:
-	}
-	return ""
-}
-
-// schedulerTargetARN is a Scheduler dead letter's TARGET_ARN for a delivery
-// by m: the universal form arn:aws:scheduler:::aws-sdk:<service>:<apiAction>
-// the aws-doc describes and its example shows (aws-sdk:sqs:sendMessage),
-// for templated targets too. UNVERIFIED (SCH-08), scheduler.md 7.2, 14.12:
-// whether a templated target's dead letter names this form or the
-// configured ARN is unrecorded, as are the service and action spellings
-// other than SQS's.
-func schedulerTargetARN(m delivery.Mechanism) string {
-	return "arn:aws:scheduler:::aws-sdk:" + string(m.Target()) + ":" + schedulerTargetAction(m)
 }
 
 // truncateUTF8 is s cut to at most limit bytes at a character boundary,

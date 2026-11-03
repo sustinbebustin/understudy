@@ -72,9 +72,9 @@ func TestSchedulerStateMachineTargetStartsAnExecution(t *testing.T) {
 }
 
 // A missing state machine is a client-side error: dead-lettered at once
-// with the target's own code and the universal TARGET_ARN
-// aws-sdk:sfn:startExecution (aws-doc managing-targets-universal names the
-// sfn service; scheduler.md 7.2). UNVERIFIED (SCH-08): the spelling.
+// with the target's own code and the state machine as configured in
+// TARGET_ARN, as SCH-08 recorded for SQS targets (scheduler.md 7.2).
+// UNVERIFIED (SCH-08 recorded SQS targets only).
 func TestSchedulerStateMachineTargetDeadLetter(t *testing.T) {
 	run(t, func(k *kerneltest.K, o *outbox.Outbox) {
 		calls := stubStarts(k, func(int) *awserr.Error {
@@ -96,7 +96,7 @@ func TestSchedulerStateMachineTargetDeadLetter(t *testing.T) {
 		for name, want := range map[string]string{
 			"ERROR_CODE":     "StateMachineDoesNotExist",
 			"RETRY_ATTEMPTS": "0",
-			"TARGET_ARN":     "arn:aws:scheduler:::aws-sdk:sfn:startExecution",
+			"TARGET_ARN":     machine.String(),
 		} {
 			if v := stringAttr(got[0], name); v != want {
 				k.Errorf("%s = %q, want %q", name, v, want)

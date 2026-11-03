@@ -22,12 +22,14 @@ func TestScheduleGroupLifecycle(t *testing.T) {
 		if out.ScheduleGroupArn != h.groupArn("g") {
 			h.Errorf("ScheduleGroupArn = %s, want %s", out.ScheduleGroupArn, h.groupArn("g"))
 		}
-		for _, name := range []string{"g", "default"} {
-			got := must(h, schedulerapi.OpGetScheduleGroup, &schedulerapi.GetScheduleGroupInput{Name: name})
-			if val(got.Arn) != h.groupArn(name) || val(got.Name) != name || got.State == nil || *got.State != schedulerapi.ScheduleGroupStateActive ||
-				got.CreationDate == nil || got.LastModificationDate == nil {
-				h.Errorf("GetScheduleGroup(%s) = %+v, want its ARN, name, ACTIVE and both dates", name, got)
-			}
+		got := must(h, schedulerapi.OpGetScheduleGroup, &schedulerapi.GetScheduleGroupInput{Name: "g"})
+		if val(got.Arn) != h.groupArn("g") || val(got.Name) != "g" || got.State == nil || *got.State != schedulerapi.ScheduleGroupStateActive ||
+			got.CreationDate == nil || got.LastModificationDate == nil {
+			h.Errorf("GetScheduleGroup(g) = %+v, want its ARN, name, ACTIVE and both dates", got)
+		}
+		// default reads without ARN and dates (TestDefaultGroupReadShape).
+		if got := must(h, schedulerapi.OpGetScheduleGroup, &schedulerapi.GetScheduleGroupInput{Name: "default"}); got.State == nil || *got.State != schedulerapi.ScheduleGroupStateActive {
+			h.Errorf("GetScheduleGroup(default) = %+v, want ACTIVE", got)
 		}
 		listed := map[string]bool{}
 		for _, g := range must(h, schedulerapi.OpListScheduleGroups, &schedulerapi.ListScheduleGroupsInput{NamePrefix: new("g")}).ScheduleGroups {

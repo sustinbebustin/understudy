@@ -287,10 +287,12 @@ func TestSchedulerRoleSessionTargetPermission(t *testing.T) {
 	}
 }
 
-// DeleteScheduleGroup asks for scheduler:DeleteSchedule on each member's
-// ARN (scheduler.md 9; UNVERIFIED, SCH-10 step 03): a caller allowed the
-// group delete but not the members' is denied naming the action, and the
-// group and its schedule remain.
+// DeleteScheduleGroup asks for scheduler:DeleteSchedule on
+// schedule/<group>/*, the resource AWS's denial names (SCH-10
+// 10-03-group-delete-denied, recorded 2026-11-03; scheduler.md 9): a caller
+// allowed the group delete but not that is denied naming the action, a
+// grant on the member's own ARN does not do, and the group and its
+// schedule remain.
 func TestSchedulerDeleteGroupNeedsEachMember(t *testing.T) {
 	_, endpoint, u := enforced(t, server.IAMEnforceEnforce)
 	schRoleTrusting(t, endpoint, schTrust)
@@ -303,19 +305,19 @@ func TestSchedulerDeleteGroupNeedsEachMember(t *testing.T) {
 	putUserPolicy(t, endpoint, `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"scheduler:DeleteScheduleGroup","Resource":"arn:aws:scheduler:us-east-1:000000000000:schedule-group/g"}]}`)
 	wantSchedulerDenied(t, "DeleteScheduleGroup without the member's DeleteSchedule",
 		schCall(t, u, endpoint, http.MethodDelete, "/schedule-groups/g", ""), "scheduler:DeleteSchedule")
-	// DeleteSchedule is asked on the member's own ARN: a grant on another
-	// group's schedule does not do.
+	// The resource is the literal schedule/g/*: a grant on the member's own
+	// ARN does not match it.
 	putUserPolicy(t, endpoint, `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"scheduler:DeleteScheduleGroup","Resource":"arn:aws:scheduler:us-east-1:000000000000:schedule-group/g"},`+
-		`{"Effect":"Allow","Action":"scheduler:DeleteSchedule","Resource":"arn:aws:scheduler:us-east-1:000000000000:schedule/other/s"}]}`)
-	wantSchedulerDenied(t, "DeleteScheduleGroup allowed DeleteSchedule on another group's schedule",
+		`{"Effect":"Allow","Action":"scheduler:DeleteSchedule","Resource":"arn:aws:scheduler:us-east-1:000000000000:schedule/g/s"}]}`)
+	wantSchedulerDenied(t, "DeleteScheduleGroup allowed DeleteSchedule on the member's ARN only",
 		schCall(t, u, endpoint, http.MethodDelete, "/schedule-groups/g", ""), "scheduler:DeleteSchedule")
 	if w := schCall(t, dummy, endpoint, http.MethodGet, "/schedules/s?groupName=g", ""); w.status != http.StatusOK {
 		t.Errorf("the member is gone after a denied group delete: %d %s", w.status, w.body)
 	}
 	putUserPolicy(t, endpoint, `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"scheduler:DeleteScheduleGroup","Resource":"arn:aws:scheduler:us-east-1:000000000000:schedule-group/g"},`+
-		`{"Effect":"Allow","Action":"scheduler:DeleteSchedule","Resource":"arn:aws:scheduler:us-east-1:000000000000:schedule/g/s"}]}`)
+		`{"Effect":"Allow","Action":"scheduler:DeleteSchedule","Resource":"arn:aws:scheduler:us-east-1:000000000000:schedule/g/*"}]}`)
 	if w := schCall(t, u, endpoint, http.MethodDelete, "/schedule-groups/g", ""); w.status != http.StatusOK {
-		t.Errorf("DeleteScheduleGroup with the member's DeleteSchedule = %d %s, want 200", w.status, w.body)
+		t.Errorf("DeleteScheduleGroup with DeleteSchedule on schedule/g/* = %d %s, want 200", w.status, w.body)
 	}
 }
 

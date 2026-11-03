@@ -1,7 +1,6 @@
 package scheduler_test
 
 import (
-	"regexp"
 	"testing"
 	"time"
 
@@ -11,9 +10,10 @@ import (
 )
 
 // executionName is the name understudy gives a Step Functions execution:
-// the invocation's 16-hex execution id. UNVERIFIED (SCH-07), scheduler.md
-// 6.4: the name AWS gives is unrecorded.
-var executionName = regexp.MustCompile(`^[0-9a-f]{16}$`)
+// the invocation's execution id, a UUID. UNVERIFIED (SCH-07 recorded no
+// Step Functions target), scheduler.md 6.4: the name AWS gives is
+// unrecorded.
+var executionName = executionID
 
 // A Step Functions target is one StartExecution of the state machine, a
 // version or alias ARN passed as given, with the payload as the input

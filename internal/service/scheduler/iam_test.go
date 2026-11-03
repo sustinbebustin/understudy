@@ -198,9 +198,10 @@ func TestPassRole(t *testing.T) {
 	})
 }
 
-// DeleteScheduleGroup asks for scheduler:DeleteSchedule on each member
-// (actions.json; scheduler.md 9); denied, nothing is deleted (spec
-// "Enforce matrix").
+// DeleteScheduleGroup of a group holding schedules asks once for
+// scheduler:DeleteSchedule on arn:...:schedule/<group>/*, the resource
+// AWS's denial named (SCH-10 10-03-group-delete-denied, recorded
+// 2026-11-03; actions.json; scheduler.md 9); denied, nothing is deleted.
 func TestDeleteScheduleGroupAuthorizesEachMember(t *testing.T) {
 	g := &gate{}
 	runWith(t, withGate(g), func(h *harness) {
@@ -226,10 +227,11 @@ func TestDeleteScheduleGroupAuthorizesEachMember(t *testing.T) {
 		g.reset()
 		must(h, schedulerapi.OpDeleteScheduleGroup, &schedulerapi.DeleteScheduleGroupInput{Name: "g"})
 		got := g.callerPairs("DeleteScheduleGroup")
-		for _, want := range []string{"scheduler:DeleteSchedule " + h.scheduleArn("g", "a"), "scheduler:DeleteSchedule " + h.scheduleArn("g", "b"), "scheduler:DeleteScheduleGroup " + h.groupArn("g")} {
-			if !slices.Contains(got, want) {
-				h.Errorf("DeleteScheduleGroup asked %v, missing %s", got, want)
-			}
+		want := []string{"scheduler:DeleteSchedule " + h.scheduleArn("g", "*"), "scheduler:DeleteScheduleGroup " + h.groupArn("g")}
+		slices.Sort(got)
+		slices.Sort(want)
+		if !slices.Equal(got, want) {
+			h.Errorf("DeleteScheduleGroup asked %v, want %v", got, want)
 		}
 	})
 }

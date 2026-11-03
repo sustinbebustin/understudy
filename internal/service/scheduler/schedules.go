@@ -31,7 +31,7 @@ func (s *Service) createSchedule(ctx context.Context, c *kernel.Call, in *schedu
 			return struct{}{}, errGroupMissing(r.group)
 		}
 		if _, exists := st.get(r); exists {
-			return struct{}{}, errScheduleExists(r.group, r.name)
+			return struct{}{}, errScheduleExists(r.name)
 		}
 		sc := schedule{Echo: echoOf(&m), Plan: p, Run: s.firstRun(&p, now), Created: now, Modified: now}
 		st.put(r, sc)
@@ -62,7 +62,7 @@ func (s *Service) updateSchedule(ctx context.Context, c *kernel.Call, in *schedu
 		}
 		old, ok := st.get(r)
 		if !ok {
-			return struct{}{}, errScheduleMissing(r.group, r.name)
+			return struct{}{}, errScheduleMissing(r.name)
 		}
 		sc := schedule{Echo: echoOf(&m), Plan: p, Run: old.Run, Created: old.Created, Modified: now}
 		if !old.Echo.sameTiming(&sc.Echo) {
@@ -81,15 +81,19 @@ func (s *Service) updateSchedule(ctx context.Context, c *kernel.Call, in *schedu
 }
 
 // authorized is the plan of a create or update of r with members m, once
-// the members are validated, the group is found and the caller and role
-// are authorized (scheduler.md 14.9.3); the write checks the group again.
+// the members are validated, the group is found (in accept's order) and
+// the caller and role are authorized (scheduler.md 4.7); the write checks
+// the group again.
 func (s *Service) authorized(ctx context.Context, c *kernel.Call, r scheduleRef, m *members) (plan, *awserr.Error) {
-	p, err := accept(r.scope, m, s.opts.RateUnits, atWrite(c.Admitted().Wire()))
+	group := func() *awserr.Error {
+		if !s.groupHeld(r.scope, r.group) {
+			return errGroupMissing(r.group)
+		}
+		return nil
+	}
+	p, err := accept(r.scope, m, s.opts.RateUnits, atWrite{now: c.Admitted().Wire(), group: group})
 	if err != nil {
 		return plan{}, err
-	}
-	if !s.groupHeld(r.scope, r.group) {
-		return plan{}, errGroupMissing(r.group)
 	}
 	if err := authorizeWrite(ctx, c, r, &p); err != nil {
 		return plan{}, err
@@ -174,7 +178,7 @@ func summaryKey(s schedulerapi.ScheduleSummary) string {
 func summary(r scheduleRef, sc *schedule) schedulerapi.ScheduleSummary {
 	arn := r.arn().String()
 	state := sc.Echo.state()
-	created, modified := wholeSeconds(sc.Created), wholeSeconds(sc.Modified)
+	created, modified := millis(sc.Created), millis(sc.Modified)
 	return schedulerapi.ScheduleSummary{
 		Arn: &arn, Name: &r.name, GroupName: &r.group, State: &state,
 		CreationDate: &created, LastModificationDate: &modified,
@@ -188,7 +192,7 @@ func (s *Service) getSchedule(_ context.Context, c *kernel.Call, in *schedulerap
 	r := scheduleRef{scope: c.Scope(), group: groupName(in.GroupName), name: in.Name}
 	sc, ok := s.read(r)
 	if !ok {
-		return nil, errScheduleMissing(r.group, r.name)
+		return nil, errScheduleMissing(r.name)
 	}
 	c.Touch(r.arn())
 	return readShape(r, &sc), nil
@@ -200,7 +204,7 @@ func (s *Service) deleteSchedule(_ context.Context, c *kernel.Call, in *schedule
 	r := scheduleRef{scope: c.Scope(), group: groupName(in.GroupName), name: in.Name}
 	_, err := kernel.Write(c, s.cells, r.scope, func(st *State, _ clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
 		if _, ok := st.get(r); !ok {
-			return struct{}{}, errScheduleMissing(r.group, r.name)
+			return struct{}{}, errScheduleMissing(r.name)
 		}
 		st.remove(r)
 		tx.Disarm(s.fire, r.arn().String())
@@ -246,11 +250,13 @@ func (s *Service) arm(tx *kernel.Tx, r scheduleRef, next run) bool {
 }
 
 // readShape is GetSchedule's answer: the members as accepted, with
-// ActionAfterCompletion NONE, RetryPolicy 86400/185, GroupName and State
-// ENABLED filled when unset (tf-acc schedule_test.go:L199-L223), the
-// members never sent absent, MaximumWindowInMinutes absent under OFF, and
-// the dates as whole seconds. UNVERIFIED (SCH-01), scheduler.md 4.2: the
-// absent members and whole-second dates are understudy's reading.
+// ActionAfterCompletion NONE, RetryPolicy 86400/185, GroupName, State
+// ENABLED and ScheduleExpressionTimezone UTC filled when unset (tf-acc
+// schedule_test.go:L199-L223; SCH-01 01-get-min, recorded 2026-11-03;
+// scheduler.md 4.2), MaximumWindowInMinutes absent under OFF, and
+// CreationDate and LastModificationDate to the millisecond. AWS sends
+// every member never set as an explicit JSON null; the encoder leaves
+// them out, which SDKs read alike (scheduler.md 4.2).
 func readShape(r scheduleRef, sc *schedule) *schedulerapi.GetScheduleOutput {
 	e := &sc.Echo
 	action := schedulerapi.ActionAfterCompletionNone
@@ -265,10 +271,14 @@ func readShape(r scheduleRef, sc *schedule) *schedulerapi.GetScheduleOutput {
 	}
 	e.Target.parameters(target)
 	arn := r.arn().String()
-	created, modified := wholeSeconds(sc.Created), wholeSeconds(sc.Modified)
+	created, modified := millis(sc.Created), millis(sc.Modified)
+	zone := "UTC"
+	if e.Timezone != nil {
+		zone = *e.Timezone
+	}
 	return &schedulerapi.GetScheduleOutput{
 		Arn: &arn, GroupName: &r.group, Name: &r.name,
-		ScheduleExpression: &e.Expression, ScheduleExpressionTimezone: e.Timezone,
+		ScheduleExpression: &e.Expression, ScheduleExpressionTimezone: &zone,
 		StartDate: secondOf(e.StartDate), EndDate: secondOf(e.EndDate),
 		Description: e.Description, State: &state, KmsKeyArn: e.KmsKeyArn,
 		CreationDate: &created, LastModificationDate: &modified,
@@ -277,8 +287,10 @@ func readShape(r scheduleRef, sc *schedule) *schedulerapi.GetScheduleOutput {
 	}
 }
 
-// wholeSeconds is at on the wire, cut to the second.
-func wholeSeconds(at clock.Instant) time.Time { return at.Wire().Truncate(time.Second) }
+// millis is at on the wire, cut to the millisecond, as AWS reports
+// CreationDate and LastModificationDate (1.793723806092E9; SCH-01,
+// recorded 2026-11-03; scheduler.md 4.2).
+func millis(at clock.Instant) time.Time { return at.Wire().Truncate(time.Millisecond) }
 
 // secondOf is a sent StartDate or EndDate as read back, to the second
 // (tf-acc schedule_test.go:L365-L419; scheduler.md 5.5); nil when it was

@@ -25,23 +25,15 @@ func (s *Service) Export() ([]store.Section, error) {
 	return s.cells.Export(store.ScopeKeys(), stateVersion)
 }
 
-// Import loads sections written by Export of this schema version; a
-// default group no write materialized is dated at the load.
+// Import loads sections written by Export of this schema version.
 func (s *Service) Import(ss []store.Section) error {
-	if err := s.cells.Import(store.ScopeKeys(), stateVersion, ss); err != nil {
-		return err
-	}
-	s.restart()
-	return nil
+	return s.cells.Import(store.ScopeKeys(), stateVersion, ss)
 }
 
 // Reset drops the scopes rs covers. Their armed fires find no schedule
-// when they come due and do nothing. A default group no write
-// materialized in a scope rs covers is dated at the reset; the other
-// scopes keep their dates.
+// when they come due and do nothing.
 func (s *Service) Reset(rs kernel.ResetScope) {
 	s.cells.Reset(func(k aws.Scope) bool { return !rs.Covers(k) })
-	s.restartScopes(rs)
 }
 
 // Rearm arms the fire timer of every schedule with a next invocation;

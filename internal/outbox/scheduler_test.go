@@ -2,7 +2,7 @@ package outbox_test
 
 import (
 	"context"
-	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -83,10 +83,6 @@ func wantRoleSession(k *kerneltest.K, what string, p identity.Principal) {
 
 var wantSchedulerOrigin ref.Origin = ref.Internal{Via: ref.SchedulerTarget}
 
-// universalTarget is the TARGET_ARN form, "arn:aws:scheduler:::aws-sdk:service:apiAction"
-// (aws-doc configuring-schedule-dlq; scheduler.md 7.2).
-var universalTarget = regexp.MustCompile(`^arn:aws:scheduler:::aws-sdk:[a-z0-9-]+:[a-zA-Z]+$`)
-
 // noAdvisories fails on any advisory: a role-session delivery needs no
 // resource-policy grant on its target, so none is advised (scheduler.md 1
 // item 1, 14.4.4).
@@ -155,13 +151,16 @@ func TestSchedulerFIFOQueueGetsTheGroup(t *testing.T) {
 }
 
 // wantDeadLetterAttributes checks the String attributes every Scheduler
-// dead letter carries (aws-doc configuring-schedule-dlq; scheduler.md 7.2):
-// all eight but EXHAUSTED_RETRY_CONDITION, which "will be present if the
-// error from the target API is a retryable error, and not a permanent
-// error".
-func wantDeadLetterAttributes(k *kerneltest.K, attrs map[string]sqsapi.MessageAttributeValue, errorCode string) {
+// dead letter carries (aws-doc configuring-schedule-dlq; SCH-08, recorded
+// 2026-11-03; scheduler.md 7.2): CONTAINS_INVALID_PAYLOAD false and the
+// eight of the doc but EXHAUSTED_RETRY_CONDITION, which "will be present
+// if the error from the target API is a retryable error, and not a
+// permanent error", with TARGET_ARN the target as configured.
+func wantDeadLetterAttributes(k *kerneltest.K, attrs map[string]sqsapi.MessageAttributeValue, errorCode string, target aws.ARN) {
 	k.Helper()
-	for _, name := range []string{"ERROR_CODE", "ERROR_MESSAGE", "EXECUTION_ID", "IS_PAYLOAD_TRUNCATED", "RETRY_ATTEMPTS", "SCHEDULED_TIME", "SCHEDULE_ARN", "TARGET_ARN"} {
+	for _, name := range []string{
+		"CONTAINS_INVALID_PAYLOAD", "ERROR_CODE", "ERROR_MESSAGE", "EXECUTION_ID", "IS_PAYLOAD_TRUNCATED", "RETRY_ATTEMPTS", "SCHEDULED_TIME", "SCHEDULE_ARN", "TARGET_ARN",
+	} {
 		a, ok := attrs[name]
 		if !ok || a.DataType != "String" || a.StringValue == nil {
 			k.Errorf("dead-letter attribute %s = %+v (present %v), want a String", name, a, ok)
@@ -187,18 +186,31 @@ func wantDeadLetterAttributes(k *kerneltest.K, attrs map[string]sqsapi.MessageAt
 	if got := str("IS_PAYLOAD_TRUNCATED"); got != "false" {
 		k.Errorf("IS_PAYLOAD_TRUNCATED = %q, want false for a small payload", got)
 	}
-	if !universalTarget.MatchString(str("TARGET_ARN")) {
-		// "in the following service ARN format:
-		// arn:aws:scheduler:::aws-sdk:service:apiAction" (aws-doc).
-		k.Errorf("TARGET_ARN = %q, want the arn:aws:scheduler:::aws-sdk:service:apiAction form", str("TARGET_ARN"))
+	if got := str("CONTAINS_INVALID_PAYLOAD"); got != "false" {
+		k.Errorf("CONTAINS_INVALID_PAYLOAD = %q, want false", got)
 	}
+	if got := str("TARGET_ARN"); got != target.String() {
+		k.Errorf("TARGET_ARN = %q, want the target as configured, %s", got, target)
+	}
+}
+
+// sqsDeadLetterBody is a templated SQS target's dead-letter body: the
+// SendMessage request Scheduler built, members in name order, the group
+// only for a FIFO queue (SCH-08 08-recv-dlq-*, recorded 2026-11-03;
+// scheduler.md 7.2).
+func sqsDeadLetterBody(payload, group string, queue aws.ARN) string {
+	g := ""
+	if group != "" {
+		g = `"MessageGroupId":"` + group + `",`
+	}
+	return `{"MessageBody":"` + payload + `",` + g + `"QueueUrl":"https://sqs.` + queue.Region + `.amazonaws.com/` + queue.Account + `/` + queue.Resource + `"}`
 }
 
 // A missing target queue is a client-side error: under
 // scheduler.retry.permanent-errors not-retried it is dead-lettered at once,
 // without retries, carrying the SQS error code, RETRY_ATTEMPTS 0 and no
-// EXHAUSTED_RETRY_CONDITION. The body is the Input, as the dead-letter
-// example's body is the target's Input, and the dead letter is sent by the
+// EXHAUSTED_RETRY_CONDITION. The body is the SendMessage request built
+// from the Input (SCH-08, recorded 2026-11-03), and the dead letter is sent by the
 // same role session (SenderId AROA...:<session>, aws-doc
 // configuring-schedule-dlq; scheduler.md 7.1, 7.2).
 func TestSchedulerMissingQueueDeadLettersAtOnce(t *testing.T) {
@@ -220,11 +232,11 @@ func TestSchedulerMissingQueueDeadLettersAtOnce(t *testing.T) {
 			k.Fatalf("sent %+v, want one attempt to gone, then the dead letter", got)
 		}
 		dl := got[1]
-		if dl.at != t0 || dl.in.MessageBody != input {
-			k.Errorf("dead letter %q at %v, want %q at once (%v)", dl.in.MessageBody, dl.at, input, t0)
+		if want := sqsDeadLetterBody(input, "", arn("sqs", "gone")); dl.at != t0 || dl.in.MessageBody != want {
+			k.Errorf("dead letter %q at %v, want %q at once (%v)", dl.in.MessageBody, dl.at, want, t0)
 		}
 		wantRoleSession(k, "dead-letter SendMessage", dl.principal)
-		wantDeadLetterAttributes(k, dl.in.MessageAttributes, "AWS.SimpleQueueService.NonExistentQueue")
+		wantDeadLetterAttributes(k, dl.in.MessageAttributes, "AWS.SimpleQueueService.NonExistentQueue", arn("sqs", "gone"))
 		if got := deref(dl.in.MessageAttributes["RETRY_ATTEMPTS"].StringValue); got != "0" {
 			k.Errorf("RETRY_ATTEMPTS = %q, want 0: a permanent error is not retried", got)
 		}
@@ -237,6 +249,38 @@ func TestSchedulerMissingQueueDeadLettersAtOnce(t *testing.T) {
 		}
 		if d := detail[journal.Delivery](k, events[0]); d.Outcome != (journal.DeadLettered{DLQ: dlq}) || d.From != schedARN() {
 			k.Errorf("delivery = %+v, want from the schedule, dead-lettered to %v", d, dlq)
+		}
+	})
+}
+
+// A FIFO queue without content-based deduplication refuses the send with
+// SQS InvalidParameterValue, a permanent error: dead-lettered at once with
+// RETRY_ATTEMPTS 0, its body the request with MessageGroupId (SCH-08 x3,
+// 08-recv-dlq-*, recorded 2026-11-03; scheduler.md 7.2).
+func TestSchedulerFIFODeadLetterCarriesTheGroup(t *testing.T) {
+	run(t, func(k *kerneltest.K, o *outbox.Outbox) {
+		const refusal = "The queue should either have ContentBasedDeduplication enabled or MessageDeduplicationId provided explicitly"
+		q := stubQueues(k, func(_ int, in *sqsapi.SendMessageInput) *awserr.Error {
+			if strings.HasSuffix(in.QueueUrl, ".fifo") {
+				return sqsapi.ErrInvalidParameterValue(refusal)
+			}
+			return nil
+		})
+		dlq := arn("sqs", "sch-dlq")
+		fifo := arn("sqs", "nodedup.fifo")
+		target := delivery.SQSQueue{ARN: fifo, Body: "nodedup", GroupID: "g"}
+		enqueue(k, o, toSchedulerTarget(delivery.SchedulerToSQS, target, fifo, "nodedup", delivery.PermanentNotRetried, 185, &dlq), source(k))
+		settled(k)
+		got := q.sent()
+		if len(got) != 2 || got[1].queue != "sch-dlq" {
+			k.Fatalf("sent %+v, want the attempt and the dead letter", got)
+		}
+		if want := sqsDeadLetterBody("nodedup", "g", fifo); got[1].in.MessageBody != want {
+			k.Errorf("dead-letter body = %q, want %q", got[1].in.MessageBody, want)
+		}
+		wantDeadLetterAttributes(k, got[1].in.MessageAttributes, "InvalidParameterValue", fifo)
+		if v := deref(got[1].in.MessageAttributes["ERROR_MESSAGE"].StringValue); v != refusal {
+			k.Errorf("ERROR_MESSAGE = %q, want %q", v, refusal)
 		}
 	})
 }
@@ -263,7 +307,7 @@ func TestSchedulerPermanentErrorRetriedWhenFlipped(t *testing.T) {
 			k.Fatalf("sent %d messages (%+v), want 3 attempts (2 retries) then the dead letter", len(got), got)
 		}
 		attrs := got[3].in.MessageAttributes
-		wantDeadLetterAttributes(k, attrs, "AWS.SimpleQueueService.NonExistentQueue")
+		wantDeadLetterAttributes(k, attrs, "AWS.SimpleQueueService.NonExistentQueue", arn("sqs", "gone"))
 		if got := deref(attrs["EXHAUSTED_RETRY_CONDITION"].StringValue); got != "MaximumRetryAttempts" {
 			k.Errorf("EXHAUSTED_RETRY_CONDITION = %q, want MaximumRetryAttempts", got)
 		}
@@ -297,7 +341,10 @@ func TestSchedulerRetryableErrorExhaustsTheRetries(t *testing.T) {
 			k.Errorf("attempt bodies = %q, %q; want try 1, try 2", got[0].in.MessageBody, got[1].in.MessageBody)
 		}
 		attrs := got[2].in.MessageAttributes
-		wantDeadLetterAttributes(k, attrs, sqsapi.IdentityRequestThrottled().QueryCode)
+		wantDeadLetterAttributes(k, attrs, sqsapi.IdentityRequestThrottled().QueryCode, arn("sqs", "busy"))
+		if want := sqsDeadLetterBody("try 2", "", arn("sqs", "busy")); got[2].in.MessageBody != want {
+			k.Errorf("dead-letter body = %q, want %q", got[2].in.MessageBody, want)
+		}
 		if got := deref(attrs["EXHAUSTED_RETRY_CONDITION"].StringValue); got != "MaximumRetryAttempts" {
 			k.Errorf("EXHAUSTED_RETRY_CONDITION = %q, want MaximumRetryAttempts", got)
 		}

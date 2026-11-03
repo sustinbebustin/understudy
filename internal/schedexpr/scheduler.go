@@ -3,6 +3,7 @@ package schedexpr
 import (
 	"slices"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -45,9 +46,14 @@ type At struct {
 	day, hour, minute, second int
 }
 
-// atLayout is the one form at() takes: no zone suffix, no fraction, every
-// field zero-padded (scheduler.md 5.1; G3 L271-L302).
-const atLayout = "2006-01-02T15:04:05"
+// atLayout and atMinuteLayout are the forms at() takes: no zone suffix, no
+// fraction, every field zero-padded, the seconds optional (scheduler.md
+// 5.1; G3 L271-L302; SCH-03 accepted at(2030-01-01T00:00), recorded
+// 2026-11-03).
+const (
+	atLayout       = "2006-01-02T15:04:05"
+	atMinuteLayout = "2006-01-02T15:04"
+)
 
 // In returns the instant the civil time names in loc. A civil time that
 // loc skips (a spring-forward gap) is normalized as time.Date does;
@@ -60,13 +66,19 @@ func (At) isExpression()   {}
 func (Rate) isExpression() {}
 func (Cron) isExpression() {}
 
-// parseAt reads yyyy-mm-ddThh:mm:ss. The length check refuses the
-// fractional seconds time.Parse would accept after the seconds field.
+// parseAt reads yyyy-mm-ddThh:mm:ss or yyyy-mm-ddThh:mm. The length check
+// refuses the fractional seconds time.Parse would accept after the
+// seconds field.
 func parseAt(inner string) (At, *Error) {
-	if len(inner) != len(atLayout) {
-		return At{}, invalid("at() needs yyyy-mm-ddThh:mm:ss")
+	layout := atLayout
+	switch len(inner) {
+	case len(atLayout):
+	case len(atMinuteLayout):
+		layout = atMinuteLayout
+	default:
+		return At{}, invalid("at() needs yyyy-mm-ddThh:mm:ss or yyyy-mm-ddThh:mm")
 	}
-	t, err := time.Parse(atLayout, inner)
+	t, err := time.Parse(layout, inner)
 	if err != nil {
 		return At{}, invalid("at() needs a valid yyyy-mm-ddThh:mm:ss")
 	}
@@ -74,16 +86,18 @@ func parseAt(inner string) (At, *Error) {
 }
 
 // ParseScheduler parses an EventBridge Scheduler expression: at(...),
-// rate(value unit) with units per units, or cron(...) with the rules'
-// grammar (scheduler.md 5.1-5.3). A refusal's Message is "Invalid Schedule
-// Expression <expr>." with expr verbatim (scheduler.md 2.4).
+// rate(value unit) with units per units and the unit in any case
+// (rate(1 MINUTE) was accepted, SCH-03, recorded 2026-11-03), or cron(...)
+// with the rules' grammar (scheduler.md 5.1-5.3). A refusal's Message is
+// "Invalid Schedule Expression <expr>." with expr verbatim (scheduler.md
+// 2.4).
 func ParseScheduler(expr string, units RateUnits) (Expression, *Error) {
 	var (
 		ex  Expression
 		err *Error
 	)
 	if inner, ok := enclosed(expr, "rate("); ok {
-		ex, err = parseRateUnits(inner, units)
+		ex, err = parseRateUnits(lowerUnit(inner), units)
 	} else if inner, ok := enclosed(expr, "cron("); ok {
 		ex, err = parseCron(inner)
 	} else if inner, ok := enclosed(expr, "at("); ok {
@@ -95,6 +109,16 @@ func ParseScheduler(expr string, units RateUnits) (Expression, *Error) {
 		return nil, &Error{detail: err.detail, text: schedulerMessage(expr)}
 	}
 	return ex, nil
+}
+
+// lowerUnit is "value unit" with the unit lower-cased; anything without
+// one space is returned as is for parseRateUnits to refuse.
+func lowerUnit(inner string) string {
+	num, unit, ok := strings.Cut(inner, " ")
+	if !ok {
+		return inner
+	}
+	return num + " " + strings.ToLower(unit)
 }
 
 // schedulerMessage is Scheduler's text for a malformed expression,

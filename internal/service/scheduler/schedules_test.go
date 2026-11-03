@@ -166,14 +166,17 @@ func TestUpdateScheduleReplacesEveryMember(t *testing.T) {
 // A deleted schedule is gone: GetSchedule, UpdateSchedule and a second
 // DeleteSchedule answer ResourceNotFoundException 404 (aws-doc
 // https://docs.aws.amazon.com/scheduler/latest/APIReference/API_DeleteSchedule.html;
-// model; scheduler.md 2.4, 4.4; the texts are UNVERIFIED, SCH-02).
+// model; scheduler.md 2.4, 4.4), each "Schedule <name> does not exist."
+// without the group (SCH-02 02-get-missing, 02-update-missing,
+// 02-delete-again, recorded 2026-11-03).
 func TestDeleteSchedule(t *testing.T) {
 	run(t, func(h *harness) {
+		const missing = "Schedule s does not exist."
 		h.create(schedule("s", "rate(1 hour)", h.queueTarget("q", nil)))
 		must(h, schedulerapi.OpDeleteSchedule, &schedulerapi.DeleteScheduleInput{Name: "s"})
-		wantError(h, errOf(call(h, schedulerapi.OpGetSchedule, &schedulerapi.GetScheduleInput{Name: "s"})), "ResourceNotFoundException", 404, "")
-		wantError(h, errOf(call(h, schedulerapi.OpUpdateSchedule, update(schedule("s", "rate(1 hour)", h.queueTarget("q", nil))))), "ResourceNotFoundException", 404, "")
-		wantError(h, errOf(call(h, schedulerapi.OpDeleteSchedule, &schedulerapi.DeleteScheduleInput{Name: "s"})), "ResourceNotFoundException", 404, "")
+		wantError(h, errOf(call(h, schedulerapi.OpGetSchedule, &schedulerapi.GetScheduleInput{Name: "s"})), "ResourceNotFoundException", 404, missing)
+		wantError(h, errOf(call(h, schedulerapi.OpUpdateSchedule, update(schedule("s", "rate(1 hour)", h.queueTarget("q", nil))))), "ResourceNotFoundException", 404, missing)
+		wantError(h, errOf(call(h, schedulerapi.OpDeleteSchedule, &schedulerapi.DeleteScheduleInput{Name: "s"})), "ResourceNotFoundException", 404, missing)
 	})
 }
 
@@ -284,13 +287,16 @@ func TestCreateScheduleRecordedAcceptances(t *testing.T) {
 	})
 }
 
-// A cron that can never fire again is refused with the captured text,
-// null for the absent dates (captured, qiita.com/taskforce_Hisui
-// 2022-12-02; scheduler.md 2.4, 14.3.6).
+// A cron that can never fire again is refused with the recorded text,
+// null for the absent dates of a DISABLED schedule (SCH-03 03-e24,
+// recorded 2026-11-03; scheduler.md 2.4, 14.3.6).
 func TestCreateScheduleRefusesACronThatNeverFires(t *testing.T) {
 	run(t, func(h *harness) {
-		_, err := call(h, schedulerapi.OpCreateSchedule, schedule("never", "cron(30 0 1 1 ? 1999)", h.queueTarget("q", nil)))
-		wantError(h, err, "ValidationException", 400, "The schedule expression cron(30 0 1 1 ? 1999), with StartDate null and EndDate null, is invalid.")
+		in := schedule("never", "cron(30 0 1 1 ? 1999)", h.queueTarget("q", nil))
+		in.State = new(schedulerapi.ScheduleStateDisabled)
+		_, err := call(h, schedulerapi.OpCreateSchedule, in)
+		wantError(h, err, "ValidationException", 400,
+			"The schedule expression cron(30 0 1 1 ? 1999), with StartDate null and EndDate null, is invalid because it will never schedule an invocation.")
 	})
 }
 
@@ -319,6 +325,59 @@ func TestRateUnitAgreementSwitch(t *testing.T) {
 			})
 		})
 	}
+}
+
+// Expression forms SCH-03 recorded (2026-11-03; scheduler.md 5.1, 5.2):
+// rate units are case-insensitive (rate(1 MINUTE)) and agree with no
+// value; at() takes its seconds or leaves them out (at(2030-01-01T00:00));
+// a fraction, single-digit fields and a space for the T are refused.
+func TestSchedulerExpressionForms(t *testing.T) {
+	run(t, func(h *harness) {
+		for i, expr := range []string{
+			"rate(1 MINUTE)", "rate(1 minutes)", "rate(5 minute)", "rate(1 hours)", "rate(2 hour)", "rate(1 day)", "rate(2 days)",
+			"rate(100000 days)", "at(2030-01-01T00:00)", "at(2030-01-01T00:00:00)",
+		} {
+			h.create(schedule(fmt.Sprintf("ok-%d", i), expr, h.queueTarget("q", nil)))
+		}
+		for _, expr := range []string{"at(2030-01-01T00:00:00.000)", "at(2030-1-1T00:00:00)", "at(2030-01-01 00:00:00)", "rate(0 minutes)"} {
+			wantError(h, errOf(call(h, schedulerapi.OpCreateSchedule, schedule("bad", expr, h.queueTarget("q", nil)))),
+				"ValidationException", 400, "Invalid Schedule Expression "+expr+".")
+		}
+	})
+}
+
+// An at() without seconds fires at the minute's start.
+func TestAtWithoutSecondsFiresAtTheMinute(t *testing.T) {
+	run(t, func(h *harness) {
+		at := h.now().Add(10 * time.Minute).Truncate(time.Minute)
+		h.create(schedule("m", "at("+at.Format("2006-01-02T15:04")+")", h.queueTarget("m", new("x"))))
+		h.advance(15 * time.Minute)
+		if got := h.sentTo("m"); len(got) != 1 || !got[0].at.Wire().Equal(at) {
+			h.Errorf("sends = %+v, want one at %v", got, at)
+		}
+	})
+}
+
+// GetSchedule reads ScheduleExpressionTimezone back as UTC when none was
+// sent, after a create and after an update that leaves it out (SCH-01
+// 01-get-min, SCH-05 05-get, recorded 2026-11-03; scheduler.md 4.2).
+func TestGetScheduleDefaultsAnOmittedZoneToUTC(t *testing.T) {
+	run(t, func(h *harness) {
+		in := schedule("z", "rate(1 hour)", h.queueTarget("q", nil))
+		in.ScheduleExpressionTimezone = nil
+		h.create(in)
+		if got := val(h.get("", "z").ScheduleExpressionTimezone); got != "UTC" {
+			h.Errorf("zone after create = %s, want UTC", got)
+		}
+		paris := schedule("p", "rate(1 hour)", h.queueTarget("q", nil))
+		paris.ScheduleExpressionTimezone = new("Europe/Paris")
+		h.create(paris)
+		paris.ScheduleExpressionTimezone = nil
+		must(h, schedulerapi.OpUpdateSchedule, update(paris))
+		if got := val(h.get("", "p").ScheduleExpressionTimezone); got != "UTC" {
+			h.Errorf("zone after an update without one = %s, want UTC", got)
+		}
+	})
 }
 
 // Universal (aws-sdk) targets and the templated targets understudy does

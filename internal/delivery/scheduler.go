@@ -38,14 +38,16 @@ func (ExecutionRole) isPrincipal() {}
 type SchedulerInvocation struct {
 	// ScheduleARN is arn:<partition>:scheduler:<region>:<account>:schedule/<group>/<name>.
 	ScheduleARN aws.ARN
-	// TargetARN is the target's ARN as configured.
+	// TargetARN is the target's ARN as configured, which a dead letter's
+	// TARGET_ARN carries (SCH-08, recorded 2026-11-03; scheduler.md 7.2).
 	TargetARN string
 	// Scheduled is the scheduled instant, which <aws.scheduler.scheduled-time>
 	// and SCHEDULED_TIME carry; the delivery is due at Scheduled plus the
 	// flexible-window offset (scheduler.md 14.3.7).
 	Scheduled time.Time
-	// ExecutionID is 16 lower-case hex digits, one per invocation across its
-	// retries (scheduler.md 7.2; inferred, SCH-08).
+	// ExecutionID is a lower-case UUID (SCH-07, recorded 2026-11-03), one
+	// per invocation across its retries (scheduler.md 7.2; inferred, SCH-08
+	// recorded no retry).
 	ExecutionID string
 	// Template is the target's Input as accepted, or the payload of
 	// scheduler.input.default when it has none.
