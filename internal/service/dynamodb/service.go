@@ -93,9 +93,6 @@ const (
 	statementTwins = "aws-differs: dynamodb-local: table names inside statements resolve case-insensitively, so a statement naming a case twin of a table acts on that table"
 	parallelScan   = "aws-differs: dynamodb-local: Segment and TotalSegments are ignored, so a parallel scan reads sequentially"
 	statementLimit = "aws-differs: dynamodb-local: Limit is ignored"
-	// streamTexts goes on UpdateTable: Local answers the stream enable and
-	// disable refusals itself (dynamodb-streams.md 5.1, 11.6; DDBS-06).
-	streamTexts = "aws-differs: dynamodb-local: the stream enable and disable errors carry DynamoDB Local's texts; AWS's are UNVERIFIED except \"Table already has an enabled stream\" (dynamodb-streams.md 5.1)"
 )
 
 // notes joins coverage notes into one Partial.
@@ -109,7 +106,9 @@ func (s *Service) bindTables(b dynamodbapi.Binder) {
 	describeTable := named(func(in *dynamodbapi.DescribeTableInput) string { return in.TableName })
 	b.DescribeTableRaw(s.describeTable, registry.Full{}, tables(describeTable))
 	updateTable := named(func(in *dynamodbapi.UpdateTableInput) string { return in.TableName })
-	b.UpdateTableRaw(s.updateTable, notes(streamTexts), tables(updateTable))
+	// The stream enable and disable refusals carry AWS's texts
+	// (dynamodb-streams.md 5.1; DDBS-06).
+	b.UpdateTableRaw(s.updateTable, registry.Full{}, tables(updateTable))
 	b.ListTablesRaw(passthrough(s, noTables, plainAnswer[dynamodbapi.ListTablesInput]), registry.Full{})
 	b.DescribeLimitsRaw(passthrough(s, noTables, plainAnswer[dynamodbapi.DescribeLimitsInput]), registry.Full{})
 }

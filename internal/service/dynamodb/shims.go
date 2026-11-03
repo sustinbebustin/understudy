@@ -100,6 +100,23 @@ func shimOnly(in *dynamodbapi.UpdateTableInput) bool {
 	return owned && !others
 }
 
+// checkStreamChange refuses an UpdateTable stream change whose view type
+// contradicts StreamEnabled, in AWS's words and before the table's stream
+// is looked at: AWS answered these on a table with a stream and on one
+// without (aws-recorded, dynamodb-streams.md 5.1:
+// testdata/parity/dynamodb/DDBS-06/03-enable-without-view-type.json,
+// 05-disable-with-view-type.json), where Local checks the stream first.
+func checkStreamChange(spec *dynamodbapi.StreamSpecification) *awserr.Error {
+	switch {
+	case spec == nil:
+	case spec.StreamEnabled && spec.StreamViewType == nil:
+		return dynamodbapi.ErrValidationException("One or more parameter values were invalid: If stream is being enabled then UpdateViewType is required")
+	case !spec.StreamEnabled && spec.StreamViewType != nil:
+		return dynamodbapi.ErrValidationException("One or more parameter values were invalid: If stream is being disabled, then UpdateViewType must not be specified")
+	}
+	return nil
+}
+
 // updateTable applies an UpdateTable. Local holds the table's schema and
 // throughput, the shim the members it owns: an update of only those is
 // answered here with Local's description, which Local would refuse; any
@@ -113,6 +130,9 @@ func (s *Service) updateTable(ctx context.Context, c *kernel.Call, in *dynamodba
 	name := tableName(in.TableName)
 	a := tableAnswer(in.TableName)
 	if err := preForward(c); err != nil {
+		return kernel.RawResponse{}, err
+	}
+	if err := checkStreamChange(in.StreamSpecification); err != nil {
 		return kernel.RawResponse{}, err
 	}
 	if err := inScope(c.Scope(), []string{in.TableName}, a); err != nil {

@@ -288,18 +288,26 @@ func TestDisableKeepsLatestStreamAndReEnableMintsANewOne(t *testing.T) {
 	})
 }
 
-// Local's enable and disable texts pass through (DDBS-06, dynamodb-streams.md
-// 5.1: "Table already has an enabled stream" is AWS's too, sdk-source).
-func TestUpdateTableStreamTextsPassThrough(t *testing.T) {
+// Local's enable and disable refusals carry AWS's texts (aws-recorded,
+// dynamodb-streams.md 5.1: testdata/parity/dynamodb/DDBS-06/01-enable-again.json
+// to 05-disable-with-view-type.json).
+func TestUpdateTableStreamTextsTakeAWSWords(t *testing.T) {
 	runStreams(t, dynamodb.Options{}, func(h *streamsHarness) {
 		h.createStreamTable("Orders", "KEYS_ONLY")
-		if e := h.errorOf(h.setStream("NEW_IMAGE"), http.StatusBadRequest); e.text() != "Table already has an enabled stream" {
-			h.Errorf("enable twice: %+v", e)
+		refused := func(name, spec, want string) {
+			h.Helper()
+			e := h.errorOf(h.call("UpdateTable", `{"TableName":"Orders","StreamSpecification":`+spec+`}`), http.StatusBadRequest)
+			if e.Type != "com.amazon.coral.validate#ValidationException" || e.text() != want {
+				h.Errorf("%s: %+v, want ValidationException %q", name, e, want)
+			}
 		}
+		refused("enable twice", `{"StreamEnabled":true,"StreamViewType":"NEW_IMAGE"}`, "Table already has an enabled stream: TableName: Orders")
 		h.setStream("")
-		if e := h.errorOf(h.setStream(""), http.StatusBadRequest); e.text() != "Table has no stream to disable" {
-			h.Errorf("disable twice: %+v", e)
-		}
+		refused("disable twice", `{"StreamEnabled":false}`, "Table has no stream to disable: TableName: Orders")
+		refused("enable without a view type", `{"StreamEnabled":true}`,
+			"One or more parameter values were invalid: If stream is being enabled then UpdateViewType is required")
+		refused("disable with a view type", `{"StreamEnabled":false,"StreamViewType":"KEYS_ONLY"}`,
+			"One or more parameter values were invalid: If stream is being disabled, then UpdateViewType must not be specified")
 	})
 }
 
@@ -323,11 +331,11 @@ func TestStreamViewTypeIsValidatedBeforeLocal(t *testing.T) {
 
 // ListStreams serves the caller's account and region from understudy's
 // log: TableName filters by exact name, a TableName naming no table gives
-// {"Streams":[]} (DynamoDB Local's answer; AWS's is UNVERIFIED, DDBS-03,
-// a clause of the ListStreams note), Limit pages with
-// LastEvaluatedStreamArn set only when more follow, and
+// {"Streams":[]} (aws-recorded, DDBS-03), Limit pages with
+// LastEvaluatedStreamArn set whenever the page is full, the last page too
+// (aws-recorded, DDBS-08: 03-list-limit-1.json, 04-list-page-2.json), and
 // ExclusiveStartStreamArn continues after it (dynamodb-streams.md 6.1;
-// order newest first, aws-doc example, ties by ARN, contract 5.4).
+// order newest first, aws-recorded DDBS-08, ties by ARN, contract 5.4).
 func TestListStreams(t *testing.T) {
 	runStreams(t, dynamodb.Options{}, func(h *streamsHarness) {
 		a, _ := latest(h.createStreamTable("Alpha", "KEYS_ONLY"))
@@ -357,6 +365,16 @@ func TestListStreams(t *testing.T) {
 		h.ok200(h.streamsCall("ListStreams", `{"Limit":2,"ExclusiveStartStreamArn":"`+b+`"}`, defaultCaller()), &p)
 		if want := []string{a}; !slices.Equal(arns(p), want) || p.LastEvaluatedStreamArn != nil {
 			h.Errorf("second page = %v, last %v; want %v and no LastEvaluatedStreamArn", arns(p), p.LastEvaluatedStreamArn, want)
+		}
+		p = page{}
+		h.ok200(h.streamsCall("ListStreams", `{"Limit":1,"ExclusiveStartStreamArn":"`+b+`"}`, defaultCaller()), &p)
+		if want := []string{a}; !slices.Equal(arns(p), want) || p.LastEvaluatedStreamArn == nil || *p.LastEvaluatedStreamArn != a {
+			h.Errorf("a full last page = %v, last %v; want %v, last %s", arns(p), p.LastEvaluatedStreamArn, want, a)
+		}
+		p = page{}
+		h.ok200(h.streamsCall("ListStreams", `{}`, defaultCaller()), &p)
+		if p.LastEvaluatedStreamArn != nil {
+			h.Errorf("an unpaged list carries LastEvaluatedStreamArn %s, want none", *p.LastEvaluatedStreamArn)
 		}
 		p = page{}
 		h.ok200(h.streamsCall("ListStreams", `{"TableName":"Bravo"}`, defaultCaller()), &p)
@@ -612,9 +630,23 @@ func TestFailedDrainRetriesOnTheEmulatorClock(t *testing.T) {
 	})
 }
 
-// GetShardIterator's checks, in the contract's order, with DynamoDB
-// Local's texts (observed, dynamodb-streams.md 6.3, 6.5; AWS's are
-// UNVERIFIED, DDBS-02, a clause of the GetShardIterator note).
+// A StreamArn shorter than the model's 37 characters is "Invalid StreamArn",
+// not the Coral length text (aws-recorded, dynamodb-streams.md 6.5:
+// testdata/parity/dynamodb/DDBS-02/01-describe-short-arn.json).
+func TestDescribeStreamShortARN(t *testing.T) {
+	runStreams(t, dynamodb.Options{}, func(h *streamsHarness) {
+		e := h.errorOf(h.streamsCall("DescribeStream", `{"StreamArn":"short"}`, defaultCaller()), http.StatusBadRequest)
+		if e.Type != "com.amazon.coral.validate#ValidationException" || e.text() != "Invalid StreamArn" {
+			h.Errorf("a short StreamArn: %+v, want ValidationException Invalid StreamArn", e)
+		}
+	})
+}
+
+// GetShardIterator's checks, in the contract's order, with AWS's texts
+// (aws-recorded, dynamodb-streams.md 6.5: testdata/parity/dynamodb/DDBS-02/05-at-without-sequence.json,
+// 06-trim-with-sequence.json, 09-non-numeric-sequence.json;
+// testdata/parity/dynamodb/DDBS-01/02-iterator-missing-stream.json,
+// 03-iterator-missing-shard.json).
 func TestGetShardIteratorRefusals(t *testing.T) {
 	runStreams(t, dynamodb.Options{}, func(h *streamsHarness) {
 		arn, _ := latest(h.createStreamTable("Orders", "KEYS_ONLY"))
@@ -628,19 +660,19 @@ func TestGetShardIteratorRefusals(t *testing.T) {
 			},
 			{
 				"AT_SEQUENCE_NUMBER without one", `{"StreamArn":"` + arn + `","ShardId":"` + shard + `","ShardIteratorType":"AT_SEQUENCE_NUMBER"}`,
-				"ValidationException", "One or more parameter values were invalid: Invalid SequenceNumber",
+				"ValidationException", "One or more parameter values were invalid: SequenceNumber cannot be null",
 			},
 			{
-				"non-digit number", `{"StreamArn":"` + arn + `","ShardId":"` + shard + `","ShardIteratorType":"AFTER_SEQUENCE_NUMBER","SequenceNumber":"10000000000000000000x"}`,
-				"ValidationException", "One or more parameter values were invalid: Invalid SequenceNumber",
+				"non-digit number", `{"StreamArn":"` + arn + `","ShardId":"` + shard + `","ShardIteratorType":"AT_SEQUENCE_NUMBER","SequenceNumber":"abcdefghijabcdefghijk"}`,
+				"ValidationException", "Invalid SequenceNumber for the shard",
 			},
 			{
 				"unknown stream", `{"StreamArn":"` + streamARNOf(defaultCaller(), "Nope", "2000-01-01T00:00:00.000") + `","ShardId":"` + shard + `","ShardIteratorType":"TRIM_HORIZON"}`,
-				"com.amazonaws.dynamodb.v20120810#ResourceNotFoundException", "Stream does not exist",
+				"com.amazonaws.dynamodb.v20120810#ResourceNotFoundException", "Requested resource not found: Stream does not exist",
 			},
 			{
 				"unknown shard", `{"StreamArn":"` + arn + `","ShardId":"shardId-00000000000000000000-00000000","ShardIteratorType":"TRIM_HORIZON"}`,
-				"com.amazonaws.dynamodb.v20120810#ResourceNotFoundException", "Shard does not exist",
+				"com.amazonaws.dynamodb.v20120810#ResourceNotFoundException", "Requested resource not found: Shard does not exist",
 			},
 		}
 		for _, c := range cases {
@@ -709,9 +741,10 @@ func TestIteratorTypes(t *testing.T) {
 }
 
 // GetRecords refuses an iterator that does not decode, or whose prefix
-// names another stream, with Local's validation text, and a Limit above
-// 1000 with Local's text (dynamodb-streams.md 6.4, 6.5, 11.1 item 4;
-// AWS's are UNVERIFIED, DDBS-01, DDBS-02, GetRecords note).
+// names another stream, with "Invalid ShardIterator", and a Limit above
+// 1000 with ValidationException, both AWS's (aws-recorded,
+// dynamodb-streams.md 6.4, 6.5: DDBS-01/04-records-garbage.json,
+// DDBS-02/11-records-limit-1001.json; 11.1 item 4).
 func TestGetRecordsRefusals(t *testing.T) {
 	runStreams(t, dynamodb.Options{}, func(h *streamsHarness) {
 		arn, _ := latest(h.createStreamTable("Orders", "KEYS_ONLY"))
@@ -735,15 +768,16 @@ func TestGetRecordsRefusals(t *testing.T) {
 	})
 }
 
-// expiredText is the expired-iterator message: the model's member
-// documentation (dynamodb-streams.md 3.3; inferred, DDBS-04, GetRecords
-// note).
-const expiredText = "The provided iterator exceeds the maximum age allowed."
+// expiredText is AWS's expired-iterator message (aws-recorded,
+// dynamodb-streams.md 4.4: testdata/parity/dynamodb/DDBS-04/04-unused-at-16min.json).
+const expiredText = "Shard iterator has expired"
 
 // An iterator expires exactly 15 minutes after its issue on the emulator
 // clock ("A shard iterator expires 15 minutes after it is returned to the
 // requester", aws-doc, dynamodb-streams.md 4.4), and a NextShardIterator
-// gets its own 15 minutes (inferred, DDBS-04, GetRecords note).
+// gets its own 15 minutes (aws-recorded, DDBS-04: 05-next-from-14min.json).
+// AWS's __type namespace for this error is com.amazonaws.dynamodb.streams.v20120810
+// (DDBS-04), which understudy does not send yet: only the name is asserted.
 func TestIteratorsExpireAfterFifteenMinutes(t *testing.T) {
 	runStreams(t, dynamodb.Options{}, func(h *streamsHarness) {
 		arn, _ := latest(h.createStreamTable("Orders", "KEYS_ONLY"))
@@ -755,7 +789,7 @@ func TestIteratorsExpireAfterFifteenMinutes(t *testing.T) {
 		}
 		h.advance(time.Millisecond)
 		e := h.errorOf(h.streamsCall("GetRecords", `{"ShardIterator":"`+it+`"}`, defaultCaller()), http.StatusBadRequest)
-		if e.Type != "com.amazonaws.dynamodb.v20120810#ExpiredIteratorException" || e.text() != expiredText {
+		if !strings.HasSuffix(e.Type, "#ExpiredIteratorException") || e.text() != expiredText {
 			h.Errorf("at 15 minutes: %+v, want ExpiredIteratorException %q", e, expiredText)
 		}
 		// next was issued 1 ms ago.
@@ -817,9 +851,11 @@ func TestSequenceNumberSwitch(t *testing.T) {
 	})
 }
 
-// The Streams service lists its two switches, inferred, each with Ref,
-// Record, Ops and NoScenario, and reports the value it was built with
-// (spec Fidelity switches; contract 9).
+// The Streams service lists its two switches, each with Ref, Record, Ops
+// and NoScenario, and reports the value it was built with (spec Fidelity
+// switches; contract 9). iterator-reuse is aws-recorded (DDBS-04: allowed);
+// DDBS-09 recorded a sequence-number form neither value has, so that
+// switch stays inferred (dynamodb-streams.md 4.3, 4.4).
 func TestStreamsSwitches(t *testing.T) {
 	for _, tc := range []struct {
 		opts      dynamodb.Options
@@ -834,11 +870,21 @@ func TestStreamsSwitches(t *testing.T) {
 				got[e.Name] = e
 			}
 			for _, w := range []struct {
-				name, value, ref, record string
-				ops                      []string
+				name, value          string
+				label                evidence.Label
+				ref, record, because string
+				ops                  []string
 			}{
-				{"dynamodb.streams.sequence-number", tc.seq, "docs/research/dynamodb-streams.md#43-sequence-numbers", "DDBS-09", []string{"dynamodbstreams.DescribeStream", "dynamodbstreams.GetRecords"}},
-				{"dynamodb.streams.iterator-reuse", tc.used, "docs/research/dynamodb-streams.md#44-shard-iterators", "DDBS-04", []string{"dynamodbstreams.GetRecords"}},
+				{
+					"dynamodb.streams.sequence-number", tc.seq, evidence.Inferred, "docs/research/dynamodb-streams.md#43-sequence-numbers", "DDBS-09",
+					"recorded in dynamodb/DDBS-09: AWS numbers records with 23 digits above a 21-digit StartingSequenceNumber, which neither value does",
+					[]string{"dynamodbstreams.DescribeStream", "dynamodbstreams.GetRecords"},
+				},
+				{
+					"dynamodb.streams.iterator-reuse", tc.used, evidence.AWSRecorded, "docs/research/dynamodb-streams.md#44-shard-iterators", "DDBS-04",
+					"dynamodb/DDBS-04/02-reuse.json is recorded; the replayer runs without DynamoDB",
+					[]string{"dynamodbstreams.GetRecords"},
+				},
 			} {
 				e, ok := got[w.name]
 				if !ok {
@@ -846,8 +892,8 @@ func TestStreamsSwitches(t *testing.T) {
 					continue
 				}
 				ns, isNS := e.Settles.(fidelity.NoScenario)
-				if e.Value != w.value || e.Label != evidence.Inferred || e.Ref != w.ref || e.Record != w.record || !slices.Equal(e.Ops, w.ops) ||
-					!isNS || ns.Reason != "unrecorded: "+w.record+" is queued" {
+				if e.Value != w.value || e.Label != w.label || e.Ref != w.ref || e.Record != w.record || !slices.Equal(e.Ops, w.ops) ||
+					!isNS || ns.Reason != w.because {
 					h.Errorf("%s = %+v, want %+v", w.name, e, w)
 				}
 			}
@@ -864,8 +910,7 @@ func TestStreamsSwitches(t *testing.T) {
 // A disable closes the shard: EndingSequenceNumber is the last record's
 // number, the stream reads DISABLED, and the page that exhausts the closed
 // shard has no NextShardIterator (dynamodb-streams.md 5.3, aws-doc; the
-// member's absence is DynamoDB Local's form, UNVERIFIED, DDBS-07,
-// GetRecords note).
+// member's absence is AWS's form too, aws-recorded, DDBS-07).
 func TestDisableClosesTheShard(t *testing.T) {
 	runStreams(t, dynamodb.Options{}, func(h *streamsHarness) {
 		arn, _ := latest(h.createStreamTable("Orders", "KEYS_ONLY"))
@@ -888,8 +933,8 @@ func TestDisableClosesTheShard(t *testing.T) {
 // A deleted table's stream is DISABLED, closed, listed and readable until
 // exactly 24 hours after the delete, then gone everywhere ("the stream is
 // automatically deleted after 24 hours", aws-doc, dynamodb-streams.md 5.4;
-// readable meanwhile is DynamoDB Local's behavior, UNVERIFIED, DDBS-17,
-// GetShardIterator note).
+// listed and readable after the delete is AWS's behavior too, aws-recorded,
+// DDBS-17).
 func TestDeletedTablesStreamIsDeletedAfter24Hours(t *testing.T) {
 	runStreams(t, dynamodb.Options{}, func(h *streamsHarness) {
 		arn, _ := latest(h.createStreamTable("Orders", "KEYS_ONLY"))

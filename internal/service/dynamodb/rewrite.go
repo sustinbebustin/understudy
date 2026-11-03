@@ -60,6 +60,13 @@ func awsNotFound(table string) string {
 // exists.
 const localPreexisting = "Cannot create preexisting table"
 
+// Local's texts for an UpdateTable enabling a stream on a table that has
+// one and disabling it on a table that has none (dynamodb-streams.md 5.1).
+const (
+	localStreamEnabled = "Table already has an enabled stream"
+	localNoStream      = "Table has no stream to disable"
+)
+
 // awsPreexisting is AWS's text for a CreateTable of a table that exists,
 // which idempotent bootstrap code matches.
 func awsPreexisting(table string) string { return "Table already exists: " + table }
@@ -204,6 +211,11 @@ func fixError(m document.Map, op *registry.Operation, a answer) bool {
 		changed = true
 	case text == localPreexisting && id.Shape == dynamodbapi.IdentityResourceInUseException().Shape && a.table != "":
 		m[at].Value = document.String(awsPreexisting(a.table))
+		changed = true
+	case (text == localStreamEnabled || text == localNoStream) && id.Shape == dynamodbapi.IdentityValidationException().Shape && a.table != "":
+		// AWS names the table (aws-recorded, dynamodb-streams.md 5.1:
+		// testdata/parity/dynamodb/DDBS-06/01-enable-again.json, 04-disable-again.json).
+		m[at].Value = text + document.String(": TableName: "+a.table)
 		changed = true
 	}
 	if id.Shape == dynamodbapi.IdentityTransactionCanceledException().Shape {
