@@ -1,6 +1,7 @@
 package asl_test
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -149,6 +150,63 @@ func TestASL13ParallelBranchFailure(t *testing.T) {
 	d.wantShape("ASL-13 02-parallel-fail-history",
 		"ExecutionStarted 1<-0", "ParallelStateEntered 2<-0", "ParallelStateStarted 3<-2", "FailStateEntered 4<-3",
 		"ParallelStateFailed 5<-4", "ExecutionFailed 6<-5")
+}
+
+// A failing Map iteration stops its siblings: one waiting in a Wait state
+// writes MapIterationAborted and WaitStateAborted, both pointing at the
+// failure, before MapIterationFailed; one between states writes nothing
+// (ASL-13 04, recorded 2026-11-03).
+func TestASL13MapIterationFailureAbortsWaitingSibling(t *testing.T) {
+	d := newDriver(t, `{"StartAt":"M","States":{"M":{"Type":"Map","ItemProcessor":{"StartAt":"C","States":{
+		"C":{"Type":"Choice","Choices":[{"Variable":"$","NumericEquals":1,"Next":"F"}],"Default":"W"},
+		"F":{"Type":"Fail","Error":"ItemErr"},"W":{"Type":"Wait","Seconds":30,"End":true}}},"End":true}}}`, rules())
+	d.start(`[0,1,2]`)
+	failedWith(t, d.runToEnd(50), "ItemErr", func(c string) bool { return c == "" })
+	d.wantShape("ASL-13 04-map-fail-history",
+		"ExecutionStarted 1<-0", "MapStateEntered 2<-0", "MapStateStarted 3<-2",
+		"MapIterationStarted 4<-3", "MapIterationStarted 5<-3", "MapIterationStarted 6<-3",
+		"ChoiceStateEntered 7<-4", "ChoiceStateExited 8<-7", "ChoiceStateEntered 9<-5", "ChoiceStateExited 10<-9",
+		"ChoiceStateEntered 11<-6", "ChoiceStateExited 12<-11", "WaitStateEntered 13<-8", "FailStateEntered 14<-10",
+		"MapIterationAborted 15<-14", "WaitStateAborted 16<-14", "MapIterationFailed 17<-14", "MapStateFailed 18<-14", "ExecutionFailed 19<-18")
+	if got := encode(d.event("MapIterationAborted").Details); got != `{"name":"M","index":0}` {
+		t.Errorf("MapIterationAborted details = %s, want the aborted iteration's name and index", got)
+	}
+	if got := encode(d.event("WaitStateAborted").Details); got != `{}` {
+		t.Errorf("WaitStateAborted details = %s, want {}", got)
+	}
+}
+
+// Concurrent Parallel branches and Map iterations write their events in
+// the order AWS recorded for these two runs: ParallelStateSucceeded points
+// at the last branch to finish, and every MapIterationStarted precedes the
+// iterations' states, which then run in index order (ASL-13 01 and 03,
+// recorded 2026-11-03).
+func TestASL13ConcurrentOrder(t *testing.T) {
+	par := newDriver(t, `{"StartAt":"P","States":{"P":{"Type":"Parallel","Branches":[
+		{"StartAt":"A1","States":{"A1":{"Type":"Pass","Next":"A2"},"A2":{"Type":"Pass","End":true}}},
+		{"StartAt":"B1","States":{"B1":{"Type":"Wait","Seconds":2,"End":true}}},
+		{"StartAt":"C1","States":{"C1":{"Type":"Pass","End":true}}}],"End":true}}}`, rules())
+	par.start(`{}`)
+	par.runToEnd(50)
+	par.wantShape("ASL-13 01-parallel-ok-history",
+		"ExecutionStarted 1<-0", "ParallelStateEntered 2<-0", "ParallelStateStarted 3<-2",
+		"PassStateEntered 4<-3", "PassStateExited 5<-4", "WaitStateEntered 6<-3", "PassStateEntered 7<-3", "PassStateExited 8<-7",
+		"PassStateEntered 9<-5", "PassStateExited 10<-9", "WaitStateExited 11<-6",
+		"ParallelStateSucceeded 12<-11", "ParallelStateExited 13<-11", "ExecutionSucceeded 14<-13")
+
+	m := newDriver(t, `{"StartAt":"M","States":{"M":{"Type":"Map","MaxConcurrency":0,"ItemProcessor":{"StartAt":"S","States":{"S":{"Type":"Pass","End":true}}},"End":true}}}`, rules())
+	m.start(`[1,2,3,4,5]`)
+	m.runToEnd(80)
+	want := []string{"ExecutionStarted 1<-0", "MapStateEntered 2<-0", "MapStateStarted 3<-2"}
+	for i := range 5 {
+		want = append(want, fmt.Sprintf("MapIterationStarted %d<-3", 4+i))
+	}
+	for i := range 5 {
+		id := 9 + 3*i
+		want = append(want, fmt.Sprintf("PassStateEntered %d<-%d", id, 4+i), fmt.Sprintf("PassStateExited %d<-%d", id+1, id),
+			fmt.Sprintf("MapIterationSucceeded %d<-%d", id+2, id+1))
+	}
+	m.wantShape("ASL-13 03-map-unbounded-history", append(want, "MapStateSucceeded 24<-23", "MapStateExited 25<-23", "ExecutionSucceeded 26<-25")...)
 }
 
 // A Choice Variable that selects nothing fails the execution with an

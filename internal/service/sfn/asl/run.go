@@ -309,11 +309,12 @@ func (s *stepper) runSucceeded(i int, last int64) {
 // scopeFailed ends the step's frame with f, its last event last: at the top
 // level the execution fails; a failing branch or iteration fails its run,
 // whose other branches or iterations are stopped (stepfunctions-asl.md 9.1,
-// 9.2). A Map iteration writes MapIterationFailed pointing at last; the
-// stopped ones write nothing (inferred, ASL-13). A Terminal fails the
-// execution at once from any depth: ExecutionFailed points at last, with no
-// MapIterationFailed or *StateFailed between (ASL-05, ASL-08 and ASL-15 in
-// a Parallel branch, ASL-07 in a Map iteration, recorded 2026-11-03).
+// 9.2). A Map iteration writes MapIterationFailed pointing at last, after
+// the events of the siblings it stops (abortWaitingIterations). A Terminal
+// fails the execution at once from any depth: ExecutionFailed points at
+// last, with no MapIterationFailed or *StateFailed between (ASL-05, ASL-08
+// and ASL-15 in a Parallel branch, ASL-07 in a Map iteration, recorded
+// 2026-11-03).
 func (s *stepper) scopeFailed(f Failure, last int64) {
 	if t, ok := f.(Terminal); ok {
 		s.fail(t.Name, t.Cause, last)
@@ -332,6 +333,7 @@ func (s *stepper) scopeFailed(f Failure, last int64) {
 	}
 	r := s.x.runs[i]
 	if _, isMap := s.d.states[r.state].(mapState); isMap {
+		s.abortWaitingIterations(r, s.fr.index, last)
 		s.emit("MapIterationFailed", last, iterationDetails(r.state, s.fr.index))
 	}
 	s.stopRun(r.id)
@@ -422,6 +424,26 @@ func (s *stepper) stopRun(id int64) {
 		return false
 	})
 	s.x.runs = slices.DeleteFunc(s.x.runs, func(r run) bool { return gone[r.id] })
+}
+
+// abortWaitingIterations writes, for each iteration of the Map run r other
+// than failed that waits in a Wait state of its own, in index order,
+// MapIterationAborted and WaitStateAborted pointing at last; an iteration
+// between states writes nothing (ASL-13 04, recorded 2026-11-03, for one
+// waiting sibling; the order among several and a sibling waiting on a task
+// or in a nested state are unrecorded, and write nothing here).
+func (s *stepper) abortWaitingIterations(r run, failed int, last int64) {
+	var waiting []int
+	for _, t := range s.x.timers {
+		if w, ok := t.job.(waitJob); ok && w.fr.run == r.id && w.fr.index != failed {
+			waiting = append(waiting, w.fr.index)
+		}
+	}
+	slices.Sort(waiting)
+	for _, index := range slices.Compact(waiting) {
+		s.emit("MapIterationAborted", last, iterationDetails(r.state, index))
+		s.emit("WaitStateAborted", last, document.Map{})
+	}
 }
 
 // jobFrame is the frame a job runs in; false for the jobs that belong to
