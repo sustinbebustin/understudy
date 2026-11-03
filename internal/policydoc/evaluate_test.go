@@ -211,22 +211,18 @@ func TestEvaluateListsApplyingStatementsInOrder(t *testing.T) {
 // NotPrincipal "must be used with Deny" (iam-evaluation.md 5.4,
 // S-NOTPRIN): an Allow with NotPrincipal never applies. A Deny with
 // NotPrincipal applies, as MatchNotPrincipal, to anyone it does not exempt.
-// Which listed identities exempt a principal is UNVERIFIED (IAM-EVAL-18):
-// switch iam.not-principal.match decides.
-func TestEvaluateNotPrincipalFollowsItsSwitch(t *testing.T) {
+// A session is exempt only when its session ARN, its role ARN and its
+// account are all listed: of the six lists IAM-EVAL-18 recorded, only that
+// one let the session through (switch iam.not-principal.match
+// "every-level", aws-recorded). A user needs its ARN and its account
+// (5.4, inferred: the recording names no user).
+func TestEvaluateNotPrincipalExemptsEveryLevel(t *testing.T) {
 	if allows, _ := matchesOf(t, queuePolicy("Allow", `"NotPrincipal":{"AWS":"arn:aws:iam::444455556666:root"}`, ""), exUser, nil, false); allows != nil {
 		t.Errorf("an Allow with NotPrincipal applies with %#v, want never", allows)
 	}
-
 	mode := switchValue(t, "iam.not-principal.match")
-	var exemptBoth, exemptAlone bool
-	switch mode {
-	case "account-and-principal":
-		exemptBoth, exemptAlone = true, false
-	case "any-listed":
-		exemptBoth, exemptAlone = true, true
-	default:
-		t.Fatalf("iam.not-principal.match = %q, a value this test does not know (iam-evaluation.md 12.3)", mode)
+	if mode != "every-level" {
+		t.Errorf("iam.not-principal.match = %q, want every-level (IAM-EVAL-18)", mode)
 	}
 	notDenied := func(exempt bool) []policydoc.Match {
 		if exempt {
@@ -240,9 +236,17 @@ func TestEvaluateNotPrincipalFollowsItsSwitch(t *testing.T) {
 		requester policydoc.Requester
 		want      []policydoc.Match
 	}{
-		{"a user listed with its account", `["` + exUserARN + `","` + acctRootARN + `"]`, exUser, notDenied(exemptBoth)},
-		{"a user listed without its account", `["` + exUserARN + `"]`, exUser, notDenied(exemptAlone)},
-		{"a session whose role is listed with its account", `["` + exRoleARN + `","` + acctRootARN + `"]`, exSession, notDenied(exemptBoth)},
+		{"a user listed with its account", `["` + exUserARN + `","` + acctRootARN + `"]`, exUser, notDenied(true)},
+		{"a user listed without its account", `["` + exUserARN + `"]`, exUser, notDenied(false)},
+		// testdata/parity/iam/IAM-EVAL-18: a-role, b-role-account,
+		// d-account, e-session and f-session-account denied,
+		// c-session-role-account allowed.
+		{"a-role", `["` + exRoleARN + `"]`, exSession, notDenied(false)},
+		{"b-role-account", `["` + exRoleARN + `","` + acctRootARN + `"]`, exSession, notDenied(false)},
+		{"c-session-role-account", `["` + sessionARN + `","` + exRoleARN + `","` + acctRootARN + `"]`, exSession, notDenied(true)},
+		{"d-account", `["` + acctRootARN + `"]`, exSession, notDenied(false)},
+		{"e-session", `["` + sessionARN + `"]`, exSession, notDenied(false)},
+		{"f-session-account", `["` + sessionARN + `","` + acctRootARN + `"]`, exSession, notDenied(false)},
 		{"a user not listed", `["arn:aws:iam::111122223333:user/other","` + acctRootARN + `"]`, exUser, []policydoc.Match{policydoc.MatchNotPrincipal{}}},
 		{"an anonymous caller", `["` + exUserARN + `","` + acctRootARN + `"]`, policydoc.AnonymousRequester{}, []policydoc.Match{policydoc.MatchNotPrincipal{}}},
 	}
@@ -447,59 +451,47 @@ func TestEvaluateNumericAndDateForms(t *testing.T) {
 }
 
 // Bool with a policy variable: S-OPS lists variables as supported, S-VARS
-// excludes them (iam-evaluation.md 6.6, 11 C3, IAM-EVAL-01); switch
-// iam.condition.bool-variables decides.
-func TestEvaluateBoolVariablesFollowTheirSwitch(t *testing.T) {
-	var want bool
-	switch v := switchValue(t, "iam.condition.bool-variables"); v {
-	case "substituted":
-		want = true
-	case "literal":
-		want = false
-	default:
-		t.Fatalf("iam.condition.bool-variables = %q, a value this test does not know (iam-evaluation.md 12.3)", v)
+// excludes them (iam-evaluation.md 6.6, 11 C3). AWS's simulator denied the
+// variable resolving to "true" and to "false" alike, so Bool takes the
+// value literally (IAM-EVAL-01, switch iam.condition.bool-variables
+// "literal", aws-recorded).
+func TestEvaluateBoolTakesVariablesLiterally(t *testing.T) {
+	if v := switchValue(t, "iam.condition.bool-variables"); v != "literal" {
+		t.Errorf("iam.condition.bool-variables = %q, want literal (IAM-EVAL-01)", v)
 	}
-	ctx := contextOf(one("aws:SecureTransport", "true"), one("aws:PrincipalTag/secure", "true"))
-	if got := condHolds(t, "Allow", `{"Bool":{"aws:SecureTransport":"${aws:PrincipalTag/secure}"}}`, ctx); got != want {
-		t.Errorf("Bool with a variable resolving to true: applies = %t, want %t", got, want)
+	for _, tag := range []string{"true", "false"} {
+		ctx := contextOf(one("aws:SecureTransport", "true"), one("aws:PrincipalTag/tls", tag))
+		if condHolds(t, "Allow", `{"Bool":{"aws:SecureTransport":"${aws:PrincipalTag/tls}"}}`, ctx) {
+			t.Errorf("Bool with a variable resolving to %s applies, want it never to (IAM-EVAL-01)", tag)
+		}
 	}
 }
 
-// A multivalued key under a plain operator is UNVERIFIED (iam-evaluation.md
-// 6.12, IAM-EVAL-02): switch iam.condition.multivalued-plain-operator.
-func TestEvaluateMultivaluedPlainOperatorFollowsItsSwitch(t *testing.T) {
-	var someMatch, allMatch bool
-	switch v := switchValue(t, "iam.condition.multivalued-plain-operator"); v {
-	case "any-value":
-		someMatch, allMatch = true, true
-	case "all-values":
-		someMatch, allMatch = false, true
-	case "no-match":
-		someMatch, allMatch = false, false
-	default:
-		t.Fatalf("iam.condition.multivalued-plain-operator = %q, a value this test does not know (iam-evaluation.md 12.3)", v)
+// A plain operator on a multivalued key never matches: AWS's simulator
+// denied StringEquals aws:TagKeys "environment" for the key holding
+// ["environment"], ["environment","dept"] and ["dept"] (IAM-EVAL-02,
+// switch iam.condition.multivalued-plain-operator "no-match",
+// aws-recorded).
+func TestEvaluateMultivaluedPlainOperatorNeverMatches(t *testing.T) {
+	if v := switchValue(t, "iam.condition.multivalued-plain-operator"); v != "no-match" {
+		t.Errorf("iam.condition.multivalued-plain-operator = %q, want no-match (IAM-EVAL-02)", v)
 	}
-	const cond = `{"StringEquals":{"aws:TagKeys":["environment","team"]}}`
-	if got := condHolds(t, "Allow", cond, contextOf(many("aws:TagKeys", "environment", "dept"))); got != someMatch {
-		t.Errorf("one of two values matches: applies = %t, want %t", got, someMatch)
-	}
-	if got := condHolds(t, "Allow", cond, contextOf(many("aws:TagKeys", "environment", "team"))); got != allMatch {
-		t.Errorf("both values match: applies = %t, want %t", got, allMatch)
+	const cond = `{"StringEquals":{"aws:TagKeys":"environment"}}`
+	for _, values := range [][]string{{"environment"}, {"environment", "dept"}, {"dept"}} {
+		if condHolds(t, "Allow", cond, contextOf(many("aws:TagKeys", values...))) {
+			t.Errorf("StringEquals on aws:TagKeys %q applies, want it never to (IAM-EVAL-02)", values)
+		}
 	}
 }
 
-// Null on a present empty string is UNVERIFIED (iam-evaluation.md 6.11,
-// IAM-EVAL-05): switch iam.condition.empty-value.
-func TestEvaluateNullOnAnEmptyValueFollowsItsSwitch(t *testing.T) {
-	var isNull bool
-	switch v := switchValue(t, "iam.condition.empty-value"); v {
-	case "null":
-		isNull = true
-	case "value":
-		isNull = false
-	default:
-		t.Fatalf("iam.condition.empty-value = %q, a value this test does not know (iam-evaluation.md 12.3)", v)
+// Null on a present empty string: AWS's simulator allowed Null "false" and
+// denied Null "true", so "" is a value, not null (IAM-EVAL-05, switch
+// iam.condition.empty-value "value", aws-recorded).
+func TestEvaluateNullCountsAnEmptyValue(t *testing.T) {
+	if v := switchValue(t, "iam.condition.empty-value"); v != "value" {
+		t.Errorf("iam.condition.empty-value = %q, want value (IAM-EVAL-05)", v)
 	}
+	const isNull = false
 	empty := contextOf(one("aws:SourceIdentity", ""))
 	if got := condHolds(t, "Allow", `{"Null":{"aws:SourceIdentity":"true"}}`, empty); got != isNull {
 		t.Errorf(`Null "true" on "": applies = %t, want %t`, got, isNull)

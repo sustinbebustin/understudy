@@ -80,8 +80,11 @@ func BuildContext(in ContextInput) *policydoc.Context {
 	for _, t := range in.PrincipalTags {
 		key := "aws:PrincipalTag/" + t.Key
 		// Two tags whose keys differ only in case, with different values:
-		// switch iam.resource-tag.case-duplicates "absent" (6.13, IAM-EVAL-31).
+		// each matches the policy key spelled as it is, and no other
+		// spelling finds a value (switch iam.resource-tag.case-duplicates
+		// "exact-case", 6.13, aws-recorded for resource tags, IAM-EVAL-31).
 		if slices.ContainsFunc(in.PrincipalTags, func(o Tag) bool { return strings.EqualFold(o.Key, t.Key) && o.Value != t.Value }) {
+			c.SetExact(key, t.Value)
 			c.Absent(key)
 		} else {
 			c.Set(key, t.Value)

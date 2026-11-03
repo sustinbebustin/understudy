@@ -80,7 +80,7 @@ func (e *ValidationError) Message() string {
 	case RuleS3ResourceRegion:
 		return "Resource " + e.Subject + " can not contain region information."
 	case RuleIAMResourcePath:
-		return `IAM resource path must either be "*" or start with ` + strings.Join(iamResourcePaths(), ", ") + "."
+		return `IAM resource path must either be "*", root, or start with ` + strings.Join(iamResourcePaths(), ", ") + "."
 	case RuleActionVendor:
 		return "Actions/Conditions must be prefaced by a vendor, e.g., iam, sdb, ec2, etc."
 	case RuleActionColons:

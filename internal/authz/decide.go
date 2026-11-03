@@ -351,9 +351,14 @@ func (e *evaluated) decide(r Request) Decision {
 }
 
 // explicitDeny is step 1 (iam-evaluation.md 2.2): the first policy with an
-// applying Deny, in the order identity, boundary, session, resource
-// (iam-evaluation.md 12.4, inferred), names the denial.
+// applying Deny, in the order resource, identity, boundary, session, names
+// the denial. A resource-policy Deny wins over an identity-policy one
+// (IAM-EVAL-21, recorded 2026-11-03); the rest of the order is inferred
+// (iam-evaluation.md 12.4).
 func (e *evaluated) explicitDeny(r Request) (ExplicitDeny, bool) {
+	if len(e.onResource.Denies) > 0 && !rootKeepsBucketPolicy(r) {
+		return ExplicitDeny{PolicyType: resourceType(e.resource)}, true
+	}
 	if arn, denied := firstDeny(e.identity); denied {
 		return ExplicitDeny{PolicyType: IdentityBased, PolicyARN: arn}, true
 	}
@@ -362,9 +367,6 @@ func (e *evaluated) explicitDeny(r Request) (ExplicitDeny, bool) {
 	}
 	if arn, denied := firstDeny(e.session); denied {
 		return ExplicitDeny{PolicyType: SessionPolicy, PolicyARN: arn}, true
-	}
-	if len(e.onResource.Denies) > 0 && !rootKeepsBucketPolicy(r) {
-		return ExplicitDeny{PolicyType: resourceType(e.resource)}, true
 	}
 	return ExplicitDeny{}, false
 }

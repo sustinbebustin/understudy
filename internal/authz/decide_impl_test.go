@@ -31,8 +31,9 @@ func wantDecision(t *testing.T, label string, got, want authz.Decision) {
 }
 
 // Several policy types deny: understudy names the first in the order
-// identity, boundary, session, resource (iam-evaluation.md 12.4, inferred;
-// AWS names one, iam-enforcement-surfaces.md 4.1).
+// resource, identity, boundary, session (iam-evaluation.md 12.4; AWS names
+// one, iam-enforcement-surfaces.md 4.1). Resource before identity is
+// recorded (IAM-EVAL-21, 2026-11-03); the rest is inferred.
 func TestDecideExplicitDenyNamesTheFirstTypeInOrder(t *testing.T) {
 	s := sessionOf("111122223333", "app", "AROAAPPEXAMPLE000001", "s")
 	q := on(implQueue, "111122223333")
@@ -45,10 +46,11 @@ func TestDecideExplicitDenyNamesTheFirstTypeInOrder(t *testing.T) {
 		set  policySet
 		want authz.Decision
 	}{
-		{"all four", policySet{identity: []authz.Policy{idDeny}, boundary: &bDeny, session: []authz.Policy{sDeny}, resource: denyRP}, authz.ExplicitDeny{PolicyType: authz.IdentityBased, PolicyARN: idDeny.ARN}},
-		{"boundary, session, resource", policySet{boundary: &bDeny, session: []authz.Policy{sDeny}, resource: denyRP}, authz.ExplicitDeny{PolicyType: authz.PermissionsBoundary, PolicyARN: bDeny.ARN}},
-		{"session, resource", policySet{session: []authz.Policy{sDeny}, resource: denyRP}, authz.ExplicitDeny{PolicyType: authz.SessionPolicy, PolicyARN: sDeny.ARN}},
-		{"inline session policy", policySet{session: []authz.Policy{inlinePolicy(t, "inline", denyAll)}, resource: denyRP}, authz.ExplicitDeny{PolicyType: authz.SessionPolicy}},
+		{"all four", policySet{identity: []authz.Policy{idDeny}, boundary: &bDeny, session: []authz.Policy{sDeny}, resource: denyRP}, authz.ExplicitDeny{PolicyType: authz.ResourceBased}},
+		{"identity, boundary, session", policySet{identity: []authz.Policy{idDeny}, boundary: &bDeny, session: []authz.Policy{sDeny}}, authz.ExplicitDeny{PolicyType: authz.IdentityBased, PolicyARN: idDeny.ARN}},
+		{"boundary, session", policySet{boundary: &bDeny, session: []authz.Policy{sDeny}}, authz.ExplicitDeny{PolicyType: authz.PermissionsBoundary, PolicyARN: bDeny.ARN}},
+		{"session", policySet{session: []authz.Policy{sDeny}}, authz.ExplicitDeny{PolicyType: authz.SessionPolicy, PolicyARN: sDeny.ARN}},
+		{"inline session policy", policySet{session: []authz.Policy{inlinePolicy(t, "inline", denyAll)}}, authz.ExplicitDeny{PolicyType: authz.SessionPolicy}},
 		{"resource alone", policySet{resource: denyRP}, authz.ExplicitDeny{PolicyType: authz.ResourceBased}},
 	}
 	for _, c := range cases {
@@ -161,7 +163,8 @@ func TestDecideRootBucketPolicyExemptionMatchesActionsCaseInsensitively(t *testi
 
 // Properties over drawn principals, resources and policy sets: Decide always
 // decides, an unconditional Deny in an identity policy of an IAM principal
-// decides as that identity policy (iam-evaluation.md 2.2 step 1, 12.4), and
+// decides as that identity policy unless a resource policy denies too
+// (iam-evaluation.md 2.2 step 1, 12.4; IAM-EVAL-21), and
 // the root in its own account with no Deny anywhere is allowed except on a
 // role or a key (2.6).
 func TestPropertyDecide(t *testing.T) {
@@ -213,8 +216,14 @@ func TestPropertyDecide(t *testing.T) {
 		withDeny.identity = append([]authz.Policy{inlinePolicy(rt, "deny", denyAll)}, set.identity...)
 		switch p.(type) {
 		case identity.User, identity.AssumedRole:
-			if d := authz.Decide(req, withDeny.policies()).Decision; d != (authz.ExplicitDeny{PolicyType: authz.IdentityBased}) {
-				rt.Fatalf("with a Deny of everything first in the identity policies: %#v, want ExplicitDeny{IdentityBased}", d)
+			// A resource policy's own Deny still names the denial
+			// (IAM-EVAL-21, recorded 2026-11-03).
+			want := authz.ExplicitDeny{PolicyType: authz.IdentityBased}
+			if d, ok := got.Decision.(authz.ExplicitDeny); ok && d.PolicyType != authz.IdentityBased && d.PolicyType != authz.SessionPolicy && d.PolicyType != authz.PermissionsBoundary {
+				want = d
+			}
+			if d := authz.Decide(req, withDeny.policies()).Decision; d != want {
+				rt.Fatalf("with a Deny of everything first in the identity policies: %#v, want %#v", d, want)
 			}
 		case identity.Root, identity.ServicePrincipal, identity.Anonymous:
 		}

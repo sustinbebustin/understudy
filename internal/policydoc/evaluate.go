@@ -429,12 +429,14 @@ func conditionNamesPrincipal(cond Condition) bool {
 }
 
 // exempt reports whether a NotPrincipal value exempts r's requester (switch
-// iam.not-principal.match "account-and-principal", IAM-EVAL-18): "*" exempts
-// everyone; a root is exempt when its account is listed, a user when its
-// account and its ARN or unique id are, a session when its account and its
-// role ARN, role unique id or session ARN are, and a service when Service
-// lists it; an anonymous requester never is. A user or session whose entity
-// has a permissions boundary is never exempt (iam-evaluation.md 2.8).
+// iam.not-principal.match "every-level", aws-recorded, IAM-EVAL-18): "*"
+// exempts everyone; a root is exempt when its account is listed, a user
+// when its account and its ARN or unique id are, a session when its
+// account, its role ARN or role unique id, and its session ARN all are (the
+// one recorded list that let a session through), and a service when
+// Service lists it; an anonymous requester never is. A user or session
+// whose entity has a permissions boundary is never exempt
+// (iam-evaluation.md 2.8).
 func exempt(who Who, r Request) bool {
 	ids := identify(r.Requester)
 	switch r.Requester.(type) {
@@ -460,7 +462,7 @@ func exempt(who Who, r Request) bool {
 	case UserRequester:
 		return namesAccount(named.AWS, ids.account) && listsAny(named.AWS, ids.user)
 	case SessionRequester:
-		return namesAccount(named.AWS, ids.account) && (listsAny(named.AWS, ids.role) || slices.Contains(named.AWS, ids.session))
+		return namesAccount(named.AWS, ids.account) && listsAny(named.AWS, ids.role) && slices.Contains(named.AWS, ids.session)
 	case ServiceRequester:
 		return slices.Contains(named.Service, ids.service)
 	case AnonymousRequester, nil:

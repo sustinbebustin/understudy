@@ -72,7 +72,8 @@ func TestEvaluateInferredOperatorSpellings(t *testing.T) {
 
 // Null reads JSON booleans as their text, and a value other than true or
 // false never holds (iam-evaluation.md 6.11). A present key with no values
-// is null, like one whose every value is "" (IAM-EVAL-05, inferred).
+// is null (inferred), unlike one whose value is "" (IAM-EVAL-05,
+// aws-recorded).
 func TestEvaluateNullValues(t *testing.T) {
 	cases := []struct {
 		name, cond string
@@ -95,14 +96,22 @@ func TestEvaluateNullValues(t *testing.T) {
 
 // The set operators on present keys beyond the documented rows of
 // iam-evaluation.md 6.14: IfExists on a set operator holds on an absent key
-// (6.14, inferred), and ForAnyValue on a key whose only value is "" tests
-// that value (IAM-EVAL-04, inferred).
+// (6.14, inferred), and a set operator on a key whose only value is ""
+// tests that value: AWS's simulator allowed ForAnyValue:StringNotEquals
+// "a" and denied ForAllValues:StringEquals "a" and ForAnyValue:StringEquals
+// "a" on aws:TagKeys [""] (IAM-EVAL-04 steps 02, 05 and 06, aws-recorded).
 func TestEvaluateSetOperatorEdges(t *testing.T) {
 	if !condHolds(t, "Allow", `{"ForAnyValue:StringEqualsIfExists":{"test:Key":"a"}}`, contextOf()) {
 		t.Error("ForAnyValue:StringEqualsIfExists on an absent key = false, want true")
 	}
 	if !condHolds(t, "Allow", `{"ForAnyValue:StringNotEquals":{"test:Key":"a"}}`, contextOf(many("test:Key", ""))) {
 		t.Error(`ForAnyValue:StringNotEquals "a" on [""] = false, want true`)
+	}
+	if condHolds(t, "Allow", `{"ForAllValues:StringEquals":{"test:Key":"a"}}`, contextOf(many("test:Key", ""))) {
+		t.Error(`ForAllValues:StringEquals "a" on [""] = true, want false`)
+	}
+	if condHolds(t, "Allow", `{"ForAnyValue:StringEquals":{"test:Key":"a"}}`, contextOf(many("test:Key", ""))) {
+		t.Error(`ForAnyValue:StringEquals "a" on [""] = true, want false`)
 	}
 	if condHolds(t, "Allow", `{"StringNotEquals":{"test:Key":"a"}}`, contextOf(many("test:Key"))) {
 		t.Error("plain StringNotEquals on a multivalued key with no values = true, want false (IAM-EVAL-02)")

@@ -149,10 +149,8 @@ func (v *verifier) catalogue(data []byte) *policycatalogue.Catalogue {
 // (policydoc.ValidateIdentityForm). The rest of policydoc.ValidateIdentity
 // is not applied: it ports moto's CreatePolicy checks, which IAM applies to
 // a customer's upload, and AWS publishes its managed policies without that
-// call. Some of AWS's published documents break those checks (resources
-// naming IAM role templates, which the IAM resource path rule refuses), and
-// AWS is the arbiter of what its own documents hold (iam-evaluation.md
-// 10.6).
+// call, and AWS is the arbiter of what its own documents hold
+// (iam-evaluation.md 10.6).
 func (v *verifier) document(p policycatalogue.Policy) {
 	const name = awsmanagedpolicies.PoliciesFile
 	doc, perr := policydoc.Parse([]byte(p.Document))

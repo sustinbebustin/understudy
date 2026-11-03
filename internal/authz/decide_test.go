@@ -169,6 +169,20 @@ func TestDecideTrustPolicyDenyIsRoleTrust(t *testing.T) {
 	explicit(authz.RoleTrust, "").check(t, "trust policy deny", got.Decision)
 }
 
+// A Deny in both the caller's identity policy and the queue policy names
+// the resource-based policy (IAM-EVAL-21, recorded 2026-11-03,
+// testdata/parity/sqs/IAM-EVAL-21; iam-evaluation.md 12.4).
+func TestDecideExplicitDenyInBothNamesTheResourcePolicy(t *testing.T) {
+	const q = "arn:aws:sqs:us-east-1:111122223333:q"
+	deny := `{"Version":"2012-10-17","Statement":[{"Effect":"Deny","Principal":"*","Action":"sqs:*","Resource":"*"}]}`
+	s := sessionOf("111122223333", "none", "AROANONEEXAMPLE00001", "nn")
+	got := decide(t, s, "sqs:GetQueueAttributes", on(q, "111122223333"), nil, policySet{
+		resource: authz.Generic{Document: docOf(t, deny)},
+		identity: []authz.Policy{inlinePolicy(t, "deny", `{"Version":"2012-10-17","Statement":[{"Effect":"Deny","Action":"sqs:*","Resource":"*"}]}`)},
+	})
+	explicit(authz.ResourceBased, "").check(t, "a deny in both", got.Decision)
+}
+
 // The policy types as the denial grammar writes them (iam-evaluation.md
 // 2.11, recorded spellings; iam-enforcement-surfaces.md 4.1).
 func TestPolicyTypeStrings(t *testing.T) {
