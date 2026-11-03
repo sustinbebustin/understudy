@@ -279,7 +279,17 @@ A copy of a version under GOVERNANCE retention, or with a legal hold, has neithe
 
 - Doc-only. An object stays protected while its event hold is `ON`; releasing the hold fixes the retain-until date at release time plus the duration; a `RetainUntilDate` given alongside is a minimum; while the hold is on, reads return "current time plus the duration"; decreasing the duration never moves the date earlier ([lock](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock.html), "Retain-until-date behavior with variable retention"). Durations are 1 to 36,500 days or 1 to 100 years ([lock-config](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock-configure.html)). A bucket default can carry `DefaultEventHold` ([API_PutObjectLockConfiguration](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObjectLockConfiguration.html)).
 - Refusals are documented as "a `400 Bad Request` response" without codes: no mode; missing or duplicate duration; a duration with `OFF`; `OFF` with no date; a duration out of range ([lock-manage](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock-managing.html), "Request that sets an event hold is rejected").
-- UNVERIFIED (S3SOL-24): the codes and texts of those refusals. Not needed while understudy refuses event holds (11.1).
+- Recorded (S3SOL-24, recorded 2026-11-03; `testdata/parity/s3/S3SOL/24-*.json`), PutObjectRetention on an unprotected version of a lock bucket:
+
+| Body | Status, code | Message | Elements | Step |
+|---|---|---|---|---|
+| `Mode`, `EventHold=ON`, no duration | 400 `InvalidRequest` | EventHold:ON must be supplied with an EventHoldDuration. | | `24-no-duration` |
+| `EventHold=ON`, `Days=1`, no `Mode` | 400 `MalformedXML` | the 6.4 text | | `24-no-mode` |
+| `Days=1` and `Years=1` | 400 `MalformedXML` | the 6.4 text | | `24-both-units` |
+| `Days=36501` | 400 `InvalidArgument` | Event hold duration must be at most 36500 days. | `ArgumentName=Days`, `ArgumentValue=36501` | `24-over-range` |
+| `Mode=GOVERNANCE`, `EventHold=ON`, `Days=1` | 200, with `x-amz-version-id` | | | `24-ok` |
+
+- While the hold is on, GetObjectRetention returns `Mode`, `RetainUntilDate` (the read time plus the duration, with milliseconds), `EventHold=ON` and `EventHoldDuration{Days=1}` (`24-get`), and HEAD sends `x-amz-object-lock-event-hold: ON`, `x-amz-object-lock-event-hold-duration-days: 1` and a retain-until date that moves with the read time (`24-head`). `EventHold=OFF` with `Mode` and no date releases it, 200 with `x-amz-version-id` (`24-release`); GetObjectRetention then returns the release time plus one day, fixed, with `EventHold=OFF` and no duration (`24-get-released`). understudy still refuses event holds with 501 (11.1, 11.7); the model's PutObjectRetentionOutput has no member for the `x-amz-version-id` header, and whether a plain retention put sends it is unrecorded.
 
 ## 7. Deletes under Object Lock
 
@@ -551,7 +561,7 @@ recurl S3SOL/02-get-plain-http -H "x-amz-content-sha256: $E" "${C1[@]}" "http://
 recurl S3SOL/02-put-blocked-http -X PUT -H "x-amz-content-sha256: $U" "${C1[@]}" --data-binary @"$REC/body10" "http://$BB.s3.$R.amazonaws.com/h1"
 ```
 
-Expected: 400 `InvalidRequest` with the "secure connection" text on all four (hypothesis); the last shows HTTPS versus block order. Cost under USD 0.01, 2 minutes. Teardown: `aws s3api delete-object --bucket "$B" --key h1`.
+Expected: 400 `InvalidRequest` with the "secure connection" text on all four (hypothesis); the last shows HTTPS versus block order. Not run in the 2026-11-03 session: it sends credentials over plain HTTP, so it is opt-in, and 3.9 stays UNVERIFIED. Cost under USD 0.01, 2 minutes. Teardown: `aws s3api delete-object --bucket "$B" --key h1`.
 
 ### 12.4 S3SOL-03. SSE-C key without its MD5
 
@@ -888,4 +898,4 @@ pr release '{"Mode":"GOVERNANCE","EventHold":"OFF"}'
 rec S3SOL/24-get-released aws s3api get-object-retention --bucket "$L" --key e24
 ```
 
-Expected: four 400s (codes and texts to record), then the hold, its read forms, and the release fixing a date one day out. Cost under USD 0.01, 2 minutes. Teardown: the release step must succeed before 12.1 can delete `e24` with bypass.
+Expected: four 400s (codes and texts to record), then the hold, its read forms, and the release fixing a date one day out. Recorded 2026-11-03: as expected; the 400s are one `InvalidRequest`, two `MalformedXML` and one `InvalidArgument` (6.9). Cost under USD 0.01, 2 minutes. Teardown: the release step must succeed before 12.1 can delete `e24` with bypass.
