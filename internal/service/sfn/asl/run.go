@@ -90,6 +90,14 @@ func (s *stepper) startRun(st state, v visit, previous int64) {
 		details = document.Map{{Key: "length", Value: document.Number(strconv.Itoa(len(inputs)))}}
 	}
 	started := s.emit(b.kind+"StateStarted", previous, details)
+	if m, isMap := st.(mapState); isMap && m.itemSelector != nil {
+		// ItemSelector fails after MapStateStarted, the failure pointing at
+		// it (ASL-04, recorded 2026-11-03).
+		if inputs, f = s.selectItems(m, v, effective, inputs); f != nil {
+			s.runFailed(b, v, started, f, false)
+			return
+		}
+	}
 	s.x.lastRun++
 	s.x.runs = append(s.x.runs, run{id: s.x.lastRun, visit: v, inputs: inputs, results: make([]document.Value, len(inputs)), limit: limit})
 	i := len(s.x.runs) - 1
@@ -119,11 +127,9 @@ func (sc scope) branchInputs(st parallelState, effective document.Value) ([]docu
 	return inputs, nil
 }
 
-// iterationInputs are an inline Map's iteration inputs and how many run at
-// once (stepfunctions-asl.md 9.2): ItemsPath selects the items from the
-// effective input, and ItemSelector, when given, builds each iteration's
-// input from the effective input and $$.Map.Item {Index, Value}; otherwise
-// the item is the input.
+// iterationInputs are an inline Map's items and how many run at once
+// (stepfunctions-asl.md 9.2): ItemsPath selects the items from the
+// effective input. selectItems turns them into iteration inputs.
 func (s *stepper) iterationInputs(st mapState, v visit, effective document.Value) ([]document.Value, int, Failure) {
 	ctx := stateContext(s.x.context, v.state, v.enteredAt)
 	sc := scope{context: ctx, src: s.src, rules: s.rules}
@@ -142,24 +148,29 @@ func (s *stepper) iterationInputs(st mapState, v visit, effective document.Value
 		return nil, 0, Terminal{Name: errRuntime, Cause: "The ItemsPath field '" + st.itemsPath.String() +
 			"' selected " + text(got) + ", which is not an array"}
 	}
+	return slices.Clone(items), limit, nil
+}
+
+// selectItems applies the Map's ItemSelector to each of items: it builds
+// the iteration's input from the effective input and $$.Map.Item {Index,
+// Value} (stepfunctions-asl.md 9.2).
+func (s *stepper) selectItems(st mapState, v visit, effective document.Value, items []document.Value) ([]document.Value, Failure) {
+	ctx := stateContext(s.x.context, v.state, v.enteredAt)
 	inputs := make([]document.Value, len(items))
 	for i, item := range items {
-		inputs[i] = item
-		if st.itemSelector == nil {
-			continue
-		}
-		isc := sc
+		isc := scope{src: s.src, rules: s.rules}
 		isc.context = append(slices.Clone(ctx), document.Entry{Key: "Map", Value: document.Map{
 			{Key: "Item", Value: document.Map{
 				{Key: "Index", Value: document.Number(strconv.Itoa(i))},
 				{Key: "Value", Value: item},
 			}},
 		}})
+		var f Failure
 		if inputs[i], f = isc.render(st.itemSelector, effective); f != nil {
-			return nil, 0, f
+			return nil, f
 		}
 	}
-	return inputs, limit, nil
+	return inputs, nil
 }
 
 // mapLimit is how many iterations run at once: MaxConcurrency, or the

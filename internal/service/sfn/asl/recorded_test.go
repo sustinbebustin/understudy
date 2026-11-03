@@ -197,7 +197,8 @@ func TestASL13ConcurrentOrder(t *testing.T) {
 	m := newDriver(t, `{"StartAt":"M","States":{"M":{"Type":"Map","MaxConcurrency":0,"ItemProcessor":{"StartAt":"S","States":{"S":{"Type":"Pass","End":true}}},"End":true}}}`, rules())
 	m.start(`[1,2,3,4,5]`)
 	m.runToEnd(80)
-	want := []string{"ExecutionStarted 1<-0", "MapStateEntered 2<-0", "MapStateStarted 3<-2"}
+	want := make([]string, 0, 26)
+	want = append(want, "ExecutionStarted 1<-0", "MapStateEntered 2<-0", "MapStateStarted 3<-2")
 	for i := range 5 {
 		want = append(want, fmt.Sprintf("MapIterationStarted %d<-3", 4+i))
 	}
@@ -207,6 +208,37 @@ func TestASL13ConcurrentOrder(t *testing.T) {
 			fmt.Sprintf("MapIterationSucceeded %d<-%d", id+2, id+1))
 	}
 	m.wantShape("ASL-13 03-map-unbounded-history", append(want, "MapStateSucceeded 24<-23", "MapStateExited 25<-23", "ExecutionSucceeded 26<-25")...)
+}
+
+// A retried Parallel writes a new ParallelStateStarted pointing at the
+// failed attempt's last event, no ParallelStateFailed between attempts, and
+// after the last attempt ParallelStateFailed and the branch's own error
+// (ASL-10 01, recorded 2026-11-03).
+func TestASL10ParallelRetryEvents(t *testing.T) {
+	d := newDriver(t, `{"StartAt":"P","States":{"P":{"Type":"Parallel","Branches":[{"StartAt":"F","States":{"F":{"Type":"Fail","Error":"E1","Cause":"c"}}}],
+		"Retry":[{"ErrorEquals":["E1"],"IntervalSeconds":1,"BackoffRate":1.5,"MaxAttempts":4}],"End":true}}}`, rules())
+	d.start(`{}`)
+	failedWith(t, d.runToEnd(50), "E1", func(c string) bool { return c == "c" })
+	d.wantShape("ASL-10 01-fractional-history",
+		"ExecutionStarted 1<-0", "ParallelStateEntered 2<-0", "ParallelStateStarted 3<-2", "FailStateEntered 4<-3",
+		"ParallelStateStarted 5<-4", "FailStateEntered 6<-5", "ParallelStateStarted 7<-6", "FailStateEntered 8<-7",
+		"ParallelStateStarted 9<-8", "FailStateEntered 10<-9", "ParallelStateStarted 11<-10", "FailStateEntered 12<-11",
+		"ParallelStateFailed 13<-12", "ExecutionFailed 14<-13")
+}
+
+// A Map ItemSelector path that selects nothing fails the execution with
+// States.Runtime after MapStateStarted, pointing at it, with no
+// MapIterationStarted (ASL-04 02, recorded 2026-11-03). AWS quotes the
+// Map's input as sent, spaces kept; understudy quotes its compact text, a
+// coverage note of StartExecution.
+func TestASL04MapItemSelectorMissingPath(t *testing.T) {
+	d := newDriver(t, `{"StartAt":"M","States":{"M":{"Type":"Map","ItemsPath":"$.items","ItemSelector":{"v.$":"$.nope"},
+		"ItemProcessor":{"StartAt":"S","States":{"S":{"Type":"Succeed"}}},"End":true}}}`, rules())
+	d.start(`{"items": [1], "k": "v"}`)
+	failedWith(t, d.runToEnd(20), "States.Runtime", func(c string) bool {
+		return c == runtimePrefix("M", 2)+`The JSONPath '$.nope' specified for the field 'v.$' could not be found in the input '{"items":[1],"k":"v"}'`
+	})
+	d.wantShape("ASL-04 02-map-history", "ExecutionStarted 1<-0", "MapStateEntered 2<-0", "MapStateStarted 3<-2", "ExecutionFailed 4<-3")
 }
 
 // A Choice Variable that selects nothing fails the execution with an
