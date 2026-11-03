@@ -217,7 +217,7 @@ Recorded (SCH-01, 2026-11-03), for a create through the AWS CLI that omitted the
 
 - Constraint validation from the model runs first (cross-service rule, [error-matrix.md](error-matrix.md) section 4).
 - The expression is checked before the role: the AWS-validated invalid-expression cases name a role that does not exist (`arn:aws:iam::<account>:role/role-name`) and a function that does not exist, and all 17 answer the expression error (`test_scheduler.py:L96-L108`; snapshot L31-L302, validated 2025-01-26). Those cases also send `FLEXIBLE` with a 4-minute window and no `GroupName`.
-- Recorded order (SCH-04, 2026-11-03, requests with two faults each): Coral constraints, then the time zone, then the expression with its future-fire check and the group (their relative order not isolated), then the target service, then the role's trust. The zone beat `rate(10 seconds)` and a missing group; the group beat an untrusted role; the target beat the role; the future-fire check beat the role. The KMS key is never checked.
+- Recorded order (SCH-04, 2026-11-03, requests with two faults each): Coral constraints, then the time zone, then the expression with its future-fire check and the group (their relative order not isolated), then the target service, then the role's trust. The zone beat `rate(10 seconds)` and a missing group; the group beat an untrusted role; the target beat the role; the future-fire check beat the role. The KMS key is never checked. The group's place before the target service is inferred: each beat the role, but no recorded request paired a missing group with an unsupported target.
 
 ## 5. Schedule expressions and time
 

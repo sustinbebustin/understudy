@@ -158,8 +158,8 @@ type sqsTarget struct {
 }
 
 // snsTarget is an SNS topic, published to with the payload as its message
-// and no Subject (scheduler.md 6.4). UNVERIFIED (SCH-07): no Subject is
-// inferred.
+// and no Subject (scheduler.md 6.4; SCH-07 07-recv-sns-*, recorded
+// 2026-11-03: the envelope has no Subject key).
 type snsTarget struct{ topic aws.ARN }
 
 // busTarget is an EventBridge event bus in the schedule's Region, put to
@@ -240,8 +240,9 @@ func (atLoad) isAdmission()  {}
 // recorded with two faults per request (scheduler.md 4.7): the time zone,
 // then the expression, the flexible window, the dates and the future-fire
 // check (in either State) and the group, then the target; the role's
-// trust is checked after accept (authorizeWrite). Where the window falls
-// among them is inferred. The 501s for what is not built come last, so a
+// trust is checked after accept (authorizeWrite). Inferred: where the
+// window falls among them, and the group before the target, since no
+// recorded request paired a missing group with an unsupported target. The 501s for what is not built come last, so a
 // request AWS refuses is refused as AWS would. units is
 // scheduler.rate.unit-agreement.
 func accept(scope aws.Scope, m *members, units schedexpr.RateUnits, adm admission) (plan, *awserr.Error) {
