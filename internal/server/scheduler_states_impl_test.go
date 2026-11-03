@@ -46,8 +46,10 @@ func TestSchedulerStartsAStateMachineExecution(t *testing.T) {
 	if err := json.Unmarshal([]byte(w.body), &listed); err != nil || w.status != http.StatusOK {
 		t.Fatalf("ListExecutions = %d %s: %v", w.status, w.body, err)
 	}
-	if len(listed.Executions) != 1 || !regexp.MustCompile(`^[0-9a-f]{16}$`).MatchString(listed.Executions[0].Name) {
-		t.Fatalf("executions = %+v, want one named with 16 hex digits", listed.Executions)
+	// The name is the invocation's execution id, a UUID (SCH-07, recorded
+	// 2026-11-03; the name AWS gives is unrecorded, scheduler.md 6.4).
+	if len(listed.Executions) != 1 || !regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`).MatchString(listed.Executions[0].Name) {
+		t.Fatalf("executions = %+v, want one named with a UUID", listed.Executions)
 	}
 	w = sfnCall(t, dummy, endpoint, "DescribeExecution", `{"executionArn":"`+listed.Executions[0].ExecutionArn+`"}`)
 	var described struct{ Input string }

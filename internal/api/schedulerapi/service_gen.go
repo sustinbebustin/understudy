@@ -20,7 +20,7 @@ var service = registry.Service{
 	ARNNamespace:          "scheduler",
 	Protocols:             []ref.ProtocolID{ref.RESTJSON1},
 	MalformedRequestError: IdentitySerializationException(),
-	Denial:                registry.Denial{Identity: IdentityAccessDeniedException(), Label: "inferred"},
+	Denial:                registry.Denial{Identity: IdentityAccessDeniedException(), Label: "aws-recorded"},
 	NewErrorMembers:       NewErrorMembers,
 	GenericErrors:         GenericErrors,
 }

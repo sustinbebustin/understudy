@@ -152,6 +152,12 @@ func httpContentType(subscriptionPolicy, topicPolicy string) string {
 	return stringMember(mapMember(mapMember(m, "http"), "defaultRequestPolicy"), "headerContentType")
 }
 
+// httpContentTypeOf is httpContentType for sub, an http or https
+// subscription of t.
+func httpContentTypeOf(sub *Subscription, t *Topic) string {
+	return httpContentType(sub.Attributes[attrDeliveryPolicy], t.Attributes[attrDeliveryPolicy])
+}
+
 // httpPolicyOf is the retry policy of a delivery to sub, an http or https
 // subscription of t.
 func httpPolicyOf(sub *Subscription, t *Topic) delivery.SNSHTTP {
@@ -163,8 +169,8 @@ func httpPolicyOf(sub *Subscription, t *Topic) delivery.SNSHTTP {
 // endpoint, due at now (sns-http-delivery.md 2.2, 4.3, 8.6): signed with
 // the scope's key at the topic's SignatureVersion, its SubscribeURL the
 // confirm link of token on l. Under sns.http.control-dlq it never goes to
-// the RedrivePolicy queue, and under sns.http.control-content-type it is
-// text/plain whatever requestPolicy says.
+// the RedrivePolicy queue, and under sns.http.control-content-type its
+// Content-Type is requestPolicy's, as a notification's is.
 func (s *Service) httpConfirmation(st *State, ref topicRef, t *Topic, sub *Subscription, token string, l links, now clock.Instant) (delivery.Request, *awserr.Error) {
 	to, bad := httpEndpointOf(sub)
 	if bad != nil {
@@ -184,7 +190,9 @@ func (s *Service) httpConfirmation(st *State, ref topicRef, t *Topic, sub *Subsc
 		Source: ref.arn(), Mechanism: delivery.SNSToHTTP, Policy: httpPolicyOf(sub, t),
 		Target: delivery.HTTPEndpoint{
 			URL: to.url, Kind: delivery.HTTPSubscriptionConfirmation, Body: body,
-			Headers: envelope.HTTPHeaders(envelope.SubscriptionConfirmationPost{MessageID: c.MessageID, TopicARN: c.TopicARN}, to.url.User),
+			Headers: envelope.HTTPHeaders(envelope.SubscriptionConfirmationPost{
+				MessageID: c.MessageID, TopicARN: c.TopicARN, ContentType: httpContentTypeOf(sub, t),
+			}, to.url.User),
 		},
 	}, nil
 }
@@ -239,44 +247,59 @@ func (s *Service) unsubscribeConfirmation(st *State, ref subscriptionRef, t *Top
 		Source: ref.topic.arn(), Mechanism: delivery.SNSToHTTP, Policy: httpPolicyOf(sub, t),
 		Target: delivery.HTTPEndpoint{
 			URL: to.url, Kind: delivery.HTTPUnsubscribeConfirmation, Body: body,
-			Headers: envelope.HTTPHeaders(envelope.UnsubscribeConfirmationPost{MessageID: u.MessageID, TopicARN: topicARN, SubscriptionARN: u.SubscriptionARN}, to.url.User),
+			Headers: envelope.HTTPHeaders(envelope.UnsubscribeConfirmationPost{
+				MessageID: u.MessageID, TopicARN: topicARN, SubscriptionARN: u.SubscriptionARN, ContentType: httpContentTypeOf(sub, t),
+			}, to.url.User),
 		},
 	}, nil
 }
 
 // httpSwitches are the behaviors of http and https delivery chosen without
-// AWS-recorded evidence (sns-http-delivery.md 8.4).
+// AWS-recorded evidence, and those SNSH has since recorded
+// (sns-http-delivery.md 8.4). A recorded switch whose value AWS
+// contradicted keeps the inferred label and says so in its reason.
 func httpSwitches() []fidelity.Switch[string] {
 	all := []string{"sns.Subscribe", "sns.Publish", "sns.PublishBatch", "sns.UnsubscribeLink"}
 	control := []string{"sns.Subscribe", "sns.UnsubscribeLink"}
 	return []fidelity.Switch[string]{
-		httpSwitch("sns.http.status-classes", "retries-doc", "61-response-classes", "SNSH-05, SNSH-24", all),
-		httpSwitch("sns.http.redirects", "not-followed", "31-method-url-and-connection", "SNSH-06", all),
-		httpSwitch("sns.http.retry-body", "identical", "46-field-values", "SNSH-07", all),
-		httpSwitch("sns.http.dlq-body", "as-sqs", "65-dead-letter-queue", "SNSH-08", publishOps()),
-		httpSwitch("sns.http.backoff-curves", "linear-for-all", "63-retry-schedule", "SNSH-09", all),
-		httpSwitch("sns.http.retry-jitter", "none", "63-retry-schedule", "SNSH-10", all),
-		httpSwitch("sns.http.pending-messages", "dropped", "22-the-confirmation-post-and-the-pending-period", "SNSH-11", publishOps()),
-		httpSwitch("sns.http.resubscribe-pending", "resend-same-token", "22-the-confirmation-post-and-the-pending-period", "SNSH-12", []string{"sns.Subscribe"}),
-		httpSwitch("sns.http.unsubscribe-confirmation", "unauthenticated-only", "24-unsubscribing-and-the-unsubscribeconfirmation", "SNSH-15",
-			[]string{"sns.Unsubscribe", "sns.UnsubscribeLink"}),
-		httpSwitch("sns.http.control-dlq", "never", "65-dead-letter-queue", "SNSH-17", control),
-		httpSwitch("sns.http.control-content-type", "text-plain", "33-content-type", "SNSH-03", control),
-		httpSwitch("sns.http.basic-auth", "preemptive", "31-method-url-and-connection", "SNSH-22", all),
+		httpSwitch("sns.http.status-classes", "retries-doc", evidence.Inferred, "61-response-classes", "SNSH-05, SNSH-24",
+			"recorded in SNSH-05 (2026-11-03): AWS counts 3xx and 4xx other than 429 as delivered, which understudy does not yet; SNSH-24 is unrecorded", all),
+		httpSwitch("sns.http.redirects", "not-followed", evidence.AWSRecorded, "31-method-url-and-connection", "SNSH-06", unreplayed("SNSH-06"), all),
+		httpSwitch("sns.http.retry-body", "identical", evidence.AWSRecorded, "46-field-values", "SNSH-07", unreplayed("SNSH-07"), all),
+		httpSwitch("sns.http.dlq-body", "as-sqs", evidence.AWSRecorded, "65-dead-letter-queue", "SNSH-08", unreplayed("SNSH-08"), publishOps()),
+		httpSwitch("sns.http.backoff-curves", "linear-for-all", evidence.Inferred, "63-retry-schedule", "SNSH-09",
+			"recorded in SNSH-09 (2026-11-03): linear matches, and AWS's arithmetic, geometric and exponential curves differ, which understudy does not model yet", all),
+		httpSwitch("sns.http.retry-jitter", "none", evidence.AWSRecorded, "63-retry-schedule", "SNSH-10", unreplayed("SNSH-10"), all),
+		httpSwitch("sns.http.pending-messages", "dropped", evidence.AWSRecorded, "22-the-confirmation-post-and-the-pending-period", "SNSH-11", unreplayed("SNSH-11"), publishOps()),
+		httpSwitch("sns.http.resubscribe-pending", "resend-same-token", evidence.Inferred, "22-the-confirmation-post-and-the-pending-period", "SNSH-12",
+			"recorded in SNSH-12 (2026-11-03): AWS sends a new token and the first stays valid, which understudy does not yet", []string{"sns.Subscribe"}),
+		httpSwitch("sns.http.unsubscribe-confirmation", "unauthenticated-only", evidence.AWSRecorded, "24-unsubscribing-and-the-unsubscribeconfirmation", "SNSH-15",
+			unreplayed("SNSH-15"), []string{"sns.Unsubscribe", "sns.UnsubscribeLink"}),
+		httpSwitch("sns.http.control-dlq", "never", evidence.AWSRecorded, "65-dead-letter-queue", "SNSH-17", unreplayed("SNSH-17"), control),
+		httpSwitch("sns.http.control-content-type", "as-request-policy", evidence.AWSRecorded, "33-content-type", "SNSH-03", unreplayed("SNSH-03"), control),
+		httpSwitch("sns.http.basic-auth", "preemptive", evidence.Inferred, "31-method-url-and-connection", "SNSH-22",
+			"recorded in SNSH-22 (2026-11-03): no Authorization header reached the endpoint, which may be the function URL's doing, so the value stays inferred", all),
 	}
 }
 
-// httpSwitch is one switch of sns-http-delivery.md 8.4: inferred, its
-// grounds the section anchor names, settled by the recording queue items
-// in record (9.1), which no scenario replays yet.
-func httpSwitch(name, value, anchor, record string, ops []string) fidelity.Switch[string] {
+// unreplayed is the reason a recorded SNSH switch has no scenario: its
+// evidence is what reached an HTTP endpoint, which the replayer does not
+// observe.
+func unreplayed(item string) string {
+	return "recorded in " + item + " (2026-11-03) at an HTTP endpoint, which the replayer does not observe"
+}
+
+// httpSwitch is one switch of sns-http-delivery.md 8.4, its grounds the
+// section anchor names, settled by the recording queue items in record
+// (9.1), which no scenario replays: reason says why.
+func httpSwitch(name, value string, label evidence.Label, anchor, record, reason string, ops []string) fidelity.Switch[string] {
 	return fidelity.Switch[string]{
 		Name:    name,
 		Value:   value,
-		Label:   evidence.Inferred,
+		Label:   label,
 		Ref:     "docs/research/sns-http-delivery.md#" + anchor,
 		Record:  record,
 		Ops:     ops,
-		Settles: fidelity.NoScenario{Reason: "unrecorded: the sns-http-delivery.md recording queue holds " + record},
+		Settles: fidelity.NoScenario{Reason: reason},
 	}
 }

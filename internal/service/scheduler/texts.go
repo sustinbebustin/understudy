@@ -21,57 +21,80 @@ func errInvalidExpression(err *schedexpr.Error) *awserr.Error {
 	return schedulerapi.ErrValidationException(err.Message())
 }
 
-// futureFireDateLayout renders a present StartDate or EndDate in the
-// future-fire text. UNVERIFIED (SCH-03), scheduler.md 14.3.6: only the
-// absent rendering, null, is captured.
-const futureFireDateLayout = time.RFC3339
-
 // errNoFutureFire answers a cron or rate schedule with no fire in
 // [max(now, StartDate), EndDate): "The schedule expression <expr>, with
-// StartDate <s> and EndDate <e>, is invalid.", null for an absent date.
-// Captured (qiita.com/taskforce_Hisui, 2022-12-02; scheduler.md 2.4).
+// StartDate <s> and EndDate <e>, is invalid because it will never schedule
+// an invocation.", each date as localDateTime renders it and null when
+// absent (SCH-03 03-e24, 03-past-cron-enabled, 03-past-cron-dates,
+// recorded 2026-11-03; scheduler.md 2.4).
 func errNoFutureFire(expr string, start, end *time.Time) *awserr.Error {
 	render := func(d *time.Time) string {
 		if d == nil {
 			return "null"
 		}
-		return d.UTC().Format(futureFireDateLayout)
+		return localDateTime(*d)
 	}
 	return schedulerapi.ErrValidationException("The schedule expression " + expr + ", with StartDate " + render(start) +
-		" and EndDate " + render(end) + ", is invalid.")
+		" and EndDate " + render(end) + ", is invalid because it will never schedule an invocation.")
+}
+
+// localDateTime renders t in UTC without a zone, as Java's
+// LocalDateTime.toString does: yyyy-MM-ddTHH:mm, then :ss unless the
+// seconds and fraction are zero, then the milliseconds unless they are
+// zero. AWS rendered "2020-01-01T00:00" and "2026-11-03T16:37:19.612"
+// (SCH-03, recorded 2026-11-03; scheduler.md 2.4); the seconds-only form
+// and the cut below the millisecond are inferred from that rule, since
+// dates reach Scheduler with millisecond precision.
+func localDateTime(t time.Time) string {
+	t = t.UTC().Truncate(time.Millisecond)
+	switch {
+	case t.Nanosecond() != 0:
+		return t.Format("2006-01-02T15:04:05.000")
+	case t.Second() != 0:
+		return t.Format("2006-01-02T15:04:05")
+	}
+	return t.Format("2006-01-02T15:04")
 }
 
 // errBadZone answers a ScheduleExpressionTimezone the IANA database does
-// not name. UNVERIFIED (SCH-04), scheduler.md 5.4: the text is inferred.
+// not name: "Invalid timezone <name>." (SCH-04 04-bad-timezone, recorded
+// 2026-11-03; scheduler.md 2.4).
 func errBadZone(name string) *awserr.Error {
-	return schedulerapi.ErrValidationException("Invalid ScheduleExpressionTimezone " + name + ": not a time zone of the IANA Time Zone Database.")
+	return schedulerapi.ErrValidationException("Invalid timezone " + name + ".")
 }
 
-// errFlexibleWithoutWindow answers FLEXIBLE without MaximumWindowInMinutes.
-// UNVERIFIED (SCH-04), scheduler.md 5.6: the text is inferred.
+// errFlexibleWithoutWindow answers FLEXIBLE without MaximumWindowInMinutes
+// (SCH-04 04-flexible-no-window, recorded 2026-11-03; scheduler.md 2.4).
 func errFlexibleWithoutWindow() *awserr.Error {
-	return schedulerapi.ErrValidationException("FlexibleTimeWindow MaximumWindowInMinutes is required when Mode is FLEXIBLE.")
+	return schedulerapi.ErrValidationException("MaximumWindowInMinutes must be provided when FlexibleTimeWindowMode is set to FLEXIBLE.")
 }
 
-// errEndNotAfterStart answers an EndDate at or before StartDate.
-// UNVERIFIED (SCH-04), scheduler.md 5.5: the text is inferred.
-func errEndNotAfterStart(start, end time.Time) *awserr.Error {
-	return schedulerapi.ErrValidationException("EndDate " + end.UTC().Format(futureFireDateLayout) +
-		" must be after StartDate " + start.UTC().Format(futureFireDateLayout) + ".")
+// errOffWithWindow answers OFF with MaximumWindowInMinutes (SCH-04
+// 04-off-with-window, recorded 2026-11-03; scheduler.md 2.4).
+func errOffWithWindow() *awserr.Error {
+	return schedulerapi.ErrValidationException("MaximumWindowInMinutes must not be provided when FlexibleTimeWindowMode is set to OFF.")
 }
 
-// errScheduleMissing answers a schedule the group does not hold.
-// UNVERIFIED (SCH-02), scheduler.md 2.4: the code and status are the
-// model's, the text is inferred.
-func errScheduleMissing(group, name string) *awserr.Error {
-	return schedulerapi.ErrResourceNotFoundException("Schedule " + group + "/" + name + " does not exist.")
+// errEndNotAfterStart answers an EndDate at or before StartDate, or before
+// the request instant when no StartDate is sent (SCH-04
+// 04-end-before-start, SCH-03 03-past-rate-end, recorded 2026-11-03;
+// scheduler.md 2.4, 5.5).
+func errEndNotAfterStart() *awserr.Error {
+	return schedulerapi.ErrValidationException("The StartDate you specify must come before the EndDate.")
 }
 
-// errScheduleExists answers CreateSchedule of a name the group holds.
-// UNVERIFIED (SCH-02), scheduler.md 2.4: the code and status are the
-// model's, the text is inferred.
-func errScheduleExists(group, name string) *awserr.Error {
-	return schedulerapi.ErrConflictException("Schedule " + group + "/" + name + " already exists.")
+// errScheduleMissing answers a schedule the group does not hold:
+// "Schedule <name> does not exist.", the group not named (SCH-02,
+// recorded 2026-11-03; scheduler.md 2.4).
+func errScheduleMissing(name string) *awserr.Error {
+	return schedulerapi.ErrResourceNotFoundException("Schedule " + name + " does not exist.")
+}
+
+// errScheduleExists answers CreateSchedule of a name the group holds,
+// whatever its ClientToken: "Schedule <name> already exists." (SCH-02,
+// recorded 2026-11-03; scheduler.md 2.4).
+func errScheduleExists(name string) *awserr.Error {
+	return schedulerapi.ErrConflictException("Schedule " + name + " already exists.")
 }
 
 // errGroupMissing answers a schedule group the scope does not hold:
@@ -81,26 +104,17 @@ func errGroupMissing(name string) *awserr.Error {
 	return schedulerapi.ErrResourceNotFoundException("Schedule group " + name + " does not exist.")
 }
 
-// errGroupExists answers CreateScheduleGroup of a name the scope holds.
-// UNVERIFIED (SCH-06), scheduler.md 3.2: the code is plausible, the text
-// inferred.
+// errGroupExists answers CreateScheduleGroup of a name the scope holds
+// (SCH-06 06-create-dup, recorded 2026-11-03; scheduler.md 3.2).
 func errGroupExists(name string) *awserr.Error {
 	return schedulerapi.ErrConflictException("Schedule group " + name + " already exists.")
 }
 
-// errCreateDefaultGroup answers CreateScheduleGroup of default, which
-// every account has. UNVERIFIED (SCH-06), scheduler.md 3.1, 14.7.1: the
-// code and text are inferred.
-func errCreateDefaultGroup() *awserr.Error {
-	return schedulerapi.ErrConflictException("Schedule group default already exists: every account has it, and it cannot be created or deleted.")
-}
-
-// errDeleteDefaultGroup answers DeleteScheduleGroup of default ("You
-// can't delete, or edit, the default group", aws-doc console text).
-// UNVERIFIED (SCH-06), scheduler.md 3.1, 14.7.1: the API's code and text
-// are inferred.
-func errDeleteDefaultGroup() *awserr.Error {
-	return schedulerapi.ErrValidationException("The default schedule group cannot be deleted; delete its schedules with DeleteSchedule instead.")
+// errDefaultGroup answers CreateScheduleGroup and DeleteScheduleGroup of
+// default (SCH-06 06-create-default, 06-delete-default, recorded
+// 2026-11-03; scheduler.md 3.1).
+func errDefaultGroup() *awserr.Error {
+	return schedulerapi.ErrValidationException("This operation cannot be performed on schedule group default.")
 }
 
 // errGroupQuota answers a CreateScheduleGroup past maxGroups
@@ -133,14 +147,36 @@ func errNotRole(roleArn string) *awserr.Error {
 	return schedulerapi.ErrValidationException("Target.RoleArn " + roleArn + " is not an IAM role ARN, arn:<partition>:iam::<account>:role/<name>.")
 }
 
-// errUnsupportedService answers a Target.Arn of a service with no
-// templated target: "Invalid request provided: <service> is not a
-// supported service for a target" (aws-doc troubleshooting; scheduler.md
-// 2.4, 6.1, 14.4.1). UNVERIFIED (SCH-04, 04-unsupported-service): the
-// code, the timing (at create) and the punctuation are inferred; the text
-// is as the doc quotes it, with no trailing period.
+// errUnsupportedService answers, at create, a Target.Arn of a service
+// with no templated target: "<service> is not a supported service for a
+// target." (SCH-04 04-unsupported-service, recorded 2026-11-03; the
+// troubleshooting page's "Invalid request provided: " prefix is not sent;
+// scheduler.md 2.4, 6.1).
 func errUnsupportedService(service string) *awserr.Error {
-	return schedulerapi.ErrValidationException("Invalid request provided: " + service + " is not a supported service for a target")
+	return schedulerapi.ErrValidationException(service + " is not a supported service for a target.")
+}
+
+// errParametersNotSupported answers a parameter block that does not match
+// the target: "Parameters <block> not supported for the target." (SCH-04
+// 04-sqs-params-on-lambda, recorded 2026-11-03 for SqsParameters on a
+// Lambda target; scheduler.md 6.1). The other blocks and targets are
+// inferred to answer alike.
+func errParametersNotSupported(block string) *awserr.Error {
+	return schedulerapi.ErrValidationException("Parameters " + block + " not supported for the target.")
+}
+
+// errInputNotJSON answers a Lambda, Step Functions or event bus target
+// whose Input is not well-formed JSON, line and column (1-based) being
+// where the decoder stopped: "JSON syntax error in input for the target:
+// [Source: REDACTED (`StreamReadFeature.INCLUDE_SOURCE_IN_LOCATION`
+// disabled); line: 1, column: 1]" (SCH-04 04-lambda-not-json, recorded
+// 2026-11-03 for "not json" on a Lambda target; scheduler.md 6.3). The
+// Step Functions and event bus refusals follow aws-doc API_Target's "must
+// be a well-formed JSON"; their text and Jackson's column for an error
+// past the first character are inferred.
+func errInputNotJSON(line, column int) *awserr.Error {
+	return schedulerapi.ErrValidationException(fmt.Sprintf("JSON syntax error in input for the target: [Source: REDACTED "+
+		"(`StreamReadFeature.INCLUDE_SOURCE_IN_LOCATION` disabled); line: %d, column: %d]", line, column))
 }
 
 // errNotTargetARN answers a Target.Arn that is not an ARN at all.
@@ -173,11 +209,10 @@ func errBusWithoutParameters(arn string) *awserr.Error {
 	return schedulerapi.ErrValidationException("Target.EventBridgeParameters is required for the event bus target " + arn + ": it names the event's Source and DetailType.")
 }
 
-// errInputTooLarge answers an Input over maxInputBytes (aws-doc
-// API_Target: "The maximum size of the Input field is 256 KB";
-// scheduler.md 6.3). UNVERIFIED (SCH-04): the text is inferred.
-func errInputTooLarge(n int) *awserr.Error {
-	return schedulerapi.ErrValidationException(fmt.Sprintf("Target.Input is %d bytes; the maximum is %d bytes (256 KB).", n, maxInputBytes))
+// errInputTooLarge answers an Input over maxInputBytes (SCH-04
+// 04-input-too-big, recorded 2026-11-03; scheduler.md 6.3).
+func errInputTooLarge() *awserr.Error {
+	return schedulerapi.ErrValidationException(fmt.Sprintf("The input size for the target cannot exceed %d bytes.", maxInputBytes))
 }
 
 // errTargetNotImplemented answers a target understudy does not invoke,

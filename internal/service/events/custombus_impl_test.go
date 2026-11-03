@@ -51,33 +51,39 @@ func TestRuleAndTargetCallsOnAMissingBus(t *testing.T) {
 	})
 }
 
-// PutRule refuses a ScheduleExpression on a bus whose name is not default
-// before anything else (eventbridge-buses.md 10.3.7): before it parses the
-// expression or compiles the pattern, an order that is inferred (EBB-03),
-// and before it resolves the bus, so another account's custom bus named by
-// ARN gets the same answer. Another account's default bus passes that check
-// and is then not one understudy manages for the caller (eventbridge-buses.md
-// 10.1, the PutRule note). A pattern rule on a missing bus has its pattern
-// checked before the bus is looked up.
+// PutRule looks a custom bus up before it refuses a ScheduleExpression on it
+// (aws-recorded EBB-03, eventbridge-buses.md 5.3), and refuses the schedule
+// before it parses the expression or compiles a pattern beside it, an order
+// that is inferred. Another account's bus is not one understudy manages for
+// the caller (eventbridge-buses.md 10.1, the PutRule note). A pattern rule
+// on a missing bus has its pattern checked before the bus is looked up.
 func TestPutRuleCheckOrder(t *testing.T) {
 	run(t, func(h *harness) {
 		const shared = "arn:aws:events:us-east-1:111111111111:event-bus/shared"
+		h.createBus("orders")
 		for _, in := range []eventbridgeapi.PutRuleInput{
 			{Name: "r", EventBusName: new("never-created"), ScheduleExpression: new("rate(1 minutes)")},
 			{Name: "r", EventBusName: new("never-created"), ScheduleExpression: new("rate(5 minutes)"), EventPattern: new(`{"source": "s"}`)},
-			{Name: "r", EventBusName: new(shared), ScheduleExpression: new("rate(5 minutes)")},
+		} {
+			_, err := call(h, eventbridgeapi.OpPutRule, &in)
+			wantError(t, err, "ResourceNotFoundException", "Event bus never-created does not exist.")
+		}
+		for _, in := range []eventbridgeapi.PutRuleInput{
+			{Name: "r", EventBusName: new("orders"), ScheduleExpression: new("rate(1 minutes)")},
+			{Name: "r", EventBusName: new("orders"), ScheduleExpression: new("rate(5 minutes)"), EventPattern: new(`{"source": "s"}`)},
 		} {
 			_, err := call(h, eventbridgeapi.OpPutRule, &in)
 			wantError(t, err, "ValidationException", "ScheduleExpression is supported only on the default event bus.")
 		}
 
-		const theirDefault = "arn:aws:events:us-east-1:111111111111:event-bus/default"
-		_, err := call(h, eventbridgeapi.OpPutRule, &eventbridgeapi.PutRuleInput{Name: "r", EventBusName: new(theirDefault), ScheduleExpression: new("rate(5 minutes)")})
-		wantError(t, err, "NotImplemented", "understudy manages rules, targets and buses only on the caller's own event buses, and "+theirDefault+
-			" belongs to account 111111111111 in us-east-1. Call with that account's credentials in that region. "+
-			"Run 'understudy coverage --service eventbridge' for what is supported.")
+		for _, bus := range []string{shared, "arn:aws:events:us-east-1:111111111111:event-bus/default"} {
+			_, err := call(h, eventbridgeapi.OpPutRule, &eventbridgeapi.PutRuleInput{Name: "r", EventBusName: new(bus), ScheduleExpression: new("rate(5 minutes)")})
+			wantError(t, err, "NotImplemented", "understudy manages rules, targets and buses only on the caller's own event buses, and "+bus+
+				" belongs to account 111111111111 in us-east-1. Call with that account's credentials in that region. "+
+				"Run 'understudy coverage --service eventbridge' for what is supported.")
+		}
 
-		_, err = call(h, eventbridgeapi.OpPutRule, &eventbridgeapi.PutRuleInput{Name: "r", EventBusName: new("never-created"), EventPattern: new(`{"source": "s"}`)})
+		_, err := call(h, eventbridgeapi.OpPutRule, &eventbridgeapi.PutRuleInput{Name: "r", EventBusName: new("never-created"), EventPattern: new(`{"source": "s"}`)})
 		wantError(t, err, "InvalidEventPatternException", `Event pattern is not valid. Reason: "source" must be an object or an array`)
 	})
 }

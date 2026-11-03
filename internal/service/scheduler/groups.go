@@ -15,8 +15,9 @@ import (
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
-// scheduleGroup is one schedule group: its tags in insertion order and its
-// creation and last modification instants. A group is ACTIVE from the
+// scheduleGroup is one schedule group: its tags sorted by key and its
+// creation and last modification instants (default reports none). A
+// group is ACTIVE from the
 // write that creates it to the write that deletes it, so it stores no
 // state (scheduler.md 14.2.2, 14.7).
 type scheduleGroup struct {
@@ -52,17 +53,13 @@ func (s *State) hasGroup(name string) bool {
 	return ok || name == defaultGroup
 }
 
-// group returns the group name, or the default group dated origin until a
-// write materializes it (14.2.2); false for a group the scope does not
-// hold.
-func (s *State) group(name string, origin clock.Instant) (scheduleGroup, bool) {
+// group returns the group name, or the default group until a tag write
+// materializes it (14.2.2); false for a group the scope does not hold.
+func (s *State) group(name string) (scheduleGroup, bool) {
 	if g, ok := s.Groups[name]; ok {
 		return g, true
 	}
-	if name != defaultGroup {
-		return scheduleGroup{}, false
-	}
-	return scheduleGroup{Created: origin, Modified: origin}, true
+	return scheduleGroup{}, name == defaultGroup
 }
 
 // groupView is a group as GetScheduleGroup and ListScheduleGroups read it.
@@ -74,12 +71,10 @@ type groupView struct {
 // readGroups returns the scope's groups, the default group included
 // whether or not a write materialized it, filtered by keep.
 func (s *Service) readGroups(c *kernel.Call, keep func(name string) bool) []groupView {
-	origin := s.origin(c.Scope())
 	st := func(st *State) []groupView {
 		var out []groupView
 		if _, stored := st.Groups[defaultGroup]; !stored && keep(defaultGroup) {
-			g, _ := st.group(defaultGroup, origin)
-			out = append(out, groupView{name: defaultGroup, g: g})
+			out = append(out, groupView{name: defaultGroup})
 		}
 		for _, name := range slices.Sorted(maps.Keys(st.Groups)) {
 			if keep(name) {
@@ -96,13 +91,13 @@ func (s *Service) readGroups(c *kernel.Call, keep func(name string) bool) []grou
 }
 
 // createScheduleGroup creates an ACTIVE group with its tags, which
-// GetScheduleGroup reads at once (scheduler.md 3.2, 14.7.2). default and a
-// held name answer ConflictException, and past maxGroups
-// ServiceQuotaExceededException (14.7.1, 14.7.5). ClientToken is accepted
-// and not used for idempotency (SCH-02).
+// GetScheduleGroup reads at once (scheduler.md 3.2, 14.7.2). default
+// answers ValidationException (3.1), a held name ConflictException (3.2),
+// and past maxGroups ServiceQuotaExceededException (14.7.5). ClientToken
+// is accepted and not used for idempotency (SCH-02).
 func (s *Service) createScheduleGroup(_ context.Context, c *kernel.Call, in *schedulerapi.CreateScheduleGroupInput) (*schedulerapi.CreateScheduleGroupOutput, *awserr.Error) {
 	if in.Name == defaultGroup {
-		return nil, errCreateDefaultGroup()
+		return nil, errDefaultGroup()
 	}
 	_, err := kernel.Write(c, s.cells, c.Scope(), func(st *State, now clock.Instant, _ *kernel.Tx) (struct{}, *awserr.Error) {
 		if st.hasGroup(in.Name) {
@@ -125,8 +120,9 @@ func (s *Service) createScheduleGroup(_ context.Context, c *kernel.Call, in *sch
 }
 
 // getScheduleGroup reads a group: its ARN, name, ACTIVE and dates
-// (scheduler.md 3.2). A group the scope does not hold answers "Schedule
-// group <name> does not exist." (aws-doc, 2.4).
+// (scheduler.md 3.2); default reads with no ARN and no dates (SCH-06
+// 06-get-default, recorded 2026-11-03; 3.1). A group the scope does not
+// hold answers "Schedule group <name> does not exist." (aws-doc, 2.4).
 func (s *Service) getScheduleGroup(_ context.Context, c *kernel.Call, in *schedulerapi.GetScheduleGroupInput) (*schedulerapi.GetScheduleGroupOutput, *awserr.Error) {
 	views := s.readGroups(c, func(name string) bool { return name == in.Name })
 	if len(views) == 0 {
@@ -134,9 +130,13 @@ func (s *Service) getScheduleGroup(_ context.Context, c *kernel.Call, in *schedu
 	}
 	v := groupSummary(c, views[0])
 	c.Touch(groupARN(c.Scope(), in.Name))
-	return &schedulerapi.GetScheduleGroupOutput{
+	out := &schedulerapi.GetScheduleGroupOutput{
 		Arn: v.Arn, Name: v.Name, State: v.State, CreationDate: v.CreationDate, LastModificationDate: v.LastModificationDate,
-	}, nil
+	}
+	if in.Name == defaultGroup {
+		out.Arn = nil
+	}
+	return out, nil
 }
 
 // listScheduleGroups lists the scope's groups by NamePrefix, a page at a
@@ -171,24 +171,29 @@ func groupKey(g schedulerapi.ScheduleGroupSummary) string {
 	return *g.Name
 }
 
-// groupSummary is a group's read shape.
+// groupSummary is a group's read shape; default has no dates (SCH-06
+// 06-list, recorded 2026-11-03; scheduler.md 3.1).
 func groupSummary(c *kernel.Call, v groupView) schedulerapi.ScheduleGroupSummary {
 	arn := groupARN(c.Scope(), v.name).String()
 	name := v.name
 	state := schedulerapi.ScheduleGroupStateActive
-	created, modified := v.g.Created.Wire(), v.g.Modified.Wire()
-	return schedulerapi.ScheduleGroupSummary{Arn: &arn, Name: &name, State: &state, CreationDate: &created, LastModificationDate: &modified}
+	out := schedulerapi.ScheduleGroupSummary{Arn: &arn, Name: &name, State: &state}
+	if v.name != defaultGroup {
+		created, modified := v.g.Created.Wire(), v.g.Modified.Wire()
+		out.CreationDate, out.LastModificationDate = &created, &modified
+	}
+	return out
 }
 
 // deleteScheduleGroup deletes a group, its tags and every schedule in it,
 // disarming their fires, in one write, and journals each schedule's
 // deletion; the group is gone when the call returns, so DELETING is never
 // reported (scheduler.md 3.3, 14.7.3; ARCHITECTURE.md 9). default answers
-// ValidationException (14.7.1). ClientToken is accepted and not used for
+// ValidationException (3.1). ClientToken is accepted and not used for
 // idempotency (SCH-02).
 func (s *Service) deleteScheduleGroup(ctx context.Context, c *kernel.Call, in *schedulerapi.DeleteScheduleGroupInput) (*schedulerapi.DeleteScheduleGroupOutput, *awserr.Error) {
 	if in.Name == defaultGroup {
-		return nil, errDeleteDefaultGroup()
+		return nil, errDefaultGroup()
 	}
 	if err := s.authorizeMembers(ctx, c, in.Name); err != nil {
 		return nil, err
@@ -244,9 +249,8 @@ func (s *Service) retag(c *kernel.Call, resource string, change func([]groupTag)
 	if !inScope {
 		return errGroupMissing(name)
 	}
-	origin := s.origin(c.Scope())
 	_, err := kernel.Write(c, s.cells, c.Scope(), func(st *State, _ clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
-		g, ok := st.group(name, origin)
+		g, ok := st.group(name)
 		if !ok {
 			return struct{}{}, errGroupMissing(name)
 		}
@@ -277,9 +281,9 @@ func (s *Service) listTagsForResource(_ context.Context, c *kernel.Call, in *sch
 	return out, nil
 }
 
-// upsertTags returns tags with each of add set: a held key keeps its
-// place with the new value, a new key goes last. UNVERIFIED (SCH-06),
-// scheduler.md 3.4, 14.8: AWS's order is unrecorded.
+// upsertTags returns tags with each of add set, sorted by key, as
+// ListTagsForResource lists them (SCH-06 06-tags, 06-tags-2, recorded
+// 2026-11-03; scheduler.md 3.4).
 func upsertTags(tags []groupTag, add []schedulerapi.Tag) []groupTag {
 	out := slices.Clone(tags)
 	for _, t := range add {
@@ -289,5 +293,6 @@ func upsertTags(tags []groupTag, add []schedulerapi.Tag) []groupTag {
 		}
 		out = append(out, groupTag{Key: t.Key, Value: t.Value})
 	}
+	slices.SortFunc(out, func(a, b groupTag) int { return strings.Compare(a.Key, b.Key) })
 	return out
 }

@@ -225,19 +225,24 @@ func parseRuleARN(s string) (ruleRef, bool) {
 	return ruleRef{scope: scope, bus: bus, name: name}, true
 }
 
+// kmsNote is the KmsKeyIdentifier deviation EBB-05 recorded
+// (eventbridge-buses.md 3.1, events.bus.kms-key-check).
+const kmsNote = "KmsKeyIdentifier is neither checked nor resolved, where AWS refuses a key that does not exist or does not grant EventBridge " +
+	"and echoes a key id or alias name as its ARN (events.bus.kms-key-check)"
+
 // bindBuses binds the event bus operations with the coverage notes of
 // eventbridge-buses.md 10.1.
 func (s *Service) bindBuses(b eventbridgeapi.Binder) {
 	b.CreateEventBus(s.createEventBus,
 		registry.Partial{Note: "custom buses; EventSourceName (partner buses) answers NotImplemented; " +
-			"KmsKeyIdentifier, DeadLetterConfig and LogConfig are stored and echoed, never applied: events are not encrypted, dead-lettered or logged"},
+			"KmsKeyIdentifier, DeadLetterConfig and LogConfig are stored and echoed, never applied: events are not encrypted, dead-lettered or logged; " + kmsNote},
 		kernel.WithCheck(checkCreateEventBus),
 		namedBus(func(in *eventbridgeapi.CreateEventBusInput) *string { return &in.Name }))
 	b.DescribeEventBus(s.describeEventBus, registry.Partial{Note: noteForeignBus},
 		namedBus(func(in *eventbridgeapi.DescribeEventBusInput) *string { return in.Name }))
 	b.ListEventBuses(s.listEventBuses, registry.Full{})
 	b.UpdateEventBus(s.updateEventBus,
-		registry.StoredOnly{Note: "Description, KmsKeyIdentifier, DeadLetterConfig and LogConfig are stored and echoed; events are not encrypted, dead-lettered or logged"},
+		registry.StoredOnly{Note: "Description, KmsKeyIdentifier, DeadLetterConfig and LogConfig are stored and echoed; events are not encrypted, dead-lettered or logged; " + kmsNote},
 		namedBus(func(in *eventbridgeapi.UpdateEventBusInput) *string { return in.Name }))
 	b.DeleteEventBus(s.deleteEventBus, registry.Full{},
 		namedBus(func(in *eventbridgeapi.DeleteEventBusInput) *string { return &in.Name }))
@@ -248,15 +253,17 @@ func (s *Service) bindBuses(b eventbridgeapi.Binder) {
 const maxBuses = 100
 
 // checkCreateEventBus runs CreateEventBus's stateless checks before fault
-// rules: a partner bus is not implemented (eventbridge-buses.md 10.7), and
-// a custom bus cannot be named default or hold a '/' (eventbridge-buses.md
-// 2.2).
+// rules: a partner bus is not implemented (eventbridge-buses.md 10.7); the
+// default bus always exists; and a custom bus name cannot start with aws.,
+// checked before it is checked for a '/' (eventbridge-buses.md 2.2, EBB-02).
 func checkCreateEventBus(in *eventbridgeapi.CreateEventBusInput) *awserr.Error {
 	switch {
 	case in.EventSourceName != nil:
 		return errPartnerBus()
 	case in.Name == defaultBus:
-		return errReservedBusName()
+		return errBusExists(defaultBus)
+	case strings.HasPrefix(in.Name, reservedSourcePrefix):
+		return errAWSBusName()
 	case strings.Contains(in.Name, "/"):
 		return errSlashInBusName()
 	}
@@ -366,8 +373,8 @@ func (s *Service) listEventBuses(_ context.Context, c *kernel.Call, in *eventbri
 // updateEventBus replaces each setting the request sends and keeps each it
 // omits (events.update-bus.omitted-members); an empty Description clears
 // it, as Terraform's update relies on (eventbridge-buses.md 3.4). An empty
-// KmsKeyIdentifier clears the key, and no Name updates the default bus;
-// both are inferred (eventbridge-buses.md 3.4, EBB-04). No Name, or
+// KmsKeyIdentifier clears the key (EBB-05), and no Name updates the default
+// bus (EBB-04). No Name, or
 // default, materializes the default bus (eventbridge-buses.md 10.2.2).
 func (s *Service) updateEventBus(_ context.Context, c *kernel.Call, in *eventbridgeapi.UpdateEventBusInput) (*eventbridgeapi.UpdateEventBusOutput, *awserr.Error) {
 	name := defaultBus
@@ -409,12 +416,15 @@ func (s *Service) updateEventBus(_ context.Context, c *kernel.Call, in *eventbri
 }
 
 // deleteEventBus deletes a custom bus with its tags and policy. The default
-// bus cannot be deleted, deleting a bus that does not exist succeeds, and a
-// bus with rules is refused (eventbridge-buses.md 3.5,
-// events.delete-bus.with-rules).
+// bus cannot be deleted, nor a name that starts with aws. (EBB-02), deleting
+// a bus that does not exist succeeds, and a bus with rules is refused
+// (eventbridge-buses.md 3.5, events.delete-bus.with-rules).
 func (s *Service) deleteEventBus(_ context.Context, c *kernel.Call, in *eventbridgeapi.DeleteEventBusInput) (*eventbridgeapi.DeleteEventBusOutput, *awserr.Error) {
-	if in.Name == defaultBus {
+	switch {
+	case in.Name == defaultBus:
 		return nil, errDeleteDefaultBus()
+	case strings.HasPrefix(in.Name, reservedSourcePrefix):
+		return nil, errAWSBusName()
 	}
 	_, err := kernel.Write(c, s.cells, c.Scope(), func(st *State, _ clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
 		if _, ok := st.Buses[in.Name]; !ok {
@@ -422,7 +432,7 @@ func (s *Service) deleteEventBus(_ context.Context, c *kernel.Call, in *eventbri
 			return struct{}{}, nil
 		}
 		if len(st.Rules[in.Name]) > 0 {
-			return struct{}{}, errBusHasRules(in.Name)
+			return struct{}{}, errBusHasRules()
 		}
 		delete(st.Buses, in.Name)
 		st.used(c.Admitted())
@@ -483,11 +493,14 @@ func (l *LogConfig) api() *eventbridgeapi.LogConfig {
 	return &eventbridgeapi.LogConfig{IncludeDetail: copyOf(l.IncludeDetail), Level: copyOf(l.Level)}
 }
 
-// busSwitches are the bus behaviors chosen without AWS-recorded evidence
-// (eventbridge-buses.md 10.5). The handlers implement each Value; a value
-// is a constant, not an option.
+// busSwitches are the bus behaviors chosen without AWS-recorded evidence,
+// and those EBB has since recorded (eventbridge-buses.md 10.5). The
+// handlers implement each Value; a value is a constant, not an option. A
+// switch EBB recorded is settled by its step in
+// testdata/parity/events/EBB/scenario.json when the replayer can replay
+// it.
 func busSwitches() []fidelity.Switch[string] {
-	sw := func(name, value string, label evidence.Label, anchor, record string, ops ...string) fidelity.Switch[string] {
+	sw := func(name, value string, label evidence.Label, anchor, record string, settles fidelity.Settles, ops ...string) fidelity.Switch[string] {
 		return fidelity.Switch[string]{
 			Name:    name,
 			Value:   value,
@@ -495,46 +508,71 @@ func busSwitches() []fidelity.Switch[string] {
 			Ref:     "docs/research/eventbridge-buses.md#" + anchor,
 			Record:  record,
 			Ops:     ops,
-			Settles: fidelity.NoScenario{Reason: "unrecorded: " + record + " (eventbridge-buses.md 12) records it"},
+			Settles: settles,
 		}
 	}
+	ebb := func(step string) fidelity.Settles {
+		return fidelity.SettledBy{Step: fidelity.StepRef{Scenario: "events/EBB", Step: step}}
+	}
+	undelivered := func(steps string) fidelity.Settles {
+		return fidelity.NoScenario{Reason: "recorded in events/EBB (" + steps + ", 2026-11-03); the replayer does not observe deliveries"}
+	}
+	// AWS writes EventBridge response members sorted by name, and
+	// understudy in model order, so a replay of these steps differs
+	// (eventbridge-buses.md 3.4).
+	reordered := func(step string) fidelity.Settles {
+		return fidelity.NoScenario{Reason: "recorded in events/EBB (" + step + ", 2026-11-03); its replay differs in member order only, which AWS sorts by name"}
+	}
 	return []fidelity.Switch[string]{
-		// DeleteEventBus refuses a bus that still has rules, which the API
-		// reference says "need to be deleted" (deleteEventBus).
-		sw("events.delete-bus.with-rules", "rejected", evidence.AWSDoc, "35-deleteeventbus", "EBB-01", "eventbridge.DeleteEventBus"),
+		// DeleteEventBus refuses a bus that still has rules (deleteEventBus).
+		sw("events.delete-bus.with-rules", "rejected", evidence.AWSRecorded, "35-deleteeventbus", "EBB-01", ebb("01-delete-with-rule"),
+			"eventbridge.DeleteEventBus"),
 		// UpdateEventBus keeps a member it omits (updateEventBus).
-		sw("events.update-bus.omitted-members", "kept", evidence.Inferred, "34-updateeventbus", "EBB-04", "eventbridge.UpdateEventBus"),
+		sw("events.update-bus.omitted-members", "kept", evidence.AWSRecorded, "34-updateeventbus", "EBB-04", reordered("04-update-name-only"),
+			"eventbridge.UpdateEventBus"),
 		// A KmsKeyIdentifier is stored without checking that the key
 		// exists or grants EventBridge (createEventBus, updateEventBus).
+		// AWS checks both, a recorded deviation.
 		sw("events.bus.kms-key-check", "none", evidence.Inferred, "31-createeventbus", "EBB-05",
+			fidelity.NoScenario{Reason: "recorded in events/EBB (05-default-policy, 05-missing-key, 2026-11-03): AWS checks that the key exists and grants " +
+				"EventBridge, which understudy does not yet; the steps need KMS keys the replayer does not create"},
 			"eventbridge.CreateEventBus", "eventbridge.UpdateEventBus"),
 		// Removing a bus policy's last statement removes the policy, so
 		// DescribeEventBus answers no Policy (removed).
-		sw("events.bus-policy.remove-last-statement", "policy-removed", evidence.Inferred, "43-removepermission", "EBB-06", "eventbridge.RemovePermission"),
-		// RemoveAllPermissions on a bus without a policy answers
-		// ResourceNotFoundException (removed, errNoPolicy).
-		sw("events.bus-policy.remove-all-without-policy", "ResourceNotFoundException", evidence.Inferred, "43-removepermission", "EBB-06",
+		sw("events.bus-policy.remove-last-statement", "policy-removed", evidence.AWSRecorded, "43-removepermission", "EBB-06",
+			fidelity.NoScenario{Reason: "recorded in events/EBB (06-remove-last, 06-describe-after-last, 2026-11-03); DescribeEventBus answers the bus's times, which a replay does not reproduce"},
+			"eventbridge.RemovePermission"),
+		// RemoveAllPermissions on a bus without a policy succeeds (removed).
+		sw("events.bus-policy.remove-all-without-policy", "succeed", evidence.AWSRecorded, "43-removepermission", "EBB-06", ebb("06-remove-all-empty"),
 			"eventbridge.RemovePermission"),
 		// ListEventBuses sorts by name, the default bus among the rest
 		// (State.buses).
-		sw("events.list-buses.order", "by-name", evidence.Inferred, "33-listeventbuses", "EBB-07", "eventbridge.ListEventBuses"),
+		sw("events.list-buses.order", "by-name", evidence.AWSRecorded, "33-listeventbuses", "EBB-07",
+			fidelity.NoScenario{Reason: "recorded in events/EBB (07-list-all, 2026-11-03); ListEventBuses answers the buses' times, which a replay does not reproduce"},
+			"eventbridge.ListEventBuses"),
 		// Until a write stores it, the default bus was created and last
 		// modified at the scope's first use (State.bus).
-		sw("events.default-bus.creation-time", "first-use", evidence.Inferred, "36-the-default-bus", "EBB-07",
+		sw("events.default-bus.creation-time", "first-use", evidence.AWSRecorded, "36-the-default-bus", "EBB-07",
+			fidelity.NoScenario{Reason: "recorded in events/EBB (04-update-no-name, 07-describe-default, 2026-11-03); a replay does not reproduce the recorded times"},
 			"eventbridge.DescribeEventBus", "eventbridge.ListEventBuses"),
 		// An event forwarded to a bus of the rule's own account and region
 		// keeps its id, as it does across accounts (fanOut.forward).
-		sw("events.bus-target.same-account-event-id", "kept", evidence.Inferred, "62-an-event-bus-as-a-target", "EBB-08", "eventbridge.PutEvents"),
+		sw("events.bus-target.same-account-event-id", "kept", evidence.AWSRecorded, "62-an-event-bus-as-a-target", "EBB-08", undelivered("08-put-h1"),
+			"eventbridge.PutEvents"),
 		// PutTargets refuses another account's bus target without a RoleArn,
 		// by the newer user-guide rule, unless it replaces one with the same
 		// Id and Arn whose role it keeps (withCrossAccountRole).
-		sw("events.bus-target.cross-account-role", "required", evidence.AWSDoc, "63-cross-account", "EBB-09", "eventbridge.PutTargets"),
-		// A forwarded event keeps its time and resources, which every
-		// recording redacts or leaves empty (fanOut.forward).
-		sw("events.bus-target.forwarded-time-resources", "kept", evidence.Inferred, "62-an-event-bus-as-a-target", "EBB-08", "eventbridge.PutEvents"),
+		sw("events.bus-target.cross-account-role", "required", evidence.AWSDoc, "63-cross-account", "EBB-09",
+			fidelity.NoScenario{Reason: "unrecorded: EBB-09 needs a second account, which the recording account lacks"},
+			"eventbridge.PutTargets"),
+		// A forwarded event keeps its time and resources (fanOut.forward).
+		sw("events.bus-target.forwarded-time-resources", "kept", evidence.AWSRecorded, "62-an-event-bus-as-a-target", "EBB-08", undelivered("08-put-h1"),
+			"eventbridge.PutEvents"),
 		// PutTargets accepts an event bus that does not exist, and a
-		// delivery to it is dropped as PutEvents drops one (targetOf).
-		sw("events.bus-target.missing-bus", "dropped", evidence.Inferred, "62-an-event-bus-as-a-target", "EBB-08", "eventbridge.PutTargets"),
+		// delivery to it is dropped as PutEvents drops one (targetOf). The
+		// acceptance is recorded; the drop is not.
+		sw("events.bus-target.missing-bus", "dropped", evidence.AWSRecorded, "62-an-event-bus-as-a-target", "EBB-08", reordered("08-missing-target-bus"),
+			"eventbridge.PutTargets"),
 	}
 }
 

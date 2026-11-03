@@ -105,16 +105,20 @@ func TestBusOperationsCoverage(t *testing.T) {
 		// A bus policy is evaluated as the other stored resource policies
 		// are (iam-enforcement-surfaces.md 12.7).
 		const evaluated = "evaluated for the calls and deliveries that name the bus under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce"
+		// AWS checks the key and echoes a key id or alias name as its ARN
+		// (EBB-05, eventbridge-buses.md 3.1).
+		const kmsNote = "KmsKeyIdentifier is neither checked nor resolved, where AWS refuses a key that does not exist or does not grant EventBridge " +
+			"and echoes a key id or alias name as its ARN (events.bus.kms-key-check)"
 		want := map[string]registry.BindCoverage{
-			"CreateEventBus":        registry.Partial{Note: "custom buses; EventSourceName (partner buses) answers NotImplemented; KmsKeyIdentifier, DeadLetterConfig and LogConfig are stored and echoed, never applied: events are not encrypted, dead-lettered or logged"},
-			"UpdateEventBus":        registry.StoredOnly{Note: "Description, KmsKeyIdentifier, DeadLetterConfig and LogConfig are stored and echoed; events are not encrypted, dead-lettered or logged"},
+			"CreateEventBus":        registry.Partial{Note: "custom buses; EventSourceName (partner buses) answers NotImplemented; KmsKeyIdentifier, DeadLetterConfig and LogConfig are stored and echoed, never applied: events are not encrypted, dead-lettered or logged; " + kmsNote},
+			"UpdateEventBus":        registry.StoredOnly{Note: "Description, KmsKeyIdentifier, DeadLetterConfig and LogConfig are stored and echoed; events are not encrypted, dead-lettered or logged; " + kmsNote},
 			"DescribeEventBus":      registry.Partial{Note: foreign},
 			"ListEventBuses":        registry.Full{},
 			"DeleteEventBus":        registry.Full{},
 			"PutPermission":         registry.Partial{Note: "statements are stored in the bus Policy that DescribeEventBus returns, " + evaluated},
 			"RemovePermission":      registry.Partial{Note: "statements are removed from the bus Policy, which is " + evaluated},
 			"PutRule":               registry.Partial{Note: "default and custom buses of the caller's account and region; ScheduleExpression only on the default bus, as AWS; RoleArn is stored, not used; a rule on another account's or region's bus answers NotImplemented"},
-			"PutTargets":            registry.Partial{Note: "Lambda function, SQS queue and SNS topic targets in the rule's region, and event bus targets in any served account and region; RoleArn, RetryPolicy and DeadLetterConfig are stored, and the retry policy and dead-letter queue apply to deliveries; an event bus target with a RoleArn is delivered as a session of that role, which under iam.enforce=enforce must trust events.amazonaws.com and be allowed events:PutEvents on the bus, and one events.amazonaws.com cannot assume is not retried and goes to the dead-letter queue with ERROR_CODE FAILED_TO_ASSUME_ROLE; the session name and the trust request's aws:SourceArn and aws:SourceAccount are inferred; the RoleArn of a function, queue or topic target is not assumed, so under iam.enforce=enforce those deliveries, a bus target without a RoleArn and a bus target whose RoleArn names no IAM role (which AWS fails with FAILED_TO_ASSUME_ROLE) are decided for events.amazonaws.com against the target's policy; a delivery the target refuses is not retried and goes to the dead-letter queue with ERROR_CODE NO_PERMISSIONS (events.delivery.denied-code), else is dropped; no topic policy is added (events.put-targets.sns-policy); a target with HttpParameters, KinesisParameters, EcsParameters, BatchParameters, RunCommandParameters, RedshiftDataParameters, SageMakerPipelineParameters or AppSyncParameters, or an event bus target of the rule's account with Input, InputPath or InputTransformer, fails its entry with NotImplemented; a rule on another account's or region's bus answers NotImplemented"},
+			"PutTargets":            registry.Partial{Note: "Lambda function, SQS queue and SNS topic targets in the rule's region, and event bus targets in any served account and region; RoleArn, RetryPolicy and DeadLetterConfig are stored, and the retry policy and dead-letter queue apply to deliveries; an event bus target with a RoleArn is delivered as a session of that role, which under iam.enforce=enforce must trust events.amazonaws.com and be allowed events:PutEvents on the bus, and one events.amazonaws.com cannot assume is not retried and goes to the dead-letter queue with ERROR_CODE FAILED_TO_ASSUME_ROLE; the session name and the trust request's aws:SourceArn and aws:SourceAccount are inferred; the RoleArn of a function, queue or topic target is not assumed, so under iam.enforce=enforce those deliveries, a bus target without a RoleArn and a bus target whose RoleArn names no IAM role (which AWS fails with FAILED_TO_ASSUME_ROLE) are decided for events.amazonaws.com against the target's policy; a delivery the target refuses is not retried and goes to the dead-letter queue with ERROR_CODE NO_PERMISSIONS (events.delivery.denied-code), else is dropped; no topic policy is added (events.put-targets.sns-policy); a target with HttpParameters, KinesisParameters, EcsParameters, BatchParameters, RunCommandParameters, RedshiftDataParameters, SageMakerPipelineParameters or AppSyncParameters, fails its entry with NotImplemented; an event bus target of the rule's account without a RoleArn is accepted, where AWS refuses the call; a rule on another account's or region's bus answers NotImplemented"},
 			"PutEvents":             registry.Partial{Note: "default and custom buses in the caller's region, its own or another account's by ARN; EndpointId and TraceHeader are accepted and not used"},
 			"TagResource":           registry.Full{},
 			"UntagResource":         registry.Full{},
@@ -162,28 +166,32 @@ func TestBusOperationsCoverage(t *testing.T) {
 
 func errOf[Out any](_ *Out, err *awserr.Error) *awserr.Error { return err }
 
-// Every behavior of the bus operations chosen without AWS-recorded evidence
-// is a switch, with the default, label and settling record of
-// eventbridge-buses.md 10.5, a ref into that note and no parity scenario
-// that settles it yet (section 12 records each).
+// Every behavior of the bus operations chosen without AWS-recorded evidence,
+// or since recorded by EBB, is a switch, with the default, label and
+// settling record of eventbridge-buses.md 10.5 and a ref into that note; the
+// events/EBB step that settles it where the replayer replays one, and a
+// reason where it does not.
 func TestBusSwitchesNameEveryUnrecordedChoice(t *testing.T) {
 	run(t, func(h *harness) {
 		type sw struct {
-			value  string
-			label  evidence.Label
-			record string
-			ops    []string
+			value   string
+			label   evidence.Label
+			record  string
+			ops     []string
+			settled string // the events/EBB step that settles it, or "" for none
 		}
 		want := map[string]sw{
-			"events.delete-bus.with-rules":                {"rejected", evidence.AWSDoc, "EBB-01", []string{"eventbridge.DeleteEventBus"}},
-			"events.update-bus.omitted-members":           {"kept", evidence.Inferred, "EBB-04", []string{"eventbridge.UpdateEventBus"}},
-			"events.bus.kms-key-check":                    {"none", evidence.Inferred, "EBB-05", []string{"eventbridge.CreateEventBus", "eventbridge.UpdateEventBus"}},
-			"events.bus-policy.remove-last-statement":     {"policy-removed", evidence.Inferred, "EBB-06", []string{"eventbridge.RemovePermission"}},
-			"events.bus-policy.remove-all-without-policy": {"ResourceNotFoundException", evidence.Inferred, "EBB-06", []string{"eventbridge.RemovePermission"}},
-			"events.list-buses.order":                     {"by-name", evidence.Inferred, "EBB-07", []string{"eventbridge.ListEventBuses"}},
-			"events.default-bus.creation-time":            {"first-use", evidence.Inferred, "EBB-07", []string{"eventbridge.DescribeEventBus", "eventbridge.ListEventBuses"}},
-			"events.bus-target.same-account-event-id":     {"kept", evidence.Inferred, "EBB-08", []string{"eventbridge.PutEvents"}},
-			"events.bus-target.cross-account-role":        {"required", evidence.AWSDoc, "EBB-09", []string{"eventbridge.PutTargets"}},
+			"events.delete-bus.with-rules":                {"rejected", evidence.AWSRecorded, "EBB-01", []string{"eventbridge.DeleteEventBus"}, "01-delete-with-rule"},
+			"events.update-bus.omitted-members":           {"kept", evidence.AWSRecorded, "EBB-04", []string{"eventbridge.UpdateEventBus"}, ""},
+			"events.bus.kms-key-check":                    {"none", evidence.Inferred, "EBB-05", []string{"eventbridge.CreateEventBus", "eventbridge.UpdateEventBus"}, ""},
+			"events.bus-policy.remove-last-statement":     {"policy-removed", evidence.AWSRecorded, "EBB-06", []string{"eventbridge.RemovePermission"}, ""},
+			"events.bus-policy.remove-all-without-policy": {"succeed", evidence.AWSRecorded, "EBB-06", []string{"eventbridge.RemovePermission"}, "06-remove-all-empty"},
+			"events.list-buses.order":                     {"by-name", evidence.AWSRecorded, "EBB-07", []string{"eventbridge.ListEventBuses"}, ""},
+			"events.default-bus.creation-time":            {"first-use", evidence.AWSRecorded, "EBB-07", []string{"eventbridge.DescribeEventBus", "eventbridge.ListEventBuses"}, ""},
+			"events.bus-target.same-account-event-id":     {"kept", evidence.AWSRecorded, "EBB-08", []string{"eventbridge.PutEvents"}, ""},
+			"events.bus-target.cross-account-role":        {"required", evidence.AWSDoc, "EBB-09", []string{"eventbridge.PutTargets"}, ""},
+			"events.bus-target.forwarded-time-resources":  {"kept", evidence.AWSRecorded, "EBB-08", []string{"eventbridge.PutEvents"}, ""},
+			"events.bus-target.missing-bus":               {"dropped", evidence.AWSRecorded, "EBB-08", []string{"eventbridge.PutTargets"}, ""},
 		}
 		got := map[string]fidelity.Entry{}
 		for _, e := range h.svc.Switches() {
@@ -201,8 +209,15 @@ func TestBusSwitchesNameEveryUnrecordedChoice(t *testing.T) {
 			if !strings.HasPrefix(e.Ref, "docs/research/eventbridge-buses.md#") {
 				t.Errorf("%s Ref = %q, want an anchor in docs/research/eventbridge-buses.md", name, e.Ref)
 			}
-			if _, ok := e.Settles.(fidelity.NoScenario); !ok {
-				t.Errorf("%s Settles = %#v, want NoScenario until %s is recorded", name, e.Settles, w.record)
+			switch s := e.Settles.(type) {
+			case fidelity.SettledBy:
+				if s.Step != (fidelity.StepRef{Scenario: "events/EBB", Step: w.settled}) {
+					t.Errorf("%s Settles = %#v, want events/EBB step %q", name, s, w.settled)
+				}
+			case fidelity.NoScenario:
+				if w.settled != "" || s.Reason == "" {
+					t.Errorf("%s Settles = %#v, want events/EBB step %q, or a reason when none", name, s, w.settled)
+				}
 			}
 		}
 	})
@@ -284,10 +299,8 @@ func TestCreateEventBusStoresSettingsAsSent(t *testing.T) {
 // (ResourceAlreadyExistsException "Event bus <name> already exists.",
 // eventbridge-buses.md 3.1, third-party-recorded
 // localstack@8b9a79f tests/aws/services/events/test_events.snapshot.json:L742-L755),
-// the name default and a name with a "/" ("You can't use the name default
-// for a custom event bus", "Custom event bus names can't contain the /
-// character", aws-doc API_CreateEventBus, eventbridge-buses.md 2.2; their
-// texts are unrecorded, EBB-02), more than 50 tags (API_TagResource), and a
+// the name default, an aws. prefix and a name with a "/" (EBB-02, recorded
+// 2026-11-03; eventbridge-buses.md 2.2), more than 50 tags (API_TagResource), and a
 // partner bus, which understudy does not implement and does not fake as a
 // custom bus (eventbridge-buses.md 10.7.20). A refused call creates nothing.
 func TestCreateEventBusRefusals(t *testing.T) {
@@ -296,7 +309,7 @@ func TestCreateEventBusRefusals(t *testing.T) {
 		_, err := call(h, eventbridgeapi.OpCreateEventBus, &eventbridgeapi.CreateEventBusInput{Name: "orders"})
 		wantError(t, err, "ResourceAlreadyExistsException", "Event bus orders already exists.")
 
-		for _, name := range []string{"default", "team/orders"} {
+		for _, name := range []string{"default", "team/orders", "aws.orders"} {
 			if _, err := call(h, eventbridgeapi.OpCreateEventBus, &eventbridgeapi.CreateEventBusInput{Name: name}); !refused(err) {
 				t.Errorf("CreateEventBus %q = %v, want a client error", name, err)
 			}
@@ -546,8 +559,8 @@ func TestDeleteEventBus(t *testing.T) {
 
 // "All rules associated with this event bus need to be deleted" before
 // DeleteEventBus (aws-doc API_DeleteEventBus, eventbridge-buses.md 3.5);
-// what AWS does with a bus that still has rules is unrecorded (EBB-01), so
-// understudy follows events.delete-bus.with-rules.
+// AWS refuses a bus that still has rules (EBB-01, recorded 2026-11-03),
+// which events.delete-bus.with-rules rejected follows.
 func TestDeleteEventBusWithRules(t *testing.T) {
 	run(t, func(h *harness) {
 		h.createBus("busy")

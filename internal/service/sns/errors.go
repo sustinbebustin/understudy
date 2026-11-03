@@ -55,11 +55,17 @@ func errLargeMessages(reason string) *awserr.Error {
 
 // errUnsubscribeNeedsCredentials answers an unsigned unsubscribe, such as
 // a GET of the UnsubscribeURL, of a subscription with
-// AuthenticateOnUnsubscribe=true (sns.md 3.2); why is
-// Confirmed.credentialsRequired. The text is inferred: no recording shows
-// AWS's.
-func errUnsubscribeNeedsCredentials(why string) *awserr.Error {
-	return errInvalidParameter("SubscriptionArn Reason: " + why + ", so only a signed Unsubscribe call can remove it; the subscription is unchanged")
+// AuthenticateOnUnsubscribe=true (sns.md 3.2). AWS-recorded for an http
+// subscription (SNSH-14, sns-http-delivery.md 2.4); for a queue its owner
+// subscribed it is inferred to be the same.
+func errUnsubscribeNeedsCredentials() *awserr.Error {
+	return snsapi.ErrAuthorizationErrorException("This subscription may only be deleted by an authorized user.")
+}
+
+// errUnsubscribePending answers an Unsubscribe of a subscription pending
+// confirmation; AWS-recorded (SNSH-25, sns-http-delivery.md 6.7).
+func errUnsubscribePending() *awserr.Error {
+	return errInvalidParameter("SubscriptionArn Reason: Cannot unsubscribe a subscription that is pending confirmation")
 }
 
 // errResourceNotFound answers a tag operation on a topic that does not

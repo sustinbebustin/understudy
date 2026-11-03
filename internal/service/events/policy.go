@@ -63,23 +63,34 @@ func (replacement) isPermission() {}
 var errNilPermission = errors.New("events: the PutPermission change is nil, so the bus policy was left as it was; parsePermission builds every permission")
 
 // checkPutPermission runs PutPermission's stateless checks before fault
-// rules and the bus lookup (eventbridge-buses.md 4.1; the order and texts
-// are inferred, EBB-06).
+// rules and the bus lookup (eventbridge-buses.md 4.1; the order is
+// inferred, EBB-06 recorded the texts).
 func checkPutPermission(in *eventbridgeapi.PutPermissionInput) *awserr.Error {
 	_, err := parsePermission(in)
 	return err
 }
 
+// permittedAction is the one Action the statement form takes (EBB-06,
+// eventbridge-buses.md 4.1).
+const permittedAction = "events:PutEvents"
+
 // parsePermission reads the change a PutPermission request asks for. A
 // Policy is sent "instead of" the statement members (API_PutPermission),
 // so it cannot come with any of them; without it, StatementId, Action and
-// Principal are all required. A Policy must be a JSON object whose
-// Statement is an object or a list of objects, no two with one non-empty
-// Sid, and a Sid must be a string: the statements are kept by Sid.
+// Principal are all required, the Action must be events:PutEvents, and a
+// Condition needs the Principal "*" (EBB-06). A Policy must be a JSON
+// object whose Statement is an object or a list of objects, no two with
+// one non-empty Sid, and a Sid must be a string: the statements are kept by
+// Sid.
 func parsePermission(in *eventbridgeapi.PutPermissionInput) (permission, *awserr.Error) {
 	if in.Policy == nil {
-		if in.StatementId == nil || in.Action == nil || in.Principal == nil {
+		switch {
+		case in.StatementId == nil || in.Action == nil || in.Principal == nil:
 			return nil, errPermissionIncomplete()
+		case *in.Action != permittedAction:
+			return nil, errPermissionAction()
+		case in.Condition != nil && *in.Principal != "*":
+			return nil, errConditionPrincipal()
 		}
 		return grant{sid: *in.StatementId, action: *in.Action, principal: *in.Principal, condition: in.Condition}, nil
 	}
@@ -227,9 +238,8 @@ func (g grant) statement(bus aws.ARN) (string, error) {
 // putPermission adds a statement to, or replaces, the policy of a bus of
 // the caller's scope; no EventBusName names the default bus, which this
 // materializes (eventbridge-buses.md 4.1, 10.2.2). A policy that would pass
-// maxPolicyLength is refused and nothing changes. Any Action the model's
-// pattern allows is stored, and the call moves the bus's LastModifiedTime;
-// both are inferred (eventbridge-buses.md 4.1, 3.6; EBB-06, EBB-07).
+// maxPolicyLength is refused and nothing changes (EBB-06). The call moves
+// the bus's LastModifiedTime (eventbridge-buses.md 3.6, EBB-06).
 func (s *Service) putPermission(_ context.Context, c *kernel.Call, in *eventbridgeapi.PutPermissionInput) (*eventbridgeapi.PutPermissionOutput, *awserr.Error) {
 	perm, err := parsePermission(in)
 	if err != nil {
@@ -263,19 +273,25 @@ func (s *Service) putPermission(_ context.Context, c *kernel.Call, in *eventbrid
 }
 
 // removePermission removes one statement of a bus's policy, or the whole
-// policy (eventbridge-buses.md 4.3). It moves the bus's LastModifiedTime,
-// which is inferred (eventbridge-buses.md 3.6, EBB-07).
+// policy (eventbridge-buses.md 4.3). It moves the bus's LastModifiedTime
+// (eventbridge-buses.md 3.6, EBB-06). RemoveAllPermissions
+// on a bus without a policy succeeds (EBB-06) and, an inferred choice,
+// changes nothing.
 func (s *Service) removePermission(_ context.Context, c *kernel.Call, in *eventbridgeapi.RemovePermissionInput) (*eventbridgeapi.RemovePermissionOutput, *awserr.Error) {
 	name, err := ownBusName(c.Scope(), in.EventBusName)
 	if err != nil {
 		return nil, err
 	}
-	_, err = kernel.Write(c, s.cells, c.Scope(), func(st *State, _ clock.Instant, _ *kernel.Tx) (struct{}, *awserr.Error) {
+	_, err = kernel.Write(c, s.cells, c.Scope(), func(st *State, _ clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
 		bus, ok := st.bus(name, c.Admitted())
 		if !ok {
 			return struct{}{}, errBusNotFound(name)
 		}
-		policy, err := removed(bus.Policy, name, in)
+		if in.RemoveAllPermissions && bus.Policy == nil {
+			tx.Unchanged()
+			return struct{}{}, nil
+		}
+		policy, err := removed(bus.Policy, in)
 		if err != nil {
 			return struct{}{}, err
 		}
@@ -290,18 +306,15 @@ func (s *Service) removePermission(_ context.Context, c *kernel.Call, in *eventb
 	return &eventbridgeapi.RemovePermissionOutput{}, nil
 }
 
-// removed is policy, which may be nil, on the bus named bus less what in
-// removes: with RemoveAllPermissions the whole policy, whatever
-// StatementId says, and on a bus without one ResourceNotFoundException
-// (events.bus-policy.remove-all-without-policy); otherwise the statement
-// with the StatementId, which must exist, also when the bus has no policy
-// (eventbridge-buses.md 4.3). Removing the last statement removes the
-// policy (events.bus-policy.remove-last-statement). policy is not changed.
-func removed(policy *Policy, bus string, in *eventbridgeapi.RemovePermissionInput) (*Policy, *awserr.Error) {
+// removed is policy, which may be nil, less what in removes: with
+// RemoveAllPermissions the whole policy, whatever StatementId says, none
+// too (events.bus-policy.remove-all-without-policy); otherwise the
+// statement with the StatementId, which must exist, also when the bus has
+// no policy (eventbridge-buses.md 4.3). Removing the last statement removes
+// the policy (events.bus-policy.remove-last-statement). policy is not
+// changed.
+func removed(policy *Policy, in *eventbridgeapi.RemovePermissionInput) (*Policy, *awserr.Error) {
 	if in.RemoveAllPermissions {
-		if policy == nil {
-			return nil, errNoPolicy(bus)
-		}
 		return nil, nil
 	}
 	if policy == nil || in.StatementId == nil {

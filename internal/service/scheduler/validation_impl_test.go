@@ -11,9 +11,10 @@ import (
 // A time zone is resolved in the embedded IANA database: the census's
 // legacy link name US/Eastern and Europe/Paris are accepted with a rate,
 // which ignores the zone (scheduler.md 5.2, 5.4); a name the database does
-// not hold, Go's "Local" and a path are ValidationException (an empty
-// name fails the model's length constraint first).
-// UNVERIFIED (SCH-04), scheduler.md 5.4: the refusal text is understudy's.
+// not hold, Go's "Local" and a path are ValidationException "Invalid
+// timezone <name>." (SCH-04 04-bad-timezone, recorded 2026-11-03;
+// scheduler.md 2.4). An empty name fails the model's length constraint
+// first.
 func TestScheduleExpressionTimezone(t *testing.T) {
 	run(t, func(h *harness) {
 		for i, zone := range []string{"Europe/Paris", "US/Eastern", "America/Los_Angeles"} {
@@ -24,43 +25,62 @@ func TestScheduleExpressionTimezone(t *testing.T) {
 				h.Errorf("case %d: time zone read back %q, want %q as sent", i, got, zone)
 			}
 		}
-		for _, zone := range []string{"Mars/Olympus_Mons", "Local", "../etc/passwd"} {
+		for _, zone := range []string{"Mars/Olympus", "Local", "../etc/passwd"} {
 			in := schedule("bad", "rate(1 hour)", h.queueTarget("q", nil))
 			in.ScheduleExpressionTimezone = new(zone)
-			wantError(h, errOf(call(h, schedulerapi.OpCreateSchedule, in)), "ValidationException", 400,
-				"Invalid ScheduleExpressionTimezone "+zone+": not a time zone of the IANA Time Zone Database.")
+			wantError(h, errOf(call(h, schedulerapi.OpCreateSchedule, in)), "ValidationException", 400, "Invalid timezone "+zone+".")
 		}
 	})
 }
 
 // The future-fire check refuses a rate or cron with no fire in
-// [max(now, StartDate), EndDate) with the captured text (scheduler.md
-// 2.4, 14.3.6); present dates render as RFC 3339 UTC, UNVERIFIED (SCH-03).
-// A schedule that passes the check is accepted.
+// [max(now, StartDate), EndDate) with "The schedule expression <expr>,
+// with StartDate <s> and EndDate <e>, is invalid because it will never
+// schedule an invocation." (SCH-03, recorded 2026-11-03; scheduler.md
+// 2.4, 5.3). A date renders as Java's LocalDateTime does, without zone:
+// minutes when the seconds are zero, else seconds, then milliseconds when
+// there are any; an ENABLED schedule without a StartDate renders the
+// request instant, a DISABLED one null (03-past-cron-enabled, 03-e24). A
+// schedule that passes the check is accepted.
 func TestFutureFireCheck(t *testing.T) {
 	run(t, func(h *harness) {
 		now := h.now().Truncate(time.Second)
-		rfc := func(x time.Time) string { return x.UTC().Format(time.RFC3339) }
+		local := func(x time.Time) string {
+			x = x.UTC()
+			switch {
+			case x.Nanosecond() >= int(time.Millisecond):
+				return x.Format("2006-01-02T15:04:05.000")
+			case x.Second() != 0:
+				return x.Format("2006-01-02T15:04:05")
+			}
+			return x.Format("2006-01-02T15:04")
+		}
 		refused := []struct {
 			expr       string
 			start, end *time.Time
+			state      schedulerapi.ScheduleState
+			want       string
 		}{
-			{"rate(1 hour)", nil, new(now.Add(-time.Hour))},
-			{"rate(1 hour)", new(now.Add(-3 * time.Hour)), new(now.Add(-time.Minute))},
-			{"cron(0 8 1 1 ? 2099)", nil, new(time.Date(2098, 1, 1, 0, 0, 0, 0, time.UTC))},
+			{
+				"rate(1 hour)", new(now.Add(-3 * time.Hour)), new(now.Add(-time.Minute)), schedulerapi.ScheduleStateEnabled,
+				local(now.Add(-3*time.Hour)) + " and EndDate " + local(now.Add(-time.Minute)),
+			},
+			{
+				"cron(0 0 1 1 ? 2021)", new(time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)), new(time.Date(2020, 6, 1, 0, 0, 0, 0, time.UTC)),
+				schedulerapi.ScheduleStateDisabled, "2020-01-01T00:00 and EndDate 2020-06-01T00:00",
+			},
+			{"cron(0 0 1 1 ? 1999)", nil, nil, schedulerapi.ScheduleStateDisabled, "null and EndDate null"},
+			{"cron(0 0 1 1 ? 1999)", nil, nil, schedulerapi.ScheduleStateEnabled, local(h.now()) + " and EndDate null"},
+			{
+				"cron(0 8 1 1 ? 2099)", new(time.Date(2098, 1, 1, 0, 0, 30, 250_000_000, time.UTC)), new(time.Date(2098, 6, 1, 0, 0, 0, 0, time.UTC)),
+				schedulerapi.ScheduleStateEnabled, "2098-01-01T00:00:30.250 and EndDate 2098-06-01T00:00",
+			},
 		}
 		for _, c := range refused {
 			in := schedule("never", c.expr, h.queueTarget("q", nil))
-			in.StartDate, in.EndDate = c.start, c.end
-			s, e := "null", "null"
-			if c.start != nil {
-				s = rfc(*c.start)
-			}
-			if c.end != nil {
-				e = rfc(*c.end)
-			}
+			in.StartDate, in.EndDate, in.State = c.start, c.end, new(c.state)
 			wantError(h, errOf(call(h, schedulerapi.OpCreateSchedule, in)), "ValidationException", 400,
-				"The schedule expression "+c.expr+", with StartDate "+s+" and EndDate "+e+", is invalid.")
+				"The schedule expression "+c.expr+", with StartDate "+c.want+", is invalid because it will never schedule an invocation.")
 		}
 
 		// A rate whose StartDate is past fires in its phase before EndDate;
@@ -80,58 +100,72 @@ func TestFutureFireCheck(t *testing.T) {
 	})
 }
 
-// Dates and window: an EndDate not after StartDate and a FLEXIBLE window
-// without MaximumWindowInMinutes are ValidationException. UNVERIFIED
-// (SCH-04), scheduler.md 5.5, 5.6: both texts are understudy's.
+// Dates and window (SCH-03, SCH-04, recorded 2026-11-03; scheduler.md
+// 2.4, 5.5, 5.6): an EndDate not after StartDate, or not after the
+// request instant when no StartDate is sent, in either State, is "The
+// StartDate you specify must come before the EndDate." (04-end-before-start,
+// 03-past-rate-end); FLEXIBLE without MaximumWindowInMinutes and OFF with
+// one are refused with their own texts (04-flexible-no-window,
+// 04-off-with-window).
 func TestDatesAndWindowRefusals(t *testing.T) {
 	run(t, func(h *harness) {
+		const order = "The StartDate you specify must come before the EndDate."
 		start := time.Date(2099, 1, 1, 0, 0, 0, 0, time.UTC)
 		in := schedule("s", "rate(1 hour)", h.queueTarget("q", nil))
-		in.StartDate, in.EndDate = new(start), new(start)
-		wantError(h, errOf(call(h, schedulerapi.OpCreateSchedule, in)), "ValidationException", 400,
-			"EndDate 2099-01-01T00:00:00Z must be after StartDate 2099-01-01T00:00:00Z.")
+		in.StartDate, in.EndDate = new(start.Add(time.Hour)), new(start)
+		wantError(h, errOf(call(h, schedulerapi.OpCreateSchedule, in)), "ValidationException", 400, order)
+
+		for _, state := range []schedulerapi.ScheduleState{schedulerapi.ScheduleStateDisabled, schedulerapi.ScheduleStateEnabled} {
+			in = schedule("s", "rate(1 hour)", h.queueTarget("q", nil))
+			in.State, in.EndDate = new(state), new(h.now().Add(-time.Hour))
+			wantError(h, errOf(call(h, schedulerapi.OpCreateSchedule, in)), "ValidationException", 400, order)
+		}
 
 		in = schedule("s", "rate(1 hour)", h.queueTarget("q", nil))
 		in.FlexibleTimeWindow = schedulerapi.FlexibleTimeWindow{Mode: schedulerapi.FlexibleTimeWindowModeFlexible}
 		wantError(h, errOf(call(h, schedulerapi.OpCreateSchedule, in)), "ValidationException", 400,
-			"FlexibleTimeWindow MaximumWindowInMinutes is required when Mode is FLEXIBLE.")
+			"MaximumWindowInMinutes must be provided when FlexibleTimeWindowMode is set to FLEXIBLE.")
+
+		in = schedule("s", "rate(1 hour)", h.queueTarget("q", nil))
+		in.FlexibleTimeWindow = schedulerapi.FlexibleTimeWindow{Mode: schedulerapi.FlexibleTimeWindowModeOff, MaximumWindowInMinutes: new(int32(5))}
+		wantError(h, errOf(call(h, schedulerapi.OpCreateSchedule, in)), "ValidationException", 400,
+			"MaximumWindowInMinutes must not be provided when FlexibleTimeWindowMode is set to OFF.")
 	})
 }
 
-// The validation order of scheduler.md 14.9.3, UNVERIFIED past
-// "expression before role" (SCH-04): with two faults the earlier check
-// answers; target faults come after every expression, zone, window and
-// date fault.
+// The validation order SCH-04 recorded with two faults per request
+// (recorded 2026-11-03; scheduler.md 4.7): the time zone before the
+// expression and the group, the future-fire check and the group before
+// the target, the target before the role.
 func TestValidationOrder(t *testing.T) {
 	run(t, func(h *harness) {
-		// An ECS target fails at the target step: it answers NotImplemented,
-		// so the date text shows the date check ran first.
-		laterTarget := schedulerapi.Target{Arn: fmt.Sprintf("arn:aws:ecs:%s:%s:cluster/c", h.Scope.Region, h.Scope.Account), RoleArn: h.roleArn()}
+		dynamo := schedulerapi.Target{Arn: fmt.Sprintf("arn:aws:dynamodb:%s:%s:table/t", h.Scope.Region, h.Scope.Account), RoleArn: h.roleArn()}
 		cases := []struct {
-			name string
-			edit func(in *schedulerapi.CreateScheduleInput)
-			want string
+			name   string
+			edit   func(in *schedulerapi.CreateScheduleInput)
+			status int
+			want   string
 		}{
-			{"expression before zone", func(in *schedulerapi.CreateScheduleInput) {
-				in.ScheduleExpression, in.ScheduleExpressionTimezone = "rate(10 seconds)", new("Nowhere/Nada")
-			}, "Invalid Schedule Expression rate(10 seconds)."},
-			{"zone before window", func(in *schedulerapi.CreateScheduleInput) {
-				in.ScheduleExpressionTimezone = new("Nowhere/Nada")
-				in.FlexibleTimeWindow = schedulerapi.FlexibleTimeWindow{Mode: schedulerapi.FlexibleTimeWindowModeFlexible}
-			}, "Invalid ScheduleExpressionTimezone Nowhere/Nada: not a time zone of the IANA Time Zone Database."},
-			{"window before dates", func(in *schedulerapi.CreateScheduleInput) {
-				in.FlexibleTimeWindow = schedulerapi.FlexibleTimeWindow{Mode: schedulerapi.FlexibleTimeWindowModeFlexible}
-				in.EndDate = new(time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC))
-			}, "FlexibleTimeWindow MaximumWindowInMinutes is required when Mode is FLEXIBLE."},
-			{"dates before target", func(in *schedulerapi.CreateScheduleInput) {
-				in.EndDate = new(time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC))
-				in.Target = laterTarget
-			}, "The schedule expression rate(1 hour), with StartDate null and EndDate 2000-01-01T00:00:00Z, is invalid."},
+			{"zone before expression (04-order-expr-tz)", func(in *schedulerapi.CreateScheduleInput) {
+				in.ScheduleExpression, in.ScheduleExpressionTimezone = "rate(10 seconds)", new("Mars/Olympus")
+			}, 400, "Invalid timezone Mars/Olympus."},
+			{"zone before group (04-order-tz-group)", func(in *schedulerapi.CreateScheduleInput) {
+				in.ScheduleExpressionTimezone, in.GroupName = new("Mars/Olympus"), new("nogroup")
+			}, 400, "Invalid timezone Mars/Olympus."},
+			{"group before target", func(in *schedulerapi.CreateScheduleInput) {
+				in.GroupName, in.Target = new("nogroup"), dynamo
+			}, 404, "Schedule group nogroup does not exist."},
+			{"future fire before target", func(in *schedulerapi.CreateScheduleInput) {
+				in.ScheduleExpression, in.State, in.Target = "cron(0 0 1 1 ? 1999)", new(schedulerapi.ScheduleStateDisabled), dynamo
+			}, 400, "The schedule expression cron(0 0 1 1 ? 1999), with StartDate null and EndDate null, is invalid because it will never schedule an invocation."},
 		}
 		for _, c := range cases {
 			in := schedule("s", "rate(1 hour)", h.queueTarget("q", nil))
 			c.edit(in)
-			wantError(h, errOf(call(h, schedulerapi.OpCreateSchedule, in)), "ValidationException", 400, c.want)
+			err := errOf(call(h, schedulerapi.OpCreateSchedule, in))
+			if err == nil || err.ID.Status != c.status || err.Message != c.want {
+				h.Errorf("%s: error = %v, want %d %q", c.name, err, c.status, c.want)
+			}
 		}
 	})
 }

@@ -80,7 +80,8 @@ const (
 	// 11.3).
 	KindSESLinkToken
 	// KindSchedulerExecution is an EventBridge Scheduler invocation's
-	// execution id: 16 lower-case hex digits (scheduler.md 7.2).
+	// execution id: a lower-case UUID (SCH-07, recorded 2026-11-03;
+	// scheduler.md 7.2).
 	KindSchedulerExecution
 	// KindRoleSession is the 32-hex role session name a Scheduler
 	// invocation runs as, one per invocation (scheduler.md 7.2, 9).

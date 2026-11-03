@@ -29,7 +29,7 @@ func (s *Service) bindTargets(b eventbridgeapi.Binder) {
 			"the RoleArn of a function, queue or topic target is not assumed, so under iam.enforce=enforce those deliveries, a bus target without a RoleArn and a bus target whose RoleArn names no IAM role (which AWS fails with FAILED_TO_ASSUME_ROLE) are decided for events.amazonaws.com against the target's policy; " +
 			"a delivery the target refuses is not retried and goes to the dead-letter queue with ERROR_CODE NO_PERMISSIONS (events.delivery.denied-code), else is dropped; no topic policy is added (events.put-targets.sns-policy); " +
 			"a target with HttpParameters, KinesisParameters, EcsParameters, BatchParameters, RunCommandParameters, RedshiftDataParameters, SageMakerPipelineParameters or AppSyncParameters, " +
-			"or an event bus target of the rule's account with Input, InputPath or InputTransformer, fails its entry with NotImplemented; " +
+			"fails its entry with NotImplemented; an event bus target of the rule's account without a RoleArn is accepted, where AWS refuses the call; " +
 			"a rule on another account's or region's bus answers NotImplemented"},
 		namedRule(func(in *eventbridgeapi.PutTargetsInput) *string { return in.EventBusName },
 			func(in *eventbridgeapi.PutTargetsInput) string { return in.Rule }))
@@ -131,7 +131,7 @@ func merged(scope aws.Scope, current, accepted []Target, seq uint64) ([]Target, 
 
 // parseTarget checks a PutTargets entry for a rule in scope and returns it
 // as stored: at most one input form, each well formed, a message group for a
-// FIFO queue, no input form for another account's event bus, and a
+// FIFO queue, no input form for an event bus, and a
 // dead-letter queue deadLetterQueue accepts. Whether such a bus target has
 // a RoleArn depends on the target it replaces (withCrossAccountRole).
 func parseTarget(scope aws.Scope, t *eventbridgeapi.Target) (Target, *awserr.Error) {
@@ -150,7 +150,7 @@ func parseTarget(scope aws.Scope, t *eventbridgeapi.Target) (Target, *awserr.Err
 			return Target{}, errFIFONeedsGroup(t.Id)
 		}
 	case busTarget:
-		if err := checkCrossAccountBus(scope, dt, t); err != nil {
+		if err := checkBusInput(scope, dt, t); err != nil {
 			return Target{}, err
 		}
 	}
@@ -168,15 +168,20 @@ func parseTarget(scope aws.Scope, t *eventbridgeapi.Target) (Target, *awserr.Err
 	return out, nil
 }
 
-// checkCrossAccountBus checks a PutTargets entry t whose ARN is the event
-// bus dt, for a rule in scope: another account's bus takes no input form
-// (API_PutTargets; the refusal's text is unrecorded, eventbridge-buses.md
-// 6.3, EBB-09).
-func checkCrossAccountBus(scope aws.Scope, dt busTarget, t *eventbridgeapi.Target) *awserr.Error {
-	if dt.crossAccount(scope) && (t.Input != nil || t.InputPath != nil || t.InputTransformer != nil) {
+// checkBusInput checks a PutTargets entry t whose ARN is the event bus dt,
+// for a rule in scope: no bus target takes an input form. A bus of the
+// rule's account, in any region, refuses the whole call (AWS-recorded,
+// eventbridge-buses.md 6.2, EBB-08); another account's bus is refused with
+// the PutTargets page's sentence (API_PutTargets; the refusal's text is
+// unrecorded, eventbridge-buses.md 6.3, EBB-09).
+func checkBusInput(scope aws.Scope, dt busTarget, t *eventbridgeapi.Target) *awserr.Error {
+	switch {
+	case t.Input == nil && t.InputPath == nil && t.InputTransformer == nil:
+		return nil
+	case dt.crossAccount(scope):
 		return errCrossAccountInput()
 	}
-	return nil
+	return errBusTargetInput(t.Id)
 }
 
 // withCrossAccountRole is t, a target of a rule in scope, as stored in
@@ -202,18 +207,12 @@ func withCrossAccountRole(scope aws.Scope, t Target, replaced *Target) (Target, 
 
 // refusal is why understudy does not add a PutTargets entry, which fails
 // the entry with NotImplemented: its ARN is not a target understudy
-// delivers to from a rule in scope, it sets a member understudy does not
-// model, or it sets an input form on an event bus of the rule's account,
-// where AWS's handling is unrecorded (eventbridge-buses.md 6.2, EBB-08).
-// Storing it would make deliveries fail, or the member be ignored,
-// silently.
+// delivers to from a rule in scope, or it sets a member understudy does
+// not model. Storing it would make deliveries fail, or the member be
+// ignored, silently.
 func refusal(scope aws.Scope, t *eventbridgeapi.Target) (string, bool) {
-	dt, ok := targetOf(scope, t.Arn)
-	if !ok {
+	if _, ok := targetOf(scope, t.Arn); !ok {
 		return msgUnsupportedTarget(scope, t.Arn), true
-	}
-	if _, isBus := dt.(busTarget); isBus && (t.Input != nil || t.InputPath != nil || t.InputTransformer != nil) {
-		return msgBusTargetInput, true
 	}
 	var unmodeled []string
 	for _, m := range []struct {

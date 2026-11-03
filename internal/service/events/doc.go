@@ -35,47 +35,47 @@
 //     "does not exist".
 //   - The internal PutEvents call of an events-to-events delivery puts the
 //     one event an event bus target forwards, with the id, account, region
-//     and time it was first put with (eventbridge-buses.md 10.4.12; keeping
-//     the time is inferred, EBB-08). The PutEvents input has no member for
+//     and time it was first put with (eventbridge-buses.md 10.4.12; EBB-08
+//     recorded the id and time kept). The PutEvents input has no member for
 //     them, so they travel beside the call on its context, which only that
 //     internal call reads. The event was accepted once, so its Source and
 //     DetailType are not checked again and a scheduled aws.events event is
 //     forwarded; its Detail must still parse. Such a call carries exactly
 //     one entry; any other count is a bug in understudy and fails whole.
 //   - A rule or target call on a custom bus that does not exist answers
-//     "Event bus <name> does not exist.", the text of the bus operations;
-//     AWS's answer is unrecorded (EBB-03). PutRule refuses a
-//     ScheduleExpression on any bus but the default one before it parses
-//     the expression or looks the bus up; the recording shows the refusal
-//     for a missing bus, and the rest of the order is inferred.
-//   - The bus choices no recording settles are the switches of
-//     eventbridge-buses.md 10.5: DeleteEventBus refuses a bus with rules,
-//     UpdateEventBus keeps an omitted member, a KMS key is stored unchecked,
-//     ListEventBuses sorts by name, the default bus reports the scope's
-//     first use as its creation time until a write (tags, UpdateEventBus,
-//     PutPermission) stores it, removing a bus policy's last statement
-//     removes the policy, and RemoveAllPermissions on a bus without one is
-//     ResourceNotFoundException. A tag call changes no bus's
-//     LastModifiedTime, and PutPermission and RemovePermission move it;
-//     both are inferred (EBB-07). UpdateEventBus without a Name updates the
-//     default bus, and an empty KmsKeyIdentifier clears the key; both are
-//     inferred (EBB-04).
+//     "Event bus <name> does not exist.", as AWS does (EBB-03). PutRule
+//     looks the bus up before it refuses a ScheduleExpression on any bus
+//     but the default one (EBB-03), and refuses it before it parses the
+//     expression, an inferred order.
+//   - The bus choices of eventbridge-buses.md 10.5 are switches:
+//     DeleteEventBus refuses a bus with rules, UpdateEventBus keeps an
+//     omitted member, ListEventBuses sorts by name, the default bus reports
+//     the scope's first use as its creation time until a write (tags,
+//     UpdateEventBus, PutPermission) stores it, removing a bus policy's last
+//     statement removes the policy, and RemoveAllPermissions on a bus
+//     without one succeeds, all as AWS does (EBB-01, EBB-04, EBB-06,
+//     EBB-07); a KMS key is stored unchecked, where AWS checks it (EBB-05).
+//     PutPermission and RemovePermission move a bus's LastModifiedTime
+//     (EBB-06); a tag call changes it on no bus, which is inferred. UpdateEventBus
+//     without a Name updates the default bus (EBB-04), and an empty
+//     KmsKeyIdentifier clears the key (EBB-05).
 //   - A bus policy is stored and returned, never enforced
 //     (eventbridge-buses.md 4.4, 10.7.22): PutPermission keeps its
 //     statements in insertion order, upserted by Sid, each generated one in
 //     the recorded member order, and a Policy document verbatim until a
-//     statement call rebuilds the policy from its statements. Any Action the
-//     model's events:<name> pattern allows is stored, which is inferred:
-//     whether AWS takes only events:PutEvents is unrecorded (EBB-06). The
-//     policy is the bus's resource policy for IAM enforcement
+//     statement call rebuilds the policy from its statements. The statement
+//     form takes only the Action events:PutEvents, and a Condition only
+//     with the Principal "*" (EBB-06). The policy is the bus's resource policy for IAM enforcement
 //     (ResourcePolicy), which no caller makes yet; the delivery access
 //     advisory skips events-to-events deliveries (ADR 0015 amendment
 //     2026-10-26). PutPermission refuses a Policy sent with a statement
-//     member, a statement form missing a member, a Policy that is not an
-//     object whose Statement is an object or a list of objects with
+//     member, a statement form missing a member or with another Action or
+//     a Condition beside a Principal other than "*", a Policy that is not
+//     an object whose Statement is an object or a list of objects with
 //     distinct string Sids, and a policy over 10,240 characters, in that
-//     order, all before it looks the bus up except the last; the order and
-//     the texts are inferred (EBB-06).
+//     order, all before it looks the bus up except the last; the order is
+//     inferred, and EBB-06 recorded the texts but the incomplete and
+//     invalid-Policy ones.
 //   - A Detail integer outside the signed 64-bit range API_PutEvents
 //     documents fails its entry with MalformedDetail; the code and text are
 //     inferred (the events.put-events.detail-integer-range switch).
@@ -98,14 +98,13 @@
 //     stored and never delivered or acted on.
 //   - An event bus target forwards each matched event as an
 //     events-to-events delivery whose entry keeps the event's source,
-//     detail-type, detail, account, region, time and resources; keeping the
-//     time and resources is inferred
-//     (events.bus-target.forwarded-time-resources). The id is new for a bus
-//     in another region and kept otherwise, also for a bus of the rule's
-//     own account and region (events.bus-target.same-account-event-id). The
-//     bus need not exist when PutTargets adds it, and a delivery to a bus
-//     that does not exist is dropped as PutEvents drops one; both are
-//     inferred (events.bus-target.missing-bus). A bus target with a RoleArn
+//     detail-type, detail, account, region, time and resources
+//     (events.bus-target.forwarded-time-resources, EBB-08). The id is new
+//     for a bus in another region and kept otherwise, also for a bus of the
+//     rule's own account and region (events.bus-target.same-account-event-id,
+//     EBB-08). The bus need not exist when PutTargets adds it (EBB-08), and
+//     a delivery to a bus that does not exist is dropped as PutEvents drops
+//     one, which is inferred (events.bus-target.missing-bus). A bus target with a RoleArn
 //     is delivered as a session of that role, which under iam.enforce must
 //     trust events.amazonaws.com and be allowed events:PutEvents on the bus
 //     (iam-enforcement-surfaces.md 8.4).
@@ -119,12 +118,12 @@
 //     or InputTransformer, as AWS documents; both refusals fail PutTargets
 //     with a ValidationException whose text is inferred (EBB-09). A put
 //     without a RoleArn on a target with the same Id and Arn keeps its
-//     stored role, as API_PutTargets documents. On a bus
-//     of the rule's own account, AWS's handling of an input form is
-//     unrecorded (EBB-08), so that entry fails with NotImplemented. A bus
-//     target stored with an input form, which only an edited snapshot
-//     holds, is journaled as a dropped delivery rather than forwarded with
-//     its input ignored.
+//     stored role, as API_PutTargets documents. A bus of the rule's own
+//     account with an input form refuses the whole call, as AWS does
+//     (EBB-08); one without a RoleArn is accepted, where AWS refuses it
+//     (EBB-08, the PutTargets note). A bus target stored with an input
+//     form, which only an edited snapshot holds, is journaled as a dropped
+//     delivery rather than forwarded with its input ignored.
 //   - A FIFO queue target without SqsParameters.MessageGroupId, an Input
 //     that is not JSON, an unsupported InputPath or InputPathsMap path, and
 //     a DeadLetterConfig that is not a standard SQS queue in the rule's

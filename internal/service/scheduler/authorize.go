@@ -2,8 +2,6 @@ package scheduler
 
 import (
 	"context"
-	"maps"
-	"slices"
 
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
@@ -36,10 +34,10 @@ func keyActions() []registry.IAMAction {
 	}
 }
 
-// passedToScheduler is the condition key the caller's iam:PassRole carries.
-// Inferred by analogy with the services that pass roles (spec conflict 8;
-// iam-enforcement-surfaces.md 10.2): AWS's table lists no condition key
-// for CreateSchedule. UNVERIFIED (SCH-10 step 02), scheduler.md 9.
+// passedToScheduler is the condition key the caller's iam:PassRole carries:
+// AWS accepted a CreateSchedule whose PassRole is allowed only with
+// iam:PassedToService scheduler.amazonaws.com (SCH-10
+// 10-02-passrole-conditioned, recorded 2026-11-03; scheduler.md 9).
 func passedToScheduler() kernel.ConditionKeys {
 	return kernel.ConditionKeys{"iam:PassedToService": {principal}}
 }
@@ -116,23 +114,22 @@ func (s *Service) groupHeld(scope aws.Scope, name string) bool {
 	return store.Read(cell, func(st *State) bool { return st.hasGroup(name) })
 }
 
-// authorizeMembers asks for the caller's scheduler:DeleteSchedule on each
-// schedule of the group, which DeleteScheduleGroup deletes with it
-// (actions.json; scheduler.md 9). The resource, each member's ARN, is
-// inferred: UNVERIFIED (SCH-10 step 03). A denial deletes nothing. The
-// members are those the group holds when the call reads them, before its
-// write; a schedule created in the group between that read and the write
-// is deleted without being asked about.
+// authorizeMembers asks once for the caller's scheduler:DeleteSchedule on
+// arn:<partition>:scheduler:<region>:<account>:schedule/<group>/*, which
+// DeleteScheduleGroup needs to delete the group's schedules with it: AWS's
+// denial names that resource (SCH-10 10-03-group-delete-denied, recorded
+// 2026-11-03; actions.json; scheduler.md 9). A denial deletes nothing. It
+// is asked only when the group holds a schedule when the call reads it,
+// before its write; whether AWS asks for an empty group is unrecorded
+// (SCH-10 recorded one member).
 func (s *Service) authorizeMembers(ctx context.Context, c *kernel.Call, group string) *awserr.Error {
 	scope := c.Scope()
-	var members []string
+	held := false
 	if cell, ok := s.cells.Lookup(scope); ok {
-		members = store.Read(cell, func(st *State) []string { return slices.Sorted(maps.Keys(st.Schedules[group])) })
+		held = store.Read(cell, func(st *State) bool { return len(st.Schedules[group]) > 0 })
 	}
-	for _, name := range members {
-		if err := kernel.Authorize(ctx, c, schedulerAction("DeleteSchedule"), scheduleRef{scope: scope, group: group, name: name}.arn(), nil); err != nil {
-			return err
-		}
+	if !held {
+		return nil
 	}
-	return nil
+	return kernel.Authorize(ctx, c, schedulerAction("DeleteSchedule"), scheduleRef{scope: scope, group: group, name: "*"}.arn(), nil)
 }

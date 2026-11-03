@@ -124,19 +124,21 @@ func TestCloudTrailManagementStateOnACustomBus(t *testing.T) {
 	})
 }
 
-// A ScheduleExpression is refused on any bus but the default one, whether
-// the bus exists (ValidationException "ScheduleExpression is supported
-// only on the default event bus.", third-party-recorded
-// localstack@8b9a79f tests/aws/services/events/test_events_schedule.snapshot.json:L33-L46)
-// or not (testdata/parity/events/R14/04-custom-bus-schedule.json, which
-// names a bus the recording never created, aws-recorded), and named by
-// name or ARN (eventbridge-buses.md 5.3, 10.3.7). The default bus takes it.
+// A ScheduleExpression is refused on any custom bus that exists, named by
+// name or ARN (ValidationException "ScheduleExpression is supported only on
+// the default event bus.", aws-recorded R14/04), while a missing custom bus
+// is not found first (aws-recorded EBB-03, eventbridge-buses.md 5.3). The
+// default bus takes it.
 func TestScheduleExpressionOnlyOnTheDefaultBus(t *testing.T) {
 	run(t, func(h *harness) {
 		h.createBus("orders")
-		for _, bus := range []string{"orders", busPrefix + "orders", "never-created", busPrefix + "never-created"} {
+		for _, bus := range []string{"orders", busPrefix + "orders"} {
 			_, err := call(h, eventbridgeapi.OpPutRule, &eventbridgeapi.PutRuleInput{Name: "timer", EventBusName: new(bus), ScheduleExpression: new("rate(5 minutes)")})
 			wantError(t, err, "ValidationException", "ScheduleExpression is supported only on the default event bus.")
+		}
+		for _, bus := range []string{"us1103-missing", busPrefix + "us1103-missing"} {
+			_, err := call(h, eventbridgeapi.OpPutRule, &eventbridgeapi.PutRuleInput{Name: "us1103-m", EventBusName: new(bus), ScheduleExpression: new("rate(5 minutes)")})
+			wantError(t, err, "ResourceNotFoundException", "Event bus us1103-missing does not exist.")
 		}
 		if n := len(must(h, eventbridgeapi.OpListRules, &eventbridgeapi.ListRulesInput{EventBusName: new("orders")}).Rules); n != 0 {
 			t.Errorf("%d rules on orders after the refused calls", n)
@@ -147,13 +149,15 @@ func TestScheduleExpressionOnlyOnTheDefaultBus(t *testing.T) {
 	})
 }
 
-// R14 step 04 as recorded: PutRule of rate(5 minutes) on a bus the
-// recording never created answers 400 ValidationException "ScheduleExpression
-// is supported only on the default event bus."
+// R14 step 04 as recorded: PutRule of rate(5 minutes) on a custom bus
+// answers 400 ValidationException "ScheduleExpression is supported only on
+// the default event bus."
 // (testdata/parity/events/R14/04-custom-bus-schedule.json:L20 request,
-// L23 status, L31 body; aws-recorded).
+// L23 status, L31 body; aws-recorded). The bus existed: a missing one is
+// not found first (EBB-03, eventbridge-buses.md 5.3).
 func TestR14CustomBusScheduleAnswersAsRecorded(t *testing.T) {
 	run(t, func(h *harness) {
+		h.createBus("usr-rec-20261014-bus")
 		_, err := call(h, eventbridgeapi.OpPutRule, &eventbridgeapi.PutRuleInput{
 			Name: "usr-rec-20261014-busrule", ScheduleExpression: new("rate(5 minutes)"), EventBusName: new("usr-rec-20261014-bus"),
 		})

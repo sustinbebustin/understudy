@@ -116,8 +116,8 @@ func emulatorNow(t *testing.T) time.Time {
 
 // A rate schedule first fires at its StartDate (aws-doc schedule-types;
 // scheduler.md 5.2), its body carrying the schedule ARN, the scheduled
-// time, a 16-hex execution id and attempt 1 (aws-doc
-// managing-schedule-context-attributes, configuring-schedule-dlq;
+// time, an execution id in UUID form and attempt 1 (aws-doc
+// managing-schedule-context-attributes; SCH-07, recorded 2026-11-03;
 // scheduler.md 6.3, 7.2); the time zone, State and StartDate read back as
 // sent (tf-acc schedule_test.go:L365-L419, L1870-L1895; scheduler.md 4.2).
 func TestSchedulerStartDateFireCarriesTheContextAttributes(t *testing.T) {
@@ -142,7 +142,7 @@ func TestSchedulerStartDateFireCarriesTheContextAttributes(t *testing.T) {
 	if len(received.Messages) != 1 {
 		t.Fatalf("received %d messages, want the StartDate fire", len(received.Messages))
 	}
-	want := regexp.MustCompile("^" + regexp.QuoteMeta(aws.ToString(created.ScheduleArn)+"|"+start.Format("2006-01-02T15:04:05Z")+"|") + `[0-9a-f]{16}\|1$`)
+	want := regexp.MustCompile("^" + regexp.QuoteMeta(aws.ToString(created.ScheduleArn)+"|"+start.Format("2006-01-02T15:04:05Z")+"|") + `[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\|1$`)
 	if body := aws.ToString(received.Messages[0].Body); !want.MatchString(body) {
 		t.Errorf("body = %q, want %s", body, want)
 	}
@@ -358,10 +358,14 @@ func TestSchedulerDeletedTargetQueueDeadLetters(t *testing.T) {
 		t.Fatalf("the dead-letter queue received %d messages, want 1", len(received.Messages))
 	}
 	m := received.Messages[0]
-	if aws.ToString(m.Body) != "Hello, world!" {
-		t.Errorf("body = %q, want Hello, world!", aws.ToString(m.Body))
+	// The body is the SendMessage request Scheduler built (SCH-08,
+	// recorded 2026-11-03; scheduler.md 7.2).
+	parts := strings.Split(aws.ToString(target.Arn), ":") // arn:aws:sqs:<region>:<account>:<name>
+	wantBody := `{"MessageBody":"Hello, world!","QueueUrl":"https://sqs.` + parts[3] + `.amazonaws.com/` + parts[4] + `/` + parts[5] + `"}`
+	if aws.ToString(m.Body) != wantBody {
+		t.Errorf("body = %q, want %s", aws.ToString(m.Body), wantBody)
 	}
-	for _, n := range []string{"ERROR_CODE", "ERROR_MESSAGE", "EXECUTION_ID", "IS_PAYLOAD_TRUNCATED", "RETRY_ATTEMPTS", "SCHEDULED_TIME", "SCHEDULE_ARN", "TARGET_ARN"} {
+	for _, n := range []string{"CONTAINS_INVALID_PAYLOAD", "ERROR_CODE", "ERROR_MESSAGE", "EXECUTION_ID", "IS_PAYLOAD_TRUNCATED", "RETRY_ATTEMPTS", "SCHEDULED_TIME", "SCHEDULE_ARN", "TARGET_ARN"} {
 		if a, present := m.MessageAttributes[n]; !present || aws.ToString(a.DataType) != "String" {
 			t.Errorf("attribute %s = %+v (present %v), want a String", n, a, present)
 		}
@@ -370,8 +374,8 @@ func TestSchedulerDeletedTargetQueueDeadLetters(t *testing.T) {
 	if v := str("ERROR_CODE"); v != "AWS.SimpleQueueService.NonExistentQueue" {
 		t.Errorf("ERROR_CODE = %q, want AWS.SimpleQueueService.NonExistentQueue", v)
 	}
-	if v := str("TARGET_ARN"); !regexp.MustCompile(`^arn:aws:scheduler:::aws-sdk:[a-z0-9-]+:[a-zA-Z]+$`).MatchString(v) {
-		t.Errorf("TARGET_ARN = %q, want arn:aws:scheduler:::aws-sdk:<service>:<apiAction>", v)
+	if v := str("TARGET_ARN"); v != aws.ToString(target.Arn) {
+		t.Errorf("TARGET_ARN = %q, want the target as configured, %s", v, aws.ToString(target.Arn))
 	}
 	if v := str("SCHEDULE_ARN"); v != aws.ToString(created.ScheduleArn) {
 		t.Errorf("SCHEDULE_ARN = %q, want %s", v, aws.ToString(created.ScheduleArn))

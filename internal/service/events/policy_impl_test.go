@@ -30,12 +30,17 @@ func (h *harness) sids(bus *string) []string {
 // PutPermission refuses a request before it looks the bus up: a Policy
 // with a statement member, a statement form missing StatementId, Action
 // or Principal, and a Policy that is not a JSON object whose Statement is
-// an object or a list of objects with distinct string Sids. The order and
-// texts are understudy's choice (eventbridge-buses.md 4.1; EBB-06 records
-// AWS's). A refused call stores nothing.
+// an object or a list of objects with distinct string Sids; an Action
+// other than events:PutEvents, and a Condition with a Principal other
+// than "*". EBB-06 (recorded 2026-11-03; eventbridge-buses.md 4.1)
+// recorded the Policy-with-StatementId, Action and Condition texts; the
+// order and the other texts are understudy's. A refused call stores
+// nothing.
 func TestPutPermissionRequestChecks(t *testing.T) {
 	const (
-		withStatement = "Parameter(s) Policy cannot be specified together with StatementId, Action, Principal or Condition."
+		withStatement = "Action, Principal, StatementId and Condition could not be combined with Policy parameter."
+		badAction     = "Provided value in parameter 'action' is not supported."
+		condition     = "Value of the parameter 'principal' must be '*' when the parameter 'condition' is set."
 		incomplete    = "Parameter(s) Action, Principal and StatementId must be specified when Policy is not."
 		invalid       = "Parameter Policy is not valid."
 	)
@@ -54,6 +59,11 @@ func TestPutPermissionRequestChecks(t *testing.T) {
 		{"no Principal", eventbridgeapi.PutPermissionInput{StatementId: new("s"), Action: new("events:PutEvents")}, incomplete},
 		{"no StatementId", eventbridgeapi.PutPermissionInput{Action: new("events:PutEvents"), Principal: new("*")}, incomplete},
 		{"nothing", eventbridgeapi.PutPermissionInput{}, incomplete},
+		{"Action events:PutRule", eventbridgeapi.PutPermissionInput{StatementId: new("s"), Action: new("events:PutRule"), Principal: new("111111111111")}, badAction},
+		{"Condition with an account", eventbridgeapi.PutPermissionInput{
+			StatementId: new("s"), Action: new("events:PutEvents"), Principal: new("111111111111"),
+			Condition: &eventbridgeapi.Condition{Type: "StringEquals", Key: "aws:PrincipalOrgID", Value: "o-1"},
+		}, condition},
 		{"not JSON", eventbridgeapi.PutPermissionInput{Policy: new("{")}, invalid},
 		{"empty", eventbridgeapi.PutPermissionInput{Policy: new("")}, invalid},
 		{"a list", eventbridgeapi.PutPermissionInput{Policy: new(`[]`)}, invalid},
@@ -140,9 +150,10 @@ func TestPolicyStatementsKeepTheirOrder(t *testing.T) {
 }
 
 // A policy of exactly 10,240 characters is stored; one more character is
-// PolicyLengthExceededException, with understudy's text (the eb-quota.html
-// limit, eventbridge-buses.md 4.1; the text is the PutPermission page's
-// sentence, EBB-06), from either form, and the policy stays as it was.
+// PolicyLengthExceededException "Policy size would be larger than the
+// maximum allowed." (the eb-quota.html limit; EBB-06 06-too-long, recorded
+// 2026-11-03; eventbridge-buses.md 4.1), from either form, and the policy
+// stays as it was. The exact boundary is inferred.
 func TestPutPermissionPolicyLengthBoundary(t *testing.T) {
 	run(t, func(h *harness) {
 		h.createBus("edge")
@@ -156,11 +167,11 @@ func TestPutPermissionPolicyLengthBoundary(t *testing.T) {
 			t.Fatalf("Policy holds %d characters, want the 10240 sent", len(deref(d.Policy)))
 		}
 		_, err := call(h, eventbridgeapi.OpPutPermission, &eventbridgeapi.PutPermissionInput{EventBusName: new("edge"), Policy: new(sized(10241))})
-		wantError(t, err, "PolicyLengthExceededException", "The permission policy on the event bus cannot exceed 10 KB in size.")
+		wantError(t, err, "PolicyLengthExceededException", "Policy size would be larger than the maximum allowed.")
 		_, err = call(h, eventbridgeapi.OpPutPermission, &eventbridgeapi.PutPermissionInput{
 			EventBusName: new("edge"), StatementId: new("more"), Action: new("events:PutEvents"), Principal: new("*"),
 		})
-		wantError(t, err, "PolicyLengthExceededException", "The permission policy on the event bus cannot exceed 10 KB in size.")
+		wantError(t, err, "PolicyLengthExceededException", "Policy size would be larger than the maximum allowed.")
 		if d := h.describeBus(new("edge")); deref(d.Policy) != sized(10240) {
 			t.Errorf("Policy after the refused calls holds %d characters, want the stored 10240", len(deref(d.Policy)))
 		}
@@ -168,8 +179,9 @@ func TestPutPermissionPolicyLengthBoundary(t *testing.T) {
 }
 
 // RemoveAllPermissions ignores a StatementId; on a bus without a policy it
-// is not found with understudy's text (events.bus-policy.remove-all-without-policy;
-// eventbridge-buses.md 4.3, EBB-06). Without RemoveAllPermissions, no
+// succeeds and changes nothing (events.bus-policy.remove-all-without-policy;
+// EBB-06 06-remove-all-empty, recorded 2026-11-03; eventbridge-buses.md
+// 4.3). Without RemoveAllPermissions, no
 // StatementId is not found as an unknown one is (eventbridge-buses.md 4.3).
 // A missing bus is not found (eventbridge-buses.md 4.1, third-party-recorded
 // test_events.snapshot.json:L1152-L1165).
@@ -183,9 +195,11 @@ func TestRemovePermissionForms(t *testing.T) {
 		if d := h.describeBus(new("r")); d.Policy != nil {
 			t.Errorf("Policy after RemoveAllPermissions = %s, want none", *d.Policy)
 		}
-		for bus, name := range map[string]*string{"r": new("r"), "default": nil} {
-			_, err := call(h, eventbridgeapi.OpRemovePermission, &eventbridgeapi.RemovePermissionInput{EventBusName: name, RemoveAllPermissions: true})
-			wantError(t, err, "ResourceNotFoundException", "Event bus "+bus+" does not have a policy.")
+		for _, name := range []*string{new("r"), nil} {
+			must(h, eventbridgeapi.OpRemovePermission, &eventbridgeapi.RemovePermissionInput{EventBusName: name, RemoveAllPermissions: true})
+			if d := h.describeBus(name); d.Policy != nil {
+				t.Errorf("Policy after RemoveAllPermissions on a bus without one = %s, want none", *d.Policy)
+			}
 		}
 		_, err = call(h, eventbridgeapi.OpRemovePermission, &eventbridgeapi.RemovePermissionInput{EventBusName: new("missing"), StatementId: new("s1")})
 		wantError(t, err, "ResourceNotFoundException", "Event bus missing does not exist.")

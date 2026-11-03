@@ -4,6 +4,15 @@
   "account": "123456789012",
   "region": "us-east-2",
   "client": "aws-cli",
+  "setup": [
+    {
+      "service": "eventbridge",
+      "operation": "CreateEventBus",
+      "input": {
+        "Name": "usr-rec-20261014-bus"
+      }
+    }
+  ],
   "steps": [
     {
       "fixture": "events/R14/04-custom-bus-schedule.json",

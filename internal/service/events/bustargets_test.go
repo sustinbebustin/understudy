@@ -263,27 +263,24 @@ func TestPutTargetsCrossAccountBusTarget(t *testing.T) {
 	})
 }
 
-// AWS's handling of an input form on a bus target of the rule's own account
-// is unrecorded (eventbridge-buses.md 6.2, EBB-08), so understudy fails
-// that entry with NotImplemented rather than guess, and stores the rest.
+// An input form on a bus target of the rule's own account refuses the
+// whole call: ValidationException "Modifying the input for target <id> is
+// not supported." (EBB-08 08-input-on-bus-target, recorded 2026-11-03;
+// eventbridge-buses.md 6.2). Nothing is stored; InputPath and
+// InputTransformer are inferred to answer as Input does.
 func TestPutTargetsSameAccountBusTargetWithInput(t *testing.T) {
 	run(t, func(h *harness) {
 		dest := h.createBus("dest")
 		h.patternRule("fwd", `{"source": ["shop"]}`)
-		out := must(h, eventbridgeapi.OpPutTargets, &eventbridgeapi.PutTargetsInput{Rule: "fwd", Targets: []eventbridgeapi.Target{
+		for _, shaped := range []eventbridgeapi.Target{
 			{Id: "shaped", Arn: dest, Input: new(`{"a": 1}`)},
-			{Id: "q", Arn: queueARN},
-		}})
-		want := "understudy forwards the matched event to an event bus target in the rule's account and does not implement Input, InputPath or " +
-			"InputTransformer on it, since AWS's handling is unrecorded; the target was not added. Remove the input member, or run " +
-			"'understudy coverage --service eventbridge' for what is supported."
-		if out.FailedEntryCount != 1 || len(out.FailedEntries) != 1 || deref(out.FailedEntries[0].TargetId) != "shaped" ||
-			deref(out.FailedEntries[0].ErrorCode) != "NotImplemented" || deref(out.FailedEntries[0].ErrorMessage) != want {
-			t.Errorf("PutTargets = %+v, want shaped failed with NotImplemented %q", out, want)
+			{Id: "shaped", Arn: dest, InputPath: new("$.detail")},
+		} {
+			_, err := call(h, eventbridgeapi.OpPutTargets, &eventbridgeapi.PutTargetsInput{Rule: "fwd", Targets: []eventbridgeapi.Target{shaped, {Id: "q", Arn: queueARN}}})
+			wantError(t, err, "ValidationException", "Modifying the input for target shaped is not supported.")
 		}
-		listed := must(h, eventbridgeapi.OpListTargetsByRule, &eventbridgeapi.ListTargetsByRuleInput{Rule: "fwd"}).Targets
-		if len(listed) != 1 || listed[0].Id != "q" {
-			t.Errorf("targets = %+v, want q alone", listed)
+		if n := len(must(h, eventbridgeapi.OpListTargetsByRule, &eventbridgeapi.ListTargetsByRuleInput{Rule: "fwd"}).Targets); n != 0 {
+			t.Errorf("%d targets stored, want none", n)
 		}
 	})
 }

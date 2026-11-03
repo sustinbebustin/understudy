@@ -140,31 +140,24 @@ func TestPutTargetsRefusesEventBridgeARNsThatAreNoBus(t *testing.T) {
 // A bus of the rule's own account in another region is a same-account
 // target: it takes no RoleArn requirement (events.bus-target.cross-account-role
 // concerns other accounts, eb-cross-account.html), and an input form on it
-// fails its entry as on a same-region bus, AWS's handling being unrecorded
-// (eventbridge-buses.md 6.2, EBB-08).
+// refuses the call as on a same-region bus (EBB-08, recorded 2026-11-03,
+// for a same-region bus; eventbridge-buses.md 6.2).
 func TestSameAccountBusInAnotherRegion(t *testing.T) {
 	run(t, func(h *harness) {
 		const west = "arn:aws:events:eu-west-1:000000000000:event-bus/orders"
 		h.patternRule("fwd", `{"source": ["shop"]}`)
-		out := must(h, eventbridgeapi.OpPutTargets, &eventbridgeapi.PutTargetsInput{Rule: "fwd", Targets: []eventbridgeapi.Target{
+		_, err := call(h, eventbridgeapi.OpPutTargets, &eventbridgeapi.PutTargetsInput{Rule: "fwd", Targets: []eventbridgeapi.Target{
 			{Id: "plain", Arn: west},
 			{Id: "shaped", Arn: west, InputPath: new("$.detail")},
 		}})
-		if out.FailedEntryCount != 1 || deref(out.FailedEntries[0].TargetId) != "shaped" || deref(out.FailedEntries[0].ErrorMessage) != msgBusTargetInputText {
-			t.Errorf("PutTargets = %+v, want shaped failed with the bus-target input text", out)
-		}
+		wantError(t, err, "ValidationException", "Modifying the input for target shaped is not supported.")
+		must(h, eventbridgeapi.OpPutTargets, &eventbridgeapi.PutTargetsInput{Rule: "fwd", Targets: []eventbridgeapi.Target{{Id: "plain", Arn: west}}})
 		listed := must(h, eventbridgeapi.OpListTargetsByRule, &eventbridgeapi.ListTargetsByRuleInput{Rule: "fwd"}).Targets
 		if len(listed) != 1 || listed[0].Id != "plain" || listed[0].RoleArn != nil {
 			t.Errorf("targets = %+v, want plain alone, without a RoleArn", listed)
 		}
 	})
 }
-
-// msgBusTargetInputText is the PutTargets entry failure for an input form
-// on a bus target of the rule's account (TestPutTargetsSameAccountBusTargetWithInput).
-const msgBusTargetInputText = "understudy forwards the matched event to an event bus target in the rule's account and does not implement Input, InputPath or " +
-	"InputTransformer on it, since AWS's handling is unrecorded; the target was not added. Remove the input member, or run " +
-	"'understudy coverage --service eventbridge' for what is supported."
 
 // A bus target stored with an input form, which PutTargets never stores, can
 // only come from an edited snapshot. Its rule's other targets still receive

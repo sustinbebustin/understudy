@@ -36,11 +36,12 @@ func stringAttr(m sent, name string) string {
 	return deref(m.in.MessageAttributes[name].StringValue)
 }
 
-// A dead letter whose payload exceeds SQS's 256 KiB is cut to it and says
-// so in IS_PAYLOAD_TRUNCATED (aws-doc monitoring-cloudwatch; scheduler.md
-// 7.2, 14.5.3). The cut falls on a character boundary, so a character
-// straddling the limit is left out whole. UNVERIFIED (SCH-08): the cut
-// size and boundary are understudy's.
+// A dead letter whose body would exceed SQS's 256 KiB has its payload cut
+// so the body fits, and says so in IS_PAYLOAD_TRUNCATED (aws-doc
+// monitoring-cloudwatch: Scheduler "truncates the payload you specify in
+// the Input attribute"; scheduler.md 7.2, 14.5.3). The cut falls on a
+// character boundary. UNVERIFIED (SCH-08): the cut size and boundary are
+// understudy's.
 func TestSchedulerDeadLetterTruncatesALargePayload(t *testing.T) {
 	run(t, func(k *kerneltest.K, o *outbox.Outbox) {
 		q := goneQueues(k, "gone")
@@ -53,8 +54,10 @@ func TestSchedulerDeadLetterTruncatesALargePayload(t *testing.T) {
 			k.Fatalf("sent %d messages, want the attempt and the dead letter", len(got))
 		}
 		dl := got[1]
-		if body := dl.in.MessageBody; body != strings.Repeat("x", 262_143) {
-			k.Errorf("dead-letter body is %d bytes ending %q, want the 262,143 bytes before the straddling character", len(body), body[max(0, len(body)-8):])
+		empty := sqsDeadLetterBody("", "", arn("sqs", "gone"))
+		if body := dl.in.MessageBody; len(body) > 262_144 || len(body) < 262_144-1 ||
+			body != sqsDeadLetterBody(strings.Repeat("x", len(body)-len(empty)), "", arn("sqs", "gone")) {
+			k.Errorf("dead-letter body is %d bytes ending %q, want the request with the payload's x run cut to fit 262,144 bytes", len(body), body[max(0, len(body)-8):])
 		}
 		if v := stringAttr(dl, "IS_PAYLOAD_TRUNCATED"); v != "true" {
 			k.Errorf("IS_PAYLOAD_TRUNCATED = %q, want true", v)
@@ -64,9 +67,9 @@ func TestSchedulerDeadLetterTruncatesALargePayload(t *testing.T) {
 
 // A Scheduler event bus target may name a dead-letter queue; its dead
 // letter's body is the payload the entry's Detail carried, its context
-// attributes substituted, not an event envelope (scheduler.md 14.5.3).
-// UNVERIFIED (SCH-08): the bus body and the universal TARGET_ARN spelling
-// eventbridge:putEvents are inferred.
+// attributes substituted, not an event envelope, and TARGET_ARN is the bus
+// as configured (scheduler.md 7.2, 14.5.3). UNVERIFIED (SCH-08 recorded
+// SQS targets only): the bus body is inferred.
 func TestSchedulerBusTargetDeadLetterIsThePayload(t *testing.T) {
 	run(t, func(k *kerneltest.K, o *outbox.Outbox) {
 		stubBus(k, func(int) string { return "InvalidArgument" })
@@ -84,8 +87,8 @@ func TestSchedulerBusTargetDeadLetterIsThePayload(t *testing.T) {
 		if body := got[0].in.MessageBody; body != `{"attempt":"1"}` {
 			k.Errorf("dead-letter body = %q, want the payload {\"attempt\":\"1\"}", body)
 		}
-		if v := stringAttr(got[0], "TARGET_ARN"); v != "arn:aws:scheduler:::aws-sdk:eventbridge:putEvents" {
-			k.Errorf("TARGET_ARN = %q, want arn:aws:scheduler:::aws-sdk:eventbridge:putEvents", v)
+		if v := stringAttr(got[0], "TARGET_ARN"); v != bus.String() {
+			k.Errorf("TARGET_ARN = %q, want %s", v, bus)
 		}
 		if v := stringAttr(got[0], "RETRY_ATTEMPTS"); v != "0" {
 			k.Errorf("RETRY_ATTEMPTS = %q, want 0", v)
@@ -94,9 +97,9 @@ func TestSchedulerBusTargetDeadLetterIsThePayload(t *testing.T) {
 }
 
 // A Lambda target's dead letter names the function's own error code, the
-// shape name of a restJson1 error, and the universal lambda:invoke target
-// (scheduler.md 7.2, 14.5.3). UNVERIFIED (SCH-08): the spelling is
-// inferred from the documented sqs:sendMessage form.
+// shape name of a restJson1 error, and the function as configured, as
+// SCH-08 recorded for SQS targets (scheduler.md 7.2, 14.5.3); its body is
+// the payload. UNVERIFIED (SCH-08 recorded SQS targets only).
 func TestSchedulerLambdaTargetDeadLetter(t *testing.T) {
 	run(t, func(k *kerneltest.K, o *outbox.Outbox) {
 		k.Stub(lambdaapi.OpInvoke, func(context.Context, *kernel.Call, *lambdaapi.InvokeInput) (*lambdaapi.InvokeOutput, *awserr.Error) {
@@ -115,7 +118,7 @@ func TestSchedulerLambdaTargetDeadLetter(t *testing.T) {
 		for name, want := range map[string]string{
 			"ERROR_CODE":    "ResourceNotFoundException",
 			"ERROR_MESSAGE": "Function not found: tick",
-			"TARGET_ARN":    "arn:aws:scheduler:::aws-sdk:lambda:invoke",
+			"TARGET_ARN":    fn.String(),
 		} {
 			if v := stringAttr(got[0], name); v != want {
 				k.Errorf("%s = %q, want %q", name, v, want)

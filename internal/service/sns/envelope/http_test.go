@@ -348,6 +348,27 @@ func TestHTTPHeadersOfEachMessageType(t *testing.T) {
 				{"x-amz-sns-subscription-arn", subscription},
 			}, common("text/plain; charset=UTF-8")...),
 		},
+		// SNSH-03 (recorded 2026-11-03): requestPolicy.headerContentType
+		// applies to both confirmations, verbatim.
+		{
+			"a subscription confirmation with a topic's application/json",
+			envelope.SubscriptionConfirmationPost{MessageID: messageID, TopicARN: exampleTopic, ContentType: "application/json"},
+			append([]header{
+				{"x-amz-sns-message-type", "SubscriptionConfirmation"},
+				{"x-amz-sns-message-id", messageID},
+				{"x-amz-sns-topic-arn", exampleTopic},
+			}, common("application/json")...),
+		},
+		{
+			"an unsubscribe confirmation with a subscription's text/plain",
+			envelope.UnsubscribeConfirmationPost{MessageID: messageID, TopicARN: exampleTopic, SubscriptionARN: subscription, ContentType: "text/plain"},
+			append([]header{
+				{"x-amz-sns-message-type", "UnsubscribeConfirmation"},
+				{"x-amz-sns-message-id", messageID},
+				{"x-amz-sns-topic-arn", exampleTopic},
+				{"x-amz-sns-subscription-arn", subscription},
+			}, common("text/plain")...),
+		},
 	}
 	for _, c := range cases {
 		got := headersOf(envelope.HTTPHeaders(c.post, nil))

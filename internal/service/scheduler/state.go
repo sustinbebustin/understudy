@@ -107,7 +107,7 @@ func (s *State) load() error {
 				return &StoredScheduleError{Group: group, Name: name, Reason: "its target " + sc.Echo.Target.Arn + " is not an ARN of a served Region"}
 			}
 			m := sc.Echo.members()
-			p, err := accept(scope, &m, schedexpr.AnyUnitAgreement, atLoad)
+			p, err := accept(scope, &m, schedexpr.AnyUnitAgreement, atLoad{})
 			if err != nil {
 				return &StoredScheduleError{Group: group, Name: name, Reason: err.Message}
 			}

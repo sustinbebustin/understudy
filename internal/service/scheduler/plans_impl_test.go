@@ -24,8 +24,9 @@ func TestListSchedulesG6(t *testing.T) {
 }
 
 // ListSchedules in the default group: NamePrefix and State filter, the
-// default group can be named, entries carry the ARN, State, whole-second
-// dates and Target {Arn} (scheduler.md 4.5). Group then name order, pages
+// default group can be named, entries carry the ARN, State, dates to the
+// millisecond (SCH-01, recorded 2026-11-03; scheduler.md 4.2) and Target
+// {Arn} (scheduler.md 4.5). Group then name order, pages
 // of MaxResults, and a NextToken of another listing refused with
 // ValidationException are UNVERIFIED (SCH-01), scheduler.md 4.5.
 func TestListSchedulesInTheDefaultGroup(t *testing.T) {
@@ -48,8 +49,8 @@ func TestListSchedulesInTheDefaultGroup(t *testing.T) {
 				if val(s.Arn) != h.scheduleArn("default", val(s.Name)) || val(s.GroupName) != "default" || s.Target == nil || s.Target.Arn != h.queueArn("q") {
 					h.Errorf("summary %+v, want its ARN, group default and Target {Arn}", s)
 				}
-				if s.CreationDate == nil || s.CreationDate.Nanosecond() != 0 || s.LastModificationDate == nil {
-					h.Errorf("summary dates %v, %v; want whole seconds", s.CreationDate, s.LastModificationDate)
+				if s.CreationDate == nil || s.CreationDate.Nanosecond() != 500_000_000 || s.LastModificationDate == nil {
+					h.Errorf("summary dates %v, %v; want the creation instant to the millisecond", s.CreationDate, s.LastModificationDate)
 				}
 			}
 			pages = append(pages, page)

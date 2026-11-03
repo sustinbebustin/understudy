@@ -25,7 +25,8 @@ func errBusNotFound(name string) *awserr.Error {
 	return eventbridgeapi.ErrResourceNotFoundException("Event bus " + name + " does not exist.")
 }
 
-// errBusExists is third-party-recorded (eventbridge-buses.md 3.1).
+// errBusExists is third-party-recorded (eventbridge-buses.md 3.1), and
+// AWS-recorded for the name default (EBB-02).
 func errBusExists(name string) *awserr.Error {
 	return eventbridgeapi.ErrResourceAlreadyExistsException("Event bus " + name + " already exists.")
 }
@@ -35,15 +36,14 @@ func errDeleteDefaultBus() *awserr.Error {
 	return eventbridgeapi.ErrValidationException("Cannot delete event bus " + defaultBus + ".")
 }
 
-// errReservedBusName and errSlashInBusName are inferred: the CreateEventBus
-// page states both refusals, and AWS's texts are unrecorded
-// (eventbridge-buses.md 2.2, EBB-02). Each is that page's sentence.
-func errReservedBusName() *awserr.Error {
-	return eventbridgeapi.ErrValidationException("You can't use the name " + defaultBus + " for a custom event bus.")
+// errAWSBusName and errSlashInBusName are AWS-recorded (eventbridge-buses.md
+// 2.2, EBB-02).
+func errAWSBusName() *awserr.Error {
+	return eventbridgeapi.ErrValidationException("EventBus name starting with '" + reservedSourcePrefix + "' is not valid.")
 }
 
 func errSlashInBusName() *awserr.Error {
-	return eventbridgeapi.ErrValidationException("Custom event bus names can't contain the / character.")
+	return eventbridgeapi.ErrValidationException("Event bus name must not contain '/'.")
 }
 
 // errTooManyBuses is inferred: the model declares LimitExceededException for
@@ -53,12 +53,10 @@ func errTooManyBuses() *awserr.Error {
 	return eventbridgeapi.ErrLimitExceededException("The requested resource exceeds the maximum number allowed.")
 }
 
-// errBusHasRules is inferred: DeleteEventBus requires that "All rules
-// associated with this event bus need to be deleted", and AWS's answer to a
-// bus that still has rules is unrecorded (eventbridge-buses.md 3.5, EBB-01;
-// the events.delete-bus.with-rules switch).
-func errBusHasRules(name string) *awserr.Error {
-	return eventbridgeapi.ErrValidationException("Cannot delete event bus " + name + ". All rules associated with this event bus need to be deleted.")
+// errBusHasRules is AWS-recorded (eventbridge-buses.md 3.5, EBB-01; the
+// events.delete-bus.with-rules switch).
+func errBusHasRules() *awserr.Error {
+	return eventbridgeapi.ErrValidationException("EventBus can't be deleted since it has rules.")
 }
 
 // errPartnerBus is understudy's own answer to CreateEventBus with an
@@ -84,27 +82,30 @@ func errStatementNotFound() *awserr.Error {
 	return eventbridgeapi.ErrResourceNotFoundException("Statement with the provided id does not exist.")
 }
 
-// errPolicyTooLong, errPermissionIncomplete, errPolicyWithStatement and
-// errNoPolicy are inferred: the PutPermission page states the 10 KB limit
-// and that a Policy is sent instead of the statement members, and AWS's
-// texts, and its answer to RemoveAllPermissions on a bus without a policy
-// (events.bus-policy.remove-all-without-policy), are unrecorded
-// (eventbridge-buses.md 4.1, 4.3, EBB-06). The first is the page's
-// sentence; the next two follow errNoPatternOrSchedule's form.
+// errPolicyTooLong, errPolicyWithStatement, errPermissionAction and
+// errConditionPrincipal are AWS-recorded (eventbridge-buses.md 4.1, EBB-06).
 func errPolicyTooLong() *awserr.Error {
-	return eventbridgeapi.ErrPolicyLengthExceededException("The permission policy on the event bus cannot exceed 10 KB in size.")
-}
-
-func errPermissionIncomplete() *awserr.Error {
-	return eventbridgeapi.ErrValidationException("Parameter(s) Action, Principal and StatementId must be specified when Policy is not.")
+	return eventbridgeapi.ErrPolicyLengthExceededException("Policy size would be larger than the maximum allowed.")
 }
 
 func errPolicyWithStatement() *awserr.Error {
-	return eventbridgeapi.ErrValidationException("Parameter(s) Policy cannot be specified together with StatementId, Action, Principal or Condition.")
+	return eventbridgeapi.ErrValidationException("Action, Principal, StatementId and Condition could not be combined with Policy parameter.")
 }
 
-func errNoPolicy(bus string) *awserr.Error {
-	return eventbridgeapi.ErrResourceNotFoundException("Event bus " + bus + " does not have a policy.")
+func errPermissionAction() *awserr.Error {
+	return eventbridgeapi.ErrValidationException("Provided value in parameter 'action' is not supported.")
+}
+
+func errConditionPrincipal() *awserr.Error {
+	return eventbridgeapi.ErrValidationException("Value of the parameter 'principal' must be '*' when the parameter 'condition' is set.")
+}
+
+// errPermissionIncomplete is inferred: the PutPermission page states that a
+// Policy is sent instead of the statement members, and AWS's text for
+// neither is unrecorded (eventbridge-buses.md 4.1). It follows
+// errNoPatternOrSchedule's form.
+func errPermissionIncomplete() *awserr.Error {
+	return eventbridgeapi.ErrValidationException("Parameter(s) Action, Principal and StatementId must be specified when Policy is not.")
 }
 
 // errScheduleOnCustomBus is AWS-recorded
@@ -239,13 +240,12 @@ func errCrossAccountInput() *awserr.Error {
 	return eventbridgeapi.ErrValidationException("Input, InputPath, and InputTransformer are not available with PutTarget if the target is an event bus of a different AWS account.")
 }
 
-// msgBusTargetInput is understudy's own PutTargets per-entry failure for an
-// input form on an event bus target of the rule's account: AWS's handling
-// is unrecorded (eventbridge-buses.md 6.2, EBB-08), so understudy neither
-// stores an input it might not apply as AWS does nor guesses a refusal.
-const msgBusTargetInput = "understudy forwards the matched event to an event bus target in the rule's account and does not implement Input, InputPath or " +
-	"InputTransformer on it, since AWS's handling is unrecorded; the target was not added. Remove the input member, or run " +
-	"'understudy coverage --service eventbridge' for what is supported."
+// errBusTargetInput is AWS-recorded: an input form on an event bus target of
+// the rule's account refuses the whole call (eventbridge-buses.md 6.2,
+// EBB-08).
+func errBusTargetInput(targetID string) *awserr.Error {
+	return eventbridgeapi.ErrValidationException("Modifying the input for target " + targetID + " is not supported.")
+}
 
 // msgSecondHop is the journal's reason for a bus target of a rule that
 // matched an event which reached its bus through an event bus target: AWS
@@ -254,7 +254,7 @@ const msgBusTargetInput = "understudy forwards the matched event to an event bus
 const msgSecondHop = "the event reached this bus through an event bus target, and EventBridge does not forward it to another bus (eb-cross-account.html); it was not sent"
 
 // msgStoredBusTargetInput is the journal's reason for an event bus target
-// stored with an input form, which PutTargets never stores (msgBusTargetInput,
+// stored with an input form, which PutTargets never stores (errBusTargetInput,
 // errCrossAccountInput), so it comes from an edited snapshot.
 const msgStoredBusTargetInput = "the event bus target has an Input, InputPath or InputTransformer, which understudy does not implement on an event bus target " +
 	"and PutTargets does not store, so it came from an edited snapshot; the event was not sent. " +

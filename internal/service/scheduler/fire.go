@@ -1,8 +1,10 @@
 package scheduler
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"time"
@@ -125,13 +127,18 @@ func (s *Service) resolveRole(ctx context.Context, c *kernel.Call, r scheduleRef
 
 // invocation is the delivery of sc's invocation scheduled at at: its
 // target, retry policy and payload template, run as a fresh session of the
-// execution role, with one execution id for the invocation and its retries
-// (scheduler.md 6.3, 7.1, 7.2, 9). UNVERIFIED (SCH-07, SCH-08): one
-// execution id across retries and a 32-hex session per invocation are
-// inferred.
+// execution role, with one execution id, a lower-case UUID, for the
+// invocation and its retries (scheduler.md 6.3, 7.1, 7.2, 9; the UUID form
+// SCH-07, SCH-08, recorded 2026-11-03). UNVERIFIED (SCH-08 saw no retry):
+// one execution id across retries is inferred; the 32-hex session is
+// recorded (SenderId <role id>:<32 hex>, SCH-07).
 func (s *Service) invocation(r scheduleRef, sc *schedule, at scheduled, roleID string) (delivery.Request, *awserr.Error) {
 	age, retries := sc.Echo.Target.retryPolicy()
-	tmpl := sc.Echo.Target.template()
+	execID := s.ids.UUID(ids.KindSchedulerExecution).String()
+	tmpl, err := sc.payloadTemplate(r, at.At.Wire(), execID)
+	if err != nil {
+		return delivery.Request{}, err
+	}
 	req := delivery.Request{
 		Source: r.arn(),
 		Policy: delivery.EventBridgeTarget{MaxAge: time.Duration(age) * time.Second, MaxAttempts: int(retries)},
@@ -141,7 +148,7 @@ func (s *Service) invocation(r scheduleRef, sc *schedule, at scheduled, roleID s
 			ScheduleARN: r.arn(),
 			TargetARN:   sc.Echo.Target.Arn,
 			Scheduled:   at.At.Wire(),
-			ExecutionID: hex.EncodeToString(s.ids.Draw(ids.KindSchedulerExecution, 8)),
+			ExecutionID: execID,
 			Template:    tmpl,
 			OnPermanent: s.opts.PermanentErrors,
 			Key:         sc.Plan.key,
@@ -158,8 +165,8 @@ func (s *Service) invocation(r scheduleRef, sc *schedule, at scheduled, roleID s
 		req.Mechanism = delivery.SchedulerToSNS
 		req.Target = delivery.SNSTopic{ARN: t.topic, Message: tmpl}
 	case busTarget:
-		// UNVERIFIED (SCH-07), scheduler.md 14.4.5: the event has no
-		// resources and PutEvents stamps its time at delivery.
+		// The event has no resources and PutEvents stamps its id and its
+		// time at delivery (SCH-07, recorded 2026-11-03; scheduler.md 6.4).
 		req.Mechanism = delivery.SchedulerToEvents
 		req.Target = delivery.EventBus{ARN: t.bus, Entries: []delivery.EventEntry{{Source: t.source, DetailType: t.detailType, Detail: tmpl}}}
 	case stateMachineTarget:
@@ -172,4 +179,52 @@ func (s *Service) invocation(r scheduleRef, sc *schedule, at scheduled, roleID s
 		return delivery.Request{}, awserr.Internalf(fmt.Errorf("scheduler: schedule %s has a %T target, which no invocation is built for", r.arn(), sc.Plan.target))
 	}
 	return req, nil
+}
+
+// payloadTemplate is the payload template of sc's invocation scheduled at
+// with execution id execID: the target's Input, or, without one, the
+// scheduler.input.default payload. An event bus target's is "{}", the
+// entry's detail; any other target's is the Scheduled Event envelope,
+// compact, members in this order (SCH-07 07-sqs-no-input, 07-sns-no-input,
+// 07-lambda-no-input, 07-eventbridge-no-input, recorded 2026-11-03;
+// scheduler.md 6.3):
+//
+//	{"version":"0","id":"<uuid>","detail-type":"Scheduled Event","source":"aws.scheduler","account":"<account>",
+//	 "time":"<scheduled time>","region":"<region>","resources":["<schedule ARN>"],"detail":"{}"}
+//
+// The id is the execution id here: AWS's has the same UUID form, and
+// whether it is the execution id is unrecorded. A Step Functions target
+// takes the envelope too: inferred, SCH-07 recorded SQS, SNS and Lambda.
+func (sc *schedule) payloadTemplate(r scheduleRef, at time.Time, execID string) (string, *awserr.Error) {
+	if sc.Echo.Target.Input != nil {
+		return *sc.Echo.Target.Input, nil
+	}
+	if _, ok := sc.Plan.target.(busTarget); ok {
+		return emptyJSONObject, nil
+	}
+	var out bytes.Buffer
+	enc := json.NewEncoder(&out)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(scheduledEvent{
+		Version: "0", ID: execID, DetailType: "Scheduled Event", Source: "aws.scheduler",
+		Account: r.scope.Account.String(), Time: at.UTC().Format("2006-01-02T15:04:05Z"), Region: r.scope.Region.String(),
+		Resources: []string{r.arn().String()}, Detail: emptyJSONObject,
+	}); err != nil {
+		return "", awserr.Internalf(fmt.Errorf("scheduler: writing schedule %s's Scheduled Event payload: %w", r.arn(), err))
+	}
+	return string(bytes.TrimSuffix(out.Bytes(), []byte("\n"))), nil
+}
+
+// scheduledEvent is the default payload's envelope, its members in AWS's
+// order (payloadTemplate).
+type scheduledEvent struct {
+	Version    string   `json:"version"`
+	ID         string   `json:"id"`
+	DetailType string   `json:"detail-type"`
+	Source     string   `json:"source"`
+	Account    string   `json:"account"`
+	Time       string   `json:"time"`
+	Region     string   `json:"region"`
+	Resources  []string `json:"resources"`
+	Detail     string   `json:"detail"`
 }

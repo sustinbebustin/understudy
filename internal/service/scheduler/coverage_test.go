@@ -23,54 +23,54 @@ const targetsNote = "templated Lambda, SQS, SNS, EventBridge event bus and Step 
 	"universal (aws-sdk) targets and ECS, Kinesis, Firehose, CodeBuild, CodePipeline, Inspector and SageMaker targets answer NotImplemented; " +
 	"a Step Functions execution's name is understudy's"
 
-// createNote follows the binary where the test owner ruled it right
-// (disputes 3, 3a, 3b): key policies are evaluated under enforce
-// (iam-enforcement-surfaces.md 3, 6.3), and the further clauses name
-// unrecorded choices the binary makes (invariant 3).
+// createNote names what is not invoked, the deviations from what SCH
+// recorded on 2026-11-03 (scheduler.md 15) and the unrecorded choices the
+// binary makes (invariant 3). Key policies are evaluated under enforce
+// (iam-enforcement-surfaces.md 3, 6.3).
 const createNote = targetsNote + "; Lambda, SQS, SNS and Step Functions targets in another Region " +
 	"answer NotImplemented once the expression, time zone, window, dates and target are validated; " +
-	"KmsKeyArn is stored and echoed, the payload is not encrypted, and under iam.enforce=enforce the caller's KMS permissions at create and update and the execution role's kms:Decrypt at invocation are evaluated against identity policies and the key's policy, which for a key understudy's KMS does not hold allows nothing; " +
+	"KmsKeyArn is stored and echoed, the payload is not encrypted, and under iam.enforce=enforce the caller's KMS permissions at create and update and the execution role's kms:Decrypt at invocation are evaluated against identity policies and the key's policy, which for a key understudy's KMS does not hold allows nothing, " +
+	"so under enforce a KmsKeyArn naming no key is refused at create where AWS accepted one (SCH-04); " +
 	"the execution role's trust is checked only under iam.enforce=enforce, at create, update and invocation, so under off and advise a missing or untrusting role still delivers; " +
-	"ClientToken is accepted and not used for idempotency; the 10,000,000-schedule quota is not counted; " +
-	"unrecorded, understudy's choice: a target ARN of a service with no templated target is refused at create with ValidationException, " +
-	"rate units are accepted singular or plural with any value, a rate schedule without StartDate first fires at the write instant, an absent Input delivers {}, " +
-	"an at() in the past fires at once, a FLEXIBLE window delays each invocation by a seeded whole-second offset inside it, " +
-	"client-side target errors go to the dead-letter queue without retries and one execution id covers an invocation's retries, " +
-	"a dead letter's TARGET_ARN is the universal aws-sdk form and its body the payload after substitution, " +
-	"an EventBridge target's event has no resources and its time is the delivery instant, an SNS target's message has no Subject, " +
-	"DELETE removes the schedule in the write that hands its last invocation over (before any retry), a fired at() with NONE stays with its State unchanged, " +
-	"parameter blocks that do not match the target are stored, echoed and ignored, a MaximumWindowInMinutes sent with OFF is ignored, " +
-	"Input on a Lambda, Step Functions or EventBridge target is not checked for JSON at create, Input is limited to 262,144 bytes, " +
+	"the 10,000,000-schedule quota is not counted; " +
+	"cron() takes the rules' grammar, so years outside 1970-2199 are refused as malformed where AWS refuses them as never firing (SCH-03); " +
+	"unrecorded, understudy's choice: a FLEXIBLE window delays each invocation by a seeded whole-second offset inside it, " +
+	"one execution id covers an invocation's retries, the Scheduled Event payload's id is the execution id and a Step Functions target without Input receives it too, " +
+	"a dead letter of a Lambda, SNS, Step Functions or event bus target carries the payload as its body, " +
+	"DELETE removes the schedule in the write that hands its last invocation over (before any retry), " +
+	"a parameter block other than SqsParameters on a target that does not take it is refused as SqsParameters on a Lambda target is, " +
+	"Step Functions and event bus targets refuse Input that is not JSON as Lambda targets do, with the decoder's line and column, " +
 	"a rate schedule whose StartDate has passed first fires at its first interval at or after the write instant, an at() fires at its seconds, a rate ignores its time zone, " +
 	"a qualified Lambda target's version or alias is passed as Invoke's Qualifier, " +
 	"a Step Functions version or alias ARN is passed to StartExecution as given, " +
 	"an event bus target in another Region or without EventBridgeParameters is refused with ValidationException, " +
-	"checks run in the order expression, time zone, window, dates and the future-fire check, target, group, role trust, iam:PassRole, KMS, " +
-	"iam:PassRole carries iam:PassedToService scheduler.amazonaws.com, " +
+	"the flexible window is checked after the expression and before the dates, then iam:PassRole and KMS after the role's trust, " +
 	"under iam.enforce=enforce an execution role that cannot be assumed or may not decrypt at invocation fails the invocation before its target call as a client-side target error does, " +
-	"a present date in the future-fire text renders as RFC 3339 UTC, and every refusal message except the expression, future-fire, role-trust and missing-group texts is understudy's own"
+	"and the refusal of a target ARN that is not a templated target's resource carries understudy's own message"
 
-// wantCoverage is the spec's "Coverage marks" table: all 12 operations
-// bound Partial with these exact notes (scheduler.md 14.1).
+// wantCoverage is every operation's mark: all 12 bound Partial with these
+// exact notes (scheduler.md 14.1).
 var wantCoverage = map[string]registry.BindCoverage{
 	"CreateSchedule": registry.Partial{Note: createNote},
 	"UpdateSchedule": registry.Partial{Note: "as CreateSchedule; every member is replaced and omitted ones take their defaults; " +
 		"unrecorded, understudy's choice: an update that leaves the expression, time zone, dates, window and State unchanged keeps the next fire, any other restarts the plan at the write instant"},
-	"GetSchedule": registry.Partial{Note: "unrecorded, understudy's choice: ScheduleExpressionTimezone, Description, StartDate and EndDate are absent when they were not sent, " +
-		"MaximumWindowInMinutes is absent under OFF, State defaults to ENABLED, and CreationDate and LastModificationDate are whole seconds"},
-	"ListSchedules":  registry.Partial{Note: "unrecorded, understudy's choice: schedules in group then name order, 100 per page without MaxResults"},
+	"GetSchedule": registry.Partial{Note: "members never set are left out where AWS sends them as explicit JSON null, which SDKs read alike (SCH-01)"},
+	"ListSchedules": registry.Partial{Note: "schedules come in group then name order, where AWS's order is neither name nor creation order (SCH-01); " +
+		"NextToken is understudy's own form; unrecorded, understudy's choice: 100 per page without MaxResults"},
 	"DeleteSchedule": registry.Partial{Note: "unrecorded, understudy's choice: ClientToken is accepted and not used for idempotency"},
-	"CreateScheduleGroup": registry.Partial{Note: "unrecorded, understudy's choice: ClientToken is accepted and not used for idempotency, " +
-		"creating default or an existing name answers ConflictException, and the 500-group quota answers ServiceQuotaExceededException with understudy's message"},
-	"GetScheduleGroup": registry.Partial{Note: "the default group always reads ACTIVE; unrecorded, understudy's choice: " +
-		"its CreationDate and LastModificationDate are the instant the emulator's Scheduler state was created, loaded or reset"},
-	"ListScheduleGroups": registry.Partial{Note: "unrecorded, understudy's choice: the default group is listed first, then groups in name order, 100 per page without MaxResults"},
-	"DeleteScheduleGroup": registry.Partial{Note: "the group and its schedules are deleted before the call returns, so DELETING is never reported (ARCHITECTURE.md 9, provisioning settle); " +
-		"unrecorded, understudy's choice: ClientToken is accepted and not used for idempotency, and the default group answers ValidationException"},
-	"TagResource": registry.Partial{Note: "schedule groups only, as AWS; unrecorded, understudy's choice: the default group takes tags"},
-	"UntagResource": registry.Partial{Note: "schedule groups only, as AWS; unrecorded, understudy's choice: " +
-		"a key the group does not carry is ignored with 200, and the default group can be untagged"},
-	"ListTagsForResource": registry.Partial{Note: "schedule groups only, as AWS; unrecorded, understudy's choice: tags are listed in insertion order and an updated key keeps its place"},
+	"CreateScheduleGroup": registry.Partial{Note: "a name held by a group still DELETING in AWS is free at once, since deletes settle before they return (SCH-06); " +
+		"unrecorded, understudy's choice: ClientToken is accepted and not used for idempotency, " +
+		"and the 500-group quota answers ServiceQuotaExceededException with understudy's message"},
+	"GetScheduleGroup": registry.Partial{Note: "a deleted group is gone at once, never DELETING (ARCHITECTURE.md 9, provisioning settle); " +
+		"members AWS sends as explicit JSON null, the default group's ARN and dates, are left out (SCH-06)"},
+	"ListScheduleGroups": registry.Partial{Note: "the default group is listed first, with its ARN and no dates, as AWS (SCH-06); " +
+		"unrecorded, understudy's choice: the other groups in name order, 100 per page without MaxResults"},
+	"DeleteScheduleGroup": registry.Partial{Note: "the group and its schedules are deleted before the call returns, so DELETING is never reported, " +
+		"where AWS reports it for some seconds (SCH-06; ARCHITECTURE.md 9, provisioning settle); " +
+		"unrecorded, understudy's choice: ClientToken is accepted and not used for idempotency, and scheduler:DeleteSchedule is asked only of a group that holds schedules"},
+	"TagResource":         registry.Partial{Note: "schedule groups only, the default group included, as AWS (SCH-06)"},
+	"UntagResource":       registry.Partial{Note: "schedule groups only, the default group included, and a key the group does not carry is ignored with 200, as AWS (SCH-06)"},
+	"ListTagsForResource": registry.Partial{Note: "schedule groups only, tags sorted by key, as AWS (SCH-06)"},
 }
 
 func TestOperationCoverage(t *testing.T) {
@@ -90,9 +90,11 @@ func TestOperationCoverage(t *testing.T) {
 	})
 }
 
-// The six switches of the spec's switch table, in order, with their
-// values, labels, refs, records, operations and NoScenario settles
-// (spec "Fidelity switches"; contract section 3; scheduler.md 14.12).
+// The six switches of scheduler.md 14.12, in order, with their values,
+// labels, refs, records, operations and NoScenario settles: the five SCH
+// recorded on 2026-11-03 are aws-recorded with the recorded value as the
+// default, and scheduler.flexible-window.offset, which a recording only
+// bounds, stays inferred.
 func TestSwitches(t *testing.T) {
 	createUpdate := []string{"scheduler.CreateSchedule", "scheduler.UpdateSchedule"}
 	all := make([]string, 0, len(schedulerapi.Service().Operations))
@@ -102,14 +104,15 @@ func TestSwitches(t *testing.T) {
 	slices.Sort(all)
 	want := []struct {
 		name, value, ref, record string
+		label                    evidence.Label
 		ops                      []string
 	}{
-		{"scheduler.rate.unit-agreement", "any", "docs/research/scheduler.md#52-rate", "SCH-03", createUpdate},
-		{"scheduler.input.default", "empty-json-object", "docs/research/scheduler.md#63-input-the-default-payload-and-context-attributes", "SCH-07", createUpdate},
-		{"scheduler.at.past-due", "fire-at-once", "docs/research/scheduler.md#51-at", "SCH-09", createUpdate},
-		{"scheduler.flexible-window.offset", "seeded-uniform", "docs/research/scheduler.md#56-precision-and-flexible-time-windows", "SCH-09", createUpdate},
-		{"scheduler.retry.permanent-errors", "not-retried", "docs/research/scheduler.md#71-retrypolicy", "SCH-08", createUpdate},
-		{"scheduler.denial.status", "403", "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit", "SCH-10", all},
+		{"scheduler.rate.unit-agreement", "any", "docs/research/scheduler.md#52-rate", "SCH-03", evidence.AWSRecorded, createUpdate},
+		{"scheduler.input.default", "scheduled-event", "docs/research/scheduler.md#63-input-the-default-payload-and-context-attributes", "SCH-07", evidence.AWSRecorded, createUpdate},
+		{"scheduler.at.past-due", "fire-at-once", "docs/research/scheduler.md#51-at", "SCH-09", evidence.AWSRecorded, createUpdate},
+		{"scheduler.flexible-window.offset", "seeded-uniform", "docs/research/scheduler.md#56-precision-and-flexible-time-windows", "SCH-09", evidence.Inferred, createUpdate},
+		{"scheduler.retry.permanent-errors", "not-retried", "docs/research/scheduler.md#71-retrypolicy", "SCH-08", evidence.AWSRecorded, createUpdate},
+		{"scheduler.denial.status", "403", "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit", "SCH-10", evidence.AWSRecorded, all},
 	}
 	run(t, func(h *harness) {
 		got := h.svc.Switches()
@@ -120,12 +123,11 @@ func TestSwitches(t *testing.T) {
 			e := got[i]
 			ops := slices.Sorted(slices.Values(e.Ops))
 			wops := slices.Sorted(slices.Values(w.ops))
-			if e.Name != w.name || e.Value != w.value || e.Ref != w.ref || !strings.HasPrefix(e.Record, w.record) || e.Label != evidence.Inferred || !slices.Equal(ops, wops) {
-				h.Errorf("switch %d = %+v\nwant name %s, value %s, ref %s, record %s, label inferred, ops %v", i, e, w.name, w.value, w.ref, w.record, wops)
+			if e.Name != w.name || e.Value != w.value || e.Ref != w.ref || e.Record != w.record || e.Label != w.label || !slices.Equal(ops, wops) {
+				h.Errorf("switch %d = %+v\nwant name %s, value %s, ref %s, record %s, label %s, ops %v", i, e, w.name, w.value, w.ref, w.record, w.label, wops)
 			}
-			ns, ok := e.Settles.(fidelity.NoScenario)
-			if !ok || !strings.HasPrefix(ns.Reason, "unrecorded: ") || !strings.Contains(ns.Reason, w.record) {
-				h.Errorf("%s Settles = %#v, want NoScenario \"unrecorded: %s ...\"", e.Name, e.Settles, w.record)
+			if ns, ok := e.Settles.(fidelity.NoScenario); !ok || !strings.Contains(ns.Reason, "2026-11-03") {
+				h.Errorf("%s Settles = %#v, want NoScenario naming the 2026-11-03 recording", e.Name, e.Settles)
 			}
 		}
 	})
@@ -152,8 +154,8 @@ func TestSwitchesFollowOptions(t *testing.T) {
 	if scheduler.PermanentErrors(def).Value != delivery.PermanentNotRetried || scheduler.PermanentErrors(flipped).Value != delivery.PermanentRetried {
 		t.Error("PermanentErrors does not follow Options.PermanentErrors")
 	}
-	if scheduler.InputDefault().Value != "empty-json-object" {
-		t.Errorf("InputDefault = %q, want empty-json-object", scheduler.InputDefault().Value)
+	if scheduler.InputDefault().Value != "scheduled-event" {
+		t.Errorf("InputDefault = %q, want scheduled-event", scheduler.InputDefault().Value)
 	}
 	if scheduler.DenialStatus().Value != schedulerapi.IdentityAccessDeniedException().Status {
 		t.Errorf("DenialStatus = %d, the generated AccessDeniedException identity is %d", scheduler.DenialStatus().Value, schedulerapi.IdentityAccessDeniedException().Status)

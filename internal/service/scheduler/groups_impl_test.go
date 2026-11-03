@@ -4,34 +4,29 @@ import (
 	"fmt"
 	"slices"
 	"testing"
-	"time"
 
 	"github.com/sustinbebustin/understudy/internal/api/schedulerapi"
-	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 )
-
-// defaultGroupDates reads the default group's dates.
-func defaultGroupDates(h *harness) (created, modified time.Time) {
-	out := must(h, schedulerapi.OpGetScheduleGroup, &schedulerapi.GetScheduleGroupInput{Name: "default"})
-	return *out.CreationDate, *out.LastModificationDate
-}
 
 // listTags lists a group's tags.
 func listTags(h *harness, name string) []schedulerapi.Tag {
 	return must(h, schedulerapi.OpListTagsForResource, &schedulerapi.ListTagsForResourceInput{ResourceArn: h.groupArn(name)}).Tags
 }
 
-// The default group cannot be created or deleted; a held name cannot be
-// created again. UNVERIFIED (SCH-06), scheduler.md 3.1, 14.7.1: the codes
-// and texts are inferred.
+// The default group cannot be created or deleted, each ValidationException
+// "This operation cannot be performed on schedule group default."; a held
+// name cannot be created again, ConflictException "Schedule group <name>
+// already exists." (SCH-06 06-create-default, 06-delete-default,
+// 06-create-dup, recorded 2026-11-03; scheduler.md 3.1, 3.2).
 func TestDefaultAndDuplicateGroupRefusals(t *testing.T) {
 	run(t, func(h *harness) {
+		const refused = "This operation cannot be performed on schedule group default."
 		wantError(h, errOf(call(h, schedulerapi.OpCreateScheduleGroup, &schedulerapi.CreateScheduleGroupInput{Name: "default"})),
-			"ConflictException", 409, "Schedule group default already exists: every account has it, and it cannot be created or deleted.")
+			"ValidationException", 400, refused)
 		wantError(h, errOf(call(h, schedulerapi.OpDeleteScheduleGroup, &schedulerapi.DeleteScheduleGroupInput{Name: "default"})),
-			"ValidationException", 400, "The default schedule group cannot be deleted; delete its schedules with DeleteSchedule instead.")
+			"ValidationException", 400, refused)
 		must(h, schedulerapi.OpCreateScheduleGroup, &schedulerapi.CreateScheduleGroupInput{Name: "g"})
 		wantError(h, errOf(call(h, schedulerapi.OpCreateScheduleGroup, &schedulerapi.CreateScheduleGroupInput{Name: "g"})),
 			"ConflictException", 409, "Schedule group g already exists.")
@@ -86,75 +81,54 @@ func TestListScheduleGroupsOrderAndPages(t *testing.T) {
 	})
 }
 
-// The default group is dated at the instant the state was created, loaded
-// or reset until a tag write materializes it, which keeps those dates
-// across a snapshot. UNVERIFIED (SCH-06), scheduler.md 3.1, 14.2.2.
-func TestDefaultGroupDates(t *testing.T) {
+// GetScheduleGroup reads default as {Name, State ACTIVE} with no ARN and
+// no dates; ListScheduleGroups lists it with its ARN and no dates
+// (SCH-06 06-get-default, 06-list, recorded 2026-11-03; scheduler.md
+// 3.1). Tags written to it survive a snapshot.
+func TestDefaultGroupReadShape(t *testing.T) {
 	run(t, func(h *harness) {
-		born := h.now()
-		h.advance(time.Hour)
-		if c, m := defaultGroupDates(h); !c.Equal(born) || !m.Equal(born) {
-			h.Errorf("default dates = %s, %s, want the state's creation %s", c, m, born)
+		got := must(h, schedulerapi.OpGetScheduleGroup, &schedulerapi.GetScheduleGroupInput{Name: "default"})
+		if val(got.Name) != "default" || got.State == nil || *got.State != schedulerapi.ScheduleGroupStateActive ||
+			got.Arn != nil || got.CreationDate != nil || got.LastModificationDate != nil {
+			h.Errorf("GetScheduleGroup default = %+v, want Name default, ACTIVE, no Arn and no dates", got)
 		}
-		h.svc.Reset(kernel.ResetScope{})
-		reset := h.now()
-		if c, _ := defaultGroupDates(h); !c.Equal(reset) {
-			h.Errorf("default created after reset = %s, want %s", c, reset)
+		listed := must(h, schedulerapi.OpListScheduleGroups, &schedulerapi.ListScheduleGroupsInput{}).ScheduleGroups
+		if len(listed) != 1 || val(listed[0].Arn) != h.groupArn("default") || listed[0].CreationDate != nil || listed[0].LastModificationDate != nil {
+			h.Errorf("ListScheduleGroups = %+v, want default with its ARN and no dates", listed)
 		}
 		must(h, schedulerapi.OpTagResource, &schedulerapi.TagResourceInput{ResourceArn: h.groupArn("default"), Tags: []schedulerapi.Tag{{Key: "k", Value: "v"}}})
 		sections, err := h.svc.Export()
 		if err != nil || len(sections) == 0 {
-			h.Fatalf("Export = %d sections, %v; want the materialized default", len(sections), err)
+			h.Fatalf("Export = %d sections, %v; want the tagged default", len(sections), err)
 		}
-		h.advance(time.Hour)
 		h.svc.Reset(kernel.ResetScope{})
 		if err := h.svc.Import(sections); err != nil {
 			h.Fatal(err)
 		}
-		if c, m := defaultGroupDates(h); !c.Equal(reset) || !m.Equal(reset) {
-			h.Errorf("materialized default dates after import = %s, %s, want %s", c, m, reset)
-		}
 		if got := listTags(h, "default"); !slices.Equal(got, []schedulerapi.Tag{{Key: "k", Value: "v"}}) {
 			h.Errorf("default tags after import = %+v", got)
 		}
-	})
-}
-
-// A reset of other scopes leaves this scope's default group dates as they
-// were; a reset covering it re-dates them. UNVERIFIED (SCH-06),
-// scheduler.md 3.1, 14.2.2.
-func TestScopedResetKeepsOtherScopesDefaultDates(t *testing.T) {
-	run(t, func(h *harness) {
-		born := h.now()
-		other, err := aws.ParseAccountID("111111111111")
-		if err != nil {
-			h.Fatal(err)
-		}
-		h.advance(time.Hour)
-		h.svc.Reset(kernel.ResetScope{Accounts: []aws.AccountID{other}})
-		if c, m := defaultGroupDates(h); !c.Equal(born) || !m.Equal(born) {
-			h.Errorf("default dates after another account's reset = %s, %s, want %s", c, m, born)
-		}
-		h.advance(time.Hour)
-		h.svc.Reset(kernel.ResetScope{Accounts: []aws.AccountID{aws.DefaultAccount()}})
-		if c, _ := defaultGroupDates(h); !c.Equal(h.now()) {
-			h.Errorf("default created after its account's reset = %s, want %s", c, h.now())
+		if got := must(h, schedulerapi.OpGetScheduleGroup, &schedulerapi.GetScheduleGroupInput{Name: "default"}); got.Arn != nil || got.CreationDate != nil {
+			h.Errorf("GetScheduleGroup default after a tag write = %+v, want no Arn and no dates", got)
 		}
 	})
 }
 
-// Tags keep insertion order, an updated key keeps its place, and untagging
-// a key the group does not carry answers 200. UNVERIFIED (SCH-06),
-// scheduler.md 14.8.
+// Tags list sorted by key, an updated key in place, and untagging a key
+// the group does not carry answers 200 (SCH-06 06-tags, 06-tags-2,
+// 06-untag-absent, recorded 2026-11-03; scheduler.md 3.4).
 func TestTagOrderAndAbsentKeys(t *testing.T) {
 	run(t, func(h *harness) {
-		must(h, schedulerapi.OpCreateScheduleGroup, &schedulerapi.CreateScheduleGroupInput{Name: "g", Tags: []schedulerapi.Tag{{Key: "k1", Value: "v1"}, {Key: "k2", Value: "v2"}}})
-		must(h, schedulerapi.OpTagResource, &schedulerapi.TagResourceInput{ResourceArn: h.groupArn("g"), Tags: []schedulerapi.Tag{{Key: "k3", Value: "v3"}, {Key: "k1", Value: "new"}}})
-		want := []schedulerapi.Tag{{Key: "k1", Value: "new"}, {Key: "k2", Value: "v2"}, {Key: "k3", Value: "v3"}}
+		must(h, schedulerapi.OpCreateScheduleGroup, &schedulerapi.CreateScheduleGroupInput{Name: "g", Tags: []schedulerapi.Tag{{Key: "k1", Value: "v1"}, {Key: "k0", Value: "v0"}}})
+		if got := listTags(h, "g"); !slices.Equal(got, []schedulerapi.Tag{{Key: "k0", Value: "v0"}, {Key: "k1", Value: "v1"}}) {
+			h.Errorf("tags after create = %+v, want k0, k1", got)
+		}
+		must(h, schedulerapi.OpTagResource, &schedulerapi.TagResourceInput{ResourceArn: h.groupArn("g"), Tags: []schedulerapi.Tag{{Key: "k3", Value: "v3"}, {Key: "k2", Value: "v2"}, {Key: "k1", Value: "new"}}})
+		want := []schedulerapi.Tag{{Key: "k0", Value: "v0"}, {Key: "k1", Value: "new"}, {Key: "k2", Value: "v2"}, {Key: "k3", Value: "v3"}}
 		if got := listTags(h, "g"); !slices.Equal(got, want) {
 			h.Errorf("tags = %+v, want %+v", got, want)
 		}
-		must(h, schedulerapi.OpUntagResource, &schedulerapi.UntagResourceInput{ResourceArn: h.groupArn("g"), TagKeys: []string{"absent", "k2"}})
+		must(h, schedulerapi.OpUntagResource, &schedulerapi.UntagResourceInput{ResourceArn: h.groupArn("g"), TagKeys: []string{"absent", "k2", "k0"}})
 		if got := listTags(h, "g"); !slices.Equal(got, []schedulerapi.Tag{{Key: "k1", Value: "new"}, {Key: "k3", Value: "v3"}}) {
 			h.Errorf("tags after untag = %+v", got)
 		}

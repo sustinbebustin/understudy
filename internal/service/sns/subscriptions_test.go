@@ -9,6 +9,7 @@ import (
 	"maps"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -277,7 +278,8 @@ func TestPendingHTTPSubscriptionConfirmsAndUnsubscribesByLink(t *testing.T) {
 			h.Errorf("SubscriptionsPending = %q", got)
 		}
 		_, err := call(h, snsapi.OpUnsubscribe, &snsapi.UnsubscribeInput{SubscriptionArn: arn})
-		wantError(h, err, "InvalidParameter", "Invalid parameter: Cannot unsubscribe a subscription that is pending confirmation")
+		// SNSH-25, recorded 2026-11-03 (sns-http-delivery.md 6.7).
+		wantError(h, err, "InvalidParameter", "Invalid parameter: SubscriptionArn Reason: Cannot unsubscribe a subscription that is pending confirmation")
 
 		parsed, perr := aws.ParseARN(arn)
 		if perr != nil {
@@ -473,7 +475,9 @@ func TestDeletedTopicsSubscriptionsStayReadable(t *testing.T) {
 // TestQueueOwnersSubscriptionRefusesTheLink: an sqs subscription the
 // queue's owner made has AuthenticateOnUnsubscribe=true, as AWS documents
 // (cross-account doc), so the unsigned UnsubscribeURL cannot remove it and
-// an Unsubscribe call can. A lambda subscription has no such rule.
+// an Unsubscribe call can. The refusal is SNSH-14's, recorded for an http
+// subscription; for a queue it is inferred. A lambda subscription has no
+// such rule.
 func TestQueueOwnersSubscriptionRefusesTheLink(t *testing.T) {
 	run(t, func(h *harness) {
 		topic := h.topic("events", nil)
@@ -483,8 +487,7 @@ func TestQueueOwnersSubscriptionRefusesTheLink(t *testing.T) {
 			_, err := h.link("UnsubscribeLink", "/_understudy/sns/UnsubscribeLink?Action=Unsubscribe&SubscriptionArn="+url.QueryEscape(arn))
 			return err
 		}
-		wantError(h, unsubscribeLink(arn), "InvalidParameter", "Invalid parameter: SubscriptionArn Reason: the queue owner subscribed its own queue, "+
-			"which sets AuthenticateOnUnsubscribe=true, so only a signed Unsubscribe call can remove it; the subscription is unchanged")
+		wantError(h, unsubscribeLink(arn), "AuthorizationError", "This subscription may only be deleted by an authorized user.")
 		h.subscriptionAttributes(arn)
 		must(h, snsapi.OpUnsubscribe, &snsapi.UnsubscribeInput{SubscriptionArn: arn})
 
@@ -542,7 +545,8 @@ func TestExpiredPendingSubscriptionIsDeleted(t *testing.T) {
 
 // TestAuthenticateOnUnsubscribeRefusesTheLink checks that a subscription
 // confirmed with AuthenticateOnUnsubscribe=true cannot be removed by the
-// unsigned UnsubscribeURL, only by an Unsubscribe call (sns.md 3.2).
+// unsigned UnsubscribeURL, which answers 403 AuthorizationError (SNSH-14,
+// recorded 2026-11-03; sns.md 3.2), only by an Unsubscribe call.
 func TestAuthenticateOnUnsubscribeRefusesTheLink(t *testing.T) {
 	run(t, func(h *harness) {
 		topic := h.topic("events", nil)
@@ -550,14 +554,56 @@ func TestAuthenticateOnUnsubscribeRefusesTheLink(t *testing.T) {
 		must(h, snsapi.OpConfirmSubscription, &snsapi.ConfirmSubscriptionInput{TopicArn: topic, Token: h.token(arn), AuthenticateOnUnsubscribe: new("true")})
 
 		_, aerr := h.link("UnsubscribeLink", "/_understudy/sns/UnsubscribeLink?Action=Unsubscribe&SubscriptionArn="+url.QueryEscape(arn))
-		wantError(h, aerr, "InvalidParameter", "Invalid parameter: SubscriptionArn Reason: the subscription was confirmed with AuthenticateOnUnsubscribe=true, "+
-			"so only a signed Unsubscribe call can remove it; the subscription is unchanged")
+		wantError(h, aerr, "AuthorizationError", "This subscription may only be deleted by an authorized user.")
+		if aerr != nil && aerr.ID.Status != 403 {
+			h.Errorf("status = %d, want 403", aerr.ID.Status)
+		}
 		if got := h.subscriptionAttributes(arn)["PendingConfirmation"]; got != "false" {
 			h.Fatalf("the refused link changed the subscription: PendingConfirmation = %q", got)
 		}
 		must(h, snsapi.OpUnsubscribe, &snsapi.UnsubscribeInput{SubscriptionArn: arn})
 		_, err := call(h, snsapi.OpGetSubscriptionAttributes, &snsapi.GetSubscriptionAttributesInput{SubscriptionArn: arn})
 		wantError(h, err, "NotFound", "Subscription does not exist")
+	})
+}
+
+// A listing masks an endpoint's basic-auth password as ****, while
+// GetSubscriptionAttributes returns it verbatim (SNSH-22, recorded
+// 2026-11-03 for ListSubscriptionsByTopic, sns-http-delivery.md 2.1;
+// ListSubscriptions is inferred to match).
+func TestListingsMaskTheEndpointPassword(t *testing.T) {
+	run(t, func(h *harness) {
+		topic := h.topic("events", nil)
+		const (
+			endpoint   = "https://snsuser:s3cr:et@127.0.0.1:9443/auth/auto?x=1"
+			masked     = "https://snsuser:****@127.0.0.1:9443/auth/auto?x=1" //nolint:gosec // G101: the masked form under test
+			noPassword = "https://snsuser@127.0.0.1:9443/no-password"        //nolint:gosec // G101: a user without a password
+		)
+		endpoints := func(l []snsapi.Subscription) []string {
+			var out []string
+			for _, s := range l {
+				if s.Endpoint != nil {
+					out = append(out, *s.Endpoint)
+				}
+			}
+			return out
+		}
+		arn := h.subscribe(topic, "https", endpoint, nil)
+		byTopic := must(h, snsapi.OpListSubscriptionsByTopic, &snsapi.ListSubscriptionsByTopicInput{TopicArn: topic}).Subscriptions
+		all := must(h, snsapi.OpListSubscriptions, &snsapi.ListSubscriptionsInput{}).Subscriptions
+		for _, l := range [][]snsapi.Subscription{byTopic, all} {
+			if got := endpoints(l); !slices.Equal(got, []string{masked}) {
+				h.Errorf("listed endpoints = %q, want [%s]", got, masked)
+			}
+		}
+		if got := h.subscriptionAttributes(arn)["Endpoint"]; got != endpoint {
+			h.Errorf("Endpoint attribute = %q, want %q verbatim", got, endpoint)
+		}
+		h.subscribe(topic, "https", noPassword, nil)
+		listed := endpoints(must(h, snsapi.OpListSubscriptionsByTopic, &snsapi.ListSubscriptionsByTopicInput{TopicArn: topic}).Subscriptions)
+		if !slices.Contains(listed, noPassword) {
+			h.Errorf("listed endpoints = %q, want %s as sent: it has no password to mask", listed, noPassword)
+		}
 	})
 }
 
