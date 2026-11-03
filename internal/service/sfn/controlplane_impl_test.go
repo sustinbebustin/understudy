@@ -152,15 +152,15 @@ func TestEmptyLogDestinationsAreEchoed(t *testing.T) {
 	})
 }
 
-// The role ARN is checked for syntax only, with understudy's InvalidArn
-// texts in the recorded "Invalid Arn" forms: AWS's code and text for a
-// malformed roleArn are unrecorded.
+// The role ARN is checked for syntax only. A malformed roleArn answers
+// InvalidArn "Invalid Role Arn: '<arn>'" (SFN-08, recorded 2026-11-03,
+// stepfunctions-api.md 5.1); an IAM ARN of another resource type keeps
+// the inferred "Resource type not valid in this context" text.
 func TestSFN08RoleArnSyntax(t *testing.T) {
-	// inferred, SFN-08
 	run(t, func(h *harness) {
 		for role, want := range map[string]string{
-			"not-an-arn": "Invalid Arn: 'Invalid ARN prefix: not-an-arn'",
-			"arn:aws:sqs:us-east-1:" + h.Scope.Account.String() + ":q": "Invalid Arn: 'Invalid ARN prefix: arn:aws:sqs:us-east-1:" + h.Scope.Account.String() + ":q'",
+			"not-an-arn": "Invalid Role Arn: 'not-an-arn'",
+			"arn:aws:sqs:us-east-1:" + h.Scope.Account.String() + ":q": "Invalid Role Arn: 'arn:aws:sqs:us-east-1:" + h.Scope.Account.String() + ":q'",
 			"arn:aws:iam::" + h.Scope.Account.String() + ":user/u":     "Invalid Arn: 'Resource type not valid in this context: user'",
 		} {
 			_, err := call(h, sfnapi.OpCreateStateMachine, &sfnapi.CreateStateMachineInput{Name: "m", Definition: resultMachine, RoleArn: role})
@@ -168,7 +168,7 @@ func TestSFN08RoleArnSyntax(t *testing.T) {
 		}
 		arn := h.create("m", resultMachine)
 		_, err := call(h, sfnapi.OpUpdateStateMachine, &sfnapi.UpdateStateMachineInput{StateMachineArn: arn, RoleArn: new("not-an-arn")})
-		wantError(h, err, "InvalidArn", 400, "Invalid Arn: 'Invalid ARN prefix: not-an-arn'")
+		wantError(h, err, "InvalidArn", 400, "Invalid Role Arn: 'not-an-arn'")
 		// A role that does not exist passes: only the syntax is checked.
 		must(h, sfnapi.OpUpdateStateMachine, &sfnapi.UpdateStateMachineInput{StateMachineArn: arn, RoleArn: new("arn:aws:iam::" + h.Scope.Account.String() + ":role/path/nobody")})
 	})
@@ -189,6 +189,24 @@ func TestNotFoundTextsOfBoundOperations(t *testing.T) {
 			"InvalidArn", 400, "Invalid Arn: 'Invalid ARN prefix: not-an-arn'")
 		wantError(h, errOf(call(h, sfnapi.OpDescribeExecution, &sfnapi.DescribeExecutionInput{ExecutionArn: "not-an-arn"})),
 			"InvalidArn", 400, "Invalid Arn: 'Invalid ARN prefix: not-an-arn'")
+	})
+}
+
+// An ARN whose resource has no type, such as a queue's, and a Step
+// Functions ARN of another Region answer the recorded InvalidArn texts
+// (SFN-01, recorded 2026-11-03; stepfunctions-api.md 3.2).
+func TestSFN01InvalidArnTexts(t *testing.T) {
+	run(t, func(h *harness) {
+		acct := h.Scope.Account.String()
+		queue := "arn:aws:sqs:" + h.Scope.Region.String() + ":" + acct + ":q"
+		wantError(h, errOf(call(h, sfnapi.OpDescribeStateMachine, &sfnapi.DescribeStateMachineInput{StateMachineArn: queue})),
+			"InvalidArn", 400, "Invalid Arn: 'Arn missing resource component: "+queue+"'")
+		other := "arn:aws:states:us-west-2:" + acct + ":stateMachine:m"
+		if h.Scope.Region.String() == "us-west-2" {
+			other = "arn:aws:states:us-east-2:" + acct + ":stateMachine:m"
+		}
+		wantError(h, errOf(call(h, sfnapi.OpStartExecution, &sfnapi.StartExecutionInput{StateMachineArn: other})),
+			"InvalidArn", 400, "Invalid Arn: 'Expected the ARN "+other+" to be within region ("+h.Scope.Region.String()+").'")
 	})
 }
 

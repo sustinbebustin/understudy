@@ -55,7 +55,7 @@ func TestListExecutionsOrderFilterAndPaging(t *testing.T) {
 
 		first := must(h, sfnapi.OpListExecutions, &sfnapi.ListExecutionsInput{StateMachineArn: new(machine), MaxResults: 1})
 		_, err := call(h, sfnapi.OpListExecutions, &sfnapi.ListExecutionsInput{StateMachineArn: new(machine), StatusFilter: &failed, NextToken: first.NextToken})
-		wantError(h, err, "InvalidToken", 400, "Invalid Token: 'Invalid token'")
+		wantError(h, err, "InvalidToken", 400, "Invalid Token")
 	})
 }
 

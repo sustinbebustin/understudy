@@ -16,15 +16,15 @@ import (
 const statesPrincipal = "states.amazonaws.com"
 
 // checkRoleArn checks the execution role ARN's syntax only: an IAM role
-// ARN. AWS's code and text for a malformed roleArn are unrecorded
-// (inferred, SFN-08); understudy answers InvalidArn in the recorded
-// "Invalid Arn" forms, in the order of stepfunctions-api.md 13.3: not an
-// IAM ARN is "Invalid ARN prefix", an IAM ARN of another resource type is
-// "Resource type not valid in this context".
+// ARN. A value that is not an IAM ARN answers InvalidArn "Invalid Role
+// Arn: '<arn>'", recorded for a value that is no ARN at all (SFN-08,
+// recorded 2026-11-03; stepfunctions-api.md 5.1) and inferred for the
+// rest; an IAM ARN of another resource type answers the inferred "Resource
+// type not valid in this context".
 func checkRoleArn(raw string) *awserr.Error {
 	a, err := aws.ParseARN(raw)
 	if err != nil || a.Service != "iam" || a.Account == "" || a.Region != "" {
-		return sfnapi.ErrInvalidArn("Invalid Arn: 'Invalid ARN prefix: " + raw + "'")
+		return sfnapi.ErrInvalidArn("Invalid Role Arn: '" + raw + "'")
 	}
 	typ, name, _ := strings.Cut(a.Resource, "/")
 	if typ != "role" || name == "" {

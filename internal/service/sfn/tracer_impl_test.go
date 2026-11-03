@@ -112,8 +112,9 @@ func TestSFN05HistoryWithoutExecutionData(t *testing.T) {
 }
 
 // History pages carry tokens of their own listing only: a token from the
-// forward listing is refused in reverse order (stepfunctions-api.md 3.2
-// InvalidToken text).
+// forward listing is refused in reverse order, with the InvalidToken text
+// SFN-05 recorded 2026-11-03 for a bad history token (stepfunctions-api.md
+// 3.2).
 func TestHistoryTokenBelongsToItsListing(t *testing.T) {
 	run(t, func(h *harness) {
 		arn := h.start(h.create("m", resultMachine), "x", nil)
@@ -122,7 +123,9 @@ func TestHistoryTokenBelongsToItsListing(t *testing.T) {
 			h.Fatal("no token after one event of four")
 		}
 		_, err := call(h, sfnapi.OpGetExecutionHistory, &sfnapi.GetExecutionHistoryInput{ExecutionArn: arn, NextToken: page.NextToken, ReverseOrder: true})
-		wantError(h, err, "InvalidToken", 400, "Invalid Token: 'Invalid token'")
+		wantError(h, err, "InvalidToken", 400, "Invalid Token")
+		_, err = call(h, sfnapi.OpGetExecutionHistory, &sfnapi.GetExecutionHistoryInput{ExecutionArn: arn, NextToken: new("garbage")})
+		wantError(h, err, "InvalidToken", 400, "Invalid Token")
 		rest := must(h, sfnapi.OpGetExecutionHistory, &sfnapi.GetExecutionHistoryInput{ExecutionArn: arn, NextToken: page.NextToken})
 		if len(rest.Events) != 3 || rest.Events[0].Id != 2 || rest.NextToken != nil {
 			h.Errorf("second page:\n%s", shape(rest.Events))
