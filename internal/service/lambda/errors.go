@@ -492,6 +492,24 @@ func errUnsupportedDestination() *awserr.Error {
 	return user(lambdaapi.ErrInvalidParameterValueException("Unsupported DestinationConfig parameter for given event source mapping type."))
 }
 
+// errStartingPositionOnSQS and errUnsupportedMember refuse a member of the
+// stream type on an SQS mapping (aws-recorded, lambda-stream-sources.md
+// 3.4: ESMS-03).
+func errStartingPositionOnSQS() *awserr.Error {
+	return user(lambdaapi.ErrInvalidParameterValueException("StartingPosition is not valid for SQS event sources."))
+}
+
+func errUnsupportedMember(member string) *awserr.Error {
+	return user(lambdaapi.ErrInvalidParameterValueException("Unsupported " + member + " parameter for given event source mapping type."))
+}
+
+// errFIFOStreamDestination refuses a FIFO queue as a stream mapping's
+// on-failure destination (aws-recorded, lambda-stream-sources.md 3.7:
+// ESMS-05 04).
+func errFIFOStreamDestination() *awserr.Error {
+	return user(lambdaapi.ErrInvalidParameterValueException("FIFO-type Amazon SQS queues aren't supported as a destination."))
+}
+
 func errBatchWindow() *awserr.Error {
 	return user(lambdaapi.ErrInvalidParameterValueException("Maximum batch window in seconds must be greater than 0 if maximum batch size is greater than 10"))
 }
