@@ -271,19 +271,25 @@ func TestNewBucketBlock(t *testing.T) {
 
 // TestBlockedEncryptionOf reads a PutBucketEncryption rule's
 // BlockedEncryptionTypes (model EncryptionType, s3-ssec-object-lock.md 4.2):
-// absent is reported as absent, so the stored block is kept (switch
-// s3.encryption.blocked-types-omitted); [SSE-C] blocks and [NONE] unblocks.
+// absent is the new-bucket block of the bucket's Region, SSE-C in
+// us-east-2 (S3SOL-11 11-get-after-omit, recorded 2026-11-03; NONE in
+// me-south-1 is inferred from 4.1); [SSE-C] blocks and [NONE] unblocks
+// wherever the bucket is.
 func TestBlockedEncryptionOf(t *testing.T) {
-	declared(t, switchValues(t), "s3.encryption.blocked-types-omitted")
 	aes := &s3api.ServerSideEncryptionByDefault{SSEAlgorithm: s3api.ServerSideEncryptionAes256}
-	if _, ok, err := blockedEncryptionOf(s3api.ServerSideEncryptionRule{ApplyServerSideEncryptionByDefault: aes}); ok || err != nil {
-		t.Errorf("rule without the element: ok %v, err %v; want absent", ok, err)
-	}
-	for types, want := range map[s3api.EncryptionType]BlockedEncryption{s3api.EncryptionTypeSseC: BlockSSEC, s3api.EncryptionTypeNone: BlockNone} {
-		rule := s3api.ServerSideEncryptionRule{BlockedEncryptionTypes: &s3api.BlockedEncryptionTypes{EncryptionType: []s3api.EncryptionType{types}}}
-		got, ok, err := blockedEncryptionOf(rule)
-		if !ok || err != nil || got != want {
-			t.Errorf("[%s]: %d, %v, %v; want %d", types, got, ok, err, want)
+	for name, want := range map[string]BlockedEncryption{"us-east-2": BlockSSEC, "me-south-1": BlockNone} {
+		r, perr := aws.KnownRegions().Parse(name)
+		if perr != nil {
+			t.Fatal(perr)
+		}
+		if got, err := blockedEncryptionOf(s3api.ServerSideEncryptionRule{ApplyServerSideEncryptionByDefault: aes}, r); err != nil || got != want {
+			t.Errorf("rule without the element in %s: %d, %v; want %d", name, got, err, want)
+		}
+		for types, want := range map[s3api.EncryptionType]BlockedEncryption{s3api.EncryptionTypeSseC: BlockSSEC, s3api.EncryptionTypeNone: BlockNone} {
+			rule := s3api.ServerSideEncryptionRule{BlockedEncryptionTypes: &s3api.BlockedEncryptionTypes{EncryptionType: []s3api.EncryptionType{types}}}
+			if got, err := blockedEncryptionOf(rule, r); err != nil || got != want {
+				t.Errorf("[%s] in %s: %d, %v; want %d", types, name, got, err, want)
+			}
 		}
 	}
 }

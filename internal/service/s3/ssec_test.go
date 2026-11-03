@@ -929,18 +929,16 @@ func TestSSECKeyNeverStored(t *testing.T) {
 // TestBucketEncryptionBlock: PutBucketEncryption accepts a rule holding
 // only BlockedEncryptionTypes (API_PutBucketEncryption Example 4,
 // https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketEncryption.html);
-// GetBucketEncryption then reads back the AES256 default with NONE (switch
-// s3.encryption.unblocked-read); a Put without the element and a Delete
-// keep the block as it was (switch s3.encryption.blocked-types-omitted;
-// from the default state, testdata/parity/s3/R06/02-get-encryption-arn.json
-// and 02-get-encryption-after-delete.json); a rule with neither member is
-// MalformedXML (switch s3.encryption.unblocked-read), as is a
-// configuration without rules (s3.md 4.2.2).
+// GetBucketEncryption then reads back the AES256 default with NONE
+// (S3SOL-10 10-get-rule-only). A Put without the element, an empty rule and
+// a Delete each return the bucket to blocking SSE-C (S3SOL-10
+// 10-get-after-empty-rule, S3SOL-11 11-get-after-omit, 11-get-after-delete,
+// all recorded 2026-11-03). A rule with only BucketKeyEnabled is inferred
+// to be accepted as the empty rule is; a configuration without rules is
+// MalformedXML (s3.md 4.2.2).
 func TestBucketEncryptionBlock(t *testing.T) {
 	runObjects(t, func(h *harness) {
 		t := h.T
-		h.follows("s3.encryption.unblocked-read", "NONE-element")
-		h.follows("s3.encryption.blocked-types-omitted", "kept")
 		aes := &s3api.ServerSideEncryptionByDefault{SSEAlgorithm: s3api.ServerSideEncryptionAes256}
 		kmsArn := ok(h, who{}, kmsapi.OpCreateKey, &kmsapi.CreateKeyInput{}).KeyMetadata.Arn
 		kms := &s3api.ServerSideEncryptionByDefault{SSEAlgorithm: s3api.ServerSideEncryptionAwsKms, KMSMasterKeyID: kmsArn}
@@ -973,14 +971,29 @@ func TestBucketEncryptionBlock(t *testing.T) {
 		if err := put("unblocked", s3api.ServerSideEncryptionRule{ApplyServerSideEncryptionByDefault: kms, BucketKeyEnabled: new(true)}); err != nil {
 			t.Fatalf("a KMS rule without the element: %s %q", err.ID.QueryCode, err.Message)
 		}
-		read("KMS rule after NONE", "unblocked", s3api.ServerSideEncryptionRule{ApplyServerSideEncryptionByDefault: kms, BucketKeyEnabled: new(true), BlockedEncryptionTypes: types(s3api.EncryptionTypeNone)})
+		read("KMS rule after NONE", "unblocked", s3api.ServerSideEncryptionRule{ApplyServerSideEncryptionByDefault: kms, BucketKeyEnabled: new(true), BlockedEncryptionTypes: types(s3api.EncryptionTypeSseC)})
+		_, err := h.putSSEC("unblocked", "k", "v", key1)
+		blocked("s3:PutObject", "unblocked", "k").is(t, "SSE-C PutObject after a rule without the element (11-ssec-after-omit)", err)
+
+		h.allowSSEC("unblocked")
 		ok(h, who{}, s3api.OpDeleteBucketEncryption, &s3api.DeleteBucketEncryptionInput{Bucket: "unblocked"})
-		read("deleted after NONE", "unblocked", s3api.ServerSideEncryptionRule{ApplyServerSideEncryptionByDefault: aes, BucketKeyEnabled: new(false), BlockedEncryptionTypes: types(s3api.EncryptionTypeNone)})
-		h.mustPutSSEC("unblocked", "k", "v", key1)
+		read("deleted after NONE", "unblocked", s3api.ServerSideEncryptionRule{ApplyServerSideEncryptionByDefault: aes, BucketKeyEnabled: new(false), BlockedEncryptionTypes: types(s3api.EncryptionTypeSseC)})
+		_, err = h.putSSEC("unblocked", "k", "v", key1)
+		blocked("s3:PutObject", "unblocked", "k").is(t, "SSE-C PutObject after DeleteBucketEncryption (11-ssec-after-delete)", err)
+
+		h.allowSSEC("unblocked")
+		if err := put("unblocked", s3api.ServerSideEncryptionRule{}); err != nil {
+			t.Fatalf("an empty rule (10-put-empty-rule): %s %q", err.ID.QueryCode, err.Message)
+		}
+		read("empty rule after NONE", "unblocked", s3api.ServerSideEncryptionRule{ApplyServerSideEncryptionByDefault: aes, BucketKeyEnabled: new(false), BlockedEncryptionTypes: types(s3api.EncryptionTypeSseC)})
+		if err := put("unblocked", s3api.ServerSideEncryptionRule{BucketKeyEnabled: new(true)}); err != nil {
+			t.Fatalf("a rule with only BucketKeyEnabled: %s %q", err.ID.QueryCode, err.Message)
+		}
+		read("rule with only BucketKeyEnabled", "unblocked", s3api.ServerSideEncryptionRule{ApplyServerSideEncryptionByDefault: aes, BucketKeyEnabled: new(true), BlockedEncryptionTypes: types(s3api.EncryptionTypeSseC)})
 
 		h.setBlock("unblocked", s3api.EncryptionTypeSseC)
 		read("blocked again", "unblocked", s3api.ServerSideEncryptionRule{ApplyServerSideEncryptionByDefault: aes, BucketKeyEnabled: new(false), BlockedEncryptionTypes: types(s3api.EncryptionTypeSseC)})
-		_, err := h.putSSEC("unblocked", "k", "v", key1)
+		_, err = h.putSSEC("unblocked", "k", "v", key1)
 		blocked("s3:PutObject", "unblocked", "k").is(t, "SSE-C PutObject after blocking again", err)
 
 		h.createBucket("default")
@@ -990,8 +1003,6 @@ func TestBucketEncryptionBlock(t *testing.T) {
 		read("KMS rule from the default state (R06/02-get-encryption-arn)", "default", s3api.ServerSideEncryptionRule{ApplyServerSideEncryptionByDefault: kms, BucketKeyEnabled: new(false), BlockedEncryptionTypes: types(s3api.EncryptionTypeSseC)})
 
 		malformed := failure{status: 400, code: "MalformedXML", message: "The XML you provided was not well-formed or did not validate against our published schema"}
-		malformed.is(t, "a rule with neither member", put("default", s3api.ServerSideEncryptionRule{}))
-		malformed.is(t, "a rule with only BucketKeyEnabled", put("default", s3api.ServerSideEncryptionRule{BucketKeyEnabled: new(true)}))
 		malformed.is(t, "no rules", put("default"))
 	})
 }

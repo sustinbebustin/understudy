@@ -279,7 +279,7 @@ func roundTrips() map[string]roundTrip {
 		BucketKeyEnabled: new(true),
 	}}}
 	// GetBucketEncryption reads the rule back with the bucket's SSE-C block,
-	// which a rule put without BlockedEncryptionTypes keeps
+	// a new bucket's, which a rule put without BlockedEncryptionTypes sets
 	// (testdata/parity/s3/R06/02-put-encryption-valid-arn.json, then
 	// 02-get-encryption-arn.json).
 	kmsRead := s3api.ServerSideEncryptionConfiguration{Rules: []s3api.ServerSideEncryptionRule{{

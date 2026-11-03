@@ -798,14 +798,16 @@ func newBucketBlock(region aws.Region) BlockedEncryption {
 }
 
 // blockedEncryptionOf reads a PutBucketEncryption rule's
-// BlockedEncryptionTypes; false when the rule has none, so the bucket
-// keeps its setting (switch s3.encryption.blocked-types-omitted). [SSE-C]
-// blocks and [NONE] unblocks; an empty list, or one that holds both, is
-// MalformedXML, which no recording shows (inferred).
-func blockedEncryptionOf(rule s3api.ServerSideEncryptionRule) (BlockedEncryption, bool, *awserr.Error) {
+// BlockedEncryptionTypes for a bucket in region. A rule without it puts
+// the bucket back to a new bucket's block: SSE-C blocked in us-east-2
+// (s3-ssec-object-lock.md 4.2; S3SOL-11 11-get-after-omit, recorded
+// 2026-11-03), and NONE in me-south-1 and me-central-1, inferred from 4.1.
+// [SSE-C] blocks and [NONE] unblocks; an empty list, or one that holds
+// both, is MalformedXML, which no recording shows (inferred).
+func blockedEncryptionOf(rule s3api.ServerSideEncryptionRule, region aws.Region) (BlockedEncryption, *awserr.Error) {
 	t := rule.BlockedEncryptionTypes
 	if t == nil {
-		return BlockSSEC, false, nil
+		return newBucketBlock(region), nil
 	}
 	var sseC, none bool
 	for _, e := range t.EncryptionType {
@@ -815,16 +817,16 @@ func blockedEncryptionOf(rule s3api.ServerSideEncryptionRule) (BlockedEncryption
 		case s3api.EncryptionTypeNone:
 			none = true
 		default:
-			return BlockSSEC, false, errMalformedXML()
+			return BlockSSEC, errMalformedXML()
 		}
 	}
 	switch {
 	case sseC == none:
-		return BlockSSEC, false, errMalformedXML()
+		return BlockSSEC, errMalformedXML()
 	case none:
-		return BlockNone, true, nil
+		return BlockNone, nil
 	}
-	return BlockSSEC, true, nil
+	return BlockSSEC, nil
 }
 
 // encryptionRead is GetBucketEncryption's document: the stored rule or the

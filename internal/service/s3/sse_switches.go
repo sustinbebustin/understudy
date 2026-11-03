@@ -39,9 +39,9 @@ func ssecSwitches() []fidelity.Entry {
 			[]string{"s3.CopyObject", "s3.UploadPartCopy"}),
 		recordedSwitch("s3.sse-c.complete-headers", "required-with-checksum", "36-multipart-uploads", "S3SOL-08",
 			[]string{"s3.CompleteMultipartUpload", "s3.ListParts"}),
-		researchSwitch("s3.encryption.unblocked-read", "NONE-element", evidence.Inferred, "42-blocking-and-unblocking", "S3SOL-10",
+		recordedSwitch("s3.encryption.unblocked-read", "NONE-element", "42-blocking-and-unblocking", "S3SOL-10",
 			[]string{"s3.PutBucketEncryption", "s3.GetBucketEncryption"}),
-		researchSwitch("s3.encryption.blocked-types-omitted", "kept", evidence.Inferred, "42-blocking-and-unblocking", "S3SOL-11",
+		recordedSwitch("s3.encryption.blocked-types-omitted", "reset-to-new-bucket", "42-blocking-and-unblocking", "S3SOL-11",
 			[]string{"s3.PutBucketEncryption", "s3.DeleteBucketEncryption"}),
 	}
 }

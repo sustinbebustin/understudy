@@ -6,6 +6,7 @@ import (
 	"pgregory.net/rapid"
 
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
+	"github.com/sustinbebustin/understudy/internal/aws"
 )
 
 // TestBlockedEncryptionOfRefusesEmptyAndMixedLists: a BlockedEncryptionTypes
@@ -15,15 +16,15 @@ import (
 func TestBlockedEncryptionOfRefusesEmptyAndMixedLists(t *testing.T) {
 	property(t, func(t *rapid.T) {
 		types := rapid.SliceOfN(rapid.SampledFrom([]s3api.EncryptionType{s3api.EncryptionTypeNone, s3api.EncryptionTypeSseC}), 0, 4).Draw(t, "types")
-		got, ok, err := blockedEncryptionOf(s3api.ServerSideEncryptionRule{BlockedEncryptionTypes: &s3api.BlockedEncryptionTypes{EncryptionType: types}})
+		got, err := blockedEncryptionOf(s3api.ServerSideEncryptionRule{BlockedEncryptionTypes: &s3api.BlockedEncryptionTypes{EncryptionType: types}}, aws.DefaultRegion())
 		var none, sseC bool
 		for _, e := range types {
 			none = none || e == s3api.EncryptionTypeNone
 			sseC = sseC || e == s3api.EncryptionTypeSseC
 		}
 		if none == sseC {
-			if err == nil || err.ID.QueryCode != "MalformedXML" || ok {
-				t.Fatalf("blockedEncryptionOf(%v) = %d, %v, %v; want MalformedXML", types, got, ok, err)
+			if err == nil || err.ID.QueryCode != "MalformedXML" {
+				t.Fatalf("blockedEncryptionOf(%v) = %d, %v; want MalformedXML", types, got, err)
 			}
 			return
 		}
@@ -31,8 +32,8 @@ func TestBlockedEncryptionOfRefusesEmptyAndMixedLists(t *testing.T) {
 		if none {
 			want = BlockNone
 		}
-		if err != nil || !ok || got != want {
-			t.Fatalf("blockedEncryptionOf(%v) = %d, %v, %v; want %d", types, got, ok, err, want)
+		if err != nil || got != want {
+			t.Fatalf("blockedEncryptionOf(%v) = %d, %v; want %d", types, got, err, want)
 		}
 	})
 }
