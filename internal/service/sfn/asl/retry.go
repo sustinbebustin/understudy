@@ -33,11 +33,11 @@ const maxRetryDelay = maxExecution
 // RetryDelay is the wait before retry number attempt (1 for the first) of
 // r: IntervalSeconds * BackoffRate^(attempt-1), capped at MaxDelaySeconds
 // when set, then, for JitterFull only, multiplied by jitter, a draw in
-// [0, 1) (stepfunctions-asl.md 8.3). Fractions of a second are kept, to
-// the nanosecond, not rounded to whole seconds. Whether AWS keeps fractions, applies
-// the cap before jitter and draws uniformly is unrecorded; these are
-// understudy's choices (inferred, ASL-10). A delay past maxRetryDelay is
-// maxRetryDelay.
+// [0, 1), and floored to whole seconds (stepfunctions-asl.md 8.3; the floor
+// is ASL-10's, recorded 2026-11-03: BackoffRate 1.5 waited 1, 1, 2, 3 s,
+// and FULL jitter only whole seconds). That the cap applies before jitter
+// and the draw is uniform are understudy's choices (inferred, ASL-10). A
+// delay past maxRetryDelay is maxRetryDelay.
 func RetryDelay(r Retrier, attempt int, jitter float64) time.Duration {
 	seconds := float64(r.IntervalSeconds) * math.Pow(r.BackoffRate, float64(max(attempt, 1)-1))
 	if r.MaxDelaySeconds > 0 {
@@ -49,7 +49,9 @@ func RetryDelay(r Retrier, attempt int, jitter float64) time.Duration {
 	if math.IsNaN(seconds) || seconds >= maxRetryDelay.Seconds() {
 		return maxRetryDelay
 	}
-	return time.Duration(math.Round(seconds * float64(time.Second)))
+	// The half millisecond absorbs float error just below a whole second,
+	// such as 3 * 1.1^2.
+	return time.Duration(math.Floor(seconds+0.0005)) * time.Second
 }
 
 // errTaskFailed matches every error name but States.Timeout

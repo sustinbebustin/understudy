@@ -21,20 +21,33 @@ func failWith(name string) lambdaAnswer {
 	}
 }
 
-// inferred, ASL-10
-// Fractional delays are kept (BackoffRate 1.5 waits 1.5 and 2.25 s, not
-// whole seconds), and FULL jitter applies after MaxDelaySeconds, so a
-// capped FULL delay is the draw times the cap.
-func TestRetryDelayFractionsAndJitterAfterCapASL10(t *testing.T) {
-	r := asl.Retrier{IntervalSeconds: 1, MaxAttempts: 3, BackoffRate: 1.5, Jitter: asl.JitterNone}
-	for k, want := range []time.Duration{time.Second, 1500 * time.Millisecond, 2250 * time.Millisecond} {
-		if got := asl.RetryDelay(r, k+1, 0); got != want {
-			t.Errorf("RetryDelay(BackoffRate 1.5, %d) = %v, want %v", k+1, got, want)
+// Delays are floored to whole seconds: BackoffRate 1.5 waits 1, 1, 2 and
+// 3 s, and MaxDelaySeconds 5 caps 2, 6, 18 at 2, 5, 5 (ASL-10 01 and 02,
+// recorded 2026-11-03; stepfunctions-asl.md 8.3).
+func TestRetryDelayWholeSecondsASL10(t *testing.T) {
+	for _, tt := range []struct {
+		r    asl.Retrier
+		want []time.Duration
+	}{
+		{asl.Retrier{IntervalSeconds: 1, MaxAttempts: 4, BackoffRate: 1.5, Jitter: asl.JitterNone}, []time.Duration{time.Second, time.Second, 2 * time.Second, 3 * time.Second}},
+		{asl.Retrier{IntervalSeconds: 2, MaxAttempts: 4, BackoffRate: 3, MaxDelaySeconds: 5, Jitter: asl.JitterNone}, []time.Duration{2 * time.Second, 5 * time.Second, 5 * time.Second, 5 * time.Second}},
+	} {
+		for k, want := range tt.want {
+			if got := asl.RetryDelay(tt.r, k+1, 0); got != want {
+				t.Errorf("RetryDelay(%+v, %d) = %v, want %v", tt.r, k+1, got, want)
+			}
 		}
 	}
+}
+
+// inferred, ASL-10
+// FULL jitter applies after MaxDelaySeconds, so a capped FULL delay is the
+// draw times the cap, floored to whole seconds as ASL-10's FULL run
+// observed.
+func TestRetryDelayJitterAfterCapASL10(t *testing.T) {
 	capped := asl.Retrier{IntervalSeconds: 10, MaxAttempts: 3, BackoffRate: 2, MaxDelaySeconds: 4, Jitter: asl.JitterFull}
-	if got := asl.RetryDelay(capped, 3, 0.5); got != 2*time.Second {
-		t.Errorf("RetryDelay(FULL, cap 4, jitter 0.5) = %v, want 2s (half the cap)", got)
+	if got := asl.RetryDelay(capped, 3, 0.6); got != 2*time.Second {
+		t.Errorf("RetryDelay(FULL, cap 4, jitter 0.6) = %v, want 2s (floor of 2.4)", got)
 	}
 }
 

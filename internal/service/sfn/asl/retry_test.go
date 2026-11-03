@@ -69,13 +69,14 @@ func retrier(t *rapid.T, jitter asl.Jitter) asl.Retrier {
 }
 
 // Spec T12: delay sequences against the 8.3 formula. Without jitter the
-// delay is the formula's value; how fractions round is understudy's choice
-// (ASL-10), so the comparison allows half a millisecond.
+// delay is the formula's value floored to whole seconds (ASL-10, recorded
+// 2026-11-03); the comparison allows half a millisecond for float error at
+// a whole second.
 func TestRetryDelayFormula(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		r := retrier(t, asl.JitterNone)
 		k := rapid.IntRange(1, 8).Draw(t, "attempt")
-		want := exactDelay(r, k)
+		want := math.Floor(exactDelay(r, k) + 0.0005)
 		got := asl.RetryDelay(r, k, rapid.Float64Range(0, 0.999).Draw(t, "jitter")).Seconds()
 		if math.Abs(got-want) > 0.0005 {
 			t.Fatalf("RetryDelay(%+v, %d) = %vs, want %vs", r, k, got, want)
