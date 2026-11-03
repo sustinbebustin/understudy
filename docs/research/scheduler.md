@@ -653,7 +653,7 @@ done
 mk 03-past-cron-enabled e90 'cron(0 0 1 1 ? 2020)'
 mk 03-past-rate-end e91 'rate(1 hour)' --end-date 2020-01-01T00:00:00Z --state DISABLED
 mk 03-past-cron-dates e92 'cron(0 0 1 1 ? 2021)' --start-date 2020-01-01T00:00:00Z --end-date 2020-06-01T00:00:00Z --state DISABLED
-printf '%s\n' "$i" >"$REC/SCH/03-count"
+printf '%s\n' "$i" >"$REC/SCH/03-count.txt"
 ```
 
 Expected: `rate(1 minutes)` and `rate(5 minute)` accepted (switch default `any`) or refused with "Invalid Schedule Expression <expr>."; `rate(0 minutes)` and `rate(1 MINUTE)` refused; each `at` variant other than the canonical form refused; the R14 rows answered as the rules did (`L-3`, 1969, 2200 and `5/0` accepted, double space and tab refused) or not; `cron(0 0 1 1 ? 2020)` refused with the future-fire text, in both states (does `DISABLED` skip the check?); `03-past-rate-end` and `03-past-cron-dates` show the text with dates present.
@@ -675,9 +675,10 @@ mk 04-us-eastern t2 'cron(0 12 * * ? *)' --schedule-expression-timezone US/Easte
 rec SCH/04-us-eastern-get aws scheduler get-schedule --name "$P-t2"
 mk 04-end-before-start d1 'rate(1 hour)' --start-date 2031-01-01T00:00:00Z --end-date 2030-01-01T00:00:00Z
 mk 04-start-past d2 'rate(1 hour)' --start-date 2020-01-01T00:00:00Z --state DISABLED
-head -c 262145 /dev/zero | tr '\0' a >"$REC/SCH/04-big.txt"   # one byte over 256 KiB; a file, since Linux caps one argument at 128 KiB
-jq -nc --arg a "$SQ" --arg r "$SR" --rawfile i "$REC/SCH/04-big.txt" '{Arn:$a,RoleArn:$r,Input:$i}' >"$REC/SCH/04-big-target.json"
-mk 04-input-too-big i1 'rate(1 hour)' --state DISABLED --target "file://$REC/SCH/04-big-target.json"
+mkdir -p "$REC/_work/SCH"   # helper inputs stay out of the item directory, which distill-parity reads
+head -c 262145 /dev/zero | tr '\0' a >"$REC/_work/SCH/04-big"   # one byte over 256 KiB; a file, since Linux caps one argument at 128 KiB
+jq -nc --arg a "$SQ" --arg r "$SR" --rawfile i "$REC/_work/SCH/04-big" '{Arn:$a,RoleArn:$r,Input:$i}' >"$REC/_work/SCH/04-big-target.json"
+mk 04-input-too-big i1 'rate(1 hour)' --state DISABLED --target "file://$REC/_work/SCH/04-big-target.json"
 mk 04-fifo-dlq q1 'rate(1 hour)' --target "$(tgt "$SQ" "$SR" "$(jq -nc --arg d "arn:aws:sqs:$R:$A:$P-x.fifo" '{DeadLetterConfig:{Arn:$d}}')")"
 mk 04-lambda-not-json l1 'rate(1 hour)' --state DISABLED --target "$(tgt "arn:aws:lambda:$R:$A:function:$P-nofn" "$SR" '{"Input":"not json"}')"
 mk 04-sqs-params-on-lambda l2 'rate(1 hour)' --state DISABLED --target "$(tgt "arn:aws:lambda:$R:$A:function:$P-nofn" "$SR" '{"SqsParameters":{"MessageGroupId":"g"}}')"

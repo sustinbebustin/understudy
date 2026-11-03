@@ -1097,7 +1097,7 @@ rec ESMS-15/03-sns aws sqs receive-message --queue-url "$Q/$P-esms-snsq" --attri
   --message-attribute-names All --wait-time-seconds 20
 rec ESMS-15/04-s3-list aws s3api list-objects-v2 --bucket "$P-esms-bucket"
 k=$(aws s3api list-objects-v2 --bucket "$P-esms-bucket" --query 'Contents[0].Key' --output text)
-rec ESMS-15/05-s3-get aws s3api get-object --bucket "$P-esms-bucket" --key "$k" "$REC/ESMS-15/05-object.json"
+rec ESMS-15/05-s3-get aws s3api get-object --bucket "$P-esms-bucket" --key "$k" "$REC/ESMS-15/05-s3-get.payload"
 mode ok
 ```
 

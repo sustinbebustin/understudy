@@ -684,9 +684,9 @@ rec SFN-08/03-bad-role-arn aws stepfunctions create-state-machine --name "$P-v3"
 rec SFN-08/04-bad-machine-name aws stepfunctions create-state-machine --name "$P v4" --definition "$D" --role-arn "$SR"
 rec SFN-08/05-two-errors aws stepfunctions create-state-machine --name "$P-v5" --role-arn "$SR" --definition '{"States":{"A":{"Type":"Bogus"}}}'
 rec SFN-08/06-bad-execution-name aws stepfunctions start-execution --state-machine-arn "$SM:$P-pass" --name "bad name"
-mkdir -p "$REC/SFN-08"   # the body exceeds Linux's 128 KiB per-argument limit, so curl reads it from a file
-printf '{"stateMachineArn":"%s","input":"\\"%s\\""}' "$SM:$P-pass" "$(head -c 262150 /dev/zero | tr '\0' a)" >"$REC/SFN-08/07-big-input.body"
-sfn SFN-08/07-big-input StartExecution "@$REC/SFN-08/07-big-input.body"
+mkdir -p "$REC/_work/SFN-08"   # the body exceeds Linux's 128 KiB per-argument limit, so curl reads it from a file
+printf '{"stateMachineArn":"%s","input":"\\"%s\\""}' "$SM:$P-pass" "$(head -c 262150 /dev/zero | tr '\0' a)" >"$REC/_work/SFN-08/07-big-input.body"
+sfn SFN-08/07-big-input StartExecution "@$REC/_work/SFN-08/07-big-input.body"
 rec SFN-08/08-missing-kms-key aws stepfunctions create-state-machine --name "$P-v8" --definition "$D" --role-arn "$SR" \
   --encryption-configuration "{\"type\":\"CUSTOMER_MANAGED_KMS_KEY\",\"kmsKeyId\":\"arn:aws:kms:$R:$A:key/00000000-0000-0000-0000-000000000000\"}"
 ```

@@ -757,7 +757,7 @@ Cost 0, 1 min. Teardown: none. Mask the account id before sharing.
 
 ```sh
 rec SES-27/01-start aws ses verify-email-identity --email-address "$P-expire@example.com"
-date -u +%FT%TZ > "$REC/SES-27/started"
+date -u +%FT%TZ > "$REC/SES-27/started.time"
 # 25 hours later, in a new recording shell:
 rec SES-27/02-after aws ses get-identity-verification-attributes --identities "$P-expire@example.com"
 ```
