@@ -68,6 +68,25 @@ func TestOutgoingSubstitutesWithinDecodedParts(t *testing.T) {
 	}
 }
 
+// A request to a host whose first label is not the service's signing name
+// is signed for the signing name: SES's endpoint prefix is "email" and its
+// signing name "ses" (ses.md 2.1).
+func TestOutgoingSignsSESHostAsSES(t *testing.T) {
+	t.Parallel()
+	req := Request{
+		Method: "POST", URL: "https://email.us-east-2.amazonaws.com/",
+		Headers: []Header{{"Content-Type", "application/x-www-form-urlencoded"}},
+		Body:    TextBody{Text: "Action=GetSendQuota&Version=2010-12-01"},
+	}
+	got, err := outgoing(req, nil, "us-east-2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.SigningName != "ses" {
+		t.Errorf("outgoing(%s).SigningName = %q; want ses", req.URL, got.SigningName)
+	}
+}
+
 // A bind reads a JSON string, never a number: the bound normalizer
 // substitutes within strings only, so a bound number would still differ.
 func TestBindReadsJSONStringsOnly(t *testing.T) {
