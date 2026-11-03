@@ -1,7 +1,6 @@
 package sfn_test
 
 import (
-	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -22,24 +21,24 @@ import (
 // (stepfunctions-asl.md 15.1 and stepfunctions-api.md 13.1, "Item 7
 // minimum"): 16 operations bound, every other one unbound.
 var wantCoverage = map[string]registry.BindCoverage{
-	"CreateStateMachine":             registry.Partial{Note: "Standard workflows only: type EXPRESS, publish true and a CUSTOMER_MANAGED_KMS_KEY encryptionConfiguration answer 501. Definitions are JSONPath with Pass, Task, Choice, Wait, Succeed, Fail, Parallel and inline Map states, and Task resources are Lambda only (a function ARN or arn:aws:states:::lambda:invoke). These answer InvalidDefinition with code UNSUPPORTED_BY_UNDERSTUDY: JSONata, Assign and variables, Distributed Map and its fields, Credentials, HeartbeatSeconds, callbacks, activities, every other Task resource, a literal lambda:invoke InvocationType other than RequestResponse, and JSONPath functions such as length(), multi-clause filters and filter scripts (ASL-19). A dynamodb resource outside getItem, putItem, updateItem and deleteItem answers AWS's SCHEMA_VALIDATION_FAILED text. Only the first problem in a definition is reported (UNVERIFIED, ASL-01, SFN-08). loggingConfiguration and tracingConfiguration are validated, stored and echoed; no log events or traces are emitted. The role ARN is checked for syntax, and its trust policy only under iam.enforce=enforce, with understudy's message (UNVERIFIED, SFN-08)"},
+	"CreateStateMachine":             registry.Partial{Note: "Standard workflows only: type EXPRESS, publish true and a CUSTOMER_MANAGED_KMS_KEY encryptionConfiguration answer 501. Definitions are JSONPath with Pass, Task, Choice, Wait, Succeed, Fail, Parallel and inline Map states, and Task resources are Lambda only (a function ARN or arn:aws:states:::lambda:invoke). These answer InvalidDefinition with code UNSUPPORTED_BY_UNDERSTUDY: JSONata, Assign and variables, Distributed Map and its fields, Credentials, HeartbeatSeconds, callbacks, activities, every other Task resource, a literal lambda:invoke InvocationType other than RequestResponse, and JSONPath functions such as length(), multi-clause filters and filter scripts, though AWS accepts length() and fails only at run time (ASL-19). ToleratedFailurePercentage, which AWS accepts on an inline Map, is refused with Distributed Map's fields (ASL-01). A dynamodb resource outside getItem, putItem, updateItem and deleteItem answers AWS's SCHEMA_VALIDATION_FAILED text. Every problem in a definition is reported in one message, as AWS joins them; wording for problems no recording covers is understudy's (ASL-01). loggingConfiguration and tracingConfiguration are validated, stored and echoed; no log events or traces are emitted. The role ARN is checked for syntax. AWS checks neither the role's existence nor its trust at create; understudy checks its trust policy under iam.enforce=enforce, with understudy's message (SFN-08)"},
 	"UpdateStateMachine":             registry.Partial{Note: "The CreateStateMachine definition and configuration rules apply; publish true and versionDescription answer 501. Running executions keep the definition and role they started with"},
-	"ValidateStateMachineDefinition": registry.Partial{Note: "Diagnostics use AWS's codes; messages are AWS's for the recorded cases (stepfunctions-asl.md 3.4-3.6) and understudy's wording elsewhere (UNVERIFIED, ASL-01). Features understudy refuses are ERROR diagnostics with code UNSUPPORTED_BY_UNDERSTUDY; type EXPRESS answers 501"},
+	"ValidateStateMachineDefinition": registry.Partial{Note: "Diagnostics use AWS's codes, locations and order; messages are AWS's for the recorded cases (stepfunctions-asl.md 3.4-3.6) and understudy's wording elsewhere (ASL-01). Features understudy refuses are ERROR diagnostics with code UNSUPPORTED_BY_UNDERSTUDY; type EXPRESS answers 501"},
 	"ListStateMachineVersions":       registry.Partial{Note: "Always empty: publishing versions is not implemented (publish is refused and PublishStateMachineVersion is unbound)"},
-	"StartExecution":                 registry.Partial{Note: "Standard executions. Unrecorded AWS behavior understudy chooses, each with its recording case: same-name idempotency compares input byte for byte (SFN-03); malformed input other than the recorded cases answers 'Invalid execution input.' (SFN-08); ResultPath into a non-object and a missing path in a Task, Parallel or Map template fail with States.Runtime (ASL-03, ASL-04); a Fail state in a Parallel branch fails the Parallel with the branch's error (ASL-13); States.DataLimitExceeded from a non-Task state is terminal at any depth (ASL-15); a Wait past the one-year execution limit ends with States.Timeout at the limit (ASL-09); the 25,000-event history limit fails the execution with States.Runtime (ASL-16); retry delays keep milliseconds and FULL jitter is uniform from understudy's seeded stream (ASL-10); IsTimestamp follows the documented RFC 3339 profile (ASL-07). A lambda:invoke InvocationType that resolves to anything but RequestResponse fails with States.Runtime (SFN-13). lambda:invoke results carry SdkHttpMetadata with AWS's recorded header names; the X-Amzn-Trace-Id value is understudy's. traceHeader, or the X-Amzn-Trace-Id request header when both are sent, is stored and returned by DescribeExecution; no X-Ray trace is emitted. A Lambda task in flight when a snapshot was saved is invoked again after load. States.MathRandom never reproduces AWS's sequence for a seed"},
-	"StopExecution":                  registry.Partial{Note: "error and cause are kept in DescribeExecution and ExecutionAborted; stopping a closed execution answers 200 with its stopDate and changes nothing (UNVERIFIED, SFN-04)"},
+	"StartExecution":                 registry.Partial{Note: "Standard executions. Unrecorded AWS behavior understudy chooses, each with its recording case: malformed input other than the recorded cases answers 'Invalid execution input.' (SFN-08); a missing path in a Task or Parallel template fails with States.Runtime (ASL-04); a ResultPath conflict deeper than one step names the node it stops at (ASL-03); a Wait past the one-year execution limit ends with States.Timeout at the limit (ASL-09); a Task or Map leaves a wider margin before the 25,000-event history limit than the recorded Pass and Choice steps (ASL-16); FULL jitter is drawn uniformly from understudy's seeded stream (ASL-10); IsTimestamp follows the documented RFC 3339 profile (ASL-07). Known differences from AWS: a runtime error's cause quotes the state's input as compact JSON, where AWS quotes the input as sent (ASL-04); JSONPath functions such as length() are refused at create, where AWS accepts them and fails at run time (ASL-19); an input over 262,144 is counted in characters with the 'Member must have length' wording, where AWS counts UTF-8 bytes and says 'Member must have size less than or equal to 262144 bytes in UTF-8 encoding' (SFN-08). A lambda:invoke InvocationType that resolves to anything but RequestResponse fails with States.Runtime (SFN-13). lambda:invoke results carry SdkHttpMetadata with AWS's recorded header names; the X-Amzn-Trace-Id value is understudy's. traceHeader, or the X-Amzn-Trace-Id request header when both are sent, is stored and returned by DescribeExecution; no X-Ray trace is emitted. A Lambda task in flight when a snapshot was saved is invoked again after load. States.MathRandom never reproduces AWS's sequence for a seed"},
+	"StopExecution":                  registry.Full{},
 	"ListExecutions":                 registry.Partial{Note: "mapRunArn and redriveFilter are validated; no Map Run or redrive exists, so they match nothing"},
-	"GetExecutionHistory":            registry.Partial{Note: "includeExecutionData false removes input and output and keeps the *Details members (UNVERIFIED, SFN-05). Events of concurrent Parallel branches and Map iterations are appended in the order understudy runs them, steps due at the same emulator instant in branch or item order (UNVERIFIED, ASL-13); payload-template output keeps template key order (UNVERIFIED, ASL-02)"},
+	"GetExecutionHistory":            registry.Partial{Note: "Events of concurrent Parallel branches and Map iterations are appended in the order understudy runs them, steps due at the same emulator instant in branch or item order, as AWS recorded for the runs of ASL-13; other interleavings are unrecorded. Payload-template output keeps template key order, where AWS writes an order of its own, hash-like (ASL-02)"},
 	"DescribeStateMachine":           registry.Full{},
-	"DeleteStateMachine":             registry.Full{},
+	"DeleteStateMachine":             registry.Partial{Note: "An idle machine is removed at once, and one with running executions once the last of them ends; AWS still describes a deleted machine as DELETING, idle or not, for a time no recording has measured (at least 45 seconds after its last execution ended; SFN-06, ASL-17)"},
 	"ListStateMachines":              registry.Full{},
 	// Partial, not Full: AWS documents NOT_REDRIVABLE reasons understudy
 	// does not give (a RUNNING execution, a DELETING machine, the 14-day
 	// redrive period; aws-doc api/API_DescribeExecution
 	// redriveStatusReason, dg/redrive-executions; stepfunctions-api.md 6.3).
-	"DescribeExecution": registry.Partial{Note: "redriveStatus is NOT_REDRIVABLE for SUCCEEDED executions and REDRIVABLE for FAILED, TIMED_OUT and ABORTED ones, " +
-		"however long ago they closed; a RUNNING execution has none. The other NOT_REDRIVABLE reasons AWS documents " +
-		"(a running execution, a DELETING machine, the 14-day redrive period) are not given: none is recorded"},
+	"DescribeExecution": registry.Partial{Note: "redriveStatus is NOT_REDRIVABLE for SUCCEEDED executions and for one failed at the history event limit, " +
+		"and REDRIVABLE for other FAILED, TIMED_OUT and ABORTED ones, however long ago they closed; a RUNNING execution has none. " +
+		"The other NOT_REDRIVABLE reasons AWS documents (a running execution, a DELETING machine, the 14-day redrive period) are not given: none is recorded"},
 	"DescribeStateMachineForExecution": registry.Full{},
 	"TagResource":                      registry.Full{},
 	"UntagResource":                    registry.Full{},
@@ -106,7 +105,9 @@ func TestUnboundOperationsAnswer501(t *testing.T) {
 
 // Every inferred choice is a switch with its value, label, record, ref,
 // operations and no settling scenario (spec "Fidelity switches"; contract
-// section 6.2). Values are read from the constructors, never restated.
+// section 6.2); a switch the 2026-11-03 recording session settled keeps its
+// row, labelled aws-recorded. Values are read from the constructors, never
+// restated.
 func TestSwitches(t *testing.T) {
 	bound := make([]string, 0, len(wantCoverage))
 	for name := range wantCoverage {
@@ -117,15 +118,16 @@ func TestSwitches(t *testing.T) {
 		entry       fidelity.Entry
 		name, ref   string
 		record      string
+		label       evidence.Label
 		ops         []string
 		sortOpsLike bool
 	}{
-		{sfn.ChoiceNoMatch().Entry(), "sfn.choice.no-match", "docs/research/stepfunctions-asl.md#64-no-match-and-missing-variables", "ASL-08", []string{"sfn.StartExecution"}, false},
-		{sfn.ChoiceMissingVariable().Entry(), "sfn.choice.missing-variable", "docs/research/stepfunctions-asl.md#64-no-match-and-missing-variables", "ASL-08", []string{"sfn.StartExecution"}, false},
-		{sfn.IntrinsicFailure().Entry(), "sfn.intrinsic.failure-error", "docs/research/stepfunctions-asl.md#54-failures", "ASL-05", []string{"sfn.StartExecution"}, false},
-		{sfn.LambdaError().Entry(), "sfn.integration.lambda-error", "docs/research/stepfunctions-api.md#94-error-names-and-causes-recorded", "SFN-15", []string{"sfn.StartExecution"}, false},
-		{sfn.DeleteRunningExecution().Entry(), "sfn.delete.running-execution", "docs/research/stepfunctions-api.md#54-deletestatemachine", "SFN-06", []string{"sfn.DeleteStateMachine", "sfn.StartExecution"}, true},
-		{sfn.DenialStatus().Entry(), "sfn.denial.status", "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit", "SFN-15", bound, true},
+		{sfn.ChoiceNoMatch().Entry(), "sfn.choice.no-match", "docs/research/stepfunctions-asl.md#64-no-match-and-missing-variables", "ASL-08", evidence.AWSRecorded, []string{"sfn.StartExecution"}, false},
+		{sfn.ChoiceMissingVariable().Entry(), "sfn.choice.missing-variable", "docs/research/stepfunctions-asl.md#64-no-match-and-missing-variables", "ASL-08", evidence.AWSRecorded, []string{"sfn.StartExecution"}, false},
+		{sfn.IntrinsicFailure().Entry(), "sfn.intrinsic.failure-error", "docs/research/stepfunctions-asl.md#54-failures", "ASL-05", evidence.AWSRecorded, []string{"sfn.StartExecution"}, false},
+		{sfn.LambdaError().Entry(), "sfn.integration.lambda-error", "docs/research/stepfunctions-api.md#94-error-names-and-causes-recorded", "SFN-15", evidence.AWSRecorded, []string{"sfn.StartExecution"}, false},
+		{sfn.DeleteRunningExecution().Entry(), "sfn.delete.running-execution", "docs/research/stepfunctions-api.md#54-deletestatemachine", "SFN-06", evidence.AWSRecorded, []string{"sfn.DeleteStateMachine", "sfn.StartExecution"}, true},
+		{sfn.DenialStatus().Entry(), "sfn.denial.status", "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit", "SFN-15", evidence.AWSRecorded, bound, true},
 	}
 	got := (&sfn.Service{}).Switches()
 	if len(got) != len(want) {
@@ -137,8 +139,8 @@ func TestSwitches(t *testing.T) {
 		if w.sortOpsLike {
 			ops = slices.Sorted(slices.Values(ops))
 		}
-		if e.Name != w.name || e.Ref != w.ref || e.Record != w.record || e.Label != evidence.Inferred || !slices.Equal(ops, w.ops) || e.Value != w.entry.Value {
-			t.Errorf("switch %d = %+v\nwant name %s, ref %s, record %s, label inferred, ops %v, value %s", i, e, w.name, w.ref, w.record, w.ops, w.entry.Value)
+		if e.Name != w.name || e.Ref != w.ref || e.Record != w.record || e.Label != w.label || !slices.Equal(ops, w.ops) || e.Value != w.entry.Value {
+			t.Errorf("switch %d = %+v\nwant name %s, ref %s, record %s, label %s, ops %v, value %s", i, e, w.name, w.ref, w.record, w.label, w.ops, w.entry.Value)
 		}
 		ns, ok := e.Settles.(fidelity.NoScenario)
 		if !ok || !strings.Contains(ns.Reason, w.record) {
@@ -148,7 +150,7 @@ func TestSwitches(t *testing.T) {
 	rules := sfn.EngineRules()
 	if rules != (asl.Rules{
 		NoMatch: sfn.ChoiceNoMatch().Value, MissingVariable: sfn.ChoiceMissingVariable().Value,
-		IntrinsicFailure: sfn.IntrinsicFailure().Value, AbortOnDelete: sfn.DeleteRunningExecution().Value,
+		IntrinsicFailure: sfn.IntrinsicFailure().Value, EndOnDelete: sfn.DeleteRunningExecution().Value,
 	}) {
 		t.Errorf("EngineRules() = %+v, want the switch values", rules)
 	}
@@ -159,12 +161,14 @@ func TestSwitches(t *testing.T) {
 // v2/error_handling/test_task_service_lambda.snapshot.json:L972-L973):
 // a missing function is Lambda.ResourceNotFoundException with the AWSLambda
 // cause. The naming is switch sfn.integration.lambda-error: a shape Lambda's
-// model declares takes the prefix, any other the unmodeled name; flipping
-// the switch's fields changes the result.
+// model declares takes the prefix, any other the unmodeled name; the cause
+// of a lambda:invoke task is in the AWSLambda form and that of a
+// function-ARN task in the SDK v2 form (SFN-15 02 and 03, recorded
+// 2026-11-03); flipping the switch's fields changes the result.
 func TestLambdaTaskError(t *testing.T) {
 	n := sfn.LambdaError().Value
 	fn := "arn:aws:lambda:us-east-1:000000000000:function:nope"
-	got := sfn.LambdaTaskError(n, lambdaapi.ErrResourceNotFoundException("Function not found: "+fn+":$LATEST"), "req-1")
+	got := sfn.LambdaTaskError(n, asl.LambdaInvoke, lambdaapi.ErrResourceNotFoundException("Function not found: "+fn+":$LATEST"), "req-1")
 	want := asl.StateError{
 		Name:  "Lambda.ResourceNotFoundException",
 		Cause: "Function not found: " + fn + ":$LATEST (Service: AWSLambda; Status Code: 404; Error Code: ResourceNotFoundException; Request ID: req-1; Proxy: null)",
@@ -172,20 +176,24 @@ func TestLambdaTaskError(t *testing.T) {
 	if got != want {
 		t.Errorf("LambdaTaskError(ResourceNotFoundException) = %+v\nwant %+v", got, want)
 	}
-	if got := sfn.LambdaTaskError(n, lambdaapi.ErrTooManyRequestsException("Rate exceeded"), "r"); got.Name != n.Prefix+"TooManyRequestsException" {
+	if got := sfn.LambdaTaskError(n, asl.LambdaInvoke, lambdaapi.ErrTooManyRequestsException("Rate exceeded"), "r"); got.Name != n.Prefix+"TooManyRequestsException" {
 		t.Errorf("TooManyRequestsException named %q, want %q", got.Name, n.Prefix+"TooManyRequestsException")
 	}
 	unmodeled := sfnapi.ErrAccessDeniedException("User is not authorized")
-	got = sfn.LambdaTaskError(n, unmodeled, "r")
-	if wantCause := fmt.Sprintf(n.Cause, "User is not authorized", unmodeled.ID.Status, unmodeled.ID.QueryCode, "r"); got.Name != n.Unmodeled || got.Cause != wantCause {
-		t.Errorf("generic AccessDeniedException = %+v, want %s with cause %q", got, n.Unmodeled, wantCause)
+	got = sfn.LambdaTaskError(n, asl.LambdaInvoke, unmodeled, "r")
+	if wantCause := "User is not authorized (Service: AWSLambda; Status Code: 400; Error Code: AccessDeniedException; Request ID: r; Proxy: null)"; got.Name != "Lambda.AWSLambdaException" || got.Cause != wantCause {
+		t.Errorf("generic AccessDeniedException = %+v, want Lambda.AWSLambdaException with cause %q", got, wantCause)
+	}
+	got = sfn.LambdaTaskError(n, asl.FunctionARN, unmodeled, "r")
+	if wantCause := "User is not authorized (Service: Lambda, Status Code: 400, Request ID: r) (SDK Attempt Count: 1)"; got.Name != "Lambda.AWSLambdaException" || got.Cause != wantCause {
+		t.Errorf("function-ARN task AccessDeniedException = %+v, want Lambda.AWSLambdaException with cause %q", got, wantCause)
 	}
 
-	flip := sfn.LambdaErrorNaming{Prefix: "X.", Unmodeled: "X.Other", Cause: "%s|%d|%s|%s"}
-	if got := sfn.LambdaTaskError(flip, lambdaapi.ErrResourceNotFoundException("m"), "id"); got.Name != "X.ResourceNotFoundException" || got.Cause != "m|404|ResourceNotFoundException|id" {
+	flip := sfn.LambdaErrorNaming{Prefix: "X.", Unmodeled: "X.Other", Cause: "%s|%d|%s|%s", FunctionARNCause: "%s/%d/%s"}
+	if got := sfn.LambdaTaskError(flip, asl.LambdaInvoke, lambdaapi.ErrResourceNotFoundException("m"), "id"); got.Name != "X.ResourceNotFoundException" || got.Cause != "m|404|ResourceNotFoundException|id" {
 		t.Errorf("flipped naming = %+v", got)
 	}
-	if got := sfn.LambdaTaskError(flip, unmodeled, "id"); got.Name != "X.Other" {
+	if got := sfn.LambdaTaskError(flip, asl.FunctionARN, unmodeled, "id"); got.Name != "X.Other" || got.Cause != "User is not authorized/400/id" {
 		t.Errorf("flipped unmodeled naming = %+v", got)
 	}
 }

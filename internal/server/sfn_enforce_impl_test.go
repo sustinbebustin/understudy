@@ -183,9 +183,10 @@ func TestSFNLoggingNeedsTheRolesLogDelivery(t *testing.T) {
 }
 
 // A Lambda task whose role may not invoke the function fails under enforce
-// with Lambda.AWSLambdaException and an AccessDeniedException cause
-// (switch sfn.integration.lambda-error); the function never runs, so no
-// container is needed.
+// with Lambda.AWSLambdaException and Lambda's denial in the SDK v2 cause
+// form a function-ARN Resource gets (switch sfn.integration.lambda-error;
+// SFN-15, recorded 2026-11-03); the function never runs, so no container
+// is needed.
 func TestSFNLambdaTaskDeniedUnderEnforce(t *testing.T) {
 	c, endpoint, _ := enforced(t, server.IAMEnforceEnforce)
 	sfnRoleTrusting(t, endpoint, "states.amazonaws.com")
@@ -213,8 +214,9 @@ func TestSFNLambdaTaskDeniedUnderEnforce(t *testing.T) {
 	if err := json.Unmarshal([]byte(described.body), &d); err != nil {
 		t.Fatalf("DescribeExecution = %d %s", described.status, described.body)
 	}
-	if d.Status != "FAILED" || d.Error != "Lambda.AWSLambdaException" || !strings.Contains(d.Cause, "Error Code: AccessDeniedException") {
-		t.Errorf("execution = %s %s %q, want FAILED Lambda.AWSLambdaException with an AccessDeniedException cause", d.Status, d.Error, d.Cause)
+	if d.Status != "FAILED" || d.Error != "Lambda.AWSLambdaException" || !strings.Contains(d.Cause, "is not authorized to perform: lambda:InvokeFunction") ||
+		!strings.Contains(d.Cause, " (Service: Lambda, Status Code: 403, Request ID: ") || !strings.HasSuffix(d.Cause, ") (SDK Attempt Count: 1)") {
+		t.Errorf("execution = %s %s %q, want FAILED Lambda.AWSLambdaException with Lambda's denial in the SDK v2 cause form", d.Status, d.Error, d.Cause)
 	}
 	if got := userPolicyOf(t, c, sfnRole); !strings.Contains(got, `"lambda:InvokeFunction"`) || !strings.Contains(got, fn) {
 		t.Errorf("/iam/policy for the role = %s, want lambda:InvokeFunction on %s", got, fn)

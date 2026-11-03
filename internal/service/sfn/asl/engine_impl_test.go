@@ -2,33 +2,69 @@ package asl_test
 
 import (
 	"bytes"
+	"fmt"
+	"strings"
 	"testing"
 
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy/document"
 	"github.com/sustinbebustin/understudy/internal/service/sfn/asl"
 )
 
-// TestASL16HistoryLimit: a machine that loops through Pass states forever
-// fails with States.Runtime when the next state would take the history past
-// 25,000 events (aws-doc dg/service-quotas); the error and where it stops
-// are understudy's choice.
+// TestASL16HistoryLimit: ASL-16's loop of a Pass and a Choice fails with
+// States.Runtime and AWS's cause as event 25,000, in place of the Choice's
+// entered event after PassStateExited 24,999 (recorded 2026-11-03;
+// stepfunctions-asl.md 11.1).
 func TestASL16HistoryLimit(t *testing.T) {
-	// inferred, ASL-16
-	d := newDriver(t, `{"StartAt":"A","States":{"A":{"Type":"Pass","Next":"B"},"B":{"Type":"Pass","Next":"A"},"S":{"Type":"Succeed"}}}`, rules())
-	d.start(`{}`)
+	d := newDriver(t, `{"StartAt":"A","States":{"A":{"Type":"Pass","Parameters":{"n.$":"States.MathAdd($.n, 1)"},"Next":"C"},
+		"C":{"Type":"Choice","Choices":[{"Variable":"$.n","NumericLessThan":20000,"Next":"A"}],"Default":"S"},"S":{"Type":"Succeed"}}}`, rules())
+	d.start(`{"n":0}`)
 	o := d.runToEnd(20_000)
-	failedWith(t, o, "States.Runtime", func(c string) bool { return c != "" })
-	last := d.history[len(d.history)-1]
-	if last.Type != "ExecutionFailed" || last.ID > 25_000 || last.ID != int64(len(d.history)) {
-		t.Fatalf("last event %s %d of %d events, want ExecutionFailed within 25,000", last.Type, last.ID, len(d.history))
+	failedWith(t, o, "States.Runtime", func(c string) bool { return c == asl.HistoryLimitCause })
+	if c := asl.HistoryLimitCause; c != "The execution reached the maximum number of history events (25000)." {
+		t.Errorf("HistoryLimitCause = %q, want ASL-16's text", c)
 	}
-	if prev := d.history[len(d.history)-2]; last.PreviousEventID != prev.ID {
-		t.Errorf("ExecutionFailed points at %d, want the last event written, %d", last.PreviousEventID, prev.ID)
+	last, prev := d.history[len(d.history)-1], d.history[len(d.history)-2]
+	if last.Type != "ExecutionFailed" || last.ID != 25_000 || last.PreviousEventID != 24_999 || prev.Type != "PassStateExited" {
+		t.Fatalf("last events %s %d<-%d after %s %d, want PassStateExited 24999 then ExecutionFailed 25000<-24999", last.Type, last.ID, last.PreviousEventID, prev.Type, prev.ID)
 	}
 }
 
-// Parse reports every problem in document order; CreateStateMachine renders
-// the first (contract 5.1).
-func TestASL01EveryProblemInDocumentOrder(t *testing.T) {
+// inferred, ASL-16
+// A loop through a Task, which writes five events, never passes the limit
+// at any alignment of the loop against it: the margin before a Task is
+// wider than a Pass or Choice step's.
+func TestASL16HistoryLimitTaskLoop(t *testing.T) {
+	for lead := range 7 {
+		// The catcher only makes S reachable, as AWS requires (ASL-01).
+		states := `"T":{"Type":"Task","Resource":"` + functionArn + `","Catch":[{"ErrorEquals":["X"],"Next":"S"}],"Next":"P"},"P":{"Type":"Pass","Next":"T"},"S":{"Type":"Succeed"}`
+		start := "T"
+		var statesSb39 strings.Builder
+		for i := range lead {
+			name := fmt.Sprintf("L%d", i)
+			next := fmt.Sprintf("L%d", i+1)
+			if i == lead-1 {
+				next = "T"
+			}
+			statesSb39.WriteString(`,"` + name + `":{"Type":"Pass","Next":"` + next + `"}`)
+			if i == 0 {
+				start = name
+			}
+		}
+		states += statesSb39.String()
+		d := newDriver(t, `{"StartAt":"`+start+`","States":{`+states+`}}`, rules())
+		d.answer = succeedWith(document.Map{})
+		d.start(`{}`)
+		failedWith(t, d.runToEnd(40_000), "States.Runtime", func(c string) bool { return c == asl.HistoryLimitCause })
+		if last := d.history[len(d.history)-1]; last.ID > 25_000 {
+			t.Fatalf("lead %d: last event %s %d, want within 25,000", lead, last.Type, last.ID)
+		}
+	}
+}
+
+// Parse reports every problem: the others in document order, then the
+// transition checks (ASL-01 16, recorded 2026-11-03); an understudy refusal
+// counts as one of the others.
+func TestASL01EveryProblemTransitionChecksLast(t *testing.T) {
 	// inferred, ASL-01
 	_, diags := asl.Parse(`{"StartAt":"P","States":{"P":{"Type":"Pass","Next":"Nope"},"W":{"Type":"Wait","Seconds":1,"End":true}},"Extra":1}`,
 		asl.NewFeatures(asl.FeatPass, asl.FeatSucceed))
@@ -36,7 +72,7 @@ func TestASL01EveryProblemInDocumentOrder(t *testing.T) {
 	for _, d := range diags {
 		locations = append(locations, d.Location)
 	}
-	want := []string{"/States/P/Next", "/States/W", "/"}
+	want := []string{"/States/W", "/", "/States/P/Next", "/States/W"}
 	if len(locations) != len(want) {
 		t.Fatalf("diagnostics at %v, want %v", locations, want)
 	}
@@ -45,8 +81,8 @@ func TestASL01EveryProblemInDocumentOrder(t *testing.T) {
 			t.Fatalf("diagnostics at %v, want %v", locations, want)
 		}
 	}
-	if diags[1].Code != asl.CodeUnsupported {
-		t.Errorf("Wait diagnostic = %+v, want %s", diags[1], asl.CodeUnsupported)
+	if diags[0].Code != asl.CodeUnsupported {
+		t.Errorf("Wait diagnostic = %+v, want %s", diags[0], asl.CodeUnsupported)
 	}
 }
 

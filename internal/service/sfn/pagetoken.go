@@ -58,8 +58,9 @@ func readToken(token, listing string, now clock.Instant) (string, *awserr.Error)
 	return position, nil
 }
 
-// errInvalidToken is the recorded InvalidToken text (stepfunctions-api.md
-// 3.2).
+// errInvalidToken is the InvalidToken text SFN-05 recorded 2026-11-03 for a
+// bad GetExecutionHistory token, with no subject; the list operations are
+// inferred to answer the same (stepfunctions-api.md 3.2).
 func errInvalidToken() *awserr.Error {
-	return sfnapi.ErrInvalidToken("Invalid Token: 'Invalid token'")
+	return sfnapi.ErrInvalidToken("Invalid Token")
 }

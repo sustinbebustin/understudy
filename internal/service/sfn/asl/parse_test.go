@@ -122,7 +122,7 @@ func TestInvalidDefinitionEnvelope(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		if got := tt.d.InvalidDefinition(); got != tt.want {
+		if got := asl.InvalidDefinition([]asl.Diagnostic{tt.d}); got != tt.want {
 			t.Errorf("InvalidDefinition() = %q\nwant %q", got, tt.want)
 		}
 	}
@@ -218,8 +218,8 @@ func TestParseRefusalList(t *testing.T) {
 			if !strings.HasPrefix(first.Message, unsupportedPrefix) || !strings.HasSuffix(first.Message, unsupportedSuffix) {
 				t.Errorf("message = %q, want %q ... %q (stepfunctions-asl.md 10.4)", first.Message, unsupportedPrefix, unsupportedSuffix)
 			}
-			if !strings.HasPrefix(first.InvalidDefinition(), "Invalid State Machine Definition: '"+asl.CodeUnsupported+": ") {
-				t.Errorf("InvalidDefinition() = %q", first.InvalidDefinition())
+			if got := asl.InvalidDefinition(diags); !strings.HasPrefix(got, "Invalid State Machine Definition: '"+asl.CodeUnsupported+": ") {
+				t.Errorf("InvalidDefinition = %q", got)
 			}
 		})
 	}
@@ -318,7 +318,6 @@ func TestParseRefusesInvalidDefinitions(t *testing.T) {
 		{"MaxDelaySeconds over limit", `{"StartAt":"T","States":{"T":{` + lambdaTask + `,"Retry":[{"ErrorEquals":["States.ALL"],"MaxDelaySeconds":31622401}],"End":true}}}`, "", "stepfunctions-asl.md 3.7"},
 		{"MaxDelaySeconds zero", `{"StartAt":"T","States":{"T":{` + lambdaTask + `,"Retry":[{"ErrorEquals":["States.ALL"],"MaxDelaySeconds":0}],"End":true}}}`, "", "stepfunctions-asl.md 3.7"},
 		{"unknown JitterStrategy", `{"StartAt":"T","States":{"T":{` + lambdaTask + `,"Retry":[{"ErrorEquals":["States.ALL"],"JitterStrategy":"HALF"}],"End":true}}}`, "", "stepfunctions-asl.md 3.7"},
-		{"IntervalSeconds zero", `{"StartAt":"T","States":{"T":{` + lambdaTask + `,"Retry":[{"ErrorEquals":["States.ALL"],"IntervalSeconds":0}],"End":true}}}`, "", "stepfunctions-asl.md 3.7"},
 		{"negative MaxAttempts", `{"StartAt":"T","States":{"T":{` + lambdaTask + `,"Retry":[{"ErrorEquals":["States.ALL"],"MaxAttempts":-1}],"End":true}}}`, "", "stepfunctions-asl.md 3.7"},
 		{"Retry on Pass", `{"StartAt":"P","States":{"P":{"Type":"Pass","Retry":[{"ErrorEquals":["States.ALL"]}],"End":true}}}`, "", "stepfunctions-asl.md 3.3"},
 		{"ResultSelector on Pass", `{"StartAt":"P","States":{"P":{"Type":"Pass","ResultSelector":{},"End":true}}}`, "", "stepfunctions-asl.md 3.3"},

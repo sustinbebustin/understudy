@@ -12,11 +12,17 @@ type Call struct {
 	// function is the full name, "States.Format".
 	function string
 	args     []arg
+	// text is the call as written, for a top-level call; "" for a nested
+	// one.
+	text string
 }
 
 // Function returns the called function's full name, such as
 // "States.Format".
 func (c Call) Function() string { return c.function }
+
+// Text returns the call as written in the definition.
+func (c Call) Text() string { return c.text }
 
 // Source supplies the values the service draws from its ids kinds.
 type Source interface {
@@ -44,15 +50,17 @@ func (e *SyntaxError) Error() string {
 // Unwrap returns the path argument's error, if any.
 func (e *SyntaxError) Unwrap() error { return e.Err }
 
-// FunctionError is a function failing at run time (index out of range,
-// chunk size 0, bad Base64, ...); the engine names it with the
+// FunctionError is a function failing at run time (a negative index, chunk
+// size 0, an unknown hash algorithm, ...); the engine names it with the
 // sfn.intrinsic.failure-error switch.
 type FunctionError struct {
 	Function string // "States.ArrayGetItem"
-	Cause    string // understudy's wording (UNVERIFIED, ASL-05)
+	// Detail is AWS's text after the expression in the cause, such as
+	// "Invalid arguments in States.ArrayGetItem" (stepfunctions-asl.md 5.4).
+	Detail string
 }
 
-func (e *FunctionError) Error() string { return e.Function + ": " + e.Cause }
+func (e *FunctionError) Error() string { return e.Detail }
 
 // Parse parses s, a call such as States.Format('{}', $.name). The error is a
 // *SyntaxError.

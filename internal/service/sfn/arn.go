@@ -43,28 +43,38 @@ func (e executionRef) arn() aws.ARN {
 // key keys the execution in State.Executions.
 func (e executionRef) key() string { return e.machine.name + ":" + e.name }
 
-// statesResource splits a Step Functions ARN into its resource type and the
-// rest of its resource, in the order of stepfunctions-api.md 13.3: a value
-// that is not a Step Functions ARN is "Invalid ARN prefix", a resource of
-// another type than want is "Resource type not valid in this context"
-// (stepfunctions-api.md 3.2).
-func statesResource(raw, want string) (aws.ARN, string, *awserr.Error) {
+// statesResource splits a Step Functions ARN of scope's Region into its
+// resource type and the rest of its resource (stepfunctions-api.md 3.2):
+// a value that is not an ARN is "Invalid ARN prefix"; an ARN whose resource
+// has no "type:" part, whatever its service, is "Arn missing resource
+// component" (SFN-01, recorded 2026-11-03); an ARN of another service is
+// "Invalid ARN prefix"; a resource of another type than want is "Resource
+// type not valid in this context"; an ARN of another Region is "Expected
+// the ARN ... to be within region" (SFN-01, recorded 2026-11-03).
+func statesResource(scope aws.Scope, raw, want string) (aws.ARN, string, *awserr.Error) {
 	a, err := aws.ParseARN(raw)
-	if err != nil || a.Service != "states" {
+	if err != nil {
 		return aws.ARN{}, "", sfnapi.ErrInvalidArn("Invalid Arn: 'Invalid ARN prefix: " + raw + "'")
 	}
-	typ, rest, _ := strings.Cut(a.Resource, ":")
-	if typ != want {
+	typ, rest, typed := strings.Cut(a.Resource, ":")
+	switch {
+	case !typed:
+		return aws.ARN{}, "", sfnapi.ErrInvalidArn("Invalid Arn: 'Arn missing resource component: " + raw + "'")
+	case a.Service != "states":
+		return aws.ARN{}, "", sfnapi.ErrInvalidArn("Invalid Arn: 'Invalid ARN prefix: " + raw + "'")
+	case typ != want:
 		return aws.ARN{}, "", sfnapi.ErrInvalidArn("Invalid Arn: 'Resource type not valid in this context: " + typ + "'")
+	case a.Region != scope.Region.String():
+		return aws.ARN{}, "", sfnapi.ErrInvalidArn("Invalid Arn: 'Expected the ARN " + raw + " to be within region (" + scope.Region.String() + ").'")
 	}
 	return a, rest, nil
 }
 
 // machineOfARN reads a state machine ARN. ok is false for an ARN of another
-// account or region than scope, or a qualified (version or alias) ARN,
-// none of which names a machine of scope.
+// account than scope, or a qualified (version or alias) ARN, neither of
+// which names a machine of scope.
 func machineOfARN(scope aws.Scope, raw string) (machineRef, bool, *awserr.Error) {
-	a, name, err := statesResource(raw, "stateMachine")
+	a, name, err := statesResource(scope, raw, "stateMachine")
 	if err != nil {
 		return machineRef{}, false, err
 	}
@@ -76,7 +86,7 @@ func machineOfARN(scope aws.Scope, raw string) (machineRef, bool, *awserr.Error)
 
 // executionOfARN reads an execution ARN; ok is false as for machineOfARN.
 func executionOfARN(scope aws.Scope, raw string) (executionRef, bool, *awserr.Error) {
-	a, rest, err := statesResource(raw, "execution")
+	a, rest, err := statesResource(scope, raw, "execution")
 	if err != nil {
 		return executionRef{}, false, err
 	}

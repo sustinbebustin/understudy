@@ -49,7 +49,7 @@ func (s *Service) listExecutions(_ context.Context, c *kernel.Call, in *sfnapi.L
 	}
 	empty := &sfnapi.ListExecutionsOutput{Executions: []sfnapi.ExecutionListItem{}}
 	if in.MapRunArn != nil {
-		if _, _, err := statesResource(*in.MapRunArn, "mapRun"); err != nil {
+		if _, _, err := statesResource(c.Scope(), *in.MapRunArn, "mapRun"); err != nil {
 			return nil, err
 		}
 		return empty, nil

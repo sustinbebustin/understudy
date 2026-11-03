@@ -144,8 +144,9 @@ func TestLambdaInvokeQualifierAndNoPayload(t *testing.T) {
 	}
 }
 
-// Stop and MachineDeleting while a task is in flight end the execution
-// ABORTED, leave nothing in flight, and drop the late result.
+// Stop while a task is in flight ends the execution ABORTED, and
+// MachineDeleting ends it FAILED (SFN-06); either leaves nothing in flight
+// and drops the late result.
 func TestTaskInFlightAborts(t *testing.T) {
 	stopped := newDriver(t, fmt.Sprintf(legacyTask, "", ""), rules())
 	stopped.start(`{}`)
@@ -164,11 +165,11 @@ func TestTaskInFlightAborts(t *testing.T) {
 	deleting.start(`{}`)
 	deleting.runUntilWaiting()
 	deleting.apply(asl.MachineDeleting{At: t0})
-	if o := deleting.runToEnd(10); o != (asl.Aborted{}) {
-		t.Errorf("outcome = %#v, want Aborted after the deletion", o)
+	if o := deleting.runToEnd(10); o != (asl.Failed{Error: "States.Runtime", Cause: "State machine sm has been deleted"}) {
+		t.Errorf("outcome = %#v, want Failed after the deletion (SFN-06)", o)
 	}
-	if last := deleting.history[len(deleting.history)-1]; last.Type != "ExecutionAborted" {
-		t.Errorf("history:\n%s\nwant ExecutionAborted last", deleting.shape())
+	if last := deleting.history[len(deleting.history)-1]; last.Type != "ExecutionFailed" {
+		t.Errorf("history:\n%s\nwant ExecutionFailed last", deleting.shape())
 	}
 }
 

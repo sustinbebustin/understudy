@@ -17,3 +17,9 @@
 - 06 bad execution name (UNVERIFIED 4.2): matches -- 400 `InvalidName` `Invalid Name: 'bad name'`
 - 07 input over 262,144 (UNVERIFIED 4.3, inferred Coral ValidationException without the value): matches -- 400, `__type` `com.amazon.coral.validate#ValidationException` (Coral namespace, not the swf one), `1 validation error detected: Value at 'input' failed to satisfy constraint: Member must have size less than or equal to 262144 bytes in UTF-8 encoding` (value omitted; constraint wording "size ... bytes in UTF-8 encoding", not the usual "length")
 - 08 missing KMS key (UNVERIFIED 5.1): 400 `InvalidEncryptionConfiguration` `Key 'arn:aws:kms:us-east-2:<acct>:key/00000000-0000-0000-0000-000000000000' does not exist (Service: Kms, Status Code: 400, Request ID: <uuid>) (SDK Attempt Count: 1)` -- the Java SDK v2 cause form with the `(SDK Attempt Count: 1)` suffix
+
+## Replay (internal/parity)
+
+`scenario.json` replays steps 03 to 05; internal/parity/baseline.json holds the outcomes.
+
+- Not replayed: 01 and 02, whose success bodies differ by member order alone; 06 and 07, which start executions of a machine an earlier step created; 08, since a CUSTOMER_MANAGED_KMS_KEY encryptionConfiguration answers 501.

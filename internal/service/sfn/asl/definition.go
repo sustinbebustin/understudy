@@ -1,6 +1,7 @@
 package asl
 
 import (
+	"strings"
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy/document"
@@ -425,13 +426,24 @@ type Diagnostic struct {
 }
 
 // InvalidDefinition returns the InvalidDefinition message CreateStateMachine
-// and UpdateStateMachine answer for d (stepfunctions-asl.md 3.6):
-// "Invalid State Machine Definition: '<Code>: <Message> at <Location>'",
-// without " at <Location>" when Location is empty.
-func (d Diagnostic) InvalidDefinition() string {
-	body := d.Code + ": " + d.Message
-	if d.Location != "" {
-		body += " at " + d.Location
+// and UpdateStateMachine answer for diags, or "" when none is an ERROR:
+// "Invalid State Machine Definition: '<Code>: <Message> at <Location>'"
+// for each ERROR in order, joined with ", ", an empty Location rendered
+// "null" (ASL-01, recorded 2026-11-03; stepfunctions-asl.md 3.6).
+func InvalidDefinition(diags []Diagnostic) string {
+	var parts []string
+	for _, d := range diags {
+		if d.Severity != SeverityError {
+			continue
+		}
+		location := d.Location
+		if location == "" {
+			location = "null"
+		}
+		parts = append(parts, d.Code+": "+d.Message+" at "+location)
 	}
-	return "Invalid State Machine Definition: '" + body + "'"
+	if len(parts) == 0 {
+		return ""
+	}
+	return "Invalid State Machine Definition: '" + strings.Join(parts, ", ") + "'"
 }

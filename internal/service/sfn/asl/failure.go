@@ -29,5 +29,5 @@ type Rules struct {
 	NoMatch          ErrorRule // sfn.choice.no-match
 	MissingVariable  ErrorRule // sfn.choice.missing-variable
 	IntrinsicFailure ErrorRule // sfn.intrinsic.failure-error
-	AbortOnDelete    bool      // sfn.delete.running-execution
+	EndOnDelete      bool      // sfn.delete.running-execution
 }

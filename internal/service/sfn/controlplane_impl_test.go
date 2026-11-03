@@ -84,25 +84,23 @@ func TestUpdateStateMachineErrors(t *testing.T) {
 	})
 }
 
-// A logging destination may name its log group by the ARN DescribeLogGroups
-// gives, ending ":*", or without it; either is echoed as sent. AWS's answer
-// for the form without ":*" is unrecorded.
+// A logging destination names its log group by the ARN DescribeLogGroups
+// gives, ending ":*"; one without it is refused, though the group exists
+// (SFN-07, recorded 2026-11-03). A value that is no log group ARN is not
+// found (inferred).
 func TestSFN07DestinationWithoutStar(t *testing.T) {
 	// inferred, SFN-07
 	run(t, func(h *harness) {
 		must(h, logsapi.OpCreateLogGroup, &logsapi.CreateLogGroupInput{LogGroupName: "g"})
 		bare := fmt.Sprintf("arn:aws:logs:%s:%s:log-group:g", h.Scope.Region, h.Scope.Account)
 		all := sfnapi.LogLevelAll
-		out := must(h, sfnapi.OpCreateStateMachine, &sfnapi.CreateStateMachineInput{
+		_, err := call(h, sfnapi.OpCreateStateMachine, &sfnapi.CreateStateMachineInput{
 			Name: "m", Definition: resultMachine, RoleArn: h.roleArn(),
 			LoggingConfiguration: &sfnapi.LoggingConfiguration{Level: &all, Destinations: []sfnapi.LogDestination{
 				{CloudWatchLogsLogGroup: &sfnapi.CloudWatchLogsLogGroup{LogGroupArn: new(bare)}},
 			}},
 		})
-		d := must(h, sfnapi.OpDescribeStateMachine, &sfnapi.DescribeStateMachineInput{StateMachineArn: out.StateMachineArn})
-		if l := d.LoggingConfiguration; len(l.Destinations) != 1 || val(l.Destinations[0].CloudWatchLogsLogGroup.LogGroupArn) != bare {
-			h.Errorf("loggingConfiguration = %+v, want %s echoed", l, bare)
-		}
+		wantError(h, err, "InvalidLoggingConfiguration", 400, "Invalid Logging Configuration: Log Group ARN must be provided with '*' qualifier.")
 		for _, bad := range []string{"not-an-arn", fmt.Sprintf("arn:aws:sqs:%s:%s:g", h.Scope.Region, h.Scope.Account)} {
 			_, err := call(h, sfnapi.OpCreateStateMachine, &sfnapi.CreateStateMachineInput{
 				Name: "x", Definition: resultMachine, RoleArn: h.roleArn(),
@@ -152,15 +150,15 @@ func TestEmptyLogDestinationsAreEchoed(t *testing.T) {
 	})
 }
 
-// The role ARN is checked for syntax only, with understudy's InvalidArn
-// texts in the recorded "Invalid Arn" forms: AWS's code and text for a
-// malformed roleArn are unrecorded.
+// The role ARN is checked for syntax only. A malformed roleArn answers
+// InvalidArn "Invalid Role Arn: '<arn>'" (SFN-08, recorded 2026-11-03,
+// stepfunctions-api.md 5.1); an IAM ARN of another resource type keeps
+// the inferred "Resource type not valid in this context" text.
 func TestSFN08RoleArnSyntax(t *testing.T) {
-	// inferred, SFN-08
 	run(t, func(h *harness) {
 		for role, want := range map[string]string{
-			"not-an-arn": "Invalid Arn: 'Invalid ARN prefix: not-an-arn'",
-			"arn:aws:sqs:us-east-1:" + h.Scope.Account.String() + ":q": "Invalid Arn: 'Invalid ARN prefix: arn:aws:sqs:us-east-1:" + h.Scope.Account.String() + ":q'",
+			"not-an-arn": "Invalid Role Arn: 'not-an-arn'",
+			"arn:aws:sqs:us-east-1:" + h.Scope.Account.String() + ":q": "Invalid Role Arn: 'arn:aws:sqs:us-east-1:" + h.Scope.Account.String() + ":q'",
 			"arn:aws:iam::" + h.Scope.Account.String() + ":user/u":     "Invalid Arn: 'Resource type not valid in this context: user'",
 		} {
 			_, err := call(h, sfnapi.OpCreateStateMachine, &sfnapi.CreateStateMachineInput{Name: "m", Definition: resultMachine, RoleArn: role})
@@ -168,7 +166,7 @@ func TestSFN08RoleArnSyntax(t *testing.T) {
 		}
 		arn := h.create("m", resultMachine)
 		_, err := call(h, sfnapi.OpUpdateStateMachine, &sfnapi.UpdateStateMachineInput{StateMachineArn: arn, RoleArn: new("not-an-arn")})
-		wantError(h, err, "InvalidArn", 400, "Invalid Arn: 'Invalid ARN prefix: not-an-arn'")
+		wantError(h, err, "InvalidArn", 400, "Invalid Role Arn: 'not-an-arn'")
 		// A role that does not exist passes: only the syntax is checked.
 		must(h, sfnapi.OpUpdateStateMachine, &sfnapi.UpdateStateMachineInput{StateMachineArn: arn, RoleArn: new("arn:aws:iam::" + h.Scope.Account.String() + ":role/path/nobody")})
 	})
@@ -192,10 +190,31 @@ func TestNotFoundTextsOfBoundOperations(t *testing.T) {
 	})
 }
 
-// Deleting a state machine that does not exist answers 200; deleting an
-// idle one removes it and frees the name (stepfunctions-api.md 5.4;
-// aws-recorded localstack@8b9a79f v2/test_sfn_api.snapshot.json:L37-L46).
+// An ARN whose resource has no type, such as a queue's, and a Step
+// Functions ARN of another Region answer the recorded InvalidArn texts
+// (SFN-01, recorded 2026-11-03; stepfunctions-api.md 3.2).
+func TestSFN01InvalidArnTexts(t *testing.T) {
+	run(t, func(h *harness) {
+		acct := h.Scope.Account.String()
+		queue := "arn:aws:sqs:" + h.Scope.Region.String() + ":" + acct + ":q"
+		wantError(h, errOf(call(h, sfnapi.OpDescribeStateMachine, &sfnapi.DescribeStateMachineInput{StateMachineArn: queue})),
+			"InvalidArn", 400, "Invalid Arn: 'Arn missing resource component: "+queue+"'")
+		other := "arn:aws:states:us-west-2:" + acct + ":stateMachine:m"
+		if h.Scope.Region.String() == "us-west-2" {
+			other = "arn:aws:states:us-east-2:" + acct + ":stateMachine:m"
+		}
+		wantError(h, errOf(call(h, sfnapi.OpStartExecution, &sfnapi.StartExecutionInput{StateMachineArn: other})),
+			"InvalidArn", 400, "Invalid Arn: 'Expected the ARN "+other+" to be within region ("+h.Scope.Region.String()+").'")
+	})
+}
+
+// Deleting a state machine that does not exist answers 200 (aws-recorded
+// localstack@8b9a79f v2/test_sfn_api.snapshot.json:L37-L46); deleting an
+// idle one removes it and frees the name at once, understudy's choice: AWS
+// describes it DELETING straight after the delete, for an unmeasured time
+// (ASL-17 03, SFN-06 09, recorded 2026-11-03; stepfunctions-api.md 5.4).
 func TestDeleteIdleStateMachine(t *testing.T) {
+	// inferred, ASL-17
 	run(t, func(h *harness) {
 		must(h, sfnapi.OpDeleteStateMachine, &sfnapi.DeleteStateMachineInput{StateMachineArn: h.machineArn("nope")})
 		arn := h.create("m", resultMachine)

@@ -78,7 +78,7 @@ func TestParallelCaughtFailure(t *testing.T) {
 	d.wantShape("stepfunctions-asl.md 11.2 rule 5",
 		"ExecutionStarted 1<-0", "ParallelStateEntered 2<-0", "ParallelStateStarted 3<-2", "FailStateEntered 4<-3",
 		"ParallelStateFailed 5<-4", "ParallelStateExited 6<-5", "PassStateEntered 7<-6", "PassStateExited 8<-7", "ExecutionSucceeded 9<-8")
-	if s, ok := o.(asl.Succeeded); !ok || !equal(s.Output, decode(t, `{"a":1,"err":{"Error":"BranchErr"}}`)) {
+	if s, ok := o.(asl.Succeeded); !ok || !equal(s.Output, decode(t, `{"a":1,"err":{"Error":"BranchErr","Cause":null}}`)) {
 		t.Fatalf("outcome = %#v, want the error output placed at $.err", o)
 	}
 }
@@ -103,23 +103,23 @@ func TestParallelInputAndOutputProcessing(t *testing.T) {
 	}
 }
 
-// inferred, ASL-15
-// States.DataLimitExceeded from a Pass in a branch stays terminal: the
-// Parallel's States.ALL catcher does not see it, and ParallelStateFailed
-// precedes ExecutionFailed.
+// States.DataLimitExceeded from a Pass in a branch stays terminal: neither a
+// catcher naming it nor the Parallel's States.ALL catcher sees it, and
+// ExecutionFailed follows the Pass's entered event with no
+// ParallelStateFailed (ASL-15, recorded 2026-11-03).
 func TestParallelDataLimitIsTerminalASL15(t *testing.T) {
 	big := strings.Repeat("a", 262_144)
 	def := `{"StartAt":"P","States":{
-		"P":{"Type":"Parallel","Next":"Done","Catch":[{"ErrorEquals":["States.ALL"],"Next":"Done"}],
+		"P":{"Type":"Parallel","Next":"Done","Catch":[{"ErrorEquals":["States.DataLimitExceeded"],"Next":"Done"},{"ErrorEquals":["States.ALL"],"Next":"Done"}],
 			"Branches":[{"StartAt":"Big","States":{"Big":{"Type":"Pass","Result":"` + big + `","End":true}}}]},
 		"Done":{"Type":"Pass","End":true}}}`
 	d := newDriver(t, def, rules())
 	d.start(`{}`)
 	o := d.runToEnd(50)
 	failedWith(t, o, "States.DataLimitExceeded", func(c string) bool { return strings.Contains(c, "'Big'") })
-	d.wantShape("understudy's choice, ASL-15",
+	d.wantShape("ASL-15 03-pass-in-parallel-history",
 		"ExecutionStarted 1<-0", "ParallelStateEntered 2<-0", "ParallelStateStarted 3<-2", "PassStateEntered 4<-3",
-		"ParallelStateFailed 5<-4", "ExecutionFailed 6<-5")
+		"ExecutionFailed 5<-4")
 }
 
 // inferred, ASL-10

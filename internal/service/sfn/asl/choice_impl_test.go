@@ -36,31 +36,33 @@ func TestChoiceContextVariable(t *testing.T) {
 	}
 }
 
-// inferred, ASL-08
 // No rule matching and no Default fails with sfn.choice.no-match's error
-// and understudy's cause, pointing at ChoiceStateEntered.
+// and AWS's cause, pointing at ChoiceStateEntered (ASL-08, recorded
+// 2026-11-03).
 func TestChoiceNoMatchCause(t *testing.T) {
 	d := newDriver(t, `{"StartAt":"C","States":{"C":{"Type":"Choice","Choices":[{"Variable":"$.v","NumericEquals":1,"Next":"Y"}]},"Y":{"Type":"Succeed"}}}`, rules())
 	d.start(`{"v":2}`)
 	failedWith(t, d.runToEnd(10), rules().NoMatch.Name, func(c string) bool {
-		return c == "No Choice rule of the state 'C' matched its input, and the state has no Default."
+		return c == runtimePrefix("C", 2)+"Failed to transition out of the state. The state does not point to a next state."
 	})
-	d.wantShape("inferred, ASL-08", "ExecutionStarted 1<-0", "ChoiceStateEntered 2<-0", "ExecutionFailed 3<-2")
+	d.wantShape("ASL-08", "ExecutionStarted 1<-0", "ChoiceStateEntered 2<-0", "ExecutionFailed 3<-2")
 }
 
-// inferred, ASL-08
 // A Variable, or the operand of a Path form, that selects nothing fails
 // with sfn.choice.missing-variable's error; its cause is the 4.6 prefix and
-// the path's missing-path text. Only IsPresent tests an absent Variable.
+// AWS's condition-path text naming the path (ASL-08, recorded 2026-11-03,
+// for a Variable; a Path operand and a nested path inferred to read the
+// same). Only IsPresent tests an absent Variable.
 func TestChoiceMissingPaths(t *testing.T) {
 	missing := rules().MissingVariable
+	const invalid = "': The choice state's condition path references an invalid value."
 	for _, tt := range []struct {
 		rule, input, cause string
 	}{
-		{`{"Variable":"$.nope","NumericEquals":1,"Next":"Yes"}`, `{}`, "Invalid path '$.nope' : No results for path: $['nope']"},
-		{`{"Variable":"$.a.b","IsNull":true,"Next":"Yes"}`, `{}`, "Invalid path '$.a.b' : Missing property in path $['a']"},
-		{`{"Variable":"$.v","NumericLessThanPath":"$.w","Next":"Yes"}`, `{"v":1}`, "Invalid path '$.w' : No results for path: $['w']"},
-		{`{"Not":{"Variable":"$.nope","StringEquals":"x"},"Next":"Yes"}`, `{}`, "Invalid path '$.nope' : No results for path: $['nope']"},
+		{`{"Variable":"$.nope","NumericEquals":1,"Next":"Yes"}`, `{}`, "Invalid path '$.nope" + invalid},
+		{`{"Variable":"$.a.b","IsNull":true,"Next":"Yes"}`, `{}`, "Invalid path '$.a.b" + invalid},
+		{`{"Variable":"$.v","NumericLessThanPath":"$.w","Next":"Yes"}`, `{"v":1}`, "Invalid path '$.w" + invalid},
+		{`{"Not":{"Variable":"$.nope","StringEquals":"x"},"Next":"Yes"}`, `{}`, "Invalid path '$.nope" + invalid},
 	} {
 		d := newDriver(t, fmt.Sprintf(choiceMachine, tt.rule), rules())
 		d.start(tt.input)

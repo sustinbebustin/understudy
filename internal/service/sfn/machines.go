@@ -39,15 +39,12 @@ func checkUnimplemented(op string, typ *sfnapi.StateMachineType, publish bool, e
 }
 
 // checkDefinition parses definition with the features whose runtime has
-// landed and answers the first error, as CreateStateMachine renders it
-// (UNVERIFIED, ASL-01, SFN-08).
+// landed and answers every error in one message, as CreateStateMachine
+// renders them (ASL-01, SFN-08, recorded 2026-11-03).
 func checkDefinition(definition string) *awserr.Error {
-	if _, diags := asl.Parse(definition, AcceptedFeatures()); len(diags) > 0 {
-		for _, d := range diags {
-			if d.Severity == asl.SeverityError {
-				return sfnapi.ErrInvalidDefinition(d.InvalidDefinition())
-			}
-		}
+	_, diags := asl.Parse(definition, AcceptedFeatures())
+	if message := asl.InvalidDefinition(diags); message != "" {
+		return sfnapi.ErrInvalidDefinition(message)
 	}
 	return nil
 }
@@ -317,8 +314,8 @@ func awsOwnedKey() *sfnapi.EncryptionConfiguration {
 	return &sfnapi.EncryptionConfiguration{Type: sfnapi.EncryptionTypeAwsOwnedKey}
 }
 
-// errDeleting is StateMachineDeleting for the machine ref, in understudy's
-// words: AWS's text is unrecorded (inferred, SFN-06).
+// errDeleting is StateMachineDeleting for the machine ref, AWS's text for
+// StartExecution and CreateStateMachine (SFN-06, recorded 2026-11-03).
 func errDeleting(ref machineRef) *awserr.Error {
 	return sfnapi.ErrStateMachineDeleting("State Machine is being deleted: '" + ref.arn().String() + "'")
 }
@@ -326,9 +323,11 @@ func errDeleting(ref machineRef) *awserr.Error {
 // deleteStateMachine deletes the machine. Deleting one that does not exist
 // answers 200. An idle machine is removed at once; one with running
 // executions is DELETING until the last of them ends, and each learns of
-// the deletion, which under switch sfn.delete.running-execution ends it
-// ABORTED at its next transition (stepfunctions-api.md 5.4). Closed
-// executions stay until their retention passes.
+// the deletion, which under switch sfn.delete.running-execution fails it at
+// its next transition (stepfunctions-api.md 5.4). AWS keeps an idle machine
+// DELETING too, for a time no recording has measured (SFN-06, ASL-17,
+// recorded 2026-11-03): the coverage note says so. Closed executions stay
+// until their retention passes.
 func (s *Service) deleteStateMachine(_ context.Context, c *kernel.Call, in *sfnapi.DeleteStateMachineInput) (*sfnapi.DeleteStateMachineOutput, *awserr.Error) {
 	ref, ok, err := machineOfARN(c.Scope(), in.StateMachineArn)
 	if err != nil {

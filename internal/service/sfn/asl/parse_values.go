@@ -40,15 +40,24 @@ func jsonError(text string, err error) (message, location string) {
 	return "Unrecognized token '" + token + "': was expecting (JSON String, Number, Array, Object or token 'null', 'true' or 'false')\n at " + location, location
 }
 
-// integer reads an integer field in [lo, hi].
+// integer reads an integer field in [lo, hi]. A value out of range gets
+// AWS's "Maximum value is <hi>" (ASL-01, ASL-09, recorded 2026-11-03) or
+// "Minimum value is <lo>", the form AWS gives BackoffRate (ASL-01; inferred
+// for integers).
 func (p *parser) integer(v document.Value, field, at string, lo, hi int64) (int64, bool) {
 	n, isNumber := v.(document.Number)
 	i, err := n.Int64()
-	if !isNumber || err != nil || i < lo || i > hi {
+	switch {
+	case !isNumber || err != nil:
 		p.schema("The field '"+field+"' must be an integer from "+strconv.FormatInt(lo, 10)+" to "+strconv.FormatInt(hi, 10), at)
-		return 0, false
+	case i < lo:
+		p.schema("Minimum value is "+strconv.FormatInt(lo, 10), at)
+	case i > hi:
+		p.schema("Maximum value is "+strconv.FormatInt(hi, 10), at)
+	default:
+		return i, true
 	}
-	return i, true
+	return 0, false
 }
 
 // rfc3339 is the shape of a literal Timestamp: upper-case T, and Z or a

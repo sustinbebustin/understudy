@@ -29,3 +29,9 @@ Expected: one diagnostic per problem with a 3.6 code; step 16 shows how CreateSt
 - 16 CreateStateMachine with several problems (UNVERIFIED 3.6, first only or joined?): joined, all of them, with `, ` -- 400 `InvalidDefinition` `Invalid State Machine Definition: 'SCHEMA_VALIDATION_FAILED: The field 'Type' should have one of these values: [Task, Wait, Pass, Succeed, Fail, Choice, Parallel, Map] at /States/B/Type, MISSING_TRANSITION_TARGET: Missing 'Next' target: Nope at /States/A/Next, MISSING_TRANSITION_TARGET: State \"B\" is not reachable. at /States/B, MISSING_END_STATE: Workflow has no terminal state at null'` -- a diagnostic without a location renders as `at null`; schema errors first. This differs from 15.2 item 7's plan to render only the first. (Contrast SFN-08/05, where a missing StartAt alone was reported: a missing required field stops validation before the other checks.)
 - session: the recipe says "if it succeeds, asl_rm two"; the script runs that only when step 16 returned a stateMachineArn
 - no machine was created; the conditional teardown found nothing to delete (the item's `exit=1` in session.log is that grep's status, not an early stop)
+
+## Replay (internal/parity)
+
+`scenario.json` replays step 16; internal/parity/baseline.json holds the outcome.
+
+- Not replayed: steps 01 to 15. understudy's diagnostics match them, except 14 (it refuses `ToleratedFailurePercentage` on an inline Map), but it writes each body's members in the model's order where AWS writes them alphabetically, so every step would differ by member order alone.

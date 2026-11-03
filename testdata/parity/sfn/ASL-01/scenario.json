@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "item": "ASL-01",
+  "account": "123456789012",
+  "region": "us-east-2",
+  "client": "aws-cli",
+  "steps": [
+    {
+      "fixture": "sfn/ASL-01/16-create-two-errors.json",
+      "compare": "all"
+    }
+  ]
+}

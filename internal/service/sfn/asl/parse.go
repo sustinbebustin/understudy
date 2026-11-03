@@ -117,19 +117,33 @@ func typeFeature(typ string) Feature {
 }
 
 // Parse parses definition, accepting the constructs of accept. It returns
-// every diagnostic in document order; the Definition is nil when any
+// every diagnostic in document order, the transition checks
+// (MISSING_TRANSITION_TARGET, MISSING_END_STATE) after the rest, as AWS
+// orders them (ASL-01, recorded 2026-11-03); the Definition is nil when any
 // diagnostic is SeverityError. A construct whose feature is outside accept
 // is an ERROR with code CodeUnsupported, as is every construct understudy
 // refuses whatever the features.
 func Parse(definition string, accept Features) (*Definition, []Diagnostic) {
 	p := parser{accept: accept, seen: map[string]bool{}}
 	d := p.definition(definition)
+	slices.SortStableFunc(p.diags, func(a, b Diagnostic) int {
+		return transitionCheck(a) - transitionCheck(b)
+	})
 	for _, diag := range p.diags {
 		if diag.Severity == SeverityError {
 			return nil, p.diags
 		}
 	}
 	return d, p.diags
+}
+
+// transitionCheck is 1 for a diagnostic of the transition checks, which
+// AWS reports after the others, and 0 otherwise.
+func transitionCheck(d Diagnostic) int {
+	if d.Code == codeMissingTarget || d.Code == codeMissingEndState {
+		return 1
+	}
+	return 0
 }
 
 // parser collects the diagnostics of one Parse and the states it builds.
@@ -150,6 +164,13 @@ func (p *parser) fail(code, message, location string) {
 
 // schema reports a SCHEMA_VALIDATION_FAILED problem.
 func (p *parser) schema(message, location string) { p.fail(codeSchema, message, location) }
+
+// unknownField reports a field the grammar has no place for in the object
+// at location: AWS names the field and points at the object (ASL-01,
+// recorded 2026-11-03 for states; inferred for the other objects).
+func (p *parser) unknownField(field, location string) {
+	p.schema("Field '"+field+"' is not supported", location)
+}
 
 // unsupported refuses construct at location in the stepfunctions-asl.md
 // 10.4 message form.
@@ -246,7 +267,7 @@ func (p *parser) definition(text string) *Definition {
 				d.timeoutSeconds, _ = p.integer(e.Value, "TimeoutSeconds", "/TimeoutSeconds", 1, maxSeconds)
 			}
 		default:
-			p.schema("Field '"+e.Key+"' is not supported at the top level", "/")
+			p.unknownField(e.Key, "/")
 		}
 	}
 	return d
@@ -273,29 +294,105 @@ func (p *parser) scope(obj document.Map, prefix string) string {
 	case statesOK && !names[string(start)]:
 		p.fail(codeMissingTarget, "Missing 'StartAt' target: "+string(start), prefix+"/StartAt")
 	}
-	before := len(p.diags)
 	terminal := false
 	for _, e := range states {
 		terminal = p.namedState(e, prefix, names) || terminal
 	}
-	if len(states) > 0 && !terminal && !p.errorsSince(before) {
-		p.fail(codeMissingEndState, "No terminal state found in the machine", prefix+"/States")
+	if ok && names[string(start)] {
+		p.unreachable(states, string(start), prefix)
+	}
+	if len(states) > 0 && !terminal {
+		// Recorded without a location, beside the scope's other problems
+		// (ASL-01, 2026-11-03).
+		p.fail(codeMissingEndState, "Workflow has no terminal state", "")
 	}
 	return string(start)
+}
+
+// unreachable reports each state of the scope no transition from start
+// reaches, as AWS does (ASL-01, recorded 2026-11-03).
+func (p *parser) unreachable(states document.Map, start, prefix string) {
+	reached := map[string]bool{start: true}
+	queue := []string{start}
+	for len(queue) > 0 {
+		obj, _ := member(states, queue[0])
+		queue = queue[1:]
+		for _, next := range targets(obj) {
+			if !reached[next] {
+				reached[next] = true
+				queue = append(queue, next)
+			}
+		}
+	}
+	for _, e := range states {
+		if !reached[e.Key] {
+			p.fail(codeMissingTarget, `State "`+e.Key+`" is not reachable.`, prefix+"/States/"+e.Key)
+		}
+	}
+}
+
+// endsAsWritten reports whether a state object, unparsed, ends its scope:
+// End true, or a Succeed or Fail type.
+func endsAsWritten(v document.Value) bool {
+	obj, isMap := v.(document.Map)
+	if !isMap {
+		return false
+	}
+	end, _ := member(obj, "End")
+	typ, _ := member(obj, "Type")
+	return end == document.Bool(true) || typ == document.String(typeSucceed) || typ == document.String(typeFail)
+}
+
+// targets are the states a state's Next, Default, Choices and Catch name.
+func targets(v document.Value) []string {
+	obj, isMap := v.(document.Map)
+	if !isMap {
+		return nil
+	}
+	var out []string
+	add := func(m document.Map, field string) {
+		if s, ok := member(m, field); ok {
+			if name, isString := s.(document.String); isString {
+				out = append(out, string(name))
+			}
+		}
+	}
+	add(obj, "Next")
+	add(obj, "Default")
+	for _, field := range []string{"Choices", "Catch"} {
+		list, _ := member(obj, field)
+		items, isList := list.(document.List)
+		if !isList {
+			continue
+		}
+		for _, x := range items {
+			if m, isMap := x.(document.Map); isMap {
+				add(m, "Next")
+			}
+		}
+	}
+	return out
 }
 
 // namedState checks a state's name and parses it; it reports whether the
 // state ends its scope.
 func (p *parser) namedState(e document.Entry, prefix string, names map[string]bool) bool {
 	loc := prefix + "/States/" + e.Key
-	if e.Key == "" || utf8.RuneCountInString(e.Key) > maxStateNameRunes {
+	// A state refused for its name still counts for MISSING_END_STATE: AWS
+	// reported a duplicate or too long name alone (ASL-01, recorded
+	// 2026-11-03).
+	switch {
+	case e.Key == "":
+		// AWS's message for an empty name is unrecorded (ASL-01).
 		p.fail(codeInvalidStateName, "State names must be 1 to 80 characters", loc)
-		return false
-	}
-	if p.seen[e.Key] {
-		// AWS's message and location are unrecorded (ASL-01).
-		p.fail(codeDuplicateName, "The state name '"+e.Key+"' is used more than once in the state machine", loc)
-		return false
+		return endsAsWritten(e.Value)
+	case utf8.RuneCountInString(e.Key) > maxStateNameRunes:
+		p.fail(codeInvalidStateName, "Invalid State name: State '"+e.Key+"' exceeds the 80-character limit allowed by the service", loc)
+		return endsAsWritten(e.Value)
+	case p.seen[e.Key]:
+		// At the later state.
+		p.fail(codeDuplicateName, "Duplicate State name: "+e.Key, loc)
+		return endsAsWritten(e.Value)
 	}
 	p.seen[e.Key] = true
 	obj, ok := e.Value.(document.Map)
@@ -370,7 +467,7 @@ func (p *parser) state(name string, obj document.Map, loc string, names map[stri
 		case slices.Contains(taken, e.Key):
 			p.field(&f, e, at)
 		default:
-			p.schema("Field '"+e.Key+"' is not supported by a "+string(typ)+" state", at)
+			p.unknownField(e.Key, loc)
 		}
 	}
 	s := p.build(string(typ), &f)

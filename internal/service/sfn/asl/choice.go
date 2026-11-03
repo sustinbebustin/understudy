@@ -8,6 +8,7 @@ import (
 	"unicode/utf16"
 
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy/document"
+	"github.com/sustinbebustin/understudy/internal/service/sfn/asl/jsonpath"
 )
 
 // choice runs a Choice state (stepfunctions-asl.md 6, 11.3): the rules test
@@ -21,6 +22,12 @@ func (s *stepper) choice(st choiceState, j stepJob) {
 		s.stateFailed(st.name, entered, f)
 		return
 	}
+	if _, isNull := effective.(document.Null); isNull {
+		// Recorded for a Variable "$" on a null Map item (ASL-07,
+		// 2026-11-03); inferred for every rule path.
+		s.stateFailed(st.name, entered, Terminal{Name: errRuntime, Cause: "Unable to apply Path transformation to null or empty input."})
+		return
+	}
 	next, err := sc.choose(st, effective)
 	var bad *patternError
 	switch {
@@ -28,13 +35,13 @@ func (s *stepper) choice(st choiceState, j stepJob) {
 		s.stateFailed(st.name, entered, Terminal{Name: errRuntime, Cause: bad.Error()})
 		return
 	case err != nil:
-		// The switch's declared cause carries the 4.6 prefix whatever its
-		// error name (inferred, ASL-08).
-		s.raise(ruleFailure(s.rules.MissingVariable, runtimeCause(st.name, entered, err.Error())), entered)
+		// The cause carries the 4.6 prefix whatever the switch's error name
+		// (ASL-08, recorded 2026-11-03).
+		s.raise(ruleFailure(s.rules.MissingVariable, runtimeCause(st.name, entered, conditionPathCause(err))), entered)
 		return
 	case next == "":
-		s.stateFailed(st.name, entered, ruleFailure(s.rules.NoMatch,
-			"No Choice rule of the state '"+st.name+"' matched its input, and the state has no Default."))
+		s.raise(ruleFailure(s.rules.NoMatch, runtimeCause(st.name, entered,
+			"Failed to transition out of the state. The state does not point to a next state.")), entered)
 		return
 	}
 	output, f := sc.selectFrom(st.io.output, effective)
@@ -47,6 +54,17 @@ func (s *stepper) choice(st choiceState, j stepJob) {
 	}
 	exited := s.emit("ChoiceStateExited", entered, stateExited(st.name, output))
 	s.arm(s.at, stepJob{fr: s.fr, state: next, input: output, previous: exited})
+}
+
+// conditionPathCause is the cause of a Choice rule whose Variable or Path
+// operand selects nothing (ASL-08, recorded 2026-11-03, for a Variable; the
+// Path operand is inferred to read the same; stepfunctions-asl.md 6.4).
+func conditionPathCause(err error) string {
+	var missing *jsonpath.MissingError
+	if !errors.As(err, &missing) {
+		return err.Error()
+	}
+	return "Invalid path '" + missing.Path + "': The choice state's condition path references an invalid value."
 }
 
 // choose is the state the first matching rule names, else Default; "" when

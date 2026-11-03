@@ -23,46 +23,57 @@ func boundOps() []string {
 	}
 }
 
+// sfnUnreplayed is why no scenario settles a switch whose recording exists:
+// the step that shows it is a DescribeExecution or GetExecutionHistory
+// answer, whose body AWS writes with nested __type members and members in
+// alphabetical order, which understudy's serializer does not reproduce, so
+// the step cannot match. recorded names the fixtures, with "is" or "are".
+func sfnUnreplayed(recorded string) string {
+	return recorded + " recorded 2026-11-03; not replayed: AWS's execution bodies carry nested __type members and alphabetical member order"
+}
+
 // ChoiceNoMatch is the error of a Choice state no rule matches and that has
-// no Default (stepfunctions-asl.md 6.4).
+// no Default: States.Runtime, uncatchable (ASL-08, recorded 2026-11-03;
+// stepfunctions-asl.md 6.4).
 func ChoiceNoMatch() fidelity.Switch[asl.ErrorRule] {
 	return fidelity.Switch[asl.ErrorRule]{
 		Name:    "sfn.choice.no-match",
-		Value:   asl.ErrorRule{Name: "States.NoChoiceMatched", Terminal: false},
-		Label:   evidence.Inferred,
+		Value:   asl.ErrorRule{Name: "States.Runtime", Terminal: true},
+		Label:   evidence.AWSRecorded,
 		Ref:     "docs/research/stepfunctions-asl.md#64-no-match-and-missing-variables",
 		Record:  "ASL-08",
 		Ops:     []string{"sfn.StartExecution"},
-		Settles: fidelity.NoScenario{Reason: "unrecorded: recording case ASL-08 (stepfunctions-asl.md 16.2)"},
+		Settles: fidelity.NoScenario{Reason: sfnUnreplayed("sfn/ASL-08/01-no-match-history.json is")},
 	}
 }
 
 // ChoiceMissingVariable is the error of a Choice rule whose Variable path
-// selects nothing (stepfunctions-asl.md 6.4); its cause carries the 4.6
-// prefix.
+// selects nothing: States.Runtime, uncatchable, its cause carrying the 4.6
+// prefix (ASL-08, recorded 2026-11-03; stepfunctions-asl.md 6.4).
 func ChoiceMissingVariable() fidelity.Switch[asl.ErrorRule] {
 	return fidelity.Switch[asl.ErrorRule]{
 		Name:    "sfn.choice.missing-variable",
 		Value:   asl.ErrorRule{Name: "States.Runtime", Terminal: true},
-		Label:   evidence.Inferred,
+		Label:   evidence.AWSRecorded,
 		Ref:     "docs/research/stepfunctions-asl.md#64-no-match-and-missing-variables",
 		Record:  "ASL-08",
 		Ops:     []string{"sfn.StartExecution"},
-		Settles: fidelity.NoScenario{Reason: "unrecorded: recording case ASL-08 (stepfunctions-asl.md 16.2)"},
+		Settles: fidelity.NoScenario{Reason: sfnUnreplayed("sfn/ASL-08/02-missing-history.json is")},
 	}
 }
 
-// IntrinsicFailure is the error of an intrinsic function failing at run time
-// (stepfunctions-asl.md 5.4).
+// IntrinsicFailure is the error of an intrinsic function failing at run
+// time: States.Runtime, uncatchable, not the spec's States.IntrinsicFailure
+// (ASL-05, recorded 2026-11-03; stepfunctions-asl.md 5.4).
 func IntrinsicFailure() fidelity.Switch[asl.ErrorRule] {
 	return fidelity.Switch[asl.ErrorRule]{
 		Name:    "sfn.intrinsic.failure-error",
-		Value:   asl.ErrorRule{Name: "States.IntrinsicFailure", Terminal: false},
-		Label:   evidence.Inferred,
+		Value:   asl.ErrorRule{Name: "States.Runtime", Terminal: true},
+		Label:   evidence.AWSRecorded,
 		Ref:     "docs/research/stepfunctions-asl.md#54-failures",
 		Record:  "ASL-05",
 		Ops:     []string{"sfn.StartExecution"},
-		Settles: fidelity.NoScenario{Reason: "unrecorded: recording case ASL-05 (stepfunctions-asl.md 16.2)"},
+		Settles: fidelity.NoScenario{Reason: sfnUnreplayed("sfn/ASL-05/02-history.json is")},
 	}
 }
 
@@ -73,36 +84,44 @@ type LambdaErrorNaming struct {
 	Prefix string
 	// Unmodeled names every error Lambda's model does not declare.
 	Unmodeled string
-	// Cause is the fmt format of the cause, from the message, the status,
-	// the error code and the request id.
+	// Cause is the fmt format of a lambda:invoke task's cause, from the
+	// message, the status, the error code and the request id.
 	Cause string
+	// FunctionARNCause is the fmt format of a function-ARN task's cause,
+	// from the message, the status and the request id.
+	FunctionARNCause string
 }
 
-// LambdaError names a Lambda service error a task meets
-// (stepfunctions-api.md 9.4 row 4 recorded; the unmodeled rule follows rows
-// 2-3).
+// LambdaError names a Lambda service error a task meets: recorded for
+// ResourceNotFoundException (stepfunctions-api.md 9.4 row 4), for the
+// unmodeled AccessDeniedException of a lambda:invoke task and of a
+// function-ARN task, and for TooManyRequestsException (SFN-15, recorded
+// 2026-11-03).
 func LambdaError() fidelity.Switch[LambdaErrorNaming] {
 	return fidelity.Switch[LambdaErrorNaming]{
 		Name: "sfn.integration.lambda-error",
 		Value: LambdaErrorNaming{
-			Prefix:    "Lambda.",
-			Unmodeled: "Lambda.AWSLambdaException",
-			Cause:     "%s (Service: AWSLambda; Status Code: %d; Error Code: %s; Request ID: %s; Proxy: null)",
+			Prefix:           "Lambda.",
+			Unmodeled:        "Lambda.AWSLambdaException",
+			Cause:            "%s (Service: AWSLambda; Status Code: %d; Error Code: %s; Request ID: %s; Proxy: null)",
+			FunctionARNCause: "%s (Service: Lambda, Status Code: %d, Request ID: %s) (SDK Attempt Count: 1)",
 		},
-		Label:   evidence.Inferred,
+		Label:   evidence.AWSRecorded,
 		Ref:     "docs/research/stepfunctions-api.md#94-error-names-and-causes-recorded",
 		Record:  "SFN-15",
 		Ops:     []string{"sfn.StartExecution"},
-		Settles: fidelity.NoScenario{Reason: "unrecorded for an unmodeled code: recording case SFN-15 (stepfunctions-api.md 14.16)"},
+		Settles: fidelity.NoScenario{Reason: sfnUnreplayed("sfn/SFN-15/02-denied-invoke-history.json and sfn/SFN-15/03-denied-arn-history.json are")},
 	}
 }
 
-// LambdaTaskError is the StateError for e, a Lambda service error a task's
-// invocation returned with request id requestID, named by n: Prefix plus the
-// shape name when e's shape is in Lambda's model namespace, else Unmodeled;
-// the cause is Cause formatted with e's message, status, code and
-// requestID.
-func LambdaTaskError(n LambdaErrorNaming, e *awserr.Error, requestID string) asl.StateError {
+// LambdaTaskError is the StateError for e, a Lambda service error the
+// invocation of a task naming its function as kind returned with request
+// id requestID, named by n: Prefix plus the shape name when e's shape is in
+// Lambda's model namespace, else Unmodeled; the cause is Cause formatted
+// with e's message, status, code and requestID for a lambda:invoke task,
+// FunctionARNCause with e's message, status and requestID for a
+// function-ARN task.
+func LambdaTaskError(n LambdaErrorNaming, kind asl.ResourceKind, e *awserr.Error, requestID string) asl.StateError {
 	name := n.Unmodeled
 	// Every error shape Lambda's model declares shares one namespace,
 	// com.amazonaws.lambda; generic errors carry another. Lambda's denial,
@@ -113,36 +132,42 @@ func LambdaTaskError(n LambdaErrorNaming, e *awserr.Error, requestID string) asl
 	if e.ID.Shape.Namespace() == lambdaapi.IdentityServiceException().Shape.Namespace() && e.ID.Shape != lambda.Denial.Identity.Shape {
 		name = n.Prefix + e.ID.Shape.Name()
 	}
+	if kind == asl.FunctionARN {
+		return asl.StateError{Name: name, Cause: fmt.Sprintf(n.FunctionARNCause, e.Message, e.ID.Status, requestID)}
+	}
 	return asl.StateError{Name: name, Cause: fmt.Sprintf(n.Cause, e.Message, e.ID.Status, e.ID.QueryCode, requestID)}
 }
 
 // DeleteRunningExecution says what DeleteStateMachine does to running
-// executions: true keeps the machine DELETING and ends each running
-// execution ABORTED at its next transition; an idle machine is removed at
-// once either way (stepfunctions-api.md 5.4).
+// executions: true keeps the machine DELETING and fails each running
+// execution at its next transition with States.Runtime, "State machine
+// <name> has been deleted" (SFN-06, recorded 2026-11-03;
+// stepfunctions-api.md 5.4). How long AWS keeps a DELETING machine is a
+// DeleteStateMachine coverage note, not this switch.
 func DeleteRunningExecution() fidelity.Switch[bool] {
 	return fidelity.Switch[bool]{
 		Name:    "sfn.delete.running-execution",
 		Value:   true,
-		Label:   evidence.Inferred,
+		Label:   evidence.AWSRecorded,
 		Ref:     "docs/research/stepfunctions-api.md#54-deletestatemachine",
 		Record:  "SFN-06",
 		Ops:     []string{"sfn.StartExecution", "sfn.DeleteStateMachine"},
-		Settles: fidelity.NoScenario{Reason: "unrecorded: recording case SFN-06 (stepfunctions-api.md 14.7)"},
+		Settles: fidelity.NoScenario{Reason: sfnUnreplayed("sfn/SFN-06/06-describe-execution.json is")},
 	}
 }
 
-// DenialStatus is the HTTP status of SFN's AccessDeniedException
-// (iam-enforcement-surfaces.md 12.3).
+// DenialStatus is the HTTP status of SFN's AccessDeniedException: 400
+// (SFN-15, recorded 2026-11-03; iam-enforcement-surfaces.md 12.3).
 func DenialStatus() fidelity.Switch[int] {
 	return fidelity.Switch[int]{
-		Name:    "sfn.denial.status",
-		Value:   http.StatusBadRequest,
-		Label:   evidence.Inferred,
-		Ref:     "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit",
-		Record:  "SFN-15",
-		Ops:     boundOps(),
-		Settles: fidelity.NoScenario{Reason: "unrecorded: recording case SFN-15 (stepfunctions-api.md 14.16)"},
+		Name:   "sfn.denial.status",
+		Value:  http.StatusBadRequest,
+		Label:  evidence.AWSRecorded,
+		Ref:    "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit",
+		Record: "SFN-15",
+		Ops:    boundOps(),
+		Settles: fidelity.NoScenario{Reason: "sfn/SFN-15/01-denied-list.json is recorded 2026-11-03; " +
+			"not replayed: an IAM user signed it, and the replay signs as the account's root"},
 	}
 }
 
@@ -152,7 +177,7 @@ func EngineRules() asl.Rules {
 		NoMatch:          ChoiceNoMatch().Value,
 		MissingVariable:  ChoiceMissingVariable().Value,
 		IntrinsicFailure: IntrinsicFailure().Value,
-		AbortOnDelete:    DeleteRunningExecution().Value,
+		EndOnDelete:      DeleteRunningExecution().Value,
 	}
 }
 

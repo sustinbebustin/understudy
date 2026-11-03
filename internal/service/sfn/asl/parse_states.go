@@ -2,7 +2,6 @@ package asl
 
 import (
 	"slices"
-	"strconv"
 	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy/document"
@@ -205,28 +204,13 @@ func (p *parser) transition(v document.Value, field, at string, names map[string
 	return s
 }
 
-// exclusive reports a state that has more than one of fields.
+// exclusive reports a state that has more than one of fields, in AWS's
+// words (ASL-01, recorded 2026-11-03 for Next and End; inferred for the
+// other pairs).
 func (p *parser) exclusive(f *draft, fields ...string) {
 	if f.count(fields...) > 1 {
-		p.schema("Only one of "+quoteList(fields)+" is allowed", f.loc)
+		p.schema("There should only be one of the following fields: ["+strings.Join(fields, ", ")+"]", f.loc)
 	}
-}
-
-func quoteList(fields []string) string {
-	var out strings.Builder
-	var outSb208 strings.Builder
-	for i, x := range fields {
-		switch {
-		case i == 0:
-		case i == len(fields)-1:
-			out.WriteString(" or ")
-		default:
-			out.WriteString(", ")
-		}
-		outSb208.WriteString("'" + x + "'")
-	}
-	out.WriteString(outSb208.String())
-	return out.String()
 }
 
 // build checks the combinations of fields a type requires and makes the
@@ -352,7 +336,7 @@ func (p *parser) buildMap(f *draft, io paths, resultPath target) state {
 	case 0:
 		p.schema("These fields are required: [ItemProcessor]", f.loc)
 	case 2:
-		p.schema("Only one of 'ItemProcessor' or 'Iterator' is allowed", f.loc)
+		p.exclusive(f, "ItemProcessor", "Iterator")
 	}
 	p.exclusive(f, "ItemSelector", "Parameters")
 	p.exclusive(f, "MaxConcurrency", "MaxConcurrencyPath")
@@ -398,8 +382,7 @@ func (p *parser) branches(v document.Value, at string) []string {
 	}
 	out := make([]string, 0, len(list))
 	for i, b := range list {
-		loc := at + "/" + strconv.Itoa(i)
-		if start, ok := p.subScope(b, loc, nil); ok {
+		if start, ok := p.subScope(b, indexed(at, i), nil); ok {
 			out = append(out, start)
 		}
 	}
@@ -444,7 +427,7 @@ func (p *parser) processorConfig(v document.Value, at string) {
 		case "ExecutionType":
 			p.unsupported("Distributed Map (ProcessorConfig ExecutionType)", at+"/ExecutionType")
 		default:
-			p.schema("Field '"+e.Key+"' is not supported in ProcessorConfig", at+"/"+e.Key)
+			p.unknownField(e.Key, at)
 		}
 	}
 }
@@ -466,7 +449,7 @@ func (p *parser) subScope(v document.Value, loc string, extra []string) (string,
 		case e.Key == "Comment":
 			p.str(e.Value, e.Key, loc+"/Comment")
 		default:
-			p.schema("Field '"+e.Key+"' is not supported here", loc+"/"+e.Key)
+			p.unknownField(e.Key, loc)
 		}
 	}
 	return p.scope(obj, loc), true

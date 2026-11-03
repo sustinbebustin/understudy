@@ -52,11 +52,12 @@ func TestStopExecutionKeepsErrorAndClosedIsUnchanged(t *testing.T) {
 }
 
 // A DELETING machine refuses new executions, a create of its name and
-// updates with StateMachineDeleting in understudy's words; under switch
-// sfn.delete.running-execution the running execution ends ABORTED at its
-// next transition and the machine goes with it.
+// updates with StateMachineDeleting in AWS's words (SFN-06 03 and 04,
+// recorded 2026-11-03; the update is inferred); under switch
+// sfn.delete.running-execution the running execution fails at its next
+// transition, and the machine goes with it (understudy's choice: AWS keeps
+// it DELETING for an unrecorded time, SFN-06 08).
 func TestDeletingMachineRefusesChanges(t *testing.T) {
-	// inferred, SFN-06
 	run(t, func(h *harness) {
 		machine := h.create("w", waitMachine)
 		arn := h.start(machine, "x", nil)
@@ -74,10 +75,10 @@ func TestDeletingMachineRefusesChanges(t *testing.T) {
 		}
 		// The engine half of the switch flip is asl's
 		// TestSwitchDeleteRunningExecution; here the machine goes with the
-		// abort, and the closed execution stays.
+		// failure, and the closed execution stays.
 		h.advance(time.Hour)
-		if d := h.describeExecution(arn); d.Status != sfnapi.ExecutionStatusAborted || d.Error != nil {
-			h.Errorf("execution after its next transition = %+v, want ABORTED without error", d)
+		if d := h.describeExecution(arn); d.Status != sfnapi.ExecutionStatusFailed || val(d.Error) != "States.Runtime" || val(d.Cause) != "State machine w has been deleted" {
+			h.Errorf("execution after its next transition = %+v, want FAILED with States.Runtime (SFN-06)", d)
 		}
 		if again := h.create("w", resultMachine); again != machine {
 			h.Errorf("re-created machine = %s, want %s", again, machine)
@@ -85,8 +86,9 @@ func TestDeletingMachineRefusesChanges(t *testing.T) {
 	})
 }
 
-// An execution that ends TIMED_OUT writes ExecutionTimedOut with empty
-// details on the wire, and ListExecutions filters it as TIMED_OUT.
+// An execution that ends TIMED_OUT writes ExecutionTimedOut with
+// {"error":"States.Timeout"} on the wire (ASL-12, recorded 2026-11-03), and
+// ListExecutions filters it as TIMED_OUT.
 func TestTimedOutExecutionOnTheWire(t *testing.T) {
 	run(t, func(h *harness) {
 		machine := h.create("t", `{"StartAt":"W","TimeoutSeconds":5,"States":{"W":{"Type":"Wait","Seconds":60,"End":true}}}`)
@@ -95,8 +97,8 @@ func TestTimedOutExecutionOnTheWire(t *testing.T) {
 		events := h.history(arn)
 		last := events[len(events)-1]
 		if last.Type != sfnapi.HistoryEventTypeExecutionTimedOut || last.ExecutionTimedOutEventDetails == nil ||
-			last.ExecutionTimedOutEventDetails.Error != nil || last.ExecutionTimedOutEventDetails.Cause != nil {
-			h.Errorf("last event = %+v, want ExecutionTimedOut with {}", last)
+			val(last.ExecutionTimedOutEventDetails.Error) != "States.Timeout" || last.ExecutionTimedOutEventDetails.Cause != nil {
+			h.Errorf("last event = %+v, want ExecutionTimedOut with {\"error\":\"States.Timeout\"} (ASL-12)", last)
 		}
 		timedOut := sfnapi.ExecutionStatusTimedOut
 		if got := must(h, sfnapi.OpListExecutions, &sfnapi.ListExecutionsInput{StateMachineArn: new(machine), StatusFilter: &timedOut}).Executions; len(got) != 1 || got[0].ExecutionArn != arn {

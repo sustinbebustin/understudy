@@ -21,20 +21,33 @@ func failWith(name string) lambdaAnswer {
 	}
 }
 
-// inferred, ASL-10
-// Fractional delays are kept (BackoffRate 1.5 waits 1.5 and 2.25 s, not
-// whole seconds), and FULL jitter applies after MaxDelaySeconds, so a
-// capped FULL delay is the draw times the cap.
-func TestRetryDelayFractionsAndJitterAfterCapASL10(t *testing.T) {
-	r := asl.Retrier{IntervalSeconds: 1, MaxAttempts: 3, BackoffRate: 1.5, Jitter: asl.JitterNone}
-	for k, want := range []time.Duration{time.Second, 1500 * time.Millisecond, 2250 * time.Millisecond} {
-		if got := asl.RetryDelay(r, k+1, 0); got != want {
-			t.Errorf("RetryDelay(BackoffRate 1.5, %d) = %v, want %v", k+1, got, want)
+// Delays are floored to whole seconds: BackoffRate 1.5 waits 1, 1, 2 and
+// 3 s, and MaxDelaySeconds 5 caps 2, 6, 18 at 2, 5, 5 (ASL-10 01 and 02,
+// recorded 2026-11-03; stepfunctions-asl.md 8.3).
+func TestRetryDelayWholeSecondsASL10(t *testing.T) {
+	for _, tt := range []struct {
+		r    asl.Retrier
+		want []time.Duration
+	}{
+		{asl.Retrier{IntervalSeconds: 1, MaxAttempts: 4, BackoffRate: 1.5, Jitter: asl.JitterNone}, []time.Duration{time.Second, time.Second, 2 * time.Second, 3 * time.Second}},
+		{asl.Retrier{IntervalSeconds: 2, MaxAttempts: 4, BackoffRate: 3, MaxDelaySeconds: 5, Jitter: asl.JitterNone}, []time.Duration{2 * time.Second, 5 * time.Second, 5 * time.Second, 5 * time.Second}},
+	} {
+		for k, want := range tt.want {
+			if got := asl.RetryDelay(tt.r, k+1, 0); got != want {
+				t.Errorf("RetryDelay(%+v, %d) = %v, want %v", tt.r, k+1, got, want)
+			}
 		}
 	}
+}
+
+// inferred, ASL-10
+// FULL jitter applies after MaxDelaySeconds, so a capped FULL delay is the
+// draw times the cap, floored to whole seconds as ASL-10's FULL run
+// observed.
+func TestRetryDelayJitterAfterCapASL10(t *testing.T) {
 	capped := asl.Retrier{IntervalSeconds: 10, MaxAttempts: 3, BackoffRate: 2, MaxDelaySeconds: 4, Jitter: asl.JitterFull}
-	if got := asl.RetryDelay(capped, 3, 0.5); got != 2*time.Second {
-		t.Errorf("RetryDelay(FULL, cap 4, jitter 0.5) = %v, want 2s (half the cap)", got)
+	if got := asl.RetryDelay(capped, 3, 0.6); got != 2*time.Second {
+		t.Errorf("RetryDelay(FULL, cap 4, jitter 0.6) = %v, want 2s (floor of 2.4)", got)
 	}
 }
 
@@ -107,17 +120,17 @@ func TestFullJitterIsSeededASL10(t *testing.T) {
 	}
 }
 
-// inferred, ASL-13
-// A caught error without a cause, a task's States.Timeout, gives an error
-// output with Error alone.
-func TestCatchOutputWithoutCauseASL13(t *testing.T) {
+// inferred, ASL-11
+// A caught task States.Timeout, which has no cause, gives "Cause": "" as
+// ASL-11 recorded for a heartbeat timeout (2026-11-03).
+func TestCatchOutputTimeoutCauseEmpty(t *testing.T) {
 	d := newDriver(t, fmt.Sprintf(legacyTask, `"TimeoutSeconds":5,"Catch":[{"ErrorEquals":["States.Timeout"],"Next":"Done"}],`, doneState), rules())
 	d.start(`{}`)
 	d.runUntilWaiting()
 	d.pending = nil
 	o := d.runToEnd(10)
-	if s, ok := o.(asl.Succeeded); !ok || !equal(s.Output, decode(t, `{"Error":"States.Timeout"}`)) {
-		t.Errorf("outcome = %#v, want the error output without Cause", o)
+	if s, ok := o.(asl.Succeeded); !ok || encode(s.Output) != `{"Error":"States.Timeout","Cause":""}` {
+		t.Errorf("outcome = %#v, want the error output with Cause \"\"", o)
 	}
 }
 
@@ -175,19 +188,22 @@ func TestRuntimeErrorIsNotRetried(t *testing.T) {
 	}
 }
 
-// A catchable error raised before the task is scheduled, an intrinsic
-// failure in Parameters, goes to Catch: TaskStateExited points at
-// TaskStateEntered (11.2 rule 4).
+// A catchable error raised before the task is scheduled goes to Catch:
+// TaskStateExited points at TaskStateEntered (11.2 rule 4). AWS's intrinsic
+// failure is uncatchable (ASL-05, recorded 2026-11-03), so a catchable one,
+// switch sfn.intrinsic.failure-error flipped, stands in for the case.
 func TestCatchBeforeScheduling(t *testing.T) {
 	def := `{"StartAt":"T","States":{"T":{"Type":"Task","Resource":"arn:aws:states:::lambda:invoke",
 		"Parameters":{"FunctionName":"` + functionArn + `","Payload.$":"States.StringToJson('{')"},
 		"Catch":[{"ErrorEquals":["States.ALL"],"Next":"Done"}],"End":true}` + doneState + `}}`
-	d := newDriver(t, def, rules())
+	r := rules()
+	r.IntrinsicFailure = asl.ErrorRule{Name: "Catchable.Error", Terminal: false}
+	d := newDriver(t, def, r)
 	d.start(`{}`)
 	o := d.runToEnd(10)
 	d.wantShape("11.2 rule 4", "ExecutionStarted 1<-0", "TaskStateEntered 2<-0", "TaskStateExited 3<-2",
 		"PassStateEntered 4<-3", "PassStateExited 5<-4", "ExecutionSucceeded 6<-5")
-	if s, ok := o.(asl.Succeeded); !ok || at(s.Output, "Error") != document.String(rules().IntrinsicFailure.Name) {
+	if s, ok := o.(asl.Succeeded); !ok || at(s.Output, "Error") != document.String("Catchable.Error") {
 		t.Errorf("outcome = %#v, want the intrinsic failure's error output", o)
 	}
 }

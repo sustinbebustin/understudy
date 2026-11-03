@@ -1,6 +1,7 @@
 package asl
 
 import (
+	"strings"
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy/document"
@@ -73,7 +74,12 @@ func (sc scope) until(w wait, input document.Value, now time.Time) (time.Time, F
 		if err != nil {
 			return time.Time{}, Terminal{Name: errRuntime, Cause: field + "does not reference an input value: " + w.path.String()}
 		}
+		// A string holding an integer is read as one: "1" waited a second
+		// (ASL-09, recorded 2026-11-03).
 		n, isNumber := v.(document.Number)
+		if s, isString := v.(document.String); isString {
+			n, isNumber = document.Number(s), true
+		}
 		seconds, err := n.Int64()
 		if !isNumber || err != nil {
 			return time.Time{}, Terminal{Name: errRuntime, Cause: field + "cannot be parsed as a long value: " + w.path.String() + " == " + shown(v)}
@@ -93,8 +99,12 @@ func (sc scope) until(w wait, input document.Value, now time.Time) (time.Time, F
 			// ASL-09).
 			return time.Time{}, Terminal{Name: errRuntime, Cause: field + "does not reference an input value: " + w.path.String()}
 		}
+		// The letters T and Z are read in either case at run time: a
+		// lower-case z was accepted (ASL-09, recorded 2026-11-03), and
+		// Java's ISO offset date-time parser, which the accepted offsets
+		// match, ignores case (inferred for t).
 		str, isString := v.(document.String)
-		t, ok := parseTimestamp(string(str))
+		t, ok := parseTimestamp(strings.ToUpper(string(str)))
 		if !isString || !ok {
 			return time.Time{}, Terminal{Name: errRuntime, Cause: field + "does not reference a valid ISO-8601 extended offset date-time format string: " + w.path.String() + " == " + shown(v)}
 		}

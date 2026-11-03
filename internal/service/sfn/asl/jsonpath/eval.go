@@ -2,6 +2,7 @@ package jsonpath
 
 import (
 	"math/big"
+	"strconv"
 	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy/document"
@@ -32,13 +33,21 @@ func (p Path) evalDefinite(root document.Value) (document.Value, error) {
 		if c, isChild := s.(child); isChild && i < len(p.steps)-1 {
 			if m, isMap := v.(document.Map); isMap {
 				if _, found := member(m, c.name); !found {
-					return nil, &MissingError{Path: p.src, Reason: "Missing property in path " + normalized(p.steps[:i+1])}
+					return nil, &MissingError{Path: p.src, Reason: "Missing property in path " + normalized(p.steps[:i+1]), Node: v, Step: c.name}
 				}
 			}
 		}
 		got := s.selectFrom(v, nil)
 		if len(got) != 1 {
-			return nil, &MissingError{Path: p.src, Reason: "No results for path: " + normalized(p.steps)}
+			e := &MissingError{Path: p.src, Reason: "No results for path: " + normalized(p.steps)}
+			switch s := s.(type) {
+			case child:
+				e.Node, e.Step = v, s.name
+			case index:
+				e.Node, e.Step = v, strconv.Itoa(s.n)
+			case wildcard, descend, slice, union, filter:
+			}
+			return nil, e
 		}
 		v = got[0]
 	}

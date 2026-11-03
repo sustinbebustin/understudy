@@ -15,3 +15,9 @@
 - 05 GetExecutionHistory on an Express ARN (15.6 item 23): matches -- 400 `InvalidArn` `Invalid Arn: 'Resource type not valid in this context: express'`
 - 06 DescribeExecution on an Express ARN: matches -- 400 `InvalidArn`, same text
 - teardown: `asl_rm` reported nothing for xd (never created); xt and xw deleted
+
+## Replay (internal/parity)
+
+`scenario.json` replays steps 05 and 06; internal/parity/baseline.json holds the outcomes.
+
+- Not replayed: 01 to 04, Express workflows, which understudy does not implement (type EXPRESS answers 501).

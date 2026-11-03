@@ -163,7 +163,7 @@ func (s *Service) invokeTask(ctx context.Context, c *kernel.Call, exec execution
 	roleARN, perr := aws.ParseARN(role)
 	if perr != nil {
 		// CreateStateMachine checked the role ARN's syntax, so this is a bug.
-		return failed(LambdaTaskError(LambdaError().Value, awserr.Internalf(perr), requestID))
+		return failed(LambdaTaskError(LambdaError().Value, inv.Resource, awserr.Internalf(perr), requestID))
 	}
 	in := &lambdaapi.InvokeInput{FunctionName: inv.Function, InvocationType: new(lambdaapi.InvocationTypeRequestResponse)}
 	if inv.Payload != nil {
@@ -173,7 +173,7 @@ func (s *Service) invokeTask(ctx context.Context, c *kernel.Call, exec execution
 	out, err := kernel.Invoke(ctx, s.k, c, lambdaapi.OpInvoke, target, in)
 	switch {
 	case err != nil:
-		return failed(LambdaTaskError(LambdaError().Value, err, requestID))
+		return failed(LambdaTaskError(LambdaError().Value, inv.Resource, err, requestID))
 	case out.FunctionError != nil:
 		return failed(functionError(out.Payload))
 	}

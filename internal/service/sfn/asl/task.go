@@ -28,10 +28,10 @@ func (s *stepper) task(st taskState, j stepJob) {
 // (stepfunctions-asl.md 8.2). A retry writes no event of its own: the
 // attempt's first event points at the failure retried (11.2 rule 7).
 func (s *stepper) retry(j retryJob) {
-	// An attempt writes at most its scheduled and started events before the
-	// execution's last event, within step's quota margin (inferred, ASL-16).
-	if s.x.lastEvent+4 > maxHistoryEvents {
-		s.fail(errRuntime, "The execution reached the limit of "+strconv.Itoa(maxHistoryEvents)+" history events.", s.x.lastEvent)
+	// An attempt writes its scheduled, started, result and exited events
+	// before the execution's last event (inferred, ASL-16).
+	if s.x.lastEvent+taskMargin-1 > maxHistoryEvents {
+		s.fail(errRuntime, HistoryLimitCause, s.x.lastEvent)
 		return
 	}
 	st, ok := s.d.states[j.state].(taskState)
@@ -225,8 +225,8 @@ func (s *stepper) takeTask(id TaskID) (t inflight, deadline time.Time, ok bool) 
 
 // answered takes the task a Lambda result at answers. applies is false when
 // the task is not in flight, and the result changes nothing; ok is true
-// when the caller is to apply the result. A machine being deleted ends the
-// execution ABORTED instead (switch sfn.delete.running-execution). The
+// when the caller is to apply the result. A machine being deleted fails the
+// execution instead (switch sfn.delete.running-execution). The
 // function runs on wall time while the task timeout is emulator time (spec
 // "Runtime decisions"), so a result at or after the timeout's instant
 // loses to it: the task times out there and the result is dropped
@@ -239,7 +239,7 @@ func (s *stepper) answered(id TaskID, at time.Time) (t inflight, applies, ok boo
 		return inflight{}, false, false
 	case s.x.deleting:
 		s.at = at
-		s.abort("", "")
+		s.machineDeleted()
 		return inflight{}, true, false
 	}
 	// The deadline is the attempt's own timeout timer, armed in the step
@@ -409,12 +409,14 @@ func (s *stepper) jitter(r Retrier) float64 {
 // errorOutput is a catcher's result: {"Error", "Cause"}, Error first as
 // recorded (stepfunctions-asl.md 8.4; aws-recorded localstack@8b9a79f
 // v2/error_handling/test_states_errors.snapshot.json:L77). An error without
-// a cause, such as a task's States.Timeout, has no Cause member: whether AWS
-// omits it or gives "" or null is unrecorded (inferred, ASL-13).
+// a cause keeps the Cause member: "" for States.Timeout (ASL-11, recorded
+// 2026-11-03, for a heartbeat timeout; a task's TimeoutSeconds inferred to
+// read the same) and null for any other, such as a Fail state's without
+// Cause (ASL-13, recorded 2026-11-03).
 func errorOutput(e StateError) document.Map {
-	out := document.Map{{Key: "Error", Value: document.String(e.Name)}}
-	if e.Cause != "" {
-		out = append(out, document.Entry{Key: "Cause", Value: document.String(e.Cause)})
+	var cause document.Value = document.String(e.Cause)
+	if e.Cause == "" && e.Name != errTimeout {
+		cause = document.Null{}
 	}
-	return out
+	return document.Map{{Key: "Error", Value: document.String(e.Name)}, {Key: "Cause", Value: cause}}
 }

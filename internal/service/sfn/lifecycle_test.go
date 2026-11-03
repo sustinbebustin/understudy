@@ -69,16 +69,18 @@ func TestClosedExecutionRetention(t *testing.T) {
 }
 
 // DeleteStateMachine with a running execution: the machine is DELETING
-// and the execution ends ABORTED at its next transition, then the machine
-// is gone (aws-doc [M] com.amazonaws.sfn#DeleteStateMachine, quoted in
-// stepfunctions-api.md 5.4; the outcome is switch sfn.delete.running-execution).
+// and the execution ends FAILED at its next transition (SFN-06, recorded
+// 2026-11-03; switch sfn.delete.running-execution), then the machine is
+// gone (understudy's choice: AWS still described it DELETING 45 s later,
+// SFN-06 08; stepfunctions-api.md 5.4).
 func TestDeleteWithRunningExecution(t *testing.T) {
+	// inferred, SFN-06
 	run(t, func(h *harness) {
 		// With the switch off the execution runs on to SUCCEEDED; either way
 		// the machine is removed once it has no running execution.
 		wantStatus := sfnapi.ExecutionStatusSucceeded
 		if sfn.DeleteRunningExecution().Value {
-			wantStatus = sfnapi.ExecutionStatusAborted
+			wantStatus = sfnapi.ExecutionStatusFailed
 		}
 		machine := h.create("w", `{"StartAt":"W","States":{"W":{"Type":"Wait","Seconds":60,"Next":"P"},"P":{"Type":"Pass","End":true}}}`)
 		arn := h.start(machine, "x", nil)

@@ -1,10 +1,12 @@
 package asl
 
 import (
+	"errors"
 	"slices"
 	"strconv"
 
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy/document"
+	"github.com/sustinbebustin/understudy/internal/service/sfn/asl/jsonpath"
 )
 
 // maxInlineConcurrency is the most iterations an inline Map runs at once:
@@ -82,7 +84,7 @@ func (s *stepper) startRun(st state, v visit, previous int64) {
 	// iteration it starts before the execution's last event (inferred,
 	// ASL-16).
 	if s.x.lastEvent+int64(min(len(inputs), limit))+4 > maxHistoryEvents {
-		s.fail(errRuntime, "The execution reached the limit of "+strconv.Itoa(maxHistoryEvents)+" history events.", s.x.lastEvent)
+		s.fail(errRuntime, HistoryLimitCause, s.x.lastEvent)
 		return
 	}
 	var details document.Value
@@ -90,6 +92,14 @@ func (s *stepper) startRun(st state, v visit, previous int64) {
 		details = document.Map{{Key: "length", Value: document.Number(strconv.Itoa(len(inputs)))}}
 	}
 	started := s.emit(b.kind+"StateStarted", previous, details)
+	if m, isMap := st.(mapState); isMap && m.itemSelector != nil {
+		// ItemSelector fails after MapStateStarted, the failure pointing at
+		// it (ASL-04, recorded 2026-11-03).
+		if inputs, f = s.selectItems(m, v, effective, inputs); f != nil {
+			s.runFailed(b, v, started, f, false)
+			return
+		}
+	}
 	s.x.lastRun++
 	s.x.runs = append(s.x.runs, run{id: s.x.lastRun, visit: v, inputs: inputs, results: make([]document.Value, len(inputs)), limit: limit})
 	i := len(s.x.runs) - 1
@@ -119,11 +129,9 @@ func (sc scope) branchInputs(st parallelState, effective document.Value) ([]docu
 	return inputs, nil
 }
 
-// iterationInputs are an inline Map's iteration inputs and how many run at
-// once (stepfunctions-asl.md 9.2): ItemsPath selects the items from the
-// effective input, and ItemSelector, when given, builds each iteration's
-// input from the effective input and $$.Map.Item {Index, Value}; otherwise
-// the item is the input.
+// iterationInputs are an inline Map's items and how many run at once
+// (stepfunctions-asl.md 9.2): ItemsPath selects the items from the
+// effective input. selectItems turns them into iteration inputs.
 func (s *stepper) iterationInputs(st mapState, v visit, effective document.Value) ([]document.Value, int, Failure) {
 	ctx := stateContext(s.x.context, v.state, v.enteredAt)
 	sc := scope{context: ctx, src: s.src, rules: s.rules}
@@ -133,7 +141,7 @@ func (s *stepper) iterationInputs(st mapState, v visit, effective document.Value
 	}
 	got, err := st.itemsPath.Eval(effective, ctx)
 	if err != nil {
-		return nil, 0, Terminal{Name: errRuntime, Cause: err.Error()}
+		return nil, 0, itemsPathFailure(err)
 	}
 	items, ok := got.(document.List)
 	if !ok {
@@ -142,24 +150,45 @@ func (s *stepper) iterationInputs(st mapState, v visit, effective document.Value
 		return nil, 0, Terminal{Name: errRuntime, Cause: "The ItemsPath field '" + st.itemsPath.String() +
 			"' selected " + text(got) + ", which is not an array"}
 	}
+	return slices.Clone(items), limit, nil
+}
+
+// itemsPathFailure is an ItemsPath that selects nothing: a name or index
+// missing from an object or array is States.ReferencePathConflict "Unable
+// to apply step "<step>" to input <node>", recorded for a name missing from
+// the state input (ASL-06, 2026-11-03; the index form is inferred); any
+// other miss keeps States.Runtime with the path's text.
+func itemsPathFailure(err error) Failure {
+	if missing, ok := errors.AsType[*jsonpath.MissingError](err); ok {
+		switch missing.Node.(type) {
+		case document.Map, document.List:
+			return Terminal{Name: errReferencePathConflict, Cause: "Unable to apply step " + strconv.Quote(missing.Step) + " to input " + text(missing.Node)}
+		case document.String, document.Number, document.Bool, document.Null, nil:
+		}
+	}
+	return Terminal{Name: errRuntime, Cause: err.Error()}
+}
+
+// selectItems applies the Map's ItemSelector to each of items: it builds
+// the iteration's input from the effective input and $$.Map.Item {Index,
+// Value} (stepfunctions-asl.md 9.2).
+func (s *stepper) selectItems(st mapState, v visit, effective document.Value, items []document.Value) ([]document.Value, Failure) {
+	ctx := stateContext(s.x.context, v.state, v.enteredAt)
 	inputs := make([]document.Value, len(items))
 	for i, item := range items {
-		inputs[i] = item
-		if st.itemSelector == nil {
-			continue
-		}
-		isc := sc
+		isc := scope{src: s.src, rules: s.rules}
 		isc.context = append(slices.Clone(ctx), document.Entry{Key: "Map", Value: document.Map{
 			{Key: "Item", Value: document.Map{
 				{Key: "Index", Value: document.Number(strconv.Itoa(i))},
 				{Key: "Value", Value: item},
 			}},
 		}})
+		var f Failure
 		if inputs[i], f = isc.render(st.itemSelector, effective); f != nil {
-			return nil, 0, f
+			return nil, f
 		}
 	}
-	return inputs, limit, nil
+	return inputs, nil
 }
 
 // mapLimit is how many iterations run at once: MaxConcurrency, or the
@@ -309,15 +338,20 @@ func (s *stepper) runSucceeded(i int, last int64) {
 // scopeFailed ends the step's frame with f, its last event last: at the top
 // level the execution fails; a failing branch or iteration fails its run,
 // whose other branches or iterations are stopped (stepfunctions-asl.md 9.1,
-// 9.2). A Map iteration writes MapIterationFailed pointing at last; the
-// stopped ones write nothing (inferred, ASL-13).
+// 9.2). A Map iteration writes MapIterationFailed pointing at last, after
+// the events of the siblings it stops (abortWaitingIterations). A Terminal
+// fails the execution at once from any depth: ExecutionFailed points at
+// last, with no MapIterationFailed or *StateFailed between (ASL-05, ASL-08
+// and ASL-15 in a Parallel branch, ASL-07 in a Map iteration, recorded
+// 2026-11-03).
 func (s *stepper) scopeFailed(f Failure, last int64) {
+	if t, ok := f.(Terminal); ok {
+		s.fail(t.Name, t.Cause, last)
+		return
+	}
 	if s.fr.run == 0 {
-		switch f := f.(type) {
-		case Terminal:
-			s.fail(f.Name, f.Cause, last)
-		case StateError:
-			s.fail(f.Name, f.Cause, last)
+		if e, ok := f.(StateError); ok {
+			s.fail(e.Name, e.Cause, last)
 		}
 		return
 	}
@@ -328,6 +362,7 @@ func (s *stepper) scopeFailed(f Failure, last int64) {
 	}
 	r := s.x.runs[i]
 	if _, isMap := s.d.states[r.state].(mapState); isMap {
+		s.abortWaitingIterations(r, s.fr.index, last)
 		s.emit("MapIterationFailed", last, iterationDetails(r.state, s.fr.index))
 	}
 	s.stopRun(r.id)
@@ -347,18 +382,14 @@ func (s *stepper) scopeFailed(f Failure, last int64) {
 // v2/scenarios/test_base_scenarios.snapshot.json:L1484), then to Catch;
 // otherwise *StateFailed points at last and the error is the enclosing
 // frame's, a Fail state's error the state's own (7.2; for Parallel
-// inferred, ASL-13). A Terminal is never retried or caught, at any depth
-// (inferred, ASL-15): from a branch or iteration it fails the state with
-// its cause as given; from the state's own fields its States.Runtime cause
-// gets the state's prefix (4.6).
+// ASL-10 and ASL-13, recorded 2026-11-03). A Terminal is never retried or
+// caught, at any depth (ASL-15, recorded 2026-11-03): one from a branch or
+// iteration never reaches here (scopeFailed), and one from the state's own
+// fields gets the state's States.Runtime prefix (4.6).
 func (s *stepper) runFailed(b block, v visit, last int64, f Failure, started bool) {
 	e, ok := f.(StateError)
 	if !ok {
-		if !started {
-			s.stateFailedAfter(b.name, v.entered, last, f)
-			return
-		}
-		s.raise(f, s.emit(b.kind+"StateFailed", last, nil))
+		s.stateFailedAfter(b.name, v.entered, last, f)
 		return
 	}
 	again := func(v visit) job { return runRetryJob{visit: v, previous: last} }
@@ -422,6 +453,26 @@ func (s *stepper) stopRun(id int64) {
 		return false
 	})
 	s.x.runs = slices.DeleteFunc(s.x.runs, func(r run) bool { return gone[r.id] })
+}
+
+// abortWaitingIterations writes, for each iteration of the Map run r other
+// than failed that waits in a Wait state of its own, in index order,
+// MapIterationAborted and WaitStateAborted pointing at last; an iteration
+// between states writes nothing (ASL-13 04, recorded 2026-11-03, for one
+// waiting sibling; the order among several and a sibling waiting on a task
+// or in a nested state are unrecorded, and write nothing here).
+func (s *stepper) abortWaitingIterations(r run, failed int, last int64) {
+	var waiting []int
+	for _, t := range s.x.timers {
+		if w, ok := t.job.(waitJob); ok && w.fr.run == r.id && w.fr.index != failed {
+			waiting = append(waiting, w.fr.index)
+		}
+	}
+	slices.Sort(waiting)
+	for _, index := range slices.Compact(waiting) {
+		s.emit("MapIterationAborted", last, iterationDetails(r.state, index))
+		s.emit("WaitStateAborted", last, document.Map{})
+	}
 }
 
 // jobFrame is the frame a job runs in; false for the jobs that belong to

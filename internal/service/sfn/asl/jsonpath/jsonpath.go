@@ -60,6 +60,11 @@ type MissingError struct {
 	// missing, and "Missing property in path <normalized prefix>" when an
 	// earlier one is; <normalized> is $['a']['b'] for $.a.b.
 	Reason string
+	// Node is the value the missing name or index step was taken into, nil
+	// for any other step; Step is that step's name, or its index as decimal
+	// text. A Map's ItemsPath words AWS's cause from them (ASL-06).
+	Node document.Value
+	Step string
 }
 
 func (e *MissingError) Error() string { return "Invalid path '" + e.Path + "' : " + e.Reason }

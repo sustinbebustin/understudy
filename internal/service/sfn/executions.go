@@ -122,13 +122,11 @@ func (s *Service) startExecution(_ context.Context, c *kernel.Call, in *sfnapi.S
 	return &sfnapi.StartExecutionOutput{ExecutionArn: started.arn, StartDate: started.started.Wire()}, nil
 }
 
-// definitionError answers the first error of a stored definition that no
-// longer parses, as CreateStateMachine would.
+// definitionError answers the errors of a stored definition that no longer
+// parses, as CreateStateMachine would.
 func definitionError(diags []asl.Diagnostic) *awserr.Error {
-	for _, d := range diags {
-		if d.Severity == asl.SeverityError {
-			return sfnapi.ErrInvalidDefinition(d.InvalidDefinition())
-		}
+	if message := asl.InvalidDefinition(diags); message != "" {
+		return sfnapi.ErrInvalidDefinition(message)
 	}
 	return sfnapi.ErrInvalidDefinition("Invalid State Machine Definition: the stored definition no longer parses")
 }
@@ -217,6 +215,12 @@ func (s *Service) describeExecution(_ context.Context, c *kernel.Call, in *sfnap
 		// v2/base/test_base.snapshot.json:L184-L199).
 		out.Error, out.Cause = optional(o.Error), optional(o.Cause)
 		out.RedriveStatus = new(sfnapi.ExecutionRedriveStatusRedrivable)
+		if o.Cause == asl.HistoryLimitCause {
+			// ASL-16, recorded 2026-11-03, not the documented "Execution
+			// history event limit exceeded." (stepfunctions-api.md 6.3).
+			out.RedriveStatus = new(sfnapi.ExecutionRedriveStatusNotRedrivable)
+			out.RedriveStatusReason = new("Execution has exceeded the maximum history event limit")
+		}
 	case asl.TimedOut:
 		// Recorded REDRIVABLE (stepfunctions-api.md 6.3).
 		out.Error, out.Cause = optional(o.Error), optional(o.Cause)

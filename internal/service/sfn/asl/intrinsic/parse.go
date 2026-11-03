@@ -78,6 +78,7 @@ func parse(s string) (Call, error) {
 	if p.pos != len(p.src) {
 		return Call{}, p.syntax("unexpected text after the call at offset "+strconv.Itoa(p.pos), nil)
 	}
+	c.text = s
 	return c, nil
 }
 

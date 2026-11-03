@@ -14,3 +14,9 @@
 - 03 SecondsPath holding the string `"1"`: accepted -- the wait lasted about 1.04 s (Entered 16:48:03.070, Exited 16:48:04.106), SUCCEEDED (a numeric string is parsed as seconds)
 - 04 SecondsPath 31622400 (366 days, over the one-year maximum): accepted -- after 10 s the history is only ExecutionStarted and WaitStateEntered 2<-0; no failure, no `Wait state delay is too long.`; the script then stopped it
 - 05 literal Seconds 100000000: 400 `InvalidDefinition` `Invalid State Machine Definition: 'SCHEMA_VALIDATION_FAILED: Maximum value is 99999999 at /States/W/Seconds'` (matches 3.7's 0..99,999,999)
+
+## Replay (internal/parity)
+
+`scenario.json` replays step 05; internal/parity/baseline.json holds the outcome.
+
+- Not replayed: 00 to 04, whose success bodies differ by member order alone and whose execution timings the frozen replay clock does not reproduce.

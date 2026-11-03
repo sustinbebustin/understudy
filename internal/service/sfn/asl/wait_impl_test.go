@@ -40,18 +40,18 @@ func TestWaitPastOneYearTimesOutAtTheLimit(t *testing.T) {
 
 // TimestampPath that selects nothing, or a value that is not a string,
 // fails with the SecondsPath texts' form for TimestampPath; SecondsPath
-// holding a numeric string is not a long.
+// holding a string that is not an integer is not a long.
 func TestWaitTimestampPathUnrecordedTexts(t *testing.T) {
 	// inferred, ASL-09
 	for _, tt := range []struct{ input, rest string }{
 		{`{}`, "The TimestampPath parameter does not reference an input value: $.t"},
 		{`{"t":5}`, "The TimestampPath parameter does not reference a valid ISO-8601 extended offset date-time format string: $.t == 5"},
-		{`{"s":"5"}`, ""},
+		{`{"s":"x"}`, ""},
 	} {
 		field := `"TimestampPath":"$.t"`
 		if tt.rest == "" {
 			field = `"SecondsPath":"$.s"`
-			tt.rest = "The SecondsPath parameter cannot be parsed as a long value: $.s == 5"
+			tt.rest = "The SecondsPath parameter cannot be parsed as a long value: $.s == x"
 		}
 		d := newDriver(t, `{"StartAt":"W","States":{"W":{"Type":"Wait",`+field+`,"End":true}}}`, rules())
 		d.start(tt.input)
@@ -60,16 +60,16 @@ func TestWaitTimestampPathUnrecordedTexts(t *testing.T) {
 }
 
 // ExecutionTimedOut points at no event, as ExecutionAborted from
-// StopExecution does, and carries empty details; the running Wait writes no
-// WaitStateAborted.
+// StopExecution does, and carries {"error":"States.Timeout"} without a
+// cause; the running Wait writes no WaitStateAborted (ASL-12, recorded
+// 2026-11-03).
 func TestExecutionTimedOutEvent(t *testing.T) {
-	// inferred, ASL-12
 	d := newDriver(t, `{"StartAt":"W","TimeoutSeconds":5,"States":{"W":{"Type":"Wait","Seconds":60,"End":true}}}`, rules())
 	d.start(`{}`)
 	d.runToEnd(10)
-	d.wantShape("understudy's choice", "ExecutionStarted 1<-0", "WaitStateEntered 2<-0", "ExecutionTimedOut 3<-0")
-	if got := d.event("ExecutionTimedOut").Details; !equal(got, document.Map{}) {
-		t.Errorf("ExecutionTimedOut details = %s, want {}", encode(got))
+	d.wantShape("ASL-12", "ExecutionStarted 1<-0", "WaitStateEntered 2<-0", "ExecutionTimedOut 3<-0")
+	if got := d.event("ExecutionTimedOut").Details; !equal(got, document.Map{{Key: "error", Value: document.String("States.Timeout")}}) {
+		t.Errorf("ExecutionTimedOut details = %s, want {\"error\":\"States.Timeout\"}", encode(got))
 	}
 	if len(d.timers) != 0 {
 		t.Errorf("timers still armed after the timeout: %v", d.timers)
@@ -99,12 +99,12 @@ func TestWaitTimestampAndPaths(t *testing.T) {
 }
 
 // MachineDeleting survives a jsonx round trip: the loaded execution still
-// ends ABORTED at its next transition. Stop and MachineDeleting before
-// Start do not apply.
+// fails at its next transition. Stop and MachineDeleting before Start do
+// not apply.
 func TestDeletingSurvivesPersistence(t *testing.T) {
 	def := `{"StartAt":"W","States":{"W":{"Type":"Wait","Seconds":60,"Next":"P"},"P":{"Type":"Pass","End":true}}}`
 	r := rules()
-	r.AbortOnDelete = true
+	r.EndOnDelete = true
 	for _, ev := range []asl.Event{asl.Stop{At: t0}, asl.MachineDeleting{At: t0}} {
 		x, hs, effs := asl.Step(mustParse(t, def), r, fixedSource{}, asl.Execution{}, ev)
 		if _, done := x.Outcome(); done || len(hs) != 0 || len(effs) != 0 {
@@ -124,8 +124,8 @@ func TestDeletingSurvivesPersistence(t *testing.T) {
 		t.Fatalf("UnmarshalJSON(%s): %v", raw, err)
 	}
 	d.x = loaded
-	if _, ok := d.runToEnd(10).(asl.Aborted); !ok {
-		t.Fatalf("after a reload the deleting execution did not abort:\n%s", d.shape())
+	if _, ok := d.runToEnd(10).(asl.Failed); !ok {
+		t.Fatalf("after a reload the deleting execution did not fail:\n%s", d.shape())
 	}
-	d.wantShape("switch sfn.delete.running-execution", "ExecutionStarted 1<-0", "WaitStateEntered 2<-0", "ExecutionAborted 3<-0")
+	d.wantShape("switch sfn.delete.running-execution", "ExecutionStarted 1<-0", "WaitStateEntered 2<-0", "ExecutionFailed 3<-2")
 }

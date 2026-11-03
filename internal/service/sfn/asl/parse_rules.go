@@ -16,6 +16,12 @@ const (
 	maxDelaySeconds = 31_622_400
 )
 
+// indexed is the location of element i of the array at: AWS writes the
+// index in brackets, /States/P/Branches[0] (ASL-01, recorded 2026-11-03).
+func indexed(at string, i int) string {
+	return at + "[" + strconv.Itoa(i) + "]"
+}
+
 // objects reads an array field of objects and their locations; empty says
 // whether the array may be empty.
 func (p *parser) objects(v document.Value, field, at string, empty bool) (objs []document.Map, locs []string) {
@@ -29,7 +35,7 @@ func (p *parser) objects(v document.Value, field, at string, empty bool) (objs [
 		return nil, nil
 	}
 	for i, x := range list {
-		loc := at + "/" + strconv.Itoa(i)
+		loc := indexed(at, i)
 		obj, ok := x.(document.Map)
 		if !ok {
 			p.schema("Each element of '"+field+"' must be an object", loc)
@@ -62,11 +68,11 @@ func (p *parser) errorEquals(v document.Value, at string) []string {
 }
 
 // checkAll enforces that States.ALL appears alone in its ErrorEquals and
-// only in the last retrier or catcher (stepfunctions-asl.md 8.1, spec and
-// statelint; the message is understudy's, ASL-01).
+// only in the last retrier or catcher (stepfunctions-asl.md 8.1), with
+// AWS's message at the States.ALL entry (ASL-01, recorded 2026-11-03).
 func (p *parser) checkAll(names []string, last bool, at string) {
-	if slices.Contains(names, errAll) && (len(names) > 1 || !last) {
-		p.schema("States.ALL must appear alone in ErrorEquals, in the last entry", at)
+	if i := slices.Index(names, errAll); i >= 0 && (len(names) > 1 || !last) {
+		p.schema("States.ALL must appear alone and at end of list", indexed(at, i))
 	}
 }
 
@@ -78,7 +84,7 @@ func (p *parser) retriers(v document.Value, at string) []Retrier {
 		loc := locs[i]
 		r := Retrier{IntervalSeconds: 1, MaxAttempts: 3, BackoffRate: 2, Jitter: JitterNone}
 		for _, e := range obj {
-			p.retrierField(&r, e, loc+"/"+e.Key)
+			p.retrierField(&r, e, loc)
 		}
 		if _, ok := member(obj, "ErrorEquals"); !ok {
 			p.schema("These fields are required: [ErrorEquals]", loc)
@@ -89,12 +95,15 @@ func (p *parser) retriers(v document.Value, at string) []Retrier {
 	return out
 }
 
-func (p *parser) retrierField(r *Retrier, e document.Entry, at string) {
+// retrierField reads one field of the retrier at loc.
+func (p *parser) retrierField(r *Retrier, e document.Entry, loc string) {
+	at := loc + "/" + e.Key
 	switch e.Key {
 	case "ErrorEquals":
 		r.ErrorEquals = p.errorEquals(e.Value, at)
 	case "IntervalSeconds":
-		n, _ := p.integer(e.Value, e.Key, at, 1, maxSeconds)
+		// 0 is accepted (ASL-01, recorded 2026-11-03).
+		n, _ := p.integer(e.Value, e.Key, at, 0, maxSeconds)
 		r.IntervalSeconds = int(n)
 	case "MaxAttempts":
 		n, _ := p.integer(e.Value, e.Key, at, 0, maxSeconds)
@@ -105,8 +114,13 @@ func (p *parser) retrierField(r *Retrier, e document.Entry, at string) {
 	case "BackoffRate":
 		n, isNumber := e.Value.(document.Number)
 		f, err := n.Float64()
-		if !isNumber || err != nil || f < 1 {
+		switch {
+		case !isNumber || err != nil:
 			p.schema("The field 'BackoffRate' must be a number of at least 1.0", at)
+			return
+		case f < 1:
+			// Recorded (ASL-01, 2026-11-03).
+			p.schema("Minimum value is 1.0", at)
 			return
 		}
 		r.BackoffRate = f
@@ -118,12 +132,13 @@ func (p *parser) retrierField(r *Retrier, e document.Entry, at string) {
 		case isString && s == "NONE":
 			r.Jitter = JitterNone
 		default:
-			p.schema("The field 'JitterStrategy' should have one of these values: [FULL, NONE]", at)
+			// Recorded (ASL-01, 2026-11-03).
+			p.schema("Value should be one of the following: [NONE, FULL]", at)
 		}
 	case "Comment":
 		p.str(e.Value, e.Key, at)
 	default:
-		p.schema("Field '"+e.Key+"' is not supported in a retrier", at)
+		p.unknownField(e.Key, loc)
 	}
 }
 
@@ -150,7 +165,7 @@ func (p *parser) catchers(v document.Value, at string, names map[string]bool) []
 			case "Assign", "Output":
 				p.unsupported(refusedConstruct(e.Key), fat)
 			default:
-				p.schema("Field '"+e.Key+"' is not supported in a catcher", fat)
+				p.unknownField(e.Key, loc)
 			}
 		}
 		var missing []string
@@ -272,7 +287,7 @@ func (p *parser) rule(obj document.Map, at string, names map[string]bool, top bo
 		case "Assign", "Condition", "Output":
 			p.unsupported(refusedConstruct(e.Key), fat)
 		default:
-			p.schema("Field '"+e.Key+"' is not supported in a Choice rule", fat)
+			p.unknownField(e.Key, at)
 		}
 	}
 	p.checkRule(obj, at, top, hasVariable, tests)

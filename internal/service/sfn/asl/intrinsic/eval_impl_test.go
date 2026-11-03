@@ -2,6 +2,7 @@ package intrinsic_test
 
 import (
 	"errors"
+	"slices"
 	"strconv"
 	"testing"
 
@@ -11,49 +12,62 @@ import (
 	"github.com/sustinbebustin/understudy/internal/service/sfn/asl/intrinsic"
 )
 
-// TestASL05FunctionErrorCauses: no recording shows an intrinsic failing at
-// run time (stepfunctions-asl.md 5.4), so every cause is understudy's. The
-// test pins them so a change is deliberate.
-func TestASL05FunctionErrorCauses(t *testing.T) {
-	// inferred, ASL-05
-	tests := []struct{ expr, input, cause string }{
-		{`States.JsonMerge($.a, $.b, true)`, `{"a":{},"b":{}}`, "a deep merge (true) is not supported; only false is"},
-		{`States.ArrayGetItem($.v, 5)`, `{"v":[1]}`, "the index 5 is outside the array of 1 items"},
-		{`States.ArrayGetItem($.v, 0.5)`, `{"v":[1]}`, "the second argument must be an integer, not 0.5"},
-		{`States.ArrayPartition($.v, 0)`, `{"v":[1]}`, "the chunk size must be a positive integer, not 0"},
-		{`States.ArrayRange(0, 2000, 1)`, `{}`, "the range has 2001 items, more than 1000"},
-		{`States.ArrayRange(0, 10, 0)`, `{}`, "the step must not be 0"},
-		{`States.Base64Decode($.v)`, `{"v":"not base64!"}`, "the argument is not Base64: illegal base64 data at input byte 3"},
-		{`States.Hash($.v, 'SHA-3')`, `{"v":"x"}`, `the algorithm "SHA-3" is not one of MD5, SHA-1, SHA-256, SHA-384 and SHA-512`},
-		{`States.MathAdd(2147483647, 1)`, `{}`, "the sum 2147483648 is outside -2147483648..2147483647"},
-		{`States.MathAdd(2147483648, -1)`, `{}`, "the first argument 2147483648 is outside -2147483648..2147483647"},
-		{`States.Format('{} {}', $.v)`, `{"v":"x"}`, "the format string has more {} placeholders than the 1 arguments after it"},
-		{`States.Format('{}', $.v, $.v)`, `{"v":"x"}`, "the format string has 1 {} placeholders for 2 arguments"},
-		{`States.Format($.v)`, `{"v":1}`, "the first argument must be a string, not a number"},
-		{`States.ArrayLength($.v)`, `{"v":{}}`, "the first argument must be an array, not an object"},
-		{`States.StringSplit($.v, ',')`, `{"v":null}`, "the first argument must be a string, not null"},
-		{`States.MathRandom(5, 5)`, `{}`, "the start 5 must be less than the end 5"},
+// TestASL05FunctionErrorDetails: the detail a failing function gives, AWS's
+// recorded text where ASL-05 recorded one (2026-11-03,
+// stepfunctions-asl.md 5.4) and the generic "Invalid arguments in
+// <function>" inferred for the rest.
+func TestASL05FunctionErrorDetails(t *testing.T) {
+	tests := []struct{ expr, input, detail string }{
+		// Recorded.
+		{`States.JsonMerge($.a, $.b, true)`, `{"a":{},"b":{}}`, "Deep merge not supported in States.JsonMerge"},
+		{`States.ArrayGetItem($.v, -1)`, `{"v":[1]}`, "Invalid arguments in States.ArrayGetItem"},
+		{`States.ArrayPartition($.v, 0)`, `{"v":[1]}`, "Invalid arguments in States.ArrayPartition"},
+		{`States.ArrayRange(1, 1001, 1)`, `{}`, "Invalid arguments in States.ArrayRange"},
+		{`States.ArrayRange(1, 5, 0)`, `{}`, "Invalid arguments in States.ArrayRange"},
+		{`States.Hash($.v, 'SHA-3')`, `{"v":"x"}`, "Invalid arguments in States.Hash"},
+		{`States.MathAdd(2147483647, 1)`, `{}`, "Invalid arguments in States.MathAdd"},
+		{`States.Format('{} {}', $.v)`, `{"v":"x"}`, "Invalid arguments in States.Format: number of arguments do not match the occurrences of {}."},
+		// Inferred.
+		{`States.ArrayGetItem($.v, 0.5)`, `{"v":[1]}`, "Invalid arguments in States.ArrayGetItem"},
+		{`States.Base64Decode($.v)`, `{"v":"not base64!"}`, "Invalid arguments in States.Base64Decode"},
+		{`States.MathAdd(2147483648, -1)`, `{}`, "Invalid arguments in States.MathAdd"},
+		{`States.Format('{}', $.v, $.v)`, `{"v":"x"}`, "Invalid arguments in States.Format: number of arguments do not match the occurrences of {}."},
+		{`States.Format($.v)`, `{"v":1}`, "Invalid arguments in States.Format"},
+		{`States.ArrayLength($.v)`, `{"v":{}}`, "Invalid arguments in States.ArrayLength"},
+		{`States.StringSplit($.v, ',')`, `{"v":null}`, "Invalid arguments in States.StringSplit"},
+		{`States.MathRandom(5, 5)`, `{}`, "Invalid arguments in States.MathRandom"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.expr, func(t *testing.T) {
 			_, err := eval(t, tt.expr, decode(t, tt.input), nil, &source{})
 			var fe *intrinsic.FunctionError
-			if !errors.As(err, &fe) || fe.Cause != tt.cause {
-				t.Fatalf("%s = %v, want a *FunctionError with cause %q", tt.expr, err, tt.cause)
+			if !errors.As(err, &fe) || fe.Detail != tt.detail {
+				t.Fatalf("%s = %v, want a *FunctionError with detail %q", tt.expr, err, tt.detail)
 			}
 		})
 	}
 }
 
-// TestASL06EqualityAndRounding: how ArrayUnique and ArrayContains compare
-// 1 with 1.0, and objects, is unrecorded, as is rounding of non-integer
-// bounds outside MathAdd (stepfunctions-asl.md 5.2, 5.3). understudy
-// compares numbers by value and objects as member sets, and rounds half up
+// The parsed call keeps its text as written, which a failure's cause
+// quotes (ASL-05, recorded 2026-11-03).
+func TestCallTextAsWritten(t *testing.T) {
+	const expr = `States.Format('{} {}',   1)`
+	c, err := intrinsic.Parse(expr)
+	if err != nil || c.Text() != expr {
+		t.Fatalf("Parse(%q).Text() = %q, %v; want the text as written", expr, c.Text(), err)
+	}
+}
+
+// TestASL06EqualityAndRounding: ArrayUnique keeps 1 and 1.0 apart and
+// ArrayContains does not (ASL-06, recorded 2026-11-03); how both compare
+// objects with members in another order is unrecorded, as is rounding of
+// non-integer bounds outside MathAdd (stepfunctions-asl.md 5.2, 5.3).
+// understudy compares objects as member sets, and rounds half up
 // everywhere MathAdd does.
 func TestASL06EqualityAndRounding(t *testing.T) {
 	// inferred, ASL-06
 	tests := []struct{ expr, input, want string }{
-		{`States.ArrayUnique($.v)`, `{"v":[1,1.0,{"a":1,"b":2},{"b":2,"a":1},[1],[1.0]]}`, `[1,{"a":1,"b":2},[1]]`},
+		{`States.ArrayUnique($.v)`, `{"v":[1,1.0,{"a":1,"b":2},{"b":2,"a":1},[1],[1.0]]}`, `[1,1.0,{"a":1,"b":2},[1],[1.0]]`},
 		{`States.ArrayContains($.v, 2)`, `{"v":[2.00]}`, `true`},
 		{`States.ArrayPartition($.v, 1.5)`, `{"v":[1,2,3]}`, `[[1,2],[3]]`},
 		{`States.ArrayRange(0.5, 2.5, 1)`, `{}`, `[1,2,3]`},
@@ -73,12 +87,43 @@ func TestASL06EqualityAndRounding(t *testing.T) {
 	}
 }
 
+// ASL-06's recorded results (2026-11-03): ArrayUnique keeps 1 and 1.0
+// apart while ArrayContains finds 1 in [1.0], and Format and JsonToString
+// render numbers as Java does. AWS's ArrayUnique order is a hash set's, so
+// only its members are compared.
+func TestASL06RecordedResults(t *testing.T) {
+	input := decode(t, `{"tpl":"{} {} {} {} {}","u":[1,1.0,"1",[1],[1],{"a":1},{"a":1},null,null,true,true],"c":[1.0,"1"],"f":[1.0,1e21,-0.0,0.1,100000000000000000000]}`)
+	got, err := eval(t, `States.ArrayUnique($.u)`, input, nil, &source{})
+	unique, isList := got.(document.List)
+	if err != nil || !isList {
+		t.Fatalf("ArrayUnique = %v, %v; want a list", got, err)
+	}
+	members := make([]string, 0, len(unique))
+	for _, x := range unique {
+		members = append(members, encode(x))
+	}
+	slices.Sort(members)
+	if want := []string{`"1"`, `1`, `1.0`, `[1]`, `null`, `true`, `{"a":1}`}; !slices.Equal(members, want) {
+		t.Errorf("ArrayUnique members = %v, want %v", members, want)
+	}
+	for _, tt := range []struct{ expr, want string }{
+		{`States.ArrayContains($.c, 1)`, `true`},
+		{`States.Format($.tpl, $.f[0], $.f[1], $.f[2], $.f[3], $.f[4])`, `"1.0 1.0E21 -0.0 0.1 100000000000000000000"`},
+		{`States.JsonToString($.f)`, `"[1.0,1.0E21,-0.0,0.1,100000000000000000000]"`},
+	} {
+		if got, err := eval(t, tt.expr, input, nil, &source{}); err != nil || encode(got) != tt.want {
+			t.Errorf("%s = %s, %v; want %s", tt.expr, encode(got), err, tt.want)
+		}
+	}
+}
+
 // Behavior the blind tests leave open, each understudy's reading of
 // stepfunctions-asl.md 5.2.
 func TestFunctionResultsBeyondTheRecords(t *testing.T) {
 	tests := []struct{ name, expr, input, want string }{
 		{"Format renders arrays as Java lists", `States.Format('{}', $.v)`, `{"v":[1,"a",null,{"k":true}]}`, `"[1, a, null, {k=true}]"`},
 		{"Format reads its pattern from a path without escapes", `States.Format($.f, $.v)`, `{"f":"a\\{}b","v":"x"}`, `"a\\xb"`},
+		{"Format writes decimals as Java's Double.toString", `States.Format('{} {} {}', $.a, $.b, $.c)`, `{"a":0.0001,"b":12345678.9,"c":0e0}`, `"1.0E-4 1.23456789E7 0.0"`},
 		{"Format keeps a lone brace", `States.Format('{ {}', $.v)`, `{"v":"x"}`, `"{ x"`},
 		{"StringToJson rewrites a nested -0", `States.StringToJson($.v)`, `{"v":"{\"a\":[-0, -0.5]}"}`, `{"a":[0,-0.5]}`},
 		{"JsonMerge keeps the first object's order and appends", `States.JsonMerge($.a, $.b, false)`, `{"a":{"x":1,"y":2},"b":{"z":3,"x":4}}`, `{"x":4,"y":2,"z":3}`},
