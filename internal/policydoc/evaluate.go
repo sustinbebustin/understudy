@@ -227,12 +227,17 @@ func (s *statementEval) report(name string) {
 // resourceMatches is the resource element's test (iam-evaluation.md 5.3). An
 // identity-policy statement needs a resource element; a resource-policy
 // statement without one (a trust policy's) applies to the resource. Every
-// pattern is evaluated, so every unsupplied variable is reported.
+// pattern is evaluated, so every unsupplied variable is reported. A log
+// group is matched as either of its ARNs, logGroupArn and the arn with the
+// trailing ":*" (logGroupForms).
 func (s *statementEval) resourceMatches(element Resources, resource string, kind Kind) bool {
+	forms := logGroupForms(resource)
 	matchesAny := func(patterns []string) bool {
 		matched := false
 		for _, p := range patterns {
-			matched = s.patternMatches(p, resource, kind) || matched
+			for _, r := range forms {
+				matched = s.patternMatches(p, r, kind) || matched
+			}
 		}
 		return matched
 	}
@@ -270,6 +275,22 @@ func (s *statementEval) patternMatches(pattern, resource string, kind Kind) bool
 		s.report(name)
 	}
 	return e.resolved && match(append(compile(head, s.version), e.tokens...), resource)
+}
+
+// logGroupForms are the ARNs a request on resource is matched as: a Logs
+// log group ARN (arn:<p>:logs:<r>:<a>:log-group:<name>) and its ":*" form,
+// which DescribeLogGroups reports as arn, since a statement on either form
+// allows the group-level actions (secrets-logs-events-alarms.md 3.10;
+// IAM-ENF-42, aws-recorded); any other resource as itself.
+func logGroupForms(resource string) []string {
+	fields := strings.SplitN(resource, ":", 6)
+	if len(fields) != 6 || fields[0] != "arn" || fields[2] != "logs" {
+		return []string{resource}
+	}
+	if name, ok := strings.CutPrefix(fields[5], "log-group:"); !ok || name == "" || strings.Contains(name, ":") {
+		return []string{resource}
+	}
+	return []string{resource, resource + ":*"}
 }
 
 // fifthColon returns the index of the fifth ":" in s, or -1.
