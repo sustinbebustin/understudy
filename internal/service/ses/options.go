@@ -118,20 +118,27 @@ func (f MessageIDFormat) String() string {
 // a failed sender or sandbox check lists (ses.md 6.1, SES-01, SES-03).
 type UnverifiedText uint8
 
-// UnverifiedText values; the zero value is UnverifiedSendersFirst.
+// UnverifiedText values; the zero value is UnverifiedHashOrder.
 const (
-	// UnverifiedSendersFirst lists the failing senders (source or From,
-	// then ReturnPath), then the failing envelope recipients in request
-	// order, each as written in the request, joined by ", ".
-	UnverifiedSendersFirst UnverifiedText = iota
+	// UnverifiedHashOrder lists each failing identity once, as written in
+	// the request, in the iteration order of a Java HashSet they were added
+	// to senders first (source or From, then ReturnPath), then the
+	// envelope recipients in request order (hashSetOrder), joined by ", ".
+	// It reproduces both lists SES-03 recorded (ses.md 6.1).
+	UnverifiedHashOrder UnverifiedText = iota
+	// UnverifiedSendersFirst lists the failing senders, then the failing
+	// envelope recipients, each in request order.
+	UnverifiedSendersFirst
 	// UnverifiedRecipientsFirst lists the failing recipients first, then
 	// the senders.
 	UnverifiedRecipientsFirst
 )
 
-// String returns "senders-first" or "recipients-first".
+// String returns "hash-order", "senders-first" or "recipients-first".
 func (u UnverifiedText) String() string {
 	switch u {
+	case UnverifiedHashOrder:
+		return "hash-order"
 	case UnverifiedSendersFirst:
 		return "senders-first"
 	case UnverifiedRecipientsFirst:

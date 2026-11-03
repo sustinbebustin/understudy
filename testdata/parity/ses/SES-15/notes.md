@@ -10,3 +10,7 @@ session: no verified identity and no readable mailbox; $M = us1103-me@example.co
 - 01-account raw JSON: {"DedicatedIpAutoWarmupEnabled":true,"DeliveryAttributes":null,"Details":null,"EnforcementStatus":"HEALTHY","PricingAttributes":{"CurrentPlan":"ESSENTIALS","NextPlan":null},"ProductionAccessEnabled":false,"SendQuota":{"Max24HourSend":200.0,"MaxSendRate":1.0,"SentLast24Hours":0.0},"SendingEnabled":true,"SuppressionAttributes":{"SuppressedReasons":["BOUNCE","COMPLAINT"],"ValidationAttributes":null},"VdmAttributes":null}
 - vs understudy 11.1 GetAccount note ("no dedicated IP, VDM, pricing, suppression"): differs: AWS sends DedicatedIpAutoWarmupEnabled true, PricingAttributes, SuppressionAttributes.SuppressedReasons [BOUNCE, COMPLAINT], and explicit nulls
 - 02-quota: matches 6.3 (200, 1); wire spelling settled (11.5): 200.0, 1.0, 0.0
+
+## Replay (internal/parity)
+
+`scenario.json` replays both steps; 01-account is skipped (v2 REST). 02-quota differs: understudy writes 200, 1 and 0 in the model's member order, AWS 200.0, 1.0 and 0.0 with SentLast24Hours first.

@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "item": "SES-15",
+  "account": "123456789012",
+  "region": "us-east-2",
+  "client": "aws-cli",
+  "steps": [
+    {
+      "fixture": "ses/SES-15/01-account.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ses/SES-15/02-quota.json",
+      "compare": "all"
+    }
+  ]
+}

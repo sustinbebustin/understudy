@@ -155,16 +155,20 @@ func TestResetIsScoped(t *testing.T) {
 }
 
 // Switches lists the five Options switches with their contract 1.4 Ref and
-// Record, labelled inferred, each Value the String of the value in effect,
-// so flipping one through Options changes the entry.
+// Record, each Value the String of the value in effect, so flipping one
+// through Options changes the entry. The two whose default SES-12 and
+// SES-08 recorded are labelled aws-recorded, the rest inferred.
 func TestSwitchesListTheOptionsSwitches(t *testing.T) {
-	type row struct{ ref, record, def, flipped string }
+	type row struct {
+		ref, record, def, flipped string
+		label                     evidence.Label
+	}
 	want := map[string]row{
-		"ses.store.shared-v1-v2":            {"docs/research/ses.md#23-decision", "SES-12", ses.StoreShared.String(), ses.StoreSeparate.String()},
-		"ses.message-id.format":             {"docs/research/ses.md#47-messageid", "SES-07", ses.MessageIDTimestamped.String(), ses.MessageIDRandom.String()},
-		"ses.error.unverified.text":         {"docs/research/ses.md#61-sandbox-rules-per-send", "SES-01, SES-03", ses.UnverifiedSendersFirst.String(), ses.UnverifiedRecipientsFirst.String()},
-		"ses.verification.unknown-identity": {"docs/research/ses.md#53-v1-identity-operations", "SES-08", ses.UnknownIdentityOmitted.String(), ses.UnknownIdentityNotStarted.String()},
-		"ses.raw.envelope":                  {"docs/research/ses.md#42-v1-sendrawemail", "SES-20", ses.RawEnvelopeDestinations.String(), ses.RawEnvelopeUnion.String()},
+		"ses.store.shared-v1-v2":            {"docs/research/ses.md#23-decision", "SES-12", ses.StoreShared.String(), ses.StoreSeparate.String(), evidence.AWSRecorded},
+		"ses.message-id.format":             {"docs/research/ses.md#47-messageid", "SES-07", ses.MessageIDTimestamped.String(), ses.MessageIDRandom.String(), evidence.Inferred},
+		"ses.error.unverified.text":         {"docs/research/ses.md#61-sandbox-rules-per-send", "SES-01, SES-03", ses.UnverifiedHashOrder.String(), ses.UnverifiedRecipientsFirst.String(), evidence.Inferred},
+		"ses.verification.unknown-identity": {"docs/research/ses.md#53-v1-identity-operations", "SES-08", ses.UnknownIdentityOmitted.String(), ses.UnknownIdentityNotStarted.String(), evidence.AWSRecorded},
+		"ses.raw.envelope":                  {"docs/research/ses.md#42-v1-sendrawemail", "SES-20", ses.RawEnvelopeDestinations.String(), ses.RawEnvelopeUnion.String(), evidence.Inferred},
 	}
 	check := func(h *harness, flipped bool) {
 		entries := h.svc.Switches()
@@ -179,8 +183,8 @@ func TestSwitchesListTheOptionsSwitches(t *testing.T) {
 			if flipped {
 				value = w.flipped
 			}
-			if e.Value != value || e.Label != evidence.Inferred || e.Ref != w.ref || e.Record != w.record {
-				h.Errorf("%s = %+v, want value %q, inferred, Ref %s, Record %s", name, e, value, w.ref, w.record)
+			if e.Value != value || e.Label != w.label || e.Ref != w.ref || e.Record != w.record {
+				h.Errorf("%s = %+v, want value %q, %s, Ref %s, Record %s", name, e, value, w.label, w.ref, w.record)
 			}
 		}
 	}

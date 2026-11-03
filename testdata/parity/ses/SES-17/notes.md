@@ -9,3 +9,7 @@ session: no verified identity and no readable mailbox; $M = us1103-me@example.co
 
 - 01-verified, 03-v2, 04-bad-tag-and-set: n/a (send from $M, which needs a mailbox click to verify)
 - 02-unverified: configuration set checked before the sender: ConfigurationSetDoesNotExist, Type Sender, 400, "Configuration set <us1103-missing> does not exist."; matches the 6.4 plausible order and the 8 recorded text; understudy answers NotImplemented for ConfigurationSetName (first slice), so its ses.send.check-order has no step here
+
+## Replay (internal/parity)
+
+`scenario.json` replays 02-unverified, which differs: understudy answers 501 NotImplemented for ConfigurationSetName.

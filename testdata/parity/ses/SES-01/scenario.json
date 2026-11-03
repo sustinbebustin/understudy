@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "item": "SES-01",
+  "account": "123456789012",
+  "region": "us-east-2",
+  "client": "aws-cli",
+  "steps": [
+    {
+      "fixture": "ses/SES-01/01-cli.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ses/SES-01/02-raw.json",
+      "compare": "all"
+    }
+  ],
+  "settles": [
+    {
+      "overlay": "com.amazonaws.ses#SimpleEmailService",
+      "covers": [
+        "dev.understudy#queryErrorEnvelope"
+      ],
+      "step": "01-cli",
+      "field": "body/ErrorResponse/@xmlns"
+    }
+  ]
+}

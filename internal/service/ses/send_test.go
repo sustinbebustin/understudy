@@ -11,6 +11,7 @@ import (
 	"pgregory.net/rapid"
 
 	"github.com/sustinbebustin/understudy/internal/api/sesapi"
+	"github.com/sustinbebustin/understudy/internal/api/sesv2api"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/kernel/kerneltest"
 	"github.com/sustinbebustin/understudy/internal/service/ses"
@@ -94,33 +95,41 @@ func TestTagLengthBoundary(t *testing.T) {
 	})
 }
 
-// Switch ses.error.unverified.text (inferred, SES-01, SES-03): the
-// MessageRejected text (aws-doc template and upper-case Region, ses.md 6.1)
-// lists the failing identities as written, display names kept (capture,
-// ses.md 6.1). Its order is the switch: senders first by default, the
-// recipients first when flipped.
+// Switch ses.error.unverified.text (SES-01, SES-03): the MessageRejected
+// text (aws-doc template, upper-case Region, recorded SES-01) lists the
+// failing identities as written, display names kept (SES-01 step 02).
+// By default they are in Java HashSet iteration order, which reproduces
+// both recorded lists (ses.md 6.1): v1 Source, ReturnPath, To and Cc as
+// "rp, r1, nobody, r2" (SES-03 step 02), v2 From and To as "r1, nobody"
+// (step 03). Flipped, senders or recipients come first in request order.
 func TestUnverifiedTextFollowsItsSwitch(t *testing.T) {
 	const (
-		badSender = "Stranger <stranger@unverified.test>"
-		badTo     = "someone@unverified.test"
-		badCc     = "other@unverified.test"
+		nobody = "us1103-nobody@example.com"
+		rp     = "us1103-rp@example.com"
+		r1     = "us1103-r1@example.com"
+		r2     = "us1103-r2@example.com"
 	)
 	both := func() *sesapi.SendEmailInput {
-		in := email(badSender, badTo, recipient)
-		in.Destination.CcAddresses = []string{badCc}
+		in := email(nobody, r1)
+		in.Destination.CcAddresses = []string{r2}
+		in.ReturnPath = new(rp)
 		return in
 	}
 	runVerified(t, ses.Options{}, func(h *harness) {
-		_, err := call(h, sesapi.OpSendEmail, email(badSender, recipient))
-		wantErr(h, err, sesapi.IdentityMessageRejected(), unverifiedText(h.Scope.Region, badSender))
-		_, err = call(h, sesapi.OpSendEmail, email(sender, badTo, recipient, badCc))
-		wantErr(h, err, sesapi.IdentityMessageRejected(), unverifiedText(h.Scope.Region, badTo, badCc))
-		_, err = call(h, sesapi.OpSendEmail, both())
-		wantErr(h, err, sesapi.IdentityMessageRejected(), unverifiedText(h.Scope.Region, badSender, badTo, badCc))
+		_, err := call(h, sesapi.OpSendEmail, both())
+		wantErr(h, err, sesapi.IdentityMessageRejected(), unverifiedText(h.Scope.Region, rp, r1, nobody, r2))
+		_, err = call(h, sesv2api.OpSendEmail, simpleEmail(nobody, r1))
+		wantErr(h, err, sesv2api.IdentityMessageRejected(), unverifiedText(h.Scope.Region, r1, nobody))
+		_, err = call(h, sesapi.OpSendEmail, email("Nobody <"+nobody+">", recipient))
+		wantErr(h, err, sesapi.IdentityMessageRejected(), unverifiedText(h.Scope.Region, "Nobody <"+nobody+">"))
+	})
+	runVerified(t, ses.Options{UnverifiedText: ses.UnverifiedSendersFirst}, func(h *harness) {
+		_, err := call(h, sesapi.OpSendEmail, both())
+		wantErr(h, err, sesapi.IdentityMessageRejected(), unverifiedText(h.Scope.Region, nobody, rp, r1, r2))
 	})
 	runVerified(t, ses.Options{UnverifiedText: ses.UnverifiedRecipientsFirst}, func(h *harness) {
 		_, err := call(h, sesapi.OpSendEmail, both())
-		wantErr(h, err, sesapi.IdentityMessageRejected(), unverifiedText(h.Scope.Region, badTo, badCc, badSender))
+		wantErr(h, err, sesapi.IdentityMessageRejected(), unverifiedText(h.Scope.Region, r1, r2, nobody, rp))
 	})
 }
 

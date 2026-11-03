@@ -65,7 +65,7 @@ It reads the account id from `<recordings>/_scripts/acct` (or `--account-file`),
 
 ## Replay scenarios
 
-`parity/<svc>/<item>/scenario.json` tells `internal/parity` how to replay one item against an in-process understudy: which steps run, in which order, what to set up first, which recorded values stand for the ones understudy mints, and which fidelity switches and overlay evidence items a step settles. The checked-in scenarios are `dynamodb/R11` (step 07, DynamoDB Streams' signing scopes), `events/R14` (the `TestEventPattern` cases H1, H8, H9 and H14), `kms/KMS-alias`, `sqs/R01` and `sts/R15`. An item without one is not replayed.
+`parity/<svc>/<item>/scenario.json` tells `internal/parity` how to replay one item against an in-process understudy: which steps run, in which order, what to set up first, which recorded values stand for the ones understudy mints, and which fidelity switches and overlay evidence items a step settles. The checked-in scenarios are `dynamodb/R11` (step 07, DynamoDB Streams' signing scopes), `events/R14` (the `TestEventPattern` cases H1, H8, H9 and H14), `kms/KMS-alias`, `sqs/R01`, `sts/R15`, and the SES items `ses/SES-00`, `ses/SES-01`, `ses/SES-03`, `ses/SES-04`, `ses/SES-08`, `ses/SES-10`, `ses/SES-11`, `ses/SES-15`, `ses/SES-16`, `ses/SES-17`, `ses/SES-18`, `ses/SES-20`, `ses/SES-24`, `ses/SES-27` and `ses/SES-29` (their v1 awsQuery steps; the v2 REST steps are skipped). A request to `email.<region>.amazonaws.com` is signed for `ses`, SES's signing name. An item without one is not replayed.
 
 ```json
 {

@@ -26,10 +26,13 @@ func refusedConditionKeys() kernel.BindOption { return kernel.RefuseConditionKey
 const DenialIdentityValue = `v1 AccessDenied, Type Sender, 403, the IAM grammar; v2 AccessDeniedException in x-amzn-ErrorType, 403, body {"message": "<grammar>"}`
 
 // denialSwitch is switch ses.denial.identity, governing ops. Both
-// identities are inferred from the STS (aws-recorded) and IAM (inferred)
+// identities were inferred from the STS (aws-recorded) and IAM (inferred)
 // families, as iam-enforcement-surfaces.md 12.3 requires a switch for
-// every inferred denial identity. It governs v2's operations too, which,
-// being another service's, it does not list.
+// every inferred denial identity. SES-28 recorded the codes, Type and
+// status as inferred, but a message without the IAM grammar's "because"
+// clause and, on v2, under "Message" (ses.md 11.4); understudy still
+// sends the IAM grammar. It governs v2's operations too, which, being
+// another service's, it does not list.
 func denialSwitch(ops []string) fidelity.Entry {
 	return fidelity.Switch[string]{
 		Name:   "ses.denial.identity",
@@ -38,7 +41,7 @@ func denialSwitch(ops []string) fidelity.Entry {
 		Ref:    "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit",
 		Record: "SES-28",
 		Ops:    ops,
-		Settles: fidelity.NoScenario{Reason: "unrecorded: SES-28 in the recording queue (ses.md 12) settles it, " +
-			"with IAM-ENF-38 and IAM-ENF-39 (iam-enforcement-surfaces.md 13)"},
+		Settles: fidelity.NoScenario{Reason: "ses/SES-28 is recorded and contradicts the message and the v2 member name " +
+			"(ses.md 11.4); the replay signs as the account's root, which no denial reaches"},
 	}.Entry()
 }

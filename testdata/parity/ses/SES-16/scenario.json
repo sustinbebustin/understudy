@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "item": "SES-16",
+  "account": "123456789012",
+  "region": "us-east-2",
+  "client": "aws-cli",
+  "steps": [
+    {
+      "fixture": "ses/SES-16/01.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ses/SES-16/02.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ses/SES-16/03.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ses/SES-16/04.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ses/SES-16/05.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ses/SES-16/06.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ses/SES-16/07.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ses/SES-16/v2-256.json",
+      "compare": "all"
+    }
+  ]
+}
