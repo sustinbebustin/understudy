@@ -3,6 +3,7 @@ package asl_test
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/sustinbebustin/understudy/internal/service/sfn/asl"
 )
@@ -90,6 +91,20 @@ func TestASL05IntrinsicLenientResults(t *testing.T) {
 			t.Errorf("%s: outcome = %#v, want Succeeded with %s", expr, o, want)
 		}
 	}
+}
+
+// An execution running when its machine is deleted fails at its next
+// transition with States.Runtime, the cause naming the machine;
+// ExecutionFailed points at the Wait's entered event and no WaitStateExited
+// is written (SFN-06 06 and 07, recorded 2026-11-03; stepfunctions-api.md
+// 5.4).
+func TestSFN06DeletedMachineFailsRunningExecution(t *testing.T) {
+	d := newDriver(t, `{"StartAt":"W","States":{"W":{"Type":"Wait","Seconds":30,"End":true}}}`, rules())
+	d.start(`{}`)
+	d.runUntilWaiting()
+	d.apply(asl.MachineDeleting{At: t0.Add(time.Second)})
+	failedWith(t, d.runToEnd(10), "States.Runtime", func(c string) bool { return c == "State machine sm has been deleted" })
+	d.wantShape("SFN-06 07-history", "ExecutionStarted 1<-0", "WaitStateEntered 2<-0", "ExecutionFailed 3<-2")
 }
 
 // A Choice Variable that selects nothing fails the execution with an

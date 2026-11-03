@@ -100,34 +100,34 @@ func TestSwitchIntrinsicFailure(t *testing.T) {
 	}
 }
 
-// sfn.delete.running-execution: with the switch on, MachineDeleting ends
-// the execution ABORTED, with no error or cause, at its next transition;
-// off, the execution runs on (stepfunctions-api.md 5.4 quotes "On the next
-// state transition, the state machine's executions are terminated"; the
-// outcome is inferred, SFN-06).
+// sfn.delete.running-execution: with the switch on, MachineDeleting fails
+// the execution with States.Runtime at its next transition; off, the
+// execution runs on (stepfunctions-api.md 5.4 quotes "On the next state
+// transition, the state machine's executions are terminated"; the outcome
+// is SFN-06's, recorded 2026-11-03).
 func TestSwitchDeleteRunningExecution(t *testing.T) {
 	def := `{"StartAt":"W","States":{"W":{"Type":"Wait","Seconds":60,"Next":"P"},"P":{"Type":"Pass","End":true}}}`
 	value := sfn.DeleteRunningExecution().Value
-	for _, abort := range []bool{value, !value} {
-		d := newDriver(t, def, withRule(func(x *asl.Rules) { x.AbortOnDelete = abort }))
+	for _, end := range []bool{value, !value} {
+		d := newDriver(t, def, withRule(func(x *asl.Rules) { x.EndOnDelete = end }))
 		d.start(`{}`)
 		d.runUntilWaiting()
 		d.apply(asl.MachineDeleting{At: t0.Add(time.Second)})
 		if _, done := d.x.Outcome(); done {
-			t.Fatalf("AbortOnDelete %v: the execution ended before its next transition", abort)
+			t.Fatalf("EndOnDelete %v: the execution ended before its next transition", end)
 		}
 		o := d.runToEnd(20)
-		if abort {
-			if a, ok := o.(asl.Aborted); !ok || a.Error != "" || a.Cause != "" {
-				t.Errorf("AbortOnDelete true: outcome = %#v, want Aborted without error or cause", o)
+		if end {
+			if f, ok := o.(asl.Failed); !ok || f.Error != "States.Runtime" {
+				t.Errorf("EndOnDelete true: outcome = %#v, want Failed with States.Runtime", o)
 			}
 			if d.events("PassStateEntered") != nil {
-				t.Errorf("AbortOnDelete true: the execution transitioned:\n%s", d.shape())
+				t.Errorf("EndOnDelete true: the execution transitioned:\n%s", d.shape())
 			}
 			continue
 		}
 		if _, ok := o.(asl.Succeeded); !ok {
-			t.Errorf("AbortOnDelete false: outcome = %#v, want the execution to finish", o)
+			t.Errorf("EndOnDelete false: outcome = %#v, want the execution to finish", o)
 		}
 	}
 }

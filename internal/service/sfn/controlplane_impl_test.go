@@ -210,10 +210,13 @@ func TestSFN01InvalidArnTexts(t *testing.T) {
 	})
 }
 
-// Deleting a state machine that does not exist answers 200; deleting an
-// idle one removes it and frees the name (stepfunctions-api.md 5.4;
-// aws-recorded localstack@8b9a79f v2/test_sfn_api.snapshot.json:L37-L46).
+// Deleting a state machine that does not exist answers 200 (aws-recorded
+// localstack@8b9a79f v2/test_sfn_api.snapshot.json:L37-L46); deleting an
+// idle one removes it and frees the name at once, understudy's choice: AWS
+// describes it DELETING straight after the delete, for an unmeasured time
+// (ASL-17 03, SFN-06 09, recorded 2026-11-03; stepfunctions-api.md 5.4).
 func TestDeleteIdleStateMachine(t *testing.T) {
+	// inferred, ASL-17
 	run(t, func(h *harness) {
 		must(h, sfnapi.OpDeleteStateMachine, &sfnapi.DeleteStateMachineInput{StateMachineArn: h.machineArn("nope")})
 		arn := h.create("m", resultMachine)

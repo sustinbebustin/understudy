@@ -52,11 +52,12 @@ func TestStopExecutionKeepsErrorAndClosedIsUnchanged(t *testing.T) {
 }
 
 // A DELETING machine refuses new executions, a create of its name and
-// updates with StateMachineDeleting in understudy's words; under switch
-// sfn.delete.running-execution the running execution ends ABORTED at its
-// next transition and the machine goes with it.
+// updates with StateMachineDeleting in AWS's words (SFN-06 03 and 04,
+// recorded 2026-11-03; the update is inferred); under switch
+// sfn.delete.running-execution the running execution fails at its next
+// transition, and the machine goes with it (understudy's choice: AWS keeps
+// it DELETING for an unrecorded time, SFN-06 08).
 func TestDeletingMachineRefusesChanges(t *testing.T) {
-	// inferred, SFN-06
 	run(t, func(h *harness) {
 		machine := h.create("w", waitMachine)
 		arn := h.start(machine, "x", nil)
@@ -74,10 +75,10 @@ func TestDeletingMachineRefusesChanges(t *testing.T) {
 		}
 		// The engine half of the switch flip is asl's
 		// TestSwitchDeleteRunningExecution; here the machine goes with the
-		// abort, and the closed execution stays.
+		// failure, and the closed execution stays.
 		h.advance(time.Hour)
-		if d := h.describeExecution(arn); d.Status != sfnapi.ExecutionStatusAborted || d.Error != nil {
-			h.Errorf("execution after its next transition = %+v, want ABORTED without error", d)
+		if d := h.describeExecution(arn); d.Status != sfnapi.ExecutionStatusFailed || val(d.Error) != "States.Runtime" || val(d.Cause) != "State machine w has been deleted" {
+			h.Errorf("execution after its next transition = %+v, want FAILED with States.Runtime (SFN-06)", d)
 		}
 		if again := h.create("w", resultMachine); again != machine {
 			h.Errorf("re-created machine = %s, want %s", again, machine)

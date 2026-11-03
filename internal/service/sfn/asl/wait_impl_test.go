@@ -99,12 +99,12 @@ func TestWaitTimestampAndPaths(t *testing.T) {
 }
 
 // MachineDeleting survives a jsonx round trip: the loaded execution still
-// ends ABORTED at its next transition. Stop and MachineDeleting before
-// Start do not apply.
+// fails at its next transition. Stop and MachineDeleting before Start do
+// not apply.
 func TestDeletingSurvivesPersistence(t *testing.T) {
 	def := `{"StartAt":"W","States":{"W":{"Type":"Wait","Seconds":60,"Next":"P"},"P":{"Type":"Pass","End":true}}}`
 	r := rules()
-	r.AbortOnDelete = true
+	r.EndOnDelete = true
 	for _, ev := range []asl.Event{asl.Stop{At: t0}, asl.MachineDeleting{At: t0}} {
 		x, hs, effs := asl.Step(mustParse(t, def), r, fixedSource{}, asl.Execution{}, ev)
 		if _, done := x.Outcome(); done || len(hs) != 0 || len(effs) != 0 {
@@ -124,8 +124,8 @@ func TestDeletingSurvivesPersistence(t *testing.T) {
 		t.Fatalf("UnmarshalJSON(%s): %v", raw, err)
 	}
 	d.x = loaded
-	if _, ok := d.runToEnd(10).(asl.Aborted); !ok {
-		t.Fatalf("after a reload the deleting execution did not abort:\n%s", d.shape())
+	if _, ok := d.runToEnd(10).(asl.Failed); !ok {
+		t.Fatalf("after a reload the deleting execution did not fail:\n%s", d.shape())
 	}
-	d.wantShape("switch sfn.delete.running-execution", "ExecutionStarted 1<-0", "WaitStateEntered 2<-0", "ExecutionAborted 3<-0")
+	d.wantShape("switch sfn.delete.running-execution", "ExecutionStarted 1<-0", "WaitStateEntered 2<-0", "ExecutionFailed 3<-2")
 }

@@ -23,8 +23,8 @@ type Execution struct {
 	context document.Value
 	// outcome is nil while the execution runs.
 	outcome Outcome
-	// deleting is set by MachineDeleting under Rules.AbortOnDelete: the
-	// next transition ends the execution ABORTED.
+	// deleting is set by MachineDeleting under Rules.EndOnDelete: the next
+	// transition fails the execution.
 	deleting bool
 	// lastTask is the id of the last Lambda invocation asked for.
 	lastTask TaskID

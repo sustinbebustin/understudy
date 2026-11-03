@@ -67,7 +67,10 @@ const (
 	noteValidate = "Diagnostics use AWS's codes; messages are AWS's for the recorded cases (stepfunctions-asl.md 3.4-3.6) and understudy's wording elsewhere " +
 		"(UNVERIFIED, ASL-01). Features understudy refuses are ERROR diagnostics with code UNSUPPORTED_BY_UNDERSTUDY; type EXPRESS answers 501"
 	noteVersions = "Always empty: publishing versions is not implemented (publish is refused and PublishStateMachineVersion is unbound)"
-	noteStop     = "error and cause are kept in DescribeExecution and ExecutionAborted; stopping a closed execution answers 200 with its stopDate " +
+	noteDelete   = "An idle machine is removed at once, and one with running executions once the last of them ends; " +
+		"AWS still describes a deleted machine as DELETING, idle or not, for a time no recording has measured " +
+		"(at least 45 seconds after its last execution ended; SFN-06, ASL-17)"
+	noteStop = "error and cause are kept in DescribeExecution and ExecutionAborted; stopping a closed execution answers 200 with its stopDate " +
 		"and changes nothing (UNVERIFIED, SFN-04)"
 	noteStart = "Standard executions. Unrecorded AWS behavior understudy chooses, each with its recording case: " +
 		"same-name idempotency compares input byte for byte (SFN-03); malformed input other than the recorded cases answers " +
@@ -98,7 +101,7 @@ func (s *Service) bindMachines(b sfnapi.Binder) {
 	b.CreateStateMachine(s.createStateMachine, registry.Partial{Note: noteCreate}, createAuthorization()...)
 	b.UpdateStateMachine(s.updateStateMachine, registry.Partial{Note: noteUpdate}, updateAuthorization()...)
 	b.DescribeStateMachine(s.describeStateMachine, registry.Full{})
-	b.DeleteStateMachine(s.deleteStateMachine, registry.Full{})
+	b.DeleteStateMachine(s.deleteStateMachine, registry.Partial{Note: noteDelete})
 	b.ListStateMachines(s.listStateMachines, registry.Full{})
 	b.ValidateStateMachineDefinition(s.validateStateMachineDefinition, registry.Partial{Note: noteValidate})
 	b.ListStateMachineVersions(s.listStateMachineVersions, registry.Partial{Note: noteVersions})

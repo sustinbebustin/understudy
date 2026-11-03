@@ -128,18 +128,20 @@ func LambdaTaskError(n LambdaErrorNaming, e *awserr.Error, requestID string) asl
 }
 
 // DeleteRunningExecution says what DeleteStateMachine does to running
-// executions: true keeps the machine DELETING and ends each running
-// execution ABORTED at its next transition; an idle machine is removed at
-// once either way (stepfunctions-api.md 5.4).
+// executions: true keeps the machine DELETING and fails each running
+// execution at its next transition with States.Runtime, "State machine
+// <name> has been deleted" (SFN-06, recorded 2026-11-03;
+// stepfunctions-api.md 5.4). How long AWS keeps a DELETING machine is a
+// DeleteStateMachine coverage note, not this switch.
 func DeleteRunningExecution() fidelity.Switch[bool] {
 	return fidelity.Switch[bool]{
 		Name:    "sfn.delete.running-execution",
 		Value:   true,
-		Label:   evidence.Inferred,
+		Label:   evidence.AWSRecorded,
 		Ref:     "docs/research/stepfunctions-api.md#54-deletestatemachine",
 		Record:  "SFN-06",
 		Ops:     []string{"sfn.StartExecution", "sfn.DeleteStateMachine"},
-		Settles: fidelity.NoScenario{Reason: "unrecorded: recording case SFN-06 (stepfunctions-api.md 14.7)"},
+		Settles: fidelity.NoScenario{Reason: sfnUnreplayed("sfn/SFN-06/06-describe-execution.json is")},
 	}
 }
 
@@ -163,7 +165,7 @@ func EngineRules() asl.Rules {
 		NoMatch:          ChoiceNoMatch().Value,
 		MissingVariable:  ChoiceMissingVariable().Value,
 		IntrinsicFailure: IntrinsicFailure().Value,
-		AbortOnDelete:    DeleteRunningExecution().Value,
+		EndOnDelete:      DeleteRunningExecution().Value,
 	}
 }
 

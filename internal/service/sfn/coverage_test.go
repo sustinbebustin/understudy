@@ -31,7 +31,7 @@ var wantCoverage = map[string]registry.BindCoverage{
 	"ListExecutions":                 registry.Partial{Note: "mapRunArn and redriveFilter are validated; no Map Run or redrive exists, so they match nothing"},
 	"GetExecutionHistory":            registry.Partial{Note: "includeExecutionData false removes input and output and keeps the *Details members (UNVERIFIED, SFN-05). Events of concurrent Parallel branches and Map iterations are appended in the order understudy runs them, steps due at the same emulator instant in branch or item order (UNVERIFIED, ASL-13); payload-template output keeps template key order (UNVERIFIED, ASL-02)"},
 	"DescribeStateMachine":           registry.Full{},
-	"DeleteStateMachine":             registry.Full{},
+	"DeleteStateMachine":             registry.Partial{Note: "An idle machine is removed at once, and one with running executions once the last of them ends; AWS still describes a deleted machine as DELETING, idle or not, for a time no recording has measured (at least 45 seconds after its last execution ended; SFN-06, ASL-17)"},
 	"ListStateMachines":              registry.Full{},
 	// Partial, not Full: AWS documents NOT_REDRIVABLE reasons understudy
 	// does not give (a RUNNING execution, a DELETING machine, the 14-day
@@ -127,7 +127,7 @@ func TestSwitches(t *testing.T) {
 		{sfn.ChoiceMissingVariable().Entry(), "sfn.choice.missing-variable", "docs/research/stepfunctions-asl.md#64-no-match-and-missing-variables", "ASL-08", evidence.AWSRecorded, []string{"sfn.StartExecution"}, false},
 		{sfn.IntrinsicFailure().Entry(), "sfn.intrinsic.failure-error", "docs/research/stepfunctions-asl.md#54-failures", "ASL-05", evidence.AWSRecorded, []string{"sfn.StartExecution"}, false},
 		{sfn.LambdaError().Entry(), "sfn.integration.lambda-error", "docs/research/stepfunctions-api.md#94-error-names-and-causes-recorded", "SFN-15", evidence.Inferred, []string{"sfn.StartExecution"}, false},
-		{sfn.DeleteRunningExecution().Entry(), "sfn.delete.running-execution", "docs/research/stepfunctions-api.md#54-deletestatemachine", "SFN-06", evidence.Inferred, []string{"sfn.DeleteStateMachine", "sfn.StartExecution"}, true},
+		{sfn.DeleteRunningExecution().Entry(), "sfn.delete.running-execution", "docs/research/stepfunctions-api.md#54-deletestatemachine", "SFN-06", evidence.AWSRecorded, []string{"sfn.DeleteStateMachine", "sfn.StartExecution"}, true},
 		{sfn.DenialStatus().Entry(), "sfn.denial.status", "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit", "SFN-15", evidence.Inferred, bound, true},
 	}
 	got := (&sfn.Service{}).Switches()
@@ -151,7 +151,7 @@ func TestSwitches(t *testing.T) {
 	rules := sfn.EngineRules()
 	if rules != (asl.Rules{
 		NoMatch: sfn.ChoiceNoMatch().Value, MissingVariable: sfn.ChoiceMissingVariable().Value,
-		IntrinsicFailure: sfn.IntrinsicFailure().Value, AbortOnDelete: sfn.DeleteRunningExecution().Value,
+		IntrinsicFailure: sfn.IntrinsicFailure().Value, EndOnDelete: sfn.DeleteRunningExecution().Value,
 	}) {
 		t.Errorf("EngineRules() = %+v, want the switch values", rules)
 	}

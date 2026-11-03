@@ -35,8 +35,8 @@ const maxDataBytes = 262_144
 // LambdaSucceeded and LambdaFailed apply only to a task in flight: a late
 // result after the task timed out is dropped (stepfunctions-asl.md 9.1).
 // MachineDeleting writes no event and asks for nothing: under
-// Rules.AbortOnDelete it marks the execution, which ends ABORTED at its
-// next transition instead of taking it.
+// Rules.EndOnDelete it marks the execution, which fails at its next
+// transition instead of taking it (machineDeleted).
 func Step(d *Definition, rules Rules, src intrinsic.Source, x Execution, ev Event) (Execution, []HistoryEvent, []Effect) {
 	if _, done := x.Outcome(); done {
 		return x, nil, nil
@@ -66,7 +66,7 @@ func Step(d *Definition, rules Rules, src intrinsic.Source, x Execution, ev Even
 		s.x.timers = slices.Delete(s.x.timers, i, i+1)
 		s.at = ev.At
 		if _, deadline := fired.job.(deadlineJob); s.x.deleting && !deadline {
-			s.abort("", "")
+			s.machineDeleted()
 			break
 		}
 		s.run(fired.job)
@@ -90,7 +90,7 @@ func Step(d *Definition, rules Rules, src intrinsic.Source, x Execution, ev Even
 		s.at = ev.At
 		s.abort(ev.Error, ev.Cause)
 	case MachineDeleting:
-		if !rules.AbortOnDelete || x.deleting {
+		if !rules.EndOnDelete || x.deleting {
 			return x, nil, nil
 		}
 		s.x.deleting = true
@@ -225,6 +225,18 @@ func (s *stepper) timedOut() {
 func (s *stepper) abort(name, cause string) {
 	s.emit("ExecutionAborted", 0, errorDetails(name, cause))
 	s.end(Aborted{Error: name, Cause: cause})
+}
+
+// machineDeleted ends an execution whose machine was deleted, at its next
+// transition: FAILED with States.Runtime and a cause naming the machine,
+// ExecutionFailed pointing at the last event (SFN-06, recorded 2026-11-03;
+// stepfunctions-api.md 5.4).
+func (s *stepper) machineDeleted() {
+	name := ""
+	if n, ok := at(at(s.x.context, "StateMachine"), "Name").(document.String); ok {
+		name = string(n)
+	}
+	s.fail(errRuntime, "State machine "+name+" has been deleted", s.x.lastEvent)
 }
 
 // step runs one state transition (contract 5.5 item 2).

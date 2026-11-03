@@ -225,8 +225,8 @@ func (s *stepper) takeTask(id TaskID) (t inflight, deadline time.Time, ok bool) 
 
 // answered takes the task a Lambda result at answers. applies is false when
 // the task is not in flight, and the result changes nothing; ok is true
-// when the caller is to apply the result. A machine being deleted ends the
-// execution ABORTED instead (switch sfn.delete.running-execution). The
+// when the caller is to apply the result. A machine being deleted fails the
+// execution instead (switch sfn.delete.running-execution). The
 // function runs on wall time while the task timeout is emulator time (spec
 // "Runtime decisions"), so a result at or after the timeout's instant
 // loses to it: the task times out there and the result is dropped
@@ -239,7 +239,7 @@ func (s *stepper) answered(id TaskID, at time.Time) (t inflight, applies, ok boo
 		return inflight{}, false, false
 	case s.x.deleting:
 		s.at = at
-		s.abort("", "")
+		s.machineDeleted()
 		return inflight{}, true, false
 	}
 	// The deadline is the attempt's own timeout timer, armed in the step
