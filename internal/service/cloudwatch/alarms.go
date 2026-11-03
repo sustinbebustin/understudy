@@ -21,8 +21,12 @@ import (
 // default.
 const defaultMaxRecords = 50
 
-// initialReason is the StateReason of a new alarm (AWS-recorded).
-const initialReason = "Unchecked: Initial alarm creation"
+// The StateReason of a new alarm, and of a new alarm with a
+// WarmUpConfiguration (AWS-recorded; CWA-22).
+const (
+	initialReason = "Unchecked: Initial alarm creation"
+	warmUpReason  = "Alarm is in Warm-Up"
+)
 
 // bindAlarms binds the metric alarm operations.
 func (s *Service) bindAlarms(b cloudwatchapi.Binder) {
@@ -116,8 +120,12 @@ func (s *Service) putMetricAlarm(ctx context.Context, c *kernel.Call, in *cloudw
 		if ok {
 			previous = new(a)
 		} else {
+			reason := initialReason
+			if in.WarmUpConfiguration != nil {
+				reason = warmUpReason
+			}
 			a = Alarm{
-				State:   AlarmState{Value: initial, Reason: initialReason, Updated: now, Transitioned: now},
+				State:   AlarmState{Value: initial, Reason: reason, Updated: now, Transitioned: now},
 				Tags:    tags,
 				Created: now,
 			}
@@ -421,7 +429,7 @@ func (s *Service) setAlarmState(ctx context.Context, c *kernel.Call, in *cloudwa
 			return struct{}{}, nil
 		}
 		next := AlarmState{Value: in.StateValue, Reason: in.StateReason, ReasonData: in.StateReasonData, Updated: now, Transitioned: now}
-		done = new(s.transition(tx, ref, &a, next, c))
+		done = new(s.transition(tx, ref, &a, next, c, false))
 		st.Alarms[in.AlarmName] = a
 		return struct{}{}, nil
 	})

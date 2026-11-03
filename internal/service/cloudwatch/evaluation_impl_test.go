@@ -16,6 +16,7 @@ import (
 // With OnlyStartEvaluatingAfterWarmUpPeriodEnds the alarm "waits the full
 // duration": evaluations inside it leave the state alone, and the first
 // one at or after its end evaluates as usual (cloudwatch-alarms.md 2.4).
+// A new alarm with a warm-up reads "Alarm is in Warm-Up" (CWA-22).
 func TestWarmUpWaitsTheFullDuration(t *testing.T) {
 	run(t, func(h *harness) {
 		t0 := h.now()
@@ -24,8 +25,8 @@ func TestWarmUpWaitsTheFullDuration(t *testing.T) {
 		in.WarmUpConfiguration = &cloudwatchapi.WarmUpConfiguration{WarmUpPeriodDurationInMinutes: 3, OnlyStartEvaluatingAfterWarmUpPeriodEnds: new(true)}
 		must(h, cloudwatchapi.OpPutMetricAlarm, in)
 		h.advance(2 * time.Minute)
-		if got := h.one("cpu"); *got.StateValue != cloudwatchapi.StateValueInsufficientData || *got.StateReason != "Unchecked: Initial alarm creation" {
-			h.Fatalf("inside warm-up: %s %q, want the initial state", *got.StateValue, *got.StateReason)
+		if got := h.one("cpu"); *got.StateValue != cloudwatchapi.StateValueInsufficientData || *got.StateReason != "Alarm is in Warm-Up" {
+			h.Fatalf("inside warm-up: %s %q, want INSUFFICIENT_DATA %q", *got.StateValue, *got.StateReason, "Alarm is in Warm-Up")
 		}
 		h.advance(time.Minute)
 		if got := h.one("cpu"); *got.StateValue != cloudwatchapi.StateValueAlarm || !got.StateTransitionedTimestamp.Equal(t0.Add(3*time.Minute)) {
@@ -35,7 +36,11 @@ func TestWarmUpWaitsTheFullDuration(t *testing.T) {
 }
 
 // Without the flag, warm-up ends as soon as every period of the window
-// holds a datapoint (cloudwatch.alarm.warm-up-end, CWA-22).
+// holds a datapoint (cloudwatch.alarm.warm-up-end, CWA-22). The transition
+// that ends it has the summary and the old state AWS recorded:
+// "... State now evaluated with the full set of metrics matching the
+// query" and "evaluationState":"IN_WARM_UP" (CWA-22, recorded 2026-11-03:
+// testdata/parity/cloudwatch/CWA-22/warm-history.json).
 func TestWarmUpEndsWhenTheWindowFills(t *testing.T) {
 	run(t, func(h *harness) {
 		followsSwitch(h, "cloudwatch.alarm.warm-up-end", "every-period-has-data")
@@ -47,6 +52,14 @@ func TestWarmUpEndsWhenTheWindowFills(t *testing.T) {
 		h.advance(time.Minute)
 		if got := h.one("cpu"); *got.StateValue != cloudwatchapi.StateValueAlarm || !got.StateTransitionedTimestamp.Equal(t0.Add(time.Minute)) {
 			h.Errorf("after the first evaluation with its one period full: %s at %v, want ALARM at %v", *got.StateValue, *got.StateTransitionedTimestamp, t0.Add(time.Minute))
+		}
+		items := h.history(&cloudwatchapi.DescribeAlarmHistoryInput{AlarmName: new("cpu")})
+		if len(items) != 1 || *items[0].HistorySummary != "Alarm updated from INSUFFICIENT_DATA to ALARM. State now evaluated with the full set of metrics matching the query" ||
+			!strings.HasPrefix(*items[0].HistoryData, `{"version":"1.0","oldState":{"stateValue":"INSUFFICIENT_DATA","stateReason":"Alarm is in Warm-Up","evaluationState":"IN_WARM_UP"},"newState":`) {
+			h.Errorf("history = %v", summaries(items))
+			for _, it := range items {
+				h.Logf("%s", *it.HistoryData)
+			}
 		}
 	})
 }

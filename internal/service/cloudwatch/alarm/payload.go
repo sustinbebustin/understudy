@@ -45,6 +45,9 @@ type StateRecord struct {
 	Reason     string
 	ReasonData *string
 	Timestamp  time.Time
+	// InWarmUp marks the old side of the transition that ends warm-up,
+	// whose evaluation state was IN_WARM_UP (CWA-22).
+	InWarmUp bool
 }
 
 // Change is one state change, from Old to New.
@@ -560,8 +563,15 @@ func upperSnake(s string) string {
 // reason data exceed it is unrecorded (CWA-10). understudy drops the old
 // state's stateReasonData, then the new state's, then shortens the longer
 // reason, so the item stays one JSON object.
+//
+// The transition that ends warm-up adds ". State now evaluated with the
+// full set of metrics matching the query" to the summary and
+// "evaluationState":"IN_WARM_UP" to the old state (CWA-22).
 func StateUpdate(ch Change) (summary, data string) {
 	summary = "Alarm updated from " + string(ch.Old.Value) + " to " + string(ch.New.Value)
+	if ch.Old.InWarmUp {
+		summary += ". State now evaluated with the full set of metrics matching the query"
+	}
 	item := historyData{Version: "1.0", OldState: historyStateOf(ch.Old), NewState: historyStateOf(ch.New)}
 	for {
 		data = item.encode()
@@ -595,6 +605,7 @@ type historyData struct {
 type historyState struct {
 	StateValue  cloudwatchapi.StateValue
 	StateReason string
+	InWarmUp    bool
 	// StateReasonData is the state's reason data, nested as an object with
 	// its bytes kept; nil without one (cloudwatch-alarms.md 8.2).
 	StateReasonData *string
@@ -604,7 +615,7 @@ type historyState struct {
 // is not JSON, which SetAlarmState refuses and evaluation never writes,
 // is left out rather than nested.
 func historyStateOf(r StateRecord) historyState {
-	s := historyState{StateValue: r.Value, StateReason: r.Reason}
+	s := historyState{StateValue: r.Value, StateReason: r.Reason, InWarmUp: r.InWarmUp}
 	if r.ReasonData != nil && json.Valid([]byte(*r.ReasonData)) {
 		s.StateReasonData = r.ReasonData
 	}
@@ -627,6 +638,9 @@ func (s historyState) append(b []byte) []byte {
 	b = jsonx.AppendString(b, string(s.StateValue))
 	b = append(b, `,"stateReason":`...)
 	b = jsonx.AppendString(b, s.StateReason)
+	if s.InWarmUp {
+		b = append(b, `,"evaluationState":"IN_WARM_UP"`...)
+	}
 	if s.StateReasonData != nil {
 		b = append(b, `,"stateReasonData":`...)
 		b = append(b, *s.StateReasonData...)

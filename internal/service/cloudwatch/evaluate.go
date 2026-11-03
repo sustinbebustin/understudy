@@ -65,7 +65,7 @@ func (s *Service) onEvaluation(c *kernel.Call, key clock.TimerKey, due clock.Ins
 		}
 		data := alarm.ReasonData(cfg, tr, due.Wire())
 		next := AlarmState{Value: tr.To, Reason: alarm.Reason(cfg, tr), ReasonData: &data, Updated: due, Transitioned: due}
-		done = new(s.transition(tx, ref, &a, next, c))
+		done = new(s.transition(tx, ref, &a, next, c, warmedNow))
 		st.Alarms[ref.name] = a
 		return struct{}{}, nil
 	})
@@ -94,13 +94,16 @@ type changed struct {
 
 // transition moves a to next, a state of a different value, in the write
 // tx of call c, the SetAlarmState call or the evaluation: the state and
-// the StateChange journal event (cloudwatch-alarms.md 3.8). It returns the
-// rest of the transition for finishTransition.
-func (s *Service) transition(tx *kernel.Tx, ref alarmRef, a *Alarm, next AlarmState, c *kernel.Call) changed {
+// the StateChange journal event (cloudwatch-alarms.md 3.8). endsWarmUp is
+// an evaluation's transition out of warm-up, whose old state was
+// IN_WARM_UP (CWA-22). It returns the rest of the transition for
+// finishTransition.
+func (s *Service) transition(tx *kernel.Tx, ref alarmRef, a *Alarm, next AlarmState, c *kernel.Call, endsWarmUp bool) changed {
 	old := a.State
 	a.State = next
 	tx.Record(ref.scope, journal.StateChange{Resource: ref.arn(), From: journal.ResourceState(old.Value), To: journal.ResourceState(next.Value)})
 	ch := alarm.Change{Old: old.record(), New: next.record()}
+	ch.Old.InWarmUp = endsWarmUp
 	summary, data := alarm.StateUpdate(ch)
 	return changed{
 		item:    HistoryItem{At: next.Updated, Summary: summary, Data: data},
