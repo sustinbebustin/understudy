@@ -53,14 +53,15 @@ func binsOf(t *testing.T, in *cloudwatchapi.PutMetricAlarmInput, st *State, eval
 	return alarmBins(st, in, cfg, at(t, evalAt))
 }
 
-// The bins of an evaluation at 12:31:29 with a 60-second period are the
-// five minutes before T0 = 12:31, newest first, each starting at its bin's
-// start (cloudwatch-alarms.md 3.2: the alarms-and-actions-Lambda row);
+// The bins of an evaluation at 12:31:29 with a 60-second period and N = 3
+// are the eight minutes (cloudwatch.alarm.evaluation-range, CWA-01) before
+// T0 = 12:31, newest first, each starting at its bin's start
+// (cloudwatch-alarms.md 3.2: the alarms-and-actions-Lambda row);
 // points in one bin combine into the alarm's statistic, and points at or
 // after T0 or before the range are not read.
 func TestAlarmBinsWindow(t *testing.T) {
 	st := binsState(
-		pt(t, "2023-08-04T12:25:00Z", "None", 100), // before the range
+		pt(t, "2023-08-04T12:22:00Z", "None", 100), // before the range
 		pt(t, "2023-08-04T12:28:00Z", "None", 1),
 		pt(t, "2023-08-04T12:30:00Z", "None", 2),
 		pt(t, "2023-08-04T12:30:00Z", "None", 3),
@@ -74,6 +75,9 @@ func TestAlarmBinsWindow(t *testing.T) {
 		alarm.Value{Start: start("2023-08-04T12:28:00Z"), Value: 1, SampleCount: 1},
 		alarm.Missing{Start: start("2023-08-04T12:27:00Z")},
 		alarm.Missing{Start: start("2023-08-04T12:26:00Z")},
+		alarm.Missing{Start: start("2023-08-04T12:25:00Z")},
+		alarm.Missing{Start: start("2023-08-04T12:24:00Z")},
+		alarm.Missing{Start: start("2023-08-04T12:23:00Z")},
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("bins = %+v\nwant %+v", got, want)

@@ -137,9 +137,14 @@ type Config struct {
 	Unit      *cloudwatchapi.StandardUnit
 }
 
-// Range is R, the number of bins one evaluation reads: N + 2
-// (cloudwatch.alarm.evaluation-range, cloudwatch-alarms.md 3.4).
+// Range is R, the number of bins one evaluation reads: N + 5 for a
+// 60-second period and N + 2 for any other (cloudwatch.alarm.evaluation-range,
+// cloudwatch-alarms.md 3.4). AWS's ranges for 60 and 300 seconds are
+// recorded (CWA-01); N + 2 for the other periods is UNVERIFIED.
 func (c Config) Range() int {
+	if c.Period == 60 {
+		return c.N + 5
+	}
 	return c.N + 2
 }
 
@@ -377,18 +382,20 @@ func (c Config) someData(bins []Bin, ev Evidence) verdict {
 	if b < len(ev.Used) { // C2
 		return toOK
 	}
-	// C3: premature alarm state, the oldest breaching bin of d1..dN at
-	// least M periods old.
+	// C3: premature alarm state, the oldest breaching bin of the whole
+	// range d1..dR at least M periods old: X - - - - goes to ALARM under
+	// missing (cloudwatch.alarm.unaged-breach, CWA-04).
 	oldest := 0
-	for k := 0; k < c.N && k < len(bins); k++ {
-		if v, ok := bins[k].(Value); ok && c.Comparison.Breaches(v.Value, c.Threshold) {
+	for k, b := range bins {
+		if v, ok := b.(Value); ok && c.Comparison.Breaches(v.Value, c.Threshold) {
 			oldest = k + 1
 		}
 	}
 	if oldest > 0 && oldest >= c.M && c.Treatment == TreatMissing {
 		return toAlarm
 	}
-	// C3 under ignore, and C4 (cloudwatch.alarm.unaged-breach, CWA-04).
+	// C3 under ignore, and C4: every real bin breaching and too recent,
+	// - - - - X, keeps the state (CWA-04).
 	return retain
 }
 

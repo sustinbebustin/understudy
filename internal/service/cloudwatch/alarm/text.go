@@ -2,6 +2,7 @@ package alarm
 
 import (
 	"math"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -69,29 +70,33 @@ func FormatTimestamp(t time.Time) string {
 // Reason is a transition's StateReason (cloudwatch-alarms.md 4.1, 4.3),
 // at most MaxReason characters. The form follows
 // cloudwatch.alarm.reason-format: the M out of N form when the alarm sent
-// DatapointsToAlarm, the count form otherwise (CWA-06). The no-data texts,
-// their singular forms and case C's listing of real bins alone are the
-// research's defaults (CWA-08). Past MaxReason the oldest listed
-// datapoints are dropped and the count stays true (CWA-10).
+// DatapointsToAlarm, the count form otherwise (CWA-06). It lists the real
+// datapoints that cross in the transition's direction; under breaching or
+// notBreaching the filled points add "and <F> missing datapoints were
+// treated as [Breaching]", and with no real datapoint to list the text
+// counts the received ones instead (CWA-01, CWA-04, CWA-08). When the
+// listing would pass MaxReason, a second sentence lists the five newest
+// (CWA-10).
 func Reason(cfg Config, t Transition) string {
 	if t.To == cloudwatchapi.StateValueInsufficientData {
 		return "Insufficient Data: " + plural(cfg.N, "datapoint was", "datapoints were") + " unknown."
 	}
 	alarming := t.To == cloudwatchapi.StateValueAlarm
-	var listed []Value
-	for _, v := range t.Evidence.Used {
-		if cfg.Comparison.Breaches(v.Value, cfg.Threshold) == alarming {
-			listed = append(listed, v)
-		}
-	}
-	if len(listed) == 0 {
+	listed := crossing(cfg, t)
+	filled := ""
+	if f := t.Evidence.Filled; f > 0 && (cfg.Treatment == TreatBreaching || cfg.Treatment == TreatNotBreaching) {
 		label := "[NonBreaching]"
-		if alarming {
+		if cfg.Treatment == TreatBreaching {
 			label = "[Breaching]"
 		}
-		f := t.Evidence.Filled
-		return "Threshold Crossed: no datapoints were received for " + plural(f, "period", "periods") +
-			" and " + plural(f, "missing datapoint was", "missing datapoints were") + " treated as " + label + "."
+		filled = " and " + plural(f, "missing datapoint was", "missing datapoints were") + " treated as " + label
+	}
+	if len(listed) == 0 {
+		received := "no datapoints were"
+		if n := len(t.Evidence.Used); n > 0 {
+			received = plural(n, "datapoint was", "datapoints were")
+		}
+		return "Threshold Crossed: " + received + " received for " + plural(cfg.N, "period", "periods") + filled + "."
 	}
 	k := len(listed)
 	neg := "not "
@@ -103,27 +108,46 @@ func Reason(cfg Config, t Transition) string {
 		verb = " was "
 	}
 	head := "Threshold Crossed: " + plural(k, "datapoint", "datapoints")
-	tail := verb + neg + cfg.Comparison.Phrase() + " the threshold (" + FormatNumber(cfg.Threshold) + ")"
+	crossed := verb + neg + cfg.Comparison.Phrase() + " the threshold (" + FormatNumber(cfg.Threshold) + ")" + filled
+	minimum := ""
 	if cfg.MSet {
 		m, dir := cfg.M, "OK -> ALARM"
 		if !alarming {
 			m, dir = cfg.N-cfg.M+1, "ALARM -> OK"
 		}
 		head = "Threshold Crossed: " + strconv.Itoa(k) + " out of the last " + strconv.Itoa(cfg.N) + " datapoints"
-		tail += " (minimum " + plural(m, "datapoint", "datapoints") + " for " + dir + " transition)"
+		minimum = " (minimum " + plural(m, "datapoint", "datapoints") + " for " + dir + " transition)"
 	}
-	tail += "."
 	entries := make([]string, len(listed))
 	for i, v := range listed {
 		entries[i] = FormatNumber(v.Value) + " (" + FormatReasonDate(v.Start) + ")"
 	}
-	for {
-		s := head + " [" + strings.Join(entries, ", ") + "]" + tail
-		if len(s) <= MaxReason || len(entries) == 0 {
-			return s
-		}
-		entries = entries[:len(entries)-1]
+	if s := head + " [" + strings.Join(entries, ", ") + "]" + crossed + minimum + "."; len(s) <= MaxReason {
+		return s
 	}
+	recent := entries[:min(len(entries), 5)]
+	which := "datapoints which"
+	if len(recent) == 1 {
+		which = "datapoint which"
+	}
+	s := head + crossed + ". The most recent " + which + " crossed the threshold: [" + strings.Join(recent, ", ") + "]" + minimum + "."
+	if len(s) > MaxReason {
+		s = cut(s, len(s)-MaxReason)
+	}
+	return s
+}
+
+// crossing is the real datapoints of a transition that cross in its
+// direction, newest first: breaching ones for ALARM, the others for OK.
+func crossing(cfg Config, t Transition) []Value {
+	alarming := t.To == cloudwatchapi.StateValueAlarm
+	var out []Value
+	for _, v := range t.Evidence.Used {
+		if cfg.Comparison.Breaches(v.Value, cfg.Threshold) == alarming {
+			out = append(out, v)
+		}
+	}
+	return out
 }
 
 // plural is "<n> <one>" or "<n> <many>".
@@ -136,10 +160,11 @@ func plural(n int, one, many string) string {
 
 // ReasonData is a transition's StateReasonData JSON for an evaluation at
 // queryDate (cloudwatch-alarms.md 4.2, 4.3), at most MaxReasonData
-// characters. evaluatedDatapoints lists d1 back to the N-th bin or to the
-// oldest bin used, whichever is older (CWA-10); past MaxReasonData the
-// oldest evaluated datapoints are dropped, then the oldest recent ones
-// (CWA-10).
+// characters. recentDatapoints spans the used bins oldest first, a missing
+// bin between them as null; evaluatedDatapoints lists the bins the
+// decision rests on (decisive) (CWA-01, CWA-04, CWA-06, CWA-08, CWA-10).
+// Past MaxReasonData the oldest evaluated datapoints are dropped, then the
+// oldest recent ones; how AWS shortens them is UNVERIFIED (CWA-10).
 func ReasonData(cfg Config, t Transition, queryDate time.Time) string {
 	used := t.Evidence.Used
 	head := `{"version":"1.0","queryDate":"` + FormatTimestamp(queryDate) + `"`
@@ -151,11 +176,8 @@ func ReasonData(cfg Config, t Transition, queryDate time.Time) string {
 	}
 	head += `,"statistic":` + strconv.Quote(string(cfg.Statistic)) + `,"period":` + strconv.Itoa(int(cfg.Period))
 
-	recent := make([]string, len(used))
-	for i, v := range used {
-		recent[len(used)-1-i] = FormatNumber(v.Value)
-	}
-	evaluated := evaluatedDatapoints(cfg, t.Evidence)
+	recent := recentDatapoints(t.Evidence)
+	evaluated := evaluatedDatapoints(decisive(cfg, t))
 	for {
 		s := head + `,"recentDatapoints":[` + strings.Join(recent, ",") + `],"threshold":` + FormatNumber(cfg.Threshold) +
 			`,"evaluatedDatapoints":[` + strings.Join(evaluated, ",") + `]}`
@@ -172,21 +194,93 @@ func ReasonData(cfg Config, t Transition, queryDate time.Time) string {
 	}
 }
 
-// evaluatedDatapoints renders bins d1..dK newest first, K the larger of N
-// and the position of the oldest bin used, within the bins passed.
-func evaluatedDatapoints(cfg Config, ev Evidence) []string {
-	k := cfg.N
-	if len(ev.Used) > 0 {
-		oldest := ev.Used[len(ev.Used)-1].Start
-		for i, b := range ev.Bins {
-			if v, ok := b.(Value); ok && v.Start.Equal(oldest) {
-				k = max(k, i+1)
+// recentDatapoints renders the bins from the oldest used one to the newest,
+// oldest first, a Missing bin as null: [5.0,null,5.0] (CWA-04, CWA-10).
+func recentDatapoints(ev Evidence) []string {
+	if len(ev.Used) == 0 {
+		return nil
+	}
+	newest, oldest := ev.Used[0].Start, ev.Used[len(ev.Used)-1].Start
+	var out []string
+	for _, v := range slices.Backward(ev.Bins) {
+		switch b := v.(type) {
+		case Missing:
+			if b.Start.After(oldest) && b.Start.Before(newest) {
+				out = append(out, "null")
+			}
+		case Value:
+			if !b.Start.Before(oldest) && !b.Start.After(newest) {
+				out = append(out, FormatNumber(b.Value))
 			}
 		}
 	}
-	k = min(k, len(ev.Bins))
-	out := make([]string, k)
-	for i, b := range ev.Bins[:k] {
+	return out
+}
+
+// decisive is the bins a transition rests on, newest first: every real
+// datapoint that crosses in its direction (crossing), then the newest
+// filled bins that count the same way until there are M for ALARM, N - M + 1
+// for OK or N for INSUFFICIENT_DATA. The filled bins are the Filled newest
+// Missing ones; under missing and ignore they count either way, under
+// breaching only for ALARM and under notBreaching only for OK (CWA-01,
+// CWA-04, CWA-08). With more crossing real datapoints than that, which AWS
+// lists is UNVERIFIED; understudy lists them all.
+func decisive(cfg Config, t Transition) []Bin {
+	need := cfg.N
+	switch t.To {
+	case cloudwatchapi.StateValueAlarm:
+		need = cfg.M
+	case cloudwatchapi.StateValueOk:
+		need = cfg.N - cfg.M + 1
+	case cloudwatchapi.StateValueInsufficientData:
+	}
+	fillCounts := true
+	switch cfg.Treatment {
+	case TreatBreaching:
+		fillCounts = t.To == cloudwatchapi.StateValueAlarm
+	case TreatNotBreaching:
+		fillCounts = t.To == cloudwatchapi.StateValueOk
+	case TreatMissing, TreatIgnore:
+	}
+	picked := make([]bool, len(t.Evidence.Bins))
+	n := 0
+	for _, v := range crossing(cfg, t) {
+		for i, b := range t.Evidence.Bins {
+			if bv, ok := b.(Value); ok && bv.Start.Equal(v.Start) {
+				picked[i] = true
+				n++
+			}
+		}
+	}
+	filled := t.Evidence.Filled
+	for i, b := range t.Evidence.Bins {
+		if filled == 0 {
+			break
+		}
+		if _, ok := b.(Missing); !ok {
+			continue
+		}
+		filled--
+		if fillCounts && n < need {
+			picked[i] = true
+			n++
+		}
+	}
+	var out []Bin
+	for i, b := range t.Evidence.Bins {
+		if picked[i] {
+			out = append(out, b)
+		}
+	}
+	return out
+}
+
+// evaluatedDatapoints renders bins as evaluatedDatapoints entries: a
+// Missing bin as its timestamp alone, a Value with its sampleCount and
+// value.
+func evaluatedDatapoints(bins []Bin) []string {
+	out := make([]string, len(bins))
+	for i, b := range bins {
 		switch b := b.(type) {
 		case Missing:
 			out[i] = `{"timestamp":"` + FormatTimestamp(b.Start) + `"}`

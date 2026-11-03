@@ -28,6 +28,11 @@ func alarmSwitches() []fidelity.Entry {
 	unrecorded := func(item string) fidelity.NoScenario {
 		return fidelity.NoScenario{Reason: "unrecorded: " + item}
 	}
+	// A recorded alarm evaluation is not replayed: its steps wait on AWS's
+	// evaluation timer, which the replayer cannot drive.
+	unreplayed := func(recorded string) fidelity.NoScenario {
+		return fidelity.NoScenario{Reason: recorded + " (testdata/parity/cloudwatch); not replayed: the steps wait on the alarm's evaluations"}
+	}
 	switches := []fidelity.Switch[string]{
 		{
 			Name: "cloudwatch.alarm.evaluation-cadence", Value: "minute,10s-for-high-resolution,hourly-past-one-day",
@@ -55,14 +60,16 @@ func alarmSwitches() []fidelity.Entry {
 			Settles: fidelity.NoScenario{Reason: "AWS documents an alarm on a metric of several units without Unit as undefined, so no recording can settle it"},
 		},
 		{
-			Name: "cloudwatch.alarm.evaluation-range", Value: "n-plus-2",
+			// N + 5 at 60 s and N + 2 at 300 s are recorded; other periods,
+			// sub-minute ones among them, are inferred.
+			Name: "cloudwatch.alarm.evaluation-range", Value: "n-plus-5-for-60s,n-plus-2-otherwise",
 			Label: evidence.Inferred, Ref: alarmResearch + "#34-evaluation-range-n-and-m", Record: "CWA-01", Ops: alarmEvaluationOps(),
-			Settles: unrecorded("CWA-01"),
+			Settles: unreplayed("CWA-01 recorded the 60 and 300 second ranges; other periods are unrecorded"),
 		},
 		{
-			Name: "cloudwatch.alarm.unaged-breach", Value: "retain",
-			Label: evidence.Inferred, Ref: alarmResearch + "#35-missing-data-the-algorithm", Record: "CWA-04", Ops: alarmEvaluationOps(),
-			Settles: unrecorded("CWA-04"),
+			Name: "cloudwatch.alarm.unaged-breach", Value: "alarm-if-aged-in-range-else-retain",
+			Label: evidence.AWSRecorded, Ref: alarmResearch + "#35-missing-data-the-algorithm", Record: "CWA-04", Ops: alarmEvaluationOps(),
+			Settles: unreplayed("CWA-04 recorded"),
 		},
 		{
 			Name: "cloudwatch.alarm.unchanged-state", Value: "no-update",
@@ -87,8 +94,8 @@ func alarmSwitches() []fidelity.Entry {
 		},
 		{
 			Name: "cloudwatch.alarm.reason-format", Value: "count-form-unless-datapoints-to-alarm",
-			Label: evidence.Inferred, Ref: alarmResearch + "#41-statereason-texts", Record: "CWA-06, CWA-07, CWA-08", Ops: alarmEvaluationOps(),
-			Settles: unrecorded("CWA-06, CWA-07, CWA-08"),
+			Label: evidence.AWSRecorded, Ref: alarmResearch + "#41-statereason-texts", Record: "CWA-06, CWA-07, CWA-08", Ops: alarmEvaluationOps(),
+			Settles: unreplayed("CWA-06, CWA-07, CWA-08 recorded"),
 		},
 		{
 			Name: "cloudwatch.alarm.number-format", Value: "java-double,event-configuration-plain-whole-numbers",

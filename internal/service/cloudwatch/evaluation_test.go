@@ -233,7 +233,7 @@ func TestClockAdvanceEvaluatesAndNotifiesOnce(t *testing.T) {
 	runAlarms(t, func(h *harness, fx *effects) {
 		followsSwitch(h, "cloudwatch.alarm.first-evaluation", "next-boundary")
 		followsSwitch(h, "cloudwatch.alarm.evaluation-phase", "minute-boundary")
-		rng := switchCase(h, "cloudwatch.alarm.evaluation-range", map[string]int{"n-plus-2": 1 + 2})
+		rng := switchCase(h, "cloudwatch.alarm.evaluation-range", map[string]int{"n-plus-5-for-60s,n-plus-2-otherwise": 1 + 5})
 		followsSwitch(h, "cloudwatch.alarm.reason-format", "count-form-unless-datapoints-to-alarm")
 
 		t0 := h.now()
@@ -773,13 +773,13 @@ func TestAlarmSwitches(t *testing.T) {
 			"cloudwatch.alarm.first-evaluation":                {"next-boundary", evidence.Inferred},
 			"cloudwatch.alarm.window-anchor":                   {"evaluation-minute", evidence.AWSDoc},
 			"cloudwatch.alarm.mixed-units":                     {"first-unit-by-name", evidence.Inferred},
-			"cloudwatch.alarm.evaluation-range":                {"n-plus-2", evidence.Inferred},
-			"cloudwatch.alarm.unaged-breach":                   {"retain", evidence.Inferred},
+			"cloudwatch.alarm.evaluation-range":                {"n-plus-5-for-60s,n-plus-2-otherwise", evidence.Inferred},
+			"cloudwatch.alarm.unaged-breach":                   {"alarm-if-aged-in-range-else-retain", evidence.AWSRecorded},
 			"cloudwatch.alarm.unchanged-state":                 {"no-update", evidence.Inferred},
 			"cloudwatch.alarm.set-same-state":                  {"reason-and-data-only", evidence.Inferred},
 			"cloudwatch.alarm.dynamodb-missing-data":           {"always-ignore", evidence.AWSDoc},
 			"cloudwatch.alarm.warm-up-end":                     {"every-period-has-data", evidence.AWSDoc},
-			"cloudwatch.alarm.reason-format":                   {"count-form-unless-datapoints-to-alarm", evidence.Inferred},
+			"cloudwatch.alarm.reason-format":                   {"count-form-unless-datapoints-to-alarm", evidence.AWSRecorded},
 			"cloudwatch.alarm.number-format":                   {"java-double,event-configuration-plain-whole-numbers", evidence.Inferred},
 			"cloudwatch.alarm.sns.unset-fields":                {"description-null,treat-missing-data-empty,unit-null,low-sample-empty,datapoints-to-alarm-omitted,mute-window-false", evidence.Inferred},
 			"cloudwatch.alarm.sns.subject":                     {"state-quoted-name-in-region-long-name,100-chars", evidence.Inferred},
