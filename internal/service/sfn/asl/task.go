@@ -409,12 +409,14 @@ func (s *stepper) jitter(r Retrier) float64 {
 // errorOutput is a catcher's result: {"Error", "Cause"}, Error first as
 // recorded (stepfunctions-asl.md 8.4; aws-recorded localstack@8b9a79f
 // v2/error_handling/test_states_errors.snapshot.json:L77). An error without
-// a cause, such as a task's States.Timeout, has no Cause member: whether AWS
-// omits it or gives "" or null is unrecorded (inferred, ASL-13).
+// a cause keeps the Cause member: "" for States.Timeout (ASL-11, recorded
+// 2026-11-03, for a heartbeat timeout; a task's TimeoutSeconds inferred to
+// read the same) and null for any other, such as a Fail state's without
+// Cause (ASL-13, recorded 2026-11-03).
 func errorOutput(e StateError) document.Map {
-	out := document.Map{{Key: "Error", Value: document.String(e.Name)}}
-	if e.Cause != "" {
-		out = append(out, document.Entry{Key: "Cause", Value: document.String(e.Cause)})
+	var cause document.Value = document.String(e.Cause)
+	if e.Cause == "" && e.Name != errTimeout {
+		cause = document.Null{}
 	}
-	return out
+	return document.Map{{Key: "Error", Value: document.String(e.Name)}, {Key: "Cause", Value: cause}}
 }

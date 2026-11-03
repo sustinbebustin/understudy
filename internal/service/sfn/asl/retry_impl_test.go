@@ -120,17 +120,17 @@ func TestFullJitterIsSeededASL10(t *testing.T) {
 	}
 }
 
-// inferred, ASL-13
-// A caught error without a cause, a task's States.Timeout, gives an error
-// output with Error alone.
-func TestCatchOutputWithoutCauseASL13(t *testing.T) {
+// inferred, ASL-11
+// A caught task States.Timeout, which has no cause, gives "Cause": "" as
+// ASL-11 recorded for a heartbeat timeout (2026-11-03).
+func TestCatchOutputTimeoutCauseEmpty(t *testing.T) {
 	d := newDriver(t, fmt.Sprintf(legacyTask, `"TimeoutSeconds":5,"Catch":[{"ErrorEquals":["States.Timeout"],"Next":"Done"}],`, doneState), rules())
 	d.start(`{}`)
 	d.runUntilWaiting()
 	d.pending = nil
 	o := d.runToEnd(10)
-	if s, ok := o.(asl.Succeeded); !ok || !equal(s.Output, decode(t, `{"Error":"States.Timeout"}`)) {
-		t.Errorf("outcome = %#v, want the error output without Cause", o)
+	if s, ok := o.(asl.Succeeded); !ok || encode(s.Output) != `{"Error":"States.Timeout","Cause":""}` {
+		t.Errorf("outcome = %#v, want the error output with Cause \"\"", o)
 	}
 }
 

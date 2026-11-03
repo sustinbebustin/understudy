@@ -122,6 +122,35 @@ func TestASL03ResultPathConflict(t *testing.T) {
 	}
 }
 
+// A caught error with no cause gives "Cause": null in the error output,
+// Error first (ASL-13 05, recorded 2026-11-03; stepfunctions-asl.md 8.4).
+func TestASL13ErrorOutputCauseNull(t *testing.T) {
+	d := newDriver(t, `{"StartAt":"P","States":{"P":{"Type":"Parallel","Branches":[
+		{"StartAt":"F","States":{"F":{"Type":"Fail","Error":"NoCause"}}}],"Catch":[{"ErrorEquals":["States.ALL"],"Next":"S"}],"End":true},"S":{"Type":"Succeed"}}}`, rules())
+	d.start(`{}`)
+	o := d.runToEnd(20)
+	if s, ok := o.(asl.Succeeded); !ok || encode(s.Output) != `{"Error":"NoCause","Cause":null}` {
+		t.Errorf("outcome = %#v, want the error output {\"Error\":\"NoCause\",\"Cause\":null}", o)
+	}
+	d.wantShape("ASL-13 05-error-without-cause-history",
+		"ExecutionStarted 1<-0", "ParallelStateEntered 2<-0", "ParallelStateStarted 3<-2", "FailStateEntered 4<-3",
+		"ParallelStateFailed 5<-4", "ParallelStateExited 6<-5", "SucceedStateEntered 7<-6", "SucceedStateExited 8<-7", "ExecutionSucceeded 9<-8")
+}
+
+// A failing branch fails the Parallel with the branch's own error, and a
+// sibling branch that has not entered a state yet never does (ASL-13 02,
+// recorded 2026-11-03).
+func TestASL13ParallelBranchFailure(t *testing.T) {
+	d := newDriver(t, `{"StartAt":"P","States":{"P":{"Type":"Parallel","Branches":[
+		{"StartAt":"F","States":{"F":{"Type":"Fail","Error":"BranchErr","Cause":"c"}}},
+		{"StartAt":"W","States":{"W":{"Type":"Wait","Seconds":30,"End":true}}}],"End":true}}}`, rules())
+	d.start(`{}`)
+	failedWith(t, d.runToEnd(20), "BranchErr", func(c string) bool { return c == "c" })
+	d.wantShape("ASL-13 02-parallel-fail-history",
+		"ExecutionStarted 1<-0", "ParallelStateEntered 2<-0", "ParallelStateStarted 3<-2", "FailStateEntered 4<-3",
+		"ParallelStateFailed 5<-4", "ExecutionFailed 6<-5")
+}
+
 // A Choice Variable that selects nothing fails the execution with an
 // uncatchable States.Runtime and the recorded cause (ASL-08, recorded
 // 2026-11-03; stepfunctions-asl.md 6.4).

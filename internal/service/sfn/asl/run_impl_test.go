@@ -78,7 +78,7 @@ func TestParallelCaughtFailure(t *testing.T) {
 	d.wantShape("stepfunctions-asl.md 11.2 rule 5",
 		"ExecutionStarted 1<-0", "ParallelStateEntered 2<-0", "ParallelStateStarted 3<-2", "FailStateEntered 4<-3",
 		"ParallelStateFailed 5<-4", "ParallelStateExited 6<-5", "PassStateEntered 7<-6", "PassStateExited 8<-7", "ExecutionSucceeded 9<-8")
-	if s, ok := o.(asl.Succeeded); !ok || !equal(s.Output, decode(t, `{"a":1,"err":{"Error":"BranchErr"}}`)) {
+	if s, ok := o.(asl.Succeeded); !ok || !equal(s.Output, decode(t, `{"a":1,"err":{"Error":"BranchErr","Cause":null}}`)) {
 		t.Fatalf("outcome = %#v, want the error output placed at $.err", o)
 	}
 }
