@@ -55,7 +55,16 @@ func Switches() []fidelity.Entry {
 			Settles: fidelity.NoScenario{Reason: "IAM-EVAL-33 recorded " + recordedOn + " that a delivery by sns.amazonaws.com carries aws:PrincipalType, " +
 				"aws:PrincipalAccount and aws:userid, but not their values; the value stays absent until a recording shows them (" + evaluationNote + " 2.9)"},
 		}.Entry(),
-		recordedSwitch("iam.resource-tag.case-duplicates", "exact-case", evaluationNote, "6.13", "IAM-EVAL-31", SessionUnreplayed),
+		// IAM-EVAL-31 recorded only that a lower-case aws:ResourceTag key
+		// found the lower-case tag; understudy supplies no resource tag
+		// (8.2), so the recorded resource-tag switch is not registered and
+		// principal tags follow it by inference (iam-evaluation.md 6.13).
+		fidelity.Switch[string]{
+			Name: "iam.principal-tag.case-duplicates", Value: "exact-case", Label: inferred,
+			Ref: "docs/research/" + evaluationNote + "#6.13", Record: "IAM-EVAL-31",
+			Settles: fidelity.NoScenario{Reason: "IAM-EVAL-31 recorded " + recordedOn + " that aws:ResourceTag/env found the queue tag env and not Env; " +
+				"principal tags, and spellings matching neither tag, follow it by inference until a recording of aws:PrincipalTag shows them (" + evaluationNote + " 6.13)"},
+		}.Entry(),
 		fidelity.Switch[string]{
 			Name:  "iam.context.secure-transport",
 			Value: "assume-tls",

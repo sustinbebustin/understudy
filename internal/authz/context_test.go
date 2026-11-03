@@ -237,13 +237,13 @@ func TestBuildContextDeliveryKeys(t *testing.T) {
 // Principal tags become aws:PrincipalTag/<key> (iam-evaluation.md 8.1),
 // matched in any case. Two tags whose keys differ only in case are each
 // matched by a policy key spelled exactly as it is: a queue tagged env=a
-// and Env=b answered aws:ResourceTag/env "a" and not "b" (6.13, switch
-// iam.resource-tag.case-duplicates "exact-case", aws-recorded,
-// IAM-EVAL-31). Principal tags follow resource tags (inferred), and a
-// spelling that matches neither tag finds no value (inferred).
+// and Env=b answered aws:ResourceTag/env "a" and not "b" (6.13,
+// IAM-EVAL-31). Principal tags follow resource tags, and a spelling that
+// matches neither tag finds no value, both inferred (switch
+// iam.principal-tag.case-duplicates "exact-case").
 func TestBuildContextPrincipalTags(t *testing.T) {
-	if v := evalSwitch(t, "iam.resource-tag.case-duplicates"); v != "exact-case" {
-		t.Errorf("iam.resource-tag.case-duplicates = %q, want exact-case (IAM-EVAL-31)", v)
+	if v := evalSwitch(t, "iam.principal-tag.case-duplicates"); v != "exact-case" {
+		t.Errorf("iam.principal-tag.case-duplicates = %q, want exact-case (6.13)", v)
 	}
 	in := contextInput(userOf("111122223333", "ana", "AIDAANAEXAMPLE000001"), "s3:GetObject", on("arn:aws:s3:::b", "111122223333"))
 	in.PrincipalTags = []authz.Tag{{Key: "dept", Value: "123"}, {Key: "team", Value: "a"}, {Key: "Team", Value: "b"}}

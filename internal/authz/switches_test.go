@@ -25,7 +25,7 @@ func TestSwitchesRegisterEveryEvaluationChoice(t *testing.T) {
 		"iam.not-principal.match",
 		"iam.wildcard-principal.role-session",
 		"iam.wildcard-principal.service",
-		"iam.resource-tag.case-duplicates",
+		"iam.principal-tag.case-duplicates",
 		"kms.key-policy.role-boundary",
 		"s3.root.bucket-policy-lockout",
 		"iam.denial.grammar",
@@ -54,6 +54,15 @@ func TestSwitchesRegisterEveryEvaluationChoice(t *testing.T) {
 	for _, e := range authz.Switches() {
 		if e.Name == "iam.context.mfa-present" && e.Label != evidence.AWSRecorded {
 			t.Errorf("iam.context.mfa-present label = %s, want %s (iam-evaluation.md 12.3)", e.Label, evidence.AWSRecorded)
+		}
+		// IAM-EVAL-31 recorded a lower-case aws:ResourceTag lookup only,
+		// and understudy supplies no resource tag; principal tags follow
+		// it by inference (iam-evaluation.md 6.13).
+		if e.Name == "iam.principal-tag.case-duplicates" && e.Label != evidence.Inferred {
+			t.Errorf("iam.principal-tag.case-duplicates label = %s, want %s (iam-evaluation.md 6.13)", e.Label, evidence.Inferred)
+		}
+		if e.Name == "iam.resource-tag.case-duplicates" {
+			t.Errorf("iam.resource-tag.case-duplicates is registered, but aws:ResourceTag/ is never supplied (iam-evaluation.md 8.2)")
 		}
 	}
 }
