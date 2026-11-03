@@ -21,9 +21,9 @@ aws scheduler create-schedule --name every-15m --schedule-expression 'rate(15 mi
   --target '{"Arn":"arn:aws:sqs:us-east-1:000000000000:reminders","RoleArn":"arn:aws:iam::000000000000:role/scheduler-role",
     "Input":"{\"schedule\":\"<aws.scheduler.schedule-arn>\",\"at\":\"<aws.scheduler.scheduled-time>\",\"execution\":\"<aws.scheduler.execution-id>\",\"attempt\":\"<aws.scheduler.attempt-number>\"}"}'
 # "ScheduleArn": "arn:aws:scheduler:us-east-1:000000000000:schedule/default/every-15m"
-aws scheduler get-schedule --name every-15m --query '{State:State,Group:GroupName,Retry:Target.RetryPolicy,After:ActionAfterCompletion}'
+aws scheduler get-schedule --name every-15m --query '{State:State,Group:GroupName,Retry:Target.RetryPolicy,After:ActionAfterCompletion,Zone:ScheduleExpressionTimezone}'
 # "State": "ENABLED", "Group": "default",
-# "Retry": {"MaximumEventAgeInSeconds": 86400, "MaximumRetryAttempts": 185}, "After": "NONE"
+# "Retry": {"MaximumEventAgeInSeconds": 86400, "MaximumRetryAttempts": 185}, "After": "NONE", "Zone": "UTC"
 ```
 
 A rate schedule without `--start-date` fires first at the instant it is created, so one message is already in the queue. Advance the clock an hour; `--settle` returns once the deliveries the fires started are done:
@@ -33,7 +33,7 @@ understudy clock advance 1h --settle
 # 2026-11-02T09:00:00Z frozen
 # fired 8 timer(s):
 #   scheduler.fire arn:aws:scheduler:us-east-1:000000000000:schedule/default/every-15m
-#   outbox.attempt 000000000000/us-east-1/23158754-81a6-47b9-b175-93f47b8471e9
+#   outbox.attempt 000000000000/us-east-1/bd2154c6-f28d-4d26-ae8d-32dfa4a3c380
 #   ... three more fires, each followed by its delivery attempt
 # settled: no tracked work is pending
 aws sqs receive-message --queue-url http://127.0.0.1:4566/000000000000/reminders --max-number-of-messages 10 \
@@ -41,22 +41,28 @@ aws sqs receive-message --queue-url http://127.0.0.1:4566/000000000000/reminders
 ```
 
 ```
-{"schedule":"arn:aws:scheduler:us-east-1:000000000000:schedule/default/every-15m","at":"2026-11-02T08:00:00Z","execution":"7371e34e104eab85","attempt":"1"}	AROAP4UDMYY3ZNCFA6UU7:25ff65dd5b912368979bdb53e04cf19d
-{"schedule":"arn:aws:scheduler:us-east-1:000000000000:schedule/default/every-15m","at":"2026-11-02T08:15:00Z","execution":"80c96b1d7738647d","attempt":"1"}	AROAP4UDMYY3ZNCFA6UU7:2e85f78519668a608c711549b3c9ab26
-{"schedule":"arn:aws:scheduler:us-east-1:000000000000:schedule/default/every-15m","at":"2026-11-02T08:30:00Z","execution":"1ab8af8f7897ba36","attempt":"1"}	AROAP4UDMYY3ZNCFA6UU7:242fce35f588a09f090e23fc0b38b4f5
-{"schedule":"arn:aws:scheduler:us-east-1:000000000000:schedule/default/every-15m","at":"2026-11-02T08:45:00Z","execution":"324e16b7ae85876f","attempt":"1"}	AROAP4UDMYY3ZNCFA6UU7:77bb04f1d85d04f4493e89df1c6d34c1
-{"schedule":"arn:aws:scheduler:us-east-1:000000000000:schedule/default/every-15m","at":"2026-11-02T09:00:00Z","execution":"60cbee65641052f8","attempt":"1"}	AROAP4UDMYY3ZNCFA6UU7:d5e6d04b2b8196632b2c9cde5db80568
+{"schedule":"arn:aws:scheduler:us-east-1:000000000000:schedule/default/every-15m","at":"2026-11-02T08:00:00Z","execution":"57cdcad5-d248-4a2e-ad4b-ab6cb2ae18d0","attempt":"1"}	AROAZHBSKMADL6UPDP5UI:e07cbbec4dc30793aa7b884eed6cb881
+{"schedule":"arn:aws:scheduler:us-east-1:000000000000:schedule/default/every-15m","at":"2026-11-02T08:15:00Z","execution":"6fbf7435-364d-4cd3-9806-0c3b09bb9d28","attempt":"1"}	AROAZHBSKMADL6UPDP5UI:b6be941d3d26c8fa4541c9bdc46699a3
+{"schedule":"arn:aws:scheduler:us-east-1:000000000000:schedule/default/every-15m","at":"2026-11-02T08:30:00Z","execution":"21ac0d7d-5085-4514-84a2-44b5a726afc7","attempt":"1"}	AROAZHBSKMADL6UPDP5UI:157dbca4bbed6f7b935c9def176cb677
+{"schedule":"arn:aws:scheduler:us-east-1:000000000000:schedule/default/every-15m","at":"2026-11-02T08:45:00Z","execution":"ea4e8a8a-1dcc-4ee8-98ae-fa8f41eb85a3","attempt":"1"}	AROAZHBSKMADL6UPDP5UI:66116bd8e6e39bd90e3d2e211d86cd6a
+{"schedule":"arn:aws:scheduler:us-east-1:000000000000:schedule/default/every-15m","at":"2026-11-02T09:00:00Z","execution":"369e6709-1ac3-4ede-b408-92b1c756cd47","attempt":"1"}	AROAZHBSKMADL6UPDP5UI:779400d53f8394f64c780714d6b91298
 ```
 
-Every fire due on the way is delivered, in order, each stamped with its own scheduled time. The four context attributes in `Input` are replaced before each attempt, so a retried attempt carries its own `<aws.scheduler.attempt-number>`; a schedule without `Input` sends `{}`. The `SenderId` is a session of the execution role, `<role id>:<32 hex digits>`, one session per invocation. `understudy journal --kind delivery` lists each one:
+Every fire due on the way is delivered, in order, each stamped with its own scheduled time. The four context attributes in `Input` are replaced before each attempt, so a retried attempt carries its own `<aws.scheduler.attempt-number>`; the execution id is a UUID, as on AWS. The `SenderId` is a session of the execution role, `<role id>:<32 hex digits>`, one session per invocation. `understudy journal --kind delivery` lists each one:
 
 ```
 8      2026-11-02T08:00:00.000000000Z  delivery       000000000000/us-east-1 scheduler-to-sqs schedule/default/every-15m -> reminders attempt 1 delivered
-25     2026-11-02T08:15:00.000000000Z  delivery       000000000000/us-east-1 scheduler-to-sqs schedule/default/every-15m -> reminders attempt 1 delivered
+24     2026-11-02T08:15:00.000000000Z  delivery       000000000000/us-east-1 scheduler-to-sqs schedule/default/every-15m -> reminders attempt 1 delivered
 ...
 ```
 
-The other targets get what AWS documents for each: a Lambda function is invoked asynchronously with the payload as its event; an SQS FIFO queue gets the target's `MessageGroupId` and no deduplication id; an SNS topic gets the payload as the message, with no subject; an event bus gets one event whose `source` and `detail-type` are the target's `EventBridgeParameters` and whose `detail` is the payload; a Step Functions state machine starts one execution with the payload as its input.
+A schedule without `Input` sends AWS's Scheduled Event, its `time` the scheduled time and its `id` the execution id:
+
+```json
+{"version":"0","id":"b02874c0-0494-4806-9219-85e32dab05ce","detail-type":"Scheduled Event","source":"aws.scheduler","account":"000000000000","time":"2026-11-02T09:30:00Z","region":"us-east-1","resources":["arn:aws:scheduler:us-east-1:000000000000:schedule/default/plain"],"detail":"{}"}
+```
+
+An event bus target without `Input` gets `{}` as its `detail` instead. The other targets get what AWS sends each: a Lambda function is invoked asynchronously with the payload as its event; an SQS FIFO queue gets the target's `MessageGroupId` and no deduplication id; an SNS topic gets the payload as the message, with no subject; an event bus gets one event whose `source` and `detail-type` are the target's `EventBridgeParameters` and whose `detail` is the payload; a Step Functions state machine starts one execution with the payload as its input.
 
 ## Time zones, at() and DELETE
 
@@ -79,13 +85,13 @@ aws scheduler list-schedules --query 'Schedules[].[Name,State]' --output text
 # paris-morning  ENABLED
 ```
 
-Noon in New York was 17:00 UTC, and 09:30 in Paris is 08:30 UTC in November. `once` is gone: `get-schedule --name once` answers `ResourceNotFoundException` "Schedule default/once does not exist.". Without `DELETE` a fired `at()` stays, with its `State` unchanged and no next fire. An `at()` already in the past when it is created fires at once.
+Noon in New York was 17:00 UTC, and 09:30 in Paris is 08:30 UTC in November. `once` is gone: `get-schedule --name once` answers `ResourceNotFoundException` "Schedule once does not exist.". Without `DELETE` a fired `at()` stays, with its `State` unchanged and no next fire. An `at()` already in the past when it is created fires at once.
 
 With `--flexible-time-window Mode=FLEXIBLE,MaximumWindowInMinutes=N`, each invocation is delayed by a whole-second offset inside the window, drawn from the [seeded](snapshots.md) id streams, so a run with `--seed` repeats it; `<aws.scheduler.scheduled-time>` still carries the scheduled time, and the next fire counts from it.
 
 ## Retries and dead letters
 
-`RetryPolicy` defaults to 185 attempts over 86,400 seconds of emulator time, as on AWS. A target error the client caused, such as a queue that no longer exists, is not retried: the event goes straight to the dead-letter queue, with the attributes AWS documents:
+`RetryPolicy` defaults to 185 attempts over 86,400 seconds of emulator time, as on AWS. A target error the client caused, such as a queue that no longer exists, is not retried: the event goes straight to the dead-letter queue, with the attributes AWS sends. For an SQS target the body is the `SendMessage` request Scheduler built, and `TARGET_ARN` is the target as configured:
 
 ```sh
 aws sqs create-queue --queue-name gone
@@ -102,14 +108,14 @@ aws sqs receive-message --queue-url http://127.0.0.1:4566/000000000000/schedule-
 ```
 
 ```
-{"Body":"hello","attrs":{"ERROR_CODE":"AWS.SimpleQueueService.NonExistentQueue","ERROR_MESSAGE":"The specified queue does not exist.","EXECUTION_ID":"2d711f71c0d678e3","IS_PAYLOAD_TRUNCATED":"false","RETRY_ATTEMPTS":"0","SCHEDULED_TIME":"2026-11-04T10:00:00Z","SCHEDULE_ARN":"arn:aws:scheduler:us-east-1:000000000000:schedule/default/to-gone","TARGET_ARN":"arn:aws:scheduler:::aws-sdk:sqs:sendMessage"}}
+{"Body":"{\"MessageBody\":\"hello\",\"QueueUrl\":\"https://sqs.us-east-1.amazonaws.com/000000000000/gone\"}","attrs":{"CONTAINS_INVALID_PAYLOAD":"false","ERROR_CODE":"AWS.SimpleQueueService.NonExistentQueue","ERROR_MESSAGE":"The specified queue does not exist.","EXECUTION_ID":"60a7819c-14cd-4c82-8ba1-eb0a643b1445","IS_PAYLOAD_TRUNCATED":"false","RETRY_ATTEMPTS":"0","SCHEDULED_TIME":"2026-11-04T10:00:00Z","SCHEDULE_ARN":"arn:aws:scheduler:us-east-1:000000000000:schedule/default/to-gone","TARGET_ARN":"arn:aws:sqs:us-east-1:000000000000:gone"}}
 ```
 
 The journal shows the attempt as `attempt 1 dead-lettered to schedule-dlq`. A throttled or failing target is retried on the emulator clock until the policy runs out, and then the dead letter also carries `EXHAUSTED_RETRY_CONDITION`; a [fault rule](faults.md) on the target operation produces one. A dead-letter queue that is missing or refuses the message drops the event, and the journal records the drop.
 
 ## Schedule groups
 
-Every account has the `default` group, which cannot be created or deleted. Deleting another group deletes its schedules with it, before the call returns:
+Every account has the `default` group, which cannot be created or deleted ("This operation cannot be performed on schedule group default.") and reads back with no ARN or dates, as on AWS. Deleting another group deletes its schedules with it, before the call returns; AWS keeps the group `DELETING` for a few seconds:
 
 ```sh
 aws scheduler create-schedule-group --name billing --tags Key=team,Value=payments
@@ -119,7 +125,7 @@ aws scheduler list-schedules --group-name billing --query 'Schedules[].[GroupNam
 # billing  nightly  ENABLED
 aws scheduler delete-schedule-group --name billing
 aws scheduler get-schedule --group-name billing --name nightly
-# An error occurred (ResourceNotFoundException) ... Schedule billing/nightly does not exist.
+# An error occurred (ResourceNotFoundException) ... Schedule nightly does not exist.
 ```
 
 Tags go on groups only, as on AWS. Naming a group that does not exist answers "Schedule group <name> does not exist.".
@@ -136,10 +142,10 @@ aws scheduler create-schedule --name t --schedule-expression 'rate(1 hour)' --fl
 # functions, SQS queues, SNS topics, Step Functions state machines and EventBridge event buses in the schedule's Region. ...
 aws scheduler create-schedule --name t --schedule-expression 'rate(1 hour)' --flexible-time-window Mode=OFF \
   --target '{"Arn":"arn:aws:s3:::bucket","RoleArn":"arn:aws:iam::000000000000:role/scheduler-role"}'
-# An error occurred (ValidationException) ... Invalid request provided: s3 is not a supported service for a target
+# An error occurred (ValidationException) ... s3 is not a supported service for a target.
 ```
 
-`KmsKeyArn` is stored and echoed, and the payload is never encrypted. Under `--iam-enforce enforce`, the caller's `kms:DescribeKey`, `kms:GenerateDataKey` and `kms:Decrypt` at create and update, and the execution role's `kms:Decrypt` before each invocation, are evaluated against identity policies and the key's policy. A key understudy's KMS does not hold allows nothing, so create the key in understudy first; otherwise the write is denied, or the invocation goes to the dead-letter queue. No `AWS/Scheduler` metrics are published.
+`KmsKeyArn` is stored and echoed, and the payload is never encrypted. AWS accepted a key that does not exist at create. Under `--iam-enforce enforce`, the caller's `kms:DescribeKey`, `kms:GenerateDataKey` and `kms:Decrypt` at create and update, and the execution role's `kms:Decrypt` before each invocation, are evaluated against identity policies and the key's policy. A key understudy's KMS does not hold allows nothing, so create the key in understudy first; otherwise the write is denied, or the invocation goes to the dead-letter queue. No `AWS/Scheduler` metrics are published.
 
 ## Restarts, snapshots and your application's clock
 
