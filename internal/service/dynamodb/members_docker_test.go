@@ -12,7 +12,6 @@ import (
 
 	"github.com/sustinbebustin/understudy/internal/api/dynamodbapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
-	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/docker"
 	"github.com/sustinbebustin/understudy/internal/fault"
@@ -109,13 +108,10 @@ func TestTransactionCanceledRuleAgainstLocal(t *testing.T) {
 	if aerr == nil {
 		t.Fatal("a 3-item TransactWriteItems reached Local; want it cancelled")
 	}
-	id := dynamodbapi.IdentityTransactionCanceledException()
 	r := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", http.NoBody)
 	wire := awsjson.Codec{Version: awsjson.V10}.EncodeError(r, dynamodbapi.Service(), "rid", aerr)
-	// The message key is UNVERIFIED (smithy-protocol-tests.md 12.4,
-	// PROTO-01); the identity's own key is asserted.
-	key := map[awserr.MessageKey]string{awserr.MessageUpper: "Message", awserr.MessageLower: "message"}[id.MessageKey]
-	want := `{"__type":"com.amazonaws.dynamodb.v20120810#TransactionCanceledException","` + key + `":` +
+	// AWS's key is Message (smithy-protocol-tests.md 12.4, PROTO-01).
+	want := `{"__type":"com.amazonaws.dynamodb.v20120810#TransactionCanceledException","Message":` +
 		`"Transaction cancelled, please refer cancellation reasons for specific reasons [None, TransactionConflict, None]",` +
 		`"CancellationReasons":[{"Code":"None"},` + conflictReason + `,{"Code":"None"}]}`
 	if wire.Status != http.StatusBadRequest || string(wire.Body) != want {

@@ -100,14 +100,11 @@ func TestTransactionCanceledRuleThroughTheAdminAPI(t *testing.T) {
 		if e == nil {
 			k.Fatal("a 3-item call reached the handler; want it cancelled")
 		}
-		id := dynamodbapi.IdentityTransactionCanceledException()
 		r := httptest.NewRequestWithContext(k.Context(), http.MethodPost, "/", http.NoBody)
 		resp := awsjson.Codec{Version: awsjson.V10}.EncodeError(r, dynamodbapi.Service(), "rid", e)
 		msg := "Transaction cancelled, please refer cancellation reasons for specific reasons [None, TransactionConflict, None]"
-		// The message key is UNVERIFIED (smithy-protocol-tests.md 12.4,
-		// PROTO-01): the identity's own key is asserted, not a guess.
-		key := map[awserr.MessageKey]string{awserr.MessageUpper: "Message", awserr.MessageLower: "message"}[id.MessageKey]
-		want := `{"__type":"com.amazonaws.dynamodb.v20120810#TransactionCanceledException","` + key + `":"` + msg + `",` +
+		// AWS's key is Message (smithy-protocol-tests.md 12.4, PROTO-01).
+		want := `{"__type":"com.amazonaws.dynamodb.v20120810#TransactionCanceledException","Message":"` + msg + `",` +
 			`"CancellationReasons":[{"Code":"None"},` + conflictReason + `,{"Code":"None"}]}`
 		if resp.Status != http.StatusBadRequest || string(resp.Body) != want {
 			k.Errorf("the cancelled call answers %d %s\nwant 400 %s", resp.Status, resp.Body, want)

@@ -206,6 +206,9 @@ func fixError(m document.Map, op *registry.Operation, a answer) bool {
 		m[at].Value = document.String(awsPreexisting(a.table))
 		changed = true
 	}
+	if id.Shape == dynamodbapi.IdentityTransactionCanceledException().Shape {
+		changed = fixReasons(m) || changed
+	}
 	key := id.MessageKey
 	if id.Shape == dynamodbapi.IdentityConditionalCheckFailedException().Shape && slices.ContainsFunc(m, func(e document.Entry) bool { return e.Key == "Item" }) {
 		// AWS spells it Message when the error carries the item
@@ -221,6 +224,50 @@ func fixError(m document.Map, op *registry.Operation, a answer) bool {
 		changed = changed || m[at].Key != "Message"
 		m[at].Key = "Message"
 	case awserr.NoMessage:
+	}
+	return changed
+}
+
+// awsReasonText returns AWS's text for Local's cancellation reason text,
+// which ends without Local's and the documentation's final period
+// (smithy-protocol-tests.md 12.4: PROTO-03, PROTO-06), and false for
+// any other text.
+func awsReasonText(local document.String) (document.String, bool) {
+	switch local {
+	case "The conditional request failed.":
+		return "The conditional request failed", true
+	case "Transaction is ongoing for the item.":
+		return "Transaction is ongoing for the item", true
+	}
+	return "", false
+}
+
+// fixReasons translates the Message of each of a TransactionCanceledException's
+// CancellationReasons that holds one of Local's texts, reporting whether it
+// changed one.
+func fixReasons(m document.Map) bool {
+	at := slices.IndexFunc(m, func(e document.Entry) bool { return e.Key == "CancellationReasons" })
+	if at < 0 {
+		return false
+	}
+	reasons, ok := m[at].Value.(document.List)
+	if !ok {
+		return false
+	}
+	changed := false
+	for _, r := range reasons {
+		reason, ok := r.(document.Map)
+		if !ok {
+			continue
+		}
+		for i, e := range reason {
+			if text, ok := e.Value.(document.String); ok && e.Key == "Message" {
+				if fixed, ok := awsReasonText(text); ok {
+					reason[i].Value = fixed
+					changed = true
+				}
+			}
+		}
 	}
 	return changed
 }

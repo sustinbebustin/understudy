@@ -78,7 +78,7 @@ func TestAmbiguousShapeListsFullIDs(t *testing.T) {
 func TestTransactionCanceledRuleIsRefused(t *testing.T) {
 	kerneltest.Run(t, func(k *kerneltest.K) {
 		withoutReasons := `com.amazonaws.dynamodb#TransactionCanceledException always carries CancellationReasons on AWS, one per item of the transaction in item order; ` +
-			`set them in action.members, such as {"CancellationReasons": [{"Code": "TransactionConflict", "Message": "Transaction is ongoing for the item."}]}`
+			`set them in action.members, such as {"CancellationReasons": [{"Code": "TransactionConflict", "Message": "Transaction is ongoing for the item"}]}`
 		afterCommit := "com.amazonaws.dynamodb#TransactionCanceledException means the transaction changed nothing, so AWS never sends it after a commit; " +
 			"inject it with an error action whose members set CancellationReasons"
 		for _, c := range []struct{ kind, op, shape, field, reason string }{

@@ -63,12 +63,12 @@ understudy faults add --operation dynamodb.TransactWriteItems --error Transactio
 ```
 
 ```text
-understudy faults add: fault rule rejected, no rule was added or changed: action.members: com.amazonaws.dynamodb#TransactionCanceledException always carries CancellationReasons on AWS, one per item of the transaction in item order; set them in action.members, such as {"CancellationReasons": [{"Code": "TransactionConflict", "Message": "Transaction is ongoing for the item."}]}
+understudy faults add: fault rule rejected, no rule was added or changed: action.members: com.amazonaws.dynamodb#TransactionCanceledException always carries CancellationReasons on AWS, one per item of the transaction in item order; set them in action.members, such as {"CancellationReasons": [{"Code": "TransactionConflict", "Message": "Transaction is ongoing for the item"}]}
 ```
 
 ```sh
 understudy faults add --id conflict --operation dynamodb.TransactWriteItems --error TransactionCanceledException \
-  --members '{"CancellationReasons": [{"Code": "None"}, {"Code": "TransactionConflict", "Message": "Transaction is ongoing for the item."}]}'
+  --members '{"CancellationReasons": [{"Code": "None"}, {"Code": "TransactionConflict", "Message": "Transaction is ongoing for the item"}]}'
 # three-puts.json holds three Put items for one table
 aws dynamodb transact-write-items --transact-items file://three-puts.json --cli-error-format json
 ```
@@ -83,7 +83,7 @@ aws dynamodb transact-write-items --transact-items file://three-puts.json --cli-
         },
         {
             "Code": "TransactionConflict",
-            "Message": "Transaction is ongoing for the item."
+            "Message": "Transaction is ongoing for the item"
         },
         {
             "Code": "None"

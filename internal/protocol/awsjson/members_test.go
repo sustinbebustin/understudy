@@ -12,10 +12,9 @@ import (
 	"github.com/sustinbebustin/understudy/internal/protocol/awsjson"
 )
 
-// messageKey spells id's message key as awsJson writes it. The key of
-// TransactionCanceledException is UNVERIFIED on AWS (smithy-protocol-tests.md
-// 12.4, PROTO-01), so the tests read it from the generated identity rather
-// than assume one.
+// messageKey spells id's message key as awsJson writes it, which for
+// TransactionCanceledException is AWS's Message (smithy-protocol-tests.md
+// 12.4, PROTO-01).
 func messageKey(t *testing.T, id awserr.Identity) string {
 	t.Helper()
 	switch id.MessageKey {

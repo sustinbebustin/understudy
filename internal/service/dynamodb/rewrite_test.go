@@ -192,8 +192,17 @@ func TestLocalErrorsTakeAWSWordsAndSpelling(t *testing.T) {
 		{
 			"a Message shape keeps Message", "TransactWriteItems",
 			`{"TransactItems":[{"Put":{"TableName":"Locks","Item":{"LockID":{"S":"a"}}}}]}`,
-			`{"__type":"com.amazonaws.dynamodb.v20120810#TransactionCanceledException","CancellationReasons":[{"Code":"ConditionalCheckFailed","Message":"The conditional request failed."}],"Message":"Transaction cancelled, please refer cancellation reasons for specific reasons [ConditionalCheckFailed]"}`,
-			`{"__type":"com.amazonaws.dynamodb.v20120810#TransactionCanceledException","CancellationReasons":[{"Code":"ConditionalCheckFailed","Message":"The conditional request failed."}],"Message":"Transaction cancelled, please refer cancellation reasons for specific reasons [ConditionalCheckFailed]"}`,
+			`{"__type":"com.amazonaws.dynamodb.v20120810#TransactionCanceledException","CancellationReasons":[{"Code":"ConditionalCheckFailed","Message":"The conditional request failed"}],"Message":"Transaction cancelled, please refer cancellation reasons for specific reasons [ConditionalCheckFailed]"}`,
+			`{"__type":"com.amazonaws.dynamodb.v20120810#TransactionCanceledException","CancellationReasons":[{"Code":"ConditionalCheckFailed","Message":"The conditional request failed"}],"Message":"Transaction cancelled, please refer cancellation reasons for specific reasons [ConditionalCheckFailed]"}`,
+		},
+		{
+			// AWS's reason texts end without a period, Local's with one
+			// (smithy-protocol-tests.md 12.4; testdata/parity/dynamodb/PROTO-03/01-single-ccf.json,
+			// testdata/parity/dynamodb/PROTO-06/01.json).
+			"cancellation reasons take AWS's texts", "TransactWriteItems",
+			`{"TransactItems":[{"Put":{"TableName":"Locks","Item":{"LockID":{"S":"a"}}}},{"Put":{"TableName":"Locks","Item":{"LockID":{"S":"b"}}}},{"Put":{"TableName":"Locks","Item":{"LockID":{"S":"c"}}}}]}`,
+			`{"__type":"com.amazonaws.dynamodb.v20120810#TransactionCanceledException","CancellationReasons":[{"Code":"None"},{"Code":"ConditionalCheckFailed","Message":"The conditional request failed."},{"Code":"TransactionConflict","Message":"Transaction is ongoing for the item."}],"Message":"Transaction cancelled, please refer cancellation reasons for specific reasons [None, ConditionalCheckFailed, TransactionConflict]"}`,
+			`{"__type":"com.amazonaws.dynamodb.v20120810#TransactionCanceledException","CancellationReasons":[{"Code":"None"},{"Code":"ConditionalCheckFailed","Message":"The conditional request failed"},{"Code":"TransactionConflict","Message":"Transaction is ongoing for the item"}],"Message":"Transaction cancelled, please refer cancellation reasons for specific reasons [None, ConditionalCheckFailed, TransactionConflict]"}`,
 		},
 		{
 			"a __type the operation does not send stays", "ListTables", `{}`,

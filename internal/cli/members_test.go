@@ -9,9 +9,9 @@ import (
 	"github.com/sustinbebustin/understudy/admin"
 )
 
-// The documented TransactionConflict reason (smithy-protocol-tests.md
-// 12.2, aws-doc).
-const conflictMembers = `{"CancellationReasons":[{"Code":"TransactionConflict","Message":"Transaction is ongoing for the item."}]}`
+// AWS's recorded TransactionConflict reason (smithy-protocol-tests.md
+// 12.4, PROTO-06).
+const conflictMembers = `{"CancellationReasons":[{"Code":"TransactionConflict","Message":"Transaction is ongoing for the item"}]}`
 
 // faults add --members sets the --error shape's members: the server holds
 // them, --output json carries them, and the table names the action as
