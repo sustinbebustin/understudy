@@ -137,11 +137,14 @@ REDACT = [
     (re.compile(r"\b(AKIA|ASIA)[A-Z0-9]{16}\b"), r"\1REDACTED"),
     (re.compile(r"(Signature=)[0-9a-f]{64}"), r"\1REDACTED"),
 ]
-# The kit's check, plus the login tokens a credential refresh carries.
+# The kit's check, plus the login tokens a credential refresh carries. Key ids and the
+# token prefix are matched case-sensitively, as AWS issues them, and the login token names
+# only as whole words: case-insensitive, base64 bodies and error codes such as SFN's
+# InvalidToken matched them by accident.
 CREDENTIAL_CHECK = re.compile(
-    r"ASIA[A-Z0-9]{16}|AKIA[A-Z0-9]{16}|IQoJb3JpZ2lu|(SecretAccessKey|SessionToken|Security-Token)[^A-Za-z0-9]{0,6}[A-Za-z0-9+/%]{20}"
-    r"|(refreshToken|accessToken|idToken)[^A-Za-z0-9]{0,6}[A-Za-z0-9]",
-    re.I,
+    r"ASIA[A-Z0-9]{16}|AKIA[A-Z0-9]{16}|IQoJb3JpZ2lu"
+    r"|(?i:(SecretAccessKey|SessionToken|Security-Token)[^A-Za-z0-9]{0,6}[A-Za-z0-9+/%]{20})"
+    r"|(?i:\b(refreshToken|accessToken|idToken)[^A-Za-z0-9]{0,6}[A-Za-z0-9])"
 )
 
 

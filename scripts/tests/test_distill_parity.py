@@ -69,6 +69,14 @@ def test_bodies_over_the_limit_become_a_size_and_digest():
     assert dp.body_fields(b"") == {"body": ""}
 
 
+def test_credential_check_flags_credentials_but_not_look_alikes():
+    assert dp.CREDENTIAL_CHECK.search("ASIA" + "ABCDEFGHIJKLMNOP")
+    assert dp.CREDENTIAL_CHECK.search('"sessionToken": "' + "a" * 20)
+    assert dp.CREDENTIAL_CHECK.search('{"refreshToken": "x"}')
+    assert not dp.CREDENTIAL_CHECK.search('{"__type":"InvalidToken","message":"Invalid Token: x"}')
+    assert not dp.CREDENTIAL_CHECK.search("fyfXaKIacQPXEV4bAbCdEfGh")  # a lower-case look-alike in base64
+
+
 def test_debug_log_drops_credential_refresh_and_keeps_bodies_paired():
     text = log(
         "botocore.endpoint - DEBUG - Making request for OperationModel(name=ReceiveMessage) with params: "
