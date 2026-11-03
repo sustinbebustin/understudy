@@ -31,9 +31,10 @@ func (h *harness) resourceARNs() []string {
 }
 
 // DeleteEventBus refuses a bus that still has a rule under
-// events.delete-bus.with-rules (eventbridge-buses.md 3.5, EBB-01): the code
-// is that of the recorded default-bus refusal and the text is inferred. The
-// bus and its rule stay. Rules on a custom bus come from a snapshot here.
+// events.delete-bus.with-rules with ValidationException "EventBus can't be
+// deleted since it has rules." (EBB-01 01-delete-with-rule, recorded
+// 2026-11-03; eventbridge-buses.md 3.5). The bus and its rule stay. Rules
+// on a custom bus come from a snapshot here.
 func TestDeleteEventBusRefusesABusWithARule(t *testing.T) {
 	run(t, func(h *harness) {
 		if v := h.switchValue("events.delete-bus.with-rules"); v != "rejected" {
@@ -41,7 +42,7 @@ func TestDeleteEventBusRefusesABusWithARule(t *testing.T) {
 		}
 		loadStoredV2(h)
 		_, err := call(h, eventbridgeapi.OpDeleteEventBus, &eventbridgeapi.DeleteEventBusInput{Name: "orders"})
-		wantError(t, err, "ValidationException", "Cannot delete event bus orders. All rules associated with this event bus need to be deleted.")
+		wantError(t, err, "ValidationException", "EventBus can't be deleted since it has rules.")
 		h.describeBus(new("orders"))
 		if arns := h.resourceARNs(); !slices.Contains(arns, ruleARNOn("orders", "r")) {
 			t.Errorf("resources after the refused delete = %v, want the rule kept", arns)
@@ -176,8 +177,7 @@ func TestUntaggingAnAbsentKeyStoresNothing(t *testing.T) {
 }
 
 // CreateEventBus refuses a partner bus before it checks the name, then the
-// name default, then a '/' (eventbridge-buses.md 10.7, 2.2); the two name
-// texts are the CreateEventBus page's sentences, inferred until EBB-02. The
+// name default, an aws. prefix and a '/' (eventbridge-buses.md 10.7, 2.2). The
 // quota counts the default bus among the 100 (eventbridge-buses.md 7), with
 // the recorded target-limit text, inferred.
 func TestCreateEventBusRefusalTexts(t *testing.T) {
@@ -193,17 +193,24 @@ func TestCreateEventBusRefusalTexts(t *testing.T) {
 				"understudy does not implement partner event buses, so CreateEventBus with EventSourceName created nothing. " +
 					"Create a custom bus without EventSourceName, or run 'understudy coverage --service eventbridge' for what is supported.",
 			},
-			{eventbridgeapi.CreateEventBusInput{Name: "default"}, "ValidationException", "You can't use the name default for a custom event bus."},
-			{eventbridgeapi.CreateEventBusInput{Name: "team/orders"}, "ValidationException", "Custom event bus names can't contain the / character."},
+			// EBB-02 (recorded 2026-11-03; eventbridge-buses.md 2.2): default
+			// already exists, aws. is checked before the /.
+			{eventbridgeapi.CreateEventBusInput{Name: "default"}, "ResourceAlreadyExistsException", "Event bus default already exists."},
+			{eventbridgeapi.CreateEventBusInput{Name: "team/orders"}, "ValidationException", "Event bus name must not contain '/'."},
+			{eventbridgeapi.CreateEventBusInput{Name: "aws.orders"}, "ValidationException", "EventBus name starting with 'aws.' is not valid."},
+			{eventbridgeapi.CreateEventBusInput{Name: "aws.partner/example.com/x"}, "ValidationException", "EventBus name starting with 'aws.' is not valid."},
 		} {
 			_, err := call(h, eventbridgeapi.OpCreateEventBus, &tt.in)
 			wantError(t, err, tt.jsonType, tt.message)
 		}
+		// DeleteEventBus checks the aws. prefix too (EBB-02 teardown).
+		_, err := call(h, eventbridgeapi.OpDeleteEventBus, &eventbridgeapi.DeleteEventBusInput{Name: "aws.orders"})
+		wantError(t, err, "ValidationException", "EventBus name starting with 'aws.' is not valid.")
 
 		for i := range 99 {
 			h.createBus("bus-" + strconv.Itoa(i))
 		}
-		_, err := call(h, eventbridgeapi.OpCreateEventBus, &eventbridgeapi.CreateEventBusInput{Name: "bus-99"})
+		_, err = call(h, eventbridgeapi.OpCreateEventBus, &eventbridgeapi.CreateEventBusInput{Name: "bus-99"})
 		wantError(t, err, "LimitExceededException", "The requested resource exceeds the maximum number allowed.")
 	})
 }

@@ -64,15 +64,13 @@ func namedRule[In any](bus func(*In) *string, name func(*In) string) kernel.Bind
 }
 
 // checkPutRule runs PutRule's stateless checks before fault rules, as AWS
-// validates before anything else. A ScheduleExpression on any bus but the
-// default one is refused first, for a bus that does not exist too
-// (testdata/parity/events/R14/04-custom-bus-schedule.json) and, an inferred
-// order, for an expression that does not parse (eventbridge-buses.md 5.3,
-// 10.3.7, EBB-03). Then a rule needs an event pattern or a schedule, and
-// each must be valid.
+// validates before anything else: a rule needs an event pattern or a
+// schedule, and each must be valid. A ScheduleExpression on any bus but the
+// default one is left to putRule, which looks the bus up first
+// (eventbridge-buses.md 5.3, EBB-03).
 func (s *Service) checkPutRule(in *eventbridgeapi.PutRuleInput) *awserr.Error {
-	if in.ScheduleExpression != nil && busNamePart(in.EventBusName) != defaultBus {
-		return errScheduleOnCustomBus()
+	if scheduleOnCustomBus(in) {
+		return nil
 	}
 	if in.EventPattern != nil {
 		if _, err := s.patterns.compile(*in.EventPattern); err != nil {
@@ -81,6 +79,12 @@ func (s *Service) checkPutRule(in *eventbridgeapi.PutRuleInput) *awserr.Error {
 	}
 	_, err := newTrigger(in.EventPattern, in.ScheduleExpression)
 	return err
+}
+
+// scheduleOnCustomBus reports whether in puts a ScheduleExpression on any
+// bus but the default one, which AWS refuses (eventbridge-buses.md 5.3).
+func scheduleOnCustomBus(in *eventbridgeapi.PutRuleInput) bool {
+	return in.ScheduleExpression != nil && busNamePart(in.EventBusName) != defaultBus
 }
 
 // maxRules is how many rules a bus may have in region: 300, or 100 in
@@ -124,12 +128,11 @@ func (s *Service) wildcardRules(st *State, bus, name string) int {
 // putRule creates or replaces a rule on one of the caller's buses: omitted
 // members become empty, while its tags and targets stay
 // (secrets-logs-events-alarms.md 4.1). The bus must exist, and the rule
-// quotas count per bus (eventbridge-buses.md 7, 10.2.3).
+// quotas count per bus (eventbridge-buses.md 7, 10.2.3). A schedule on a
+// custom bus is refused once the bus is found, before the expression or a
+// pattern beside it is checked, an inferred order (eventbridge-buses.md 5.3,
+// EBB-03).
 func (s *Service) putRule(_ context.Context, c *kernel.Call, in *eventbridgeapi.PutRuleInput) (*eventbridgeapi.PutRuleOutput, *awserr.Error) {
-	trigger, err := newTrigger(in.EventPattern, in.ScheduleExpression)
-	if err != nil {
-		return nil, err
-	}
 	bus, err := ownBusName(c.Scope(), in.EventBusName)
 	if err != nil {
 		return nil, err
@@ -137,6 +140,13 @@ func (s *Service) putRule(_ context.Context, c *kernel.Call, in *eventbridgeapi.
 	r := ruleRef{scope: c.Scope(), bus: bus, name: in.Name}
 	_, err = kernel.Write(c, s.cells, r.scope, func(st *State, now clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
 		if err := st.requireBus(r.bus); err != nil {
+			return struct{}{}, err
+		}
+		if scheduleOnCustomBus(in) {
+			return struct{}{}, errScheduleOnCustomBus()
+		}
+		trigger, err := newTrigger(in.EventPattern, in.ScheduleExpression)
+		if err != nil {
 			return struct{}{}, err
 		}
 		rule := Rule{
