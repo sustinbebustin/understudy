@@ -10,7 +10,6 @@ import (
 	"github.com/sustinbebustin/understudy/internal/authz"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/clock"
-	"github.com/sustinbebustin/understudy/internal/evidence"
 	"github.com/sustinbebustin/understudy/internal/fidelity"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/protocol/jsonx"
@@ -227,7 +226,7 @@ func (s *Service) Scopes() []aws.Scope { return s.cells.Keys(store.ScopeKeys()) 
 // deviation is Local's, listed in coverage.
 func (s *Service) Switches() []fidelity.Entry {
 	return []fidelity.Entry{
-		authz.DenialSwitch("dynamodb.denial.type", "__type com.amazon.coral.service#AccessDeniedException, 400", evidence.Inferred, "3.2", "IAM-ENF-04",
+		authz.RecordedSwitch("dynamodb.denial.type", "__type com.amazon.coral.service#AccessDeniedException, 400", "3.2", "IAM-ENF-04", authz.SessionUnreplayed,
 			s.kernel.Bindings().AuthorizedOps(dynamodbapi.Service())),
 	}
 }

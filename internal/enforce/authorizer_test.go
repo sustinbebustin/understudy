@@ -322,8 +322,9 @@ func TestIdentityPoliciesAllowAndAMissingUserIsDenied(t *testing.T) {
 // denied with STS's recorded grammar (iam-enforcement-surfaces.md 4.3,
 // testdata/parity/sts/R15/06-assume-denied.json); an iam action on the
 // role reads no resource policy, since a role has only its trust policy
-// (3.1); a KMS key reads its key policy, which must allow (4.1, I1, I2) and
-// kms:Decrypt names "the resource associated with this ciphertext" (4.3).
+// (3.1); a KMS key reads its key policy, which must allow (4.1, I1, I2), and
+// a kms:Decrypt denial names the key ARN in the documented grammar
+// (iam-enforcement-surfaces.md 4.3, testdata/parity/kms/IAM-ENF/05-decrypt.json).
 func TestResourcePoliciesByKind(t *testing.T) {
 	trustU := `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":"` + userARN + `"},"Action":"sts:AssumeRole"}]}`
 	keyDefault := `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":"arn:aws:iam::000000000000:root"},"Action":"kms:*","Resource":"*"}]}`
@@ -341,7 +342,7 @@ func TestResourcePoliciesByKind(t *testing.T) {
 			"User: arn:aws:iam::000000000000:user/u is not authorized to perform: sts:AssumeRole on resource: arn:aws:iam::000000000000:role/missing")
 		wantDenied(k, "iam:GetRole reads no trust policy", callAs(k, iamGetRole, userU, roleR, nil), "")
 		wantDenied(k, "key policy delegating to IAM, no IAM policy", callAs(k, kmsDecrypt, userU, keyK, nil),
-			"User arn:aws:iam::000000000000:user/u is not authorized to perform: kms:Decrypt on the resource associated with this ciphertext because no identity-based policy allows the kms:Decrypt action")
+			"User: arn:aws:iam::000000000000:user/u is not authorized to perform: kms:Decrypt on resource: "+keyK.String()+" because no identity-based policy allows the kms:Decrypt action")
 	})
 	withKMS := &identities{sets: map[string]authz.IdentitySet{
 		userARN: withPolicy("kms", `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"kms:Decrypt","Resource":"`+keyK.String()+`"}]}`),
@@ -475,21 +476,19 @@ func TestRootAssumeRoleUnderEachMode(t *testing.T) {
 	})
 }
 
-// SQS over the Query protocol answers "Access to the resource <url> is
-// denied." (iam-enforcement-surfaces.md 4.3, aws-doc text form), naming a
-// URL on the endpoint the client addressed (switch sqs.denial.query-text
-// for which URL).
+// SQS answers the documented grammar with the action in lower case, over
+// the Query protocol as over JSON, not the aws-doc "Access to the resource
+// <url> is denied." (iam-enforcement-surfaces.md 4.3,
+// testdata/parity/sqs/IAM-ENF/02-query-send.json).
 func TestSQSQueryDenialText(t *testing.T) {
 	ids := &identities{sets: map[string]authz.IdentitySet{userARN: {Boundary: authz.NoBoundary{}}}}
 	runEnforce(t, enforce.Enforce, ids, resources{}, func(k *kerneltest.K) {
 		err := callAs(k, sqsSend, userU, queue, nil)
-		wantDenied(k, "sqs", err, "")
-		if err == nil {
-			return
-		}
-		text := err.MessageFor(ref.AWSQuery)
-		if !strings.HasPrefix(text, "Access to the resource "+k.Endpoint.String()) || !strings.HasSuffix(text, " is denied.") {
-			k.Errorf("Query message = %q, want %q", text, "Access to the resource "+k.Endpoint.String()+"/... is denied.")
+		want := "User: arn:aws:iam::000000000000:user/u is not authorized to perform: sqs:sendmessage on resource: " + queue.String() +
+			" because no identity-based policy allows the sqs:sendmessage action"
+		wantDenied(k, "sqs", err, want)
+		if err != nil && err.MessageFor(ref.AWSQuery) != want {
+			k.Errorf("Query message = %q, want %q", err.MessageFor(ref.AWSQuery), want)
 		}
 	})
 }

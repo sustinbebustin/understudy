@@ -230,9 +230,11 @@ func NewExecution(svc *Service, d kernel.ServiceDeps, o ExecutionOptions) (*Exec
 	}
 	x.async = d.Kernel.Timers().Handle(TimerAsync, x.onAsync)
 	svc.overlayDir = x.overlays.dirOf
-	// A delivery to a deleted function fails as the missing function
-	// (lambda.enforce.missing-resource.delivery; iam-enforcement-surfaces.md 8.4).
-	lambdaapi.NewBinder(d.Binder).Invoke(x.invoke, partial(invokeNote), kernel.WithResources(invokedFunction), kernel.AuthorizedAfterResolveForDeliveries())
+	// A delivery is authorized at step 8, as every call is, so one to a
+	// deleted function is denied before the function is looked up
+	// (lambda.enforce.missing-resource.delivery deny-first;
+	// iam-enforcement-surfaces.md 8.4, IAM-ENF-22).
+	lambdaapi.NewBinder(d.Binder).Invoke(x.invoke, partial(invokeNote), kernel.WithResources(invokedFunction))
 	return x, nil
 }
 
@@ -422,18 +424,10 @@ func (x *Execution) invoke(ctx context.Context, c *kernel.Call, in *lambdaapi.In
 		}
 		return err
 	}
-	// A delivery is authorized once its function is found
-	// (AuthorizedAfterResolveForDeliveries) and before the function runs.
-	// Only a missing function or qualifier is answered first (8.4: a
-	// target that no longer exists); its state and stored role are checked
-	// after the authorization, as a direct call's are.
 	if err := x.find(r); err != nil {
 		return nil, missing(err)
 	}
 	touch(c, r.qualifiedARN())
-	if err := kernel.AuthorizeResolved(c); err != nil {
-		return nil, err
-	}
 	t, err := x.resolve(r)
 	if err != nil {
 		return nil, missing(err)

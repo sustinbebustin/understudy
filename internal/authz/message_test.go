@@ -12,25 +12,13 @@ import (
 // (iam-enforcement-surfaces.md 4.1, aws-doc): "User: <arn> is not
 // authorized to perform: <action>", then "because no <type> allows the
 // <action> action" or "with an explicit deny in <a|an|the> <type>[: <policy
-// ARN>]". Where "on resource: <arn>" goes is inconsistent across AWS's
-// examples (4.1, IAM-ENF-15), so it is read from switch iam.denial.grammar.
-// S3's variant (4.2, aws-doc), the KMS ciphertext text (4.3, aws-doc) and
-// the recorded STS text (4.3, aws-recorded) are compared byte for byte.
-
-// onResourceOnExplicitOnly reads iam.denial.grammar: whether "on resource:"
-// is written on explicit denials only.
-func onResourceOnExplicitOnly(t *testing.T) bool {
-	t.Helper()
-	v := evalSwitch(t, "iam.denial.grammar")
-	if strings.Contains(v, "on resource on explicit denials") {
-		return true
-	}
-	t.Fatalf("iam.denial.grammar = %q, a value this test does not know (iam-enforcement-surfaces.md 12.8)", v)
-	return false
-}
+// ARN>]". Every recorded denial of a pair on a resource writes "on
+// resource: <arn>", implicit and explicit alike (IAM-ENF-01 to IAM-ENF-15,
+// recorded 2026-11-03), so the documented examples are compared in that
+// form. S3's variant (4.2) and the recorded STS text (4.3) are compared
+// byte for byte.
 
 func TestDenialMessageIAMGrammar(t *testing.T) {
-	explicitOnly := onResourceOnExplicitOnly(t)
 	john := userOf("123456789012", "John", "AIDAJOHNEXAMPLE00001")
 	hr := userOf("123456789012", "HR", "AIDAHREXAMPLE0000001")
 	session := sessionOf("111122223333", "app", "AROAAPPEXAMPLE000001", "s")
@@ -39,13 +27,9 @@ func TestDenialMessageIAMGrammar(t *testing.T) {
 		deployment = "arn:aws:codedeploy:us-east-1:123456789012:deploymentgroup:*"
 		role       = "arn:aws:iam::123456789012:role/R"
 	)
-	// onResource is " on resource: <arn>" where the switch writes it.
-	onResource := func(arn string, isExplicit bool) string {
-		if isExplicit || !explicitOnly {
-			return " on resource: " + arn
-		}
-		return ""
-	}
+	// onResource is " on resource: <arn>", written on every denial of a
+	// resource (IAM-ENF-15).
+	onResource := func(arn string, _ bool) string { return " on resource: " + arn }
 	cases := []struct {
 		name string
 		d    authz.Denial
@@ -127,10 +111,11 @@ func TestDenialMessageIAMGrammar(t *testing.T) {
 }
 
 // S3's variant (iam-enforcement-surfaces.md 4.2, aws-doc): the resource in
-// quotes, the policy ARN after ", with policy ARN:", the resource left out
-// of an implicit identity denial, and "Access Denied" for a principal of
-// another account ("Cross-account requests outside of the same
-// organization return a generic Access Denied message").
+// quotes, the policy ARN after ", with policy ARN:", and "Access Denied"
+// for a principal of another account ("Cross-account requests outside of
+// the same organization return a generic Access Denied message"). An
+// implicit identity denial names the quoted resource too (IAM-ENF-12,
+// recorded 2026-11-03), where the documented example leaves it out.
 func TestDenialMessageS3Grammar(t *testing.T) {
 	mary := userOf("123456789012", "MaryMajor", "AIDAMARYMAJOREXAMPL1")
 	const object = "arn:aws:s3:::amzn-s3-demo-bucket1/object-name"
@@ -147,7 +132,7 @@ func TestDenialMessageS3Grammar(t *testing.T) {
 		{
 			"implicit identity",
 			authz.Denial{Principal: mary, Action: actionOf("s3:GetObject"), Resource: on(object, "123456789012"), Decision: authz.ImplicitDeny{PolicyType: authz.IdentityBased}},
-			"User: arn:aws:iam::123456789012:user/MaryMajor is not authorized to perform: s3:GetObject because no identity-based policy allows the s3:GetObject action",
+			`User: arn:aws:iam::123456789012:user/MaryMajor is not authorized to perform: s3:GetObject on resource: "arn:aws:s3:::amzn-s3-demo-bucket1/object-name" because no identity-based policy allows the s3:GetObject action`,
 		},
 		{
 			"another account",
@@ -181,18 +166,90 @@ func TestDenialMessageSTSGrammarMatchesTheRecording(t *testing.T) {
 	}
 }
 
-// kms:Decrypt names "the resource associated with this ciphertext", with
-// no colon after "User" and no key ARN (iam-enforcement-surfaces.md 4.3,
-// aws-doc).
-func TestDenialMessageKMSCiphertextGrammar(t *testing.T) {
-	d := authz.Denial{
-		Principal: userOf("111122223333", "Alice", "AIDAALICEEXAMPLE0001"), Action: actionOf("kms:Decrypt"),
-		Resource: on("arn:aws:kms:us-west-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab", "111122223333"),
-		Decision: authz.ImplicitDeny{PolicyType: authz.IdentityBased},
+// Recorded denials of a role session (testdata/parity/<service>/IAM-ENF,
+// recorded 2026-11-03), byte for byte: SQS writes the action in lower
+// case (IAM-ENF-01, IAM-ENF-02), SNS with the prefix "SNS:" (IAM-ENF-03),
+// and kms:Decrypt of a ciphertext names the key ARN in the documented
+// grammar (IAM-ENF-05), not the aws-doc "resource associated with this
+// ciphertext" text. Inline and session-policy denials carry no policy ARN,
+// a managed policy's does (IAM-ENF-15).
+func TestDenialMessagesMatchTheRecordings(t *testing.T) {
+	none := sessionOf("123456789012", "us1103-enf-none", "AROAENFNONEEXAMPLE01", "enf")
+	mix := sessionOf("123456789012", "us1103-enf-mix", "AROAENFMIXEXAMPLE001", "enf")
+	const (
+		queue = "arn:aws:sqs:us-east-2:123456789012:us1103-enf-q"
+		topic = "arn:aws:sns:us-east-2:123456789012:us1103-enf-t2"
+		key   = "arn:aws:kms:us-east-2:123456789012:key/45c1da4a-a2c9-4510-9930-7f77b26866b5"
+		group = "arn:aws:logs:us-east-2:123456789012:log-group:/us1103/enf"
+		rule  = "arn:aws:events:us-east-2:123456789012:rule/us1103-enf-r"
+	)
+	cases := []struct {
+		fixture string
+		d       authz.Denial
+		g       authz.Grammar
+		want    string
+	}{
+		{
+			"sqs/IAM-ENF/01-raw.json",
+			authz.Denial{Principal: none, Action: actionOf("sqs:GetQueueAttributes"), Resource: on(queue, "123456789012"), Decision: authz.ImplicitDeny{PolicyType: authz.IdentityBased}},
+			authz.GrammarSQS,
+			"User: arn:aws:sts::123456789012:assumed-role/us1103-enf-none/enf is not authorized to perform: sqs:getqueueattributes on resource: " + queue + " because no identity-based policy allows the sqs:getqueueattributes action",
+		},
+		{
+			"sns/IAM-ENF/03-get.json",
+			authz.Denial{Principal: none, Action: actionOf("sns:GetTopicAttributes"), Resource: on(topic, "123456789012"), Decision: authz.ImplicitDeny{PolicyType: authz.IdentityBased}},
+			authz.GrammarSNS,
+			"User: arn:aws:sts::123456789012:assumed-role/us1103-enf-none/enf is not authorized to perform: SNS:GetTopicAttributes on resource: " + topic + " because no identity-based policy allows the SNS:GetTopicAttributes action",
+		},
+		{
+			"kms/IAM-ENF/05-decrypt.json",
+			authz.Denial{Principal: none, Action: actionOf("kms:Decrypt"), Resource: on(key, "123456789012"), Decision: authz.ImplicitDeny{PolicyType: authz.IdentityBased}},
+			authz.GrammarIAM,
+			"User: arn:aws:sts::123456789012:assumed-role/us1103-enf-none/enf is not authorized to perform: kms:Decrypt on resource: " + key + " because no identity-based policy allows the kms:Decrypt action",
+		},
+		{
+			"sqs/IAM-ENF/15-inline-sqs.json",
+			authz.Denial{Principal: mix, Action: actionOf("sqs:GetQueueAttributes"), Resource: on("arn:aws:sqs:us-east-2:123456789012:us1103-enf-q", "123456789012"), Decision: authz.ExplicitDeny{PolicyType: authz.IdentityBased}},
+			authz.GrammarSQS,
+			"User: arn:aws:sts::123456789012:assumed-role/us1103-enf-mix/enf is not authorized to perform: sqs:getqueueattributes on resource: " + queue + " with an explicit deny in an identity-based policy",
+		},
+		{
+			"sns/IAM-ENF/15-managed-sns.json",
+			authz.Denial{Principal: mix, Action: actionOf("sns:GetTopicAttributes"), Resource: on("arn:aws:sns:us-east-2:123456789012:us1103-enf-t", "123456789012"), Decision: authz.ExplicitDeny{PolicyType: authz.IdentityBased, PolicyARN: "arn:aws:iam::123456789012:policy/us1103-enf-deny"}},
+			authz.GrammarSNS,
+			"User: arn:aws:sts::123456789012:assumed-role/us1103-enf-mix/enf is not authorized to perform: SNS:GetTopicAttributes on resource: arn:aws:sns:us-east-2:123456789012:us1103-enf-t with an explicit deny in an identity-based policy: arn:aws:iam::123456789012:policy/us1103-enf-deny",
+		},
+		{
+			"logs/IAM-ENF/15-session-implicit.json",
+			authz.Denial{Principal: mix, Action: actionOf("logs:DescribeLogStreams"), Resource: on(group, "123456789012"), Decision: authz.ImplicitDeny{PolicyType: authz.SessionPolicy}},
+			authz.GrammarIAM,
+			"User: arn:aws:sts::123456789012:assumed-role/us1103-enf-mix/enf is not authorized to perform: logs:DescribeLogStreams on resource: " + group + " because no session policy allows the logs:DescribeLogStreams action",
+		},
+		{
+			"events/IAM-ENF/15-session-explicit.json",
+			authz.Denial{Principal: mix, Action: actionOf("events:DescribeRule"), Resource: on(rule, "123456789012"), Decision: authz.ExplicitDeny{PolicyType: authz.SessionPolicy}},
+			authz.GrammarIAM,
+			"User: arn:aws:sts::123456789012:assumed-role/us1103-enf-mix/enf is not authorized to perform: events:DescribeRule on resource: " + rule + " with an explicit deny in a session policy",
+		},
+		{
+			"logs/IAM-ENF/15-boundary-implicit.json",
+			authz.Denial{Principal: mix, Action: actionOf("logs:DescribeLogStreams"), Resource: on(group, "123456789012"), Decision: authz.ImplicitDeny{PolicyType: authz.PermissionsBoundary}},
+			authz.GrammarIAM,
+			"User: arn:aws:sts::123456789012:assumed-role/us1103-enf-mix/enf is not authorized to perform: logs:DescribeLogStreams on resource: " + group + " because no permissions boundary allows the logs:DescribeLogStreams action",
+		},
+		{
+			"s3/IAM-ENF/12-raw.json",
+			authz.Denial{Principal: none, Action: actionOf("s3:GetObject"), Resource: on("arn:aws:s3:::us1103-enf-b/exists", "123456789012"), Decision: authz.ImplicitDeny{PolicyType: authz.IdentityBased}},
+			authz.GrammarS3,
+			`User: arn:aws:sts::123456789012:assumed-role/us1103-enf-none/enf is not authorized to perform: s3:GetObject on resource: "arn:aws:s3:::us1103-enf-b/exists" because no identity-based policy allows the s3:GetObject action`,
+		},
 	}
-	const want = "User arn:aws:iam::111122223333:user/Alice is not authorized to perform: kms:Decrypt on the resource associated with this ciphertext because no identity-based policy allows the kms:Decrypt action"
-	if got := d.Message(authz.GrammarKMSCiphertext); got != want {
-		t.Errorf("Message(GrammarKMSCiphertext) =\n%q\nwant\n%q", got, want)
+	for _, c := range cases {
+		t.Run(c.fixture, func(t *testing.T) {
+			if got := c.d.Message(c.g); got != c.want {
+				t.Errorf("Message =\n%q\nwant the recorded\n%q", got, c.want)
+			}
+		})
 	}
 }
 
@@ -200,7 +257,7 @@ func TestDenialMessageKMSCiphertextGrammar(t *testing.T) {
 // its account root ARN (identity.Render, iam-sts-kms.md 4.1).
 func TestDenialMessageOfAnAllowIsEmptyAndRootIsItsARN(t *testing.T) {
 	root := identity.Root{Account: account("111122223333")}
-	for _, g := range []authz.Grammar{authz.GrammarIAM, authz.GrammarS3, authz.GrammarSTS, authz.GrammarKMSCiphertext} {
+	for _, g := range []authz.Grammar{authz.GrammarIAM, authz.GrammarS3, authz.GrammarSTS, authz.GrammarSQS, authz.GrammarSNS} {
 		if got := (authz.Denial{Principal: root, Action: actionOf("s3:GetObject"), Resource: anyIn("111122223333"), Decision: authz.Allow{}}).Message(g); got != "" {
 			t.Errorf("Message(%d) of an Allow = %q, want empty", g, got)
 		}

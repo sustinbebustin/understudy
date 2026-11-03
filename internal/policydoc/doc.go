@@ -40,14 +40,14 @@
 //   - Four resource checks depart from moto. The S3 region rule exempts
 //     every S3 resource type whose ARN format carries a region in the
 //     Service Authorization Reference (access grants, batch jobs, Storage
-//     Lens, multi-Region access point requests in any region), when the
-//     account element is not empty, where moto exempts access points alone
-//     and by prefix; AWS's managed policies name access grants that way.
-//     Whether CreatePolicy accepts them in a customer policy is UNVERIFIED
-//     (iam-evaluation.md 10.6, IAM-EVAL-36). The IAM resource path rule
-//     accepts a resource element of "*" (arn:aws:iam::111111111111:*), which
-//     moto rejects; IAM policies use that form, and the rule's own text
-//     allows "*". An empty string in a Resource list is checked like any
+//     Lens, multi-Region access point requests in any region), by prefix
+//     and whatever the account element holds, where moto exempts access
+//     points alone; CreatePolicy accepts them in a customer policy
+//     (iam-evaluation.md 10.6, IAM-EVAL-36, recorded). The IAM resource
+//     path rule accepts a resource element of "*"
+//     (arn:aws:iam::111111111111:*), which moto rejects, and root and
+//     role-template/, as IAM's own message lists them (IAM-EVAL-35,
+//     recorded). An empty string in a Resource list is checked like any
 //     other value and fails the format rule, where moto drops empty list
 //     items before both the format and the legacy checks. The legacy rule
 //     against an empty service element applies to every Resource list item
@@ -82,13 +82,14 @@
 //     from an assumed one.
 //   - Evaluate is the enforcement evaluator and never assumes a clause
 //     holds: an unsupplied key evaluates as absent by the truth table of
-//     iam-evaluation.md 6.14 and is reported. Where AWS's behavior is not
-//     recorded it follows the default of the switch authz.Switches
-//     registers, or an inference: a multivalued key under a plain operator
-//     holds when any value does (IAM-EVAL-02); a set qualifier reads a
-//     single-valued key as a set of one (IAM-EVAL-03); Null counts a key
-//     whose every value is "" as null (IAM-EVAL-05); Bool takes policy
-//     variables (IAM-EVAL-01) and true and false in any case, and IgnoreCase
+//     iam-evaluation.md 6.14 and is reported. It follows the value of the
+//     switch authz.Switches registers, recorded against AWS's simulator
+//     where the item says so, or an inference: a plain operator on a
+//     multivalued key never holds (IAM-EVAL-02, recorded); a set qualifier
+//     reads a single-valued key as a set of one (IAM-EVAL-03, recorded);
+//     "" is a value, for Null and the set operators alike (IAM-EVAL-05,
+//     IAM-EVAL-04, recorded); Bool takes a policy variable literally
+//     (IAM-EVAL-01, recorded) and true and false in any case, and IgnoreCase
 //     folds with strings.EqualFold (IAM-EVAL-08); numbers are decimal with
 //     an optional exponent, compared as float64 (IAM-EVAL-09); dates are the
 //     W3C profile of ISO 8601 or integer epoch seconds, four digits reading
@@ -101,7 +102,8 @@
 //     and a value or default substitutes as literal characters; an
 //     unresolved policy value matches nothing, in a list of values as in
 //     Resource or NotResource (IAM-EVAL-16, IAM-EVAL-13); NotPrincipal
-//     exempts a user or session only when its account and its own or its
-//     role's identifier are both listed (IAM-EVAL-18); "*" names service
-//     principals (IAM-EVAL-33).
+//     exempts a user only when its account and its identifier are listed,
+//     and a session only when its account, its role's identifier and its
+//     session ARN all are (IAM-EVAL-18, recorded for the session); "*"
+//     names service principals (IAM-EVAL-33).
 package policydoc

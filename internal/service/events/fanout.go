@@ -29,10 +29,10 @@ type deliveryTarget interface {
 	// mechanism is how the outbox delivers to the target.
 	mechanism() delivery.Mechanism
 	// sendsSourceAccount reports whether EventBridge sends the rule's
-	// account as aws:SourceAccount with the delivery: never to a function
-	// (switch events.delivery.source-account-lambda, aws-doc), always to a
-	// queue or topic (events.delivery.source-account-sqs, inferred for a
-	// queue), iam-enforcement-surfaces.md 8.1.
+	// account as aws:SourceAccount with the delivery: to a function and a
+	// queue (switches events.delivery.source-account-lambda and
+	// events.delivery.source-account-sqs, aws-recorded, IAM-ENF-22) and a
+	// topic (inferred), iam-enforcement-surfaces.md 8.1.
 	sendsSourceAccount() bool
 }
 
@@ -83,7 +83,7 @@ func (busTarget) mechanism() delivery.Mechanism      { return delivery.EventsToE
 // (eventbridge-buses.md 6.3).
 func (b busTarget) crossAccount(scope aws.Scope) bool { return b.bus.Account != scope.Account.String() }
 
-func (functionTarget) sendsSourceAccount() bool { return false }
+func (functionTarget) sendsSourceAccount() bool { return true }
 func (queueTarget) sendsSourceAccount() bool    { return true }
 func (topicTarget) sendsSourceAccount() bool    { return true }
 

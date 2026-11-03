@@ -128,9 +128,10 @@ func TestSwitchesNameEveryUnrecordedChoice(t *testing.T) {
 			"sqs.batch.unset-visibility-timeout": "zero",
 			"sqs.policy.limits":                  "bytes-and-statements",
 			// IAM enforcement's denial identity per protocol
-			// (iam-enforcement-surfaces.md 12.8).
+			// (iam-enforcement-surfaces.md 12.8; IAM-ENF-01, IAM-ENF-02,
+			// recorded 2026-11-03).
 			"sqs.denial.json-identity": "header AccessDenied;Sender, __type com.amazon.coral.service#AccessDeniedException, 403",
-			"sqs.denial.query-text":    "AccessDenied 403, Access to the resource <queue url> is denied., the URL on the endpoint the client addressed",
+			"sqs.denial.query-text":    "AccessDenied, Sender, 403, the grammar of 4.1 with the action in lower case",
 			// A delivery to a deleted queue fails as the missing queue
 			// (iam-enforcement-surfaces.md 8.2, sns.md 7.1).
 			"sqs.enforce.missing-resource.delivery": "resolve-first",

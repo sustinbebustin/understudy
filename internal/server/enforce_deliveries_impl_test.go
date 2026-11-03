@@ -144,7 +144,7 @@ func TestEnforceDeliversEventBridgeToAQueueWithTheRulesAccount(t *testing.T) {
 	if bodies := queueBodies(t, c, endpoint, "target"); len(bodies) != 1 {
 		t.Errorf("queue holds %q, want the one event", bodies)
 	}
-	for name, want := range map[string]string{"events.delivery.source-account-sqs": "present", "events.delivery.source-account-lambda": "absent"} {
+	for name, want := range map[string]string{"events.delivery.source-account-sqs": "present", "events.delivery.source-account-lambda": "present"} {
 		if got := wiredSwitch(t, c, name); got != want {
 			t.Errorf("%s = %q, want %q", name, got, want)
 		}
@@ -294,16 +294,17 @@ func TestEnforceFailsADeliveryToADeletedQueueAsMissing(t *testing.T) {
 	}
 }
 
-// An EventBridge delivery to a deleted function or topic fails as the
-// missing target: AWS sends "a target resource that no longer exists"
-// straight to the dead-letter queue, apart from "missing permissions to a
-// target", and lists NO_RESOURCE beside NO_PERMISSIONS among the codes
-// (iam-enforcement-surfaces.md 8.4, aws-doc). A function or topic with no
-// policy left could not show that if EventBridge were authorized first, so
-// neither delivery journals a denial (switches
-// lambda.enforce.missing-resource.delivery and
-// sns.enforce.missing-resource.delivery).
-func TestEnforceFailsAnEventBridgeDeliveryToADeletedFunctionOrTopicAsMissing(t *testing.T) {
+// An EventBridge delivery to a deleted function is denied: its dead letter
+// carries ERROR_CODE NO_PERMISSIONS, as Lambda refuses events.amazonaws.com
+// before it finds the function (switch
+// lambda.enforce.missing-resource.delivery deny-first, aws-recorded,
+// testdata/parity/sqs/IAM-ENF/22-dlq-gone.json). One to a deleted topic
+// fails as the missing target, NO_RESOURCE, since a topic with no policy
+// left could not show that if EventBridge were authorized first
+// (iam-enforcement-surfaces.md 8.4, aws-doc; switch
+// sns.enforce.missing-resource.delivery, inferred: the recording received
+// no dead letter for the topic).
+func TestEnforceFailsAnEventBridgeDeliveryToADeletedFunctionOrTopic(t *testing.T) {
 	c, endpoint, _ := enforced(t, server.IAMEnforceEnforce)
 	const (
 		ruleARN = "arn:aws:events:us-east-1:000000000000:rule/nightly"
@@ -354,17 +355,19 @@ func TestEnforceFailsAnEventBridgeDeliveryToADeletedFunctionOrTopicAsMissing(t *
 	for _, m := range out.Messages {
 		codes[m.MessageAttributes["TARGET_ARN"].StringValue] = m.MessageAttributes["ERROR_CODE"].StringValue
 	}
-	if want := map[string]string{fn: "NO_RESOURCE", topic: "NO_RESOURCE"}; !maps.Equal(codes, want) {
+	if want := map[string]string{fn: "NO_PERMISSIONS", topic: "NO_RESOURCE"}; !maps.Equal(codes, want) {
 		t.Errorf("dead letters by TARGET_ARN = %v, want %v", codes, want)
 	}
-	for _, denied := range enforcementAdvisories(t, c, "access-denied") {
-		if strings.Contains(denied, ":gone") {
-			t.Errorf("access-denied advisory %q names a deleted target, want the delivery to fail as the missing target", denied)
-		}
+	denials := enforcementAdvisories(t, c, "access-denied")
+	if !slices.ContainsFunc(denials, func(d string) bool { return strings.Contains(d, fn) }) {
+		t.Errorf("access-denied advisories = %q, want one for the deleted function", denials)
 	}
-	for _, name := range []string{"lambda.enforce.missing-resource.delivery", "sns.enforce.missing-resource.delivery"} {
-		if got := wiredSwitch(t, c, name); got != "resolve-first" {
-			t.Errorf("%s = %q, want resolve-first", name, got)
+	if slices.ContainsFunc(denials, func(d string) bool { return strings.Contains(d, topic) }) {
+		t.Errorf("access-denied advisories = %q, want none for the deleted topic", denials)
+	}
+	for name, want := range map[string]string{"lambda.enforce.missing-resource.delivery": "deny-first", "sns.enforce.missing-resource.delivery": "resolve-first"} {
+		if got := wiredSwitch(t, c, name); got != want {
+			t.Errorf("%s = %q, want %s", name, got, want)
 		}
 	}
 }

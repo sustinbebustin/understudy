@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/api/stsapi"
+	"github.com/sustinbebustin/understudy/internal/authz"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
@@ -116,20 +117,21 @@ func (s *Service) Switches() []fidelity.Entry {
 }
 
 // denialReason is switch sts.denial.reason: every AssumeRole denial omits
-// the reason clause, as the recorded implicit trust denial does; whether
-// the other denials carry "because no role trust policy allows" or "with an
-// explicit deny in the role trust policy" is UNVERIFIED
+// the reason clause, as each recorded one does: a trust policy that does
+// not name the caller, a caller with no identity policy, an explicit deny
+// in the trust policy, and an ExternalId wrong or absent
 // (iam-enforcement-surfaces.md 4.3, IAM-ENF-16).
 func denialReason() fidelity.Switch[string] {
 	return fidelity.Switch[string]{
 		Name:   "sts.denial.reason",
 		Value:  "omitted",
-		Label:  evidence.Inferred,
+		Label:  evidence.AWSRecorded,
 		Ref:    "docs/research/iam-enforcement-surfaces.md#4.3",
 		Record: "IAM-ENF-16",
 		Ops:    []string{"sts.AssumeRole"},
 		Settles: fidelity.NoScenario{
-			Reason: "unrecorded: IAM-ENF-16 waits in the recording queue (iam-enforcement-surfaces.md 13); sts/R15#06-assume-denied records only the implicit trust denial, whose text this value reproduces",
+			Reason: "IAM-ENF-16 recorded 2026-11-03 (testdata/parity/sts/IAM-ENF); " + authz.SessionUnreplayed +
+				"; sts/R15#06-assume-denied replays the implicit trust denial",
 		},
 	}
 }

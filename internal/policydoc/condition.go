@@ -90,10 +90,11 @@ func (t Test) shape() shape {
 }
 
 // takesVariables reports whether the family's policy values may hold policy
-// variables: String and ARN operators (iam-evaluation.md 7.1), and Bool under
-// switch iam.condition.bool-variables "substituted" (IAM-EVAL-01).
+// variables: String and ARN operators (iam-evaluation.md 7.1). Bool takes
+// its value literally (switch iam.condition.bool-variables "literal",
+// aws-recorded, IAM-EVAL-01).
 func (f family) takesVariables() bool {
-	return f == familyString || f == familyStringFold || f == familyStringLike || f == familyBool || f == familyArn
+	return f == familyString || f == familyStringFold || f == familyStringLike || f == familyArn
 }
 
 // policyValue is one policy value ready to compare.
@@ -132,12 +133,20 @@ func (s *statementEval) holds(cl Clause) bool {
 	forValue := func(r string) bool { return sh.holdsFor(r, policy) }
 	switch op.Set {
 	case ForAllValues:
-		return allEmpty(value.Values) || !slices.ContainsFunc(value.Values, func(r string) bool { return !forValue(r) })
-	case ForAnyValue, SingleValued:
-		// A plain operator on a multivalued key holds when any value does
-		// (switch iam.condition.multivalued-plain-operator "any-value",
-		// IAM-EVAL-02); a set qualifier on a single-valued key reads it as a
-		// set of one (IAM-EVAL-03, inferred).
+		// "" is a value, not an empty set (IAM-EVAL-04, aws-recorded).
+		return !slices.ContainsFunc(value.Values, func(r string) bool { return !forValue(r) })
+	case SingleValued:
+		// A plain operator on a multivalued key never holds, negated or
+		// not (switch iam.condition.multivalued-plain-operator "no-match":
+		// aws-recorded for StringEquals, IAM-EVAL-02; inferred for the
+		// negated operators).
+		if value.Multivalued {
+			return false
+		}
+		return slices.ContainsFunc(value.Values, forValue)
+	case ForAnyValue:
+		// A set qualifier on a single-valued key reads it as a set of one
+		// (IAM-EVAL-03, aws-recorded).
 		return slices.ContainsFunc(value.Values, forValue)
 	}
 	return false
@@ -199,19 +208,14 @@ func (sh shape) test(r string, p policyValue) bool {
 // nullHolds is the Null operator, whose set qualifier and IfExists suffix
 // are ignored: "true" holds when the key is null and "false" when it is not,
 // several values OR, and any other value never holds. A key is null when it
-// is absent, present with no values, or present with every value "" (switch
-// iam.condition.empty-value "null", IAM-EVAL-05).
+// is absent or present with no values (inferred); "" is a value (switch
+// iam.condition.empty-value "value", aws-recorded, IAM-EVAL-05).
 func nullHolds(values []Value, present bool, request []string) bool {
-	isNull := !present || allEmpty(request)
+	isNull := !present || len(request) == 0
 	return slices.ContainsFunc(values, func(v Value) bool {
 		b, ok := parseBool(valueText(v))
 		return ok && b == isNull
 	})
-}
-
-// allEmpty reports whether every value is "", which holds for none.
-func allEmpty(values []string) bool {
-	return !slices.ContainsFunc(values, func(v string) bool { return v != "" })
 }
 
 // parseBool reads true or false in any case (IAM-EVAL-08, inferred).

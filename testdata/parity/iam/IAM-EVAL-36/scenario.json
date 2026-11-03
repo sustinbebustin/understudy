@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "item": "IAM-EVAL-36",
+  "account": "123456789012",
+  "region": "us-east-2",
+  "client": "aws-cli",
+  "steps": [
+    {
+      "fixture": "iam/IAM-EVAL-36/11-object-region.json",
+      "compare": "all"
+    }
+  ]
+}

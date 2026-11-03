@@ -37,6 +37,9 @@ type Context struct {
 	service string
 	// keys holds every key set, by its lower-cased name.
 	keys map[string]contextEntry
+	// exact holds the keys SetExact set, by their name as spelled; a
+	// lookup spelled so finds them before keys.
+	exact map[string]contextEntry
 	// families are the lower-cased prefixes UnsuppliedFamily marked.
 	families []string
 }
@@ -65,6 +68,17 @@ func (c *Context) SetMulti(key string, values ...string) {
 	c.put(key, contextEntry{presence: Present, value: ContextValue{Values: append([]string{}, values...), Multivalued: true}})
 }
 
+// SetExact makes key present and single-valued with value for a lookup
+// that spells key exactly so; a lookup spelled otherwise finds what key's
+// case-insensitive name holds. It is for tags whose keys differ only in
+// case (iam-evaluation.md 6.13, IAM-EVAL-31).
+func (c *Context) SetExact(key, value string) {
+	if c.exact == nil {
+		c.exact = map[string]contextEntry{}
+	}
+	c.exact[key] = contextEntry{presence: Present, value: ContextValue{Values: []string{value}}}
+}
+
 // Absent records that the request does not carry key.
 func (c *Context) Absent(key string) {
 	c.put(key, contextEntry{presence: Absent})
@@ -89,6 +103,9 @@ func (c *Context) Lookup(key string) (ContextValue, Presence) {
 		return ContextValue{}, Absent
 	}
 	name := strings.ToLower(key)
+	if e, ok := c.exact[key]; ok {
+		return ContextValue{Values: slices.Clone(e.value.Values)}, Present
+	}
 	if e, ok := c.keys[name]; ok {
 		if e.presence != Present {
 			return ContextValue{}, e.presence

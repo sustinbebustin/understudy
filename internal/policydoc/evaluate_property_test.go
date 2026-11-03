@@ -102,21 +102,21 @@ func TestPropertyIfExists(t *testing.T) {
 	})
 }
 
-// ForAllValues on an absent key, on a present key with no values and on a
-// key whose only value is "" is true; ForAnyValue on an absent key or one
-// with no values is false (iam-evaluation.md 6.12, 6.14; S-SETS
-// #reference_policies_condition-forallvalues, -foranyvalue; S-OPS
-// #conditions_arn_multivalued "resolves to a null dataset, such as an
-// empty string").
+// ForAllValues on an absent key and on a present key with no values is
+// true; ForAnyValue on either is false (iam-evaluation.md 6.12, 6.14;
+// S-SETS #reference_policies_condition-forallvalues, -foranyvalue). A key
+// whose only value is "" is not an empty set: it holds one value, which
+// the operator tests (IAM-EVAL-04, aws-recorded), whatever S-OPS
+// #conditions_arn_multivalued's "null dataset, such as an empty string"
+// suggests.
 func TestPropertySetOperatorsOnEmptySets(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		p := rapid.SampledFrom(opPairs).Draw(t, "operators")
 		op := rapid.SampledFrom([]string{p.positive, p.negated}).Draw(t, "operator")
 		policy := drawValues(t, p.values)
 		for name, ctx := range map[string]*policydoc.Context{
-			"absent":       contextOf(),
-			"no values":    contextOf(many(propKey)),
-			"empty string": contextOf(many(propKey, "")),
+			"absent":    contextOf(),
+			"no values": contextOf(many(propKey)),
 		} {
 			if !condHolds(t, "Allow", clauseDoc("ForAllValues:"+op, policy), ctx) {
 				t.Fatalf("ForAllValues:%s of %v is false on a key that is %s", op, policy, name)

@@ -59,10 +59,18 @@ func TestDenialMessageEdgeForms(t *testing.T) {
 			"User: arn:aws:iam::123456789012:user/MaryMajor is not authorized to perform: sts:TagSession",
 		},
 		{
-			"KMS ciphertext explicit",
-			authz.Denial{Principal: mary, Action: actionOf("kms:Decrypt"), Resource: on("arn:aws:kms:us-west-2:123456789012:key/1234abcd-12ab-34cd-56ef-1234567890ab", "123456789012"), Decision: authz.ExplicitDeny{PolicyType: authz.ResourceBased}},
-			authz.GrammarKMSCiphertext,
-			"User arn:aws:iam::123456789012:user/MaryMajor is not authorized to perform: kms:Decrypt on the resource associated with this ciphertext with an explicit deny in a resource-based policy",
+			// SQS lower-cases the action and SNS writes its prefix "SNS"
+			// on a pair on no resource too (IAM-ENF-01, IAM-ENF-03).
+			"SQS on no resource",
+			authz.Denial{Principal: mary, Action: actionOf("sqs:ListQueues"), Resource: anyIn("123456789012"), Decision: authz.ImplicitDeny{PolicyType: authz.IdentityBased}},
+			authz.GrammarSQS,
+			"User: arn:aws:iam::123456789012:user/MaryMajor is not authorized to perform: sqs:listqueues because no identity-based policy allows the sqs:listqueues action",
+		},
+		{
+			"SNS on no resource",
+			authz.Denial{Principal: mary, Action: actionOf("sns:ListTopics"), Resource: anyIn("123456789012"), Decision: authz.ImplicitDeny{PolicyType: authz.IdentityBased}},
+			authz.GrammarSNS,
+			"User: arn:aws:iam::123456789012:user/MaryMajor is not authorized to perform: SNS:ListTopics because no identity-based policy allows the SNS:ListTopics action",
 		},
 		{
 			"an unknown grammar renders as IAM's",
@@ -110,7 +118,7 @@ func TestPropertyDenialMessageIsOneLine(t *testing.T) {
 			Resource:  rapid.SampledFrom([]authz.Resource{on(implQueue, "111122223333"), anyIn("111122223333")}).Draw(rt, "resource"),
 			Decision:  decision,
 		}
-		g := rapid.SampledFrom([]authz.Grammar{authz.GrammarIAM, authz.GrammarS3, authz.GrammarSTS, authz.GrammarKMSCiphertext}).Draw(rt, "grammar")
+		g := rapid.SampledFrom([]authz.Grammar{authz.GrammarIAM, authz.GrammarS3, authz.GrammarSTS, authz.GrammarSQS, authz.GrammarSNS}).Draw(rt, "grammar")
 		msg := d.Message(g)
 		if strings.ContainsAny(msg, "\r\n") {
 			rt.Fatalf("Message(%d) = %q spans lines", g, msg)

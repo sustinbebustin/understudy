@@ -53,15 +53,10 @@ pattern_check() {
   return 1
 }
 
-# pattern_expected_denials prints the denials AWS makes too, for the
-# no-denials step under CONFORMANCE_IAM_ENFORCE=enforce.
-pattern_expected_denials() {
-  # The function's execution role (main.tf PublishLogsPolicy) grants logs:*
-  # only on log-group:/aws/lambda/EventBridgeScheduleTarget:*, which matches
-  # the group's streams but not the group ARN CreateLogGroup is authorized
-  # on, so Lambda cannot create the group and the check finds no line.
-  # That follows the current AWS documents; whether AWS still accepts the
-  # :* form for group-level actions is UNVERIFIED until IAM-ENF-42
-  # (secrets-logs-events-alarms.md 3.10, Q14).
-  printf '%s\n' 'for arn:aws:sts::[0-9]{12}:assumed-role/LambdaExecutionRole/[^ ]+ calling logs:CreateLogGroup on arn:aws:logs:[^ ]+:log-group:/aws/lambda/EventBridgeScheduleTarget$'
-}
+# No pattern_expected_denials: AWS makes no denial here. The function's
+# execution role (main.tf PublishLogsPolicy) grants logs:* only on
+# log-group:/aws/lambda/EventBridgeScheduleTarget:*, and a statement on the
+# :* form allows logs:CreateLogGroup on the group as well as the stream
+# actions: AWS created a function's log group under such a role
+# (testdata/parity/logs/IAM-ENF/42-fn-log-groups.json; IAM-ENF-42,
+# secrets-logs-events-alarms.md 3.10).

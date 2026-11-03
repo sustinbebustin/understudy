@@ -52,7 +52,7 @@ func New(d kernel.ServiceDeps, _ Options) *Service {
 func (s *Service) Switches() []fidelity.Entry {
 	return append([]fidelity.Entry{
 		pendingCryptoError().Entry(), crossAccountManagementError().Entry(),
-		authz.DenialSwitch("kms.denial.status", "400", evidence.Inferred, "3.2", "IAM-ENF-05", s.k.Bindings().AuthorizedOps(kmsapi.Service())),
+		authz.RecordedSwitch("kms.denial.status", "400", "3.2", "IAM-ENF-05", authz.SessionUnreplayed, s.k.Bindings().AuthorizedOps(kmsapi.Service())),
 		authz.ResolveFirstSwitch("kms", s.k.Bindings().ResolvedFirstOps(kmsapi.Service())),
 	}, authz.SwitchesOf("kms", []string{"kms.CreateKey", "kms.PutKeyPolicy"})...)
 }

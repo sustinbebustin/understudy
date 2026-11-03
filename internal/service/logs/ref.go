@@ -16,8 +16,9 @@ type groupRef struct {
 
 // arn is the group's ARN without the trailing ":*": logGroupArn, the form
 // the tagging operations take and every group-level action is authorized
-// on (secrets-logs-events-alarms.md 3.10). Whether AWS also lets a statement
-// on the ":*" form allow those actions is unknown (UNVERIFIED, Q14).
+// on, which a statement on the ":*" form allows too
+// (secrets-logs-events-alarms.md 3.10; policydoc matches a group as both,
+// IAM-ENF-42).
 func (g groupRef) arn() aws.ARN {
 	return aws.ARN{
 		Partition: g.scope.Partition.String(),

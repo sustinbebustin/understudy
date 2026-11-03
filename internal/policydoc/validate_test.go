@@ -158,8 +158,9 @@ func TestValidateReportsIAMMessages(t *testing.T) {
 			name:     "IAM resource of an unknown type",
 			validate: policydoc.ValidateIdentity,
 			in:       `{"Version":"2012-10-17","Statement":{"Effect":"Allow","Action":"iam:GetRole","Resource":"arn:aws:iam::111111111111:roles/r"}}`,
-			want: `IAM resource path must either be "*" or start with user/, federated-user/, role/, group/, instance-profile/, mfa/, ` +
-				`server-certificate/, policy/, sms-mfa/, saml-provider/, oidc-provider/, report/, access-report/.`,
+			// testdata/parity/iam/IAM-EVAL-35/02-assumed-role.json
+			want: `IAM resource path must either be "*", root, or start with user/, federated-user/, role/, group/, instance-profile/, mfa/, ` +
+				`server-certificate/, policy/, sms-mfa/, saml-provider/, oidc-provider/, report/, access-report/, role-template/.`,
 		},
 		{
 			// moto keeps the last problem it finds checking a list in

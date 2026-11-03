@@ -142,7 +142,7 @@ func firstError(errs ...*awserr.Error) *awserr.Error {
 // that answer a missing secret before authorization (resolvedFirst).
 func (s *Service) Switches() []fidelity.Entry {
 	return []fidelity.Entry{
-		authz.DenialSwitch("secretsmanager.denial.status", "AccessDeniedException 400, body key Message", evidence.ThirdPartyRecorded, "3.2", "IAM-ENF-06",
+		authz.RecordedSwitch("secretsmanager.denial.status", "AccessDeniedException 400, body key Message", "3.2", "IAM-ENF-06", authz.SessionUnreplayed,
 			s.k.Bindings().AuthorizedOps(secretsmanagerapi.Service())),
 		authz.ResolveFirstSwitch("secretsmanager", s.k.Bindings().ResolvedFirstOps(secretsmanagerapi.Service())),
 		fidelity.Switch[string]{

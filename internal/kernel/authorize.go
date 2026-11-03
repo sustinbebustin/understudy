@@ -73,11 +73,9 @@ type Allowed struct{}
 // Denied ends the call with its service's denial identity
 // (registry.Service.Denial).
 type Denied struct {
-	// Message is the text the call answers with; it may be empty.
+	// Message is the text the call answers with, on every protocol
+	// (iam-enforcement-surfaces.md 4.3, IAM-ENF-02); it may be empty.
 	Message string
-	// Messages override Message on one protocol: SQS over Query names the
-	// queue URL (iam-enforcement-surfaces.md 4.3).
-	Messages []awserr.ProtocolMessage
 }
 
 // Unevaluable is an Authorizer that could not decide, such as for a stored
@@ -271,7 +269,7 @@ func denial(c *Call, d Denied) *awserr.Error {
 	if svc.Denial == (registry.Denial{}) {
 		return awserr.Internalf(&DenialIdentityError{Service: svc.ID, Message: d.Message})
 	}
-	return &awserr.Error{ID: svc.Denial.Identity, Message: d.Message, Messages: d.Messages, Origin: awserr.Denial{}}
+	return &awserr.Error{ID: svc.Denial.Identity, Message: d.Message, Origin: awserr.Denial{}}
 }
 
 // authorizedActions returns the actions step 8 asks about, in order and

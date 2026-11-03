@@ -223,13 +223,14 @@ func (s *Service) Switches() []fidelity.Entry {
 		visibilityCeiling().Entry(), fifoReceiptExpiry().Entry(), fifoDuplicate().Entry(),
 		contentDedupFormat().Entry(), sequenceFormat().Entry(), batchUnsetVisibility().Entry(),
 		policyLimits().Entry(),
-		authz.DenialSwitch("sqs.denial.json-identity", "header AccessDenied;Sender, __type com.amazon.coral.service#AccessDeniedException, 403",
-			evidence.Inferred, "3.2", "IAM-ENF-01", authorized),
-		// The text form is aws-doc; which URL it names and the status are
-		// inferred (iam-enforcement-surfaces.md 4.3).
-		authz.DenialSwitch("sqs.denial.query-text", "AccessDenied 403, Access to the resource <queue url> is denied., the URL on the endpoint the client addressed",
-			evidence.Inferred, "4.3", "IAM-ENF-02", authorized),
-		authz.DeliveryResolveFirstSwitch("sqs", "8.2", "IAM-ENF-18", s.k.Bindings().DeliveryResolvedFirstOps(sqsapi.Service())),
+		authz.RecordedSwitch("sqs.denial.json-identity", "header AccessDenied;Sender, __type com.amazon.coral.service#AccessDeniedException, 403",
+			"3.2", "IAM-ENF-01", authz.SessionUnreplayed, authorized),
+		// The Query text is the grammar SQS writes over JSON, not the
+		// aws-doc "Access to the resource <url> is denied." (4.3).
+		authz.RecordedSwitch("sqs.denial.query-text", "AccessDenied, Sender, 403, the grammar of 4.1 with the action in lower case",
+			"4.3", "IAM-ENF-02", authz.SessionUnreplayed, authorized),
+		authz.RecordedSwitch("sqs.enforce.missing-resource.delivery", "resolve-first", "8.2", "IAM-ENF-18", authz.DeliveryUnreplayed,
+			s.k.Bindings().DeliveryResolvedFirstOps(sqsapi.Service())),
 	}
 }
 

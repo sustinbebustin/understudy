@@ -57,13 +57,13 @@ func (a *Authorizer) Authorize(ctx context.Context, c *kernel.Call, q kernel.Aut
 		if _, allowed := decided.outcome.Decision.(authz.Allow); allowed {
 			continue
 		}
-		message := decided.denial.Message(grammar(serviceOf(c), pair))
+		message := decided.denial.Message(grammar(serviceOf(c), pair.Action))
 		if a.mode != Enforce {
 			c.Record(ctx, c.Scope(), journal.Advisory{Kind: journal.AdvisoryAccessWouldDeny, Resource: pairARN(pair), Text: deniedText(message, decided, pair) + servedUnderAdvise})
 			return kernel.Allowed{}
 		}
 		c.Record(ctx, c.Scope(), journal.Advisory{Kind: journal.AdvisoryAccessDenied, Resource: pairARN(pair), Text: deniedText(message, decided, pair)})
-		return kernel.Denied{Message: message, Messages: protocolMessages(c, pair)}
+		return kernel.Denied{Message: message}
 	}
 	return kernel.Allowed{}
 }
@@ -104,7 +104,7 @@ func (a *Authorizer) Evaluate(_ context.Context, r EvaluateRequest) ([]Evaluatio
 		if err != nil {
 			return nil, &UnevaluableError{Pair: pair, Cause: err}
 		}
-		out = append(out, Evaluation{Pair: pair, Outcome: decided.outcome, Message: decided.denial.Message(grammar(ref.ServiceID(pair.Action.Prefix), pair))})
+		out = append(out, Evaluation{Pair: pair, Outcome: decided.outcome, Message: decided.denial.Message(grammar(ref.ServiceID(pair.Action.Prefix), pair.Action))})
 	}
 	return out, nil
 }

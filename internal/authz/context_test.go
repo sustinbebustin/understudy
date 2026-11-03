@@ -234,26 +234,25 @@ func TestBuildContextDeliveryKeys(t *testing.T) {
 	})
 }
 
-// Principal tags become aws:PrincipalTag/<key> (iam-evaluation.md 8.1);
-// two tags whose keys differ only in case match one policy key with two
-// values, which AWS's choice between is UNVERIFIED (6.13, IAM-EVAL-31):
-// switch iam.resource-tag.case-duplicates.
+// Principal tags become aws:PrincipalTag/<key> (iam-evaluation.md 8.1),
+// matched in any case. Two tags whose keys differ only in case are each
+// matched by a policy key spelled exactly as it is: a queue tagged env=a
+// and Env=b answered aws:ResourceTag/env "a" and not "b" (6.13, switch
+// iam.resource-tag.case-duplicates "exact-case", aws-recorded,
+// IAM-EVAL-31). Principal tags follow resource tags (inferred), and a
+// spelling that matches neither tag finds no value (inferred).
 func TestBuildContextPrincipalTags(t *testing.T) {
-	var duplicate presence
-	switch v := evalSwitch(t, "iam.resource-tag.case-duplicates"); v {
-	case "absent":
-		duplicate = absent
-	case "first":
-		duplicate = present("a")
-	default:
-		t.Fatalf("iam.resource-tag.case-duplicates = %q, a value this test does not know (iam-evaluation.md 12.3)", v)
+	if v := evalSwitch(t, "iam.resource-tag.case-duplicates"); v != "exact-case" {
+		t.Errorf("iam.resource-tag.case-duplicates = %q, want exact-case (IAM-EVAL-31)", v)
 	}
 	in := contextInput(userOf("111122223333", "ana", "AIDAANAEXAMPLE000001"), "s3:GetObject", on("arn:aws:s3:::b", "111122223333"))
 	in.PrincipalTags = []authz.Tag{{Key: "dept", Value: "123"}, {Key: "team", Value: "a"}, {Key: "Team", Value: "b"}}
 	checkKeys(t, "tags", authz.BuildContext(in), map[string]presence{
 		"aws:PrincipalTag/dept": present("123"),
 		"aws:PrincipalTag/DEPT": present("123"),
-		"aws:PrincipalTag/team": duplicate,
+		"aws:PrincipalTag/team": present("a"),
+		"aws:PrincipalTag/Team": present("b"),
+		"aws:PrincipalTag/TEAM": absent,
 		"aws:PrincipalTag/role": absent,
 	})
 }
