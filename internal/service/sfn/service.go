@@ -82,7 +82,9 @@ const (
 		"FULL jitter is drawn uniformly from understudy's seeded stream (ASL-10); " +
 		"IsTimestamp follows the documented RFC 3339 profile (ASL-07). " +
 		"Known differences from AWS: a runtime error's cause quotes the state's input as compact JSON, where AWS quotes the input as sent (ASL-04); " +
-		"JSONPath functions such as length() are refused at create, where AWS accepts them and fails at run time (ASL-19). " +
+		"JSONPath functions such as length() are refused at create, where AWS accepts them and fails at run time (ASL-19); " +
+		"an input over 262,144 is counted in characters with the 'Member must have length' wording, where AWS counts UTF-8 bytes " +
+		"and says 'Member must have size less than or equal to 262144 bytes in UTF-8 encoding' (SFN-08). " +
 		"A lambda:invoke InvocationType that resolves to anything but RequestResponse fails with States.Runtime (SFN-13). " +
 		"lambda:invoke results carry SdkHttpMetadata with AWS's recorded header names; the X-Amzn-Trace-Id value is understudy's. " +
 		"traceHeader, or the X-Amzn-Trace-Id request header when both are sent, " +
