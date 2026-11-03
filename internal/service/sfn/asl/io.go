@@ -186,9 +186,9 @@ func (sc scope) render(t template, input document.Value) (document.Value, Failur
 }
 
 // missingInTemplate is a ".$" path that selects nothing: States.Runtime with
-// the recorded text (stepfunctions-asl.md 4.6). The input inside the quotes
-// is its compact JSON text, member order kept; AWS's serialisation is
-// unrecorded (ASL-04).
+// the recorded text (stepfunctions-asl.md 4.6). AWS quotes the input as
+// sent (ASL-04, recorded 2026-11-03); understudy writes its compact JSON
+// text, member order kept, a known difference in the StartExecution note.
 func missingInTemplate(field string, input document.Value, err error) Failure {
 	var missing *jsonpath.MissingError
 	if !errors.As(err, &missing) {
