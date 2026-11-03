@@ -77,7 +77,7 @@ func transitionTo(o alarm.Outcome, s cloudwatchapi.StateValue) bool {
 // The properties of cloudwatch-alarms.md 12.3 item 2 (contract 1.4).
 func TestEvaluateProperties(t *testing.T) {
 	// The range must hold every bin the generator draws.
-	followsSwitch(t, "cloudwatch.alarm.evaluation-range", "n-plus-2")
+	followsSwitch(t, "cloudwatch.alarm.evaluation-range", "n-plus-5-for-60s,n-plus-2-otherwise")
 
 	// (1) With at least N real bins the treatment does not change the
 	// outcome: "the value you set for how to treat missing data is not
@@ -230,8 +230,8 @@ func referenceOutcome(cfg alarm.Config, bins []alarm.Bin) (to cloudwatchapi.Stat
 	if b < len(values) { // C2
 		return stateOK, false, ev
 	}
-	oldest := 0 // C3: 1-based position of the oldest breaching bin of d1..dN
-	for k := 0; k < cfg.N && k < len(bins); k++ {
+	oldest := 0 // C3: 1-based position of the oldest breaching bin of d1..dR (CWA-04)
+	for k := range bins {
 		if v, ok := bins[k].(alarm.Value); ok && breaches(v) {
 			oldest = k + 1
 		}
@@ -242,15 +242,15 @@ func referenceOutcome(cfg alarm.Config, bins []alarm.Bin) (to cloudwatchapi.Stat
 		}
 		return "", true, ev
 	}
-	return "", true, ev // C4 (cloudwatch.alarm.unaged-breach = retain)
+	return "", true, ev // C4 (cloudwatch.alarm.unaged-breach, CWA-04)
 }
 
 // Evaluate agrees with the cwa 3.5 algorithm, written out independently
 // above, on every random evaluation: the decision and the Evidence.
 func TestEvaluateFollowsTheAlgorithm(t *testing.T) {
-	followsSwitch(t, "cloudwatch.alarm.unaged-breach", "retain")
+	followsSwitch(t, "cloudwatch.alarm.unaged-breach", "alarm-if-aged-in-range-else-retain")
 	followsSwitch(t, "cloudwatch.alarm.unchanged-state", "no-update")
-	followsSwitch(t, "cloudwatch.alarm.evaluation-range", "n-plus-2")
+	followsSwitch(t, "cloudwatch.alarm.evaluation-range", "n-plus-5-for-60s,n-plus-2-otherwise")
 	rapid.Check(t, func(t *rapid.T) {
 		c := drawCase(t)
 		to, keep, ev := referenceOutcome(c.cfg, c.bins)
@@ -277,7 +277,7 @@ func TestEvaluateFollowsTheAlgorithm(t *testing.T) {
 // (https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/Double.html#toString(double);
 // cwa 4.3, cloudwatch.alarm.number-format).
 func TestFormatNumberRoundTrips(t *testing.T) {
-	followsSwitch(t, "cloudwatch.alarm.number-format", "java-double,event-configuration-plain-whole-numbers")
+	followsSwitch(t, "cloudwatch.alarm.number-format", "java-double")
 	rapid.Check(t, func(t *rapid.T) {
 		v := rapid.Float64().Filter(func(f float64) bool { return !math.IsInf(f, 0) && !math.IsNaN(f) }).Draw(t, "v")
 		s := alarm.FormatNumber(v)

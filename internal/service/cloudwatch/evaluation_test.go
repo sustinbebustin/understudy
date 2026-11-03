@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"reflect"
+	"regexp"
 	"slices"
 	"strings"
 	"sync"
@@ -233,7 +234,7 @@ func TestClockAdvanceEvaluatesAndNotifiesOnce(t *testing.T) {
 	runAlarms(t, func(h *harness, fx *effects) {
 		followsSwitch(h, "cloudwatch.alarm.first-evaluation", "next-boundary")
 		followsSwitch(h, "cloudwatch.alarm.evaluation-phase", "minute-boundary")
-		rng := switchCase(h, "cloudwatch.alarm.evaluation-range", map[string]int{"n-plus-2": 1 + 2})
+		rng := switchCase(h, "cloudwatch.alarm.evaluation-range", map[string]int{"n-plus-5-for-60s,n-plus-2-otherwise": 1 + 5})
 		followsSwitch(h, "cloudwatch.alarm.reason-format", "count-form-unless-datapoints-to-alarm")
 
 		t0 := h.now()
@@ -395,8 +396,7 @@ func TestEvaluationThatRetainsWritesNothing(t *testing.T) {
 // and never claimed (cwa 7.2, 12.4, 12.7; contract 3.3).
 func TestTransitionRunsItsActions(t *testing.T) {
 	runAlarms(t, func(h *harness, fx *effects) {
-		followsSwitch(h, "cloudwatch.alarm.sns.fifo-group", "sha256-hex-of-alarm-arn")
-		t0 := h.now()
+		followsSwitch(h, "cloudwatch.alarm.sns.fifo-group", "sha256-hex-of-alarm-arn,uuid-dedup-id")
 		h.put("Load", cloudwatchapi.StandardUnitCount, 20)
 		in := evalAlarm("cpu")
 		in.AlarmActions = []string{onAlarmFn + ":prod", ec2Stop, fifoTopic}
@@ -433,7 +433,8 @@ func TestTransitionRunsItsActions(t *testing.T) {
 			b := sha256.Sum256([]byte(s))
 			return hex.EncodeToString(b[:])
 		}
-		if !ok || topic.ARN.String() != fifoTopic || topic.GroupID != sum(arn) || topic.DedupID != sum(arn+stamp(t0.Add(time.Minute))) {
+		uuidV4 := regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
+		if !ok || topic.ARN.String() != fifoTopic || topic.GroupID != sum(arn) || !uuidV4.MatchString(topic.DedupID) {
 			h.Errorf("second delivery = %+v, want %s with the FIFO ids", deliveries[1].Request, fifoTopic)
 		}
 		notRun := h.advisories(journal.AdvisoryAlarmActionNotRun)
@@ -514,11 +515,13 @@ func TestNotEvaluableAlarmIsStoredAndNeverEvaluated(t *testing.T) {
 
 // SetAlarmState to a different value is a transition: state, history,
 // journal, actions and the state change event, with the caller's reason
-// and both timestamps now (cwa 2.3, 3.8). To the same value it replaces the
-// reason and data alone (cloudwatch.alarm.set-same-state, CWA-17).
+// and both timestamps now (cwa 2.3, 3.8). To the same value it changes
+// nothing: AWS answered 200 and kept the first reason, no reason data, both
+// timestamps and one StateUpdate item (cloudwatch.alarm.set-same-state;
+// CWA-17, recorded 2026-11-03: testdata/parity/cloudwatch/CWA-17).
 func TestSetAlarmStateTransitions(t *testing.T) {
 	runAlarms(t, func(h *harness, fx *effects) {
-		followsSwitch(h, "cloudwatch.alarm.set-same-state", "reason-and-data-only")
+		followsSwitch(h, "cloudwatch.alarm.set-same-state", "no-change")
 		in := evalAlarm("cpu")
 		in.TreatMissingData = new("ignore")
 		in.AlarmActions = []string{alertsTopic}
@@ -555,7 +558,7 @@ func TestSetAlarmStateTransitions(t *testing.T) {
 		must(h, cloudwatchapi.OpSetAlarmState, &cloudwatchapi.SetAlarmStateInput{AlarmName: "cpu", StateValue: cloudwatchapi.StateValueAlarm, StateReason: "again", StateReasonData: new(`{"k":1}`)})
 		synctest.Wait()
 		got = h.one("cpu")
-		if *got.StateReason != "again" || got.StateReasonData == nil || *got.StateReasonData != `{"k":1}` ||
+		if *got.StateReason != "testing alarm" || got.StateReasonData != nil ||
 			!got.StateUpdatedTimestamp.Equal(set) || !got.StateTransitionedTimestamp.Equal(set) {
 			h.Errorf("after SetAlarmState to the same value: %q %v at %v %v", *got.StateReason, got.StateReasonData, *got.StateUpdatedTimestamp, *got.StateTransitionedTimestamp)
 		}
@@ -770,26 +773,26 @@ func TestAlarmSwitches(t *testing.T) {
 		}{
 			"cloudwatch.alarm.evaluation-cadence":              {"minute,10s-for-high-resolution,hourly-past-one-day", evidence.AWSDoc},
 			"cloudwatch.alarm.evaluation-phase":                {"minute-boundary", evidence.Inferred},
-			"cloudwatch.alarm.first-evaluation":                {"next-boundary", evidence.Inferred},
+			"cloudwatch.alarm.first-evaluation":                {"next-boundary", evidence.AWSRecorded},
 			"cloudwatch.alarm.window-anchor":                   {"evaluation-minute", evidence.AWSDoc},
 			"cloudwatch.alarm.mixed-units":                     {"first-unit-by-name", evidence.Inferred},
-			"cloudwatch.alarm.evaluation-range":                {"n-plus-2", evidence.Inferred},
-			"cloudwatch.alarm.unaged-breach":                   {"retain", evidence.Inferred},
-			"cloudwatch.alarm.unchanged-state":                 {"no-update", evidence.Inferred},
-			"cloudwatch.alarm.set-same-state":                  {"reason-and-data-only", evidence.Inferred},
-			"cloudwatch.alarm.dynamodb-missing-data":           {"always-ignore", evidence.AWSDoc},
-			"cloudwatch.alarm.warm-up-end":                     {"every-period-has-data", evidence.AWSDoc},
-			"cloudwatch.alarm.reason-format":                   {"count-form-unless-datapoints-to-alarm", evidence.Inferred},
-			"cloudwatch.alarm.number-format":                   {"java-double,event-configuration-plain-whole-numbers", evidence.Inferred},
-			"cloudwatch.alarm.sns.unset-fields":                {"description-null,treat-missing-data-empty,unit-null,low-sample-empty,datapoints-to-alarm-omitted,mute-window-false", evidence.Inferred},
-			"cloudwatch.alarm.sns.subject":                     {"state-quoted-name-in-region-long-name,100-chars", evidence.Inferred},
-			"cloudwatch.alarm.sns.fifo-group":                  {"sha256-hex-of-alarm-arn", evidence.Inferred},
-			"cloudwatch.alarm.events.actions-disabled":         {"events-sent", evidence.Inferred},
-			"cloudwatch.alarm.events.metric-id":                {"one-per-configuration", evidence.Inferred},
-			"cloudwatch.alarm.history.page-size":               {"50", evidence.Inferred},
-			"cloudwatch.get-metric-statistics.datapoint-limit": {"ceil-unrounded", evidence.Inferred},
+			"cloudwatch.alarm.evaluation-range":                {"n-plus-5-for-60s,n-plus-2-otherwise", evidence.Inferred},
+			"cloudwatch.alarm.unaged-breach":                   {"alarm-if-aged-in-range-else-retain", evidence.AWSRecorded},
+			"cloudwatch.alarm.unchanged-state":                 {"no-update", evidence.AWSRecorded},
+			"cloudwatch.alarm.set-same-state":                  {"no-change", evidence.AWSRecorded},
+			"cloudwatch.alarm.dynamodb-missing-data":           {"as-configured", evidence.AWSRecorded},
+			"cloudwatch.alarm.warm-up-end":                     {"every-period-has-data", evidence.AWSRecorded},
+			"cloudwatch.alarm.reason-format":                   {"count-form-unless-datapoints-to-alarm", evidence.AWSRecorded},
+			"cloudwatch.alarm.number-format":                   {"java-double", evidence.AWSRecorded},
+			"cloudwatch.alarm.sns.unset-fields":                {"description-null,treat-missing-data-empty,unit-null,low-sample-empty,datapoints-to-alarm-omitted,mute-window-false", evidence.AWSRecorded},
+			"cloudwatch.alarm.sns.subject":                     {"state-quoted-name-in-region-long-name,100-chars", evidence.AWSRecorded},
+			"cloudwatch.alarm.sns.fifo-group":                  {"sha256-hex-of-alarm-arn,uuid-dedup-id", evidence.AWSRecorded},
+			"cloudwatch.alarm.events.actions-disabled":         {"events-sent", evidence.AWSRecorded},
+			"cloudwatch.alarm.events.metric-id":                {"one-per-configuration", evidence.AWSRecorded},
+			"cloudwatch.alarm.history.page-size":               {"50", evidence.AWSRecorded},
+			"cloudwatch.get-metric-statistics.datapoint-limit": {"floor-unrounded", evidence.AWSRecorded},
 			"cloudwatch.get-metric-statistics.order":           {"timestamp-ascending,then-unit", evidence.Inferred},
-			"cloudwatch.alarm.actions.denied":                  {"dropped", evidence.Inferred},
+			"cloudwatch.alarm.actions.denied":                  {"dropped", evidence.AWSRecorded},
 		}
 		seen := map[string]int{}
 		for _, e := range h.svc.Switches() {

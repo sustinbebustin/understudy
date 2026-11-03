@@ -109,15 +109,15 @@ aws sqs receive-message --queue-url http://127.0.0.1:4566/000000000000/alerts-in
 {"AlarmName":"high-load","NewStateValue":"ALARM","OldStateValue":"INSUFFICIENT_DATA","NewStateReason":"Threshold Crossed: 1 datapoint [20.0 (30/10/26 12:00:00)] was greater than the threshold (10.0)."}
 ```
 
-Five more minutes are five more evaluations. The point leaves the alarm's evaluation range after three periods, and with no data the default `missing` treatment goes to `INSUFFICIENT_DATA`:
+Six more minutes are six more evaluations. The point leaves the alarm's evaluation range after six periods, as on AWS for a one-minute period, and with no data the default `missing` treatment goes to `INSUFFICIENT_DATA`:
 
 ```sh
-understudy clock advance 5m --settle
+understudy clock advance 6m --settle
 aws cloudwatch describe-alarm-history --alarm-name high-load --query 'AlarmHistoryItems[].[Timestamp,HistorySummary]' --output text
 ```
 
 ```
-2026-10-30T12:04:00+00:00	Alarm updated from ALARM to INSUFFICIENT_DATA
+2026-10-30T12:07:00+00:00	Alarm updated from ALARM to INSUFFICIENT_DATA
 2026-10-30T12:01:00+00:00	Alarm updated from INSUFFICIENT_DATA to ALARM
 ```
 

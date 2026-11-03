@@ -11,12 +11,11 @@ import (
 
 // SetAlarmState leaves the evaluation timer where PutMetricAlarm armed it,
 // so the next evaluation re-derives the state (cloudwatch-alarms.md 2.3).
-// To the same value it journals no StateChange, and the sent values replace
-// the reason and data whole: a set without StateReasonData drops the data
-// a previous set left (cloudwatch.alarm.set-same-state, CWA-17).
+// To the same value it journals no StateChange and keeps the reason and
+// data the previous set left (cloudwatch.alarm.set-same-state, CWA-17).
 func TestSetAlarmStateKeepsTheTimerAndJournalsTransitionsOnly(t *testing.T) {
 	runAlarms(t, func(h *harness, _ *effects) {
-		followsSwitch(h, "cloudwatch.alarm.set-same-state", "reason-and-data-only")
+		followsSwitch(h, "cloudwatch.alarm.set-same-state", "no-change")
 		in := evalAlarm("cpu")
 		in.TreatMissingData = new("ignore")
 		must(h, cloudwatchapi.OpPutMetricAlarm, in)
@@ -37,8 +36,8 @@ func TestSetAlarmStateKeepsTheTimerAndJournalsTransitionsOnly(t *testing.T) {
 		}
 		set(cloudwatchapi.StateValueAlarm, "first", new(`{"k":1}`))
 		set(cloudwatchapi.StateValueAlarm, "second", nil)
-		if got := h.one("cpu"); *got.StateReason != "second" || got.StateReasonData != nil {
-			h.Errorf("after a same-value set without data: %q %v, want the data dropped", *got.StateReason, got.StateReasonData)
+		if got := h.one("cpu"); *got.StateReason != "first" || got.StateReasonData == nil || *got.StateReasonData != `{"k":1}` {
+			h.Errorf("after a same-value set: %q %v, want the first set's reason and data", *got.StateReason, got.StateReasonData)
 		}
 		set(cloudwatchapi.StateValueOk, "third", nil)
 		if sc := h.stateChanges(arn); !slices.Equal(sc, []string{"INSUFFICIENT_DATA->ALARM", "ALARM->OK"}) {

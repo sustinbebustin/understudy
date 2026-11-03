@@ -75,16 +75,16 @@ type missingDataVector struct {
 
 // The 40 documented cells of cloudwatch-alarms.md 3.6 tables 1 and 2
 // (aws-doc, https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/alarms-and-missing-data.html)
-// and the two vectors beyond them, x1 and x2, which the research infers
-// from 3.5 and whose missing and ignore cells reach step C4, governed by
-// cloudwatch.alarm.unaged-breach (UNVERIFIED, CWA-04). Each cell runs from
+// and the two vectors beyond them, x1 and x2, whose missing and ignore
+// cells cloudwatch.alarm.unaged-breach governs; CWA-04 recorded all 48
+// (x2 under missing goes to ALARM, x1 retains). Each cell runs from
 // each of the three states: a state cell is a Transition to it from the
 // two others and a Retain from itself (cloudwatch.alarm.unchanged-state,
 // cwa 3.8); a retain cell is a Retain from all three. Evidence.Bins is the
 // input as passed (contract 1.3).
 func TestEvaluateMissingDataVectors(t *testing.T) {
 	ok, al, insufficient := string(stateOK), string(stateAlarm), string(stateInsufficient)
-	unaged := switchCase(t, "cloudwatch.alarm.unaged-breach", map[string]string{"retain": retain})
+	unagedX2 := switchCase(t, "cloudwatch.alarm.unaged-breach", map[string]string{"alarm-if-aged-in-range-else-retain": al})
 	sameState := switchCase(t, "cloudwatch.alarm.unchanged-state", map[string]bool{"no-update": true})
 	// The evaluation range of 5 for N = 3 is the one size AWS documents
 	// (cwa 3.4, aws-doc).
@@ -99,8 +99,8 @@ func TestEvaluateMissingDataVectors(t *testing.T) {
 		{"table2/row3", "0 - X - -", 3, 2, [4]string{ok, ok, al, ok}},
 		{"table2/row4", "- - - - 0", 3, 2, [4]string{ok, ok, al, ok}},
 		{"table2/row5", "- - - X -", 3, 2, [4]string{al, retain, al, ok}},
-		{"x1", "- - - - X", 3, 3, [4]string{unaged, unaged, al, ok}},
-		{"x2", "X - - - -", 3, 3, [4]string{unaged, unaged, al, ok}},
+		{"x1", "- - - - X", 3, 3, [4]string{retain, retain, al, ok}},
+		{"x2", "X - - - -", 3, 3, [4]string{unagedX2, retain, al, ok}},
 	}
 	for _, v := range vectors {
 		for i, treatment := range treatments {
@@ -198,13 +198,21 @@ func TestEvaluateEvidence(t *testing.T) {
 	}
 }
 
-// Range is N + 2 under cloudwatch.alarm.evaluation-range (UNVERIFIED,
-// CWA-01); the only documented size is 5 for N = 3 (cwa 3.4, aws-doc).
+// Range is N + 5 for a 60-second period and N + 2 for the others under
+// cloudwatch.alarm.evaluation-range: CWA-01 recorded both at N = 1 and 3,
+// and 5 for N = 3 at 300 seconds is documented (cwa 3.4); other periods
+// and N are the research's extrapolation.
 func TestRange(t *testing.T) {
-	extra := switchCase(t, "cloudwatch.alarm.evaluation-range", map[string]int{"n-plus-2": 2})
-	for _, n := range []int{1, 2, 3, 5, 10} {
-		if got := (alarm.Config{Period: 60, N: n, M: n}).Range(); got != n+extra {
-			t.Errorf("Range() for N = %d = %d, want %d", n, got, n+extra)
+	followsSwitch(t, "cloudwatch.alarm.evaluation-range", "n-plus-5-for-60s,n-plus-2-otherwise")
+	for _, period := range []int32{10, 60, 120, 300, 3600} {
+		extra := 2
+		if period == 60 {
+			extra = 5
+		}
+		for _, n := range []int{1, 2, 3, 5, 10} {
+			if got := (alarm.Config{Period: period, N: n, M: n}).Range(); got != n+extra {
+				t.Errorf("Range() for Period %d, N = %d = %d, want %d", period, n, got, n+extra)
+			}
 		}
 	}
 }
@@ -343,10 +351,13 @@ func TestConfigOf(t *testing.T) {
 	}
 }
 
-// An AWS/DynamoDB alarm always ignores missing data whatever it sent, under
-// cloudwatch.alarm.dynamodb-missing-data (cwa 3.7, CWA-21).
-func TestConfigOfDynamoDBIgnoresMissingData(t *testing.T) {
-	forced := switchCase(t, "cloudwatch.alarm.dynamodb-missing-data", map[string]bool{"always-ignore": true})
+// An AWS/DynamoDB alarm applies the treatment it sent: AWS took one sent
+// breaching to ALARM on missing data, the user guide's override, not the
+// API reference's "always ignore" (cloudwatch.alarm.dynamodb-missing-data;
+// cwa 3.7; CWA-21, recorded 2026-11-03:
+// testdata/parity/cloudwatch/CWA-21/ddb-history.json).
+func TestConfigOfDynamoDBKeepsTheTreatment(t *testing.T) {
+	followsSwitch(t, "cloudwatch.alarm.dynamodb-missing-data", "as-configured")
 	in := storedAlarm()
 	in.Namespace = new("AWS/DynamoDB")
 	in.TreatMissingData = new("breaching")
@@ -354,8 +365,8 @@ func TestConfigOfDynamoDBIgnoresMissingData(t *testing.T) {
 	if nerr != nil {
 		t.Fatalf("ConfigOf = %v", nerr)
 	}
-	if forced && cfg.Treatment != alarm.TreatIgnore {
-		t.Errorf("Treatment of an AWS/DynamoDB alarm sent breaching = %v, want ignore", cfg.Treatment)
+	if cfg.Treatment != alarm.TreatBreaching {
+		t.Errorf("Treatment of an AWS/DynamoDB alarm sent breaching = %v, want breaching", cfg.Treatment)
 	}
 }
 
@@ -502,7 +513,7 @@ func TestNext(t *testing.T) {
 // the hour (cwa 3.1), under cloudwatch.alarm.window-anchor.
 func TestWindow(t *testing.T) {
 	followsSwitch(t, "cloudwatch.alarm.window-anchor", "evaluation-minute")
-	followsSwitch(t, "cloudwatch.alarm.evaluation-range", "n-plus-2")
+	followsSwitch(t, "cloudwatch.alarm.evaluation-range", "n-plus-5-for-60s,n-plus-2-otherwise")
 	for _, tc := range []struct {
 		name   string
 		cfg    alarm.Config
@@ -515,7 +526,7 @@ func TestWindow(t *testing.T) {
 		// cloudwatch-and-eventbridge: eval 17:04:40.985, bin 16:59.
 		{"single metric", alarm.Config{Period: 300, N: 1, M: 1}, "2019-10-02 17:04:40.985", "2019-10-02 17:04:00.000", "2019-10-02 16:49:00.000"},
 		// alarms-and-actions-Lambda: eval 12:31:29.591, bins 12:30 to 12:26.
-		{"lambda", alarm.Config{Period: 60, N: 5, M: 5}, "2023-08-04 12:31:29.591", "2023-08-04 12:31:00.000", "2023-08-04 12:24:00.000"},
+		{"lambda", alarm.Config{Period: 60, N: 5, M: 5}, "2023-08-04 12:31:29.591", "2023-08-04 12:31:00.000", "2023-08-04 12:21:00.000"},
 		{"sub-minute", alarm.Config{Period: 10, N: 3, M: 3}, "2025-07-03 12:00:15.500", "2025-07-03 12:00:10.000", "2025-07-03 11:59:20.000"},
 		{"multi-day", alarm.Config{Period: 86400, N: 2, M: 2}, "2025-07-03 10:03:20.000", "2025-07-03 10:00:00.000", "2025-06-29 10:00:00.000"},
 	} {

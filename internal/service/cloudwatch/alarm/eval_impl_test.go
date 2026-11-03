@@ -33,12 +33,10 @@ func TestConfigOfWithoutRequiredFields(t *testing.T) {
 	}
 }
 
-// Each treatment is read back from its wire value as sent (cwa 3.5), and an
-// alarm outside AWS/DynamoDB keeps it (cwa 3.7 names that namespace only).
-func TestConfigOfKeepsTheTreatmentOutsideDynamoDB(t *testing.T) {
+// Each treatment is read back from its wire value as sent (cwa 3.5).
+func TestConfigOfKeepsTheTreatment(t *testing.T) {
 	for _, want := range treatments {
 		in := storedAlarm()
-		in.Namespace = new("AWS/DynamoDBX")
 		in.TreatMissingData = new(want.String())
 		cfg, nerr := alarm.ConfigOf(in)
 		if nerr != nil || cfg.Treatment != want {

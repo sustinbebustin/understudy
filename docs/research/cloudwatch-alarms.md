@@ -40,7 +40,7 @@ Shape ids: `com.amazonaws.cloudwatch#GetMetricStatisticsInput`, `#GetMetricStati
 
 - `PutMetricAlarmInput` and `MetricAlarm` in the pin carry `EvaluationWindow` (a union of `SlidingWindow {}` and `WallClockWindow {Timezone}`), `EvaluationInterval`, `EvaluationCriteria` and `WarmUpConfiguration` (model `com.amazonaws.cloudwatch#EvaluationWindow`, `#WallClockWindow`).
 - The current `MetricAlarm` page also lists `ActionConfiguration` (alarm tag propagation) ([API_MetricAlarm](https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_MetricAlarm.html)); the pin has no such member, so understudy cannot accept or echo it until the pin moves.
-- The user guide lists an evaluation state `IN_WARM_UP` ([alarm-evaluation](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/alarm-evaluation.html)); the pinned enum `com.amazonaws.cloudwatch#EvaluationState` holds only `PARTIAL_DATA`, `EVALUATION_FAILURE`, `EVALUATION_ERROR`.
+- The user guide lists an evaluation state `IN_WARM_UP` ([alarm-evaluation](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/alarm-evaluation.html)); the pinned enum `com.amazonaws.cloudwatch#EvaluationState` holds only `PARTIAL_DATA`, `EVALUATION_FAILURE`, `EVALUATION_ERROR`. AWS returns `"EvaluationState": "IN_WARM_UP"` in `DescribeAlarms` (CWA-22, recorded 2026-11-03).
 
 ## 2. Alarm state lifecycle
 
@@ -53,7 +53,7 @@ Shape ids: `com.amazonaws.cloudwatch#GetMetricStatisticsInput`, `#GetMetricStati
 
 ### 2.2 Timestamps
 
-`StateTransitionedTimestamp` is "The date and time that the alarm's `StateValue` most recently changed"; `StateUpdatedTimestamp` is "The time stamp of the last update to the value of either the `StateValue` or `EvaluationState` parameters"; `AlarmConfigurationUpdatedTimestamp` is "The time stamp of the last update to the alarm configuration" ([API_MetricAlarm](https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_MetricAlarm.html)). Read literally, neither state timestamp moves when an evaluation or a `SetAlarmState` leaves `StateValue` as it was and understudy reports no `EvaluationState` (inferred; see 3.8 and 2.3 for what is UNVERIFIED).
+`StateTransitionedTimestamp` is "The date and time that the alarm's `StateValue` most recently changed"; `StateUpdatedTimestamp` is "The time stamp of the last update to the value of either the `StateValue` or `EvaluationState` parameters"; `AlarmConfigurationUpdatedTimestamp` is "The time stamp of the last update to the alarm configuration" ([API_MetricAlarm](https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_MetricAlarm.html)). Read literally, neither state timestamp moves when an evaluation or a `SetAlarmState` leaves `StateValue` as it was and understudy reports no `EvaluationState`; CWA-05 and CWA-17 recorded exactly that (3.8, 2.3).
 
 ### 2.3 Updates, SetAlarmState and the next evaluation
 
@@ -61,13 +61,17 @@ Shape ids: `com.amazonaws.cloudwatch#GetMetricStatisticsInput`, `#GetMetricStati
 - `SetAlarmState` "Temporarily sets the state of an alarm for testing purposes. When the updated state differs from the previous value, the action configured for the appropriate state is invoked." ... "Metric alarms returns to their actual state quickly, often within seconds." ([API_SetAlarmState](https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_SetAlarmState.html)). The user guide: "This temporary state change lasts only until the next alarm comparison occurs." ([AlarmThatSendsEmail](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/AlarmThatSendsEmail.html)).
 - So the revert is the next evaluation (3.1) computing a state from data. With `TreatMissingData` `ignore` and no data the evaluation retains the state (3.5), which is why LocalStack's `SetAlarmState` tests use `ignore` and still see the set state afterwards (`localstack@8b9a79f tests/aws/services/cloudwatch/test_cloudwatch.snapshot.json:L5990-L6078`, third-party-recorded, validated 2025-09-19).
 - After `SetAlarmState`, `StateReason` is the caller's text and no `StateReasonData` appears unless the caller sent one (same snapshot, L6020, L6062).
-- UNVERIFIED: `SetAlarmState` to the state the alarm is already in. The page fixes only that no action runs. Options: (a) nothing changes; (b) `StateReason` and `StateReasonData` take the new values and both timestamps stay; (c) as (b) and `StateUpdatedTimestamp` moves; (d) as (b) or (c) plus a `StateUpdate` history item. Default (b), switch `cloudwatch.alarm.set-same-state`; the current handler in `internal/service/cloudwatch/alarms.go` does (c) today. Recording case CWA-17.
+- `SetAlarmState` to the state the alarm is already in changes nothing: AWS answered 200, and after a set to `ALARM` with reason `first` a second set to `ALARM` with reason `second` and data `{"n":2}` left `StateReason` `first`, no `StateReasonData`, both timestamps, one `StateUpdate` item and one notification (CWA-17, recorded 2026-11-03; the retry captures `retry-*` confirm it without actions). This is option (a) of the research's four; the default it replaces was (b). Switch `cloudwatch.alarm.set-same-state` `no-change`.
 
 ### 2.4 Warm-up
 
 `WarmUpConfiguration` (`WarmUpPeriodDurationInMinutes` 1 to 2,880, `OnlyStartEvaluatingAfterWarmUpPeriodEnds` default false): during warm-up "the alarm stays in `INSUFFICIENT_DATA` and does not perform alarm actions"; with the flag false, warm-up ends "as soon as it can fill its evaluation window", which "is full when a datapoint exists for the most recent period"; with it true the alarm waits the full duration; "Warm-up applies only once at alarm creation and does not restart"; the evaluation state is `IN_WARM_UP` ([alarm-warm-up](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/alarm-warm-up.html)). `IN_WARM_UP` is absent from the pin (1.3).
 
-UNVERIFIED: when warm-up ends with the flag false. The sentence above says the window is full once the most recent period has a datapoint, but the same page's worked example needs every period: a 5-minute, 3-period alarm created at 10:00 on a resource that starts publishing at 10:04 "stays in `INSUFFICIENT_DATA` until a full 15-minute window is available. This happens at about 10:19" (same page). Options: (a) every period of the window holds a datapoint (the example); (b) the most recent period holds one (the sentence). Default (a), as in section 11's rule that concrete output wins, switch `cloudwatch.alarm.warm-up-end`. Recording case CWA-22.
+When warm-up ends with the flag false: the sentence above says the window is full once the most recent period has a datapoint, but the same page's worked example needs every period: a 5-minute, 3-period alarm created at 10:00 on a resource that starts publishing at 10:04 "stays in `INSUFFICIENT_DATA` until a full 15-minute window is available. This happens at about 10:19" (same page). The example holds (option (a), switch `cloudwatch.alarm.warm-up-end` `every-period-has-data`): a 1-minute, 3-period `breaching` alarm with a 30-minute warm-up, data put every 30 seconds from 03:15:55, stayed `INSUFFICIENT_DATA` and went to `ALARM` at 03:18:19 over the bins 03:15, 03:16 and 03:17, well before the 30 minutes (CWA-22, recorded 2026-11-03). What the recording also shows:
+
+- From creation the alarm reads `StateReason` `Alarm is in Warm-Up` and `DescribeAlarms` returns `"EvaluationState": "IN_WARM_UP"`, which the pinned enum lacks (1.3); the field is gone once warm-up ends.
+- The transition that ends warm-up has `HistorySummary` `Alarm updated from INSUFFICIENT_DATA to ALARM. State now evaluated with the full set of metrics matching the query` and its `HistoryData` `oldState` carries `"evaluationState":"IN_WARM_UP"` after `stateReason`.
+- With `OnlyStartEvaluatingAfterWarmUpPeriodEnds` true nothing is recorded; understudy writes the same texts for it (inferred).
 
 ## 3. Evaluation
 
@@ -78,8 +82,8 @@ UNVERIFIED: when warm-up ends with the flag false. The sentence above says the w
 - "If the number of evaluation periods multiplied by the length of each evaluation period exceeds one day, the alarm is evaluated once per hour." Such multi-day alarms take "into account only the metrics up to the current hour at the :00 minute" (same page, with a worked example: a failure at 10:02 is not seen by the 10:03 evaluation and is seen at 11:03).
 - A wall clock window does not change the cadence: "an alarm with a 1-hour period and a wall clock window evaluates every minute" ([alarm-evaluation-window](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/alarm-evaluation-window.html)).
 - Phase within the minute: AWS evaluates at an arbitrary second. The `queryDate` values in AWS's examples are 17:04:40.985, 13:56:40.985 and 17:20:48.551 ([cloudwatch-and-eventbridge](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/cloudwatch-and-eventbridge.html)), 12:31:29.591 ([alarms-and-actions-Lambda](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/alarms-and-actions-Lambda.html)) and 08:34:06.300 ([alarm-actions](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/alarm-actions.html)). Which data a minute's evaluation sees does not depend on the second (3.2), so understudy evaluates on the minute boundary of the emulator clock (inferred, switch `cloudwatch.alarm.evaluation-phase`).
-- UNVERIFIED: when the first evaluation after `PutMetricAlarm` happens. The model says only "then evaluated". Recordings that describe an alarm right after creating it still see `Unchecked: Initial alarm creation` (`localstack@8b9a79f tests/aws/services/cloudwatch/test_cloudwatch.snapshot.json:L6282`, validated 2026-02-26; L983-L1017, validated 2025-09-19), so it is not synchronous. AWS's metric math example was created at 17:20:03.642 (its `previousState` is `Unchecked: Initial alarm creation` at that time) and first evaluated at 17:20:48.551, 45 seconds later and inside the creation minute ([cloudwatch-and-eventbridge](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/cloudwatch-and-eventbridge.html)). Options: (a) the next evaluation boundary; (b) a fixed delay; (c) immediately after the response. Default (a), switch `cloudwatch.alarm.first-evaluation`. Recording case CWA-03.
-- UNVERIFIED: for 10, 20 and 30 second periods, whether the 10-second evaluations are aligned to the 10-second divisions of the minute and the window ends there (the analogue of 3.2). Default: yes. Recording case CWA-02.
+- The first evaluation after `PutMetricAlarm` comes within the minute. The model says only "then evaluated". Recordings that describe an alarm right after creating it still see `Unchecked: Initial alarm creation` (`localstack@8b9a79f tests/aws/services/cloudwatch/test_cloudwatch.snapshot.json:L6282`, validated 2026-02-26; L983-L1017, validated 2025-09-19), so it is not synchronous. AWS's metric math example was created at 17:20:03.642 (its `previousState` is `Unchecked: Initial alarm creation` at that time) and first evaluated at 17:20:48.551, 45 seconds later and inside the creation minute ([cloudwatch-and-eventbridge](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/cloudwatch-and-eventbridge.html)). A 60-second alarm created at 03:14:02.667 over an older point was first evaluated at 03:14:34.961, 32.3 seconds later (CWA-03, recorded 2026-11-03). understudy evaluates at the next minute boundary, at most 60 seconds later (switch `cloudwatch.alarm.first-evaluation` `next-boundary`); the second AWS picks is not modelled (`cloudwatch.alarm.evaluation-phase`).
+- For 10, 20 and 30 second periods the evaluations come every 10 seconds, but not on the 10-second divisions the research assumed, and the window lags: a 10-second, N = 1 `missing` alarm created at 03:14:00.616 on one high-resolution point in the bin 03:13:50 went to `ALARM` at 03:15:09.443 (69 seconds after creation, evaluating that bin) and to `INSUFFICIENT_DATA` at 03:15:29.444, 9.4 seconds into a division, evaluating only the bin 03:15:00, so the newest bin an evaluation reads starts two periods before the division at or below its `queryDate` (CWA-02, recorded 2026-11-03). From the two transitions the point stayed in range for 7 bins counted from that lagged newest bin. Why the first transition waited 69 seconds is not known: data latency, a slower first evaluation for sub-minute alarms, or both. understudy reads the bins ending at the 10-second division (`cloudwatch.alarm.window-anchor`), which differs; aligning it needs a design for the lag and the range of sub-minute alarms (follow-up).
 
 ### 3.2 The window: bins anchored at the evaluation minute
 
@@ -112,7 +116,8 @@ The window reads data stored at its resolution: a regular-resolution datum is ke
 - Period, Evaluation Periods (N) and Datapoints to Alarm (M): "Datapoints to Alarm is the number of data points within the Evaluation Periods that must be breaching to cause the alarm to go to the ALARM state. The breaching data points don't have to be consecutive, but they must all be within the last number of data points equal to Evaluation Period." ([alarm-evaluation](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/alarm-evaluation.html)). M defaults to N (`DatapointsToAlarm` "is used only if you are setting an 'M out of N' alarm", model doc of `PutMetricAlarmInput$DatapointsToAlarm`).
 - "Whenever an alarm evaluates whether to change state, CloudWatch attempts to retrieve a higher number of data points than the number specified as Evaluation Periods. The exact number of data points it attempts to retrieve depends on the length of the alarm period and whether it is based on a metric with standard resolution or high resolution. The time frame of the data points that it attempts to retrieve is the evaluation range." A wall clock window retrieves exactly N ([alarms-and-missing-data](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/alarms-and-missing-data.html)).
 - The only documented size: N = 3 with a 5-minute period retrieves 5 (same page, both tables).
-- UNVERIFIED: the range R for other N, periods and resolutions. Options: (a) N + 2; (b) a fixed number of extra periods that depends on the period; (c) a fixed time span. LocalStack's emulator guesses N + max(floor(N/3), 2) (emu, `localstack@8b9a79f localstack-core/localstack/services/cloudwatch/alarm_scheduler.py:L249-L251`), which also gives 5 for N = 3. Default (a) `n-plus-2`, switch `cloudwatch.alarm.evaluation-range`. Recording case CWA-01.
+- Recorded, from when a lone point left the range (CWA-01, recorded 2026-11-03): with a 60-second period R = N + 5, 6 for N = 1 (a point at 03:07:41 kept the alarm in `ALARM` through the evaluation at T0 03:13 and left at 03:14) and 8 for N = 3 (points at 03:05:13 to 03:07:13: at T0 03:14 the 03:05 bin had left and the 03:06 and 03:07 bins were still counted); with a 300-second period R = N + 2, 3 for N = 1 (a point at 03:07:44 left at T0 03:23). So the number of extra periods depends on the period, option (b) of the research's three. LocalStack's emulator guess N + max(floor(N/3), 2) (emu, `localstack@8b9a79f localstack-core/localstack/services/cloudwatch/alarm_scheduler.py:L249-L251`) fits only the 300-second rows. Switch `cloudwatch.alarm.evaluation-range` `n-plus-5-for-60s,n-plus-2-otherwise`.
+- UNVERIFIED: R for periods other than 60 and 300 seconds, for N other than 1 and 3 at 60 seconds, and for high-resolution alarms (CWA-02 suggests 7 for a 10-second N = 1 alarm, counted from a lagged newest bin, 3.1). understudy uses N + 2 for every period but 60 seconds.
 - The range is why "CloudWatch alarms might repeatedly re-evaluate the last set of data points for a period of time after the metric has stopped flowing" (same page).
 
 ### 3.5 Missing data: the algorithm
@@ -136,13 +141,13 @@ C. 0 < |real| < N:
    missing, ignore:
      1. b >= M                                            -> ALARM
      2. some real bin is not breaching                    -> OK
-     3. the oldest breaching bin among d1..dN sits at
+     3. the oldest breaching bin among d1..dR sits at
         position >= M (premature alarm state)             -> missing: ALARM; ignore: retain
      4. otherwise (every real bin breaching, but too
-        recent, or older than dN)                         -> retain   (UNVERIFIED, CWA-04)
+        recent)                                           -> retain
 ```
 
-"retain" means the state does not change (3.8). Step C4 is the doc's `- - - - X` case: "does not go immediately into ALARM" leaves OK, retain and INSUFFICIENT_DATA open; retain matches the stated intent (wait for the next datapoint). UNVERIFIED, default `retain`, switch `cloudwatch.alarm.unaged-breach`, recording case CWA-04, which also re-records the 40 documented cells.
+"retain" means the state does not change (3.8). CWA-04 (recorded 2026-11-03) re-recorded the 40 documented cells, which all matched, and the two cells beyond them: `- - - - X` (x1) retains under `missing` and `ignore`, the doc's "does not go immediately into ALARM"; `X - - - -` (x2) under `missing` went from OK to ALARM with `1 out of the last 3 datapoints [5.0 (03/11/26 02:50:00)] was greater than the threshold (3.0) (minimum 3 datapoints for OK -> ALARM transition).`, its evaluated bins 03:10 and 03:05 missing and 02:50 (d5) breaching, and stayed ALARM from ALARM. So step 3 reads the whole range, not d1..dN as first written here, and step 4 is only the too-recent case. Switch `cloudwatch.alarm.unaged-breach` `alarm-if-aged-in-range-else-retain`.
 
 ### 3.6 Missing data: test vectors
 
@@ -170,16 +175,16 @@ Table 2: Period 5 minutes, Datapoints to Alarm 2, Evaluation Periods 3.
 
 Doc commentary that fixes the reasoning: row 2 of table 1 stays OK under breaching "because the one existing data point is not breaching. This is evaluated along with two missing data points which are treated as breaching. The next time this alarm is evaluated, if the data is still missing it will go to ALARM"; in table 2 rows 3 and 4 "the alarm goes to ALARM state only if missing data is treated as breaching".
 
-Vectors beyond the tables (inferred from 3.5, UNVERIFIED, CWA-04):
+Every cell of both tables matched when CWA-04 re-recorded them (2026-11-03). Vectors beyond the tables (CWA-04, recorded 2026-11-03; x2 under `missing` differs from the retain this note first inferred):
 
 | Case | Data points | N | M | Missing | Ignore | Breaching | Not breaching |
 |---|---|---|---|---|---|---|---|
 | x1 | `- - - - X` | 3 | 3 | retain (doc: "does not go immediately into ALARM") | retain | ALARM | OK |
-| x2 | `X - - - -` | 3 | 3 | retain | retain | ALARM | OK |
+| x2 | `X - - - -` | 3 | 3 | ALARM | retain | ALARM | OK |
 
 ### 3.7 Special cases
 
-- `AWS/DynamoDB`: "Alarms that evaluate metrics in the AWS/DynamoDB namespace always ignore missing data even if you choose a different option for TreatMissingData." (model doc of `PutMetricAlarmInput$TreatMissingData`). The user guide says such alarms "default to ignore missing data. You can override this" ([alarms-and-missing-data](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/alarms-and-missing-data.html)). UNVERIFIED which holds. Default: the API reference's "always" (switch `cloudwatch.alarm.dynamodb-missing-data` `always-ignore`, aws-doc). understudy refuses `PutMetricData` to `AWS/` namespaces (`checkPutMetricData` in `internal/service/cloudwatch/validate.go`), so such an alarm only ever sees missing data. Recording case CWA-21.
+- `AWS/DynamoDB`: "Alarms that evaluate metrics in the AWS/DynamoDB namespace always ignore missing data even if you choose a different option for TreatMissingData." (model doc of `PutMetricAlarmInput$TreatMissingData`). The user guide says such alarms "default to ignore missing data. You can override this" ([alarms-and-missing-data](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/alarms-and-missing-data.html)). The user guide holds: an `AWS/DynamoDB` `SystemErrors` alarm sent `breaching`, on an idle table, went to `ALARM` at its first evaluation with `Threshold Crossed: no datapoints were received for 1 period and 1 missing datapoint was treated as [Breaching].`, as its control on a custom namespace did (CWA-21, recorded 2026-11-03). What an `AWS/DynamoDB` alarm sent no `TreatMissingData` does (the guide's "default to ignore") is unrecorded; understudy applies the API's default, `missing`. Switch `cloudwatch.alarm.dynamodb-missing-data` `as-configured`. understudy refuses `PutMetricData` to `AWS/` namespaces (`checkPutMetricData` in `internal/service/cloudwatch/validate.go`), so such an alarm only ever sees missing data.
 - `EvaluateLowSampleCountPercentile` (percentile alarms only): `ignore` keeps the state "during periods with too few data points to be statistically significant"; `evaluate` or omitted always evaluates (model doc). Too few means: "For percentiles between 0.5 (inclusive) and 1.00 (exclusive), this setting is used when there are fewer than 10/(1-percentile) data points during the evaluation period. ... fewer than 1000 samples for an alarm on a p99 percentile. For percentiles between 0 and 0.5 (exclusive), the setting is used when there are fewer than 10/percentile data points." ([percentiles-with-low-samples](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/percentiles-with-low-samples.html)). understudy keeps statistic sets, not raw values, so it cannot compute percentiles (12.1).
 - Percentiles over statistic sets exist only when "The SampleCount value of the statistic set is 1" or "The Min and the Max values of the statistic set are equal", and "Percentile statistics are not available for metrics when any of the metric values are negative numbers." (model doc of `GetMetricStatistics`).
 - Metric alarms on math expressions, Metrics Insights, anomaly detection, PromQL and logs use different rules (state reasons per contributor, `Thresholds Crossed:` with upper and lower bands) and are out of scope ([alarms-and-missing-data](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/alarms-and-missing-data.html), [cloudwatch-and-eventbridge](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/cloudwatch-and-eventbridge.html)).
@@ -188,7 +193,7 @@ Vectors beyond the tables (inferred from 3.5, UNVERIFIED, CWA-04):
 
 When an evaluation yields a state different from the current one: `StateValue`, `StateReason`, `StateReasonData`, `StateUpdatedTimestamp` and `StateTransitionedTimestamp` change (2.2); a `StateUpdate` history item is written (8.2); when `ActionsEnabled` the new state's actions run (7.1); the "CloudWatch Alarm State Change" event goes to EventBridge (6.2). "An alarm invokes actions only when the alarm changes state. The exception is for alarms with Auto Scaling actions. For Auto Scaling actions, the alarm continues to invoke the action once per minute that the alarm remains in the new state." ([AlarmThatSendsEmail](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/AlarmThatSendsEmail.html)).
 
-UNVERIFIED: an evaluation that yields the current state (or "retain"). Options: (a) nothing changes; (b) `StateReason` and `StateReasonData` are rewritten with the new evaluation, timestamps stay; (c) as (b) and `StateUpdatedTimestamp` moves. The recordings do not separate them: an alarm with no data under `ignore` keeps `Unchecked: Initial alarm creation` (`localstack@8b9a79f tests/aws/services/cloudwatch/test_cloudwatch.snapshot.json:L2467`, validated 2025-09-19), but `ignore` retains by definition. A rewritten reason is documented only around state changes: the Lambda doc's previous state was `INSUFFICIENT_DATA` with reason "Insufficient Data: 5 datapoints were unknown." at 12:31:29.595, which could be a transition into that state ([alarms-and-actions-Lambda](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/alarms-and-actions-Lambda.html)). Default (a), switch `cloudwatch.alarm.unchanged-state` `no-update`. Recording case CWA-05.
+An evaluation that yields the current state (or "retain") changes nothing: a `missing` alarm on a metric with no data, which computes `INSUFFICIENT_DATA` every minute, kept `Unchecked: Initial alarm creation`, its `StateUpdatedTimestamp` and no `StateUpdate` item after 240 seconds (CWA-05, recorded 2026-11-03). Switch `cloudwatch.alarm.unchanged-state` `no-update`.
 
 ## 4. StateReason and StateReasonData
 
@@ -211,9 +216,16 @@ UNVERIFIED: an evaluation that yields the current state (or "retain"). Options: 
 
 Rules read from these: datapoints are listed newest first, each `value (dd/MM/yy HH:mm:ss)` in UTC; the count word is `datapoint` for 1 and `datapoints` otherwise, and `out of the last N datapoints` is always plural; the verb is `was` for 1 and `were` otherwise; the negated phrase prefixes `not ` (`was not greater than`, `was not less than`); the sentence ends with `.`; the number in `Insufficient Data: N datapoints were unknown.` is N (alerta's sample has N = 10).
 
-- UNVERIFIED: which form AWS picks. Both appear for N = 1 without `DatapointsToAlarm` in the notification's `Trigger`: the 2017, 2019, 2024 and 2026 samples use `1 datapoint [...]`, the 2018 sample uses `1 out of the last 1 datapoints [...] (minimum 1 datapoint ...)` (linuxacademy/la-aws-security_specialty `9e1e27c` .../sns_event.json:L12). AWS's own examples (console-made alarms, which always send `DatapointsToAlarm`) use the M out of N form. Options: (a) M out of N form when `DatapointsToAlarm` is set, count form otherwise; (b) M out of N form only when M differs from N; (c) by era of the alarm. Default (a), switch `cloudwatch.alarm.reason-format`. Recording case CWA-06.
-- UNVERIFIED: the negated phrases for the two `OrEqual` operators (`was not greater than or equal to` is the obvious form) and `less than or equal to` itself. Recording case CWA-07.
-- UNVERIFIED: the singular no-data texts (`for 1 period and 1 missing datapoint was treated as [Breaching].`, `Insufficient Data: 1 datapoint was unknown.`), the label for `notBreaching` (`[NonBreaching]` is suggested by a 2019 fixture's `"TreatMissingData": "- TreatMissingData:NonBreaching"`, terraform-aws-modules/terraform-aws-notify-slack `a7765ac` functions/messages/cloudwatch_alarm.json:L11), and the text when real datapoints and filled ones are evaluated together (3.5 case C). Recording case CWA-08.
+Recorded 2026-11-03 (CWA-01, CWA-04, CWA-06 to CWA-10; switch `cloudwatch.alarm.reason-format` `count-form-unless-datapoints-to-alarm`):
+
+- The form follows option (a): the count form without `DatapointsToAlarm` (`1 datapoint [5.0 (...)] was greater than the threshold (3.0).`, `2 datapoints [6.0 (...), 5.0 (...)] were ...`), the M out of N form with it, even when M = N = 1 (`1 out of the last 1 datapoints [...] ... (minimum 1 datapoint for OK -> ALARM transition).`) (CWA-06).
+- The listing names the real datapoints that cross in the transition's direction: `2 out of the last 3 datapoints [6.0 (03:13), 5.0 (03:11)]` for an M = 2 of N = 3 alarm over 5.0, 1.0, 6.0 (CWA-06); for OK, the non-breaching ones (`1 out of the last 3 datapoints [1.0 (...)] was not greater than ...`, CWA-04).
+- The `OrEqual` phrases: `was greater than or equal to`, `was not greater than or equal to`, `was less than or equal to`, `was not less than or equal to` the threshold (CWA-07).
+- Singular texts: `Insufficient Data: 1 datapoint was unknown.` (CWA-01, CWA-02, CWA-11) and `Threshold Crossed: no datapoints were received for 1 period and 1 missing datapoint was treated as [Breaching].` (CWA-08). The `notBreaching` label is `[NonBreaching]` (CWA-08).
+- Under `breaching` or `notBreaching`, filled points add a clause after the threshold, in both forms and whichever way the transition goes: `1 datapoint [5.0 (...)] was greater than the threshold (3.0) and 2 missing datapoints were treated as [Breaching].` (CWA-08), `1 out of the last 3 datapoints [1.0 (...)] was not greater than the threshold (3.0) and 2 missing datapoints were treated as [Breaching] (minimum 1 datapoint for ALARM -> OK transition).` (CWA-04). Under `missing` and `ignore` no clause appears.
+- With no real datapoint to list, the text counts the received datapoints and the evaluated periods (N): `no datapoints were received for 2 periods and ...` with none, `1 datapoint was received for 3 periods and 2 missing datapoints were treated as [NonBreaching].` and `2 datapoints were received for 3 periods and 1 missing datapoint was treated as [NonBreaching].` with some (CWA-01, CWA-04).
+- A listing too long for the reason changes form: a 100 of 100 alarm wrote `Threshold Crossed: 100 out of the last 100 datapoints were greater than the threshold (3.0). The most recent datapoints which crossed the threshold: [<5 newest>] (minimum 100 datapoints for OK -> ALARM transition).`, 327 characters (CWA-10), the shape of the 2014 and Metrics Insights texts above. UNVERIFIED: the count at which this form starts (between 4 and 100 listed datapoints) and its count form; understudy uses it when the inline listing would pass 1023 characters, with the M out of N or count head as the alarm's form gives.
+- UNVERIFIED: with more crossing real datapoints than the minimum, whether all are listed (no recording has that case); understudy lists them all.
 
 ### 4.2 StateReasonData JSON
 
@@ -232,16 +244,20 @@ AWS's own examples, verbatim:
 - `{"version":"1.0","queryDate":"2023-08-04T12:31:29.591+0000","statistic":"Average","period":60,"recentDatapoints":[],"threshold":5.0,"evaluatedDatapoints":[{"timestamp":"2023-08-04T12:30:00.000+0000"},{"timestamp":"2023-08-04T12:29:00.000+0000"},{"timestamp":"2023-08-04T12:28:00.000+0000"},{"timestamp":"2023-08-04T12:27:00.000+0000"},{"timestamp":"2023-08-04T12:26:00.000+0000"}]}` ([alarms-and-actions-Lambda](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/alarms-and-actions-Lambda.html)).
 - `recentDatapoints: [41, 33.8, 32.6]` with `startDate` 08:19 for the reason `[32.6 (... 08:29:00), 33.8 (... 08:24:00), 41.0 (... 08:19:00)]` ([alarm-actions](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/alarm-actions.html)).
 
-Rules read from these: keys in the order `version, queryDate, startDate, unit, statistic, period, recentDatapoints, threshold, evaluatedDatapoints` (AWS's order: the snapshot library sorts keys when it records a response and parses JSON-string values such as `StateReasonData` only afterwards, so their keys keep the string's order, [eventbridge-buses.md 4.2](eventbridge-buses.md#42-the-stored-policy-document); AWS's examples above agree for every key but `unit`, which only the recording places); `unit` only when the alarm has a `Unit` (absent for the SampleCount alarm without one, `localstack@8b9a79f tests/aws/services/cloudwatch/test_cloudwatch_metrics.snapshot.json:L123-L138`); `statistic` absent for math alarms (aws-doc example); `startDate` is the oldest used datapoint's timestamp and is absent with no real datapoint; `recentDatapoints` holds the real values oldest first; `evaluatedDatapoints` lists bins newest first, a missing bin as `{"timestamp"}` alone and a real one with `sampleCount` and `value`; `queryDate` is the evaluation time.
+Rules read from these: keys in the order `version, queryDate, startDate, unit, statistic, period, recentDatapoints, threshold, evaluatedDatapoints` (AWS's order: the snapshot library sorts keys when it records a response and parses JSON-string values such as `StateReasonData` only afterwards, so their keys keep the string's order, [eventbridge-buses.md 4.2](eventbridge-buses.md#42-the-stored-policy-document); AWS's examples above agree for every key but `unit`, which only the recording places); `unit` only when the alarm has a `Unit` (absent for the SampleCount alarm without one, `localstack@8b9a79f tests/aws/services/cloudwatch/test_cloudwatch_metrics.snapshot.json:L123-L138`); `statistic` absent for math alarms (aws-doc example); `startDate` is the oldest used datapoint's timestamp and is absent with no real datapoint; `evaluatedDatapoints` lists bins newest first, a missing bin as `{"timestamp"}` alone and a real one with `sampleCount` and `value`; `queryDate` is the evaluation time.
 
-- UNVERIFIED: which bins `evaluatedDatapoints` lists in case 2 of 3.5 (the N newest real bins, or every bin back to the oldest one used) and what `StateReason` and `StateReasonData` become when a large N would overflow their 1023 and 4000 character limits (model `com.amazonaws.cloudwatch#StateReason`, `#StateReasonData`). Options for the overflow: truncation, dropping datapoints from the end, or a shorter form. Recording case CWA-10.
+Recorded 2026-11-03 (CWA-01, CWA-04, CWA-06, CWA-08, CWA-10), every key order and number form above held, and:
+
+- `recentDatapoints` spans the used bins oldest first, a missing bin between two used ones as `null`: `[1.0,null,5.0,null,5.0]` for `0 - X - X` (CWA-04), `[5.0,null,5.0,null,5.0]` for points in d2, d4 and d6 (CWA-10); missing bins outside that span are left out (`[5.0]` for one point in d2 of `- X -`, CWA-08). The used bins are the N newest real ones in case 1 of 3.5 and every real one otherwise; a value listed there need not cross (`[5.0,1.0,6.0]` beside a reason listing 6.0 and 5.0, CWA-06).
+- `evaluatedDatapoints` lists only the bins the decision rests on: the real datapoints that cross in the transition's direction, then the newest filled bins that count the same way, up to M for ALARM, N - M + 1 for OK and N for INSUFFICIENT_DATA. The filled bins are the newest missing ones, as many as N less the real bins in the range; under `breaching` they count only toward ALARM, under `notBreaching` only toward OK, under `missing` and `ignore` either way. Examples: `[03:13 6.0, 03:11 5.0]` for the M = 2 of 3 alarm above, leaving out 03:12's 1.0 (CWA-06); `[03:10 (missing), 02:50 1.0]` for table 2 row 3 to OK under `missing` (CWA-04); `[02:50 1.0]` alone for table 1 row 2 to OK under `notBreaching`, where two filled bins were also available (CWA-04); `[03:05, 03:00]` (filled) for table 2 row 4 to ALARM under `breaching` (CWA-04); one bin for an N = 2, M = 2 alarm to OK on no data (CWA-08).
+- The 4000-character limit: a 100 of 100 alarm wrote 3753 characters, `recentDatapoints` and `evaluatedDatapoints` holding 45 entries each, 03:13 back to 02:29, with `startDate` 02:29 (CWA-10). UNVERIFIED why 45: one more entry of each would still fit 4000. understudy drops the oldest evaluated entries, then the oldest recent ones, only past 4000.
 
 ### 4.3 Formatting
 
 - Dates inside `StateReason`: `dd/MM/yy HH:mm:ss`, UTC, day first. AWS's examples pair `02/10/19 16:59:00` with `queryDate` 2019-10-02, `03/07/25` with 2025-07-03 and `10/06/26` with 2026-06-10 (aws-doc, pages cited in 4.1). LocalStack's comment "(03/01/24 11:36:00)" was written on 2024-01-03 (`localstack@8b9a79f tests/aws/services/cloudwatch/test_cloudwatch_metrics.py:L182`); its regex's name `(MM/DD/YY HH:MM:SS)` is wrong about the order (`test_cloudwatch.py:L1377-L1380`).
 - Timestamps inside JSON (`queryDate`, `startDate`, `timestamp`, SNS `StateChangeTime`, Lambda `time`, EventBridge `state.timestamp`): `yyyy-MM-dd'T'HH:mm:ss.SSS+0000` (aws-doc examples above; captured `"StateChangeTime":"2017-10-30T13:20:35.831+0000"`). The EventBridge envelope `time` is second precision with `Z` (6.2).
-- Numbers: every verbatim `StateReason`, `StateReasonData` and SNS body sample prints doubles the way Java's `Double.toString` does: a whole number keeps `.0` (`21.0`, `45628.0`, `1062305.0`, `"threshold":50.0`, `"sampleCount":2.0`), others print the shortest round-trip digits (`0.0666851903306472`, `99.50160229693434`); integer fields such as `period` print without a point. The one exception is the alarm-actions page's pretty-printed `stateReasonData` (`"recentDatapoints": [41, 33.8, 32.6]`, `"threshold": 31`, `"sampleCount": 5`), which is hand-edited (it carries `//` comments and an elided reason) while its own `stateReason` prints `41.0` and `(31.0)`; it is not evidence against `.0`. UNVERIFIED: values at or above 10^7 or below 10^-3, where `Double.toString` switches to `1.23456789E7`. Default `java-double` (switch `cloudwatch.alarm.number-format`). Recording case CWA-09.
-- UNVERIFIED: numbers inside the EventBridge configuration objects (6.2). AWS's metric alarm examples print whole thresholds without a point (`"threshold": 80` and `70` in the update example, `10000` in the metric math delete example), while its log alarm examples print `100.0` and `200.0` ([cloudwatch-and-eventbridge](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/cloudwatch-and-eventbridge.html)). Default: the documented metric alarm form, whole numbers without `.0` in `configuration` and `previousConfiguration` only (same switch). Recording case CWA-15.
+- Numbers: every verbatim `StateReason`, `StateReasonData` and SNS body sample prints doubles the way Java's `Double.toString` does: a whole number keeps `.0` (`21.0`, `45628.0`, `1062305.0`, `"threshold":50.0`, `"sampleCount":2.0`), others print the shortest round-trip digits (`0.0666851903306472`, `99.50160229693434`); integer fields such as `period` print without a point. The one exception is the alarm-actions page's pretty-printed `stateReasonData` (`"recentDatapoints": [41, 33.8, 32.6]`, `"threshold": 31`, `"sampleCount": 5`), which is hand-edited (it carries `//` comments and an elided reason) while its own `stateReason` prints `41.0` and `(31.0)`; it is not evidence against `.0`. Values at or above 10^7 or below 10^-3 print as `Double.toString` prints them: `1.23456789E7`, `1.23E-4` and the threshold `5.0E-4` in both `StateReason` and `StateReasonData`, and the average `0.15000000000000002` (CWA-09, recorded 2026-11-03). Switch `cloudwatch.alarm.number-format` `java-double`.
+- Numbers inside the EventBridge configuration objects (6.2) print the same way: `"threshold":3.0` and `4.0` in a metric alarm's create, update and delete events (CWA-15, recorded 2026-11-03), although AWS's metric alarm examples print whole thresholds without a point (`"threshold": 80` and `70` in the update example, `10000` in the metric math delete example; its log alarm examples print `100.0` and `200.0`, [cloudwatch-and-eventbridge](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/cloudwatch-and-eventbridge.html)). The examples were edited or rendered; the recording wins (section 11).
 
 ## 5. SNS notifications
 
@@ -259,7 +275,15 @@ Recorded bodies (the test parses the SNS envelope's `Message`; the snapshot sort
 
 `Trigger.Statistic` is the statistic in upper snake case: `AVERAGE`, `SAMPLE_COUNT` (recorded), `SUM`, `MAXIMUM` (captured); `MINIMUM` by the same rule (inferred).
 
-UNVERIFIED (recording case CWA-11), with defaults taken from the captured 2016 to 2019 bodies where they exist: `AlarmDescription` for an alarm without one (`null` in every captured body); `Trigger.TreatMissingData` when the alarm sets none (`""` in every captured body; Terraform always sets it, 10); `Trigger.DatapointsToAlarm` when set (the schema says integer; absent when unset, recorded); the `Trigger` of an `ExtendedStatistic` alarm (inferred `"StatisticType":"ExtendedStatistic","ExtendedStatistic":"p90"`); the exact `AlarmConfigurationUpdatedTimestamp` format (masked; inferred as `StateChangeTime`); where `ActionExecutedAfterMuteWindow` sits; the order of `Trigger.Dimensions` (captured bodies list them in an order unrelated to their names, alerta/alerta `4ac0106` tests/test_webhooks.py:L70) and the key order inside each entry (default `value, name`, the schema and the latest capture; the recordings sort keys). Switch `cloudwatch.alarm.sns.unset-fields`.
+Recorded byte for byte (CWA-11, recorded 2026-11-03, `testdata/parity/sqs/CWA-11/receive-*.json`; switch `cloudwatch.alarm.sns.unset-fields`):
+
+- Key order: `AlarmName, AlarmDescription, AWSAccountId, AlarmConfigurationUpdatedTimestamp, NewStateValue, NewStateReason, StateChangeTime, Region, AlarmArn, OldStateValue, ActionExecutedAfterMuteWindow, OKActions, AlarmActions, InsufficientDataActions, Trigger`: `ActionExecutedAfterMuteWindow` (`false`) sits after `OldStateValue`, not at the end.
+- `AlarmDescription` is `null` without one; a description keeps its quotes escaped.
+- `Trigger.TreatMissingData` is `""` when the alarm sets none, and `EvaluateLowSampleCountPercentile` `""` likewise.
+- `Trigger.DatapointsToAlarm` is an integer after `EvaluationPeriods` when set.
+- An `ExtendedStatistic` alarm's `Trigger` has `"StatisticType":"ExtendedStatistic","ExtendedStatistic":"p90"` and no `Statistic` key; a standard one `"StatisticType":"Statistic","Statistic":"MAXIMUM"`.
+- `Trigger.Dimensions` are sorted by name whatever order they were sent in (`b` then `a` became `[{"value":"1","name":"a"},{"value":"2","name":"b"}]`), each entry `value` before `name`.
+- `AlarmConfigurationUpdatedTimestamp` is `2026-11-03T03:15:36.145+0000`, the `StateChangeTime` format.
 
 ### 5.2 Subject and Region
 
@@ -270,14 +294,15 @@ No AWS page states the subject. Every captured notification has `<NEW STATE>: "<
 - `ALARM: "awsrds-app-High-DB-Connections" in US West - Oregon` (assertible/lambda-cloudwatch-slack `833964f` test/sns-cloudwatch-event.json:L12, 2016, an older naming).
 - `ALARM: "cfst-716-ac22d3f1c22bd4cb8c2a626d6879e183-InvalidSSHLoginAlarm-..." in US East (N. Virginia)` (linuxacademy/la-aws-security_specialty `9e1e27c` .../sns_event.json:L11, 2018), for the alarm `cfst-716-ac22d3f1c22bd4cb8c2a626d6879e183-InvalidSSHLoginAlarm-NNNFH7H1BW17`: exactly 100 characters, the name cut to its first 63 characters plus `...` inside the quotes. SNS documents subjects as under 100 characters ([sns.md 4.1](sns.md#41-publish-input-rules)); CloudWatch's own subject reaches 100, so its limit is at least 100 (captured, one sample).
 
-The body's `Region` carries the same long name (`"Region":"US East (N. Virginia)"`, `"Region":"EU (Ireland)"` in the bodies above). UNVERIFIED: today's long names (AWS has since renamed `EU (Ireland)` to `Europe (Ireland)` in its consoles and documentation) and whether the truncation rule is "cut the name so the subject is 100 characters, then `...`". Default: the rule as captured and a region table seeded with the General Reference names, switch `cloudwatch.alarm.sns.subject`. Recording case CWA-12 (one region per free-plan account, recording-kit.md 1).
+The body's `Region` carries the same long name (`"Region":"US East (N. Virginia)"`, `"Region":"EU (Ireland)"` in the bodies above). Recorded (CWA-11, CWA-12, 2026-11-03): subjects `ALARM: "<name>" in US East (Ohio)`, `OK: ...` and `INSUFFICIENT_DATA: ...`, `Region` `US East (Ohio)` for us-east-2, and the truncation rule as captured: a 157-character name became `ALARM: "<its first 70 characters>..." in US East (Ohio)`, exactly 100 characters. Switch `cloudwatch.alarm.sns.subject`. UNVERIFIED: today's long names of other regions (AWS has since renamed `EU (Ireland)` to `Europe (Ireland)` in its consoles and documentation; one region per free-plan account, recording-kit.md 1); understudy's table holds the General Reference names.
 
 ### 5.3 Delivery
 
 - The SNS envelope around the message, and its SQS and Lambda forms, are [sns.md 5.1](sns.md#51-sqs-envelope-raw-delivery-disabled) and [sns.md 5.4](sns.md#54-lambda-event); CloudWatch publishes with the `Subject` of 5.2, so it appears in the envelope, and with no message attributes (captured `"MessageAttributes": {}`, widdix/cloudwatch-alarm-to-slack `fb66af9` handler.js).
 - "CloudWatch guarantees the publication of all alarm notifications to both types of topics. However, even if you use a FIFO topic, in rare cases CloudWatch sends the notifications to the topic out of order. If you use a FIFO topic, the alarm sets the message group ID of the alarm notifications to be a hash of the ARN of the alarm." The topic policy should grant `cloudwatch.amazonaws.com` `SNS:Publish` with `aws:SourceArn` of the alarm ([Notify_Users_Alarm_Changes](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/Notify_Users_Alarm_Changes.html)).
 - "CloudWatch doesn't test or validate the actions that you specify, nor does it detect any Amazon EC2 Auto Scaling or Amazon SNS errors resulting from an attempt to invoke nonexistent actions." ([AlarmThatSendsEmail](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/AlarmThatSendsEmail.html)).
-- UNVERIFIED: the hash (SHA-256, MD5 or other, and its encoding) and whether CloudWatch sends a `MessageDeduplicationId` to a FIFO topic without content-based deduplication. Default: lower-case hex SHA-256 of the ARN, and a deduplication id equal to the same hash of ARN plus `StateChangeTime` (both inferred), switch `cloudwatch.alarm.sns.fifo-group`. Recording case CWA-13. On AWS the clock always moves between transitions; under understudy's frozen emulator clock several transitions share one `StateChangeTime`, so they share one deduplication id and SNS keeps only the first within its deduplication window (a difference, `docs/guide/differences.md`).
+- On a FIFO topic without content-based deduplication the notification arrives, with `MessageGroupId` the lower-case hex SHA-256 of the alarm ARN and a `MessageDeduplicationId` that is a v4 UUID matching no digest of the ARN (`1d201fd4-5b5e-482f-a55b-03df10d028ae`), and the history item `Successfully executed action` (CWA-13, recorded 2026-11-03). Switch `cloudwatch.alarm.sns.fifo-group` `sha256-hex-of-alarm-arn,uuid-dedup-id`. AWS's id is presumably random; understudy derives a v4 UUID from the ARN and the id of the call or evaluation that made the transition, so two transitions never share it, frozen clock or not.
+- A topic whose policy does not grant `cloudwatch.amazonaws.com` `SNS:Publish` receives nothing; the alarm still transitions, and the history gets an `Action` item `Failed to execute action <topic ARN>` with `"error":"CloudWatch Alarms is not authorized to perform: SNS:Publish on resource:<topic ARN>"` (CWA-23, recorded 2026-11-03). So AWS checks the topic policy (12.4).
 
 ## 6. Lambda and EventBridge payloads
 
@@ -296,8 +321,14 @@ Recorded event for a `SetAlarmState` change (`localstack@8b9a79f tests/aws/servi
 - The `id` of the generated metric changes between the update example's `configuration` (`86bfa85f-...`) and `previousConfiguration` (`d6bfa85f-...`).
 - "Muting an alarm does not stop CloudWatch from sending alarm events ... to Amazon EventBridge." ([alarm-actions](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/alarm-actions.html)).
 
-- UNVERIFIED: whether state change events are sent while `ActionsEnabled` is false. The event page ties events to state changes, not to actions, and muting does not stop them. Default: sent (switch `cloudwatch.alarm.events.actions-disabled` `events-sent`). Recording case CWA-14.
-- UNVERIFIED: whether the generated metric `id` is stable across state changes of one configuration (default: one id per configuration, new on each `PutMetricAlarm`), whether `description` is absent or null without an `AlarmDescription`, and the field set of a metric alarm's create and delete events (default: the update example's `configuration`). Switch `cloudwatch.alarm.events.metric-id`. Recording case CWA-15.
+Recorded 2026-11-03 (CWA-14, CWA-15; the events reached an SQS queue through a rule, `testdata/parity/sqs/CWA-14`, `CWA-15`):
+
+- State change events are sent while `ActionsEnabled` is false; no Lambda action ran (CWA-14). Switch `cloudwatch.alarm.events.actions-disabled` `events-sent`. (The first run lost every event of an alarm created 2 seconds after its rule, which the item read as rule propagation; the re-run after a 60-second wait has them.)
+- `DisableAlarmActions` is a configuration update: it sends an `"operation":"update"` configuration change event with `previousConfiguration`, `actionsEnabled` false against true, and moves the configuration `timestamp`, which is `AlarmConfigurationUpdatedTimestamp` (CWA-14). `EnableAlarmActions` is unrecorded and inferred to match.
+- The generated metric `id` stays across state changes and across `DisableAlarmActions`, and changes on each `PutMetricAlarm` (CWA-14, CWA-15). Switch `cloudwatch.alarm.events.metric-id` `one-per-configuration`.
+- Create, update and delete events of a metric alarm carry the update example's `configuration` fields, with `datapointsToAlarm` after `evaluationPeriods` when set and `description` absent (not null) without an `AlarmDescription`; numbers print as Java doubles (4.3). The `state` object is `{value, timestamp}` on create and update and `{value, reason, timestamp}` on delete.
+- A state change detail's keys come in the order `alarmName, state, previousState, configuration`, and its `configuration` is `{metrics, description?}`, description last.
+- The Lambda events were not captured: the item's log query found nothing in the function's log group, so 6.1's shape stays LocalStack's (third-party-recorded). understudy gives its `configuration` the state change event's order (inferred).
 
 ## 7. Alarm actions
 
@@ -324,7 +355,7 @@ Recorded event for a `SetAlarmState` change (`localstack@8b9a79f tests/aws/servi
 
 "If an alarm name is not specified, the histories for either all metric alarms or all composite alarms are returned." "CloudWatch retains the history of an alarm even if you delete the alarm." `AlarmTypes` omitted returns metric alarms only. `ScanBy` `TimestampDescending` returns the newest first ([API_DescribeAlarmHistory](https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_DescribeAlarmHistory.html)). "CloudWatch preserves alarm history for 30 days. Each state transition is marked with a unique timestamp. In rare cases, your history might show more than one notification for a state change." ([AlarmThatSendsEmail](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/AlarmThatSendsEmail.html)). AWS's CLI example lists the newest item first without `ScanBy` (aws-doc, aws/aws-cli `e9993cf` awscli/examples/cloudwatch/describe-alarm-history.rst:L12-L27), so the default is descending (inferred).
 
-UNVERIFIED: the page size without `MaxRecords`. Default 50, as `defaultMaxRecords` in `internal/service/cloudwatch/alarms.go` already infers for `DescribeAlarms` (switch `cloudwatch.alarm.history.page-size`). Recording case CWA-18.
+The page size without `MaxRecords` is 50, with a `NextToken`, newest first (CWA-18, recorded 2026-11-03: 60 `StateUpdate` items, the first page from `o30` back to `a6`). Switch `cloudwatch.alarm.history.page-size` `50`.
 
 ### 8.2 StateUpdate items
 
@@ -334,7 +365,12 @@ Recorded (`localstack@8b9a79f tests/aws/services/cloudwatch/test_cloudwatch.snap
 
 ### 8.3 ConfigurationUpdate and Action items
 
-No source shows a `ConfigurationUpdate` or `Action` item: not AWS's pages, not LocalStack (its one history test filters `HistoryItemType=StateUpdate`, `localstack@8b9a79f tests/aws/services/cloudwatch/test_cloudwatch.py:L1451-L1453`), not a public fixture found. UNVERIFIED: their `HistorySummary` texts and `HistoryData` JSON, for create, update, a delivered SNS action and an action to a missing topic. Until recorded, understudy writes no such items and says so in the coverage note (12.1). Recording case CWA-16.
+No public source showed a `ConfigurationUpdate` or `Action` item (LocalStack's one history test filters `HistoryItemType=StateUpdate`, `localstack@8b9a79f tests/aws/services/cloudwatch/test_cloudwatch.py:L1451-L1453`). Recorded 2026-11-03 (CWA-16; also CWA-02, CWA-14, CWA-22, CWA-23):
+
+- `ConfigurationUpdate` on create, update and delete: `HistorySummary` `Alarm "<name>" created`, `... updated`, `... deleted`; `HistoryData` `{"version":"1.0","type":"Create","createdAlarm":{...}}`, `"type":"Update","updatedAlarm":{...},"originalUpdatedFields":{...}` (the changed fields' old values, `alarmConfigurationUpdatedTimestamp` among them) and `"type":"Delete","deletedAlarm":{...}`. The alarm object's keys: `alarmName, alarmArn, alarmConfigurationUpdatedTimestamp, namespace, metricName, extendedStatistic, period, dimensions, threshold, comparisonOperator, evaluationPeriods, treatMissingData, stateValue, stateUpdatedTimestamp, actionsEnabled, alarmActions, insufficientDataActions, okactions` (sic), a standard statistic printed as `"extendedStatistic":"MAXIMUM"`. `DisableAlarmActions` writes an update item too (CWA-14). The delete item stays after the alarm is gone, as the `StateUpdate` items do.
+- `Action` on each action run: `Successfully executed action <ARN>` with `{"actionState":"Succeeded","stateUpdateTimestamp":<epoch ms>,"notificationResource":<ARN>,"publishedMessage":"{\"default\":\"<the notification body>\"}"}`; `Failed to execute action <ARN>` with `"actionState":"Failed"`, `"publishedMessage":null`, `"error":"Topic does not exist"` for a missing topic (or the authorization text of 5.3 for a topic that refuses CloudWatch), and `"muteWindowEndTimestamp":null`.
+
+understudy writes neither kind yet and says so in the `DescribeAlarmHistory` coverage note (12.1); writing them is a follow-up.
 
 ## 9. GetMetricStatistics
 
@@ -362,8 +398,9 @@ From the model docs of `com.amazonaws.cloudwatch#GetMetricStatisticsInput`, iden
 - "The maximum number of data points returned from a single call is 1,440. If you request more than 1,440 data points, CloudWatch returns an error." (model doc). Recorded for `StartTime` now, `EndTime` now plus one day, `Period` 1: `InvalidParameterCombination`, 400, `You have requested up to 86400 datapoints, which exceeds the limit of 1440. You may reduce the datapoints requested by increasing Period, or decreasing the time range.` (same file L5828-L5836, validated 2025-09-19, identical on the query and CBOR variants). So the count is taken before the 1440 cap and before any data is read, and a period of 1 on a regular metric is not itself an error.
 - Recorded for `StartTime` equal to `EndTime`: `InvalidParameterValue`, 400, `The parameter StartTime must be less than the parameter EndTime.` (same file L5841-L5849).
 - The same recorded test also asks `StartTime` now (not minute-aligned), `EndTime` now plus one day, `Period` 60, and every protocol variant is accepted with `{"Datapoints": [], "Label": "metric_name"}` (same file L5813, L5852, L5891). Rounding `StartTime` down to the minute first would make that span 1440 periods plus a fraction, so the count is not the ceiling of the rounded span (inferred; it holds unless every run started on a whole minute).
-- UNVERIFIED: how the count rounds when (EndTime - StartTime) / Period is not whole, and whether it is taken before or after `StartTime` rounding (the floor of the rounded span is still open). Default: ceiling of the unrounded ratio (switch `cloudwatch.get-metric-statistics.datapoint-limit` `ceil-unrounded`). Recording case CWA-20.
-- UNVERIFIED: the codes and texts for both or neither of `Statistics` and `ExtendedStatistics`, and for a `Period` that is not 1, 5, 10, 20, 30 or a multiple of 60. Candidates, modelled on the recorded `PutMetricData` wording ([secrets-logs-events-alarms.md 5.2](secrets-logs-events-alarms.md#52-putmetricdata)): `InvalidParameterCombination` `The parameters Statistics and ExtendedStatistics are mutually exclusive and you have specified both.`, `MissingParameter` `Must specify either Statistics or ExtendedStatistics.`, and `InvalidParameterValue` for the period. Recording case CWA-19.
+- The count is the floor of the unrounded span over the period: AWS refused 1441 whole periods (`You have requested up to 1441 datapoints, ...`) and accepted exactly 1440, 1440.5 periods from an aligned start, 1440.5 from a start at :30 (1441 once rounded down) and 1439.98 (1440.5 once rounded) (CWA-20, recorded 2026-11-03; its captures are `testdata/parity/cloudwatch/CWA-19/11-*` to `15-*`). Switch `cloudwatch.get-metric-statistics.datapoint-limit` `floor-unrounded`.
+- The refusals (CWA-19, recorded 2026-11-03): neither `Statistics` nor `ExtendedStatistics` is `InvalidParameterCombination` 400 `At least one of the parameters Statistics and ExtendedStatistics must be specified.` (not the `MissingParameter` candidate); a `Period` of 7 is `InvalidParameterValue` 400 `The parameter Period must be a value in the set [1, 5, 10, 20, 30].`; 61 and 90 are `InvalidParameterValue` 400 `The parameter Period must be a multiple of 60.` (90 is refused, not answered empty). Both lists together are accepted: 200 with no datapoints, the `PutMetricData` point about one second old; UNVERIFIED whether that point was not yet visible or both lists answer nothing. understudy answers both lists, as `ExtendedStatistics` alone, with 501 (12.7).
+- On the JSON wire these errors' `__type` is `com.amazon.coral.service#InvalidParameterCombinationException` and `com.amazon.coral.service#InvalidParameterValueException` (CWA-19), not the `com.amazonaws.cloudwatch.v2010_08_01#` namespace [error-matrix.md](error-matrix.md) finding 4 records for CloudWatch; the success body orders `Datapoints` before `Label` and each datapoint's statistics before `Timestamp`, and prints `5.0` (CWA-19). understudy's codec differs on all three (the replay of `cloudwatch/CWA-19` shows it).
 
 ### 9.4 DescribeAlarmsForMetric
 
@@ -382,13 +419,14 @@ From the model docs of `com.amazonaws.cloudwatch#GetMetricStatisticsInput`, iden
 
 | Topic | Sources | Choice |
 |---|---|---|
-| Premature alarm rule vs table 2 row 3 (`0 - X - -`, M = 2) | The rule text ("If the oldest breaching data point during the evaluation range is at least as old as the value of Datapoints to Alarm, and all of the more recent data points are either breaching or missing, the alarm goes into ALARM state no matter the value of M") predicts ALARM under `missing`; the table says OK | the table (concrete output); 3.5 step C2 reconciles; CWA-04 re-records |
-| `AWS/DynamoDB` missing data | API reference "always ignore"; user guide "default to ignore ... You can override this" | API reference, switch `cloudwatch.alarm.dynamodb-missing-data`; CWA-21 |
-| StateReason form | count form (2017, 2019, 2024, 2026 samples) and M out of N form (2018 sample, AWS's examples) for the same N | 4.1 option (a); CWA-06 |
+| Premature alarm rule vs table 2 row 3 (`0 - X - -`, M = 2) | The rule text ("If the oldest breaching data point during the evaluation range is at least as old as the value of Datapoints to Alarm, and all of the more recent data points are either breaching or missing, the alarm goes into ALARM state no matter the value of M") predicts ALARM under `missing`; the table says OK | the table, which CWA-04 recorded (OK); 3.5 step C2 reconciles |
+| `AWS/DynamoDB` missing data | API reference "always ignore"; user guide "default to ignore ... You can override this" | the user guide: CWA-21 recorded the override (3.7); switch `cloudwatch.alarm.dynamodb-missing-data` `as-configured` |
+| StateReason form | count form (2017, 2019, 2024, 2026 samples) and M out of N form (2018 sample, AWS's examples) for the same N | 4.1 option (a), which CWA-06 recorded |
+| Event configuration numbers | AWS's metric alarm examples print `"threshold": 80`; CWA-15 recorded `"threshold":3.0` | the recording (4.3) |
 | What notifications carry | [alarm-actions](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/alarm-actions.html): "Single-metric alarms include both a state reason and detailed state reason data"; the SNS schema and every recorded SNS body have `NewStateReason` and no reason data | SNS bodies follow the schema and recordings; Lambda and EventBridge payloads carry `reasonData` (6.1, 6.2) |
-| Evaluation range | one documented size (5 for N = 3, 5-minute period); "depends on the length of the alarm period and whether it is based on a metric with standard resolution or high resolution" | switch default N + 2; CWA-01 |
-| Pinned model vs pages | `ActionConfiguration` and `IN_WARM_UP` documented, absent from the pin | follow the pin until it moves (1.3) |
-| Warm-up end | [alarm-warm-up](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/alarm-warm-up.html): the window "is full when a datapoint exists for the most recent period"; the same page's example ends warm-up only once all three periods have data (10:04 to about 10:19) | the example; switch `cloudwatch.alarm.warm-up-end`; CWA-22 (2.4) |
+| Evaluation range | one documented size (5 for N = 3, 5-minute period); "depends on the length of the alarm period and whether it is based on a metric with standard resolution or high resolution" | CWA-01 recorded N + 5 at 60 s and N + 2 at 300 s; N + 2 elsewhere, inferred (3.4) |
+| Pinned model vs pages | `ActionConfiguration` and `IN_WARM_UP` documented, absent from the pin; AWS returns `IN_WARM_UP` (CWA-22) | follow the pin until it moves (1.3) |
+| Warm-up end | [alarm-warm-up](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/alarm-warm-up.html): the window "is full when a datapoint exists for the most recent period"; the same page's example ends warm-up only once all three periods have data (10:04 to about 10:19) | the example, which CWA-22 recorded (2.4) |
 | LocalStack date mask | regex named `(MM/DD/YY HH:MM:SS)` | day first, from AWS's examples (4.3) |
 
 ## 12. Implications for understudy
@@ -401,7 +439,7 @@ From the model docs of `com.amazonaws.cloudwatch#GetMetricStatisticsInput`, iden
 | `SetAlarmState` | Partial | `the state is set and its actions run when it changes; the next evaluation re-derives it, except on alarms that are never evaluated (see PutMetricAlarm)` |
 | `EnableAlarmActions`, `DisableAlarmActions` | Full (from StoredOnly) | they now gate actions; EventBridge events are sent either way (6.2) |
 | `DescribeAlarms` | Partial, note unchanged | `StateReasonData` is now filled by evaluation |
-| `DescribeAlarmHistory` | Partial | `StateUpdate items only, kept 30 days on the emulator clock and after the alarm is deleted; ConfigurationUpdate and Action items are never recorded, and AlarmContributorId selects nothing` |
+| `DescribeAlarmHistory` | Partial | `StateUpdate items only, kept 30 days on the emulator clock and after the alarm is deleted; ConfigurationUpdate and Action items are never recorded, and AlarmContributorId selects nothing` (AWS writes both, 8.3; a follow-up) |
 | `DescribeAlarmsForMetric` | Full | exact namespace, name and dimension match, optional statistic, period and unit filters (9.4) |
 | `GetMetricStatistics` | Partial | `Statistics only: ExtendedStatistics answers 501; points are kept until reset, not aged out by resolution` |
 | `PutCompositeAlarm`, `PutAlarmMuteRule` and the other mute rule operations, `PutAnomalyDetector`, `PutLogAlarm` | unbound (501) | composite alarms, mute rules, anomaly bands and log alarms are not evaluated, so binding them would fake behavior |
@@ -410,29 +448,31 @@ The guide (`docs/guide/`) must say that understudy publishes no vended `AWS/*` m
 
 ### 12.2 Fidelity switches
 
+Recorded 2026-11-03: every alarm switch's item was recorded; the labels and defaults below are the recorded ones. None is replayed: the alarm items wait on evaluations or read the queues deliveries filled, which `internal/parity` cannot drive (CWA-19 and CWA-20 are replayed but differ on the JSON wire form, 9.3).
+
 | Switch | Default | Label | Grounded in | Settled by |
 |---|---|---|---|---|
 | `cloudwatch.alarm.evaluation-cadence` | `minute,10s-for-high-resolution,hourly-past-one-day` | aws-doc | 3.1 | |
 | `cloudwatch.alarm.evaluation-phase` | `minute-boundary` | inferred | 3.1 | |
-| `cloudwatch.alarm.first-evaluation` | `next-boundary` | inferred | 3.1 | CWA-03 |
-| `cloudwatch.alarm.window-anchor` | `evaluation-minute` | aws-doc | 3.2 | CWA-02 (sub-minute periods) |
+| `cloudwatch.alarm.first-evaluation` | `next-boundary` | aws-recorded | 3.1 | CWA-03 |
+| `cloudwatch.alarm.window-anchor` | `evaluation-minute` | aws-doc | 3.2 | CWA-02 recorded sub-minute periods reading a lagged window, which understudy does not (follow-up) |
 | `cloudwatch.alarm.mixed-units` | `first-unit-by-name` | inferred | 3.3 | AWS documents it as undefined |
-| `cloudwatch.alarm.evaluation-range` | `n-plus-2` | inferred | 3.4 | CWA-01 |
-| `cloudwatch.alarm.unaged-breach` | `retain` | inferred | 3.5 | CWA-04 |
-| `cloudwatch.alarm.unchanged-state` | `no-update` | inferred | 3.8 | CWA-05 |
-| `cloudwatch.alarm.set-same-state` | `reason-and-data-only` | inferred | 2.3 | CWA-17 |
-| `cloudwatch.alarm.dynamodb-missing-data` | `always-ignore` | aws-doc | 3.7 | CWA-21 |
-| `cloudwatch.alarm.warm-up-end` | `every-period-has-data` | aws-doc (worked example) | 2.4 | CWA-22 |
-| `cloudwatch.alarm.reason-format` | `count-form-unless-datapoints-to-alarm` | inferred | 4.1 | CWA-06, CWA-07, CWA-08 |
-| `cloudwatch.alarm.number-format` | `java-double,event-configuration-plain-whole-numbers` | inferred | 4.3 | CWA-09, CWA-15 |
-| `cloudwatch.alarm.sns.unset-fields` | `description-null,treat-missing-data-empty,unit-null,low-sample-empty,datapoints-to-alarm-omitted,mute-window-false` | inferred | 5.1 | CWA-11 |
-| `cloudwatch.alarm.sns.subject` | `state-quoted-name-in-region-long-name,100-chars` | inferred | 5.2 | CWA-12 |
-| `cloudwatch.alarm.sns.fifo-group` | `sha256-hex-of-alarm-arn` | inferred | 5.3 | CWA-13 |
-| `cloudwatch.alarm.events.actions-disabled` | `events-sent` | inferred | 6.2 | CWA-14 |
-| `cloudwatch.alarm.events.metric-id` | `one-per-configuration` | inferred | 6.2 | CWA-15 |
-| `cloudwatch.alarm.actions.denied` | `dropped` | inferred | 12.4 | CWA-23 |
-| `cloudwatch.alarm.history.page-size` | `50` | inferred | 8.1 | CWA-18 |
-| `cloudwatch.get-metric-statistics.datapoint-limit` | `ceil-unrounded` | inferred | 9.3 | CWA-20 |
+| `cloudwatch.alarm.evaluation-range` | `n-plus-5-for-60s,n-plus-2-otherwise` | inferred (recorded at 60 and 300 s) | 3.4 | CWA-01 |
+| `cloudwatch.alarm.unaged-breach` | `alarm-if-aged-in-range-else-retain` | aws-recorded | 3.5 | CWA-04 |
+| `cloudwatch.alarm.unchanged-state` | `no-update` | aws-recorded | 3.8 | CWA-05 |
+| `cloudwatch.alarm.set-same-state` | `no-change` | aws-recorded | 2.3 | CWA-17 |
+| `cloudwatch.alarm.dynamodb-missing-data` | `as-configured` | aws-recorded | 3.7 | CWA-21 |
+| `cloudwatch.alarm.warm-up-end` | `every-period-has-data` | aws-recorded | 2.4 | CWA-22 |
+| `cloudwatch.alarm.reason-format` | `count-form-unless-datapoints-to-alarm` | aws-recorded | 4.1 | CWA-06, CWA-07, CWA-08 |
+| `cloudwatch.alarm.number-format` | `java-double` | aws-recorded | 4.3 | CWA-09, CWA-15 |
+| `cloudwatch.alarm.sns.unset-fields` | `description-null,treat-missing-data-empty,unit-null,low-sample-empty,datapoints-to-alarm-omitted,mute-window-false` | aws-recorded | 5.1 | CWA-11 |
+| `cloudwatch.alarm.sns.subject` | `state-quoted-name-in-region-long-name,100-chars` | aws-recorded | 5.2 | CWA-11, CWA-12 |
+| `cloudwatch.alarm.sns.fifo-group` | `sha256-hex-of-alarm-arn,uuid-dedup-id` | aws-recorded | 5.3 | CWA-13 |
+| `cloudwatch.alarm.events.actions-disabled` | `events-sent` | aws-recorded | 6.2 | CWA-14 |
+| `cloudwatch.alarm.events.metric-id` | `one-per-configuration` | aws-recorded | 6.2 | CWA-14, CWA-15 |
+| `cloudwatch.alarm.actions.denied` | `dropped` | aws-recorded | 12.4 | CWA-23 |
+| `cloudwatch.alarm.history.page-size` | `50` | aws-recorded | 8.1 | CWA-18 |
+| `cloudwatch.get-metric-statistics.datapoint-limit` | `floor-unrounded` | aws-recorded | 9.3 | CWA-20 |
 | `cloudwatch.get-metric-statistics.order` | `timestamp-ascending,then-unit` | inferred | 9.2 | AWS documents no order |
 
 `cloudwatch.get-metric-data.start-rounding` (existing) also governs `GetMetricStatistics`.
@@ -452,13 +492,13 @@ The guide (`docs/guide/`) must say that understudy publishes no vended `AWS/*` m
 1. Alarm deliveries cross packages: `internal/delivery`'s closed `Mechanism` set (`internal/delivery/delivery.go`) gains `CloudWatchToSNS` and `CloudWatchToLambda` (wire `cloudwatch-to-sns`, `cloudwatch-to-lambda`), the ADR 0015 amendment of 2026-10-30 and a row in the [ARCHITECTURE.md](../ARCHITECTURE.md) section 16 table.
 2. EventBridge events (6.2) need a way into a bus. Options: a new `delivery.Target` variant for an event bus, or an internal `PutEvents` operation as Lambda's logs use `PutLogEventsInternal` (ARCHITECTURE.md 16). The internal operation is smaller and keeps matching inside EventBridge; recommended. Events go to the default bus of the alarm's account and Region, "the EventBridge default event bus, which automatically receives events from AWS services" ([eb-event-bus](https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-event-bus.html)).
 3. Retry: AWS documents guarantees, not a policy (5.3, 6.1, 6.2). A missing topic or function is journaled and dropped, as CloudWatch "doesn't test or validate the actions" (5.3); Lambda's own asynchronous retries apply after acceptance. No invented retry schedule.
-4. Policies: before delivery the access recorder checks the topic policy for `cloudwatch.amazonaws.com` and the function policy for `lambda.alarms.cloudwatch.amazonaws.com` and journals an `Advisory` when AWS would refuse, then delivers (ARCHITECTURE.md 16). Under `iam.enforce=enforce` the refused delivery is dropped after its one attempt, with no retry and no dead-letter queue: AWS states no outcome for a publish its topic refuses ("doesn't ... detect any ... Amazon SNS errors", 5.3) and does not guarantee a Lambda invocation it is not authorized for (6.1). UNVERIFIED: whether AWS checks the topic policy at all. Switch `cloudwatch.alarm.actions.denied` `dropped`; recording case CWA-23.
+4. Policies: before delivery the access recorder checks the topic policy for `cloudwatch.amazonaws.com` and the function policy for `lambda.alarms.cloudwatch.amazonaws.com` and journals an `Advisory` when AWS would refuse, then delivers (ARCHITECTURE.md 16). Under `iam.enforce=enforce` the refused delivery is dropped after its one attempt, with no retry and no dead-letter queue: AWS states no outcome for a publish its topic refuses ("doesn't ... detect any ... Amazon SNS errors", 5.3) and does not guarantee a Lambda invocation it is not authorized for (6.1). AWS checks the topic policy: a topic granting only the account root received nothing and the alarm recorded a failed `Action` item (5.3; CWA-23, recorded 2026-11-03). Switch `cloudwatch.alarm.actions.denied` `dropped`. Whether a refused Lambda invocation is likewise dropped is unrecorded.
 5. Per transition, in this order: state write, history item, then for each ARN of the new state's list in list order, a delivery when `ActionsEnabled`; then the state change event. `PutMetricAlarm` and `DeleteAlarms` emit the configuration change events.
 6. Builders are pure functions with golden fixtures owned by the cloudwatch package: SNS subject and body (5.1, 5.2), Lambda event (6.1), the two EventBridge details (6.2), `StateReason` (4.1, 4.3) and `StateReasonData` (4.2). Golden bytes come from the recorded and documented examples above, with recorded values where the snapshot masks none.
 
 ### 12.5 Limits and validation texts
 
-- `GetMetricStatistics`: `Statistics` 1 to 5, `ExtendedStatistics` 1 to 10, `Dimensions` up to 30, `Period` at least 1 (model, 1.2); the 1440 limit and `StartTime < EndTime` texts as recorded (9.3); the UNVERIFIED texts in one constants table (9.3, CWA-19).
+- `GetMetricStatistics`: `Statistics` 1 to 5, `ExtendedStatistics` 1 to 10, `Dimensions` up to 30, `Period` at least 1 (model, 1.2); the 1440 limit, `StartTime < EndTime`, statistics and period texts as recorded (9.3; CWA-19), in one constants table.
 - `SetAlarmState`: `StateReason` up to 1023, `StateReasonData` up to 4000 and valid JSON (`InvalidFormat` 400 with an inferred message, 1.2).
 - Generated `StateReason` and `StateReasonData` must respect 1023 and 4000 characters (CWA-10); `HistoryData` 4095 and `HistorySummary` 255 (model).
 - Evaluation period limits already enforced at `PutMetricAlarm` (`checkEvaluationRange` in `validate.go`).
@@ -535,7 +575,7 @@ cwqueue "$P-cwa" "$T" sns.amazonaws.com
 aws sns subscribe --topic-arn "$T" --protocol sqs --notification-endpoint "arn:aws:sqs:$R:$A:$P-cwa" >/dev/null
 ```
 
-The event fixture, for CWA-14 and CWA-15. It uses R03's `$P-role` (recording-kit.md 3, Tier 1):
+The event fixture, for CWA-14 and CWA-15. It uses R03's `$P-role` (recording-kit.md 3, Tier 1). The 2026-11-03 run had to create that role (trust `lambda.amazonaws.com`, `AWSLambdaBasicExecutionRole`, a 15-second wait, deleted after), build `cwa.zip` with `python3 -I -m zipfile -c cwa.zip cwa.py` where no `zip` was installed, and wait 60 seconds after `put-targets` before creating an alarm: an alarm created 2 seconds after its rule had its first events lost (6.2).
 
 ```sh
 printf 'import json\ndef handler(event, context):\n    print(json.dumps(event))\n    return {}\n' >cwa.py
@@ -568,7 +608,7 @@ sleep 2700
 for a in r1 r3 r5; do cwrec "CWA-01/$a" "$a"; done
 ```
 
-Expected: a point at minute m0 stays in range while T0 <= m0 + R x Period, so R = (T0 - m0 - 60 s) / Period, where T0 is the leaving transition's `queryDate` truncated to the minute and m0 the point's minute (r3: its oldest point's). Default `n-plus-2`: R is 3 for r1 and r5 and 5 for r3, so the transitions come 4, 16 and 6 minutes after the respective point. The r1 transition also records the singular `Insufficient Data:` text (CWA-08). Teardown: `cwdel r1 r3 r5`. Cost under USD 0.01; 50 minutes, mostly waiting.
+Expected: a point at time p stays in range while T0 - R x Period <= p, where T0 is an evaluation's `queryDate` truncated to the minute (r3: its oldest point's p). Recorded 2026-11-03: R = 6 for r1, 8 for r3 and 3 for r5 (3.4), not the 3, 5 and 3 the `n-plus-2` default predicted; the r1 transition recorded the singular `Insufficient Data:` text. Teardown: `cwdel r1 r3 r5`. Cost under USD 0.01; 50 minutes, mostly waiting.
 
 ### 13.3 CWA-02: sub-minute periods
 
@@ -581,7 +621,7 @@ sleep 300
 cwrec CWA-02/hr hr
 ```
 
-Expected: `queryDate` of both transitions on or just after a 10-second division of the minute; `evaluatedDatapoints` timestamps on 10-second divisions; the INSUFFICIENT_DATA transition about (R + 1) x 10 seconds after the point. Teardown: `cwdel hr`. Cost under USD 0.01; 7 minutes.
+Expected: `queryDate` of both transitions on or just after a 10-second division of the minute; `evaluatedDatapoints` timestamps on 10-second divisions; the INSUFFICIENT_DATA transition about (R + 1) x 10 seconds after the point. Recorded 2026-11-03: the timestamps hold, but both `queryDate`s fell 0.6 seconds before a division, ALARM came 69 seconds after the create and INSUFFICIENT_DATA about 90 seconds after the point, reading a window two periods behind (3.1). Teardown: `cwdel hr`. Cost under USD 0.01; 7 minutes.
 
 ### 13.4 CWA-03: first evaluation
 
@@ -636,7 +676,7 @@ for a in t1x1-missing-a t1x2-missing-a; do cwrec "CWA-04/$a" "$a"; done
 
 Every alarm starts in INSUFFICIENT_DATA, where "retain" and "go to INSUFFICIENT_DATA" look alike, so the cells whose answer may be "retain" are first set to a known state: OK for the `ignore` cells and the x1, x2 `missing` cells, and ALARM for a second copy of the x1, x2 `missing` cells. For an x cell under `missing`, the pair reads: both kept, retain; both OK, OK; both INSUFFICIENT_DATA, INSUFFICIENT_DATA; both ALARM, ALARM.
 
-Expected: the tables of 3.6 (rows t1r1 to t2r5) and the x1, x2 rows (t1x1, t1x2). "retain" shows as no `StateUpdate` item after the alarm's last `SetAlarmState`, with `StateReason` still `Unchecked: Initial alarm creation` or `cwa start ...`. Discard a cell whose first transition's `evaluatedDatapoints` do not match its pattern; a later transition whose `evaluatedDatapoints` show the pattern shifted by a bin comes from the next pattern, not the cell's. Teardown: `for c in t1r1 t1r2 t1r3 t1r4 t1r5 t1x1 t1x2 t2r1 t2r2 t2r3 t2r4 t2r5; do for t in missing ignore breaching notBreaching; do cwdel "$c-$t"; done; done; cwdel t1x1-missing-a t1x2-missing-a`. Cost under USD 0.02 (50 alarms and 11 metrics for under an hour); 25 minutes.
+Expected: the tables of 3.6 (rows t1r1 to t2r5) and the x1, x2 rows (t1x1, t1x2). "retain" shows as no `StateUpdate` item after the alarm's last `SetAlarmState`, with `StateReason` still `Unchecked: Initial alarm creation` or `cwa start ...`. Recorded 2026-11-03: every table cell and x1 matched; x2 under `missing` went to ALARM from OK and kept ALARM (3.5). The bins are 300 seconds ending at each evaluation minute, and `evaluatedDatapoints` lists only the bins behind the decision (4.2), not all five. Discard a cell whose first transition's `evaluatedDatapoints` do not match its pattern; a later transition whose `evaluatedDatapoints` show the pattern shifted by a bin comes from the next pattern, not the cell's. Teardown: `for c in t1r1 t1r2 t1r3 t1r4 t1r5 t1x1 t1x2 t2r1 t2r2 t2r3 t2r4 t2r5; do for t in missing ignore breaching notBreaching; do cwdel "$c-$t"; done; done; cwdel t1x1-missing-a t1x2-missing-a`. Cost under USD 0.02 (50 alarms and 11 metrics for under an hour); 25 minutes.
 
 ### 13.6 CWA-05: an evaluation that keeps the state
 
@@ -875,7 +915,7 @@ cwrec CWA-17/same same
 cwdrain CWA-17/receive "$P-cwa"
 ```
 
-Expected (default `reason-and-data-only`): `StateReason` `second` and `StateReasonData` `{"n":2}` after the second call, both timestamps unchanged, one `StateUpdate` item, one notification (the page fixes this last). Teardown: `cwdel same`. Cost under USD 0.01; 2 minutes.
+Expected (default `reason-and-data-only`): `StateReason` `second` and `StateReasonData` `{"n":2}` after the second call, both timestamps unchanged, one `StateUpdate` item, one notification (the page fixes this last). Recorded 2026-11-03: `StateReason` stayed `first` with no `StateReasonData`; the rest held (2.3). Teardown: `cwdel same`. Cost under USD 0.01; 2 minutes.
 
 ### 13.19 CWA-18: history page size
 
@@ -912,7 +952,7 @@ for p in 7 61 90; do
 done
 ```
 
-Expected: code, status and message of each refusal; for 90 also whether it is refused or answers with no datapoints. Teardown: none. Cost under USD 0.01; 3 minutes.
+Expected: code, status and message of each refusal; for 90 also whether it is refused or answers with no datapoints. Recorded 2026-11-03: both lists accepted, neither `InvalidParameterCombination`, 7 and 61 and 90 refused with the texts of 9.3. Teardown: none. Cost under USD 0.01; 3 minutes.
 
 ### 13.21 CWA-20: the 1440 datapoint count
 
@@ -926,7 +966,7 @@ gms 14-half-unaligned-start --start-time $((now - 86430)) --end-time "$now" --pe
 gms 15-under-unless-rounded --start-time $((now - 86369)) --end-time $((now + 30)) --period 60 --statistics Maximum
 ```
 
-Spans: 13 is 86,430 s from an aligned start (1440.5 periods); 14 is 86,430 s from a start at :30, which rounds to 86,460 s; 15 is 86,399 s, which rounds to 86,430 s. Expected (default `ceil-unrounded`): 11 refused with `up to 1441 datapoints`, 12 accepted, 13 and 14 refused, 15 accepted. The other rules give distinct patterns for 13, 14, 15: floor of the unrounded span accepts all three; ceiling after rounding refuses all three; floor after rounding refuses only 14. Teardown: none. Cost under USD 0.01; 2 minutes.
+Spans: 13 is 86,430 s from an aligned start (1440.5 periods); 14 is 86,430 s from a start at :30, which rounds to 86,460 s; 15 is 86,399 s, which rounds to 86,430 s. Expected (default `ceil-unrounded`): 11 refused with `up to 1441 datapoints`, 12 accepted, 13 and 14 refused, 15 accepted. The other rules give distinct patterns for 13, 14, 15: floor of the unrounded span accepts all three; ceiling after rounding refuses all three; floor after rounding refuses only 14. Recorded 2026-11-03: all three accepted, the floor of the unrounded span (9.3). `gms` writes these captures under `CWA-19`. Teardown: none. Cost under USD 0.01; 2 minutes.
 
 ### 13.22 CWA-21: AWS/DynamoDB missing data
 
@@ -944,7 +984,7 @@ sleep 300
 cwrec CWA-21/ddb ddb; cwrec CWA-21/control ddb-control
 ```
 
-`SystemErrors` is chosen because an idle table publishes no data for it, so the alarm sees only missing data. Expected: the control goes to ALARM; ddb stays INSUFFICIENT_DATA with `Unchecked: Initial alarm creation` (default `always-ignore`) or goes to ALARM (the user guide's override). If ddb goes to OK, DynamoDB published a zero and the case is void. Teardown: `cwdel ddb ddb-control; aws dynamodb delete-table --table-name "$P-cwa" >/dev/null`. Cost under USD 0.01; 8 minutes.
+`SystemErrors` is chosen because an idle table publishes no data for it, so the alarm sees only missing data. Expected: the control goes to ALARM; ddb stays INSUFFICIENT_DATA with `Unchecked: Initial alarm creation` (default `always-ignore`) or goes to ALARM (the user guide's override). Recorded 2026-11-03: both went to ALARM (3.7). If ddb goes to OK, DynamoDB published a zero and the case is void. Teardown: `cwdel ddb ddb-control; aws dynamodb delete-table --table-name "$P-cwa" >/dev/null`. Cost under USD 0.01; 8 minutes.
 
 ### 13.23 CWA-22: end of warm-up
 
@@ -965,7 +1005,7 @@ done
 cwrec CWA-22/warm warm
 ```
 
-`breaching` makes the first evaluation after warm-up go to ALARM, so the transition time marks the end of warm-up; a put every 30 seconds fills every minute. Expected: no transition in the 90 seconds before the first put (warm-up holds a `breaching` alarm with no data); `EvaluationState` `IN_WARM_UP` in the captures until warm-up ends, then the ALARM transition about one minute after the first put under (b), or about three under (a), the default. Teardown: `cwdel warm`. Cost under USD 0.01; 9 minutes.
+`breaching` makes the first evaluation after warm-up go to ALARM, so the transition time marks the end of warm-up; a put every 30 seconds fills every minute. Expected: no transition in the 90 seconds before the first put (warm-up holds a `breaching` alarm with no data); `EvaluationState` `IN_WARM_UP` in the captures until warm-up ends, then the ALARM transition about one minute after the first put under (b), or about three under (a), the default. Recorded 2026-11-03: (a), 2.4 minutes after the first put (2.4). Teardown: `cwdel warm`. Cost under USD 0.01; 9 minutes.
 
 ### 13.24 CWA-23: an action to a topic that does not allow CloudWatch
 
@@ -985,7 +1025,7 @@ cwdrain CWA-23/receive "$P-cwa-deny"
 rec CWA-23/history aws cloudwatch describe-alarm-history --alarm-name "$P-deny"
 ```
 
-Expected (default `dropped`): no message in the queue, the alarm in ALARM, and at most an `Action` history item saying the publish failed (8.3). A message in the queue means CloudWatch's publish is not checked against the topic policy, and the enforce mode must then deliver. Teardown: `for s in $(aws sns list-subscriptions-by-topic --topic-arn "$TD" --query 'Subscriptions[].SubscriptionArn' --output text); do aws sns unsubscribe --subscription-arn "$s"; done; aws sns delete-topic --topic-arn "$TD"; aws sqs delete-queue --queue-url "$Q/$P-cwa-deny"; cwdel deny`. Cost under USD 0.01; 3 minutes.
+Expected (default `dropped`): no message in the queue, the alarm in ALARM, and at most an `Action` history item saying the publish failed (8.3). A message in the queue means CloudWatch's publish is not checked against the topic policy, and the enforce mode must then deliver. Recorded 2026-11-03: no message, ALARM, and a failed `Action` item (5.3). Teardown: `for s in $(aws sns list-subscriptions-by-topic --topic-arn "$TD" --query 'Subscriptions[].SubscriptionArn' --output text); do aws sns unsubscribe --subscription-arn "$s"; done; aws sns delete-topic --topic-arn "$TD"; aws sqs delete-queue --queue-url "$Q/$P-cwa-deny"; cwdel deny`. Cost under USD 0.01; 3 minutes.
 
 ### 13.25 Fixture teardown and sweep
 
