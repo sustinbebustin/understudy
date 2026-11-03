@@ -78,8 +78,10 @@ func (s *Service) partETag(enc Encryption, md5Hex string) string {
 
 // readTarget reads the upload a part write addresses: NoSuchUpload when
 // the id names no upload in progress for key; then the part's SSE-C trio
-// h is judged against the upload (checkCustomerPart).
-func (s *Service) readTarget(ctx context.Context, c *kernel.Call, a access, id, key string, h customerHeaders) (partTarget, *awserr.Error) {
+// h is judged against the upload (checkCustomerPart), and a part whose
+// body declares no integrity (undeclared, never set by UploadPartCopy,
+// which has no body) is refused under Object Lock (errPartNeedsIntegrity).
+func (s *Service) readTarget(ctx context.Context, c *kernel.Call, a access, id, key string, h customerHeaders, undeclared bool) (partTarget, *awserr.Error) {
 	return read(ctx, s, c, a, func(b *Bucket) (partTarget, *awserr.Error) {
 		u, err := b.Uploads.find(id, key)
 		if err != nil {
@@ -90,6 +92,9 @@ func (s *Service) readTarget(ctx context.Context, c *kernel.Call, a access, id, 
 		k, err := checkCustomerPart(u.Encryption, h, b, key, writeCallOf(c, "s3:PutObject"))
 		if err != nil {
 			return partTarget{}, err
+		}
+		if undeclared && needsIntegrity(b.ObjectLock, u.Lock) {
+			return partTarget{}, errPartNeedsIntegrity()
 		}
 		m, merr := u.Checksum.mode()
 		if merr != nil {
@@ -122,7 +127,7 @@ func (s *Service) uploadPart(ctx context.Context, c *kernel.Call, in *s3api.Uplo
 		return nil, err
 	}
 	a := at(in.Bucket, in.ExpectedBucketOwner)
-	t, err := s.readTarget(ctx, c, a, in.UploadId, in.Key, customerHeaders{algorithm: in.SSECustomerAlgorithm, key: in.SSECustomerKey, keyMD5: in.SSECustomerKeyMD5})
+	t, err := s.readTarget(ctx, c, a, in.UploadId, in.Key, customerHeaders{algorithm: in.SSECustomerAlgorithm, key: in.SSECustomerKey, keyMD5: in.SSECustomerKeyMD5}, !u.integrityDeclared())
 	if err != nil {
 		return nil, err
 	}

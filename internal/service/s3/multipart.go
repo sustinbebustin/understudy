@@ -73,8 +73,9 @@ type Upload struct {
 	// Lock is the retention and legal hold Create's headers asked for,
 	// which the completed object takes, with the bucket default's retention
 	// dated at Initiated when they name none (completeWrite). Whether
-	// Create's headers land on the object at all is UNVERIFIED (S3SOL-15,
-	// s3-ssec-object-lock.md 6.3).
+	// Create's headers land on the object at all is UNVERIFIED: S3SOL-15
+	// recorded that they make each part need a checksum, but its Complete
+	// failed (s3-ssec-object-lock.md 6.3).
 	Lock ObjectLock `json:"lock,omitzero"`
 }
 

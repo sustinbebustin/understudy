@@ -114,15 +114,15 @@ type lockRequest struct {
 	explicit ObjectLock
 	// undeclared is set for a PutObject that sent neither Content-MD5 nor a
 	// checksum. CopyObject and CreateMultipartUpload never set it: neither
-	// needs one (switches s3.object-lock.copy-default and
-	// s3.object-lock.checksum-scope).
+	// carries a body (S3SOL-15 15-create and S3SOL-16, recorded
+	// 2026-11-03); the parts do (errPartNeedsIntegrity).
 	undeclared bool
 }
 
 // check judges the request against its bucket (s3-ssec-object-lock.md
 // 11.3): explicit settings need a bucket with Object Lock, and a PutObject
-// whose version gets a retention, its own or the bucket default's, needs
-// Content-MD5 or a checksum (testdata/parity/s3/R12/11-put-without-checksum.json).
+// with lock settings, or whose version gets the bucket default's
+// retention, needs Content-MD5 or a checksum (needsIntegrity).
 func (r lockRequest) check(b *Bucket) *awserr.Error {
 	if err := checkLockTarget(b, r.explicit); err != nil {
 		return err
@@ -357,16 +357,26 @@ func lockedAt(b *Bucket, obj *Object, created clock.Instant) *Object {
 	return &o
 }
 
-// needsIntegrity reports whether a PutObject's new version gets a
-// retention period, explicit or the bucket default's, and so needs
-// Content-MD5 or a checksum (s3-ssec-object-lock.md 6.3). A legal hold
-// alone does not (switch s3.object-lock.checksum-scope).
+// needsIntegrity reports whether a write with explicit lock settings into
+// a bucket configured cfg needs Content-MD5 or a checksum
+// (s3-ssec-object-lock.md 6.3): any explicit setting, a legal hold alone
+// included (S3SOL-14 14-legal-hold-only, recorded 2026-11-03; a hold set
+// OFF is inferred to count), or a bucket default retention
+// (testdata/parity/s3/R12/11-put-without-checksum.json).
 func needsIntegrity(cfg *s3api.ObjectLockConfiguration, explicit ObjectLock) bool {
-	if explicit.Retention != nil {
+	if explicit != (ObjectLock{}) {
 		return true
 	}
 	_, ok := bucketDefaultRetention(cfg)
 	return ok
+}
+
+// errPartNeedsIntegrity answers an UploadPart without Content-MD5 or a
+// checksum to an upload that needsIntegrity (s3-ssec-object-lock.md 6.3;
+// S3SOL-15 15-part-no-checksum, recorded 2026-11-03, for an upload created
+// with lock headers; for one under a bucket default it is inferred).
+func errPartNeedsIntegrity() *awserr.Error {
+	return errInvalidRequest("Content-MD5 OR x-amz-checksum- HTTP header is required for Put Part requests with Object Lock parameters")
 }
 
 // parseRetentionBody reads a PutObjectRetention body

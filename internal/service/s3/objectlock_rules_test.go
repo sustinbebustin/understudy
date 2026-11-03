@@ -534,8 +534,8 @@ func TestCheckLockTarget(t *testing.T) {
 // recorded 2026-11-03); explicit settings override it and a legal
 // hold comes only from them. A version needs Content-MD5 or a checksum when
 // it gets a retention (testdata/parity/s3/R12/11-put-without-checksum.json:
-// a bucket default and no lock header), and not for a legal hold alone
-// (switch s3.object-lock.checksum-scope).
+// a bucket default and no lock header), and for a legal hold alone too
+// (S3SOL-14 14-legal-hold-only, recorded 2026-11-03).
 func TestDefaultRetention(t *testing.T) {
 	values := switchValues(t)
 	declared(t, values, "s3.object-lock.default-years")
@@ -545,8 +545,11 @@ func TestDefaultRetention(t *testing.T) {
 		if d, ok := bucketDefaultRetention(cfg); ok {
 			t.Errorf("bucketDefaultRetention(%+v) = %+v, want none", cfg, d)
 		}
-		if needsIntegrity(cfg, ObjectLock{LegalHold: LegalHoldOn}) {
-			t.Errorf("needsIntegrity(%+v, legal hold only) = true, want false", cfg)
+		if !needsIntegrity(cfg, ObjectLock{LegalHold: LegalHoldOn}) {
+			t.Errorf("needsIntegrity(%+v, legal hold only) = false, want true (S3SOL-14 14-legal-hold-only)", cfg)
+		}
+		if needsIntegrity(cfg, ObjectLock{}) {
+			t.Errorf("needsIntegrity(%+v, none) = true, want false without a default", cfg)
 		}
 	}
 	created := lockNow.Add(123456789)

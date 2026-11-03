@@ -36,6 +36,13 @@ var (
 	errNeedsChecksum = failure{status: 400, code: "InvalidRequest", message: "Content-MD5 OR x-amz-checksum- HTTP header is required for Put Object requests with Object Lock parameters"}
 )
 
+// withMD5 is a part declaring data's Content-MD5, which a part of an
+// upload under Object Lock needs (S3SOL-15 15-part-no-checksum, recorded
+// 2026-11-03).
+func withMD5(data string) s3api.UploadPartInput {
+	return s3api.UploadPartInput{ContentMD5: new(base64.StdEncoding.EncodeToString(md5Sum([]byte(data))))}
+}
+
 // errMarker is the 405 for a lock operation on a delete marker by version
 // id (L9805, L9817).
 func errMarker(method string) failure {
@@ -359,18 +366,20 @@ func TestObjectLockHeadersNeedALockBucket(t *testing.T) {
 	})
 }
 
-// TestObjectLockChecksumRequirement: a PutObject whose version gets a
-// retention needs Content-MD5 or a checksum: from the bucket default with no
-// lock header it is refused without one (testdata/parity/s3/R12/11-put-without-checksum.json),
-// and under switch s3.object-lock.checksum-scope an explicit retention
-// needs one too, a legal hold alone does not, a signed payload hash does
-// not count, and a header or trailer checksum does. UploadPart needs none
-// (same switch) and CopyObject needs none and gets the default (switch
+// TestObjectLockChecksumRequirement: a PutObject with Object Lock
+// parameters needs Content-MD5 or a checksum: from the bucket default with
+// no lock header it is refused without one (testdata/parity/s3/R12/11-put-without-checksum.json),
+// as are an explicit retention and a legal hold alone, a signed payload
+// hash does not count, and a header or trailer checksum does (S3SOL-14,
+// recorded 2026-11-03). UploadPart of an upload created with lock headers
+// needs one too, with its own text (S3SOL-15 15-part-no-checksum, recorded
+// 2026-11-03; under a bucket default it is inferred to need one as
+// PutObject does), and CopyObject needs none and gets the default (switch
 // s3.object-lock.copy-default).
 func TestObjectLockChecksumRequirement(t *testing.T) {
 	runObjects(t, func(h *harness) {
 		t := h.T
-		h.follows("s3.object-lock.checksum-scope", "PutObject-retention")
+		h.follows("s3.object-lock.checksum-scope", "any-lock-parameter-and-parts")
 		h.follows("s3.object-lock.copy-default", "default-applied")
 		h.createBucket("plain")
 		h.put("plain", "src", "source")
@@ -402,10 +411,10 @@ func TestObjectLockChecksumRequirement(t *testing.T) {
 		if state.mode == nil || *state.mode != s3api.ObjectLockModeGovernance || state.until == nil {
 			t.Errorf("a copy into the default-retention bucket reports %v until %v, want the GOVERNANCE default", deref(state.mode), deref(state.until))
 		}
+		errNeedsPartChecksum := failure{status: 400, code: "InvalidRequest", message: "Content-MD5 OR x-amz-checksum- HTTP header is required for Put Part requests with Object Lock parameters"}
 		id := h.startUpload("defaulted", "parts", s3api.CreateMultipartUploadInput{})
-		if _, err := uploadPart(h, "defaulted", "parts", id, 1, []byte("part"), s3api.UploadPartInput{}); err != nil {
-			t.Errorf("UploadPart without a checksum into a default-retention bucket: %s %q", err.ID.QueryCode, err.Message)
-		}
+		_, err = uploadPart(h, "defaulted", "parts", id, 1, []byte("part"), s3api.UploadPartInput{})
+		errNeedsPartChecksum.is(t, "UploadPart without a checksum into a default-retention bucket", err)
 
 		h.lockBucket("locked")
 		until := h.Clock.Now().Wire().Add(time.Hour)
@@ -414,10 +423,18 @@ func TestObjectLockChecksumRequirement(t *testing.T) {
 			ObjectLockMode: new(s3api.ObjectLockModeGovernance), ObjectLockRetainUntilDate: &until,
 		})
 		errNeedsChecksum.is(t, "PutObject with a retention and no checksum", err)
-		if _, err := as(h, who{}, s3api.OpPutObject, &s3api.PutObjectInput{
-			Bucket: "locked", Key: "held", Body: bytesBody("v"), ObjectLockLegalHoldStatus: new(s3api.ObjectLockLegalHoldStatusOn),
-		}); err != nil {
-			t.Errorf("PutObject with only a legal hold and no checksum: %s %q", err.ID.QueryCode, err.Message)
+		_, err = as(h, who{}, s3api.OpPutObject, &s3api.PutObjectInput{
+			Bucket: "locked", Key: "held", Body: &body{r: unreadable{t: h.T}, n: 1}, ObjectLockLegalHoldStatus: new(s3api.ObjectLockLegalHoldStatusOn),
+		})
+		errNeedsChecksum.is(t, "PutObject with only a legal hold and no checksum", err)
+
+		locked := h.startUpload("locked", "parts", s3api.CreateMultipartUploadInput{ObjectLockMode: new(s3api.ObjectLockModeGovernance), ObjectLockRetainUntilDate: &until})
+		_, err = uploadPart(h, "locked", "parts", locked, 1, []byte("part"), s3api.UploadPartInput{})
+		errNeedsPartChecksum.is(t, "UploadPart without a checksum of an upload with lock headers", err)
+		h.sendPart("locked", "parts", locked, 1, []byte("part"), withMD5("part"))
+		plain := h.startUpload("locked", "plain", s3api.CreateMultipartUploadInput{})
+		if _, err := uploadPart(h, "locked", "plain", plain, 1, []byte("part"), s3api.UploadPartInput{}); err != nil {
+			t.Errorf("UploadPart without a checksum of an upload without lock settings: %s %q", err.ID.QueryCode, err.Message)
 		}
 	})
 }
@@ -466,7 +483,7 @@ func TestObjectLockDefaultRetention(t *testing.T) {
 		initiated := h.Clock.Now().Wire()
 		id := h.startUpload("locked", "mpu", s3api.CreateMultipartUploadInput{})
 		h.advance(time.Hour)
-		part := h.sendPart("locked", "mpu", id, 1, []byte("only part"), s3api.UploadPartInput{})
+		part := h.sendPart("locked", "mpu", id, 1, []byte("only part"), withMD5("only part"))
 		done, err := complete(h, "locked", "mpu", id, []s3api.CompletedPart{listed(1, part)}, s3api.CompleteMultipartUploadInput{})
 		if err != nil {
 			t.Fatalf("Complete in a default-retention bucket: %s %q", err.ID.QueryCode, err.Message)
@@ -477,7 +494,7 @@ func TestObjectLockDefaultRetention(t *testing.T) {
 		id = h.startUpload("locked", "mpu", s3api.CreateMultipartUploadInput{
 			ObjectLockMode: new(s3api.ObjectLockModeCompliance), ObjectLockRetainUntilDate: &until, ObjectLockLegalHoldStatus: new(s3api.ObjectLockLegalHoldStatusOn),
 		})
-		part = h.sendPart("locked", "mpu", id, 1, []byte("only part"), s3api.UploadPartInput{})
+		part = h.sendPart("locked", "mpu", id, 1, []byte("only part"), withMD5("only part"))
 		done, err = complete(h, "locked", "mpu", id, []s3api.CompletedPart{listed(1, part)}, s3api.CompleteMultipartUploadInput{})
 		if err != nil {
 			t.Fatalf("Complete of an upload with lock headers: %s %q", err.ID.QueryCode, err.Message)

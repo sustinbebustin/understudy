@@ -104,7 +104,7 @@ func TestUploadLockSurvivesASnapshot(t *testing.T) {
 		if err := h.svc.Import(sections); err != nil {
 			t.Fatalf("Import: %v", err)
 		}
-		part := h.sendPart("locked", "mpu", id, 1, []byte("only part"), s3api.UploadPartInput{})
+		part := h.sendPart("locked", "mpu", id, 1, []byte("only part"), withMD5("only part"))
 		done, cerr := complete(h, "locked", "mpu", id, []s3api.CompletedPart{listed(1, part)}, s3api.CompleteMultipartUploadInput{})
 		if cerr != nil {
 			t.Fatalf("Complete after a snapshot round trip: %s %q", cerr.ID.QueryCode, cerr.Message)
