@@ -1250,7 +1250,7 @@ var descUpdateApi = registry.Operation{
 	Errors:      []awserr.Identity{IdentityBadRequestException(), IdentityConflictException(), IdentityNotFoundException(), IdentityTooManyRequestsException()},
 	IAM:         []registry.IAMAction{{Prefix: "apigateway", Name: "PATCH"}, {Prefix: "iam", Name: "PassRole"}},
 	HTTP:        &registry.HTTPBinding{Method: "PATCH", Path: []registry.Segment{registry.Literal{Value: "v2"}, registry.Literal{Value: "apis"}, registry.Label{Name: "ApiId"}}},
-	SuccessCode: 200,
+	SuccessCode: 201,
 }
 
 var descUpdateApiMapping = registry.Operation{

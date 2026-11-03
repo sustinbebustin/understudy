@@ -339,9 +339,9 @@ func (i *Integration) merged(in *apigatewayv2api.UpdateIntegrationInput) Integra
 }
 
 // deleteIntegration removes an integration no route targets and deploys
-// the change. Deleting one a route targets is refused naming the routes:
-// AWS's answer is unrecorded (inferred, APIGW2-01), and a route left
-// targeting no integration would be served nothing.
+// the change. Deleting one a route targets is ConflictException naming the
+// routes, AWS's text (APIGW2-03, recorded 2026-11-03: step 21; how AWS
+// separates several ids is unrecorded, ", " taken).
 func (s *Service) deleteIntegration(_ context.Context, c *kernel.Call, in *apigatewayv2api.DeleteIntegrationInput) (*apigatewayv2api.DeleteIntegrationOutput, *awserr.Error) {
 	if _, err := writeAPI(s, c, in.ApiId, func(a *API, now clock.Instant) (struct{}, *awserr.Error) {
 		k, err := a.integrationIndex(in.IntegrationId)
@@ -355,7 +355,7 @@ func (s *Service) deleteIntegration(_ context.Context, c *kernel.Call, in *apiga
 			}
 		}
 		if len(targeting) > 0 {
-			return struct{}{}, errBadRequest("integration %s of API %s is the target of routes %s; delete them or change their targets first", in.IntegrationId, a.ID, strings.Join(targeting, ", "))
+			return struct{}{}, errConflict("Cannot delete Integration because it is referenced by the following Routes with Ids: [%s]", strings.Join(targeting, ", "))
 		}
 		a.Integrations = slices.Delete(slices.Clone(a.Integrations), k, k+1)
 		a.autoDeploy(now, s.deploymentID)

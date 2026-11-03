@@ -1,6 +1,8 @@
 package apigatewayv2_test
 
 import (
+	"net/http"
+	"reflect"
 	"testing"
 
 	"github.com/sustinbebustin/understudy/internal/api/apigatewayv2api"
@@ -90,6 +92,59 @@ func TestDeploymentTextsAsRecorded(t *testing.T) {
 			"Deployment ID cannot be set on this stage "+account+":"+id+" because AutoDeploy is enabled.")
 		wantText(t, fail(h, apigatewayv2api.OpDeleteDeployment, &apigatewayv2api.DeleteDeploymentInput{ApiId: id, DeploymentId: *dep.DeploymentId}), badRequest,
 			"Active stages pointing to this deployment must be moved or deleted")
+	})
+}
+
+// UpdateApi answers 201, not the model's 200 (APIGW2-03, recorded
+// 2026-11-03: steps 09 and 13; apigateway-http.md 2.2).
+func TestUpdateAPIAnswers201(t *testing.T) {
+	run(t, func(h *harness) {
+		id := h.apiID("t")
+		if status, body := h.wire(http.MethodPatch, "/v2/apis/"+id, `{"description":"x"}`); status != http.StatusCreated {
+			t.Errorf("PATCH /v2/apis/%s = %d %s, want 201", id, status, body)
+		}
+	})
+}
+
+// AWS stores CORS lists normalized: origins and headers lower case,
+// methods upper case (APIGW2-03, recorded 2026-11-03: steps 09 and 10). An
+// UpdateApi's corsConfiguration merges into the stored one, so a wildcard
+// origin against stored credentials is refused with AWS's text (APIGW2-13
+// steps 10 and 11; apigateway-http.md 3.7).
+func TestCORSAsRecorded(t *testing.T) {
+	run(t, func(h *harness) {
+		id := h.apiID("t")
+		must(h, apigatewayv2api.OpUpdateApi, &apigatewayv2api.UpdateApiInput{ApiId: id, CorsConfiguration: &apigatewayv2api.Cors{
+			AllowOrigins: []string{"https://A.example"}, AllowMethods: []string{"get", "post"},
+			AllowHeaders: []string{"Content-Type", "X-Up"}, ExposeHeaders: []string{"X-E"}, AllowCredentials: new(true),
+		}})
+		got := must(h, apigatewayv2api.OpGetApi, &apigatewayv2api.GetApiInput{ApiId: id}).CorsConfiguration
+		want := &apigatewayv2api.Cors{
+			AllowOrigins: []string{"https://a.example"}, AllowMethods: []string{"GET", "POST"},
+			AllowHeaders: []string{"content-type", "x-up"}, ExposeHeaders: []string{"x-e"}, AllowCredentials: new(true),
+		}
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("corsConfiguration = %+v\nwant                %+v", got, want)
+		}
+		must(h, apigatewayv2api.OpUpdateApi, &apigatewayv2api.UpdateApiInput{ApiId: id, CorsConfiguration: &apigatewayv2api.Cors{MaxAge: new(int32(300))}})
+		want.MaxAge = new(int32(300))
+		if got := must(h, apigatewayv2api.OpGetApi, &apigatewayv2api.GetApiInput{ApiId: id}).CorsConfiguration; !reflect.DeepEqual(got, want) {
+			t.Errorf("after a merge: corsConfiguration = %+v\nwant                %+v", got, want)
+		}
+		wantText(t, fail(h, apigatewayv2api.OpUpdateApi, &apigatewayv2api.UpdateApiInput{ApiId: id, CorsConfiguration: &apigatewayv2api.Cors{AllowOrigins: []string{"*"}}}),
+			badRequest, "allow-credentials is not supported if 'allow-origin' is *")
+	})
+}
+
+// An integration a route targets is not deleted: ConflictException with
+// AWS's text naming the routes (APIGW2-03, recorded 2026-11-03: step 21).
+func TestDeleteTargetedIntegrationAsRecorded(t *testing.T) {
+	run(t, func(h *harness) {
+		id := h.apiID("t")
+		integration := h.lambdaIntegration(id, h.createFunction("fn"), "2.0")
+		rid := h.createRoute(id, "GET /a", integration)
+		wantText(t, fail(h, apigatewayv2api.OpDeleteIntegration, &apigatewayv2api.DeleteIntegrationInput{ApiId: id, IntegrationId: integration}), conflict,
+			"Cannot delete Integration because it is referenced by the following Routes with Ids: ["+rid+"]")
 	})
 }
 

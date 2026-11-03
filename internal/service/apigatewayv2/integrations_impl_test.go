@@ -268,15 +268,15 @@ func TestIntegrationChecks(t *testing.T) {
 	})
 }
 
-// Deleting an integration a route targets is refused (inferred: AWS's
-// answer is unrecorded, APIGW2-01) and changes nothing; once no route
-// targets it, it is deleted.
+// Deleting an integration a route targets is refused with
+// ConflictException (APIGW2-03, recorded 2026-11-03: step 21) and changes
+// nothing; once no route targets it, it is deleted.
 func TestDeleteIntegrationARouteTargets(t *testing.T) {
 	run(t, func(h *harness) {
 		id := h.apiID("t")
 		integration := h.lambdaIntegration(id, h.createFunction("fn"), "2.0")
 		rid := h.createRoute(id, "GET /a", integration)
-		wantError(t, fail(h, apigatewayv2api.OpDeleteIntegration, &apigatewayv2api.DeleteIntegrationInput{ApiId: id, IntegrationId: integration}), badRequest)
+		wantError(t, fail(h, apigatewayv2api.OpDeleteIntegration, &apigatewayv2api.DeleteIntegrationInput{ApiId: id, IntegrationId: integration}), conflict)
 		must(h, apigatewayv2api.OpGetIntegration, &apigatewayv2api.GetIntegrationInput{ApiId: id, IntegrationId: integration})
 		must(h, apigatewayv2api.OpDeleteRoute, &apigatewayv2api.DeleteRouteInput{ApiId: id, RouteId: rid})
 		must(h, apigatewayv2api.OpDeleteIntegration, &apigatewayv2api.DeleteIntegrationInput{ApiId: id, IntegrationId: integration})

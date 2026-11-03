@@ -26,6 +26,13 @@
         ]
       }
     },
+    "com.amazonaws.apigatewayv2#UpdateApi": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#successCode": 201,
+        "dev.understudy#evidence": {"label": "aws-recorded", "source": "testdata/parity/apigatewayv2/APIGW2-03/09-update-cors.json and 13-braced-selection.json, recorded 2026-11-03 (apigateway-http.md 2.2): PATCH /v2/apis/{ApiId} answers 201 with the Api, where the model's http trait says 200"}
+      }
+    },
     "com.amazonaws.apigatewayv2#CreateIntegrationRequest$TimeoutInMillis": {
       "type": "apply",
       "traits": {
