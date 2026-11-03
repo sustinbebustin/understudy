@@ -73,6 +73,26 @@ func TestControlPlaneTextsAsRecorded(t *testing.T) {
 	})
 }
 
+// The deployment refusals carry AWS's texts (APIGW2-04, recorded
+// 2026-11-03: steps 01, 08 and 09; apigateway-http.md 3.5): deploying an
+// API with no routes, setting a deployment on an autoDeploy stage, and
+// deleting a deployment a stage serves.
+func TestDeploymentTextsAsRecorded(t *testing.T) {
+	run(t, func(h *harness) {
+		id := h.apiID("t")
+		wantText(t, fail(h, apigatewayv2api.OpCreateDeployment, &apigatewayv2api.CreateDeploymentInput{ApiId: id}), badRequest,
+			"Unable to deploy API because no valid routes exist in this API")
+		h.createRoute(id, "GET /a", h.lambdaIntegration(id, h.createFunction("fn"), "2.0"))
+		dep := must(h, apigatewayv2api.OpCreateDeployment, &apigatewayv2api.CreateDeploymentInput{ApiId: id})
+		must(h, apigatewayv2api.OpCreateStage, &apigatewayv2api.CreateStageInput{ApiId: id, StageName: "dev", DeploymentId: dep.DeploymentId})
+		must(h, apigatewayv2api.OpCreateStage, &apigatewayv2api.CreateStageInput{ApiId: id, StageName: "auto", AutoDeploy: new(true)})
+		wantText(t, fail(h, apigatewayv2api.OpUpdateStage, &apigatewayv2api.UpdateStageInput{ApiId: id, StageName: "auto", DeploymentId: dep.DeploymentId}), badRequest,
+			"Deployment ID cannot be set on this stage "+account+":"+id+" because AutoDeploy is enabled.")
+		wantText(t, fail(h, apigatewayv2api.OpDeleteDeployment, &apigatewayv2api.DeleteDeploymentInput{ApiId: id, DeploymentId: *dep.DeploymentId}), badRequest,
+			"Active stages pointing to this deployment must be moved or deleted")
+	})
+}
+
 // A missing resource is NotFoundException with AWS's text per resource
 // (APIGW2-01, recorded 2026-11-03: steps 01-06; apigateway-http.md 2.3).
 func TestNotFoundTextsAsRecorded(t *testing.T) {

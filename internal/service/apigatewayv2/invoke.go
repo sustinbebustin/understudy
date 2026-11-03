@@ -10,6 +10,7 @@ import (
 	"maps"
 	"net"
 	"net/http"
+	"net/url"
 	"slices"
 	"strings"
 	"time"
@@ -79,9 +80,11 @@ func (s *Service) invoke(ctx context.Context, c *kernel.Call, r *http.Request, w
 // sees and the host the request named.
 type address struct {
 	apiID string
-	// path is the escaped path after the path fallback's prefix and API id,
-	// or the host form's path as sent; "/" when there is none.
-	path string
+	// path is the path after the path fallback's prefix and API id, or the
+	// host form's path, as normalize leaves it, each segment escaped; "/"
+	// when there is none. decoded is the same path unescaped, which the
+	// event reports.
+	path, decoded string
 	// host is the execute-api host the request named, lowercase and without
 	// its port; "" on the path fallback.
 	host string
@@ -105,23 +108,50 @@ func (s *Service) resolve(r *http.Request) (address, bool) {
 		if id == "" {
 			return address{}, false
 		}
-		return address{apiID: strings.ToLower(id), path: "/" + path}, true
+		addr := address{apiID: strings.ToLower(id)}
+		addr.path, addr.decoded = normalize("/" + path)
+		return addr, true
 	}
 	host := hostName(r.Host)
 	labels := strings.SplitN(host, ".", 3)
 	if len(labels) != 3 || labels[0] == "" || labels[1] != "execute-api" || labels[2] == "" {
 		return address{}, false
 	}
-	addr := address{apiID: labels[0], path: escaped, host: host}
-	if addr.path == "" {
-		addr.path = "/"
+	addr := address{apiID: labels[0], host: host}
+	if escaped == "" {
+		escaped = "/"
 	}
+	addr.path, addr.decoded = normalize(escaped)
 	if first, after, ok := strings.Cut(labels[2], "."); ok && after != "" {
 		if region, err := s.regions.Parse(first); err == nil {
 			addr.region = region
 		}
 	}
 	return addr, true
+}
+
+// normalize is the escaped path as an HTTP API routes it: percent-decoded
+// first, so %2F is a slash, then with each run of slashes collapsed to one
+// (APIGW2-05, recorded 2026-11-03: steps 13 and 14; apigateway-http.md
+// 4.4). It returns the result with each segment escaped again, which the
+// stage and route matchers read, and unescaped, which the event reports as
+// rawPath (APIGW2-07 steps 11 and 12). A path whose escapes do not decode
+// is returned as sent; no route matches it.
+func normalize(escaped string) (path, decoded string) {
+	d, err := url.PathUnescape(escaped)
+	if err != nil {
+		return escaped, escaped
+	}
+	kept := slices.DeleteFunc(strings.Split(d, "/"), func(p string) bool { return p == "" })
+	// A trailing slash stays: /a/ is not /a (APIGW2-05 step 12).
+	if len(kept) > 0 && strings.HasSuffix(d, "/") {
+		kept = append(kept, "")
+	}
+	decoded = "/" + strings.Join(kept, "/")
+	for i, p := range kept {
+		kept[i] = url.PathEscape(p)
+	}
+	return "/" + strings.Join(kept, "/"), decoded
 }
 
 // domain is the domain name the event reports: the host the request named,
@@ -160,8 +190,8 @@ type toFunction struct {
 	// key is the route's parsed key, routeKey the key as stored.
 	key      route.Key
 	routeKey string
-	// rawPath is the escaped path the API sees, a named stage's segment
-	// included (apigateway-http.md finding 8).
+	// rawPath is the decoded path the API sees (address.decoded), a named
+	// stage's segment included (apigateway-http.md finding 8).
 	rawPath string
 	// domain is the event's domainName (address.domain).
 	domain string
@@ -234,14 +264,11 @@ func (a *API) selectRoute(owner aws.Scope, addr address, method string, origin b
 		return answered{front.NoRoute}
 	}
 	i := slices.IndexFunc(table, func(r route.Route) bool { return r.ID == m.RouteID })
-	if i < 0 {
+	k := slices.IndexFunc(d.Routes, func(r Route) bool { return r.ID == m.RouteID })
+	if i < 0 || k < 0 {
 		return corrupt{fmt.Errorf("apigatewayv2: route.Table.Match selected route %s, which deployment %s of API %s does not hold", m.RouteID, d.ID, a.ID)}
 	}
-	// table holds d.Routes' keys parsed, in d.Routes' order.
-	rt, key := d.Routes[i], table[i].Key
-	if rt.Integration == "" {
-		return answered{RouteMatchingSwitch().Value.NoTarget}
-	}
+	rt, key := d.Routes[k], table[i].Key
 	if rt.Authorization == apigatewayv2api.AuthorizationTypeAwsIam {
 		// AWS evaluates execute-api:Invoke for the caller here
 		// (apigateway-http.md 8.3); serving the request unchecked would fake
@@ -260,7 +287,7 @@ func (a *API) selectRoute(owner aws.Scope, addr address, method string, origin b
 	}
 	return toFunction{
 		owner: owner, apiID: a.ID, stage: stage.Name, key: key, routeKey: rt.Key,
-		rawPath: addr.path, domain: addr.domain(owner), params: m.PathParameters, stageVariables: maps.Clone(stage.Variables), integration: integration,
+		rawPath: addr.decoded, domain: addr.domain(owner), params: m.PathParameters, stageVariables: maps.Clone(stage.Variables), integration: integration,
 	}
 }
 
@@ -341,10 +368,16 @@ func (a *API) serves(st Stage, path, method string) bool {
 	return ok
 }
 
-// table is the deployment's routes as route.Table, in creation order.
+// table is the deployment's routes that have a target as route.Table, in
+// creation order: a route without one takes no part in routing, so a
+// request it would match falls to the next route (APIGW2-05, recorded
+// 2026-11-03: step 17; apigateway-http.md 3.2).
 func (d *Deployment) table() (route.Table, error) {
 	t := make(route.Table, 0, len(d.Routes))
 	for _, r := range d.Routes {
+		if r.Integration == "" {
+			continue
+		}
 		k, err := route.ParseKey(r.Key)
 		if err != nil {
 			return nil, fmt.Errorf("apigatewayv2: route %s of deployment %s holds a key CreateRoute could not have accepted: %w", r.ID, d.ID, err)

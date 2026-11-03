@@ -408,7 +408,7 @@ func TestGatewayAnswers(t *testing.T) {
 		id, _ := h.lambdaAPI("2.0", "GET /hello")
 		h.createRoute(id, "GET /bare", "")
 		wantAnswer(t, h.get(id, "/nothing"), front.NoRoute, "no route")
-		wantAnswer(t, h.get(id, "/bare"), apigatewayv2.RouteMatchingSwitch().Value.NoTarget, "a route without a target")
+		wantAnswer(t, h.get(id, "/bare"), front.NoRoute, "only a route without a target")
 
 		noStage := h.apiID("no-stage")
 		h.createRoute(noStage, "GET /hello", "")
@@ -419,6 +419,51 @@ func TestGatewayAnswers(t *testing.T) {
 		must(h, apigatewayv2api.OpCreateStage, stageInput(undeployed, "$default"))
 		wantAnswer(t, h.get(undeployed, "/hello"), front.NoDeployment, "a stage without a deployment")
 		h.notInvoked("gateway answers")
+	})
+}
+
+// A route without a target takes no part in routing: GET /noint reaches
+// ANY /{proxy+} (APIGW2-05, recorded 2026-11-03: step 17;
+// apigateway-http.md 3.2). A disabled default endpoint answers 404
+// {"message":"Not Found"} (APIGW2-06 step 09).
+func TestFrontAsRecorded(t *testing.T) {
+	run(t, func(h *harness) {
+		id, _ := h.lambdaAPI("2.0", "ANY /{proxy+}")
+		h.createRoute(id, "GET /noint", "")
+		if rec := h.get(id, "/noint"); rec.Code != http.StatusOK {
+			t.Fatalf("GET /noint = %d %s, want the function's 200", rec.Code, rec.Body)
+		}
+		if got := h.only().event(h)["routeKey"]; got != "ANY /{proxy+}" {
+			t.Errorf("routeKey = %v, want ANY /{proxy+}", got)
+		}
+		must(h, apigatewayv2api.OpUpdateApi, &apigatewayv2api.UpdateApiInput{ApiId: id, DisableExecuteApiEndpoint: new(true)})
+		wantAnswer(t, h.get(id, "/noint"), apigatewayv2.GatewayAnswer{Status: http.StatusNotFound, Message: "Not Found"}, "a disabled endpoint")
+	})
+}
+
+// The request path is percent-decoded and its slash runs collapsed before
+// routing, and the 2.0 event's rawPath is that decoded path (APIGW2-05,
+// recorded 2026-11-03: steps 13 to 15; APIGW2-07 steps 11 and 12;
+// apigateway-http.md 4.4).
+func TestRequestPathAsRecorded(t *testing.T) {
+	run(t, func(h *harness) {
+		id, _ := h.lambdaAPI("2.0", "GET /pets/dog/1", "GET /enc/{p}", "ANY /{proxy+}")
+		for _, c := range []struct{ path, routeKey, rawPath string }{
+			{"//pets/dog/1", "GET /pets/dog/1", "/pets/dog/1"},
+			{"/enc/a%2Fb", "ANY /{proxy+}", "/enc/a/b"},
+			{"/enc/a%20b", "GET /enc/{p}", "/enc/a b"},
+			{"/pets/dog/%31", "GET /pets/dog/1", "/pets/dog/1"},
+		} {
+			before := len(h.fn.invocations())
+			if rec := h.get(id, c.path); rec.Code != http.StatusOK {
+				t.Errorf("GET %s = %d %s, want the function's 200", c.path, rec.Code, rec.Body)
+				continue
+			}
+			ev := h.fn.invocations()[before].event(h)
+			if ev["routeKey"] != c.routeKey || ev["rawPath"] != c.rawPath {
+				t.Errorf("GET %s: routeKey %v, rawPath %v; want %s and %s", c.path, ev["routeKey"], ev["rawPath"], c.routeKey, c.rawPath)
+			}
+		}
 	})
 }
 

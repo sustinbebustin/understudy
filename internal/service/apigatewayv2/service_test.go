@@ -41,11 +41,10 @@ func TestCoverageMarks(t *testing.T) {
 		apiNote         = "HTTP APIs only: protocolType WEBSOCKET and quick create (Target, RouteKey, CredentialsArn) answer NotImplemented; corsConfiguration is stored and returned, and a data-plane request with an Origin header to an API that has one answers 501 (CORS is not applied); ipAddressType is stored without effect; ApiEndpoint names the emulator (http://<api-id>.execute-api.<region>.localhost:<port>), not amazonaws.com"
 		routeNote       = "authorizationType JWT and CUSTOM, authorizerId and authorizationScopes answer NotImplemented (authorizers are not emulated); a route with AWS_IAM is stored and a request it matches answers 501; WebSocket-only members are stored and echoed without effect"
 		integrationNote = "Lambda AWS_PROXY with payload 1.0 and 2.0 runs; integration subtypes, HTTP_PROXY and VPC_LINK connections are stored and a request that reaches them answers 501; a Lambda integration with credentialsArn, requestParameters, responseParameters or a stage variable in its URI is stored and a request that reaches it answers 501; tlsConfig is stored without effect; requestTemplates, templateSelectionExpression and contentHandlingStrategy answer NotImplemented (WebSocket API members)"
-		stageNote       = "accessLogSettings, defaultRouteSettings and routeSettings are stored without effect (no access log records, no throttling); an automatic deployment completes before the call returns (UNVERIFIED delay, APIGW2-04); an explicit DeploymentId on an autoDeploy stage is refused (documented as not updatable; identity and text inferred, APIGW2-04); clientCertificateId answers NotImplemented (WebSocket APIs only)"
-		deploymentNote  = "a deployment of an API with no routes succeeds and serves 404 Not Found, and deleting a deployment a stage uses is refused with BadRequestException (the REST rule; both UNVERIFIED for HTTP APIs, APIGW2-04)"
-		// The route order and the 1.0 unknowns are the ones the AWS pages
-		// leave open (apigateway-http.md 4.3, 5.2, 5.4; 13.2 first slice).
-		invokeNote = "Lambda AWS_PROXY with payload 1.0 and 2.0; stage and route selection as documented; where the documents leave the order of two matching routes open it is inferred (APIGW2-05): a full match on ANY before a greedy match on the method, the greedy route with more segments before its variable first, then the leftmost literal segment; AWS_IAM routes, CORS requests and integrations other than Lambda AWS_PROXY answer 501; parameter mapping, access logging and throttling are not applied; inferred, UNVERIFIED: the 2.0 isBase64Encoded of a bodyless request and default Content-Type (APIGW2-07, APIGW2-09), the 1.0 single-value maps, resource, path and identity (APIGW2-08), and how a 1.0 response's headers and multiValueHeaders merge (APIGW2-09)"
+		stageNote       = "accessLogSettings, defaultRouteSettings and routeSettings are stored without effect (no access log records, no throttling); an automatic deployment completes before the call returns, where AWS served it within 1 to 2 s (APIGW2-04); clientCertificateId answers NotImplemented (WebSocket APIs only)"
+		// The route order and HEAD are what APIGW2-05 left open
+		// (apigateway-http.md 4.3, 4.4); the header case is net/http's.
+		invokeNote = "Lambda AWS_PROXY with payload 1.0 and 2.0; stage and route selection as documented and recorded (APIGW2-05, APIGW2-06); the order of two greedy routes of one method is inferred: more segments before the variable first, then the leftmost literal segment; HEAD reaches only HEAD and ANY routes (inferred, unrecorded); AWS_IAM routes, CORS requests and integrations other than Lambda AWS_PROXY answer 501; parameter mapping, access logging and throttling are not applied; headers over 10,240 bytes are not refused with 431; a 1.0 event reports header names as Go's HTTP server canonicalizes them, where AWS keeps the client's spelling"
 		storedNote = "the settings they remove are stored without effect; " + baseNote
 	)
 	want := map[string]registry.BindCoverage{
@@ -57,7 +56,7 @@ func TestCoverageMarks(t *testing.T) {
 		"GetIntegration": partial(""), "GetIntegrations": partial(""), "DeleteIntegration": partial(""),
 		"CreateStage": partial(stageNote), "UpdateStage": partial(stageNote),
 		"GetStage": partial(""), "GetStages": partial(""), "DeleteStage": partial(""),
-		"CreateDeployment": partial(deploymentNote), "DeleteDeployment": partial(deploymentNote),
+		"CreateDeployment": partial(""), "DeleteDeployment": partial(""),
 		"GetDeployment": partial(""), "GetDeployments": partial(""), "UpdateDeployment": partial(""),
 		"TagResource": partial(""), "UntagResource": partial(""), "GetTags": partial(""),
 		"DeleteAccessLogSettings": registry.StoredOnly{Note: storedNote}, "DeleteRouteSettings": registry.StoredOnly{Note: storedNote},
@@ -108,8 +107,8 @@ func TestSwitches(t *testing.T) {
 		name string
 		sw
 	}{
-		{"apigatewayv2.lambda.failure-answers", sw{fmt.Sprintf("%v", apigatewayv2.FailureAnswersSwitch().Value), []string{"APIGW2-10"}, []string{invoke}, evidence.Inferred}},
-		{"apigatewayv2.lambda.permission", sw{fmt.Sprintf("%v", apigatewayv2.PermissionSwitch().Value), []string{"APIGW2-11"}, []string{invoke}, evidence.Inferred}},
+		{"apigatewayv2.lambda.failure-answers", sw{fmt.Sprintf("%v", apigatewayv2.FailureAnswersSwitch().Value), []string{"APIGW2-10"}, []string{invoke}, evidence.AWSRecorded}},
+		{"apigatewayv2.lambda.permission", sw{fmt.Sprintf("%v", apigatewayv2.PermissionSwitch().Value), []string{"APIGW2-11"}, []string{invoke}, evidence.AWSRecorded}},
 		{"apigatewayv2.route.matching", sw{fmt.Sprintf("%v", apigatewayv2.RouteMatchingSwitch().Value), []string{"APIGW2-05"}, []string{invoke}, evidence.Inferred}},
 		{"apigatewayv2.front.answers", sw{fmt.Sprintf("%v", apigatewayv2.FrontAnswersSwitch().Value), []string{"APIGW2-06", "APIGW2-04"}, []string{
 			invoke, "apigatewayv2.CreateDeployment", "apigatewayv2.DeleteDeployment", "apigatewayv2.CreateStage", "apigatewayv2.UpdateStage",
@@ -150,15 +149,16 @@ func TestSwitches(t *testing.T) {
 // (the HTTP API Lambda troubleshooting page, apigateway-http.md finding 9,
 // 4.5), the no-stage and no-route bodies {"message":"Not Found"} (the
 // routes page, 4.2, 4.3), and the request body cap is the documented
-// 10 MB payload quota in one of its two readings (4.7: which is
-// UNVERIFIED, APIGW2-10). Lambda's synchronous event limit is 6 MB (4.7).
+// 10 MB payload quota read as 10,000,000 bytes (4.7: APIGW2-10 recorded
+// 10,000,001 refused, 2026-11-03). Lambda's synchronous event limit is
+// 6 MB (4.7).
 func TestSwitchValuesKeepTheDocumentedParts(t *testing.T) {
 	fa := apigatewayv2.FailureAnswersSwitch().Value
 	if fa.FunctionError.Message != "Internal Server Error" {
 		t.Errorf("FunctionError message = %q, want Internal Server Error", fa.FunctionError.Message)
 	}
-	if fa.MaxBody != 10_000_000 && fa.MaxBody != 10_485_760 {
-		t.Errorf("MaxBody = %d, want 10 MB as 10,000,000 or 10,485,760 bytes", fa.MaxBody)
+	if fa.MaxBody != 10_000_000 {
+		t.Errorf("MaxBody = %d, want 10,000,000 bytes", fa.MaxBody)
 	}
 	if fa.MaxEvent != 6_000_000 && fa.MaxEvent != 6_291_456 {
 		t.Errorf("MaxEvent = %d, want 6 MB", fa.MaxEvent)

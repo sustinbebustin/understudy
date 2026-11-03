@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/api/apigatewayv2api"
+	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
@@ -135,7 +136,7 @@ func (s *Service) createStage(_ context.Context, c *kernel.Call, in *apigatewayv
 			Tags:                 maps.Clone(in.Tags),
 		}
 		if in.DeploymentId != nil {
-			if err := a.explicitDeployment(st, *in.DeploymentId); err != nil {
+			if err := a.explicitDeployment(c.Scope().Account, st, *in.DeploymentId); err != nil {
 				return Stage{}, err
 			}
 			st.Deployment = *in.DeploymentId
@@ -166,7 +167,7 @@ func (s *Service) updateStage(_ context.Context, c *kernel.Call, in *apigatewayv
 		turnedOn := deref(in.AutoDeploy, st.AutoDeploy) && !st.AutoDeploy
 		st.AutoDeploy = deref(in.AutoDeploy, st.AutoDeploy)
 		if in.DeploymentId != nil {
-			if err := a.explicitDeployment(st, *in.DeploymentId); err != nil {
+			if err := a.explicitDeployment(c.Scope().Account, st, *in.DeploymentId); err != nil {
 				return Stage{}, err
 			}
 			st.Deployment = *in.DeploymentId
@@ -195,14 +196,14 @@ func (s *Service) updateStage(_ context.Context, c *kernel.Call, in *apigatewayv
 // (NotFoundException, inferred), and on an AutoDeploy stage, whose
 // DeploymentId "Can't be updated" (the stage API reference,
 // apigateway-http.md 3.4), the front.answers switch's ExplicitOnAutoDeploy
-// decides (UNVERIFIED, APIGW2-04).
-func (a *API) explicitDeployment(st Stage, id string) *awserr.Error {
+// decides, with AWS's text naming account and the API (APIGW2-04,
+// recorded 2026-11-03: step 08).
+func (a *API) explicitDeployment(account aws.AccountID, st Stage, id string) *awserr.Error {
 	if _, err := a.deploymentIndex(id); err != nil {
 		return err
 	}
 	if st.AutoDeploy {
-		return FrontAnswersSwitch().Value.Deployments.ExplicitOnAutoDeploy.answer(
-			"stage %q has autoDeploy enabled, so its deploymentId can't be set; turn autoDeploy off to serve deployment %s", st.Name, id)
+		return FrontAnswersSwitch().Value.Deployments.ExplicitOnAutoDeploy.answer(autoDeployText, account, a.ID)
 	}
 	return nil
 }

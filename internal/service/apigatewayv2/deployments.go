@@ -3,7 +3,6 @@ package apigatewayv2
 import (
 	"context"
 	"slices"
-	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/api/apigatewayv2api"
 	"github.com/sustinbebustin/understudy/internal/awserr"
@@ -15,9 +14,12 @@ import (
 // (apigateway-http.md finding 7, 3.5). With StageName the stage serves the
 // new deployment from now on; an AutoDeploy stage follows the
 // front.answers switch's ExplicitOnAutoDeploy, and an API with no routes
-// its EmptyAPI (both UNVERIFIED, APIGW2-04).
+// its EmptyAPI, with AWS's texts (APIGW2-04, recorded 2026-11-03: steps 01
+// and 08; the text for CreateDeployment naming an autoDeploy stage is
+// taken from UpdateStage's).
 func (s *Service) createDeployment(_ context.Context, c *kernel.Call, in *apigatewayv2api.CreateDeploymentInput) (*apigatewayv2api.CreateDeploymentOutput, *awserr.Error) {
 	rules := FrontAnswersSwitch().Value.Deployments
+	account := c.Scope().Account
 	d, err := writeAPI(s, c, in.ApiId, func(a *API, now clock.Instant) (Deployment, *awserr.Error) {
 		stage := -1
 		if in.StageName != nil {
@@ -26,15 +28,14 @@ func (s *Service) createDeployment(_ context.Context, c *kernel.Call, in *apigat
 				return Deployment{}, err
 			}
 			if a.Stages[i].AutoDeploy {
-				if err := rules.ExplicitOnAutoDeploy.answer(
-					"stage %q has autoDeploy enabled and deploys every change itself; create the deployment without stageName, or turn the stage's autoDeploy off", *in.StageName); err != nil {
+				if err := rules.ExplicitOnAutoDeploy.answer(autoDeployText, account, a.ID); err != nil {
 					return Deployment{}, err
 				}
 			}
 			stage = i
 		}
 		if len(a.Routes) == 0 {
-			if err := rules.EmptyAPI.answer("API %s has no routes to deploy; create a route first", a.ID); err != nil {
+			if err := rules.EmptyAPI.answer("Unable to deploy API because no valid routes exist in this API"); err != nil {
 				return Deployment{}, err
 			}
 		}
@@ -72,11 +73,15 @@ func (s *Service) updateDeployment(_ context.Context, c *kernel.Call, in *apigat
 	return &out, nil
 }
 
+// autoDeployText is AWS's refusal of a deployment set on an autoDeploy
+// stage, with the account and API id (APIGW2-04, recorded 2026-11-03:
+// step 08).
+const autoDeployText = "Deployment ID cannot be set on this stage %s:%s because AutoDeploy is enabled."
+
 // deleteDeployment removes a deployment. One a stage serves follows the
-// front.answers switch's DeleteInUse (the REST rule, apigateway-rest.md
-// 2.4, whose recorded text the refusal reuses; UNVERIFIED for HTTP APIs,
-// APIGW2-04); where it is allowed, the stages lose their deployment and
-// answer NoDeployment.
+// front.answers switch's DeleteInUse, AWS's text (APIGW2-04, recorded
+// 2026-11-03: step 09); where it is allowed, the stages lose their
+// deployment and answer NoDeployment.
 func (s *Service) deleteDeployment(_ context.Context, c *kernel.Call, in *apigatewayv2api.DeleteDeploymentInput) (*apigatewayv2api.DeleteDeploymentOutput, *awserr.Error) {
 	if _, err := writeAPI(s, c, in.ApiId, func(a *API, now clock.Instant) (struct{}, *awserr.Error) {
 		i, err := a.deploymentIndex(in.DeploymentId)
@@ -91,7 +96,7 @@ func (s *Service) deleteDeployment(_ context.Context, c *kernel.Call, in *apigat
 		}
 		if len(users) > 0 {
 			if err := FrontAnswersSwitch().Value.Deployments.DeleteInUse.answer(
-				"Active stages pointing to this deployment must be moved or deleted (stages %s serve deployment %s)", strings.Join(users, ", "), in.DeploymentId); err != nil {
+				"Active stages pointing to this deployment must be moved or deleted"); err != nil {
 				return struct{}{}, err
 			}
 			for j := range a.Stages {
