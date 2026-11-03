@@ -85,6 +85,32 @@ func TestImportRefusesAnotherVersion(t *testing.T) {
 	})
 }
 
+// The state format is version 2: version 1 sections hold resource and
+// integration-response sequence numbers that resources no longer carry
+// (GetResources sorts by id, APIGW1-04), so a version 1 section is refused
+// with *store.VersionMismatchError naming both versions, not decoded into
+// an unknown-member error (ARCHITECTURE.md 13).
+func TestStateVersionTwo(t *testing.T) {
+	run(t, func(h *harness) {
+		if v := h.svc.SchemaVersion(); v != 2 {
+			t.Errorf("SchemaVersion = %d, want 2", v)
+		}
+		id, _ := h.api("kept")
+		sections, err := h.svc.Export()
+		if err != nil {
+			t.Fatal(err)
+		}
+		for i := range sections {
+			sections[i].Version = 1
+		}
+		mismatch, ok := errors.AsType[*store.VersionMismatchError](h.svc.Import(sections))
+		if !ok || mismatch.Section != 1 || mismatch.Running != 2 {
+			t.Errorf("Import of version 1 sections = %v, want a VersionMismatchError of section 1 against 2", mismatch)
+		}
+		must(h, apigatewayapi.OpGetRestApi, &apigatewayapi.GetRestApiInput{RestApiId: id})
+	})
+}
+
 // Reset of one account drops its APIs and their ids.
 func TestResetDropsTheScopesAPIs(t *testing.T) {
 	run(t, func(h *harness) {

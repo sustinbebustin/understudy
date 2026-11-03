@@ -485,7 +485,11 @@ func toggle(m *Mapping, enabled *bool) MappingState {
 func (s *Service) updateMapping(ctx context.Context, c *kernel.Call, in *lambdaapi.UpdateEventSourceMappingInput) (*lambdaapi.EventSourceMappingConfiguration, *awserr.Error) {
 	scope := c.Scope()
 	current, err := view(s, scope, func(st *State) (Mapping, *awserr.Error) {
-		return st.Mappings[in.UUID], nil
+		m, ok := st.Mappings[in.UUID]
+		if !ok {
+			return Mapping{}, errResourceNotFound()
+		}
+		return m, nil
 	})
 	if err != nil {
 		return nil, err

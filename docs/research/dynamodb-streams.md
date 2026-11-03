@@ -460,10 +460,12 @@ Rejected alternative: proxy the four operations to Local and rewrite only ARNs (
 
 | Operation | Status | Coverage note (exact text) |
 |---|---|---|
-| ListStreams | full | |
+| ListStreams | partial | `a constraint violation's text quotes the value ("Value '0' at 'limit'"), where AWS's omits it ("Value at 'limit'") (dynamodb-streams.md 6.5)`: DDBS-02 recorded AWS's text without the value |
 | DescribeStream | partial | `aws-differs: understudy: a stream has one shard, which never splits or rolls over; AWS opens a shard per table partition and closes shards as it replaces them` (plus, while `dynamodb.streams.status-transitions` is `immediate`: `; StreamStatus is ENABLED or DISABLED at once, never ENABLING or DISABLING`) |
 | GetShardIterator | partial | `AT_TIMESTAMP is refused: the pinned model (api-models-aws 1cfdfb4) predates it` until the pin moves to `60e5ceb` or later; then implement it on the log (3.5) and mark the operation full |
 | GetRecords | partial | `aws-differs: understudy: more than two concurrent readers of a shard are never throttled; inject LimitExceededException with a fault rule` |
+
+The other three rows are the notes as first planned; the recordings since extended them, and the notes as bound are in `internal/service/dynamodb/streams.go` and `docs/coverage.md`.
 
 No Streams operation stays unbound. DynamoDB's Kinesis streaming-destination operations stay unbound (`docs/coverage.md`).
 
@@ -476,18 +478,18 @@ No Streams operation stays unbound. DynamoDB's Kinesis streaming-destination ope
 | `dynamodb.streams.event-id` | `hex32` | aws-doc | 4.5 | DDBS-09 | matches |
 | `dynamodb.streams.sequence-number` | `decimal-21` (21 digits, per-shard counter, first record one above `StartingSequenceNumber`) | inferred | 4.3 | DDBS-09 | differs: 23-digit records above a 21-digit start (4.5) |
 | `dynamodb.streams.iterator-reuse` | `allowed` | aws-recorded | 4.4 | DDBS-04 | matches |
-| `dynamodb.streams.closed-shard-next-iterator` | `absent` | inferred (the GetRecords reference says "set to `null`", which fits absent or JSON `null`; Local omits it) | 5.3, 6.4 | DDBS-07 | matches |
+| `dynamodb.streams.closed-shard-next-iterator` | `absent` | aws-recorded (DDBS-07: no `NextShardIterator` member on a closed shard's last page; the GetRecords reference's "set to `null`" fits either) | 5.3, 6.4 | DDBS-07 | matches |
 | `dynamodb.streams.list-order` | `newest-first` | aws-doc | 6.1 | DDBS-08 | matches |
-| `dynamodb.streams.list-unknown-table` | `empty` | inferred | 6.1 | DDBS-03 | matches |
+| `dynamodb.streams.list-unknown-table` | `empty` | aws-recorded (DDBS-03) | 6.1 | DDBS-03 | matches |
 | `dynamodb.streams.user-identity-case` | `PascalCase` (GetRecords form; the Lambda form is always lower camel case) | aws-doc | 7.5 | DDBS-13 | deferred (7.5) |
-| `dynamodb.streams.delete-absent-item` | `no-record` | inferred | 7.6 | DDBS-12 | matches |
+| `dynamodb.streams.delete-absent-item` | `no-record` | aws-recorded (DDBS-12) | 7.6 | DDBS-12 | matches |
 | `dynamodb.streams.trim-after` | `24h` (exactly: the earliest point the documentation allows) | aws-doc | 5.5 | DDBS-15 | deferred (5.5) |
 
 Each switch exists because no recording fixes the behavior (ADR 0003). A recording replaces its switch with fixed behavior and a test that cites the fixture. The rows that match are now that fixed behavior; the two that differ, and the code follow-ups they need, are in the coverage notes.
 
 Two candidates are settled without a switch. The timestamp spelling is the awsJson codec's plain epoch-seconds number (`internal/protocol/awsjson/doc.go`), as the DynamoDB shim writes it, and the GetRecords coverage note says so; AWS writes the exponent form (DDBS-10, 7.3). The error namespace `com.amazonaws.dynamodb.v20120810` is the overlay trait `dev.understudy#errorNamespace` on the Streams service, aws-recorded (DDBS-01), as `codegen/overlays/dynamodb.json` does for DynamoDB; `ExpiredIteratorException` alone carries `com.amazonaws.dynamodb.streams.v20120810` on AWS (DDBS-04, 3.3).
 
-Only `dynamodb.streams.sequence-number` and `dynamodb.streams.iterator-reuse` are built as switches, under the per-unit cap of about five new switches (roadmap item 8a). Every other row is implemented as documented (`event-id`, `list-order`, `user-identity-case`, `trim-after`: aws-doc), or is an UNVERIFIED clause in the operation's coverage note with a code comment citing this note and the recording id (`status-transitions`, `shard-rollover`, `closed-shard-next-iterator`, `list-unknown-table`, `delete-absent-item`).
+Only `dynamodb.streams.sequence-number` and `dynamodb.streams.iterator-reuse` are built as switches, under the per-unit cap of about five new switches (roadmap item 8a). Every other row is implemented as documented (`event-id`, `list-order`, `user-identity-case`, `trim-after`: aws-doc), as recorded (`closed-shard-next-iterator`, `list-unknown-table`, `delete-absent-item`: DDBS-07, DDBS-03, DDBS-12), or is a difference stated in DescribeStream's coverage note (`status-transitions`, recorded by DDBS-05; `shard-rollover`, whose 4 shards at creation were recorded and whose rollover stays UNVERIFIED until DDBS-14, 5.6).
 
 ### 11.4 Limits and validation
 

@@ -18,8 +18,12 @@ import (
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
-// stateVersion is the version of the service's snapshot sections.
-const stateVersion = 1
+// stateVersion is the version of the service's snapshot sections. Version
+// 2 dropped the resource and integration-response sequence numbers
+// (GetResources sorts by id, apigateway-rest.md 13.5); before the first
+// tagged release a section of another version is refused, not migrated
+// (ARCHITECTURE.md 13).
+const stateVersion = 2
 
 // Options configure the service.
 type Options struct {

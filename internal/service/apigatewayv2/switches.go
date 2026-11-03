@@ -172,8 +172,12 @@ func recorded(cases string) fidelity.Settles {
 // FailureAnswersSwitch is apigatewayv2.lambda.failure-answers, recorded by
 // APIGW2-10 on 2026-11-03 (5.6, 4.7): a function error 500 Internal Server
 // Error, a timeout 503 Service Unavailable, and 413 Request Entity Too
-// Large for a body over 10,000,000 bytes (10,000,001 was refused) and an
-// event over Lambda's 6 MB. AWS answers a body over 10 MiB from a front
+// Large for an event over Lambda's 6 MB and for a body over the payload
+// quota. MaxBody's value is inferred, not recorded: the 10 MB quota read
+// as 10,000,000 bytes. APIGW2-10's 10,000,001-byte body (step 04) is also
+// over the 6 MB event limit and got the same answer as the 7,000,000-byte
+// body (step 06), so it does not tell 10,000,000 from 10,485,760; a Lambda
+// integration cannot (4.7). AWS answers a body over 10 MiB from a front
 // layer without Content-Type or apigw-requestid; understudy's 413 carries
 // both at every size.
 func FailureAnswersSwitch() fidelity.Switch[FailureAnswers] {
