@@ -690,8 +690,10 @@ probe() {
 probe sts AccessDenied \
 	"User: $probe_arn is not authorized to perform: sts:AssumeRole on resource: arn:aws:iam::$account:role/iam-loop-probe-target" "" \
 	sts assume-role --role-arn "arn:aws:iam::$account:role/iam-loop-probe-target" --role-session-name probe
+# S3 quotes the resource on an implicit denial too
+# (testdata/parity/s3/IAM-ENF/12-list.json).
 probe s3 AccessDenied \
-	"User: $probe_arn is not authorized to perform: s3:ListBucket because no identity-based policy allows the s3:ListBucket action" "" \
+	"User: $probe_arn is not authorized to perform: s3:ListBucket on resource: \"arn:aws:s3:::$probe_bucket\" because no identity-based policy allows the s3:ListBucket action" "" \
 	s3api list-objects-v2 --bucket "$probe_bucket"
 probe sns AuthorizationError "" sns.denial.text sns list-topics
 probe sqs 'AccessDenied|AccessDeniedException' "" sqs.denial.json-identity sqs list-queues
