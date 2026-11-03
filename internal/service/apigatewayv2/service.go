@@ -75,7 +75,13 @@ const (
 	// storedOnlyNote heads the StoredOnly mark of the two calls that remove
 	// stage settings understudy stores without effect.
 	storedOnlyNote = "the settings they remove are stored without effect"
-	invokeAPINote  = "Lambda AWS_PROXY with payload 1.0 and 2.0; stage and route selection as documented and recorded (APIGW2-05, APIGW2-06); " +
+	// tagsNote is the clause of the three calls that take tags (checkTags):
+	// AWS's body for a tag over the length limits escapes its quotes as \',
+	// which JSON does not allow (APIGW2-01 steps 24, 25; apigateway-http.md
+	// 3.6), and understudy does not reproduce the malformed body.
+	tagsNote = `a tag key or value over its length limit is refused with AWS's recorded text as valid JSON, ` +
+		`where AWS's body escapes its quotes as \' and is not JSON, so an AWS SDK reports AWS's whole body as the message`
+	invokeAPINote = "Lambda AWS_PROXY with payload 1.0 and 2.0; stage and route selection as documented and recorded (APIGW2-05, APIGW2-06); " +
 		"the order of two greedy routes of one method is inferred: more segments before the variable first, then the leftmost literal segment; " +
 		"HEAD reaches only HEAD and ANY routes (inferred, unrecorded); " +
 		"AWS_IAM routes, CORS requests and integrations other than Lambda AWS_PROXY answer 501; " +
@@ -100,7 +106,7 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 		index:    apiIndex{scopes: map[string]aws.Scope{}},
 	}
 	b := apigatewayv2api.NewBinder(d.Binder)
-	b.CreateApi(s.createAPI, partial(apiNote), kernel.WithCheck(checkCreateAPI),
+	b.CreateApi(s.createAPI, partial(apiNote+"; "+tagsNote), kernel.WithCheck(checkCreateAPI),
 		kernel.WithResources(apisCollection[apigatewayv2api.CreateApiInput]))
 	b.GetApis(s.getAPIs, registry.Partial{Note: baseNote},
 		kernel.WithResources(apisCollection[apigatewayv2api.GetApisInput]))
@@ -112,7 +118,7 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 		kernel.WithResources(apiItem(func(in *apigatewayv2api.DeleteApiInput) string { return in.ApiId })))
 	b.DeleteCorsConfiguration(s.deleteCORS, registry.Partial{Note: baseNote},
 		kernel.WithResources(childCollection(func(in *apigatewayv2api.DeleteCorsConfigurationInput) string { return in.ApiId }, "cors")))
-	b.TagResource(s.tagResource, registry.Partial{Note: baseNote},
+	b.TagResource(s.tagResource, partial(tagsNote),
 		kernel.WithCheck(func(in *apigatewayv2api.TagResourceInput) *awserr.Error { return checkTags("addedTags", in.Tags) }),
 		kernel.WithResources(tagsResource(func(in *apigatewayv2api.TagResourceInput) string { return in.ResourceArn })))
 	b.UntagResource(s.untagResource, registry.Partial{Note: baseNote},
@@ -139,7 +145,7 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 		kernel.WithResources(childItem(func(in *apigatewayv2api.UpdateIntegrationInput) (string, string) { return in.ApiId, in.IntegrationId }, "integrations")))
 	b.DeleteIntegration(s.deleteIntegration, registry.Partial{Note: baseNote},
 		kernel.WithResources(childItem(func(in *apigatewayv2api.DeleteIntegrationInput) (string, string) { return in.ApiId, in.IntegrationId }, "integrations")))
-	b.CreateStage(s.createStage, partial(stageNote), kernel.WithCheck(checkCreateStage),
+	b.CreateStage(s.createStage, partial(stageNote+"; "+tagsNote), kernel.WithCheck(checkCreateStage),
 		kernel.WithResources(childCollection(func(in *apigatewayv2api.CreateStageInput) string { return in.ApiId }, "stages")))
 	b.GetStages(s.getStages, registry.Partial{Note: baseNote},
 		kernel.WithResources(childCollection(func(in *apigatewayv2api.GetStagesInput) string { return in.ApiId }, "stages")))

@@ -46,19 +46,23 @@ func TestCoverageMarks(t *testing.T) {
 		// (apigateway-http.md 4.3, 4.4); the header case is net/http's.
 		invokeNote = "Lambda AWS_PROXY with payload 1.0 and 2.0; stage and route selection as documented and recorded (APIGW2-05, APIGW2-06); the order of two greedy routes of one method is inferred: more segments before the variable first, then the leftmost literal segment; HEAD reaches only HEAD and ANY routes (inferred, unrecorded); AWS_IAM routes, CORS requests and integrations other than Lambda AWS_PROXY answer 501; parameter mapping, access logging and throttling are not applied; headers over 10,240 bytes are not refused with 431; a 1.0 event reports header names as Go's HTTP server canonicalizes them, where AWS keeps the client's spelling"
 		storedNote = "the settings they remove are stored without effect; " + baseNote
+		// AWS's body for a tag over the length limits escapes its quotes
+		// as \', which JSON does not allow (APIGW2-01 steps 24, 25;
+		// apigateway-http.md 3.6).
+		tagsNote = `a tag key or value over its length limit is refused with AWS's recorded text as valid JSON, where AWS's body escapes its quotes as \' and is not JSON, so an AWS SDK reports AWS's whole body as the message`
 	)
 	want := map[string]registry.BindCoverage{
-		"CreateApi": partial(apiNote), "UpdateApi": partial(apiNote),
+		"CreateApi": partial(apiNote + "; " + tagsNote), "UpdateApi": partial(apiNote),
 		"GetApi": partial(""), "GetApis": partial(""), "DeleteApi": partial(""), "DeleteCorsConfiguration": partial(""),
 		"CreateRoute": partial(routeNote), "UpdateRoute": partial(routeNote),
 		"GetRoute": partial(""), "GetRoutes": partial(""), "DeleteRoute": partial(""),
 		"CreateIntegration": partial(integrationNote), "UpdateIntegration": partial(integrationNote),
 		"GetIntegration": partial(""), "GetIntegrations": partial(""), "DeleteIntegration": partial(""),
-		"CreateStage": partial(stageNote), "UpdateStage": partial(stageNote),
+		"CreateStage": partial(stageNote + "; " + tagsNote), "UpdateStage": partial(stageNote),
 		"GetStage": partial(""), "GetStages": partial(""), "DeleteStage": partial(""),
 		"CreateDeployment": partial(""), "DeleteDeployment": partial(""),
 		"GetDeployment": partial(""), "GetDeployments": partial(""), "UpdateDeployment": partial(""),
-		"TagResource": partial(""), "UntagResource": partial(""), "GetTags": partial(""),
+		"TagResource": partial(tagsNote), "UntagResource": partial(""), "GetTags": partial(""),
 		"DeleteAccessLogSettings": registry.StoredOnly{Note: storedNote}, "DeleteRouteSettings": registry.StoredOnly{Note: storedNote},
 		"InvokeApi": registry.Partial{Note: invokeNote},
 	}
