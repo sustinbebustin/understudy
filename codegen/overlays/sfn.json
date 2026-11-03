@@ -4,23 +4,32 @@
     "com.amazonaws.sfn#AWSStepFunctions": {
       "type": "apply",
       "traits": {
+        "dev.understudy#errorNamespace": "com.amazonaws.swf.service.v2.model",
         "dev.understudy#throttleError": "com.amazon.coral.service#ThrottlingException",
         "dev.understudy#denialError": "com.amazon.coral.service#AccessDeniedException",
         "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException"},
         "dev.understudy#evidence": [
           {
-            "label": "inferred",
-            "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: no source names the Step Functions denial and its model declares no AccessDeniedException, so the generic com.amazon.coral.service#AccessDeniedException answers with that awsJson1_0 __type, at 400 as every plain awsJson service of 12.3 (switch sfn.denial.status); UNVERIFIED until recording SFN-15 (stepfunctions-api.md 14.16) or IAM-ENF-40",
+            "label": "aws-recorded",
+            "source": "testdata/parity/sfn/SFN-01/01-missing-machine.json: every modeled Step Functions error answers __type com.amazonaws.swf.service.v2.model#<Code> (docs/research/stepfunctions-api.md#32-error-identities-and-statuses)",
+            "validated": "2026-11-03",
+            "covers": ["dev.understudy#errorNamespace"]
+          },
+          {
+            "label": "aws-recorded",
+            "source": "testdata/parity/sfn/SFN-15/01-denied-list.json: an IAM denial answers 400 with __type com.amazon.coral.service#AccessDeniedException (docs/research/stepfunctions-api.md#32-error-identities-and-statuses); its message key is the capital Message, which the shared shape does not spell yet",
+            "validated": "2026-11-03",
             "covers": ["dev.understudy#denialError"]
           },
           {
             "label": "inferred",
-            "source": "docs/research/stepfunctions-api.md#32-error-identities-and-statuses: code ThrottlingException, HTTP 400 and SDK retry are documented at https://docs.aws.amazon.com/step-functions/latest/apireference/CommonErrors.html, which shows the bare name only; UNVERIFIED (SFN-01): the awsJson1_0 __type namespace com.amazon.coral.service# and the message key casing; recording-queue SFN-01 (stepfunctions-api.md 14.2) settles it",
+            "source": "docs/research/stepfunctions-api.md#32-error-identities-and-statuses: code ThrottlingException, HTTP 400 and SDK retry are documented at https://docs.aws.amazon.com/step-functions/latest/apireference/CommonErrors.html, which shows the bare name only; the awsJson1_0 __type namespace com.amazon.coral.service# is inferred from the recorded Coral denial and validation errors (SFN-15, SFN-08); no recording shows a throttled API call",
             "covers": ["dev.understudy#throttleError"]
           },
           {
-            "label": "inferred",
-            "source": "docs/research/stepfunctions-api.md#32-error-identities-and-statuses: code ValidationException, HTTP 400, a top-level message member and the Coral grammar are recorded against AWS (LocalStack, validated 2024-07-01) at https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/stepfunctions/v2/test_sfn_api.snapshot.json#L1882-L1892; botocore strips the namespace, so UNVERIFIED (SFN-01): the raw __type namespace com.amazon.coral.validate#; recording-queue SFN-01 (stepfunctions-api.md 14.2) settles it",
+            "label": "aws-recorded",
+            "source": "testdata/parity/sfn/SFN-08/07-big-input.json: 400, __type com.amazon.coral.validate#ValidationException, lower-case message (docs/research/stepfunctions-api.md#32-error-identities-and-statuses)",
+            "validated": "2026-11-03",
             "covers": ["dev.understudy#validationError"]
           }
         ]
@@ -53,8 +62,9 @@
       "traits": {
         "dev.understudy#statusOverride": 400,
         "dev.understudy#evidence": {
-          "label": "inferred",
-          "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: 400 as every plain awsJson service of 12.3 (DynamoDB, EventBridge, Logs, KMS, Secrets Manager); 3.3 rules out the CommonErrors 403 template as sole ground; switch sfn.denial.status, UNVERIFIED until recording SFN-15 (docs/research/stepfunctions-api.md#1416-sfn-15-denials-and-lambda-service-errors)"
+          "label": "aws-recorded",
+          "source": "testdata/parity/sfn/SFN-15/01-denied-list.json: HTTP/1.1 400 Bad Request (switch sfn.denial.status; docs/research/stepfunctions-api.md#1416-sfn-15-denials-and-lambda-service-errors)",
+          "validated": "2026-11-03"
         }
       }
     }

@@ -22,7 +22,7 @@ func (*AccessDeniedException) ErrorIdentity() awserr.Identity { return IdentityA
 
 // IdentityActivityAlreadyExists returns the identity of com.amazonaws.sfn#ActivityAlreadyExists.
 func IdentityActivityAlreadyExists() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazonaws.sfn#ActivityAlreadyExists", JSONType: "com.amazonaws.sfn#ActivityAlreadyExists", QueryCode: "ActivityAlreadyExists", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+	return awserr.Identity{Shape: "com.amazonaws.sfn#ActivityAlreadyExists", JSONType: "com.amazonaws.swf.service.v2.model#ActivityAlreadyExists", QueryCode: "ActivityAlreadyExists", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
 }
 
 // ErrActivityAlreadyExists returns an ActivityAlreadyExists error with message.
@@ -35,7 +35,7 @@ func (*ActivityAlreadyExists) ErrorIdentity() awserr.Identity { return IdentityA
 
 // IdentityActivityDoesNotExist returns the identity of com.amazonaws.sfn#ActivityDoesNotExist.
 func IdentityActivityDoesNotExist() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazonaws.sfn#ActivityDoesNotExist", JSONType: "com.amazonaws.sfn#ActivityDoesNotExist", QueryCode: "ActivityDoesNotExist", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+	return awserr.Identity{Shape: "com.amazonaws.sfn#ActivityDoesNotExist", JSONType: "com.amazonaws.swf.service.v2.model#ActivityDoesNotExist", QueryCode: "ActivityDoesNotExist", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
 }
 
 // ErrActivityDoesNotExist returns an ActivityDoesNotExist error with message.
@@ -48,7 +48,7 @@ func (*ActivityDoesNotExist) ErrorIdentity() awserr.Identity { return IdentityAc
 
 // IdentityActivityLimitExceeded returns the identity of com.amazonaws.sfn#ActivityLimitExceeded.
 func IdentityActivityLimitExceeded() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazonaws.sfn#ActivityLimitExceeded", JSONType: "com.amazonaws.sfn#ActivityLimitExceeded", QueryCode: "ActivityLimitExceeded", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+	return awserr.Identity{Shape: "com.amazonaws.sfn#ActivityLimitExceeded", JSONType: "com.amazonaws.swf.service.v2.model#ActivityLimitExceeded", QueryCode: "ActivityLimitExceeded", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
 }
 
 // ErrActivityLimitExceeded returns an ActivityLimitExceeded error with message.
@@ -61,7 +61,7 @@ func (*ActivityLimitExceeded) ErrorIdentity() awserr.Identity { return IdentityA
 
 // IdentityActivityWorkerLimitExceeded returns the identity of com.amazonaws.sfn#ActivityWorkerLimitExceeded.
 func IdentityActivityWorkerLimitExceeded() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazonaws.sfn#ActivityWorkerLimitExceeded", JSONType: "com.amazonaws.sfn#ActivityWorkerLimitExceeded", QueryCode: "ActivityWorkerLimitExceeded", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+	return awserr.Identity{Shape: "com.amazonaws.sfn#ActivityWorkerLimitExceeded", JSONType: "com.amazonaws.swf.service.v2.model#ActivityWorkerLimitExceeded", QueryCode: "ActivityWorkerLimitExceeded", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
 }
 
 // ErrActivityWorkerLimitExceeded returns an ActivityWorkerLimitExceeded error with message.
@@ -76,7 +76,7 @@ func (*ActivityWorkerLimitExceeded) ErrorIdentity() awserr.Identity {
 
 // IdentityConflictException returns the identity of com.amazonaws.sfn#ConflictException.
 func IdentityConflictException() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazonaws.sfn#ConflictException", JSONType: "com.amazonaws.sfn#ConflictException", QueryCode: "ConflictException", Status: 409, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+	return awserr.Identity{Shape: "com.amazonaws.sfn#ConflictException", JSONType: "com.amazonaws.swf.service.v2.model#ConflictException", QueryCode: "ConflictException", Status: 409, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
 }
 
 // ErrConflictException returns a ConflictException error with message.
@@ -104,7 +104,7 @@ func (*CoralValidateValidationException) ErrorIdentity() awserr.Identity {
 
 // IdentityExecutionAlreadyExists returns the identity of com.amazonaws.sfn#ExecutionAlreadyExists.
 func IdentityExecutionAlreadyExists() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazonaws.sfn#ExecutionAlreadyExists", JSONType: "com.amazonaws.sfn#ExecutionAlreadyExists", QueryCode: "ExecutionAlreadyExists", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+	return awserr.Identity{Shape: "com.amazonaws.sfn#ExecutionAlreadyExists", JSONType: "com.amazonaws.swf.service.v2.model#ExecutionAlreadyExists", QueryCode: "ExecutionAlreadyExists", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
 }
 
 // ErrExecutionAlreadyExists returns an ExecutionAlreadyExists error with message.
@@ -119,7 +119,7 @@ func (*ExecutionAlreadyExists) ErrorIdentity() awserr.Identity {
 
 // IdentityExecutionDoesNotExist returns the identity of com.amazonaws.sfn#ExecutionDoesNotExist.
 func IdentityExecutionDoesNotExist() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazonaws.sfn#ExecutionDoesNotExist", JSONType: "com.amazonaws.sfn#ExecutionDoesNotExist", QueryCode: "ExecutionDoesNotExist", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+	return awserr.Identity{Shape: "com.amazonaws.sfn#ExecutionDoesNotExist", JSONType: "com.amazonaws.swf.service.v2.model#ExecutionDoesNotExist", QueryCode: "ExecutionDoesNotExist", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
 }
 
 // ErrExecutionDoesNotExist returns an ExecutionDoesNotExist error with message.
@@ -132,7 +132,7 @@ func (*ExecutionDoesNotExist) ErrorIdentity() awserr.Identity { return IdentityE
 
 // IdentityExecutionLimitExceeded returns the identity of com.amazonaws.sfn#ExecutionLimitExceeded.
 func IdentityExecutionLimitExceeded() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazonaws.sfn#ExecutionLimitExceeded", JSONType: "com.amazonaws.sfn#ExecutionLimitExceeded", QueryCode: "ExecutionLimitExceeded", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+	return awserr.Identity{Shape: "com.amazonaws.sfn#ExecutionLimitExceeded", JSONType: "com.amazonaws.swf.service.v2.model#ExecutionLimitExceeded", QueryCode: "ExecutionLimitExceeded", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
 }
 
 // ErrExecutionLimitExceeded returns an ExecutionLimitExceeded error with message.
@@ -147,7 +147,7 @@ func (*ExecutionLimitExceeded) ErrorIdentity() awserr.Identity {
 
 // IdentityExecutionNotRedrivable returns the identity of com.amazonaws.sfn#ExecutionNotRedrivable.
 func IdentityExecutionNotRedrivable() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazonaws.sfn#ExecutionNotRedrivable", JSONType: "com.amazonaws.sfn#ExecutionNotRedrivable", QueryCode: "ExecutionNotRedrivable", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+	return awserr.Identity{Shape: "com.amazonaws.sfn#ExecutionNotRedrivable", JSONType: "com.amazonaws.swf.service.v2.model#ExecutionNotRedrivable", QueryCode: "ExecutionNotRedrivable", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
 }
 
 // ErrExecutionNotRedrivable returns an ExecutionNotRedrivable error with message.
@@ -203,7 +203,7 @@ func (*InternalFailure) ErrorIdentity() awserr.Identity { return IdentityInterna
 
 // IdentityInvalidArn returns the identity of com.amazonaws.sfn#InvalidArn.
 func IdentityInvalidArn() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazonaws.sfn#InvalidArn", JSONType: "com.amazonaws.sfn#InvalidArn", QueryCode: "InvalidArn", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+	return awserr.Identity{Shape: "com.amazonaws.sfn#InvalidArn", JSONType: "com.amazonaws.swf.service.v2.model#InvalidArn", QueryCode: "InvalidArn", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
 }
 
 // ErrInvalidArn returns an InvalidArn error with message.
@@ -216,7 +216,7 @@ func (*InvalidArn) ErrorIdentity() awserr.Identity { return IdentityInvalidArn()
 
 // IdentityInvalidDefinition returns the identity of com.amazonaws.sfn#InvalidDefinition.
 func IdentityInvalidDefinition() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazonaws.sfn#InvalidDefinition", JSONType: "com.amazonaws.sfn#InvalidDefinition", QueryCode: "InvalidDefinition", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+	return awserr.Identity{Shape: "com.amazonaws.sfn#InvalidDefinition", JSONType: "com.amazonaws.swf.service.v2.model#InvalidDefinition", QueryCode: "InvalidDefinition", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
 }
 
 // ErrInvalidDefinition returns an InvalidDefinition error with message.
@@ -229,7 +229,7 @@ func (*InvalidDefinition) ErrorIdentity() awserr.Identity { return IdentityInval
 
 // IdentityInvalidEncryptionConfiguration returns the identity of com.amazonaws.sfn#InvalidEncryptionConfiguration.
 func IdentityInvalidEncryptionConfiguration() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazonaws.sfn#InvalidEncryptionConfiguration", JSONType: "com.amazonaws.sfn#InvalidEncryptionConfiguration", QueryCode: "InvalidEncryptionConfiguration", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+	return awserr.Identity{Shape: "com.amazonaws.sfn#InvalidEncryptionConfiguration", JSONType: "com.amazonaws.swf.service.v2.model#InvalidEncryptionConfiguration", QueryCode: "InvalidEncryptionConfiguration", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
 }
 
 // ErrInvalidEncryptionConfiguration returns an InvalidEncryptionConfiguration error with message.
@@ -244,7 +244,7 @@ func (*InvalidEncryptionConfiguration) ErrorIdentity() awserr.Identity {
 
 // IdentityInvalidExecutionInput returns the identity of com.amazonaws.sfn#InvalidExecutionInput.
 func IdentityInvalidExecutionInput() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazonaws.sfn#InvalidExecutionInput", JSONType: "com.amazonaws.sfn#InvalidExecutionInput", QueryCode: "InvalidExecutionInput", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+	return awserr.Identity{Shape: "com.amazonaws.sfn#InvalidExecutionInput", JSONType: "com.amazonaws.swf.service.v2.model#InvalidExecutionInput", QueryCode: "InvalidExecutionInput", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
 }
 
 // ErrInvalidExecutionInput returns an InvalidExecutionInput error with message.
@@ -257,7 +257,7 @@ func (*InvalidExecutionInput) ErrorIdentity() awserr.Identity { return IdentityI
 
 // IdentityInvalidLoggingConfiguration returns the identity of com.amazonaws.sfn#InvalidLoggingConfiguration.
 func IdentityInvalidLoggingConfiguration() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazonaws.sfn#InvalidLoggingConfiguration", JSONType: "com.amazonaws.sfn#InvalidLoggingConfiguration", QueryCode: "InvalidLoggingConfiguration", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+	return awserr.Identity{Shape: "com.amazonaws.sfn#InvalidLoggingConfiguration", JSONType: "com.amazonaws.swf.service.v2.model#InvalidLoggingConfiguration", QueryCode: "InvalidLoggingConfiguration", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
 }
 
 // ErrInvalidLoggingConfiguration returns an InvalidLoggingConfiguration error with message.
@@ -272,7 +272,7 @@ func (*InvalidLoggingConfiguration) ErrorIdentity() awserr.Identity {
 
 // IdentityInvalidName returns the identity of com.amazonaws.sfn#InvalidName.
 func IdentityInvalidName() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazonaws.sfn#InvalidName", JSONType: "com.amazonaws.sfn#InvalidName", QueryCode: "InvalidName", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+	return awserr.Identity{Shape: "com.amazonaws.sfn#InvalidName", JSONType: "com.amazonaws.swf.service.v2.model#InvalidName", QueryCode: "InvalidName", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
 }
 
 // ErrInvalidName returns an InvalidName error with message.
@@ -285,7 +285,7 @@ func (*InvalidName) ErrorIdentity() awserr.Identity { return IdentityInvalidName
 
 // IdentityInvalidOutput returns the identity of com.amazonaws.sfn#InvalidOutput.
 func IdentityInvalidOutput() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazonaws.sfn#InvalidOutput", JSONType: "com.amazonaws.sfn#InvalidOutput", QueryCode: "InvalidOutput", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+	return awserr.Identity{Shape: "com.amazonaws.sfn#InvalidOutput", JSONType: "com.amazonaws.swf.service.v2.model#InvalidOutput", QueryCode: "InvalidOutput", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
 }
 
 // ErrInvalidOutput returns an InvalidOutput error with message.
@@ -313,7 +313,7 @@ func (*InvalidSignatureException) ErrorIdentity() awserr.Identity {
 
 // IdentityInvalidToken returns the identity of com.amazonaws.sfn#InvalidToken.
 func IdentityInvalidToken() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazonaws.sfn#InvalidToken", JSONType: "com.amazonaws.sfn#InvalidToken", QueryCode: "InvalidToken", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+	return awserr.Identity{Shape: "com.amazonaws.sfn#InvalidToken", JSONType: "com.amazonaws.swf.service.v2.model#InvalidToken", QueryCode: "InvalidToken", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
 }
 
 // ErrInvalidToken returns an InvalidToken error with message.
@@ -326,7 +326,7 @@ func (*InvalidToken) ErrorIdentity() awserr.Identity { return IdentityInvalidTok
 
 // IdentityInvalidTracingConfiguration returns the identity of com.amazonaws.sfn#InvalidTracingConfiguration.
 func IdentityInvalidTracingConfiguration() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazonaws.sfn#InvalidTracingConfiguration", JSONType: "com.amazonaws.sfn#InvalidTracingConfiguration", QueryCode: "InvalidTracingConfiguration", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+	return awserr.Identity{Shape: "com.amazonaws.sfn#InvalidTracingConfiguration", JSONType: "com.amazonaws.swf.service.v2.model#InvalidTracingConfiguration", QueryCode: "InvalidTracingConfiguration", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
 }
 
 // ErrInvalidTracingConfiguration returns an InvalidTracingConfiguration error with message.
@@ -341,7 +341,7 @@ func (*InvalidTracingConfiguration) ErrorIdentity() awserr.Identity {
 
 // IdentityKmsAccessDeniedException returns the identity of com.amazonaws.sfn#KmsAccessDeniedException.
 func IdentityKmsAccessDeniedException() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazonaws.sfn#KmsAccessDeniedException", JSONType: "com.amazonaws.sfn#KmsAccessDeniedException", QueryCode: "KmsAccessDeniedException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+	return awserr.Identity{Shape: "com.amazonaws.sfn#KmsAccessDeniedException", JSONType: "com.amazonaws.swf.service.v2.model#KmsAccessDeniedException", QueryCode: "KmsAccessDeniedException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
 }
 
 // ErrKmsAccessDeniedException returns a KmsAccessDeniedException error with message.
@@ -356,7 +356,7 @@ func (*KmsAccessDeniedException) ErrorIdentity() awserr.Identity {
 
 // IdentityKmsInvalidStateException returns the identity of com.amazonaws.sfn#KmsInvalidStateException.
 func IdentityKmsInvalidStateException() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazonaws.sfn#KmsInvalidStateException", JSONType: "com.amazonaws.sfn#KmsInvalidStateException", QueryCode: "KmsInvalidStateException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+	return awserr.Identity{Shape: "com.amazonaws.sfn#KmsInvalidStateException", JSONType: "com.amazonaws.swf.service.v2.model#KmsInvalidStateException", QueryCode: "KmsInvalidStateException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
 }
 
 // ErrKmsInvalidStateException returns a KmsInvalidStateException error with message.
@@ -381,7 +381,7 @@ func ErrKmsInvalidStateExceptionMembers(message string, v KmsInvalidStateExcepti
 
 // IdentityKmsThrottlingException returns the identity of com.amazonaws.sfn#KmsThrottlingException.
 func IdentityKmsThrottlingException() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazonaws.sfn#KmsThrottlingException", JSONType: "com.amazonaws.sfn#KmsThrottlingException", QueryCode: "KmsThrottlingException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+	return awserr.Identity{Shape: "com.amazonaws.sfn#KmsThrottlingException", JSONType: "com.amazonaws.swf.service.v2.model#KmsThrottlingException", QueryCode: "KmsThrottlingException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
 }
 
 // ErrKmsThrottlingException returns a KmsThrottlingException error with message.
@@ -411,7 +411,7 @@ func (*MissingAuthenticationTokenException) ErrorIdentity() awserr.Identity {
 
 // IdentityMissingRequiredParameter returns the identity of com.amazonaws.sfn#MissingRequiredParameter.
 func IdentityMissingRequiredParameter() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazonaws.sfn#MissingRequiredParameter", JSONType: "com.amazonaws.sfn#MissingRequiredParameter", QueryCode: "MissingRequiredParameter", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+	return awserr.Identity{Shape: "com.amazonaws.sfn#MissingRequiredParameter", JSONType: "com.amazonaws.swf.service.v2.model#MissingRequiredParameter", QueryCode: "MissingRequiredParameter", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
 }
 
 // ErrMissingRequiredParameter returns a MissingRequiredParameter error with message.
@@ -454,7 +454,7 @@ func (*RequestEntityTooLargeException) ErrorIdentity() awserr.Identity {
 
 // IdentityResourceNotFound returns the identity of com.amazonaws.sfn#ResourceNotFound.
 func IdentityResourceNotFound() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazonaws.sfn#ResourceNotFound", JSONType: "com.amazonaws.sfn#ResourceNotFound", QueryCode: "ResourceNotFound", Status: 404, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+	return awserr.Identity{Shape: "com.amazonaws.sfn#ResourceNotFound", JSONType: "com.amazonaws.swf.service.v2.model#ResourceNotFound", QueryCode: "ResourceNotFound", Status: 404, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
 }
 
 // ErrResourceNotFound returns a ResourceNotFound error with message.
@@ -492,7 +492,7 @@ func (*SerializationException) ErrorIdentity() awserr.Identity {
 
 // IdentityServiceQuotaExceededException returns the identity of com.amazonaws.sfn#ServiceQuotaExceededException.
 func IdentityServiceQuotaExceededException() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazonaws.sfn#ServiceQuotaExceededException", JSONType: "com.amazonaws.sfn#ServiceQuotaExceededException", QueryCode: "ServiceQuotaExceededException", Status: 402, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+	return awserr.Identity{Shape: "com.amazonaws.sfn#ServiceQuotaExceededException", JSONType: "com.amazonaws.swf.service.v2.model#ServiceQuotaExceededException", QueryCode: "ServiceQuotaExceededException", Status: 402, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
 }
 
 // ErrServiceQuotaExceededException returns a ServiceQuotaExceededException error with message.
@@ -507,7 +507,7 @@ func (*ServiceQuotaExceededException) ErrorIdentity() awserr.Identity {
 
 // IdentityStateMachineAlreadyExists returns the identity of com.amazonaws.sfn#StateMachineAlreadyExists.
 func IdentityStateMachineAlreadyExists() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazonaws.sfn#StateMachineAlreadyExists", JSONType: "com.amazonaws.sfn#StateMachineAlreadyExists", QueryCode: "StateMachineAlreadyExists", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+	return awserr.Identity{Shape: "com.amazonaws.sfn#StateMachineAlreadyExists", JSONType: "com.amazonaws.swf.service.v2.model#StateMachineAlreadyExists", QueryCode: "StateMachineAlreadyExists", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
 }
 
 // ErrStateMachineAlreadyExists returns a StateMachineAlreadyExists error with message.
@@ -522,7 +522,7 @@ func (*StateMachineAlreadyExists) ErrorIdentity() awserr.Identity {
 
 // IdentityStateMachineDeleting returns the identity of com.amazonaws.sfn#StateMachineDeleting.
 func IdentityStateMachineDeleting() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazonaws.sfn#StateMachineDeleting", JSONType: "com.amazonaws.sfn#StateMachineDeleting", QueryCode: "StateMachineDeleting", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+	return awserr.Identity{Shape: "com.amazonaws.sfn#StateMachineDeleting", JSONType: "com.amazonaws.swf.service.v2.model#StateMachineDeleting", QueryCode: "StateMachineDeleting", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
 }
 
 // ErrStateMachineDeleting returns a StateMachineDeleting error with message.
@@ -535,7 +535,7 @@ func (*StateMachineDeleting) ErrorIdentity() awserr.Identity { return IdentitySt
 
 // IdentityStateMachineDoesNotExist returns the identity of com.amazonaws.sfn#StateMachineDoesNotExist.
 func IdentityStateMachineDoesNotExist() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazonaws.sfn#StateMachineDoesNotExist", JSONType: "com.amazonaws.sfn#StateMachineDoesNotExist", QueryCode: "StateMachineDoesNotExist", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+	return awserr.Identity{Shape: "com.amazonaws.sfn#StateMachineDoesNotExist", JSONType: "com.amazonaws.swf.service.v2.model#StateMachineDoesNotExist", QueryCode: "StateMachineDoesNotExist", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
 }
 
 // ErrStateMachineDoesNotExist returns a StateMachineDoesNotExist error with message.
@@ -550,7 +550,7 @@ func (*StateMachineDoesNotExist) ErrorIdentity() awserr.Identity {
 
 // IdentityStateMachineLimitExceeded returns the identity of com.amazonaws.sfn#StateMachineLimitExceeded.
 func IdentityStateMachineLimitExceeded() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazonaws.sfn#StateMachineLimitExceeded", JSONType: "com.amazonaws.sfn#StateMachineLimitExceeded", QueryCode: "StateMachineLimitExceeded", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+	return awserr.Identity{Shape: "com.amazonaws.sfn#StateMachineLimitExceeded", JSONType: "com.amazonaws.swf.service.v2.model#StateMachineLimitExceeded", QueryCode: "StateMachineLimitExceeded", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
 }
 
 // ErrStateMachineLimitExceeded returns a StateMachineLimitExceeded error with message.
@@ -565,7 +565,7 @@ func (*StateMachineLimitExceeded) ErrorIdentity() awserr.Identity {
 
 // IdentityStateMachineTypeNotSupported returns the identity of com.amazonaws.sfn#StateMachineTypeNotSupported.
 func IdentityStateMachineTypeNotSupported() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazonaws.sfn#StateMachineTypeNotSupported", JSONType: "com.amazonaws.sfn#StateMachineTypeNotSupported", QueryCode: "StateMachineTypeNotSupported", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+	return awserr.Identity{Shape: "com.amazonaws.sfn#StateMachineTypeNotSupported", JSONType: "com.amazonaws.swf.service.v2.model#StateMachineTypeNotSupported", QueryCode: "StateMachineTypeNotSupported", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
 }
 
 // ErrStateMachineTypeNotSupported returns a StateMachineTypeNotSupported error with message.
@@ -580,7 +580,7 @@ func (*StateMachineTypeNotSupported) ErrorIdentity() awserr.Identity {
 
 // IdentityTaskDoesNotExist returns the identity of com.amazonaws.sfn#TaskDoesNotExist.
 func IdentityTaskDoesNotExist() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazonaws.sfn#TaskDoesNotExist", JSONType: "com.amazonaws.sfn#TaskDoesNotExist", QueryCode: "TaskDoesNotExist", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+	return awserr.Identity{Shape: "com.amazonaws.sfn#TaskDoesNotExist", JSONType: "com.amazonaws.swf.service.v2.model#TaskDoesNotExist", QueryCode: "TaskDoesNotExist", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
 }
 
 // ErrTaskDoesNotExist returns a TaskDoesNotExist error with message.
@@ -593,7 +593,7 @@ func (*TaskDoesNotExist) ErrorIdentity() awserr.Identity { return IdentityTaskDo
 
 // IdentityTaskTimedOut returns the identity of com.amazonaws.sfn#TaskTimedOut.
 func IdentityTaskTimedOut() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazonaws.sfn#TaskTimedOut", JSONType: "com.amazonaws.sfn#TaskTimedOut", QueryCode: "TaskTimedOut", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+	return awserr.Identity{Shape: "com.amazonaws.sfn#TaskTimedOut", JSONType: "com.amazonaws.swf.service.v2.model#TaskTimedOut", QueryCode: "TaskTimedOut", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
 }
 
 // ErrTaskTimedOut returns a TaskTimedOut error with message.
@@ -619,7 +619,7 @@ func (*ThrottlingException) ErrorIdentity() awserr.Identity { return IdentityThr
 
 // IdentityTooManyTags returns the identity of com.amazonaws.sfn#TooManyTags.
 func IdentityTooManyTags() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazonaws.sfn#TooManyTags", JSONType: "com.amazonaws.sfn#TooManyTags", QueryCode: "TooManyTags", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+	return awserr.Identity{Shape: "com.amazonaws.sfn#TooManyTags", JSONType: "com.amazonaws.swf.service.v2.model#TooManyTags", QueryCode: "TooManyTags", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
 }
 
 // ErrTooManyTags returns a TooManyTags error with message.
@@ -672,7 +672,7 @@ func (*UnrecognizedClientException) ErrorIdentity() awserr.Identity {
 
 // IdentityValidationException returns the identity of com.amazonaws.sfn#ValidationException.
 func IdentityValidationException() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazonaws.sfn#ValidationException", JSONType: "com.amazonaws.sfn#ValidationException", QueryCode: "ValidationException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+	return awserr.Identity{Shape: "com.amazonaws.sfn#ValidationException", JSONType: "com.amazonaws.swf.service.v2.model#ValidationException", QueryCode: "ValidationException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
 }
 
 // ErrValidationException returns a ValidationException error with message.
@@ -708,7 +708,7 @@ func NewErrorMembers(id smithy.ShapeID) (awserr.DecodableMembers, bool) {
 func ThrottleError() awserr.Identity { return IdentityThrottlingException() }
 
 // DenialError returns the identity this service answers an authorization
-// refusal with (dev.understudy#denialError), evidence inferred.
+// refusal with (dev.understudy#denialError), evidence aws-recorded.
 func DenialError() awserr.Identity { return IdentityAccessDeniedException() }
 
 // UnknownOperationError returns the identity this service answers for an
