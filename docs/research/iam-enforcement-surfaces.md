@@ -1318,7 +1318,7 @@ Cost: free, 10 minutes. Teardown: none.
 
 Settles secrets-logs-events-alarms.md 3.10 (Q14): whether a statement on `log-group:<name>:*` allows the group-level actions, or only the stream-level ones. Role `wild` holds `logs:*` on the `:*` form only, role `bare` on the group ARN only. Each step is noted `allowed` or `denied`.
 
-Recorded 2026-11-03 (IAM-ENF-42): the `:*` form (`wild`) allowed every step, CreateLogGroup, DescribeLogStreams, PutRetentionPolicy, FilterLogEvents, CreateLogStream, PutLogEvents and DeleteLogGroup; the bare group ARN allowed the group-level steps and denied CreateLogStream and PutLogEvents. On the Lambda path the group was created under the `:*`-only role. understudy matches a `log-group:<name>` resource against both forms (`internal/policydoc/evaluate.go`), and the `eventbridge-schedule-to-lambda-terraform-go` pattern expects no denial.
+Recorded 2026-11-03 (IAM-ENF-42): the `:*` form (`wild`) allowed every step, CreateLogGroup, DescribeLogStreams, PutRetentionPolicy, FilterLogEvents, CreateLogStream, PutLogEvents and DeleteLogGroup; the bare group ARN allowed the group-level steps and denied CreateLogStream and PutLogEvents. On the Lambda path the group was created under the `:*`-only role. Each group-level step `wild` was allowed answered with the header `x-amzn-log-group-authz: outdated` (CreateLogStream, PutLogEvents and the `bare` steps did not), AWS marking `:*` authorization of group actions as deprecated. understudy matches a `log-group:<name>` resource against both forms (`internal/policydoc/evaluate.go`) without sending that header (switch `logs.authz.outdated-header`), and the `eventbridge-schedule-to-lambda-terraform-go` pattern expects no denial.
 
 ```sh
 G="/$P/r28"

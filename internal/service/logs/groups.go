@@ -25,7 +25,7 @@ const (
 // bindGroups binds the log group control plane, retention and tags.
 func (s *Service) bindGroups(b logsapi.Binder) {
 	b.CreateLogGroup(s.createLogGroup,
-		registry.Partial{Note: "kmsKeyId must name an enabled KMS key and is stored and echoed; events are not encrypted with it; IAM authorizes it on the group ARN without :*, so a statement on log-group:<name>:* does not allow it, per the current AWS documents; whether AWS accepts that form is unknown (secrets-logs-events-alarms.md 3.10)"},
+		registry.Partial{Note: "kmsKeyId must name an enabled KMS key and is stored and echoed; events are not encrypted with it; a statement on log-group:<name>:* allows it, as AWS does, without the x-amzn-log-group-authz: outdated header AWS adds (switch logs.authz.outdated-header; secrets-logs-events-alarms.md 3.10)"},
 		kernel.WithCheck(checkCreateLogGroup),
 		groupNamed(func(in *logsapi.CreateLogGroupInput) string { return in.LogGroupName }))
 	b.DeleteLogGroup(s.deleteLogGroup, registry.Full{},

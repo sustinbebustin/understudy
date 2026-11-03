@@ -101,6 +101,27 @@ func expiryRule() fidelity.Switch[string] {
 	}
 }
 
+// outdatedAuthzHeader is the header AWS adds when a log-group:<name>:*
+// statement allows a group-level action: x-amzn-log-group-authz: outdated,
+// AWS signalling that this form of authorizing group actions is deprecated
+// (secrets-logs-events-alarms.md 3.10; IAM-ENF-42). understudy allows the
+// action as AWS does but does not send the header, since the evaluator does
+// not report which form matched. Ops are the group-level actions IAM-ENF-42
+// recorded; the header on the other group-level actions is unrecorded.
+func outdatedAuthzHeader() fidelity.Switch[string] {
+	return fidelity.Switch[string]{
+		Name:   "logs.authz.outdated-header",
+		Value:  "not-sent",
+		Label:  evidence.Inferred,
+		Ref:    "docs/research/secrets-logs-events-alarms.md#310-authorization-resources",
+		Record: "IAM-ENF-42",
+		Ops:    []string{"logs.CreateLogGroup", "logs.DeleteLogGroup", "logs.DescribeLogStreams", "logs.FilterLogEvents", "logs.PutRetentionPolicy"},
+		Settles: fidelity.NoScenario{Reason: "AWS contradicts it: IAM-ENF-42 recorded the header x-amzn-log-group-authz: outdated on these actions " +
+			"when only a log-group:<name>:* statement allowed them; understudy omits it until the evaluator reports the matched form, " +
+			"and the replay signs as the account's root, which no statement form decides"},
+	}
+}
+
 // deliveryRetention is the fixed retention, in days, of a DELIVERY-class
 // group. The log class guide says two days and that it cannot be changed;
 // the model's logGroupClass documentation says one. Two is what the
@@ -125,8 +146,8 @@ func deliveryRetention() fidelity.Switch[int32] {
 func (s *Service) Switches() []fidelity.Entry {
 	switches := s.filter.Switches()
 	table := filterSwitches()
-	out := make([]fidelity.Entry, 0, 3+len(switches))
-	out = append(out, expiryRule().Entry(), deliveryRetention().Entry(),
+	out := make([]fidelity.Entry, 0, 4+len(switches))
+	out = append(out, expiryRule().Entry(), deliveryRetention().Entry(), outdatedAuthzHeader().Entry(),
 		authz.RecordedSwitch("logs.denial.status", "AccessDeniedException 400", "3.2", "IAM-ENF-07", authz.SessionUnreplayed, s.k.Bindings().AuthorizedOps(logsapi.Service())))
 	for _, sw := range switches {
 		m := table[sw.Name]
