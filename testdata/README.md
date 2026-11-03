@@ -65,7 +65,19 @@ It reads the account id from `<recordings>/_scripts/acct` (or `--account-file`),
 
 ## Replay scenarios
 
-`parity/<svc>/<item>/scenario.json` tells `internal/parity` how to replay one item against an in-process understudy: which steps run, in which order, what to set up first, which recorded values stand for the ones understudy mints, and which fidelity switches and overlay evidence items a step settles. The checked-in scenarios are `dynamodb/R11` (step 07, DynamoDB Streams' signing scopes), `events/R14` (the `TestEventPattern` cases H1, H8, H9 and H14), `kms/KMS-alias`, `sqs/R01`, `sts/R15`, and the SSM Parameter Store items `ssm/SSM-01`, `ssm/SSM-02`, `ssm/SSM-03`, `ssm/SSM-04`, `ssm/SSM-05`, `ssm/SSM-06`, `ssm/SSM-07`, `ssm/SSM-08`, `ssm/SSM-09`, `ssm/SSM-10`, `ssm/SSM-11`, `ssm/SSM-12`, `ssm/SSM-13`, `ssm/SSM-15`, `ssm/SSM-16`, `ssm/SSM-17`, `ssm/SSM-18`, `ssm/SSM-19`, `ssm/SSM-20`, `ssm/SSM-21`, `ssm/SSM-22`, `ssm/SSM-25`, `ssm/SSM-26`, `ssm/SSM-27`, `ssm/SSM-28`, `ssm/SSM-29` and `ssm/SSM-32`. An item without one is not replayed.
+`parity/<svc>/<item>/scenario.json` tells `internal/parity` how to replay one item against an in-process understudy: which steps run, in which order, what to set up first, which recorded values stand for the ones understudy mints, and which fidelity switches and overlay evidence items a step settles. The checked-in scenarios are:
+
+- `cloudwatch/CWA-19`: `GetMetricStatistics`' refusals and its 1440-datapoint count (CWA-19 and CWA-20).
+- `dynamodb/R11`: step 07, DynamoDB Streams' refused signing scope.
+- `events/EBB`: the event bus steps a request alone settles (refusal texts, missing-bus answers, `UpdateEventBus`, the bus policy and bus-target refusals).
+- `events/R14`: step 04, a schedule on a custom bus its setup creates, and the `TestEventPattern` cases H1, H8, H9 and H14.
+- `iam/IAM-EVAL-35` and `iam/IAM-EVAL-36`: the CreatePolicy refusals. An accepted CreatePolicy is left out, since AWS writes the `Policy` members in an order understudy does not follow.
+- `kms/KMS-alias`, `sqs/R01` and `sts/R15`.
+- The SES items `ses/SES-00`, `-01`, `-03`, `-04`, `-08`, `-10`, `-11`, `-15`, `-16`, `-17`, `-18`, `-20`, `-24`, `-27` and `-29`: their v1 awsQuery steps; the v2 REST steps are skipped. A request to `email.<region>.amazonaws.com` is signed for `ses`, SES's signing name.
+- The Step Functions items `sfn/ASL-01` (step 16, a CreateStateMachine that joins every definition problem), `sfn/ASL-09` (step 05, a Wait `Seconds` over the maximum), `sfn/ASL-14` (steps 05 and 06, an Express execution ARN refused), `sfn/SFN-01` (Step Functions' error `__type` and `InvalidArn` texts) and `sfn/SFN-08` (steps 03 to 05, CreateStateMachine's role ARN, name and definition errors).
+- The SSM Parameter Store items `ssm/SSM-01` to `-13`, `-15` to `-22`, `-25` to `-29` and `-32`.
+
+An item without one is not replayed.
 
 ```json
 {
