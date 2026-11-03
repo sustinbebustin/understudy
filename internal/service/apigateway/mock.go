@@ -85,26 +85,19 @@ func runMock(w http.ResponseWriter, r *http.Request, t toMock, body []byte) *aws
 			"understudy sets only static responseParameters ('value'): %s of integration response %s of %s maps %q, "+
 				"so the response was not sent and nothing was changed. Use a static value in single quotes.", refusedParam, resp.StatusCode, where, resp.ResponseParameters[refusedParam]))
 	}
-	mediaType, template, chosen := responseTemplate(resp.ResponseTemplates, r.Header.Get("Accept"), sw)
-	if !chosen {
-		// "integration response mapping can't match any template and no
-		// default template is configured" is API_CONFIGURATION_ERROR
-		// (apigateway-rest.md 6.7).
-		return writeAnswer(w, ConfigurationError())
-	}
+	mediaType, template := responseTemplate(resp.ResponseTemplates, r.Header.Get("Accept"), sw)
 	if !IsLiteralTemplate(template) {
 		return apigatewayapi.ErrNotImplemented(fmt.Sprintf(
 			"understudy does not render mapping templates with VTL: the response template for %s of integration response %s of %s contains '$', '#' or '\\', "+
 				"so the response was not sent and nothing was changed. Use a literal response template.", mediaType, resp.StatusCode, where))
 	}
+	// AWS sent application/json whichever template it chose (APIGW1-11,
+	// recorded 2026-11-03); a static Content-Type response parameter
+	// replaces it.
+	w.Header().Set("Content-Type", "application/json")
 	for _, name := range slices.Sorted(maps.Keys(headers)) {
 		w.Header().Set(name, headers[name])
 	}
-	if mediaType == "" {
-		// The default Content-Type (apigateway-rest.md 4.8).
-		mediaType = "application/json"
-	}
-	w.Header().Set("Content-Type", mediaType)
 	w.WriteHeader(code)
 	// A failed write means the client went away; nothing else can be sent.
 	_, _ = io.WriteString(w, template) //nolint:errcheck,gosec // the client is gone when this fails; the body is the API owner's configured template, sent as AWS sends it
@@ -170,10 +163,12 @@ func mediaEssence(v string) string {
 func selectResponse(responses map[string]IntegrationResponse, status int, hasStatus bool, sw MockSelection) (selected *IntegrationResponse, refused string) {
 	all := slices.Collect(maps.Values(responses))
 	slices.SortFunc(all, func(a, b IntegrationResponse) int {
-		if sw.AscendingStatus {
-			return cmp.Compare(a.StatusCode, b.StatusCode)
+		pa, pb := deref(a.SelectionPattern, ""), deref(b.SelectionPattern, "")
+		order := cmp.Compare(pb, pa)
+		if sw.PatternOrder == PatternsLongestFirst {
+			order = cmp.Or(cmp.Compare(len(pb), len(pa)), order)
 		}
-		return cmp.Or(cmp.Compare(a.Seq, b.Seq), cmp.Compare(a.StatusCode, b.StatusCode))
+		return cmp.Or(order, cmp.Compare(a.StatusCode, b.StatusCode))
 	})
 	var def *IntegrationResponse
 	text := strconv.Itoa(status)
@@ -220,37 +215,23 @@ func staticHeaders(params map[string]string) (headers map[string]string, refused
 	return headers, ""
 }
 
-// responseTemplate chooses the selected response's template (switch
-// apigateway.mock.selection TemplateByAccept): by the first Accept media
-// type when the switch says so, else application/json, else the only
-// template. No templates is an empty body with no media type; templates
-// none of which is chosen report false.
-func responseTemplate(templates map[string]string, accept string, sw MockSelection) (mediaType, template string, ok bool) {
+// responseTemplate chooses the selected response's template as APIGW1-11
+// recorded (2026-11-03; apigateway-rest.md 6.7): the one whose media type
+// is the whole Accept value, so a later entry of a list is not matched,
+// else application/json, else the first by media type. No templates is an
+// empty body; mediaType is the chosen key.
+func responseTemplate(templates map[string]string, accept string, sw MockSelection) (mediaType, template string) {
 	if len(templates) == 0 {
-		return "", "", true
+		return "", ""
 	}
-	if sw.TemplateByAccept && accept != "" {
-		first, _, _ := strings.Cut(accept, ",")
-		if k, found := findMediaType(templates, strings.TrimSpace(first), sw.MediaTypeEssence); found {
-			return k, templates[k], true
+	if accept != "" {
+		if k, found := findMediaType(templates, accept, sw.MediaTypeEssence); found {
+			return k, templates[k]
 		}
 	}
 	if k, found := findMediaType(templates, "application/json", sw.MediaTypeEssence); found {
-		return k, templates[k], true
+		return k, templates[k]
 	}
-	if len(templates) == 1 {
-		for k, t := range templates {
-			return k, t, true
-		}
-	}
-	return "", "", false
-}
-
-// nextResponseSeq is the creation sequence of a new integration response.
-func nextResponseSeq(responses map[string]IntegrationResponse) uint64 {
-	var top uint64
-	for _, r := range responses {
-		top = max(top, r.Seq)
-	}
-	return top + 1
+	k := slices.Min(slices.Collect(maps.Keys(templates)))
+	return k, templates[k]
 }

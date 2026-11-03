@@ -43,7 +43,7 @@ pattern_check() {
     return 1
   fi
 
-  out=$(pattern_call "$api_id" POST'/pets/dog/1?foo=bar' --header 'Content-Type: application/json' -d '{"key1":"hello", "key2":"World!"}')
+  out=$(pattern_call "$api_id" POST '/pets/dog/1?foo=bar' --header 'Content-Type: application/json' -d '{"key1":"hello", "key2":"World!"}')
   status=${out##*$'\n'}
   body=${out%$'\n'*}
   want='{"functionName":"test_apigw_integration","method":"POST","rawPath":"/pets/dog/1","queryString":{"foo":"bar"},"body":"{\"key1\":\"hello\", \"key2\":\"World!\"}"}'

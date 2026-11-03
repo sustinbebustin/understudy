@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"maps"
 	"net/http"
+	"strconv"
 )
 
 // Response is what the HTTP front end answers.
@@ -61,6 +62,23 @@ type V2Defaults struct {
 	// ContentType is the Content-Type of a structured response that sets
 	// none; empty means application/json.
 	ContentType string
+	// Verbatim relays output that is not a structured response as the
+	// function wrote it, where a function URL re-serializes it compactly.
+	Verbatim bool
+	// StatusText accepts a statusCode that is a JSON string of decimal
+	// digits.
+	StatusText bool
+	// ScalarHeaders sends a header value that is a JSON number or boolean
+	// as its JSON text, where a function URL finds the response malformed.
+	ScalarHeaders bool
+}
+
+// HTTPAPIDefaults are an HTTP API's V2Defaults with contentType, as
+// APIGW2-09 recorded them on 2026-11-03 (apigateway-http.md 5.3): output
+// without a statusCode relayed as written, a statusCode "201" served as
+// 201, and a header value 1 sent as "1".
+func HTTPAPIDefaults(contentType string) V2Defaults {
+	return V2Defaults{ContentType: contentType, Verbatim: true, StatusText: true, ScalarHeaders: true}
 }
 
 // InferV2With is InferV2 with the defaults d in place of a function URL's
@@ -74,12 +92,15 @@ func InferV2With(payload []byte, d V2Defaults) (Response, error) {
 		return Response{}, &MalformedError{Problem: "it is not JSON"}
 	}
 	resp := Response{Status: http.StatusOK, Header: http.Header{}, Body: b.Bytes()}
+	if d.Verbatim {
+		resp.Body = payload
+	}
 	contentType := "application/json"
 	var fields map[string]json.RawMessage
 	switch v := value.(type) {
 	case map[string]any:
 		if _, ok := v["statusCode"]; ok && json.Unmarshal(payload, &fields) == nil {
-			r, err := structured(fields)
+			r, err := structured(fields, d)
 			if err != nil {
 				return Response{}, err
 			}
@@ -98,18 +119,29 @@ func InferV2With(payload []byte, d V2Defaults) (Response, error) {
 }
 
 // structured reads a structured 2.0 response's members: statusCode,
-// headers, cookies, body and isBase64Encoded.
-func structured(fields map[string]json.RawMessage) (Response, error) {
+// headers, cookies, body and isBase64Encoded, under d's StatusText and
+// ScalarHeaders.
+func structured(fields map[string]json.RawMessage, d V2Defaults) (Response, error) {
 	status, err := statusOf(fields)
+	if raw := fields["statusCode"]; err != nil && d.StatusText && len(raw) > 0 && raw[0] == '"' {
+		status, err = restStatus(fields)
+		if err == nil && (status < 200 || status > 599) {
+			err = &MalformedError{Problem: "statusCode " + string(raw) + " is not a status from 200 to 599"}
+		}
+	}
 	if err != nil {
 		return Response{}, err
 	}
 	r := Response{Status: status, Header: http.Header{}}
-	var headers map[string]string
+	var headers map[string]json.RawMessage
 	if err := member(fields, "headers", &headers); err != nil {
-		return Response{}, &MalformedError{Problem: "headers is not an object of string values"}
+		return Response{}, &MalformedError{Problem: "headers is not an object"}
 	}
-	for name, value := range headers {
+	for name, raw := range headers {
+		value, err := headerValue(name, raw, d.ScalarHeaders)
+		if err != nil {
+			return Response{}, err
+		}
 		if !framing(name) {
 			r.Header.Set(name, value)
 		}
@@ -131,6 +163,23 @@ func statusOf(fields map[string]json.RawMessage) (int, error) {
 		return 0, &MalformedError{Problem: "statusCode " + string(fields["statusCode"]) + " is not an integer from 200 to 599"}
 	}
 	return status, nil
+}
+
+// headerValue is a structured response's header value: a string, or, with
+// scalars, a number or boolean as its JSON text (restHeaderValue). null
+// is the empty value, as the strings-only reading decodes it.
+func headerValue(name string, raw json.RawMessage, scalars bool) (string, error) {
+	var s *string
+	if json.Unmarshal(raw, &s) == nil {
+		if s == nil {
+			return "", nil
+		}
+		return *s, nil
+	}
+	if scalars {
+		return restHeaderValue(name, raw)
+	}
+	return "", &MalformedError{Problem: "header " + strconv.Quote(name) + " has the value " + string(raw) + ", which is not a string"}
 }
 
 // bodyOf reads a response's body and isBase64Encoded: a string body, null

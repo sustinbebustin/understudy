@@ -80,25 +80,6 @@ func TestMockRefusesNonHeaderParameters(t *testing.T) {
 	})
 }
 
-// Several response templates of which none matches Accept or
-// application/json and none is the only one: no template is chosen, which
-// is API_CONFIGURATION_ERROR (aws-doc supported-gateway-response-types,
-// apigateway-rest.md 6.7; the choice itself is switch
-// apigateway.mock.selection TemplateByAccept).
-func TestMockNoChosenTemplateIsAConfigurationError(t *testing.T) {
-	run(t, func(h *harness) {
-		id := h.mockMethod("r", mock{
-			templates: map[string]string{"application/json": `{"statusCode": 200}`},
-			responses: []integrationResponse{{status: "200", templates: map[string]string{"text/plain": "T", "application/xml": "X"}}},
-		})
-		rec := h.getWith(id, "/s/r", map[string]string{"Accept": "text/html"}, "")
-		if rec.StatusCode != apigateway.ConfigurationError().Status {
-			t.Errorf("no chosen template = %d, want %d", rec.StatusCode, apigateway.ConfigurationError().Status)
-		}
-		readBody(t, rec)
-	})
-}
-
 // Every spelling of a status 100..599 the lenient parse accepts gives
 // that status (apigateway-rest.md 6.3: quoted and unquoted keys).
 func TestMockStatusProperty(t *testing.T) {

@@ -6,8 +6,10 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/sustinbebustin/understudy/internal/api/apigatewayv2api"
+	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
@@ -22,14 +24,16 @@ const defaultStage = "$default"
 // API reference, apigateway-http.md 2.4).
 var stageName = regexp.MustCompile(`^[A-Za-z0-9_-]{1,128}$`)
 
-// Stage variables: "names can have alphanumeric and underscore characters,
-// and the values must match [A-Za-z0-9-._~:/?#&=,]+" (the stage API
-// reference, apigateway-http.md 2.4); a stage holds 100 variables, keys up
-// to 64 characters and values up to 512 (the HTTP API quotas page, 3.9).
-var (
-	stageVariableName  = regexp.MustCompile(`^[A-Za-z0-9_]{1,64}$`)
-	stageVariableValue = regexp.MustCompile(`^[A-Za-z0-9\-._~:/?#&=,]{1,512}$`)
-)
+// stageVariableName: "names can have alphanumeric and underscore
+// characters" (the stage API reference, apigateway-http.md 2.4); a stage
+// holds 100 variables, keys up to 64 characters and values up to 512 (the
+// HTTP API quotas page, 3.9). The reference's value pattern
+// [A-Za-z0-9-._~:/?#&=,]+ is not enforced: AWS accepted "a b" (APIGW2-01,
+// recorded 2026-11-03: step 16).
+var stageVariableName = regexp.MustCompile(`^[A-Za-z0-9_]{1,64}$`)
+
+// maxStageVariableValue is the longest stage variable value (3.9).
+const maxStageVariableValue = 512
 
 // Stage quotas (the HTTP API quotas page, apigateway-http.md 3.9): "Stages
 // per API: 10", 100 stage variables, and the 3 KB access log template,
@@ -52,7 +56,9 @@ func checkCreateStage(in *apigatewayv2api.CreateStageInput) *awserr.Error {
 		return err
 	}
 	if in.StageName != defaultStage && !stageName.MatchString(in.StageName) {
-		return errBadRequest("stageName %q is not $default or 1 to 128 letters, digits, '-' and '_'", in.StageName)
+		// AWS's text, which omits the hyphen the docs allow (APIGW2-01 step
+		// 15 sent bad.name; whether a hyphen is accepted is UNVERIFIED).
+		return errBadRequest("Stage name only allows a-zA-Z0-9_")
 	}
 	if len(in.StageVariables) > maxStageVariables {
 		return errBadRequest("a stage holds at most %d stage variables, not %d", maxStageVariables, len(in.StageVariables))
@@ -60,7 +66,7 @@ func checkCreateStage(in *apigatewayv2api.CreateStageInput) *awserr.Error {
 	if err := checkStageVariables(in.StageVariables, false); err != nil {
 		return err
 	}
-	return checkTags(in.Tags)
+	return checkTags("tags", in.Tags)
 }
 
 // checkUpdateStage is checkCreateStage for the members an UpdateStage
@@ -103,8 +109,8 @@ func checkStageVariables(vars map[string]string, removing bool) *awserr.Error {
 		if !stageVariableName.MatchString(name) {
 			return errBadRequest("stage variable name %q is not 1 to 64 letters, digits and '_'", name)
 		}
-		if v := vars[name]; (!removing || v != "") && !stageVariableValue.MatchString(v) {
-			return errBadRequest("the value of stage variable %q is not 1 to 512 of the characters A-Z a-z 0-9 - . _ ~ : / ? # & = ,", name)
+		if v := vars[name]; (!removing || v != "") && (v == "" || utf8.RuneCountInString(v) > maxStageVariableValue) {
+			return errBadRequest("the value of stage variable %q is not 1 to %d characters long", name, maxStageVariableValue)
 		}
 	}
 	return nil
@@ -118,7 +124,7 @@ func (s *Service) createStage(_ context.Context, c *kernel.Call, in *apigatewayv
 	auto := deref(in.AutoDeploy, false)
 	st, err := writeAPI(s, c, in.ApiId, func(a *API, now clock.Instant) (Stage, *awserr.Error) {
 		if _, ok := a.stage(in.StageName); ok {
-			return Stage{}, errConflict("the API already has a stage named %q", in.StageName)
+			return Stage{}, errConflict("Stage already exists") // APIGW2-01 step 08
 		}
 		if len(a.Stages) >= maxStages {
 			return Stage{}, errBadRequest("the API already has %d stages, the most an HTTP API may have", maxStages)
@@ -133,7 +139,7 @@ func (s *Service) createStage(_ context.Context, c *kernel.Call, in *apigatewayv
 			Tags:                 maps.Clone(in.Tags),
 		}
 		if in.DeploymentId != nil {
-			if err := a.explicitDeployment(st, *in.DeploymentId); err != nil {
+			if err := a.explicitDeployment(c.Scope().Account, st, *in.DeploymentId); err != nil {
 				return Stage{}, err
 			}
 			st.Deployment = *in.DeploymentId
@@ -164,7 +170,7 @@ func (s *Service) updateStage(_ context.Context, c *kernel.Call, in *apigatewayv
 		turnedOn := deref(in.AutoDeploy, st.AutoDeploy) && !st.AutoDeploy
 		st.AutoDeploy = deref(in.AutoDeploy, st.AutoDeploy)
 		if in.DeploymentId != nil {
-			if err := a.explicitDeployment(st, *in.DeploymentId); err != nil {
+			if err := a.explicitDeployment(c.Scope().Account, st, *in.DeploymentId); err != nil {
 				return Stage{}, err
 			}
 			st.Deployment = *in.DeploymentId
@@ -193,14 +199,14 @@ func (s *Service) updateStage(_ context.Context, c *kernel.Call, in *apigatewayv
 // (NotFoundException, inferred), and on an AutoDeploy stage, whose
 // DeploymentId "Can't be updated" (the stage API reference,
 // apigateway-http.md 3.4), the front.answers switch's ExplicitOnAutoDeploy
-// decides (UNVERIFIED, APIGW2-04).
-func (a *API) explicitDeployment(st Stage, id string) *awserr.Error {
+// decides, with AWS's text naming account and the API (APIGW2-04,
+// recorded 2026-11-03: step 08).
+func (a *API) explicitDeployment(account aws.AccountID, st Stage, id string) *awserr.Error {
 	if _, err := a.deploymentIndex(id); err != nil {
 		return err
 	}
 	if st.AutoDeploy {
-		return FrontAnswersSwitch().Value.Deployments.ExplicitOnAutoDeploy.answer(
-			"stage %q has autoDeploy enabled, so its deploymentId can't be set; turn autoDeploy off to serve deployment %s", st.Name, id)
+		return FrontAnswersSwitch().Value.Deployments.ExplicitOnAutoDeploy.answer(autoDeployText, account, a.ID)
 	}
 	return nil
 }
@@ -347,7 +353,7 @@ func (s *Service) getStages(_ context.Context, c *kernel.Call, in *apigatewayv2a
 func (a *API) stageIndex(name string) (int, *awserr.Error) {
 	i := slices.IndexFunc(a.Stages, func(st Stage) bool { return st.Name == name })
 	if i < 0 {
-		return 0, errStageNotFound(tagged{apiID: a.ID, stage: name})
+		return 0, errStageNotFound()
 	}
 	return i, nil
 }

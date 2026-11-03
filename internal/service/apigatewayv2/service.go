@@ -48,10 +48,11 @@ type Service struct {
 // The service is the snapshot and reset view of its state.
 var _ kernel.Stateful = (*Service)(nil)
 
-// baseNote heads every bound control-plane operation's coverage note: no
-// v2 error text is recorded, and the id shapes are inferred
-// (apigateway-http.md 2.3, 2.5).
-const baseNote = "error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03)"
+// baseNote heads every bound control-plane operation's coverage note:
+// APIGW2-01 recorded the refusal texts understudy sends where it has them,
+// and APIGW2-03 the id shapes (apigateway-http.md 2.3, 2.5).
+const baseNote = "error texts are AWS's where APIGW2-01 recorded them and understudy's elsewhere; " +
+	"AWS pretty-prints some error bodies (GetApi, GetStage, CreateStage), which understudy sends compact"
 
 // Coverage notes of the operations bound so far: what each leaves out of
 // the documented behavior.
@@ -69,22 +70,17 @@ const (
 		"tlsConfig is stored without effect; " +
 		"requestTemplates, templateSelectionExpression and contentHandlingStrategy answer NotImplemented (WebSocket API members)"
 	stageNote = "accessLogSettings, defaultRouteSettings and routeSettings are stored without effect (no access log records, no throttling); " +
-		"an automatic deployment completes before the call returns (UNVERIFIED delay, APIGW2-04); " +
-		"an explicit DeploymentId on an autoDeploy stage is refused (documented as not updatable; identity and text inferred, APIGW2-04); " +
+		"an automatic deployment completes before the call returns, where AWS served it within 1 to 2 s (APIGW2-04); " +
 		"clientCertificateId answers NotImplemented (WebSocket APIs only)"
-	deploymentNote = "a deployment of an API with no routes succeeds and serves 404 Not Found, " +
-		"and deleting a deployment a stage uses is refused with BadRequestException (the REST rule; both UNVERIFIED for HTTP APIs, APIGW2-04)"
 	// storedOnlyNote heads the StoredOnly mark of the two calls that remove
 	// stage settings understudy stores without effect.
 	storedOnlyNote = "the settings they remove are stored without effect"
-	invokeAPINote  = "Lambda AWS_PROXY with payload 1.0 and 2.0; stage and route selection as documented; " +
-		"where the documents leave the order of two matching routes open it is inferred (APIGW2-05): " +
-		"a full match on ANY before a greedy match on the method, the greedy route with more segments before its variable first, then the leftmost literal segment; " +
+	invokeAPINote  = "Lambda AWS_PROXY with payload 1.0 and 2.0; stage and route selection as documented and recorded (APIGW2-05, APIGW2-06); " +
+		"the order of two greedy routes of one method is inferred: more segments before the variable first, then the leftmost literal segment; " +
+		"HEAD reaches only HEAD and ANY routes (inferred, unrecorded); " +
 		"AWS_IAM routes, CORS requests and integrations other than Lambda AWS_PROXY answer 501; " +
-		"parameter mapping, access logging and throttling are not applied; " +
-		"inferred, UNVERIFIED: the 2.0 isBase64Encoded of a bodyless request and default Content-Type (APIGW2-07, APIGW2-09), " +
-		"the 1.0 single-value maps, resource, path and identity (APIGW2-08), " +
-		"and how a 1.0 response's headers and multiValueHeaders merge (APIGW2-09)"
+		"parameter mapping, access logging and throttling are not applied; headers over 10,240 bytes are not refused with 431; " +
+		"a 1.0 event reports header names as Go's HTTP server canonicalizes them, where AWS keeps the client's spelling"
 )
 
 // partial is a Partial mark: the base note, then note.
@@ -117,7 +113,7 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 	b.DeleteCorsConfiguration(s.deleteCORS, registry.Partial{Note: baseNote},
 		kernel.WithResources(childCollection(func(in *apigatewayv2api.DeleteCorsConfigurationInput) string { return in.ApiId }, "cors")))
 	b.TagResource(s.tagResource, registry.Partial{Note: baseNote},
-		kernel.WithCheck(func(in *apigatewayv2api.TagResourceInput) *awserr.Error { return checkTags(in.Tags) }),
+		kernel.WithCheck(func(in *apigatewayv2api.TagResourceInput) *awserr.Error { return checkTags("addedTags", in.Tags) }),
 		kernel.WithResources(tagsResource(func(in *apigatewayv2api.TagResourceInput) string { return in.ResourceArn })))
 	b.UntagResource(s.untagResource, registry.Partial{Note: baseNote},
 		kernel.WithResources(tagsResource(func(in *apigatewayv2api.UntagResourceInput) string { return in.ResourceArn })))
@@ -163,7 +159,7 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 			// percent-encoded is UNVERIFIED (apigateway-http.md 8.1, APIGW2-15).
 			return "/apis/" + in.ApiId + "/stages/" + in.StageName + "/routesettings/" + in.RouteKey
 		})))
-	b.CreateDeployment(s.createDeployment, partial(deploymentNote),
+	b.CreateDeployment(s.createDeployment, registry.Partial{Note: baseNote},
 		kernel.WithResources(childCollection(func(in *apigatewayv2api.CreateDeploymentInput) string { return in.ApiId }, "deployments")))
 	b.GetDeployments(s.getDeployments, registry.Partial{Note: baseNote},
 		kernel.WithResources(childCollection(func(in *apigatewayv2api.GetDeploymentsInput) string { return in.ApiId }, "deployments")))
@@ -171,7 +167,7 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 		kernel.WithResources(childItem(func(in *apigatewayv2api.GetDeploymentInput) (string, string) { return in.ApiId, in.DeploymentId }, "deployments")))
 	b.UpdateDeployment(s.updateDeployment, registry.Partial{Note: baseNote},
 		kernel.WithResources(childItem(func(in *apigatewayv2api.UpdateDeploymentInput) (string, string) { return in.ApiId, in.DeploymentId }, "deployments")))
-	b.DeleteDeployment(s.deleteDeployment, partial(deploymentNote),
+	b.DeleteDeployment(s.deleteDeployment, registry.Partial{Note: baseNote},
 		kernel.WithResources(childItem(func(in *apigatewayv2api.DeleteDeploymentInput) (string, string) { return in.ApiId, in.DeploymentId }, "deployments")))
 	b.InvokeApi(s.invoke, registry.Partial{Note: invokeAPINote})
 	declareAccess(d.Binder)

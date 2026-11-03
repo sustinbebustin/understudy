@@ -86,7 +86,8 @@ func TestCrossRegionFunctionSourceARNNamesTheFunctionsRegion(t *testing.T) {
 
 // The host form routes as the path fallback does (apigateway-http.md 4.2,
 // 4.4): a named stage's first segment selects it and stays in rawPath, the
-// path reaches the event escaped as sent and pathParameters decoded, and a
+// path reaches the event decoded in rawPath and pathParameters (APIGW2-07,
+// recorded 2026-11-03: 11-path-param), and a
 // Host in upper case names the same API, reported in lower case as a host
 // name is.
 func TestHostFormStagesAndPaths(t *testing.T) {
@@ -103,8 +104,8 @@ func TestHostFormStagesAndPaths(t *testing.T) {
 		}
 		ev := h.only().event(h)
 		rc := obj(h, ev, "requestContext")
-		if ev["rawPath"] != "/prod/pets/rex%20dog" || rc["stage"] != "prod" || ev["routeKey"] != "GET /pets/{name}" {
-			t.Errorf("rawPath %v, stage %v, routeKey %v; want /prod/pets/rex%%20dog, prod, GET /pets/{name}", ev["rawPath"], rc["stage"], ev["routeKey"])
+		if ev["rawPath"] != "/prod/pets/rex dog" || rc["stage"] != "prod" || ev["routeKey"] != "GET /pets/{name}" {
+			t.Errorf("rawPath %v, stage %v, routeKey %v; want /prod/pets/rex dog, prod, GET /pets/{name}", ev["rawPath"], rc["stage"], ev["routeKey"])
 		}
 		if got := strs(ev["pathParameters"]); !maps.Equal(got, map[string]string{"name": "rex dog"}) {
 			t.Errorf("pathParameters = %v, want name: rex dog", got)

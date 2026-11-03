@@ -3,8 +3,6 @@ package apigateway_test
 import (
 	"context"
 	"net/http"
-	"net/url"
-	"strings"
 	"sync"
 	"testing"
 
@@ -72,8 +70,9 @@ func (g *gate) askedAbout(id ref.OperationID) bool {
 // https://docs.aws.amazon.com/apigateway/latest/developerguide/security_iam_service-with-iam.html);
 // the resource is the ARN whose path is the operation's URI (aws-doc
 // https://docs.aws.amazon.com/apigateway/latest/developerguide/arn-format-reference.html).
-// The tag operations' resource is /tags/<encoded ARN>, UNVERIFIED
-// (APIGW1-22): the test asserts only that it decodes to the tagged ARN.
+// The tag operations ask about the tagged API itself, GET to read and
+// PATCH to change, as AWS's denials name them (APIGW1-22, recorded
+// 2026-11-03: steps 13-16; apigateway-rest.md 3.10).
 func TestStep8AsksAboutTheDocumentedPairs(t *testing.T) {
 	g := newGate()
 	run(t, func(h *harness) {
@@ -149,15 +148,9 @@ func TestStep8AsksAboutTheDocumentedPairs(t *testing.T) {
 				t.Errorf("%s asked about %v, want first %v", o, got, w)
 			}
 		}
-		tags := "arn:aws:apigateway:" + region + "::/tags/"
-		for o, action := range map[string]string{"TagResource": "apigateway:PUT", "GetTags": "apigateway:GET", "UntagResource": "apigateway:DELETE"} {
-			got := g.pairs(o)
-			if len(got) == 0 || got[0][0] != action || !strings.HasPrefix(got[0][1], tags) {
-				t.Errorf("%s asked about %v, want first %s on %s<the encoded API ARN>", o, got, action, tags)
-				continue
-			}
-			if decoded, err := url.PathUnescape(strings.TrimPrefix(got[0][1], tags)); err != nil || decoded != api {
-				t.Errorf("%s resource %s decodes to %q, %v; want %s", o, got[0][1], decoded, err, api)
+		for o, action := range map[string]string{"TagResource": "apigateway:PATCH", "GetTags": "apigateway:GET", "UntagResource": "apigateway:PATCH"} {
+			if got := g.pairs(o); len(got) == 0 || got[0] != [2]string{action, api} {
+				t.Errorf("%s asked about %v, want first [%s %s]", o, got, action, api)
 			}
 		}
 	}, kerneltest.Authorizer(g))

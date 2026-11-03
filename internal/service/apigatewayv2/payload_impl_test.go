@@ -14,7 +14,7 @@ import (
 
 // A 1.0 event on a named stage (apigateway-http.md 5.2): resource and
 // resourcePath are the route's path template and path the request's path
-// with the stage segment (both inferred, APIGW2-08), route variables
+// with the stage segment (both recorded, APIGW2-08 04-named-stage), route variables
 // decoded, the stage's variables and name, the domain the path fallback
 // reports (13.1.3), and requestId and extendedRequestId the
 // apigw-requestid header's value (the apigatewayv2.payload.unrecorded
@@ -37,8 +37,10 @@ func TestPayloadV1OnANamedStage(t *testing.T) {
 		if ev["resource"] != "/pets/{id}" || rc["resourcePath"] != "/pets/{id}" {
 			t.Errorf("resource %v, resourcePath %v; want the route's path /pets/{id}", ev["resource"], rc["resourcePath"])
 		}
-		if ev["path"] != "/prod/pets/rex%20dog" || rc["path"] != ev["path"] {
-			t.Errorf("path %v, requestContext.path %v; want /prod/pets/rex%%20dog in both", ev["path"], rc["path"])
+		// Decoded as the 2.0 rawPath is (APIGW2-07; inferred for 1.0, whose
+		// recording sent no escape).
+		if ev["path"] != "/prod/pets/rex dog" || rc["path"] != ev["path"] {
+			t.Errorf("path %v, requestContext.path %v; want /prod/pets/rex dog in both", ev["path"], rc["path"])
 		}
 		if got := strs(ev["pathParameters"]); !maps.Equal(got, map[string]string{"id": "rex dog"}) {
 			t.Errorf("pathParameters = %v, want id: rex dog", got)

@@ -169,6 +169,47 @@ func TestEventV2ReportsTheRoute(t *testing.T) {
 	}
 }
 
+// An HTTP API's 2.0 event adds content-length, "0" without a body, and
+// appends the caller's address to a client's own x-forwarded-for, where a
+// function URL does neither (APIGW2-07, recorded 2026-11-03: 01-get and
+// 14-client-xff; apigateway-http.md 5.1).
+func TestEventV2ForAnHTTPAPIAsRecorded(t *testing.T) {
+	r := httpevent.Request{
+		Method: http.MethodGet, RawPath: "/e", Protocol: "HTTP/1.1", Host: "roj3rnqmie.execute-api.us-east-2.amazonaws.com",
+		Header:   http.Header{"User-Agent": {"curl/8.23.0"}, "Accept": {"*/*"}, "X-Forwarded-For": {"203.0.113.3"}},
+		SourceIP: "198.51.100.2", Scheme: "https", Port: "443",
+	}
+	c := httpevent.Context{
+		AccountID: "123456789012", APIID: "roj3rnqmie", RouteKey: "ANY /{proxy+}", Stage: "$default",
+		RequestID: "GPqjqiQaiYcEJTw=", At: time.UnixMilli(1793677232000), TraceID: "Root=1-6ae957b0-48c100c431cc595356e7aa45",
+		Authorizer: httpevent.NoAuthorizer{},
+	}
+	raw, err := httpevent.EventV2For(r, c, httpevent.HTTPAPI{})
+	if err != nil {
+		t.Fatalf("EventV2For: %v", err)
+	}
+	var ev struct {
+		Headers map[string]string `json:"headers"`
+	}
+	if err := json.Unmarshal(raw, &ev); err != nil {
+		t.Fatalf("event %s: %v", raw, err)
+	}
+	want := map[string]string{
+		"accept": "*/*", "content-length": "0", "host": "roj3rnqmie.execute-api.us-east-2.amazonaws.com", "user-agent": "curl/8.23.0",
+		"x-amzn-trace-id": c.TraceID, "x-forwarded-for": "203.0.113.3, 198.51.100.2", "x-forwarded-port": "443", "x-forwarded-proto": "https",
+	}
+	if !reflect.DeepEqual(ev.Headers, want) {
+		t.Errorf("headers = %v\nwant      %v", ev.Headers, want)
+	}
+	fromURL, err := httpevent.EventV2For(r, c, httpevent.FunctionURL{})
+	if err != nil {
+		t.Fatalf("EventV2For: %v", err)
+	}
+	if same, err := httpevent.EventV2(r, c); err != nil || !bytes.Equal(same, fromURL) {
+		t.Errorf("EventV2 = %s, %v; want EventV2For's FunctionURL event %s", same, err, fromURL)
+	}
+}
+
 // The shared response inference answers exactly as a function URL's does
 // today (lambda-events.md 7.4), errors included.
 func TestInferV2MatchesFunctionURLResponses(t *testing.T) {

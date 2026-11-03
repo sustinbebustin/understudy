@@ -1220,7 +1220,7 @@ var descTagResource = registry.Operation{
 	Input:       &schemaTagResourceInput,
 	Output:      &schemaTagResourceOutput,
 	Errors:      []awserr.Identity{IdentityBadRequestException(), IdentityConflictException(), IdentityNotFoundException(), IdentityTooManyRequestsException()},
-	IAM:         []registry.IAMAction{{Prefix: "apigateway", Name: "POST"}, {Prefix: "apigateway", Name: "PATCH"}, {Prefix: "apigateway", Name: "PUT"}},
+	IAM:         []registry.IAMAction{{Prefix: "apigateway", Name: "PATCH"}, {Prefix: "apigateway", Name: "POST"}, {Prefix: "apigateway", Name: "PUT"}},
 	HTTP:        &registry.HTTPBinding{Method: "POST", Path: []registry.Segment{registry.Literal{Value: "v2"}, registry.Literal{Value: "tags"}, registry.Label{Name: "ResourceArn"}}},
 	SuccessCode: 201,
 }
@@ -1234,7 +1234,7 @@ var descUntagResource = registry.Operation{
 	Input:       &schemaUntagResourceInput,
 	Output:      &schemaSmithyUnit,
 	Errors:      []awserr.Identity{IdentityBadRequestException(), IdentityConflictException(), IdentityNotFoundException(), IdentityTooManyRequestsException()},
-	IAM:         []registry.IAMAction{{Prefix: "apigateway", Name: "DELETE"}, {Prefix: "apigateway", Name: "PATCH"}},
+	IAM:         []registry.IAMAction{{Prefix: "apigateway", Name: "PATCH"}, {Prefix: "apigateway", Name: "DELETE"}},
 	HTTP:        &registry.HTTPBinding{Method: "DELETE", Path: []registry.Segment{registry.Literal{Value: "v2"}, registry.Literal{Value: "tags"}, registry.Label{Name: "ResourceArn"}}},
 	SuccessCode: 204,
 }
@@ -1250,7 +1250,7 @@ var descUpdateApi = registry.Operation{
 	Errors:      []awserr.Identity{IdentityBadRequestException(), IdentityConflictException(), IdentityNotFoundException(), IdentityTooManyRequestsException()},
 	IAM:         []registry.IAMAction{{Prefix: "apigateway", Name: "PATCH"}, {Prefix: "iam", Name: "PassRole"}},
 	HTTP:        &registry.HTTPBinding{Method: "PATCH", Path: []registry.Segment{registry.Literal{Value: "v2"}, registry.Literal{Value: "apis"}, registry.Label{Name: "ApiId"}}},
-	SuccessCode: 200,
+	SuccessCode: 201,
 }
 
 var descUpdateApiMapping = registry.Operation{

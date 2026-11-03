@@ -113,6 +113,55 @@ func TestMockSelectsByStatus(t *testing.T) {
 	})
 }
 
+// What APIGW1 recorded of MOCK selection (2026-11-03; apigateway-rest.md
+// 4.7, 6.7): the 415 answer's body and error type (09); the response
+// template whose media type is the whole Accept value, else the first by
+// name, sent as application/json whatever the template (11); and of two
+// matching selection patterns neither the lower status nor the first
+// created (12).
+func TestMockSelectionAsRecorded(t *testing.T) {
+	run(t, func(h *harness) {
+		never := h.mockMethod("never", mock{templates: map[string]string{"application/json": literalStatus}, passthrough: "NEVER", responses: []integrationResponse{{status: "200"}}})
+		resp := h.getWith(never, "/s/never", map[string]string{"Content-Type": "application/xml"}, "x")
+		if body := readBody(t, resp); resp.StatusCode != http.StatusUnsupportedMediaType || body != `{"message": "Unsupported Media Type"}` ||
+			resp.Header.Get("X-Amzn-Errortype") != "BadRequestException" || resp.Header.Get("Content-Type") != "application/json" {
+			t.Errorf("415 = %d %v %q, want 415 BadRequestException application/json {\"message\": \"Unsupported Media Type\"}", resp.StatusCode, resp.Header, body)
+		}
+
+		accept := h.mockMethod("accept", mock{
+			templates: map[string]string{"application/json": literalStatus},
+			responses: []integrationResponse{{status: "200", templates: map[string]string{"application/xml": "<r>xml</r>", "text/plain": "plain"}}},
+		})
+		for value, want := range map[string]string{
+			"application/xml": "<r>xml</r>", "text/plain": "plain", "application/json": "<r>xml</r>", "": "<r>xml</r>", "text/html, text/plain": "<r>xml</r>",
+		} {
+			headers := map[string]string{}
+			if value != "" {
+				headers["Accept"] = value
+			}
+			resp := h.getWith(accept, "/s/accept", headers, "")
+			if body, ct := readBody(t, resp), resp.Header.Get("Content-Type"); body != want || ct != "application/json" {
+				t.Errorf("Accept %q = %q %s, want %q application/json", value, body, ct, want)
+			}
+		}
+
+		for _, c := range []struct {
+			name      string
+			responses []integrationResponse
+			want      int
+		}{
+			{"tie-a", []integrationResponse{{status: "200"}, {status: "400", pattern: `4\d{2}`}, {status: "404", pattern: "404"}}, http.StatusBadRequest},
+			{"tie-b", []integrationResponse{{status: "200"}, {status: "404", pattern: "404"}, {status: "400", pattern: `4\d{2}`}}, http.StatusBadRequest},
+			{"tie-c", []integrationResponse{{status: "200"}, {status: "499", pattern: `4\d{2}`}, {status: "401", pattern: `40\d`}}, 499},
+		} {
+			id := h.mockMethod(c.name, mock{templates: map[string]string{"application/json": `{"statusCode": 404}`}, responses: c.responses})
+			if rec := h.get(id, "/s/"+c.name); rec.Code != c.want {
+				t.Errorf("%s = %d, want %d", c.name, rec.Code, c.want)
+			}
+		}
+	})
+}
+
 // Anchoring, order, template choice and media type matching are switch
 // apigateway.mock.selection (APIGW1-09, -11, -12): the test reads each
 // field and asserts understudy follows it.
@@ -130,35 +179,19 @@ func TestMockSelectionFollowsTheSwitch(t *testing.T) {
 		if rec := h.get(anchored, "/s/anchor"); rec.Code != want {
 			t.Errorf("pattern 0 against 404 = %d, want %d (PatternFullMatch %v)", rec.Code, want, sw.PatternFullMatch)
 		}
+		// .+ sorts before and is shorter than 4\d\d (PatternOrder).
 		ordered := h.mockMethod("order", mock{
 			templates: map[string]string{"application/json": `{"statusCode": 404}`},
-			responses: []integrationResponse{{status: "500", pattern: `4\d\d`}, {status: "400", pattern: `\d+`}, {status: "200"}},
+			responses: []integrationResponse{{status: "500", pattern: `4\d\d`}, {status: "400", pattern: `.+`}, {status: "200"}},
 		})
-		want = http.StatusInternalServerError
-		if sw.AscendingStatus {
-			want = http.StatusBadRequest
-		}
-		if rec := h.get(ordered, "/s/order"); rec.Code != want {
-			t.Errorf("two matching patterns = %d, want %d (AscendingStatus %v)", rec.Code, want, sw.AscendingStatus)
-		}
-		accept := h.mockMethod("accept", mock{
-			templates: map[string]string{"application/json": literalStatus},
-			responses: []integrationResponse{{status: "200", templates: map[string]string{"application/json": "J", "text/plain": "T"}}},
-		})
-		resp := h.getWith(accept, "/s/accept", map[string]string{"Accept": "text/plain"}, "")
-		body, ct := readBody(t, resp), resp.Header.Get("Content-Type")
-		wantBody, wantCT := "J", "application/json"
-		if sw.TemplateByAccept {
-			wantBody, wantCT = "T", "text/plain"
-		}
-		if body != wantBody || ct != wantCT {
-			t.Errorf("Accept text/plain = %q %s, want %q %s (TemplateByAccept %v)", body, ct, wantBody, wantCT, sw.TemplateByAccept)
+		if rec := h.get(ordered, "/s/order"); rec.Code != http.StatusInternalServerError {
+			t.Errorf("two matching patterns = %d, want 500 (PatternOrder %v)", rec.Code, sw.PatternOrder)
 		}
 		essence := h.mockMethod("essence", mock{
 			templates: map[string]string{"application/json": literalStatus}, passthrough: "NEVER",
 			responses: []integrationResponse{{status: "200"}},
 		})
-		resp = h.getWith(essence, "/s/essence", map[string]string{"Content-Type": "Application/JSON; charset=utf-8"}, "x")
+		resp := h.getWith(essence, "/s/essence", map[string]string{"Content-Type": "Application/JSON; charset=utf-8"}, "x")
 		readBody(t, resp)
 		want = sw.UnsupportedMediaType.Status
 		if sw.MediaTypeEssence {

@@ -3,8 +3,6 @@ package apigatewayv2_test
 import (
 	"context"
 	"net/http"
-	"net/url"
-	"strings"
 	"sync"
 	"testing"
 
@@ -80,10 +78,10 @@ func (g *gate) askedAbout(id ref.OperationID) bool {
 // the method each operation's HTTP binding names (apigateway-http.md 2.2),
 // and the resource the ARN reference gives it: the Apis, Routes,
 // Integrations, Stages and Deployments collections for creates and lists,
-// the Api, Route, Integration, Stage and Deployment items otherwise, and
-// /tags/<url-encoded-resource-arn> for the tag operations
+// the Api, Route, Integration, Stage and Deployment items otherwise
 // (https://docs.aws.amazon.com/apigateway/latest/developerguide/arn-format-reference.html,
-// apigateway-http.md 2.5, 8.1).
+// apigateway-http.md 2.5, 8.1), and the tagged resource for the tag
+// operations (APIGW2-15, recorded).
 func TestStep8AsksAboutTheDocumentedPairs(t *testing.T) {
 	g := newGate()
 	run(t, func(h *harness) {
@@ -138,15 +136,12 @@ func TestStep8AsksAboutTheDocumentedPairs(t *testing.T) {
 				t.Errorf("%s asked about %v, want exactly %v", op, got, w)
 			}
 		}
-		tags := "arn:aws:apigateway:" + region + "::/tags/"
-		for op, method := range map[string]string{"TagResource": "apigateway:POST", "GetTags": "apigateway:GET", "UntagResource": "apigateway:DELETE"} {
-			got := g.pairs(op)
-			if len(got) != 1 || got[0][0] != method || !strings.HasPrefix(got[0][1], tags) {
-				t.Errorf("%s asked about %v, want %s on %s<the encoded API ARN>", op, got, method, tags)
-				continue
-			}
-			if decoded, err := url.PathUnescape(strings.TrimPrefix(got[0][1], tags)); err != nil || decoded != api {
-				t.Errorf("%s resource %s decodes to %q, %v; want %s", op, got[0][1], decoded, err, api)
+		// The tag operations are authorized on the tagged resource itself,
+		// GET to read and PATCH to change (APIGW2-15, recorded 2026-11-03:
+		// steps 13-15; apigateway-http.md 8.1).
+		for op, method := range map[string]string{"TagResource": "apigateway:PATCH", "GetTags": "apigateway:GET", "UntagResource": "apigateway:PATCH"} {
+			if got := g.pairs(op); len(got) != 1 || got[0] != [2]string{method, api} {
+				t.Errorf("%s asked about %v, want exactly [%s %s]", op, got, method, api)
 			}
 		}
 	}, kerneltest.Authorizer(g))

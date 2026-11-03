@@ -45,11 +45,10 @@ type Permission struct {
 }
 
 // RouteMatching is the value of apigatewayv2.route.matching: the matcher's
-// choices, and the answer to a matched route without a target
-// (apigateway-http.md 3.2, 4.4).
+// choices (apigateway-http.md 4.4). A route without a target takes no part
+// in routing (APIGW2-05, recorded), which needs no choice.
 type RouteMatching struct {
 	route.Matching
-	NoTarget GatewayAnswer
 }
 
 // DeploymentRule is how the control plane meets one of the deployment
@@ -162,15 +161,21 @@ const researchRef = "docs/research/apigateway-http.md#"
 // invokeAPI is the data plane's operation id, which every switch governs.
 const invokeAPI = "apigatewayv2.InvokeApi"
 
-// unrecorded is the Settles of a switch the named recording cases settle.
-func unrecorded(cases string) fidelity.Settles {
-	return fidelity.NoScenario{Reason: "unrecorded: " + cases + " (apigateway-http.md 14) records it"}
+// recorded is the Settles of a switch the named recording cases recorded:
+// their fixtures stay evidence only, since the replayer routes neither
+// restJson1 nor execute-api requests (testdata/README.md, Replay
+// scenarios).
+func recorded(cases string) fidelity.Settles {
+	return fidelity.NoScenario{Reason: cases + " recorded 2026-11-03 (testdata/parity/apigatewayv2); the replayer does not route restJson1 or execute-api requests"}
 }
 
-// FailureAnswersSwitch is apigatewayv2.lambda.failure-answers. The HTTP
-// API troubleshooting page documents the 500 body for malformed output;
-// its status, the timeout and size answers are inferred (5.6, 4.7, 12 item
-// 1).
+// FailureAnswersSwitch is apigatewayv2.lambda.failure-answers, recorded by
+// APIGW2-10 on 2026-11-03 (5.6, 4.7): a function error 500 Internal Server
+// Error, a timeout 503 Service Unavailable, and 413 Request Entity Too
+// Large for a body over 10,000,000 bytes (10,000,001 was refused) and an
+// event over Lambda's 6 MB. AWS answers a body over 10 MiB from a front
+// layer without Content-Type or apigw-requestid; understudy's 413 carries
+// both at every size.
 func FailureAnswersSwitch() fidelity.Switch[FailureAnswers] {
 	return fidelity.Switch[FailureAnswers]{
 		Name: "apigatewayv2.lambda.failure-answers",
@@ -178,20 +183,21 @@ func FailureAnswersSwitch() fidelity.Switch[FailureAnswers] {
 			FunctionError: GatewayAnswer{Status: http.StatusInternalServerError, Message: "Internal Server Error"},
 			Timeout:       GatewayAnswer{Status: http.StatusServiceUnavailable, Message: "Service Unavailable"},
 			TooLarge:      GatewayAnswer{Status: http.StatusRequestEntityTooLarge, Message: "Request Entity Too Large"},
-			MaxBody:       10_485_760,
+			MaxBody:       10_000_000,
 			MaxEvent:      6_291_456,
 		},
-		Label:   evidence.Inferred,
+		Label:   evidence.AWSRecorded,
 		Ref:     researchRef + "56-failures-function-errors-malformed-output-timeouts",
 		Record:  "APIGW2-10",
 		Ops:     []string{invokeAPI},
-		Settles: unrecorded("APIGW2-10"),
+		Settles: recorded("APIGW2-10"),
 	}
 }
 
-// PermissionSwitch is apigatewayv2.lambda.permission. The $default form
-// and the denial body are documented; the other form and the status are
-// inferred (5.5, 8.4).
+// PermissionSwitch is apigatewayv2.lambda.permission, recorded by
+// APIGW2-11 on 2026-11-03 (5.5, 8.4): the source ARN uses the route key's
+// template and ANY as written, a named stage its name, and a denial
+// answers 500 Internal Server Error without running the function.
 func PermissionSwitch() fidelity.Switch[Permission] {
 	return fidelity.Switch[Permission]{
 		Name: "apigatewayv2.lambda.permission",
@@ -199,47 +205,55 @@ func PermissionSwitch() fidelity.Switch[Permission] {
 			SourceARN: "<api-id>/<stage>/<METHOD>/<route path without its leading slash>, the route key's template and ANY as written; <api-id>/<stage>/$default for the $default route",
 			Denial:    GatewayAnswer{Status: http.StatusInternalServerError, Message: "Internal Server Error"},
 		},
-		Label:   evidence.Inferred,
+		Label:   evidence.AWSRecorded,
 		Ref:     researchRef + "55-invocation-credentials-and-the-resource-policy",
 		Record:  "APIGW2-11",
 		Ops:     []string{invokeAPI},
-		Settles: unrecorded("APIGW2-11"),
+		Settles: recorded("APIGW2-11"),
 	}
 }
 
-// RouteMatchingSwitch is apigatewayv2.route.matching (3.2, 4.4, 12 item
-// 9).
+// RouteMatchingSwitch is apigatewayv2.route.matching (4.4, 12 item 9).
+// APIGW2-05 recorded on 2026-11-03 that literal segments match
+// case-sensitively and /a/ does not match /a; whether HEAD reaches a GET
+// route stays unrecorded (the HEAD answer has no body to show the route),
+// so the switch stays inferred.
 func RouteMatchingSwitch() fidelity.Switch[RouteMatching] {
 	return fidelity.Switch[RouteMatching]{
 		Name: "apigatewayv2.route.matching",
 		Value: RouteMatching{
 			Matching: route.Matching{CaseSensitive: true, TrailingSlashDistinct: true, HeadMatchesGet: false},
-			NoTarget: GatewayAnswer{Status: http.StatusNotFound, Message: "Not Found"},
 		},
 		Label:   evidence.Inferred,
 		Ref:     researchRef + "44-methods-head-trailing-slashes-case-and-decoding",
 		Record:  "APIGW2-05",
 		Ops:     []string{invokeAPI},
-		Settles: unrecorded("APIGW2-05"),
+		Settles: fidelity.NoScenario{Reason: "unrecorded: APIGW2-05 step 07 (HEAD) answered without a body, so the route it reached is unknown; the case and trailing-slash choices are recorded"},
 	}
 }
 
-// FrontAnswersSwitch is apigatewayv2.front.answers. The Not Found bodies
-// are documented, their status and the rest inferred (3.1, 3.5, 4.2, 4.5).
+// FrontAnswersSwitch is apigatewayv2.front.answers (3.1, 3.5, 4.2, 4.5).
+// APIGW2-06 and APIGW2-04 recorded on 2026-11-03 every choice but one: a
+// stage segment shadows a $default route, a disabled default endpoint,
+// no stage, a stage without a deployment and no route answer 404
+// {"message":"Not Found"} with Content-Type application/json, deploying
+// an API with no routes, deleting a deployment a stage serves and setting
+// a deployment on an autoDeploy stage are refused. An unknown API id has
+// no answer on AWS, whose execute-api name for it does not resolve;
+// understudy's 403 Forbidden is its own, so the switch stays inferred.
 func FrontAnswersSwitch() fidelity.Switch[FrontAnswers] {
-	forbidden := GatewayAnswer{Status: http.StatusForbidden, Message: "Forbidden"}
 	notFound := GatewayAnswer{Status: http.StatusNotFound, Message: "Not Found"}
 	return fidelity.Switch[FrontAnswers]{
 		Name: "apigatewayv2.front.answers",
 		Value: FrontAnswers{
 			StageSegmentWins: true,
-			UnknownAPI:       forbidden,
-			DisabledEndpoint: forbidden,
+			UnknownAPI:       GatewayAnswer{Status: http.StatusForbidden, Message: "Forbidden"},
+			DisabledEndpoint: notFound,
 			NoStage:          notFound,
 			NoDeployment:     notFound,
 			NoRoute:          notFound,
 			ContentType:      "application/json",
-			Deployments:      Deployments{DeleteInUse: Refused, EmptyAPI: Allowed, ExplicitOnAutoDeploy: Refused},
+			Deployments:      Deployments{DeleteInUse: Refused, EmptyAPI: Refused, ExplicitOnAutoDeploy: Refused},
 		},
 		Label:  evidence.Inferred,
 		Ref:    researchRef + "45-responses-api-gateway-generates-itself",
@@ -248,12 +262,19 @@ func FrontAnswersSwitch() fidelity.Switch[FrontAnswers] {
 			invokeAPI, "apigatewayv2.CreateDeployment", "apigatewayv2.DeleteDeployment",
 			"apigatewayv2.CreateStage", "apigatewayv2.UpdateStage",
 		},
-		Settles: unrecorded("APIGW2-06 and APIGW2-04"),
+		Settles: fidelity.NoScenario{Reason: "unrecordable: an unknown API id's execute-api name does not resolve on AWS (APIGW2-06 step 08); the other choices are recorded (APIGW2-06, APIGW2-04)"},
 	}
 }
 
 // PayloadSwitch is apigatewayv2.payload.unrecorded (5.1-5.4, 12 items 3, 6
-// and 10).
+// and 10). APIGW2-07, APIGW2-08 and APIGW2-09 recorded every choice on
+// 2026-11-03: a bodyless 2.0 event's isBase64Encoded is false, requestId is
+// the apigw-requestid header, a response without a Content-Type gets
+// text/plain; charset=utf-8 under both formats, a 2.0 response's
+// multiValueHeaders is ignored, and the 1.0 single-value maps keep a
+// repeated header's and a repeated query parameter's last value (the
+// guide's example keeps the first query value). The replayer does not
+// route data-plane requests, so no scenario replays them.
 func PayloadSwitch() fidelity.Switch[PayloadChoices] {
 	return fidelity.Switch[PayloadChoices]{
 		Name: "apigatewayv2.payload.unrecorded",
@@ -263,13 +284,13 @@ func PayloadSwitch() fidelity.Switch[PayloadChoices] {
 			DefaultContentType:  "text/plain; charset=utf-8",
 			V2MultiValueHeaders: false,
 			V1Header:            Last,
-			V1Query:             First,
+			V1Query:             Last,
 		},
-		Label:   evidence.Inferred,
+		Label:   evidence.AWSRecorded,
 		Ref:     researchRef + "51-payload-format-20-request-event",
 		Record:  "APIGW2-07, APIGW2-08, APIGW2-09",
 		Ops:     []string{invokeAPI},
-		Settles: unrecorded("APIGW2-07, APIGW2-08 and APIGW2-09"),
+		Settles: recorded("APIGW2-07, APIGW2-08 and APIGW2-09"),
 	}
 }
 

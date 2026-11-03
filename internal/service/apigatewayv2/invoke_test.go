@@ -164,7 +164,7 @@ func TestInvocationIsJournaledAsTheCallsChild(t *testing.T) {
 // joined with commas, header names lowercased, cookies out of the
 // headers, a text body as sent with isBase64Encoded false.
 // requestContext.requestId equals the apigw-requestid header as the
-// apigatewayv2.payload.unrecorded switch says (UNVERIFIED, APIGW2-07).
+// apigatewayv2.payload.unrecorded switch says (recorded, APIGW2-07).
 func TestEventV2Request(t *testing.T) {
 	choices := apigatewayv2.PayloadSwitch().Value
 	run(t, func(h *harness) {
@@ -302,8 +302,8 @@ func TestStageSegmentFollowsTheSwitch(t *testing.T) {
 // 5.2) and answers with the documented 1.0 response format (5.4); which
 // repeated header and query value the single-value maps keep is the
 // apigatewayv2.payload.unrecorded switch's V1Header and V1Query
-// (UNVERIFIED, APIGW2-08), and a response without Content-Type gets the
-// switch's DefaultContentType (APIGW2-09).
+// (recorded, APIGW2-08), and a response without Content-Type gets the
+// switch's DefaultContentType (recorded, APIGW2-09).
 func TestPayloadV1(t *testing.T) {
 	choices := apigatewayv2.PayloadSwitch().Value
 	pick := func(p apigatewayv2.Pick, first, last string) string {
@@ -332,8 +332,9 @@ func TestPayloadV1(t *testing.T) {
 		if got := strs(ev["queryStringParameters"])["q"]; got != pick(choices.V1Query, "1", "2") {
 			t.Errorf("queryStringParameters.q = %q, want V1Query %v of 1, 2", got, choices.V1Query)
 		}
-		if got := strs(ev["headers"])["x-h"]; got != pick(choices.V1Header, "first", "last") {
-			t.Errorf("headers.x-h = %q, want V1Header %v of first, last", got, choices.V1Header)
+		// The header name keeps the case it was sent in (APIGW2-08).
+		if got := strs(ev["headers"])["X-H"]; got != pick(choices.V1Header, "first", "last") {
+			t.Errorf("headers.X-H = %q, want V1Header %v of first, last", got, choices.V1Header)
 		}
 		if mv, ok := obj(h, ev, "multiValueQueryStringParameters")["q"].([]any); !ok || !slices.Equal(mv, []any{"1", "2"}) {
 			t.Errorf("multiValueQueryStringParameters.q = %v, want [1 2]", mv)
@@ -348,7 +349,7 @@ func TestPayloadV1(t *testing.T) {
 // statusCode is a 200 application/json body, a bare string the string
 // itself (the unit's conflict row 6); a structured response without a
 // Content-Type gets the apigatewayv2.payload.unrecorded switch's
-// DefaultContentType (UNVERIFIED, APIGW2-09).
+// DefaultContentType (recorded, APIGW2-09).
 func TestResponseV2(t *testing.T) {
 	run(t, func(h *harness) {
 		id, _ := h.lambdaAPI("2.0", "GET /hello")
@@ -368,6 +369,33 @@ func TestResponseV2(t *testing.T) {
 	})
 }
 
+// What APIGW2-09 recorded of 2.0 responses (2026-11-03,
+// apigateway-http.md 5.3): output without a statusCode is relayed as the
+// function wrote it, a statusCode may be a string of digits, a number
+// header value is its JSON text, and cookies are sent before a set-cookie
+// header.
+func TestResponseV2AsRecorded(t *testing.T) {
+	run(t, func(h *harness) {
+		id, _ := h.lambdaAPI("2.0", "GET /hello")
+		h.fn.answer(`{"body": "x", "headers": {"x-a": "b"}}`)
+		if rec := h.get(id, "/hello"); rec.Code != http.StatusOK || rec.Body.String() != `{"body": "x", "headers": {"x-a": "b"}}` || rec.Header().Get("Content-Type") != "application/json" {
+			t.Errorf("object without statusCode = %d %q %q, want 200 application/json and the output as written", rec.Code, rec.Header().Get("Content-Type"), rec.Body)
+		}
+		h.fn.answer(`{"statusCode":"201","body":"x"}`)
+		if rec := h.get(id, "/hello"); rec.Code != http.StatusCreated || rec.Body.String() != "x" {
+			t.Errorf("statusCode \"201\" = %d %q, want 201 x", rec.Code, rec.Body)
+		}
+		h.fn.answer(`{"statusCode":200,"headers":{"x-n":1},"body":"x"}`)
+		if rec := h.get(id, "/hello"); rec.Code != http.StatusOK || rec.Header().Get("X-N") != "1" {
+			t.Errorf("number header = %d %v, want 200 with x-n: 1", rec.Code, rec.Header())
+		}
+		h.fn.answer(`{"statusCode":200,"cookies":["a=1; Path=/","b=2"],"headers":{"set-cookie":"c=3"},"body":"x"}`)
+		if got := h.get(id, "/hello").Header().Values("Set-Cookie"); !slices.Equal(got, []string{"a=1; Path=/", "b=2", "c=3"}) {
+			t.Errorf("set-cookie = %q, want [a=1; Path=/ b=2 c=3]", got)
+		}
+	})
+}
+
 // The answers API Gateway gives before any integration runs, each the
 // apigatewayv2.front.answers or route.matching switch's (apigateway-http.md
 // 4.5: Not Found for no stage and no route is documented, the rest
@@ -380,7 +408,7 @@ func TestGatewayAnswers(t *testing.T) {
 		id, _ := h.lambdaAPI("2.0", "GET /hello")
 		h.createRoute(id, "GET /bare", "")
 		wantAnswer(t, h.get(id, "/nothing"), front.NoRoute, "no route")
-		wantAnswer(t, h.get(id, "/bare"), apigatewayv2.RouteMatchingSwitch().Value.NoTarget, "a route without a target")
+		wantAnswer(t, h.get(id, "/bare"), front.NoRoute, "only a route without a target")
 
 		noStage := h.apiID("no-stage")
 		h.createRoute(noStage, "GET /hello", "")
@@ -391,6 +419,51 @@ func TestGatewayAnswers(t *testing.T) {
 		must(h, apigatewayv2api.OpCreateStage, stageInput(undeployed, "$default"))
 		wantAnswer(t, h.get(undeployed, "/hello"), front.NoDeployment, "a stage without a deployment")
 		h.notInvoked("gateway answers")
+	})
+}
+
+// A route without a target takes no part in routing: GET /noint reaches
+// ANY /{proxy+} (APIGW2-05, recorded 2026-11-03: step 17;
+// apigateway-http.md 3.2). A disabled default endpoint answers 404
+// {"message":"Not Found"} (APIGW2-06 step 09).
+func TestFrontAsRecorded(t *testing.T) {
+	run(t, func(h *harness) {
+		id, _ := h.lambdaAPI("2.0", "ANY /{proxy+}")
+		h.createRoute(id, "GET /noint", "")
+		if rec := h.get(id, "/noint"); rec.Code != http.StatusOK {
+			t.Fatalf("GET /noint = %d %s, want the function's 200", rec.Code, rec.Body)
+		}
+		if got := h.only().event(h)["routeKey"]; got != "ANY /{proxy+}" {
+			t.Errorf("routeKey = %v, want ANY /{proxy+}", got)
+		}
+		must(h, apigatewayv2api.OpUpdateApi, &apigatewayv2api.UpdateApiInput{ApiId: id, DisableExecuteApiEndpoint: new(true)})
+		wantAnswer(t, h.get(id, "/noint"), apigatewayv2.GatewayAnswer{Status: http.StatusNotFound, Message: "Not Found"}, "a disabled endpoint")
+	})
+}
+
+// The request path is percent-decoded and its slash runs collapsed before
+// routing, and the 2.0 event's rawPath is that decoded path (APIGW2-05,
+// recorded 2026-11-03: steps 13 to 15; APIGW2-07 steps 11 and 12;
+// apigateway-http.md 4.4).
+func TestRequestPathAsRecorded(t *testing.T) {
+	run(t, func(h *harness) {
+		id, _ := h.lambdaAPI("2.0", "GET /pets/dog/1", "GET /enc/{p}", "ANY /{proxy+}")
+		for _, c := range []struct{ path, routeKey, rawPath string }{
+			{"//pets/dog/1", "GET /pets/dog/1", "/pets/dog/1"},
+			{"/enc/a%2Fb", "ANY /{proxy+}", "/enc/a/b"},
+			{"/enc/a%20b", "GET /enc/{p}", "/enc/a b"},
+			{"/pets/dog/%31", "GET /pets/dog/1", "/pets/dog/1"},
+		} {
+			before := len(h.fn.invocations())
+			if rec := h.get(id, c.path); rec.Code != http.StatusOK {
+				t.Errorf("GET %s = %d %s, want the function's 200", c.path, rec.Code, rec.Body)
+				continue
+			}
+			ev := h.fn.invocations()[before].event(h)
+			if ev["routeKey"] != c.routeKey || ev["rawPath"] != c.rawPath {
+				t.Errorf("GET %s: routeKey %v, rawPath %v; want %s and %s", c.path, ev["routeKey"], ev["rawPath"], c.routeKey, c.rawPath)
+			}
+		}
 	})
 }
 

@@ -89,8 +89,9 @@ func TestEventV1Identity(t *testing.T) {
 }
 
 // Cookie stays a header under 1.0 (the guide's example has no cookies
-// member), and the front's own headers are set over the client's in both
-// header maps.
+// member), the front's own headers are set over the client's in both
+// header maps, and a client's X-Forwarded-For gets the caller's address
+// appended, as in 2.0 (APIGW2-07; inferred for 1.0).
 func TestEventV1Headers(t *testing.T) {
 	r := v1Request()
 	r.Header.Set("Cookie", "a=1; b=2")
@@ -101,11 +102,12 @@ func TestEventV1Headers(t *testing.T) {
 	if _, ok := members(t, raw)["cookies"]; ok {
 		t.Errorf("event has a cookies member: %s", raw)
 	}
-	if ev.Headers["cookie"] != "a=1; b=2" || !slices.Equal(ev.MultiValueHeaders["cookie"], []string{"a=1; b=2"}) {
-		t.Errorf("cookie header %q, multi %q; want a=1; b=2 as sent", ev.Headers["cookie"], ev.MultiValueHeaders["cookie"])
+	if ev.Headers["Cookie"] != "a=1; b=2" || !slices.Equal(ev.MultiValueHeaders["Cookie"], []string{"a=1; b=2"}) {
+		t.Errorf("Cookie header %q, multi %q; want a=1; b=2 as sent", ev.Headers["Cookie"], ev.MultiValueHeaders["Cookie"])
 	}
 	for name, want := range map[string]string{
-		"host": r.Host, "x-forwarded-for": r.SourceIP, "x-forwarded-proto": "http", "x-forwarded-port": "4566", "x-amzn-trace-id": c.TraceID,
+		"Host": r.Host, "X-Forwarded-For": "203.0.113.9, " + r.SourceIP, "X-Forwarded-Proto": "http", "X-Forwarded-Port": "4566", "X-Amzn-Trace-Id": c.TraceID,
+		"Content-Length": "18",
 	} {
 		if ev.Headers[name] != want || !slices.Equal(ev.MultiValueHeaders[name], []string{want}) {
 			t.Errorf("%s = %q, multi %q; want the front's %q in both", name, ev.Headers[name], ev.MultiValueHeaders[name], want)

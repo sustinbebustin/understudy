@@ -231,10 +231,6 @@ func (v *CreateIntegrationInput) validate(path awserr.Path, out *[]awserr.Violat
 	}
 	if v.missing&(1<<1) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "integrationType"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
-	} else {
-		if !v.IntegrationType.Known() {
-			*out = append(*out, awserr.Violation{Path: at(path, "integrationType"), Value: awserr.RenderedText{Text: string(v.IntegrationType)}, Constraint: awserr.Enum{Values: []string{"AWS", "HTTP", "MOCK", "HTTP_PROXY", "AWS_PROXY"}}})
-		}
 	}
 	if v.PassthroughBehavior != nil {
 		if !(*v.PassthroughBehavior).Known() {
@@ -2771,7 +2767,7 @@ var policyCreateIntegration = validationPolicy{
 		{segments: []string{"responseParameters", "*", "member", "*"}, param: "ResponseParameters"},
 		{segments: []string{"responseParameters", "*", "member", "*", "member"}, param: "ResponseParameters"},
 		{segments: []string{"templateSelectionExpression"}, param: "TemplateSelectionExpression"},
-		{segments: []string{"timeoutInMillis"}, param: "TimeoutInMillis"},
+		{segments: []string{"timeoutInMillis"}, param: "TimeoutInMillis", rules: []validationRule{{kinds: kindRange, id: IdentityBadRequestException, style: styleFixed, reason: "Timeout should be between 50 ms and 30000 ms"}}},
 		{segments: []string{"tlsConfig"}, param: "TlsConfig"},
 		{segments: []string{"tlsConfig", "serverNameToVerify"}, param: "ServerNameToVerify"},
 	},
@@ -4331,7 +4327,7 @@ var policyUpdateIntegration = validationPolicy{
 		{segments: []string{"responseParameters", "*", "member", "*"}, param: "ResponseParameters"},
 		{segments: []string{"responseParameters", "*", "member", "*", "member"}, param: "ResponseParameters"},
 		{segments: []string{"templateSelectionExpression"}, param: "TemplateSelectionExpression"},
-		{segments: []string{"timeoutInMillis"}, param: "TimeoutInMillis"},
+		{segments: []string{"timeoutInMillis"}, param: "TimeoutInMillis", rules: []validationRule{{kinds: kindRange, id: IdentityBadRequestException, style: styleFixed, reason: "Timeout should be between 50 ms and 30000 ms"}}},
 		{segments: []string{"tlsConfig"}, param: "TlsConfig"},
 		{segments: []string{"tlsConfig", "serverNameToVerify"}, param: "ServerNameToVerify"},
 	},

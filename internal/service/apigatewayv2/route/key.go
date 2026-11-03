@@ -36,8 +36,9 @@ type Key interface{ isKey() }
 type Default struct{}
 
 // Keyed is a route key "<METHOD> <path>". Segments are the path's
-// segments after its leading slash, so "/" is one empty Literal and a
-// trailing slash is a last empty Literal.
+// segments after its leading slash, so "/" is one empty Literal; no other
+// segment is empty, since AWS refuses a key with an empty path part
+// (APIGW2-01).
 type Keyed struct {
 	Method   Method
 	Segments []Segment
@@ -86,7 +87,8 @@ func (Greedy) isSegment()  {}
 type KeyError struct {
 	// Key is the route key as sent.
 	Key string
-	// Problem names the constraint the key breaks, as a clause.
+	// Problem is the text AWS answers the key with, where APIGW2-01
+	// recorded one, else understudy's clause naming the constraint.
 	Problem string
 }
 
@@ -94,42 +96,46 @@ func (e *KeyError) Error() string {
 	return fmt.Sprintf("route key %q is not valid: %s", e.Key, e.Problem)
 }
 
-// methods are the route key methods, in the order a KeyError lists them.
+// The refusals' texts, as AWS sent them (APIGW2-01, recorded 2026-11-03:
+// steps 10 to 13 and 14.1's "GET /slash/"; apigateway-http.md 2.3, 3.2).
+const (
+	problemFormat = `The provided route key is not formatted properly for HTTP protocol. Format should be "[HTTP METHOD] /[RESOURCE PATH]" or "$default"`
+	problemEmpty  = "Part of the given route key path is empty"
+	problemGreedy = "Greedy variables may only be in last position of route key"
+	problemPart   = `One or more path parts appear to be invalid. Parts are validated against this regular expression: ^(\{[\w.:-]+\+?\}|[a-zA-Z0-9.:_-]+)$`
+)
+
+// methods are the route key methods.
 func methods() []Method {
 	return []Method{MethodAny, MethodDelete, MethodGet, MethodHead, MethodOptions, MethodPatch, MethodPost, MethodPut}
 }
 
-// variableName is the name inside {name} or {name+}. The documents give no
-// character set (apigateway-http.md 3.2); this one, inferred, holds every
-// name their examples and Terraform's use.
-var variableName = regexp.MustCompile(`^[A-Za-z0-9._-]+$`)
+// pathPart is the expression AWS validates each path part against, as its
+// refusal quotes it (APIGW2-01 step 13); Java's \w is [A-Za-z0-9_].
+var pathPart = regexp.MustCompile(`^(\{[A-Za-z0-9_.:-]+\+?\}|[a-zA-Z0-9.:_-]+)$`)
 
 // ParseKey parses a route key (apigateway-http.md 2.4, 3.2, 13.5):
 // "$default", or exactly "<METHOD> <path>" with an upper-case METHOD of
-// methods and a path starting with "/". The path's segments are literals,
-// {name} variables and, last only, one {name+} greedy variable; a name
-// appears once, a literal holds no brace, and only the last segment may
-// be empty, so "/" is one empty literal and "/a/" ends with one. The
-// problems' wording is inferred (APIGW2-01).
+// methods and a path starting with "/". Each path part is a literal of
+// [a-zA-Z0-9.:_-], a {name} variable or, last only, one {name+} greedy
+// variable, and none is empty but the root's, so "/" is one empty literal
+// and "/a/" is refused (APIGW2-01, recorded). A name appears once (the
+// text of that refusal is understudy's).
 func ParseKey(s string) (Key, *KeyError) {
 	if s == "$default" {
 		return Default{}, nil
 	}
 	refuse := func(problem string) (Key, *KeyError) { return nil, &KeyError{Key: s, Problem: problem} }
 	method, path, ok := strings.Cut(s, " ")
-	if !ok {
-		return refuse(`it is neither $default nor "<METHOD> <path>"`)
-	}
-	if !slices.Contains(methods(), Method(method)) {
-		names := make([]string, 0, len(methods()))
-		for _, m := range methods() {
-			names = append(names, string(m))
-		}
-		return refuse(fmt.Sprintf("method %q is not one of %s", method, strings.Join(names, ", ")))
+	if !ok || !slices.Contains(methods(), Method(method)) {
+		return refuse(problemFormat)
 	}
 	rest, ok := strings.CutPrefix(path, "/")
 	if !ok {
-		return refuse(fmt.Sprintf("path %q does not start with /", path))
+		return refuse(problemFormat)
+	}
+	if rest == "" {
+		return Keyed{Method: Method(method), Segments: []Segment{Literal{}}}, nil
 	}
 	segs, problem := parseSegments(strings.Split(rest, "/"))
 	if problem != "" {
@@ -138,60 +144,50 @@ func ParseKey(s string) (Key, *KeyError) {
 	return Keyed{Method: Method(method), Segments: segs}, nil
 }
 
-// parseSegments reads a path's segments, or says why they are not a route
+// parseSegments reads a path's parts, or says why they are not a route
 // key's.
 func parseSegments(parts []string) (segs []Segment, problem string) {
 	segs = make([]Segment, 0, len(parts))
 	names := map[string]bool{}
 	for i, part := range parts {
-		last := i == len(parts)-1
-		if part == "" && !last {
-			return nil, "the path has an empty segment before its end"
+		if part == "" {
+			return nil, problemEmpty
 		}
-		seg, problem := parseSegment(part)
-		if problem != "" {
-			return nil, problem
+		if !pathPart.MatchString(part) {
+			return nil, problemPart
 		}
 		var name string
-		switch seg := seg.(type) {
+		switch seg := parseSegment(part).(type) {
 		case Var:
 			name = seg.Name
+			segs = append(segs, seg)
 		case Greedy:
-			if !last {
-				return nil, fmt.Sprintf("greedy variable {%s+} is not the last segment", seg.Name)
+			if i != len(parts)-1 {
+				return nil, problemGreedy
 			}
 			name = seg.Name
+			segs = append(segs, seg)
 		case Literal:
 			segs = append(segs, seg)
 			continue
 		}
 		if names[name] {
-			return nil, fmt.Sprintf("variable name %q appears twice", name)
+			return nil, fmt.Sprintf("variable name %q appears twice in the route key", name)
 		}
 		names[name] = true
-		segs = append(segs, seg)
 	}
 	return segs, ""
 }
 
-// parseSegment reads one path segment, or says why it is not one.
-func parseSegment(part string) (seg Segment, problem string) {
+// parseSegment reads one path part that matches pathPart.
+func parseSegment(part string) Segment {
 	inner, braced := strings.CutPrefix(part, "{")
-	if braced {
-		inner, braced = strings.CutSuffix(inner, "}")
-	}
 	if !braced {
-		if strings.ContainsAny(part, "{}") {
-			return nil, fmt.Sprintf("segment %q mixes literal text with a brace; a variable is a whole segment, {name} or {name+}", part)
-		}
-		return Literal{Value: part}, ""
+		return Literal{Value: part}
 	}
-	name, greedy := strings.CutSuffix(inner, "+")
-	if !variableName.MatchString(name) {
-		return nil, fmt.Sprintf("variable name %q is not one or more letters, digits, '.', '_' or '-'", name)
+	inner = strings.TrimSuffix(inner, "}")
+	if name, greedy := strings.CutSuffix(inner, "+"); greedy {
+		return Greedy{Name: name}
 	}
-	if greedy {
-		return Greedy{Name: name}, ""
-	}
-	return Var{Name: name}, ""
+	return Var{Name: inner}
 }

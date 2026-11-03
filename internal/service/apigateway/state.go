@@ -36,7 +36,8 @@ func stateCodec() store.Codec {
 }
 
 // RestAPI is one REST API (apigateway-rest.md 3.1). Its resources are in
-// creation order, the root first. Optional members are omitzero, so a set
+// creation order, the root first; GetResources sorts them by id. Optional
+// members are omitzero, so a set
 // "" survives a snapshot.
 type RestAPI struct {
 	ID string `json:"id"`
@@ -70,9 +71,6 @@ type RestAPI struct {
 	// RootResourceID is the id of the root resource, created with the API.
 	RootResourceID string     `json:"rootResourceId"`
 	Resources      []Resource `json:"resources"`
-	// NextResourceSeq is the Seq the next resource created in the API
-	// gets; the root has 0.
-	NextResourceSeq uint64 `json:"nextResourceSeq"`
 	// Models are the API's model names: the seeded Empty and Error
 	// (apigateway-rest.md 3.9) until models are bound.
 	Models []string `json:"models"`
@@ -99,10 +97,7 @@ type Endpoint struct {
 // Resource is one resource of a REST API: the root ("/", no parent and no
 // path part) or a child. Methods are by HTTP method, ANY included.
 type Resource struct {
-	ID string `json:"id"`
-	// Seq orders the API's resources by creation; GetResources pages by
-	// it.
-	Seq      uint64            `json:"seq"`
+	ID       string            `json:"id"`
 	ParentID string            `json:"parentId,omitempty"`
 	PathPart string            `json:"pathPart,omitempty"`
 	Path     string            `json:"path"`
@@ -227,10 +222,6 @@ type IntegrationResponse struct {
 	ResponseParameters map[string]string                      `json:"responseParameters,omitzero"`
 	ResponseTemplates  map[string]string                      `json:"responseTemplates,omitzero"`
 	ContentHandling    *apigatewayapi.ContentHandlingStrategy `json:"contentHandling,omitzero"`
-	// Seq orders the integration's responses by creation (a replacing put
-	// counts as a new creation, inferred), for switch
-	// apigateway.mock.selection's AscendingStatus false.
-	Seq uint64 `json:"seq,omitzero"`
 }
 
 // clone is a copy of the response with maps of its own.

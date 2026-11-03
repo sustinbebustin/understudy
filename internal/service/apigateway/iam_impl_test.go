@@ -34,8 +34,12 @@ var resourceTable = map[string][2]string{
 	"DeleteDeployment": {"DELETE", "/restapis/{restApiId}/deployments/{deploymentId}"},
 	"CreateStage":      {"POST", "/restapis/{restApiId}/stages"}, "GetStages": {"GET", "/restapis/{restApiId}/stages"},
 	"GetStage": {"GET", "/restapis/{restApiId}/stages/{stageName}"}, "UpdateStage": {"PATCH", "/restapis/{restApiId}/stages/{stageName}"}, "DeleteStage": {"DELETE", "/restapis/{restApiId}/stages/{stageName}"},
-	"TagResource": {"PUT", "/tags/{resourceArn}"}, "GetTags": {"GET", "/tags/{resourceArn}"}, "UntagResource": {"DELETE", "/tags/{resourceArn}"},
 }
+
+// tagActions are the tag operations' primary actions: AWS authorizes them
+// on the tagged resource, GET to read and PATCH to change, whatever their
+// own method (APIGW1-22, recorded 2026-11-03; apigateway-rest.md 3.10).
+var tagActions = map[string]string{"TagResource": "PATCH", "GetTags": "GET", "UntagResource": "PATCH"}
 
 const methodTemplate = "/restapis/{restApiId}/resources/{resourceId}/methods/{httpMethod}"
 
@@ -88,6 +92,11 @@ func TestGeneratedPairsMatchTheResourceTable(t *testing.T) {
 			t.Errorf("%s URI = %s, want the 3.10 resource %s", name, got, row[1])
 		}
 	}
+	for name, method := range tagActions {
+		if op := ops[name]; op == nil || len(op.IAM) == 0 || op.IAM[0] != (registry.IAMAction{Prefix: "apigateway", Name: method}) {
+			t.Errorf("%s = %+v, want apigateway:%s first", name, op, method)
+		}
+	}
 	if op := ops["InvokeRestApi"]; op == nil || len(op.IAM) != 0 {
 		t.Errorf("InvokeRestApi = %+v, want a raw operation with no IAM action", op)
 	}
@@ -95,6 +104,9 @@ func TestGeneratedPairsMatchTheResourceTable(t *testing.T) {
 		for _, op := range apigatewayapi.Service().Operations {
 			_, bound := h.Kernel.Bindings().Status(op).(kernel.Bound)
 			_, listed := resourceTable[op.ID.Name]
+			if _, tag := tagActions[op.ID.Name]; tag {
+				listed = true
+			}
 			if bound != listed && op.ID.Name != "InvokeRestApi" {
 				t.Errorf("%s bound = %v, in the 3.10 table = %v; want them equal", op.ID.Name, bound, listed)
 			}

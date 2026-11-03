@@ -106,10 +106,12 @@ func TestEveryModeledOperationNamesItsIAMActions(t *testing.T) {
 		"sts.AssumeRoleWithWebIdentity":      "sts:AssumeRoleWithWebIdentity",
 		"logs.StartLiveTail":                 "logs:StartLiveTail",
 		// API Gateway management actions are HTTP methods; the operation's
-		// own method is its primary action (codegen/services iamPrimary).
+		// own method is its primary action (codegen/services iamPrimary),
+		// but a tag change is PATCH on the tagged resource (APIGW1-22,
+		// APIGW2-15).
 		"apigateway.CreateRestApi":   "apigateway:POST",
-		"apigateway.TagResource":     "apigateway:PUT",
-		"apigatewayv2.TagResource":   "apigateway:POST",
+		"apigateway.TagResource":     "apigateway:PATCH",
+		"apigatewayv2.TagResource":   "apigateway:PATCH",
 		"apigatewayv2.ImportApi":     "apigateway:PUT",
 		"dynamodbstreams.GetRecords": "dynamodb:GetRecords",
 		"kinesis.PutRecords":         "kinesis:PutRecords",

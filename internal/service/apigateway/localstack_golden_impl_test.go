@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 
@@ -327,13 +328,17 @@ func TestGoldenCreateRestApiDefaults(t *testing.T) {
 
 // test_apigateway_api.snapshot.json:L555-L671,
 // TestApiGatewayApiResource::test_resource_lifecycle, validated
-// 2024-04-15.
+// 2024-04-15. The test sorts GetResources items by path before the
+// snapshot (SortingTransformer("items", path)); AWS lists them by id
+// (APIGW1-04), so the replay sorts them the same way.
 func TestGoldenResourceLifecycle(t *testing.T) {
 	run(t, func(h *harness) {
 		r := h.replay()
 		id, root := h.api("lifecycle")
 		resources := func() *apigatewayapi.GetResourcesOutput {
-			return must(h, apigatewayapi.OpGetResources, &apigatewayapi.GetResourcesInput{RestApiId: id})
+			out := must(h, apigatewayapi.OpGetResources, &apigatewayapi.GetResourcesInput{RestApiId: id})
+			slices.SortFunc(out.Items, func(a, b apigatewayapi.Resource) int { return strings.Compare(deref(a.Path), deref(b.Path)) })
+			return out
 		}
 		const rootItem = `{"id":"<id:1>","path":"/"}`
 		output(r, "rest-api-root-resource", apigatewayapi.OpGetResources, resources(), `{"items":[`+rootItem+`],"_status":200}`)

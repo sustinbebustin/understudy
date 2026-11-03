@@ -183,7 +183,33 @@ const timeLayout = "02/Jan/2006:15:04:05 -0700"
 // content type and base64 otherwise. The bytes have no trailing newline
 // and keep &, < and > unescaped.
 func EventV2(r Request, c Context) ([]byte, error) {
-	headers, cookies := eventHeaders(r, c.TraceID)
+	return EventV2For(r, c, FunctionURL{})
+}
+
+// V2Front is the front end whose payload format 2.0 event EventV2For
+// builds: the fronts differ in the headers they add.
+//
+//sumtype:decl
+type V2Front interface{ isV2Front() }
+
+// FunctionURL is a Lambda function URL (lambda-events.md 7.3).
+type FunctionURL struct{}
+
+func (FunctionURL) isV2Front() {}
+func (HTTPAPI) isV2Front()     {}
+
+// EventV2For is EventV2 as front f reports it. HTTPAPI adds content-length
+// and appends the caller's address to a client's own x-forwarded-for
+// (httpAPIFrontHeaders; APIGW2-07, recorded 2026-11-03); FunctionURL is
+// EventV2's front. A nil f is FunctionURL.
+func EventV2For(r Request, c Context, f V2Front) ([]byte, error) {
+	front := frontHeaders(r, c.TraceID)
+	switch f.(type) {
+	case HTTPAPI:
+		front = httpAPIFrontHeaders(r, c.TraceID)
+	case FunctionURL, nil:
+	}
+	headers, cookies := eventHeaders(r, front)
 	ev := event{
 		Version:               "2.0",
 		RouteKey:              c.RouteKey,
@@ -254,9 +280,8 @@ func eventBody(r Request) (body *string, encoded bool) {
 
 // eventHeaders lowercases r's header names and joins repeated headers
 // with commas; Cookie headers become cookies, one element per name=value
-// pair. The headers the front end adds are set over the client's
-// (frontHeaders).
-func eventHeaders(r Request, trace string) (headers map[string]string, cookies []string) {
+// pair. The headers the front end adds, front, are set over the client's.
+func eventHeaders(r Request, front map[string]string) (headers map[string]string, cookies []string) {
 	headers = map[string]string{}
 	for lower, values := range lowerHeaders(r.Header) {
 		if lower == "cookie" {
@@ -267,7 +292,7 @@ func eventHeaders(r Request, trace string) (headers map[string]string, cookies [
 		}
 		headers[lower] = strings.Join(values, ",")
 	}
-	maps.Copy(headers, frontHeaders(r, trace))
+	maps.Copy(headers, front)
 	return headers, cookies
 }
 

@@ -1400,7 +1400,7 @@ var descTagResource = registry.Operation{
 	Input:       &schemaTagResourceInput,
 	Output:      &schemaSmithyUnit,
 	Errors:      []awserr.Identity{IdentityBadRequestException(), IdentityConflictException(), IdentityLimitExceededException(), IdentityNotFoundException(), IdentityTooManyRequestsException(), IdentityUnauthorizedException(), IdentityValidationException()},
-	IAM:         []registry.IAMAction{{Prefix: "apigateway", Name: "PUT"}, {Prefix: "apigateway", Name: "PATCH"}, {Prefix: "apigateway", Name: "POST"}},
+	IAM:         []registry.IAMAction{{Prefix: "apigateway", Name: "PATCH"}, {Prefix: "apigateway", Name: "POST"}, {Prefix: "apigateway", Name: "PUT"}},
 	HTTP:        &registry.HTTPBinding{Method: "PUT", Path: []registry.Segment{registry.Literal{Value: "tags"}, registry.Label{Name: "resourceArn"}}},
 	SuccessCode: 204,
 }
@@ -1442,7 +1442,7 @@ var descUntagResource = registry.Operation{
 	Input:       &schemaUntagResourceInput,
 	Output:      &schemaSmithyUnit,
 	Errors:      []awserr.Identity{IdentityBadRequestException(), IdentityConflictException(), IdentityLimitExceededException(), IdentityNotFoundException(), IdentityTooManyRequestsException(), IdentityUnauthorizedException(), IdentityValidationException()},
-	IAM:         []registry.IAMAction{{Prefix: "apigateway", Name: "DELETE"}, {Prefix: "apigateway", Name: "PATCH"}},
+	IAM:         []registry.IAMAction{{Prefix: "apigateway", Name: "PATCH"}, {Prefix: "apigateway", Name: "DELETE"}},
 	HTTP:        &registry.HTTPBinding{Method: "DELETE", Path: []registry.Segment{registry.Literal{Value: "tags"}, registry.Label{Name: "resourceArn"}}},
 	SuccessCode: 204,
 }

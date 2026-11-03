@@ -96,8 +96,8 @@ func apigatewayCall(t *testing.T, method, target, body string) (status int, out 
 
 // GET /iam/policy grants each HTTP API control-plane call apigateway:<its
 // method> on the resource the apigateway-http.md 8.1 table gives it (the
-// collection for creates and lists, the item otherwise, /tags/<url-encoded
-// resource ARN> for the tag operations) and nothing else of apigateway.
+// collection for creates and lists, the item otherwise, the tagged
+// resource for the tag operations) and nothing else of apigateway.
 // The calls are the ones conformance/aws-cli/tests/apigatewayv2.sh makes,
 // the failing ones included, because the access record keeps a handled
 // failure: the application needs its permission too (ARCHITECTURE.md, the
@@ -106,12 +106,10 @@ func TestIAMPolicyPairsAPIGatewayCallsWithThe81Resources(t *testing.T) {
 	table := apigatewayTable(t)
 	c, endpoint := adminServer(t, server.Config{})
 	const (
-		root    = "arn:aws:iam::000000000000:root"
-		prefix  = "arn:aws:apigateway:us-east-1::"
-		tagsRes = prefix + "/tags/"
+		root   = "arn:aws:iam::000000000000:root"
+		prefix = "arn:aws:apigateway:us-east-1::"
 	)
-	// want holds what the 8.1 table says each call needs, as
-	// normalizedGrant writes it.
+	// want holds what the 8.1 table says each call needs.
 	want := map[[2]string]bool{}
 	send := func(op, method, path, body string, status int, labels map[string]string) map[string]any {
 		t.Helper()
@@ -126,7 +124,7 @@ func TestIAMPolicyPairsAPIGatewayCallsWithThe81Resources(t *testing.T) {
 		if strings.Contains(res, "<") {
 			t.Fatalf("%s: the 8.1 resource %s has a placeholder the call does not fill (%s)", op, row.path, res)
 		}
-		want[[2]string{"apigateway:" + row.method, normalizedGrant(t, rendered(t, prefix+res), tagsRes)}] = true
+		want[[2]string{"apigateway:" + row.method, rendered(t, prefix+res)}] = true
 		got, out := apigatewayCall(t, method, endpoint+path, body)
 		if got != status {
 			t.Fatalf("%s %s %s = %d %v, want %d", op, method, path, got, out, status)
@@ -150,17 +148,18 @@ func TestIAMPolicyPairsAPIGatewayCallsWithThe81Resources(t *testing.T) {
 	id := createAPI(`{"name":"a","protocolType":"HTTP"}`)
 	api := map[string]string{"api-id": id}
 	send("GetApi", http.MethodGet, "/v2/apis/"+id, "", http.StatusOK, api)
-	send("UpdateApi", http.MethodPatch, "/v2/apis/"+id, `{"description":"updated"}`, http.StatusOK, api)
+	// AWS answers UpdateApi 201 (APIGW2-03, recorded 2026-11-03).
+	send("UpdateApi", http.MethodPatch, "/v2/apis/"+id, `{"description":"updated"}`, http.StatusCreated, api)
 	send("GetApis", http.MethodGet, "/v2/apis", "", http.StatusOK, nil)
 	send("DeleteApi", http.MethodDelete, "/v2/apis/"+id, "", http.StatusNoContent, api)
 	send("GetApi", http.MethodGet, "/v2/apis/"+id, "", http.StatusNotFound, api)
 
 	// test_tags_take_the_escaped_arn: the CLI percent-encodes the ARN
-	// label (apigateway-http.md 2.2).
+	// label (apigateway-http.md 2.2); the calls need the tagged API itself
+	// (8.1, APIGW2-15).
 	id = createAPI(`{"name":"b","protocolType":"HTTP","tags":{"team":"a"}}`)
-	arn := prefix + "/apis/" + id
-	tagged := map[string]string{"url-encoded resource ARN": url.QueryEscape(arn)}
-	tags := "/v2/tags/" + url.QueryEscape(arn)
+	tagged := map[string]string{"api-id": id}
+	tags := "/v2/tags/" + url.QueryEscape(prefix+"/apis/"+id)
 	send("TagResource", http.MethodPost, tags, `{"tags":{"env":"dev"}}`, http.StatusCreated, tagged)
 	send("GetTags", http.MethodGet, tags, "", http.StatusOK, tagged)
 	send("UntagResource", http.MethodDelete, tags+"?tagKeys=team", "", http.StatusNoContent, tagged)
@@ -192,7 +191,7 @@ func TestIAMPolicyPairsAPIGatewayCallsWithThe81Resources(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	got := apigatewayGrants(t, policy.Document, tagsRes)
+	got := apigatewayGrants(t, policy.Document)
 	for pair := range want {
 		if !got[pair] {
 			t.Errorf("the policy does not grant %s on %s\npolicy: %s", pair[0], pair[1], policy.Document)
@@ -220,26 +219,9 @@ func rendered(t *testing.T, arn string) string {
 	return policydoc.Literal(arn)
 }
 
-// normalizedGrant is a policy Resource in a form two spellings of one
-// resource share: a /tags/ resource has its encoded ARN decoded, since
-// which bytes are encoded is UNVERIFIED (apigateway-http.md 8.1,
-// APIGW2-15) and the test asserts only that it names the tagged ARN.
-func normalizedGrant(t *testing.T, res, tagsPrefix string) string {
-	t.Helper()
-	encoded, ok := strings.CutPrefix(res, tagsPrefix)
-	if !ok {
-		return res
-	}
-	decoded, err := url.PathUnescape(encoded)
-	if err != nil {
-		t.Fatalf("tags resource %s does not decode: %v", res, err)
-	}
-	return tagsPrefix + decoded
-}
-
-// apigatewayGrants lists the (apigateway action, normalized resource)
-// pairs a policy document allows.
-func apigatewayGrants(t *testing.T, doc json.RawMessage, tagsPrefix string) map[[2]string]bool {
+// apigatewayGrants lists the (apigateway action, resource) pairs a policy
+// document allows.
+func apigatewayGrants(t *testing.T, doc json.RawMessage) map[[2]string]bool {
 	t.Helper()
 	var parsed struct {
 		Statement []struct {
@@ -268,7 +250,7 @@ func apigatewayGrants(t *testing.T, doc json.RawMessage, tagsPrefix string) map[
 				continue
 			}
 			for _, res := range strs(st.Resource) {
-				out[[2]string{action, normalizedGrant(t, res, tagsPrefix)}] = true
+				out[[2]string{action, res}] = true
 			}
 		}
 	}

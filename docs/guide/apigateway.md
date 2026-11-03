@@ -74,7 +74,7 @@ curl -i http://localhost:4566/_understudy/execute-api/wfod7wzey6/hello
 # hello from GET /hello
 ```
 
-`http://<api-id>.execute-api.localhost:4566` serves the API too, in its own region; a host naming another region answers `403 {"message":"Forbidden"}`, as an unknown API id does. An API of any account is reached by its id alone.
+`http://<api-id>.execute-api.localhost:4566` serves the API too, in its own region; a host naming another region answers `403 {"message":"Forbidden"}`, as an unknown API id does (on AWS such a host does not resolve at all). An API of any account is reached by its id alone.
 
 The function gets the event of its integration's payload format. Under 2.0, `rawPath` is the path the API sees, a named stage's segment included, and `requestContext.domainName` is the host the request named, or on the path fallback the `ApiEndpoint` host name. Every answer on the path fallback carries `Content-Security-Policy: sandbox`, since it shares understudy's origin (ADR 0020); the host is an origin of its own and gets none.
 
@@ -87,13 +87,22 @@ curl -i 'http://localhost:4566/_understudy/execute-api/nhkese1z20/pets/rex?q=1&q
 # X-Many: a
 # X-Many: b
 #
-# {"version": "1.0", "resource": "/pets/{id}", "path": "/pets/rex", "queryStringParameters": {"q": "1"},
-#  "multiValueQueryStringParameters": {"q": ["1", "2"]}, "x-h": ["last", ["first", "last"]]}
+# {"version": "1.0", "resource": "/pets/{id}", "path": "/pets/rex", "queryStringParameters": {"q": "2"},
+#  "multiValueQueryStringParameters": {"q": ["1", "2"]}, "X-H": ["last", ["first", "last"]]}
 ```
 
-The single-value maps keep a repeated header's last value and a repeated query parameter's first, as AWS's documented example does. `path` includes a named stage's segment, `resource` is the route's path (`$default` for the `$default` route), and a 1.0 response without a `Content-Type` gets `text/plain; charset=utf-8`, as a 2.0 response with a `statusCode` does. AWS has not been recorded on these choices; [coverage.md](../coverage.md) lists them.
+The single-value maps keep the last value of a repeated header and of a repeated query parameter, as AWS does (its documented example shows the first query value). Header names keep the client's spelling, as on AWS, and the headers API Gateway adds (`Content-Length`, `X-Forwarded-For`, ...) are in canonical case. `path` includes a named stage's segment, `resource` is the route's path (`$default` for the `$default` route), `requestContext.resourceId` is the route key, and a 1.0 response without a `Content-Type` gets `text/plain; charset=utf-8`, as a 2.0 response with a `statusCode` does.
 
-`update-api --disable-execute-api-endpoint` turns off both forms from that call on: requests answer `403 {"message":"Forbidden"}` until `--no-disable-execute-api-endpoint`.
+`update-api --disable-execute-api-endpoint` turns off both forms from that call on: requests answer `404 {"message":"Not Found"}`, as on AWS, until `--no-disable-execute-api-endpoint`:
+
+```sh
+aws apigatewayv2 update-api --api-id 0x2wsevugv --disable-execute-api-endpoint
+curl -i http://localhost:4566/_understudy/execute-api/0x2wsevugv/prod/hello
+# HTTP/1.1 404 Not Found
+# Content-Type: application/json
+#
+# {"message":"Not Found"}
+```
 
 ## Routes
 
@@ -124,7 +133,14 @@ curl http://localhost:4566/_understudy/execute-api/vsstkl7iok/admin
 # {"message":"understudy does not evaluate IAM authorization of requests: route \"GET /admin\" of API vsstkl7iok has authorizationType AWS_IAM, so no integration ran and nothing was changed. ..."}
 ```
 
-A request takes the most specific route, in AWS's documented order: a full match, then a match with a `{name+}` variable, then `$default`; on one path, a literal segment before a variable and the request's own method before `ANY`. Where AWS documents no order, understudy prefers a full match on `ANY` to a `{name+}` match on the request's method, and the `{name+}` route with more segments before its variable. A variable never matches an empty segment, so `/pets/` is not `GET /pets/{id}`. Literal segments match case-sensitively, `/pets` and `/pets/` are different paths, and `HEAD` reaches only `HEAD` and `ANY` routes. AWS has not been recorded on any of these choices; [coverage.md](../coverage.md) lists them.
+A request takes the most specific route, in AWS's documented order: a full match, then a match with a `{name+}` variable, then `$default`; on one path, a literal segment before a variable and the request's own method before `ANY`. A full match on `ANY` beats a `{name+}` match on the request's method, as on AWS; between two `{name+}` routes understudy prefers the one with more segments before its variable. A variable never matches an empty segment, so `/pets/` is not `GET /pets/{id}`. As on AWS, literal segments match case-sensitively, `/pets` and `/pets/` are different paths, `//` collapses to `/`, the path is percent-decoded before matching (so `%2F` separates segments), and a route with no target takes no part in matching. A route key with a trailing slash is refused, as AWS refuses it:
+
+```sh
+aws apigatewayv2 create-route --api-id 0x2wsevugv --route-key 'GET /slash/'
+# An error occurred (BadRequestException) when calling the CreateRoute operation: Part of the given route key path is empty
+```
+
+`HEAD` reaches only `HEAD` and `ANY` routes; AWS's answer there is not recorded ([coverage.md](../coverage.md)).
 
 ## Integrations
 
@@ -139,12 +155,12 @@ aws apigatewayv2 create-integration --api-id vsstkl7iok --integration-type AWS_P
 # "TimeoutInMillis": 30000, ...
 ```
 
-`--integration-uri` names the function by its ARN or by the invoke URI Terraform's `invoke_arn` gives. `--payload-format-version` is required, as on AWS: `1.0` or `2.0` for a Lambda integration and `1.0` for anything else. An AWS service integration (`--integration-subtype`) needs every request parameter AWS lists as required for its subtype. `--request-parameters` and `--response-parameters` come back exactly as sent; on `update-integration` a request parameter sent with an empty value, or a response status sent as `{}`, is removed. `delete-integration` is refused while a route targets the integration:
+`--integration-uri` names the function by its ARN or by the invoke URI Terraform's `invoke_arn` gives. `--payload-format-version` is required, as on AWS: `1.0` or `2.0` for a Lambda integration and `1.0` for anything else. An AWS service integration (`--integration-subtype`) needs every request parameter AWS lists as required for its subtype. `--request-parameters` and `--response-parameters` come back exactly as sent; on `update-integration` a request parameter sent with an empty value, or a response status sent as `{}`, is removed. `delete-integration` is refused while a route targets the integration, with AWS's text:
 
 ```sh
-aws apigatewayv2 delete-integration --api-id vsstkl7iok --integration-id 7tvrwuh
-# An error occurred (BadRequestException) when calling the DeleteIntegration operation:
-# integration 7tvrwuh of API vsstkl7iok is the target of routes wa0s05t, uzmc2mg; delete them or change their targets first
+aws apigatewayv2 delete-integration --api-id 0x2wsevugv --integration-id q6si386
+# An error occurred (ConflictException) when calling the DeleteIntegration operation:
+# Cannot delete Integration because it is referenced by the following Routes with Ids: [wv50gg8]
 ```
 
 Only a Lambda proxy integration runs. HTTP proxy integrations, AWS service integrations (`--integration-subtype`) and private integrations (`--connection-type VPC_LINK`) are stored, and so is a Lambda integration with `--credentials-arn`, `--request-parameters`, `--response-parameters` or a stage variable in its URI, but a request that reaches one answers 501 and runs nothing:
@@ -183,7 +199,14 @@ curl -i -H 'Origin: https://app.example' http://localhost:4566/_understudy/execu
 # {"message":"understudy does not apply CORS: API o6tvc1uf6b has a corsConfiguration and the request carries an Origin header, so no integration ran and nothing was changed. ..."}
 ```
 
-Requests without `Origin` are served as usual; `delete-cors-configuration` removes the configuration.
+Requests without `Origin` are served as usual; `delete-cors-configuration` removes the configuration. The configuration is stored as AWS stores it: origins and headers lower-cased, methods upper-cased, `update-api` merging what it sends into what is there, and a wildcard origin with credentials refused:
+
+```sh
+aws apigatewayv2 update-api --api-id 0x2wsevugv --cors-configuration AllowOrigins='https://A.example',AllowMethods=get,post,AllowHeaders=Content-Type
+# "CorsConfiguration": {"AllowHeaders": ["content-type"], "AllowMethods": ["GET", "POST"], "AllowOrigins": ["https://a.example"]}, ...
+aws apigatewayv2 update-api --api-id 0x2wsevugv --cors-configuration AllowOrigins='*',AllowCredentials=true
+# An error occurred (BadRequestException) when calling the UpdateApi operation: allow-credentials is not supported if 'allow-origin' is *
+```
 
 ## Stages and deployments
 
@@ -204,15 +227,18 @@ curl http://localhost:4566/_understudy/execute-api/o6tvc1uf6b/prod/later
 
 A deployment reads `DEPLOYED` as soon as `create-deployment` returns. `update-stage --deployment-id` points the stage at another deployment, and `--stage-variables` merges into the stage's variables, where a variable sent empty (`color=`) is removed; the function gets them in `stageVariables`. `get-stage`, `get-stages`, `delete-stage`, `get-deployment`, `get-deployments`, `update-deployment` and `delete-deployment` work as well, and `update-stage --auto-deploy` deploys at once.
 
-AWS documents no answer for three cases, and understudy picks one for each. A deployment of an API with no routes succeeds, and its stage answers `404`. Deleting a deployment a stage serves is refused, as REST APIs refuse it, so point the stage at the new deployment first. A stage with `--auto-deploy` takes no explicit deployment, since AWS documents its deployment as not updatable:
+Three deployments are refused, with AWS's texts: one of an API with no routes, a delete of a deployment a stage serves (point the stage at the new deployment first), and an explicit deployment on a stage with `--auto-deploy`:
 
 ```sh
-aws apigatewayv2 delete-deployment --api-id o6tvc1uf6b --deployment-id d6gheb
+aws apigatewayv2 create-deployment --api-id 0x2wsevugv
+# An error occurred (BadRequestException) when calling the CreateDeployment operation:
+# Unable to deploy API because no valid routes exist in this API
+aws apigatewayv2 delete-deployment --api-id 0x2wsevugv --deployment-id drplti
 # An error occurred (BadRequestException) when calling the DeleteDeployment operation:
-# Active stages pointing to this deployment must be moved or deleted (stages prod serve deployment d6gheb)
-aws apigatewayv2 create-stage --api-id o6tvc1uf6b --stage-name auto --auto-deploy --deployment-id d6gheb
+# Active stages pointing to this deployment must be moved or deleted
+aws apigatewayv2 create-stage --api-id 0x2wsevugv --stage-name auto --auto-deploy --deployment-id drplti
 # An error occurred (BadRequestException) when calling the CreateStage operation:
-# stage "auto" has autoDeploy enabled, so its deploymentId can't be set; turn autoDeploy off to serve deployment d6gheb
+# Deployment ID cannot be set on this stage 000000000000:0x2wsevugv because AutoDeploy is enabled.
 ```
 
 `create-deployment --stage-name` on an `--auto-deploy` stage is refused the same way.
@@ -339,13 +365,20 @@ aws apigateway create-resource --rest-api-id leb10wzbif --parent-id cwlqnw --pat
 # resource already has a variable path part -- only one is allowed
 aws apigateway update-resource --rest-api-id leb10wzbif --resource-id cwlqnw --patch-operations op=replace,path=/pathPart,value=animals
 # "path": "/animals", ...
-aws apigateway get-resources --rest-api-id leb10wzbif
-# "/", "/animals", "/animals/{id}", "/{proxy+}", in creation order
+aws apigateway get-resources --rest-api-id i644mvi1ym --query 'items[].[id,path]' --output text
+# 4qo8mhv20b  /
+# 8jgd4g      /alpha
+# a9u3zj      /animals
+# ket3ck      /zeta
+aws apigateway get-resources --rest-api-id i644mvi1ym --limit 2 --query position --output text
+# aWQ9UzhqZ2Q0Zw%3D%3D
 ```
+
+As on AWS, the items are sorted by id, so the root falls wherever its id sorts, and a page's `position` is AWS's form, the base64 of `id=S` and the page's last id.
 
 `get-resources --embed methods` returns each method in full; without it `resourceMethods` maps each method to `{}`. A path part is letters, digits and `._-,:`, or `{name}` and `{name+}`; anything else is refused.
 
-A request is matched against the resources of the stage's deployment as AWS does: at the first segment where two matching resources differ, a literal part wins over `{name}`, and `{name}` over `{name+}`. A resource that matches but has no method for the request is passed over for a less specific one that has it, so with `/part1` (GET) and `/{param+}` (GET), `GET /part1/random-value` reaches `/{param+}`. The event's `pathParameters` hold the bound values as sent, still percent-encoded; a greedy value keeps interior empty segments and drops a trailing slash. Nothing matched answers `403 Missing Authentication Token`. Which of a resource's explicit method and its `ANY` serves, and whether `GET` serves `HEAD`, are not recorded: understudy serves the explicit method first and `HEAD` only from `HEAD` or `ANY`.
+A request is matched against the resources of the stage's deployment as AWS does: at the first segment where two matching resources differ, a literal part wins over `{name}`, and `{name}` over `{name+}`. A resource that matches but has no method for the request is passed over for a less specific one that has it, so with `/part1` (GET) and `/{param+}` (GET), `GET /part1/random-value` reaches `/{param+}`. The event's `pathParameters` hold the bound values as sent, still percent-encoded; a greedy value keeps interior empty segments and drops a trailing slash. Nothing matched answers `403 Missing Authentication Token`. As on AWS, a resource's explicit method serves before its `ANY`, and `GET` does not serve `HEAD`; which of `GET` and `ANY` serves `HEAD` when both exist is not recorded, and understudy takes `ANY`.
 
 ### Methods
 
@@ -385,7 +418,7 @@ aws apigateway put-integration-response --rest-api-id leb10wzbif --resource-id c
 # "statusCode": "200", "selectionPattern": ""
 ```
 
-An `AWS_PROXY` integration to a Lambda function and a `MOCK` integration run. `HTTP`, `HTTP_PROXY` and `AWS` integrations are stored, and so are `--credentials`, a `${stageVariables.name}` in `--uri`, `--response-transfer-mode STREAM` and `--content-handling`, but a request that reaches one answers `501` naming it and runs nothing ([What answers 501](#what-answers-501-in-a-rest-api)). `--connection-type VPC_LINK`, `--connection-id`, `--tls-config` and `--integration-target` answer `NotImplemented`. An empty-string template is returned as `""`; AWS returns `null` for a response template.
+An `AWS_PROXY` integration to a Lambda function and a `MOCK` integration run. `HTTP`, `HTTP_PROXY` and `AWS` integrations are stored, and so are `--credentials`, a `${stageVariables.name}` in `--uri`, `--response-transfer-mode STREAM` and `--content-handling`, but a request that reaches one answers `501` naming it and runs nothing ([What answers 501](#what-answers-501-in-a-rest-api)). `--connection-type VPC_LINK`, `--connection-id`, `--tls-config` and `--integration-target` answer `NotImplemented`. An empty-string template is returned as `""`, where AWS returns `null`, for request and response templates alike.
 
 ### MOCK integrations
 
@@ -410,7 +443,27 @@ curl -i -X OPTIONS http://localhost:4566/_understudy/execute-api/leb10wzbif/dev/
 # {"ok": true}
 ```
 
-understudy renders no Velocity: a template is run only when it holds none of `$`, `#` and `\`, so it is the same text before and after rendering. A request that reaches any other template answers `501` naming it, and so do a `selectionPattern` Go's regular expressions cannot compile (a lookaround or a backreference), `contentHandling` on the selected integration response, and a `responseParameters` value that is not a static `'value'`. Which response template answers a request with several, how patterns are anchored and ordered, and how media types compare are not recorded; understudy takes the template for the first `Accept` type, else `application/json`, else the only one, matches whole status codes in ascending order, and compares media types by type and subtype.
+understudy renders no Velocity: a template is run only when it holds none of `$`, `#` and `\`, so it is the same text before and after rendering. A request that reaches any other template answers `501` naming it, and so do a `selectionPattern` Go's regular expressions cannot compile (a lookaround or a backreference), `contentHandling` on the selected integration response, and a `responseParameters` value that is not a static `'value'`. As on AWS, media types compare by type and subtype, case-insensitively; a pattern must match the whole status code; and of several response templates the one named by the whole `Accept` value answers, else `application/json`, else the first by media type, always sent as `Content-Type: application/json`. A request whose media type no template takes answers AWS's 415:
+
+```sh
+aws apigateway put-integration --rest-api-id i644mvi1ym --resource-id a9u3zj --http-method GET --type MOCK \
+  --passthrough-behavior NEVER --request-templates '{"application/json":"{\"statusCode\": 200}"}'
+aws apigateway put-integration-response --rest-api-id i644mvi1ym --resource-id a9u3zj --http-method GET --status-code 200 \
+  --response-templates '{"application/xml":"<r>xml</r>","text/plain":"plain"}'
+curl -i http://localhost:4566/_understudy/execute-api/i644mvi1ym/dev/animals -H 'Accept: text/html, text/plain'
+# HTTP/1.1 200 OK
+# Content-Type: application/json
+#
+# <r>xml</r>
+curl -i -X GET http://localhost:4566/_understudy/execute-api/i644mvi1ym/dev/animals -H 'Content-Type: application/xml' -d x
+# HTTP/1.1 415 Unsupported Media Type
+# Content-Type: application/json
+# X-Amzn-Errortype: BadRequestException
+#
+# {"message": "Unsupported Media Type"}
+```
+
+Of two patterns that both match, AWS's recordings fit both "the longer wins" and "the one that sorts last wins"; understudy takes the one that sorts last.
 
 ### Deployments and stages
 

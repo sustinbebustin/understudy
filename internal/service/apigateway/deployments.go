@@ -108,7 +108,7 @@ func (a *RestAPI) deployToStage(in *apigatewayapi.CreateDeploymentInput, id stri
 }
 
 // deployable refuses a deployment of an API with no methods, or with a
-// method that has no integration (texts inferred, APIGW1-05).
+// method that has no integration (APIGW1-05, recorded 2026-11-03).
 func (a *RestAPI) deployable() *awserr.Error {
 	methods := 0
 	for _, r := range a.Resources {

@@ -6,6 +6,7 @@ import (
 	"maps"
 	"net"
 	"slices"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/sustinbebustin/understudy/internal/api/apigatewayv2api"
@@ -47,7 +48,7 @@ func checkCreateAPI(in *apigatewayv2api.CreateApiInput) *awserr.Error {
 	if err := checkAPIMembers(&in.Name, in.Description, in.Version, in.RouteSelectionExpression); err != nil {
 		return err
 	}
-	return checkTags(in.Tags)
+	return checkTags("tags", in.Tags)
 }
 
 // checkUpdateAPI is checkCreateAPI for the members an UpdateApi carries.
@@ -125,6 +126,11 @@ func (s *Service) createAPI(_ context.Context, c *kernel.Call, in *apigatewayv2a
 			Tags:                      maps.Clone(in.Tags),
 			Created:                   now,
 		}
+		// UpdateApi's refusal (APIGW2-13 step 10), taken to hold for
+		// CreateApi too (inferred).
+		if err := a.CORS.check(); err != nil {
+			return API{}, err
+		}
 		st.NextSeq++
 		st.APIs[id] = a
 		// Set again in case a Reset dropped the reservation before the
@@ -187,7 +193,7 @@ func (s *Service) getAPIs(_ context.Context, c *kernel.Call, in *apigatewayv2api
 }
 
 // updateAPI replaces the members an UpdateApi carries and keeps the rest; a
-// CORS configuration replaces the whole configuration.
+// CORS configuration merges into the stored one (mergeCORS).
 func (s *Service) updateAPI(_ context.Context, c *kernel.Call, in *apigatewayv2api.UpdateApiInput) (*apigatewayv2api.UpdateApiOutput, *awserr.Error) {
 	scope := c.Scope()
 	api, err := writeAPI(s, c, in.ApiId, func(a *API, _ clock.Instant) (API, *awserr.Error) {
@@ -203,7 +209,14 @@ func (s *Service) updateAPI(_ context.Context, c *kernel.Call, in *apigatewayv2a
 			a.Version = clonePtr(in.Version)
 		}
 		if in.CorsConfiguration != nil {
-			a.CORS = corsIn(in.CorsConfiguration)
+			stored := a.CORS
+			if stored == nil {
+				stored = &CORS{}
+			}
+			a.CORS = mergeCORS(stored, in.CorsConfiguration)
+			if err := a.CORS.check(); err != nil {
+				return API{}, err
+			}
 		}
 		if in.DisableSchemaValidation != nil {
 			a.DisableSchemaValidation = clonePtr(in.DisableSchemaValidation)
@@ -342,16 +355,60 @@ func apiEndpoint(e kernel.Endpoint, scope aws.Scope, id string) string {
 }
 
 // corsIn is a request's CORS configuration as stored: a copy, nil lists
-// kept nil and empty ones empty.
+// kept nil and empty ones empty, origins and headers lowercased and
+// methods uppercased, as AWS stores them (APIGW2-03, recorded 2026-11-03:
+// steps 09 and 10; apigateway-http.md 3.7).
 func corsIn(c *apigatewayv2api.Cors) *CORS {
 	if c == nil {
 		return nil
 	}
-	return &CORS{
-		AllowCredentials: clonePtr(c.AllowCredentials), AllowHeaders: slices.Clone(c.AllowHeaders),
-		AllowMethods: slices.Clone(c.AllowMethods), AllowOrigins: slices.Clone(c.AllowOrigins),
-		ExposeHeaders: slices.Clone(c.ExposeHeaders), MaxAge: clonePtr(c.MaxAge),
+	return mergeCORS(&CORS{}, c)
+}
+
+// mergeCORS is old with each member c carries replaced, normalized as
+// corsIn says: an UpdateApi's corsConfiguration merges into the stored
+// one (APIGW2-13, recorded 2026-11-03: step 11 kept the stored
+// allowCredentials; apigateway-http.md 3.7).
+func mergeCORS(old *CORS, c *apigatewayv2api.Cors) *CORS {
+	out := *old
+	recase := func(list []string, f func(string) string) []string {
+		if list == nil {
+			return nil
+		}
+		out := make([]string, len(list))
+		for i, v := range list {
+			out[i] = f(v)
+		}
+		return out
 	}
+	if c.AllowCredentials != nil {
+		out.AllowCredentials = clonePtr(c.AllowCredentials)
+	}
+	if c.AllowHeaders != nil {
+		out.AllowHeaders = recase(c.AllowHeaders, strings.ToLower)
+	}
+	if c.AllowMethods != nil {
+		out.AllowMethods = recase(c.AllowMethods, strings.ToUpper)
+	}
+	if c.AllowOrigins != nil {
+		out.AllowOrigins = recase(c.AllowOrigins, strings.ToLower)
+	}
+	if c.ExposeHeaders != nil {
+		out.ExposeHeaders = recase(c.ExposeHeaders, strings.ToLower)
+	}
+	if c.MaxAge != nil {
+		out.MaxAge = clonePtr(c.MaxAge)
+	}
+	return &out
+}
+
+// check refuses a CORS configuration that allows credentials for every
+// origin, with AWS's text (APIGW2-13, recorded 2026-11-03: step 10).
+func (c *CORS) check() *awserr.Error {
+	if c != nil && deref(c.AllowCredentials, false) && slices.Contains(c.AllowOrigins, "*") {
+		return errBadRequest("allow-credentials is not supported if 'allow-origin' is *")
+	}
+	return nil
 }
 
 // wire is the stored CORS configuration as an output carries it, a copy.
