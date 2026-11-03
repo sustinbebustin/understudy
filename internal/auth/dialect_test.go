@@ -273,6 +273,25 @@ func TestVerifyPresignedRefusesUnsignedAmzHeaders(t *testing.T) {
 			t.Errorf("elements %#v, want none: Coral has no HeadersNotSigned member", err.Fields)
 		}
 	})
+	// S3 names only the SSE-C algorithm when all three SSE-C headers are
+	// unsigned: the key and its MD5 need not be signed (S3SOL-09
+	// 09-presign-unsigned-ssec, recorded 2026-11-03; s3-ssec-object-lock.md 3.10).
+	t.Run("S3 SSE-C key and MD5 need not be signed", func(t *testing.T) {
+		v := s3Vocabulary(t)
+		q, req := docPresigned(t, map[string]string{
+			"X-Amz-Server-Side-Encryption-Customer-Algorithm": "AES256",
+			"X-Amz-Server-Side-Encryption-Customer-Key":       "a2V5",
+			"X-Amz-Server-Side-Encryption-Customer-Key-MD5":   "bWQ1",
+		})
+		err := auth.VerifyPresignedSince(q, req, docSecret, docTime, clock.FromWire(q.Time), clock.FromWire(docTime), v)
+		if err == nil || err.ID != v.HeadersNotSigned || err.Message != msg {
+			t.Fatalf("VerifyPresignedSince =%#v; want HeadersNotSigned %q", err, msg)
+		}
+		want := []awserr.Field{{Name: "HeadersNotSigned", Value: "x-amz-server-side-encryption-customer-algorithm"}}
+		if !reflect.DeepEqual(err.Fields, want) {
+			t.Errorf("elements %#v, want %#v", err.Fields, want)
+		}
+	})
 	t.Run("non-amz header need not be signed", func(t *testing.T) {
 		q, req := docPresigned(t, map[string]string{"Range": "bytes=0-9"})
 		mustVerify(t, auth.VerifyPresignedSince(q, req, docSecret, docTime, clock.FromWire(q.Time), clock.FromWire(docTime), s3Vocabulary(t)))
