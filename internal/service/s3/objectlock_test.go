@@ -6,8 +6,11 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"net/http"
+	"slices"
 	"testing"
 	"time"
+
+	"github.com/google/go-cmp/cmp"
 
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
 	"github.com/sustinbebustin/understudy/internal/awserr"
@@ -740,10 +743,33 @@ func TestObjectLegalHold(t *testing.T) {
 		wantRetention(t, "HEAD retention after the hold was lifted", state, s3api.ObjectLockModeGovernance, until)
 
 		marker := ok(h, who{}, s3api.OpDeleteObject, &s3api.DeleteObjectInput{Bucket: "locked", Key: "k"})
-		errMarker("PUT").is(t, "PutObjectLegalHold on a delete marker", h.putHold("locked", "k", marker.VersionId, on))
+		err = h.putHold("locked", "k", marker.VersionId, on)
+		errMarker("PUT").is(t, "PutObjectLegalHold on a delete marker", err)
+		wantLockMarkerHeaders(t, "PutObjectLegalHold on a delete marker", err, marker.VersionId)
 		_, err = getHold("locked", "k", marker.VersionId)
 		errMarker("GET").is(t, "GetObjectLegalHold on a delete marker", err)
+		wantLockMarkerHeaders(t, "GetObjectLegalHold on a delete marker", err, marker.VersionId)
 	})
+}
+
+// wantLockMarkerHeaders checks the headers of a legal-hold operation's 405
+// on a delete marker: x-amz-delete-marker, the marker's x-amz-version-id
+// and Allow: DELETE, without the Last-Modified a GetObject's 405 carries
+// (S3SOL-22 22-hold-delete-marker and 22-get-hold-delete-marker, recorded
+// 2026-11-03). x-amz-bucket-region is left out of the comparison: ADR 0013
+// puts it on every error about a found bucket, and those recordings answer
+// without it, a difference not yet settled for S3's errors as a whole.
+func wantLockMarkerHeaders(t *testing.T, name string, err *awserr.Error, version *string) {
+	t.Helper()
+	if err == nil || version == nil {
+		t.Errorf("%s: error %v for marker version %v, want the 405 for a marker", name, err, version)
+		return
+	}
+	want := []awserr.Header{{Name: "x-amz-delete-marker", Value: "true"}, {Name: "x-amz-version-id", Value: *version}, {Name: "Allow", Value: http.MethodDelete}}
+	got := slices.DeleteFunc(slices.Clone(err.Headers), func(h awserr.Header) bool { return h.Name == "x-amz-bucket-region" })
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("%s: headers (-want +got):\n%s", name, diff)
+	}
 }
 
 // TestObjectLockConfigurationRules: GetObjectLockConfiguration echoes the
