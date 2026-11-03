@@ -334,8 +334,8 @@ func (m *rawMessage) addresses() (rawAddresses, *refusal) {
 // senders is the addresses a raw send must have verified, in the order the
 // unverified text lists them, and the record's From addr-specs: Source when
 // given, else the From and Sender headers (ses.md 4.2, 6.1), then the
-// Return-Path header. Neither Source nor From answers AddressIllegalText
-// (model, SendRawEmailRequest; the answer is inferred, SES-20).
+// Return-Path header. Neither Source nor From answers RawMissingFromText
+// (model, SendRawEmailRequest; recorded, SES-20).
 func (a *rawAddresses) senders(source *string) (senders, from []string, r *refusal) {
 	switch {
 	case source != nil:
@@ -345,7 +345,7 @@ func (a *rawAddresses) senders(source *string) (senders, from []string, r *refus
 		}
 		senders, from = []string{*source}, []string{p.Address}
 	case len(a.from) == 0:
-		return nil, nil, invalid(AddressIllegalText)
+		return nil, nil, invalid(RawMissingFromText)
 	default:
 		senders = slices.Concat(a.from, a.sender)
 		for _, f := range a.from {

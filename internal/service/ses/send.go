@@ -62,7 +62,9 @@ func (r *refusal) v1() *awserr.Error {
 	case refusalThrottled:
 		return sesapi.ErrThrottling(r.text)
 	case refusalTemplateMissing:
-		return errTemplateMissing(r.template)
+		// With the TemplateName member the model declares: GetTemplate's
+		// recorded answer leaves it out (SES-18), a send's is unrecorded.
+		return sesapi.ErrTemplateDoesNotExistExceptionMembers(r.text, sesapi.TemplateDoesNotExistException{TemplateName: new(r.template)})
 	case refusalInvalid:
 	}
 	return sesapi.ErrInvalidParameterValue(r.text)
@@ -117,8 +119,8 @@ func firstUnimplemented(svc, op string, ms []unimplemented) *refusal {
 const sendEmailCoverage = "journal-only: validates and applies identity and sandbox rules, returns a MessageId and records the message " +
 	"for GET /_understudy/v1/ses/messages; no mail is sent, and no Send, Delivery, Bounce or Complaint event or notification is produced; " +
 	"ConfigurationSetName and the sending-authorization ARNs answer NotImplemented; " +
-	"chosen without a recording (docs/research/ses.md 11.4): address, recipient-count, size and daily-quota answers, " +
-	"tag boundaries and ses: names, check order, mailbox-simulator and label matching"
+	"chosen without a recording (docs/research/ses.md 11.4): address answers other than an empty Source, recipient-count, size " +
+	"and daily-quota answers, refusing a 257-character tag, check order, mailbox-simulator and label matching"
 
 // bindSends binds the v1 send operations. A send's resource is its
 // sender's identity ARN (contract 2.6).
@@ -263,8 +265,9 @@ const (
 	tagValueMissingText = "The tag value must be specified."
 	tagNameCharsetText  = "Invalid tag name <%s>: only alphanumeric ASCII characters, '_',  '-' are allowed."
 	tagValueCharsetText = "Invalid tag value <%s>: only alphanumeric ASCII characters, '_',  '-' , '.', '@' are allowed."
-	tagNameLengthText   = "Tag name cannot exceed %d characters."
-	tagValueLengthText  = "Tag value cannot exceed %d characters."
+	// The length texts say 255 although 256 characters pass (SES-16).
+	tagNameLengthText  = "Tag name cannot exceed 255 characters."
+	tagValueLengthText = "Tag value cannot exceed 255 characters."
 )
 
 // checkTag validates one message tag, name before value (ses.md 4.5): each
@@ -279,13 +282,13 @@ func checkTag(name, value string) *refusal {
 	case !slices.Contains(FeedbackIDTagNames(), name) && !onlyTagChars(name, ""):
 		return invalid(fmt.Sprintf(tagNameCharsetText, name))
 	case len(name) > TagMaxLength:
-		return invalid(fmt.Sprintf(tagNameLengthText, TagMaxLength))
+		return invalid(tagNameLengthText)
 	case value == "":
 		return invalid(tagValueMissingText)
 	case !onlyTagChars(value, ".@"):
 		return invalid(fmt.Sprintf(tagValueCharsetText, value))
 	case len(value) > TagMaxLength:
-		return invalid(fmt.Sprintf(tagValueLengthText, TagMaxLength))
+		return invalid(tagValueLengthText)
 	}
 	return nil
 }
@@ -305,12 +308,16 @@ func onlyTagChars(s, extra string) bool {
 }
 
 // parseAddress validates an address as SES does, as far as is known
-// (ses.md 4.6, 11.6 item 5; texts inferred, SES-04), and parses it. The
-// texts answer in this order: no "@" in the addr-spec; whitespace or a
-// control character in its local part; a domain ending in "."; anything
-// else net/mail refuses, or a non-ASCII character, since addresses must be
-// 7-bit ASCII with Unicode display names MIME-encoded (model, ses.md 4.1).
+// (ses.md 4.6, 11.6 item 5), and parses it. The texts answer in this
+// order: an empty address (recorded, SES-04); no "@" in the addr-spec;
+// whitespace or a control character in its local part; a domain ending in
+// "."; anything else net/mail refuses, or a non-ASCII character, since
+// addresses must be 7-bit ASCII with Unicode display names MIME-encoded
+// (model, ses.md 4.1). All but the first are inferred (SES-04).
 func parseAddress(s string) (*mail.Address, *refusal) {
+	if s == "" {
+		return nil, invalid(EmptyAddressText)
+	}
 	spec := s
 	if i := strings.LastIndexByte(s, '<'); i >= 0 && strings.HasSuffix(s, ">") {
 		spec = s[i+1 : len(s)-1]

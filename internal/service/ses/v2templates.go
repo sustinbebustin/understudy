@@ -47,10 +47,10 @@ func errEmailTemplateMissing(name string) *awserr.Error {
 	return sesv2api.ErrNotFoundException(fmt.Sprintf(TemplateMissingText, name))
 }
 
-// checkEmailTemplateSize refuses content whose text and HTML parts together
-// are above MaxTemplateBytes, as v1 refuses a template (ses.md 7; the
-// answer is inferred, SES-29).
-func checkEmailTemplateSize(c *sesv2api.EmailTemplateContent) *awserr.Error {
+// checkEmailTemplateSize refuses content of template name whose text and
+// HTML parts together are above MaxTemplateBytes, with v1's recorded text
+// (ses.md 7; the v2 answer is inferred, SES-29 recorded v1).
+func checkEmailTemplateSize(name string, c *sesv2api.EmailTemplateContent) *awserr.Error {
 	n := 0
 	for _, p := range []*string{c.Text, c.Html} {
 		if p != nil {
@@ -58,16 +58,20 @@ func checkEmailTemplateSize(c *sesv2api.EmailTemplateContent) *awserr.Error {
 		}
 	}
 	if n > MaxTemplateBytes {
-		return sesv2api.ErrBadRequestException(fmt.Sprintf(TemplateTooLargeText, MaxTemplateBytes))
+		return sesv2api.ErrBadRequestException(fmt.Sprintf(TemplateTooLargeText, name))
 	}
 	return nil
 }
 
 // createEmailTemplate stores a new template with its tags, checked as v1
-// CreateTemplate checks one: size, then a free name, then MaxTemplates
-// (ses.md 7; the texts are inferred, SES-18, SES-29).
+// CreateTemplate checks one: a text or HTML part (recorded, SES-18), size,
+// then a free name, then MaxTemplates (ses.md 7; the AlreadyExists and
+// limit texts are inferred).
 func (v *V2) createEmailTemplate(_ context.Context, c *kernel.Call, in *sesv2api.CreateEmailTemplateInput) (*sesv2api.CreateEmailTemplateOutput, *awserr.Error) {
-	if err := checkEmailTemplateSize(&in.TemplateContent); err != nil {
+	if in.TemplateContent.Text == nil && in.TemplateContent.Html == nil {
+		return nil, sesv2api.ErrBadRequestException(TemplateNoPartsText)
+	}
+	if err := checkEmailTemplateSize(in.TemplateName, &in.TemplateContent); err != nil {
 		return nil, err
 	}
 	s := v.svc
@@ -118,7 +122,7 @@ func (v *V2) getEmailTemplate(_ context.Context, c *kernel.Call, in *sesv2api.Ge
 // omitted part becoming unset, as v1 UpdateTemplate does; its tags and
 // creation time stay.
 func (v *V2) updateEmailTemplate(_ context.Context, c *kernel.Call, in *sesv2api.UpdateEmailTemplateInput) (*sesv2api.UpdateEmailTemplateOutput, *awserr.Error) {
-	if err := checkEmailTemplateSize(&in.TemplateContent); err != nil {
+	if err := checkEmailTemplateSize(in.TemplateName, &in.TemplateContent); err != nil {
 		return nil, err
 	}
 	s := v.svc

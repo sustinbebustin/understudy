@@ -38,7 +38,7 @@ func TestEveryBindingRefusesTheSESConditionKeys(t *testing.T) {
 		must(h, sesapi.OpSendEmail, email(sender, recipient))
 		must(h, sesapi.OpGetSendQuota, &sesapi.GetSendQuotaInput{})
 		must(h, sesapi.OpListIdentities, &sesapi.ListIdentitiesInput{})
-		must(h, sesapi.OpCreateTemplate, &sesapi.CreateTemplateInput{Template: sesapi.Template{TemplateName: "t"}})
+		must(h, sesapi.OpCreateTemplate, &sesapi.CreateTemplateInput{Template: sesapi.Template{TemplateName: "t", TextPart: new("t")}})
 		must(h, sesapi.OpListTemplates, &sesapi.ListTemplatesInput{})
 		must(h, sesv2api.OpGetAccount, &sesv2api.GetAccountInput{})
 		must(h, sesv2api.OpCreateEmailIdentity, &sesv2api.CreateEmailIdentityInput{EmailIdentity: "example.org"})

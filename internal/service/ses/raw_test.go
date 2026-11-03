@@ -166,11 +166,11 @@ func TestSendRawEmailMessageTooLong(t *testing.T) {
 }
 
 // Without Source a From header is required (model, SendRawEmailRequest;
-// ses.md 4.2); the answer is inferred (SES-20) and read from the constant.
+// ses.md 4.2); the answer is recorded (SES-20) and read from the constant.
 func TestSendRawEmailWithoutSender(t *testing.T) {
 	runVerified(t, ses.Options{}, func(h *harness) {
 		_, err := call(h, sesapi.OpSendRawEmail, rawEmail(mime("body\r\n", "To: "+simulator, "Subject: s")))
-		wantErr(h, err, sesapi.IdentityInvalidParameterValue(), ses.AddressIllegalText)
+		wantErr(h, err, sesapi.IdentityInvalidParameterValue(), ses.RawMissingFromText)
 	})
 }
 

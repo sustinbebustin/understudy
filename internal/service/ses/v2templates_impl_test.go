@@ -11,8 +11,13 @@ import (
 	"github.com/sustinbebustin/understudy/internal/service/ses"
 )
 
+// createEmailTemplate creates template name, with a Text part "t" when
+// content has neither Text nor Html, which AWS refuses (SES-18, ses.md 7).
 func (h *harness) createEmailTemplate(name string, content sesv2api.EmailTemplateContent, tags ...sesv2api.Tag) {
 	h.Helper()
+	if content.Text == nil && content.Html == nil {
+		content.Text = new("t")
+	}
 	must(h, sesv2api.OpCreateEmailTemplate, &sesv2api.CreateEmailTemplateInput{TemplateName: name, TemplateContent: content, Tags: tags})
 }
 
@@ -78,7 +83,7 @@ func TestEmailTemplatesFollowTheStoreSwitch(t *testing.T) {
 func TestEmailTemplateErrors(t *testing.T) {
 	run(t, func(h *harness) {
 		h.createEmailTemplate("dup", sesv2api.EmailTemplateContent{Subject: new("s")})
-		_, err := call(h, sesv2api.OpCreateEmailTemplate, &sesv2api.CreateEmailTemplateInput{TemplateName: "dup", TemplateContent: sesv2api.EmailTemplateContent{}})
+		_, err := call(h, sesv2api.OpCreateEmailTemplate, &sesv2api.CreateEmailTemplateInput{TemplateName: "dup", TemplateContent: sesv2api.EmailTemplateContent{Text: new("t")}})
 		wantErr(h, err, sesv2api.IdentityAlreadyExistsException(), fmt.Sprintf(ses.TemplateExistsText, "dup"))
 
 		missing := fmt.Sprintf(ses.TemplateMissingText, "gone")
@@ -91,9 +96,9 @@ func TestEmailTemplateErrors(t *testing.T) {
 
 		big := sesv2api.EmailTemplateContent{Text: new(strings.Repeat("t", ses.MaxTemplateBytes/2)), Html: new(strings.Repeat("h", ses.MaxTemplateBytes/2+1))}
 		_, err = call(h, sesv2api.OpCreateEmailTemplate, &sesv2api.CreateEmailTemplateInput{TemplateName: "big", TemplateContent: big})
-		wantErr(h, err, sesv2api.IdentityBadRequestException(), fmt.Sprintf(ses.TemplateTooLargeText, ses.MaxTemplateBytes))
+		wantErr(h, err, sesv2api.IdentityBadRequestException(), fmt.Sprintf(ses.TemplateTooLargeText, "big"))
 		_, err = call(h, sesv2api.OpUpdateEmailTemplate, &sesv2api.UpdateEmailTemplateInput{TemplateName: "dup", TemplateContent: big})
-		wantErr(h, err, sesv2api.IdentityBadRequestException(), fmt.Sprintf(ses.TemplateTooLargeText, ses.MaxTemplateBytes))
+		wantErr(h, err, sesv2api.IdentityBadRequestException(), fmt.Sprintf(ses.TemplateTooLargeText, "dup"))
 	})
 }
 

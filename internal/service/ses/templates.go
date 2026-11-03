@@ -82,8 +82,8 @@ func templateNamed[In any](nameOf func(*In) string) kernel.BindOption {
 }
 
 // checkTemplateSize refuses a template whose text and HTML parts together
-// are above MaxTemplateBytes (ses.md 7; the bound's reading and the answer
-// are inferred, SES-29).
+// are above MaxTemplateBytes: InvalidTemplate, without the TemplateName
+// member (recorded, SES-29, ses.md 7; the bound's reading is inferred).
 func checkTemplateSize(t *sesapi.Template) *awserr.Error {
 	n := 0
 	for _, p := range []*string{t.TextPart, t.HtmlPart} {
@@ -92,22 +92,26 @@ func checkTemplateSize(t *sesapi.Template) *awserr.Error {
 		}
 	}
 	if n > MaxTemplateBytes {
-		return sesapi.ErrInvalidParameterValue(fmt.Sprintf(TemplateTooLargeText, MaxTemplateBytes))
+		return sesapi.ErrInvalidTemplateException(fmt.Sprintf(TemplateTooLargeText, t.TemplateName))
 	}
 	return nil
 }
 
 // errTemplateMissing answers GetTemplate or UpdateTemplate of a template
-// the scope does not hold (ses.md 7; the text is inferred, SES-18).
+// the scope does not hold, without the TemplateName member (recorded for
+// GetTemplate, SES-18, ses.md 7).
 func errTemplateMissing(name string) *awserr.Error {
-	return sesapi.ErrTemplateDoesNotExistExceptionMembers(fmt.Sprintf(TemplateMissingText, name),
-		sesapi.TemplateDoesNotExistException{TemplateName: new(name)})
+	return sesapi.ErrTemplateDoesNotExistException(fmt.Sprintf(TemplateMissingText, name))
 }
 
-// createTemplate stores a new template. Its size is checked first, then
-// that the name is free (AlreadyExists, member Name), then MaxTemplates
-// (ses.md 7; the texts are inferred, SES-18, SES-29).
+// createTemplate stores a new template. A template with neither a text nor
+// an HTML part is refused first (recorded, SES-18), then its size is
+// checked, then that the name is free (AlreadyExists, member Name), then
+// MaxTemplates (ses.md 7; the AlreadyExists and limit texts are inferred).
 func (s *Service) createTemplate(_ context.Context, c *kernel.Call, in *sesapi.CreateTemplateInput) (*sesapi.CreateTemplateOutput, *awserr.Error) {
+	if in.Template.TextPart == nil && in.Template.HtmlPart == nil {
+		return nil, sesapi.ErrInvalidParameterValue(TemplateNoPartsText)
+	}
 	if err := checkTemplateSize(&in.Template); err != nil {
 		return nil, err
 	}

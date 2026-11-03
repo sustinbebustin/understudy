@@ -24,7 +24,7 @@ func TestSnapshotRoundTrip(t *testing.T) {
 	runVerified(t, ses.Options{}, func(h *harness) {
 		h.verifyEmail("pending@example.com")
 		token := h.verifyDomain("example.org")
-		must(h, sesapi.OpCreateTemplate, &sesapi.CreateTemplateInput{Template: sesapi.Template{TemplateName: "welcome", SubjectPart: new("Hi")}})
+		must(h, sesapi.OpCreateTemplate, &sesapi.CreateTemplateInput{Template: sesapi.Template{TemplateName: "welcome", SubjectPart: new("Hi"), TextPart: new("t")}})
 		id := must(h, sesapi.OpSendEmail, email(sender, recipient)).MessageId
 
 		sections, err := h.svc.Export()

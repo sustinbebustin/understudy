@@ -42,18 +42,20 @@ func TestListTemplatesPagesInCreationOrder(t *testing.T) {
 	})
 }
 
-// The modeled members ride on the errors: AlreadyExists names the template
-// in Name, TemplateDoesNotExist in TemplateName (ses.md 2.2, 7).
+// AlreadyExists names the template in its modeled Name member (ses.md 2.2,
+// 7; inferred); GetTemplate's TemplateDoesNotExist carries no member, as
+// recorded (SES-18).
 func TestTemplateErrorsCarryTheirMembers(t *testing.T) {
 	run(t, func(h *harness) {
 		h.createTemplate(sesapi.Template{TemplateName: "dup"})
-		_, err := call(h, sesapi.OpCreateTemplate, &sesapi.CreateTemplateInput{Template: sesapi.Template{TemplateName: "dup"}})
+		_, err := call(h, sesapi.OpCreateTemplate, &sesapi.CreateTemplateInput{Template: sesapi.Template{TemplateName: "dup", TextPart: new("t")}})
 		if m, ok := err.Members().(*sesapi.AlreadyExistsException); !ok || m.Name == nil || *m.Name != "dup" {
 			h.Errorf("AlreadyExists members = %#v, want Name dup", err.Members())
 		}
+		// GetTemplate's recorded answer has no TemplateName (SES-18).
 		_, err = call(h, sesapi.OpGetTemplate, &sesapi.GetTemplateInput{TemplateName: "gone"})
-		if m, ok := err.Members().(*sesapi.TemplateDoesNotExistException); !ok || m.TemplateName == nil || *m.TemplateName != "gone" {
-			h.Errorf("TemplateDoesNotExist members = %#v, want TemplateName gone", err.Members())
+		if m, ok := err.WireMembers(); ok {
+			h.Errorf("TemplateDoesNotExist members = %#v, want none", m)
 		}
 	})
 }
@@ -71,7 +73,7 @@ func TestUpdateAndDeleteTemplate(t *testing.T) {
 		_, err := call(h, sesapi.OpUpdateTemplate, &sesapi.UpdateTemplateInput{Template: sesapi.Template{
 			TemplateName: "a", HtmlPart: new(strings.Repeat("h", ses.MaxTemplateBytes+1)),
 		}})
-		wantErr(h, err, sesapi.IdentityInvalidParameterValue(), fmt.Sprintf(ses.TemplateTooLargeText, ses.MaxTemplateBytes))
+		wantErr(h, err, sesapi.IdentityInvalidTemplateException(), fmt.Sprintf(ses.TemplateTooLargeText, "a"))
 		if got := must(h, sesapi.OpGetTemplate, &sesapi.GetTemplateInput{TemplateName: "a"}).Template; got.TextPart == nil || *got.TextPart != "t" || got.HtmlPart != nil {
 			h.Errorf("after a refused update = %+v, want the old parts", got)
 		}
