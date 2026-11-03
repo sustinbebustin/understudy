@@ -140,8 +140,10 @@ def test_template_lifecycle(ses: Any) -> None:
         "SubjectPart": "Hi {{name}}",
         "TextPart": "Dear {{name}}",
     }
+    # The duplicate carries a text part: AWS refuses a part-less template
+    # with InvalidParameterValue before it checks the name (SES-18 02-dup).
     with pytest.raises(ClientError) as exc:
-        ses.create_template(Template={"TemplateName": name})
+        ses.create_template(Template={"TemplateName": name, "TextPart": "again"})
     assert error_code(exc.value) == "AlreadyExists"
     ses.update_template(Template={"TemplateName": name, "HtmlPart": "<p>new</p>"})
     assert ses.get_template(TemplateName=name)["Template"] == {"TemplateName": name, "HtmlPart": "<p>new</p>"}

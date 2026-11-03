@@ -187,7 +187,9 @@ describe("SES templates", () => {
     // replaces them (ses.md 9.4).
     const got = await ses.send(new GetTemplateCommand({ TemplateName: name }));
     expect(got.Template).toEqual({ TemplateName: name, SubjectPart: "Hi {{name}}", TextPart: "Dear {{name}}" });
-    await expectFailure(ses.send(new CreateTemplateCommand({ Template: { TemplateName: name } })), {
+    // The duplicate carries a text part: AWS refuses a part-less template
+    // with InvalidParameterValue before it checks the name (SES-18 02-dup).
+    await expectFailure(ses.send(new CreateTemplateCommand({ Template: { TemplateName: name, TextPart: "again" } })), {
       name: "AlreadyExistsException",
       status: 400,
     });

@@ -22,7 +22,9 @@ test_template_lifecycle() {
   aws_ok ses get-template --template-name "$tmpl"
   assert_jq '.Template | keys | join(",")' 'SubjectPart,TemplateName,TextPart'
   assert_jq '.Template.SubjectPart' 'Hi {{name}}'
-  aws_error AlreadyExists 400 ses create-template --template "{\"TemplateName\":\"$tmpl\"}"
+  # The duplicate carries a text part: AWS refuses a part-less template
+  # with InvalidParameterValue before it checks the name (SES-18 02-dup).
+  aws_error AlreadyExists 400 ses create-template --template "{\"TemplateName\":\"$tmpl\",\"TextPart\":\"again\"}"
   aws_ok ses update-template --template "{\"TemplateName\":\"$tmpl\",\"HtmlPart\":\"<p>new</p>\"}"
   aws_ok ses get-template --template-name "$tmpl"
   assert_jq '.Template | keys | join(",")' 'HtmlPart,TemplateName'

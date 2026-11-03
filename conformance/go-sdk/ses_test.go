@@ -203,7 +203,11 @@ func TestSESTemplateLifecycle(t *testing.T) {
 	if aws.ToString(got.Template.SubjectPart) != "Hi {{name}}" || aws.ToString(got.Template.TextPart) != "Dear {{name}}" || got.Template.HtmlPart != nil {
 		t.Errorf("GetTemplate = %+v, want the parts as given and no HtmlPart", got.Template)
 	}
-	_, err = client.CreateTemplate(ctx, &ses.CreateTemplateInput{Template: &types.Template{TemplateName: aws.String(tmpl)}})
+	// The duplicate carries a text part: AWS refuses a part-less template
+	// with InvalidParameterValue before it checks the name (SES-18 02-dup).
+	_, err = client.CreateTemplate(ctx, &ses.CreateTemplateInput{Template: &types.Template{
+		TemplateName: aws.String(tmpl), TextPart: aws.String("again"),
+	}})
 	apiErr(t, err, "CreateTemplate", "AlreadyExists")
 
 	_, err = client.UpdateTemplate(ctx, &ses.UpdateTemplateInput{Template: &types.Template{
