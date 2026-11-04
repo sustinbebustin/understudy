@@ -260,15 +260,21 @@ describe("EventBridge schedule expressions", () => {
     });
   }
 
-  // The schedule check runs before the bus lookup: AWS refuses a bus the
-  // recording never created (testdata/parity/events/R14/04-custom-bus-schedule.json,
-  // eventbridge-buses.md 5.3).
+  // testdata/parity/events/R14/04-custom-bus-schedule.json (aws-recorded). The
+  // bus exists: AWS looks it up first, so a missing bus is
+  // ResourceNotFoundException (testdata/parity/events/EBB/03-put-rule-schedule.json).
   test("a schedule rule on a custom event bus is refused", async () => {
-    await expectFailure(events.send(new PutRuleCommand({ Name: ruleName(), ScheduleExpression: "rate(5 minutes)", EventBusName: uniq("bus") })), {
-      name: "ValidationException",
-      status: 400,
-      messageIncludes: "ScheduleExpression is supported only on the default event bus.",
-    });
+    const bus = uniq("bus");
+    await events.send(new CreateEventBusCommand({ Name: bus }));
+    try {
+      await expectFailure(events.send(new PutRuleCommand({ Name: ruleName(), ScheduleExpression: "rate(5 minutes)", EventBusName: bus })), {
+        name: "ValidationException",
+        status: 400,
+        messageIncludes: "ScheduleExpression is supported only on the default event bus.",
+      });
+    } finally {
+      await events.send(new DeleteEventBusCommand({ Name: bus }));
+    }
   });
 });
 

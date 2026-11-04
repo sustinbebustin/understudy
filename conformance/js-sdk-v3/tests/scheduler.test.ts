@@ -154,9 +154,10 @@ describe("EventBridge Scheduler", () => {
 
   // A rate schedule first fires at its StartDate (aws-doc schedule-types;
   // scheduler.md 5.2), its body carrying the schedule ARN, the scheduled
-  // time, a 16-hex execution id and attempt 1 (aws-doc
-  // managing-schedule-context-attributes, configuring-schedule-dlq;
-  // scheduler.md 6.3, 7.2); the zone, State and StartDate read back as sent
+  // time, a lower-case UUID execution id and attempt 1 (aws-doc
+  // managing-schedule-context-attributes; scheduler.md 6.3; the UUID form is
+  // testdata/parity/scheduler/SCH/07-sqs-context.json, aws-recorded); the
+  // zone, State and StartDate read back as sent
   // (tf-acc schedule_test.go:L365-L419, L1870-L1895; scheduler.md 4.2).
   test("a StartDate fire carries the substituted context attributes", async () => {
     const { queueUrl, target } = await queueTarget();
@@ -185,7 +186,7 @@ describe("EventBridge Scheduler", () => {
     const [scheduleArn, scheduled, execution, attempt] = (bodies[0] ?? "").split("|");
     expect(scheduleArn).toBe(arn);
     expect(scheduled).toBe(start.toISOString().replace(".000Z", "Z"));
-    expect(execution).toMatch(/^[0-9a-f]{16}$/);
+    expect(execution).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
     expect(attempt).toBe("1");
   });
 
@@ -289,9 +290,11 @@ describe("EventBridge Scheduler", () => {
   });
 
   // A schedule whose target queue was deleted, with MaximumRetryAttempts 0,
-  // sends its Input to the dead-letter queue with the String attributes the
-  // dead-letter page lists, ERROR_CODE AWS.SimpleQueueService.NonExistentQueue
-  // (aws-doc configuring-schedule-dlq; scheduler.md 7.2). RETRY_ATTEMPTS and
+  // sends the SQS request it built ({"MessageBody": <Input>, "QueueUrl": ...})
+  // to the dead-letter queue with nine String attributes, ERROR_CODE
+  // AWS.SimpleQueueService.NonExistentQueue and TARGET_ARN the queue as
+  // configured (scheduler.md 7.2; testdata/parity/scheduler/SCH/08-gone.json,
+  // aws-recorded). RETRY_ATTEMPTS and
   // EXHAUSTED_RETRY_CONDITION depend on scheduler.retry.permanent-errors and
   // are asserted in Go tests; DeadLetterConfig reads back as sent (4.2).
   test("a deleted target queue dead-letters with the documented attributes", async () => {
@@ -327,8 +330,13 @@ describe("EventBridge Scheduler", () => {
     const messages = received.Messages ?? [];
     expect(messages.length).toBe(1);
     const attrs = messages[0]?.MessageAttributes ?? {};
-    expect(messages[0]?.Body).toBe("Hello, world!");
+    const [, , , goneRegion, goneAccount, goneQueue] = goneArn.split(":");
+    expect(JSON.parse(messages[0]?.Body ?? "null")).toEqual({
+      MessageBody: "Hello, world!",
+      QueueUrl: `https://sqs.${goneRegion}.amazonaws.com/${goneAccount}/${goneQueue}`,
+    });
     for (const n of [
+      "CONTAINS_INVALID_PAYLOAD",
       "ERROR_CODE",
       "ERROR_MESSAGE",
       "EXECUTION_ID",
@@ -341,7 +349,7 @@ describe("EventBridge Scheduler", () => {
       expect(attrs[n]?.DataType).toBe("String");
     }
     expect(attrs.ERROR_CODE?.StringValue).toBe("AWS.SimpleQueueService.NonExistentQueue");
-    expect(attrs.TARGET_ARN?.StringValue ?? "").toMatch(/^arn:aws:scheduler:::aws-sdk:[a-z0-9-]+:[a-zA-Z]+$/);
+    expect(attrs.TARGET_ARN?.StringValue).toBe(goneArn);
     expect(attrs.SCHEDULE_ARN?.StringValue).toBe(arn);
     expect(attrs.SCHEDULED_TIME?.StringValue).toBe(`${atText}Z`);
   });
