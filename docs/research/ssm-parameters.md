@@ -493,7 +493,7 @@ From the [General Reference](https://docs.aws.amazon.com/general/latest/gr/ssm.h
 
 `ParameterLimitExceeded`: "You have exceeded the number of parameters for this Amazon Web Services account." [M]
 
-UNVERIFIED (SSM-33): the text of `ParameterLimitExceeded` at the 10,001st standard parameter. Deferred in the 2026-11-03 session: about an hour of slow writes, and it needs an account with no other parameters.
+Recorded, the 10,001st standard parameter (SSM-33, recorded 2026-11-04; `testdata/parity/ssm/SSM-33/01-10001st.json`): with 10,000 Standard parameters in the account and Region, `PutParameter` with `Tier Standard` answers 400 `{"__type":"ParameterLimitExceeded","message":"You have reached the maximum number of standard parameters for this AWS account and Region (10000). To add more parameters, either delete existing parameters or upgrade to the advanced-parameter tier (charges apply)."}`. The key is `message` in lower case, as the model's member, and the text is not the model's documentation above; it names neither the parameter nor its tier argument. understudy answers this text. The Advanced tier's text at 100,000 is unrecorded; understudy's own names the parameter and the limit.
 
 ## 10. Clients
 
@@ -553,7 +553,7 @@ These are the calls 10.1 lists for v6.68.0, so the same answers give an empty se
 
 | Topic | Sources | Resolution |
 |---|---|---|
-| Status of `ParameterNotFound`, `ParameterLimitExceeded`, `TooManyUpdates` | model `awsQueryError` 404/429/429; API reference 400; recorded 400 for `ParameterNotFound` | 400 (recorded; the query codes are inert without `awsQueryCompatible`) |
+| Status of `ParameterNotFound`, `ParameterLimitExceeded`, `TooManyUpdates` | model `awsQueryError` 404/429/429; API reference 400; recorded 400 for `ParameterNotFound` and for `ParameterLimitExceeded` (SSM-33) | 400 (recorded; the query codes are inert without `awsQueryCompatible`) |
 | Empty lists | model `@length(min: 1)`; recorded `InvalidParameters: []`; doc examples `[]` | send `[]` |
 | Unlabel output key | user guide shows `DeletedLabels`; model and API reference `RemovedLabels` | `RemovedLabels` (model) |
 | `ParameterPatternMismatchException` meaning | model: "The parameter name isn't valid."; user guide: AllowedPattern value mismatch | use it for the value mismatch (the guide's quoted output); name defects per SSM-04 |
@@ -693,7 +693,7 @@ Hand-coded rules and texts (exact where a source gives them):
 | more than 50 tags | `TooManyTagsError` (400) | none | SSM-25 |
 | an `aws:` tag key | `ValidationException` (400) | `Caller is an end user and not allowed to mutate system tags` | SSM-25 |
 | a garbage `NextToken` | `InvalidNextToken` (400, key `Message`) | `The following token is invalid: <token>.` | SSM-32 |
-| 10,001st standard parameter (no Intelligent-Tiering) | `ParameterLimitExceeded` (400) | understudy's own; UNVERIFIED (SSM-33, deferred) | [D] 9.3 |
+| 10,001st standard parameter (no Intelligent-Tiering) | `ParameterLimitExceeded` (400, key `message`) | `You have reached the maximum number of standard parameters for this AWS account and Region (10000). To add more parameters, either delete existing parameters or upgrade to the advanced-parameter tier (charges apply).` | SSM-33 |
 | value over 4096 characters Standard / 8192 Advanced | `ValidationException` (400) | the texts of 4.2 | SSM-12 |
 | policies on Standard; policy over 10 | `ValidationException` / `PoliciesLimitExceededException` (400) | the text of 4.5 (policies answer 501 in understudy) | SSM-14 |
 | ARN past 1011 characters | `AccessDeniedException` (400, key `Message`) | `User: <caller> is not authorized to perform: ssm:<Action> on resource: <arn>` | SSM-06 |
@@ -1347,6 +1347,8 @@ ssmsweep
 ```
 
 The batched delete takes ten names per call, so the final `ssmsweep` finds little. Cost USD 0. Time: at least an hour; the 3 TPS `PutParameter` quota alone holds the 10,000 creates to about 56 min, and the batched deletes add about 6.
+
+Recorded 2026-11-04 (`testdata/parity/ssm/SSM-33/`): 400 `ParameterLimitExceeded` with the text 9.3 quotes, under key `message`.
 
 ### 13.35 SSM-34: aws:ec2:image with a malformed value
 

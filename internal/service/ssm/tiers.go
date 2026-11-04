@@ -101,20 +101,23 @@ func (w write) checkSize(t tier) *awserr.Error {
 
 // checkCount refuses a write that would put a parameter in tier t when the
 // scope already holds as many parameters of t as the tier allows
-// (ssm-parameters.md 4.2, 9.3). UNVERIFIED (SSM-33), ssm-parameters.md 9.3:
-// the text.
+// (ssm-parameters.md 4.2, 9.3). A full Standard tier answers AWS's text
+// (SSM-33 step 01). The Advanced tier's text is unrecorded, so it is
+// understudy's own, naming the parameter and the limit.
 func (w write) checkCount(st *State, t tier) *awserr.Error {
 	if !tierFull(st, t) {
 		return nil
 	}
 	limit := t.limits().parameters
-	advice := "Delete parameters this account and Region no longer need, or write this one with Tier Advanced or Intelligent-Tiering."
-	if t == tierAdvanced {
-		advice = "Delete parameters this account and Region no longer need."
+	if t != tierAdvanced {
+		return ssmapi.ErrParameterLimitExceeded(fmt.Sprintf(
+			"You have reached the maximum number of standard parameters for this AWS account and Region (%d). "+
+				"To add more parameters, either delete existing parameters or upgrade to the advanced-parameter tier (charges apply).", limit))
 	}
 	return ssmapi.ErrParameterLimitExceeded(fmt.Sprintf(
-		"Parameter %q was not written: this account and Region already hold %d %s parameters, the most the %s tier allows. %s",
-		w.name.spelling, limit, t, t, advice))
+		"Parameter %q was not written: this account and Region already hold %d %s parameters, the most the %s tier allows. "+
+			"Delete parameters this account and Region no longer need.",
+		w.name.spelling, limit, t, t))
 }
 
 // tierFull reports that st holds as many parameters of tier t as the tier

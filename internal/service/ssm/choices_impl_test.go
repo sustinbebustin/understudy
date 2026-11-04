@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/sustinbebustin/understudy/internal/api/ssmapi"
+	"github.com/sustinbebustin/understudy/internal/awserr"
 )
 
 // An untagged parameter lists TagList [], present and empty, which
@@ -252,19 +253,25 @@ func TestEmptyAllowedPatternClears(t *testing.T) {
 	})
 }
 
-// The 10,001st Standard parameter of a scope is ParameterLimitExceeded
-// (ssm-parameters.md 4.2, 9.3 [D]) naming the parameter and the limit, and
-// is not created; an Intelligent-Tiering create then resolves to Advanced
-// (4.2 [D]), and an overwrite of a Standard parameter still fits.
-// UNVERIFIED (SSM-33), ssm-parameters.md 9.3: the text.
+// The 10,001st Standard parameter of a scope is ParameterLimitExceeded with
+// AWS's text under the member "message" (ssm-parameters.md 4.2, 9.3; SSM-33
+// step 01, testdata/parity/ssm/SSM-33/01-10001st.json), and is not created;
+// an Intelligent-Tiering create then resolves to Advanced (4.2 [D]), and an
+// overwrite of a Standard parameter still fits.
 func TestStandardParameterCount(t *testing.T) {
 	run(t, func(h *harness) {
 		for i := range 10_000 {
 			h.put(fmt.Sprintf("/count/p%05d", i), "v")
 		}
-		_, err := call(h, ssmapi.OpPutParameter, &ssmapi.PutParameterInput{Name: "/count/over", Value: "secret-value", Type: new(ssmapi.ParameterTypeString)})
-		wantCode(h.T, "the 10,001st Standard parameter", err, ssmapi.IdentityParameterLimitExceeded())
-		wantOwnMessage(h.T, "the 10,001st Standard parameter", err, "secret-value", "/count/over", "10000")
+		_, err := call(h, ssmapi.OpPutParameter, &ssmapi.PutParameterInput{
+			Name: "/count/over", Value: "v", Type: new(ssmapi.ParameterTypeString), Tier: new(ssmapi.ParameterTierStandard),
+		})
+		wantError(h.T, "the 10,001st Standard parameter", err, ssmapi.IdentityParameterLimitExceeded(),
+			"You have reached the maximum number of standard parameters for this AWS account and Region (10000). "+
+				"To add more parameters, either delete existing parameters or upgrade to the advanced-parameter tier (charges apply).")
+		if err != nil && err.ID.MessageKey != awserr.MessageLower {
+			h.Errorf("the 10,001st Standard parameter's message key = %v, want MessageLower (\"message\")", err.ID.MessageKey)
+		}
 		if err := h.get("/count/over"); err == nil {
 			h.Error("the 10,001st Standard parameter was stored")
 		}
