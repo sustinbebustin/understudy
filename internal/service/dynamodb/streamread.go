@@ -37,8 +37,9 @@ const getRecordsMax = 1000
 const pageBytes = 1 << 20
 
 // Texts of the read errors, AWS's as recorded (dynamodb-streams.md 4.4,
-// 6.5: DDBS-01, DDBS-02, DDBS-04); the trimmed text is the model's
-// documentation of TrimmedDataAccessException (3.3; inferred, DDBS-15).
+// 6.5: DDBS-01, DDBS-02, DDBS-04, DDBS-15); the trimmed text is the model's
+// documentation of TrimmedDataAccessException (3.3; inferred: DDBS-15 saw
+// AWS remove a closed shard whole instead, 5.5, so its text is unrecorded).
 const (
 	textSequenceNotAllowed = "One or more parameter values were invalid: SequenceNumber should not be passed for this iterator type"
 	textSequenceMissing    = "One or more parameter values were invalid: SequenceNumber cannot be null"

@@ -670,7 +670,8 @@ func TestDescribeStreamShortARN(t *testing.T) {
 // (aws-recorded, dynamodb-streams.md 6.5: testdata/parity/dynamodb/DDBS-02/05-at-without-sequence.json,
 // 06-trim-with-sequence.json, 09-non-numeric-sequence.json;
 // testdata/parity/dynamodb/DDBS-01/02-iterator-missing-stream.json,
-// 03-iterator-missing-shard.json).
+// 03-iterator-missing-shard.json; an AT_SEQUENCE_NUMBER request for a shard
+// AWS had removed, testdata/parity/dynamodb/DDBS-15/01-at-old-sequence.json).
 func TestGetShardIteratorRefusals(t *testing.T) {
 	runStreams(t, dynamodb.Options{}, func(h *streamsHarness) {
 		arn, _ := latest(h.createStreamTable("Orders", "KEYS_ONLY"))
@@ -696,6 +697,10 @@ func TestGetShardIteratorRefusals(t *testing.T) {
 			},
 			{
 				"unknown shard", `{"StreamArn":"` + arn + `","ShardId":"shardId-00000000000000000000-00000000","ShardIteratorType":"TRIM_HORIZON"}`,
+				"com.amazonaws.dynamodb.v20120810#ResourceNotFoundException", "Requested resource not found: Shard does not exist",
+			},
+			{
+				"removed shard at a sequence number", `{"StreamArn":"` + arn + `","ShardId":"shardId-00000001793723721237-7672acf5","ShardIteratorType":"AT_SEQUENCE_NUMBER","SequenceNumber":"12100000714580876880150"}`,
 				"com.amazonaws.dynamodb.v20120810#ResourceNotFoundException", "Requested resource not found: Shard does not exist",
 			},
 		}
@@ -987,7 +992,7 @@ func TestDeletedTablesStreamIsDeletedAfter24Hours(t *testing.T) {
 
 // trimmedText is the trimmed-data message: the model's member
 // documentation without its stray leading quote (dynamodb-streams.md 3.3;
-// inferred, DDBS-15, GetRecords note).
+// inferred: DDBS-15 never saw it, GetRecords note).
 const trimmedText = "The data you are trying to access has been trimmed."
 
 // Records are trimmed exactly 24 hours after they arrive on the emulator
@@ -1042,8 +1047,8 @@ func TestStreamsAnswersCarryCRC32(t *testing.T) {
 }
 
 // A TTL sweep's delete is a REMOVE carrying userIdentity in the GetRecords
-// casing {"PrincipalId","Type"} (model and API reference,
-// dynamodb-streams.md 7.5), and an ordinary DeleteItem carries none
+// casing {"PrincipalId","Type"} (aws-recorded, dynamodb-streams.md 7.5:
+// testdata/parity/dynamodb/DDBS-13/records-3.json), and an ordinary DeleteItem carries none
 // (11.8: no userIdentity on a delete that did not come from the sweeper).
 func TestTTLDeletesCarryUserIdentity(t *testing.T) {
 	runStreams(t, dynamodb.Options{}, func(h *streamsHarness) {

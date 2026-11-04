@@ -200,7 +200,7 @@ The mapping reads the stream as its execution role. `understudy iam policy --pri
 
 ## Limitations
 
-- A stream has one shard, which never splits or rolls over; AWS opened a new on-demand table's stream with 4 shards. A stream is `ENABLED` or `DISABLED` at once; AWS reports `ENABLING` for about 7 seconds and `DISABLING` for about 8.
+- A stream has one shard, which never splits or rolls over; AWS opened a new on-demand table's stream with 4 shards and replaced each with a child about every four hours. understudy trims records from its one shard after 24 hours, answering `TrimmedDataAccessException` for a position behind the trim; AWS was not seen to trim, but removed a closed shard whole about a day after it closed, after which `get-shard-iterator` for it answers `ResourceNotFoundException` "Shard does not exist". A stream is `ENABLED` or `DISABLED` at once; AWS reports `ENABLING` for about 7 seconds and `DISABLING` for about 8.
 - Record sequence numbers are 21 digits, one above the shard's `StartingSequenceNumber`; AWS's are 23 digits, far above it. Compare them as integers.
 - A DynamoDB table's Kinesis streaming destination answers 501.
 - On a stream mapping, `ParallelizationFactor` above 1, `BisectBatchOnFunctionError`, `TumblingWindowInSeconds` above 0, a `FilterCriteria` pattern that compiles and an S3 on-failure destination answer 501 `NotImplemented`, naming the setting. A pattern that does not compile answers AWS's `InvalidParameterValueException`.

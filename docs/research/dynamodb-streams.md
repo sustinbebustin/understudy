@@ -21,7 +21,7 @@ Primary references used throughout:
 - LocalStack (Apache-2.0, archived; read, never copied): DDB-SNAP = `localstack@8b9a79f tests/aws/services/dynamodb/test_dynamodb.snapshot.json`, DDB-TEST = the matching `test_dynamodb.py`; STREAMS-SNAP = `tests/aws/services/dynamodbstreams/test_dynamodb_streams.snapshot.json`; ESM-SNAP = `tests/aws/services/lambda_/event_source_mapping/test_lambda_integration_dynamodbstreams.snapshot.json` (32 cases, 31 with a validation date between 2024-10-12 and 2025-11-25), ESM-TEST = the matching `.py`.
 - Terraform: `hashicorp/terraform-provider-aws v6.68.0` (TF below).
 
-Anything no source fixes is marked UNVERIFIED with the recording case that settles it (section 12). The recording session of 2026-11-03 ran DDBS-01 to DDBS-12, DDBS-16 and DDBS-17 (fixtures in `testdata/parity/dynamodb/DDBS-*`, each with a `notes.md`); its results replace the UNVERIFIED lines they settle, labelled aws-recorded with the item id. DDBS-13, DDBS-14 and DDBS-15 were deferred (they need hours or days of waiting) and stay UNVERIFIED.
+Anything no source fixes is marked UNVERIFIED with the recording case that settles it (section 12). The recording session of 2026-11-03 ran DDBS-01 to DDBS-12, DDBS-16 and DDBS-17 (fixtures in `testdata/parity/dynamodb/DDBS-*`, each with a `notes.md`); its results replace the UNVERIFIED lines they settle, labelled aws-recorded with the item id. DDBS-13, DDBS-14 and DDBS-15 were deferred (they need hours or days of waiting) and recorded on 2026-11-04 against the same stream, created 2026-11-03T16:35:17Z; their results are labelled the same way.
 
 ## 2. Findings that change the design
 
@@ -30,9 +30,9 @@ Anything no source fixes is marked UNVERIFIED with the recording case that settl
 3. **DynamoDB Local's stream runs on the wall clock and its own counters.** `ApproximateCreationDateTime` is floored to the minute (AWS: the second), iterators expire after 15 wall-clock minutes, sequence numbers come from one counter shared by every table, `eventID` is a UUID, and status changes are instant. Local also refuses a stream ARN or iterator prefix it did not mint, silently in the iterator case: an iterator whose prefix names another stream returns an empty page and no error (section 8.3). Rewriting Local's answers cannot put iterator expiry or trimming on the emulator clock, and can correct timestamps only by matching records back to writes. Section 11.1 therefore recommends an understudy-owned stream log, fed by draining Local's stream after each write.
 4. **Writes that change nothing emit nothing.** AWS documents this for PutItem and UpdateItem, and it is third-party-recorded for PutItem, a BatchWriteItem PutRequest and UpdateItem. Local agrees (section 7.6).
 5. **`SizeBytes` is the item size of `Keys` plus the images present.** Every AWS value found fits the documented item-size rules exactly: the six documentation values and all 82 in the three AWS-validated LocalStack snapshot files, whose items hold only string, binary, boolean and integer attributes. Local's values fit too (section 7.4).
-6. **`userIdentity` has two casings.** The GetRecords form is `{"PrincipalId","Type"}` (model and API reference), and the Lambda event form is `{"type","principalId"}` (TTL page, Lambda filter pattern, aws-lambda-go) (section 7.5).
+6. **`userIdentity` has two casings.** The GetRecords form is `{"PrincipalId","Type"}` (model and API reference; aws-recorded, DDBS-13), and the Lambda event form is `{"type","principalId"}` (TTL page, Lambda filter pattern, aws-lambda-go) (section 7.5).
 7. **Disabling a stream drops `StreamSpecification` from DescribeTable but keeps `LatestStreamArn` and `LatestStreamLabel`.** Terraform's acceptance tests against AWS assert that both still match the stream ARN and label patterns after a disable (they do not compare values; DDBS-05 step 05 does), and Local does the same (section 9.1).
-8. **AWS may give a new stream several shards, and the first record comes after `StartingSequenceNumber`.** A code comment in an AWS-validated LocalStack test says AWS "will often return 4 Shards" (section 5.6; a comment, not a recorded value, so DDBS-14 settles the count). An assertion run against AWS shows the first record's sequence number strictly greater than the shard's `StartingSequenceNumber` (third-party-recorded, section 4.3). Local has one shard, whose first record equals its start.
+8. **AWS gives a new stream several shards, which roll over and are later removed, and the first record comes after `StartingSequenceNumber`.** A code comment in an AWS-validated LocalStack test says AWS "will often return 4 Shards"; every new on-demand stream recorded opened with 4, each shard was replaced by a child about every four hours, and a closed shard was removed whole about a day after it closed, taking its records with it rather than trimming them (aws-recorded, DDBS-14 and DDBS-15, sections 5.5 and 5.6). An assertion run against AWS shows the first record's sequence number strictly greater than the shard's `StartingSequenceNumber` (third-party-recorded, section 4.3). Local has one shard, whose first record equals its start.
 9. **Sequence numbers vary in length**, from 21 to 25 digits in AWS examples, so they must be compared as integers, never as strings (section 4.3).
 10. **AWS documents `LimitExceededException` for GetRecords `Limit` above 1000, but Local answers `ValidationException`** (section 6.4).
 11. **Terraform never calls the Streams API.** An empty second plan depends only on CreateTable, UpdateTable and DescribeTable fields. The event source mapping needs a stream that Lambda can find: a missing stream gets 400 `InvalidParameterValueException` "Stream not found: <arn>" (third-party-recorded, section 10).
@@ -181,7 +181,8 @@ From MODEL:
 - "All data in DynamoDB Streams is subject to a 24-hour lifetime ... data that is older than 24 hours is susceptible to trimming (removal) at any moment." "There is no mechanism for manually deleting an existing stream." (STREAMS, "Data retention limit").
 - `TRIM_HORIZON` starts "at the last (untrimmed) stream record, which is the oldest record in the shard" (GetShardIterator). `TrimmedDataAccessException` is raised for an iterator requested with a sequence number older than the trim point, or for one whose next record was trimmed before it was used (GetRecords).
 - Whether and when Local trims was not observed (a short session cannot). Its other timers, the TTL sweep (dynamodb-local.md 5.2) and iterator expiry (4.4), run on the wall clock.
-- UNVERIFIED: the `TrimmedDataAccessException` text, and how soon after 24 hours AWS trims (DDBS-15). Deferred in the 2026-11-03 session: it runs at least 25 hours after DDBS-09 (after 2026-11-04T17:40Z) against the kept table `us1103-ddbs`.
+- aws-recorded (DDBS-15, recorded 2026-11-04; `testdata/parity/dynamodb/DDBS-15/`): AWS did not trim the record; it removed the record's whole shard. The target was DDBS-09's first record, written 2026-11-03T16:38:48Z in one of the 4 initial shards, which closed at 21:04:37Z when its child was stamped (5.6). Hourly from 25 h after the record to 29 h (tries 1 to 5, 2026-11-04T17:47Z to 21:48Z), `AT_SEQUENCE_NUMBER` at the record answered 200 and `TRIM_HORIZON` GetRecords returned all 5 of the shard's records, the target first. At 30 h (try 6, 22:48Z, 25.7 h after the shard closed), `AT_SEQUENCE_NUMBER` answered 400 `{"__type":"com.amazonaws.dynamodb.v20120810#ResourceNotFoundException","message":"Requested resource not found: Shard does not exist"}` (`01-at-old-sequence.json`), as for a shard that never existed (DDBS-01). That run's `02-trim-horizon.json`, `ValidationException` "Invalid ShardIterator", is a script artifact: the CLI's `TRIM_HORIZON` GetShardIterator had failed on the missing shard and the request carried `{"ShardIterator":""}`. `TrimmedDataAccessException` was never observed, so its text stays UNVERIFIED; the "24-hour lifetime" bounds when data may go, and here records outlived it by more than 5 hours.
+- understudy keeps one shard that never closes (5.6), so it cannot retire records by removing shards: it trims records from that shard at exactly 24 hours and answers `TrimmedDataAccessException` with the model's text. The GetRecords coverage note states the difference.
 
 ### 5.6 Shards, lineage and rollover
 
@@ -190,7 +191,11 @@ From MODEL:
 - LocalStack comment in an AWS-validated test: "AWS will often return 4 Shards where we return only one" (DDB-TEST:L2166; validated 2025-10-08). The test asserts only that `ExclusiveStartShardId` excludes the named shard. Against that, a recorded DescribeStream of a new provisioned table (5 RCU, 5 WCU) shows one shard (third-party-recorded, DDB-SNAP:L708-L735, validated 2025-10-08).
 - Rollover every four hours or so is widely repeated, but no AWS page read for this note says it.
 - aws-recorded, a side observation of DDBS-05, DDBS-07, DDBS-09 and DDBS-17 (2026-11-03): every new on-demand table's stream opened with 4 shards, which LocalStack's "often 4" anticipated.
-- UNVERIFIED: whether and when a lightly written shard closes and gets a child (DDBS-14, deferred in the 2026-11-03 session: it needs 6 unattended hours).
+- aws-recorded (DDBS-14, recorded 2026-11-04; `testdata/parity/dynamodb/DDBS-14/`), seven DescribeStream calls an hour apart from 2026-11-04T16:31Z, when the stream was about 24 hours old:
+  - The 4 initial shards carry ids stamped 2026-11-03T16:35:20Z to 16:35:21Z: the 20 digits of `shardId-<20 digits>-<8 hex>` are the shard's creation instant in epoch milliseconds, zero-padded.
+  - Each initial shard heads a lineage of single children (`ParentShardId`); every shard but the newest of its lineage has `EndingSequenceNumber`. Exactly 4 shards are open in every describe. A child's id is stamped 3.5 to 4.5 hours after its parent's (27 intervals, mean 4.1 hours), so each shard rolls over about every four hours whether or not the table is written: DDBS-13's readall found no record after 2026-11-03T17:05Z on any shard, and the describes added one PutItem an hour.
+  - The shard count was 25, 26, 28, 28, 29, 30 and 27 at 0 to 6 hours. The 4 initial shards, closed 2026-11-03T20:12Z to 21:04Z, were listed at 2026-11-04T21:33Z and gone at 22:33Z: AWS removed a closed shard whole 24.5 to 26.3 hours after it closed, 29 to 30 hours after it was created. Their children, closed from 23:55Z on, were still listed at 22:33Z.
+- understudy's stream has one shard that never splits, closes only when the stream is disabled, and goes only with its stream: switch `dynamodb.streams.shard-rollover` keeps `never`, and DescribeStream's coverage note states the difference (11.3).
 - Local: one shard per stream that never splits ("When you run DynamoDB locally, there is no table partitioning", usage notes). `ShardFilter CHILD_SHARDS` on that shard returns `[]`. `ExclusiveStartShardId` set to the only shard returns `[]`, and an `ExclusiveStartShardId` naming no shard returns every shard (observed).
 
 ## 6. Operations
@@ -260,7 +265,7 @@ From MODEL:
 | `TRIM_HORIZON` with `SequenceNumber` | not documented | "One or more parameter values were invalid: SequenceNumber should not be passed for this iterator type" | DDBS-02 |
 | unknown `ShardIteratorType`, missing type, non-numeric `SequenceNumber` | outside the model's enum, required and digit rules | 500 `InternalFailure` "The request processing has failed because of an unknown error, exception or failure." | DDBS-02 |
 | `StreamArn` under 37, `ShardId` under 28 characters | below the model's lengths | not found ("Requested resource not found ...", "Shard does not exist") | DDBS-02 |
-| trimmed data | `TrimmedDataAccessException` (doc) | not observable | DDBS-15 |
+| trimmed data | `TrimmedDataAccessException` (doc); never observed: past retention the whole closed shard is gone and GetShardIterator answers `ResourceNotFoundException` "Requested resource not found: Shard does not exist" (aws-recorded, 5.5) | not observable | DDBS-15 |
 | `AT_TIMESTAMP` in the future | `ValidationException` (doc) | 500 `InternalFailure` | DDBS-16 |
 | UpdateTable, enable twice | `ValidationException` "Table already has an enabled stream" (sdk-source) | same | DDBS-06 (confirm) |
 | UpdateTable, disable with none; enable without view type; disable with view type | `ValidationException` (doc) | texts in section 5.1 | DDBS-06 |
@@ -329,7 +334,7 @@ Sources: the view-type definitions (StreamRecord; STREAMS); recorded KEYS_ONLY (
 - The model's `Identity` has members `PrincipalId` and `Type` and no `jsonName`. The GetRecords response syntax shows `"userIdentity": {"PrincipalId": "string", "Type": "string"}` ([GetRecords](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_streams_GetRecords.html)). The Record page's prose names `Records[].userIdentity.type` "Service" and `.principalId` "dynamodb.amazonaws.com".
 - TTL-STREAMS shows lower-case `"type": "Service"`, `"principalId": "dynamodb.amazonaws.com"`. Its Lambda filter is `{"userIdentity":{"type":["Service"],"principalId":["dynamodb.amazonaws.com"]}}`, and aws-lambda-go decodes `json:"type"`, `json:"principalId"`, with `userIdentity` `omitempty` (aws-lambda-go `4111853` `events/dynamodb.go:L71-L77`). For a global table, only the region that ran TTL sets the field (TTL-STREAMS note).
 - Local's own TTL emits `eventName: UNKNOWN_TO_SDK_VERSION` with no `userIdentity` (dynamodb-local.md 5.2). understudy's sweeper deletes through DeleteItem, which Local records as a plain REMOVE with no `userIdentity` (observed). Its calls already run as `dynamodb.amazonaws.com` with Origin `Internal{Via: DynamoDBTTL}` (`internal/service/dynamodb/ttl.go:L51-L53`, `L305-L306`).
-- UNVERIFIED: the member casing AWS sends in GetRecords for a TTL delete (DDBS-13). Deferred in the 2026-11-03 session: TTL deletes "typically within two days", so the item's read runs within 24 hours of the delete, against the kept table `us1103-ddbs`.
+- aws-recorded (DDBS-13, recorded 2026-11-04; `testdata/parity/dynamodb/DDBS-13/records-3.json`, `user-identity.txt`): GetRecords sends the model's casing, `"userIdentity":{"PrincipalId":"dynamodb.amazonaws.com","Type":"Service"}`, a top-level member of the REMOVE record after `eventVersion`; the INSERT that wrote the item has none. The REMOVE carries `Keys` and `OldImage` and no `NewImage`. The item, put with `exp` 60 s in the past at 2026-11-03T16:57:34Z, was deleted at 17:05:31Z (its `ApproximateCreationDateTime`), 9 minutes later, well inside "typically within two days". understudy sends this casing; the lower camel case form belongs to the Lambda event (7.8).
 
 ### 7.6 Which writes emit a record
 
@@ -449,7 +454,7 @@ Decision (adopted 2026-10-26 by the ADR 0014 amendment "owned stream log"; it re
 5. **Lifecycle on the emulator clock.**
    - A disable closes the shard, setting `EndingSequenceNumber` (5.3).
    - A table delete marks the stream `DISABLED` and deletes it 24 hours later (5.4).
-   - Records become trimmable at exactly 24 hours (5.5), with `TrimmedDataAccessException` for an iterator or position behind the trim point.
+   - Records become trimmable at exactly 24 hours (5.5), with `TrimmedDataAccessException` for an iterator or position behind the trim point. AWS was recorded removing whole closed shards instead (DDBS-15, 5.5); with one shard that never closes, understudy trims within it, a difference its GetRecords coverage note states.
 6. **Labels.** Mint the label at the CreateTable or UpdateTable admission instant on the emulator clock, as `yyyy-MM-ddTHH:mm:ss.SSS` in UTC. On a collision for the same table, which only a frozen clock can cause, add 1 ms: AWS's uniqueness rule is customer plus table plus label (4.1). Rewrite `LatestStreamArn` and `LatestStreamLabel` in CreateTable, UpdateTable and DescribeTable answers from Local's values to understudy's, and map understudy's stream to Local's current stream internally.
 7. **Snapshots.** Snapshots carry the log, the labels, shard state and iterator-free positions (ARCHITECTURE.md 13). After a load, the re-created table's new Local stream is mapped to the restored understudy stream, whose label is unchanged. This retires the existing coverage note "LatestStreamLabel is minted by DynamoDB Local; a table re-created by snapshot load or reset carries a new one" (`internal/service/dynamodb/service.go:L75-L77`) once implemented. Until then, keep it.
 8. **Shape of the code.** Make the log its own type, beside the table store in `internal/service/dynamodb`, which owns the Local client, the table shim state and the TTL sweeper. Generate the API from the vendored model into its own package; a new package needs a row in `internal/ref/deps_test.go`.
@@ -471,25 +476,25 @@ No Streams operation stays unbound. DynamoDB's Kinesis streaming-destination ope
 
 ### 11.3 Fidelity switches
 
-| Switch | Default | Label | Grounds | Settled by | Recorded 2026-11-03 |
+| Switch | Default | Label | Grounds | Settled by | Recorded 2026-11-03 (DDBS-13 to 15: 2026-11-04) |
 |---|---|---|---|---|---|
 | `dynamodb.streams.status-transitions` | `immediate` | inferred | 5.2 | DDBS-05 | differs: `ENABLING` about 7 s, `DISABLING` about 8 s (5.2) |
-| `dynamodb.streams.shard-rollover` | `never` | inferred | 5.6 | DDBS-14 | deferred; 4 shards at creation (5.6) |
+| `dynamodb.streams.shard-rollover` | `never` | inferred | 5.6 | DDBS-14 | differs: 4 shards at creation, each replaced by a child every 3.5 to 4.5 h, a closed shard removed 24.5 to 26.3 h after it closed (5.6) |
 | `dynamodb.streams.event-id` | `hex32` | aws-doc | 4.5 | DDBS-09 | matches |
 | `dynamodb.streams.sequence-number` | `decimal-21` (21 digits, per-shard counter, first record one above `StartingSequenceNumber`) | inferred | 4.3 | DDBS-09 | differs: 23-digit records above a 21-digit start (4.5) |
 | `dynamodb.streams.iterator-reuse` | `allowed` | aws-recorded | 4.4 | DDBS-04 | matches |
 | `dynamodb.streams.closed-shard-next-iterator` | `absent` | aws-recorded (DDBS-07: no `NextShardIterator` member on a closed shard's last page; the GetRecords reference's "set to `null`" fits either) | 5.3, 6.4 | DDBS-07 | matches |
 | `dynamodb.streams.list-order` | `newest-first` | aws-doc | 6.1 | DDBS-08 | matches |
 | `dynamodb.streams.list-unknown-table` | `empty` | aws-recorded (DDBS-03) | 6.1 | DDBS-03 | matches |
-| `dynamodb.streams.user-identity-case` | `PascalCase` (GetRecords form; the Lambda form is always lower camel case) | aws-doc | 7.5 | DDBS-13 | deferred (7.5) |
+| `dynamodb.streams.user-identity-case` | `PascalCase` (GetRecords form; the Lambda form is always lower camel case) | aws-recorded (DDBS-13) | 7.5 | DDBS-13 | matches (7.5) |
 | `dynamodb.streams.delete-absent-item` | `no-record` | aws-recorded (DDBS-12) | 7.6 | DDBS-12 | matches |
-| `dynamodb.streams.trim-after` | `24h` (exactly: the earliest point the documentation allows) | aws-doc | 5.5 | DDBS-15 | deferred (5.5) |
+| `dynamodb.streams.trim-after` | `24h` (exactly: the earliest point the documentation allows) | aws-doc | 5.5 | DDBS-15 | differs: no record was trimmed from a shard; records were still read 29 h after they were written, then their closed shard was removed whole, and an iterator request for it answered `ResourceNotFoundException` "Shard does not exist" (5.5) |
 
-Each switch exists because no recording fixes the behavior (ADR 0003). A recording replaces its switch with fixed behavior and a test that cites the fixture. The rows that match are now that fixed behavior; the two that differ, and the code follow-ups they need, are in the coverage notes.
+Each switch exists because no recording fixes the behavior (ADR 0003). A recording replaces its switch with fixed behavior and a test that cites the fixture. The rows that match are now that fixed behavior; the four that differ, and the code follow-ups they need, are in the coverage notes. `shard-rollover` and `trim-after` differ together: AWS retires records by rolling shards over and removing closed ones, understudy by trimming its one shard, and matching AWS would mean minting rolling shards on the emulator clock.
 
 Two candidates are settled without a switch. The timestamp spelling is the awsJson codec's plain epoch-seconds number (`internal/protocol/awsjson/doc.go`), as the DynamoDB shim writes it, and the GetRecords coverage note says so; AWS writes the exponent form (DDBS-10, 7.3). The error namespace `com.amazonaws.dynamodb.v20120810` is the overlay trait `dev.understudy#errorNamespace` on the Streams service, aws-recorded (DDBS-01), as `codegen/overlays/dynamodb.json` does for DynamoDB; `ExpiredIteratorException` alone carries `com.amazonaws.dynamodb.streams.v20120810` on AWS (DDBS-04, 3.3).
 
-Only `dynamodb.streams.sequence-number` and `dynamodb.streams.iterator-reuse` are built as switches, under the per-unit cap of about five new switches (roadmap item 8a). Every other row is implemented as documented (`event-id`, `list-order`, `user-identity-case`, `trim-after`: aws-doc), as recorded (`closed-shard-next-iterator`, `list-unknown-table`, `delete-absent-item`: DDBS-07, DDBS-03, DDBS-12), or is a difference stated in DescribeStream's coverage note (`status-transitions`, recorded by DDBS-05; `shard-rollover`, whose 4 shards at creation were recorded and whose rollover stays UNVERIFIED until DDBS-14, 5.6).
+Only `dynamodb.streams.sequence-number` and `dynamodb.streams.iterator-reuse` are built as switches, under the per-unit cap of about five new switches (roadmap item 8a). Every other row is implemented as documented (`event-id`, `list-order`: aws-doc), as recorded (`closed-shard-next-iterator`, `list-unknown-table`, `delete-absent-item`, `user-identity-case`: DDBS-07, DDBS-03, DDBS-12, DDBS-13), or is a difference stated in a coverage note: DescribeStream's for `status-transitions` (DDBS-05) and `shard-rollover` (DDBS-14, 5.6), GetRecords' for `trim-after` (DDBS-15, 5.5).
 
 ### 11.4 Limits and validation
 
@@ -799,6 +804,8 @@ grep -h -A1 'Response body' "$REC"/DDBS-13/records-*.http | grep -o '"userIdenti
 
 Expected: `{"PrincipalId":"dynamodb.amazonaws.com","Type":"Service"}` or the lower-case form. AWS deletes expired items "typically within two days" (dynamodb-local.md 5.1). The checks are spread over sessions rather than run as one loop, which would outlive the session's credentials. Cost USD 0.00, about 3 minutes of work, minutes to 48 hours of waiting. Teardown: none.
 
+Recorded 2026-11-04 (`testdata/parity/dynamodb/DDBS-13/`): the PascalCase form; the TTL delete came 9 minutes after the put (7.5). The fixture keeps the one page holding the INSERT and the REMOVE; the readall's other pages were empty or held DDBS-09's records.
+
 ### 12.15 DDBS-14: initial shard count and rollover
 
 Settles 5.6 and switch `dynamodb.streams.shard-rollover`.
@@ -814,6 +821,8 @@ done
 
 Expected: the shard count at 0 h (the LocalStack note says often 4), and whether shards gain `EndingSequenceNumber` and children by hour 6. Cost USD 0.00, 6 hours unattended, 1 minute of work. Teardown: none.
 
+Recorded 2026-11-04 (`testdata/parity/dynamodb/DDBS-14/`), starting when the stream was about 24 hours old: 4 initial shards, 4 open shards throughout, a child every 3.5 to 4.5 hours per lineage, and the initial shards removed between hours 5 and 6 (5.6).
+
 ### 12.16 DDBS-15: TrimmedDataAccessException
 
 Settles 5.5, the trimmed-data row of 6.5 and switch `dynamodb.streams.trim-after`. Run at least 25 hours after DDBS-09.
@@ -827,6 +836,8 @@ ds DDBS-15/02-trim-horizon GetRecords "{\"ShardIterator\":\"$I15\"}"
 ```
 
 Expected: 01 is 400 `TrimmedDataAccessException` with its text. A 200 means the record is not trimmed yet, so repeat hourly and note the delay. A `ResourceNotFoundException` means the shard itself is gone, which also answers the question. Cost USD 0.00, 2 minutes of work, 25 hours after DDBS-09. Teardown: the shared teardown.
+
+Recorded 2026-11-04 (`testdata/parity/dynamodb/DDBS-15/`, the sixth hourly try; tries 1 to 5 answered 200 and are described in its `notes.md`): `ResourceNotFoundException` "Requested resource not found: Shard does not exist", the shard gone whole; never `TrimmedDataAccessException` (5.5). A failed `I15=` line leaves 02 sending an empty iterator, so 02 is only meaningful while 01 answers 200.
 
 ### 12.17 DDBS-16: AT_TIMESTAMP edges
 
