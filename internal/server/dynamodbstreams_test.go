@@ -35,19 +35,22 @@ func TestDynamoDBStreamsDisabledNamesTheSetting(t *testing.T) {
 // operations.
 func TestDynamoDBStreamsCoverageNotes(t *testing.T) {
 	constraint := "a constraint violation's text quotes the value (\"Value '0' at 'limit'\"), where AWS's omits it (\"Value at 'limit'\")"
+	// GetShardIterator and GetRecords both answer the trim, so both carry
+	// it (DDBS-15: try-5-at-old-sequence.json, 01-at-old-sequence.json).
+	trim := "a record is trimmed from the stream's one shard 24 hours after it arrives, and GetShardIterator or GetRecords at it answers TrimmedDataAccessException with the model's text, " +
+		"where AWS was never seen to trim a record from a shard: it kept records for more than 29 hours and then removed their closed shard whole, so GetShardIterator at the record answered ResourceNotFoundException \"Requested resource not found: Shard does not exist\""
 	want := map[string]string{
 		"dynamodbstreams.ListStreams": constraint + " (dynamodb-streams.md 6.5)",
 		"dynamodbstreams.DescribeStream": "aws-differs: understudy: a stream has one shard, which never splits or rolls over; " +
 			"AWS opened a new on-demand table's stream with 4 shards, replaced each with a child every 3.5 to 4.5 hours and removed a closed shard 24.5 to 26.3 hours after it closed; " +
 			"StreamStatus is ENABLED or DISABLED at once, where AWS reports ENABLING with no shards for about 7 seconds and DISABLING for about 8; " + constraint + " (dynamodb-streams.md 5.2, 5.6, 6.5)",
-		"dynamodbstreams.GetShardIterator": "AT_TIMESTAMP is refused: the pinned model (api-models-aws 1cfdfb4) predates it, so the enum text lists the four other types where AWS's lists five; " +
-			constraint + " (dynamodb-streams.md 3.5, 6.5)",
+		"dynamodbstreams.GetShardIterator": "aws-differs: understudy: " + trim + "; " +
+			"AT_TIMESTAMP is refused: the pinned model (api-models-aws 1cfdfb4) predates it, so the enum text lists the four other types where AWS's lists five; " +
+			constraint + " (dynamodb-streams.md 3.5, 5.5, 6.5)",
 		"dynamodbstreams.GetRecords": "aws-differs: understudy: more than two concurrent readers of a shard are never throttled; inject LimitExceededException with a fault rule; " +
 			"ApproximateCreationDateTime is written as a plain epoch-seconds number, where AWS writes the exponent form (1.793723928E9); " +
 			"ExpiredIteratorException carries the __type namespace com.amazonaws.dynamodb.v20120810, where AWS's is com.amazonaws.dynamodb.streams.v20120810; " +
-			constraint + "; a record is trimmed from the stream's one shard 24 hours after it arrives, and GetShardIterator or GetRecords at it answers TrimmedDataAccessException with the model's text, " +
-			"where AWS was never seen to trim a record from a shard: it kept records for more than 29 hours and then removed their closed shard whole, so GetShardIterator at the record answered ResourceNotFoundException \"Requested resource not found: Shard does not exist\" " +
-			"(dynamodb-streams.md 3.3, 5.5, 6.5, 7.3)",
+			constraint + "; " + trim + " (dynamodb-streams.md 3.3, 5.5, 6.5, 7.3)",
 	}
 	// The 8a text with the spec's "After 8b" edits: the Kinesis kind in the
 	// first clause, the 501 list naming consumers and AT_TIMESTAMP on a

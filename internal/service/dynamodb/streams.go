@@ -40,21 +40,26 @@ const describeStreamNote = "aws-differs: understudy: a stream has one shard, whi
 	"StreamStatus is ENABLED or DISABLED at once, where AWS reports ENABLING with no shards for about 7 seconds and DISABLING for about 8; " + constraintTexts +
 	" (dynamodb-streams.md 5.2, 5.6, 6.5)"
 
-// getShardIteratorNote is GetShardIterator's coverage note
-// (dynamodb-streams.md 3.5, 6.5).
-const getShardIteratorNote = "AT_TIMESTAMP is refused: the pinned model (api-models-aws 1cfdfb4) predates it, so the enum text lists the four other types where AWS's lists five; " +
-	constraintTexts + " (dynamodb-streams.md 3.5, 6.5)"
+// trimTexts is the clause of GetShardIterator's and GetRecords' notes, since
+// both answer the trim: with one shard that never closes, understudy must
+// trim within it, which AWS was not seen to do (aws-recorded,
+// dynamodb-streams.md 5.5: DDBS-15).
+const trimTexts = "a record is trimmed from the stream's one shard 24 hours after it arrives, and GetShardIterator or GetRecords at it answers TrimmedDataAccessException with the model's text, " +
+	"where AWS was never seen to trim a record from a shard: it kept records for more than 29 hours and then removed their closed shard whole, so GetShardIterator at the record answered ResourceNotFoundException \"Requested resource not found: Shard does not exist\""
+
+// getShardIteratorNote is GetShardIterator's coverage note, the difference
+// DDBS-15 recorded (dynamodb-streams.md 3.5, 5.5, 6.5).
+const getShardIteratorNote = "aws-differs: understudy: " + trimTexts + "; " +
+	"AT_TIMESTAMP is refused: the pinned model (api-models-aws 1cfdfb4) predates it, so the enum text lists the four other types where AWS's lists five; " +
+	constraintTexts + " (dynamodb-streams.md 3.5, 5.5, 6.5)"
 
 // getRecordsNote is GetRecords' coverage note, the differences
-// DDBS-04, DDBS-10 and DDBS-15 recorded (dynamodb-streams.md 3.3, 5.5, 6.4,
-// 7.3). The trim clause covers GetShardIterator too: with one shard that
-// never closes, understudy must trim within it, which AWS was not seen to do.
+// DDBS-04, DDBS-10 and DDBS-15 recorded (dynamodb-streams.md 3.3, 5.5, 6.5,
+// 7.3).
 const getRecordsNote = "aws-differs: understudy: more than two concurrent readers of a shard are never throttled; inject LimitExceededException with a fault rule; " +
 	"ApproximateCreationDateTime is written as a plain epoch-seconds number, where AWS writes the exponent form (1.793723928E9); " +
 	"ExpiredIteratorException carries the __type namespace com.amazonaws.dynamodb.v20120810, where AWS's is com.amazonaws.dynamodb.streams.v20120810; " +
-	constraintTexts + "; a record is trimmed from the stream's one shard 24 hours after it arrives, and GetShardIterator or GetRecords at it answers TrimmedDataAccessException with the model's text, " +
-	"where AWS was never seen to trim a record from a shard: it kept records for more than 29 hours and then removed their closed shard whole, so GetShardIterator at the record answered ResourceNotFoundException \"Requested resource not found: Shard does not exist\" " +
-	"(dynamodb-streams.md 3.3, 5.5, 6.5, 7.3)"
+	constraintTexts + "; " + trimTexts + " (dynamodb-streams.md 3.3, 5.5, 6.5, 7.3)"
 
 // NewStreams binds the DynamoDB Streams operations understudy serves,
 // reading svc's log.

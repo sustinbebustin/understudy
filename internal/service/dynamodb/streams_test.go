@@ -700,7 +700,10 @@ func TestGetShardIteratorRefusals(t *testing.T) {
 				"com.amazonaws.dynamodb.v20120810#ResourceNotFoundException", "Requested resource not found: Shard does not exist",
 			},
 			{
-				"removed shard at a sequence number", `{"StreamArn":"` + arn + `","ShardId":"shardId-00000001793723721237-7672acf5","ShardIteratorType":"AT_SEQUENCE_NUMBER","SequenceNumber":"12100000714580876880150"}`,
+				// understudy never removes a shard; this pins only the text
+				// AWS answered for one it had removed, through the unknown
+				// shard path above. Retention is TestRecordsAreTrimmedAt24Hours's.
+				"DDBS-15's removed shard id at a sequence number", `{"StreamArn":"` + arn + `","ShardId":"shardId-00000001793723721237-7672acf5","ShardIteratorType":"AT_SEQUENCE_NUMBER","SequenceNumber":"12100000714580876880150"}`,
 				"com.amazonaws.dynamodb.v20120810#ResourceNotFoundException", "Requested resource not found: Shard does not exist",
 			},
 		}
