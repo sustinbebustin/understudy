@@ -1,0 +1,34 @@
+{
+  "step": "records-3",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://streams.dynamodb.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "DynamoDBStreams_20120810.GetRecords"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,Z,AN,g,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#dynamodbstreams.get-records"],
+          ["X-Amz-Date", "20261104T163118Z"],
+          ["amz-sdk-invocation-id", "680a3888-4537-4dbf-9a69-17e69a61ad62"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "848"]
+        ],
+        "body": "{\"ShardIterator\": \"arn:aws:dynamodb:us-east-2:123456789012:table/us1103-ddbs/stream/2026-11-03T16:35:17.650|1|AAAAAAAAAAFQL/tsiIiNtsYnvJlvPP8ToiXO1WaUbEt/BNZRsGOq1ofto/bPSokN9Lx0IsxHkW94Xwcl+VBUr/PTkyJoec0l2kuK3slWz/vslXr+lNKqoSP0IiwZ0tq/BY9eHuf1hhtRj/tBe84Et7gprNItChNYRm2zEZMHTMN9A0XVjcbJe9LQdAh/FEXGKVCAfH+6wQkP59viW4gHOvKQ3SufVAsyIng0EsXDshYvmouJ9BR5PhqhSWsq6HCsiC+qWjbmJI+SfcoDofDFYH4HnUEU7Mi6WMuBDZVA8N7U5qYjSGgkrlbgfPQTVQtTZWjPnlr157tN+vhgFC8/lCZKz4I3+KD60N+kgSO/evQlismIbAuSV1EpZPQR+JTfXIAHyxgCfJwis9bCU/nKv6NsKmta56xVV09RkcDmE7Acd/dvZ8kG6q0PTJN4Z/ETpYYCTXbgBMADlYfmbXpbA3l+BXxP1gdDs++qv8/8hLaU8uBkkMpcfG2Rv/4dJomqtlIy0fNGS2NScOhQscfYO5OjmduFWWNx8HOWLbqgMSKKyOjQEC6Bh40oirK+WilSnvEUatpUBKkCRh21rd9xi+NoBCwL1J8ML6cujHMXKl8TrV7duWTL40iO528633tU6lLcGwoBlBzl/p14fxmodEQLchAen1Kb1U2fQsvJwJvXzVNO5O5joUl4Igqjem6/MCQxNn5dcUuz7BrOi6fhetobAxq5sUfv\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "PBMELPDAE8BCDSKHSQVAB98SEJVV4KQNSO5AEMVJF66Q9ASUAAJG"],
+          ["x-amz-crc32", "573634146"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "846"],
+          ["Date", "Wed, 04 Nov 2026 16:31:18 GMT"]
+        ],
+        "body": "{\"Records\":[{\"awsRegion\":\"us-east-2\",\"dynamodb\":{\"ApproximateCreationDateTime\":1.793725054E9,\"Keys\":{\"pk\":{\"S\":\"ttl-1\"}},\"NewImage\":{\"exp\":{\"N\":\"1793724994\"},\"pk\":{\"S\":\"ttl-1\"}},\"SequenceNumber\":\"72800002565701015264163\",\"SizeBytes\":23,\"StreamViewType\":\"NEW_AND_OLD_IMAGES\"},\"eventID\":\"91d7dd19d5ba355243d1564b18222df7\",\"eventName\":\"INSERT\",\"eventSource\":\"aws:dynamodb\",\"eventVersion\":\"1.1\"},{\"awsRegion\":\"us-east-2\",\"dynamodb\":{\"ApproximateCreationDateTime\":1.793725531E9,\"Keys\":{\"pk\":{\"S\":\"ttl-1\"}},\"OldImage\":{\"exp\":{\"N\":\"1793724994\"},\"pk\":{\"S\":\"ttl-1\"}},\"SequenceNumber\":\"98600002205513496863500\",\"SizeBytes\":23,\"StreamViewType\":\"NEW_AND_OLD_IMAGES\"},\"eventID\":\"7d5e72087230cbe4d6c624735d163cc8\",\"eventName\":\"REMOVE\",\"eventSource\":\"aws:dynamodb\",\"eventVersion\":\"1.1\",\"userIdentity\":{\"PrincipalId\":\"dynamodb.amazonaws.com\",\"Type\":\"Service\"}}]}"
+      }
+    }
+  ]
+}
