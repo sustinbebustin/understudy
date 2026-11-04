@@ -19,6 +19,6 @@ Target: DDBS-09's first record, sequence number `12100000714580876880150` in sha
 | try 6: 02 TRIM_HORIZON GetRecords | | 400 `com.amazon.coral.validate#ValidationException` "Invalid ShardIterator": a script artifact. The script's CLI GetShardIterator for TRIM_HORIZON failed on the missing shard and the request sent `{"ShardIterator":""}`; it says nothing about the shard |
 | TrimmedDataAccessException | | never observed: no record was trimmed from a shard; AWS removed the closed shard whole instead |
 
-`DDBS-15/` holds try 6; tries 1 to 5 are in `$REC/_work/DDBS-15-try-<n>`.
+`DDBS-15/` holds try 6 (`01-at-old-sequence`, `02-trim-horizon`) and try 5 (`try-5-at-old-sequence`, `try-5-trim-horizon`, the same steps); tries 1 to 4 are in `$REC/_work/DDBS-15-try-<n>`.
 
 Session changes (`# session:`): run hourly from `late-ddbs.sh` until 01 answered other than 200. The recipe's `"${f%.out}.shard"` is DDBS-09's `-shard.txt` file.

@@ -1,0 +1,34 @@
+{
+  "step": "try-5-trim-horizon",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://streams.dynamodb.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Host", "streams.dynamodb.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261104T214816Z"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["X-Amz-Target", "DynamoDBStreams_20120810.GetRecords"],
+          ["Content-Length", "847"]
+        ],
+        "body": "{\"ShardIterator\":\"arn:aws:dynamodb:us-east-2:123456789012:table/us1103-ddbs/stream/2026-11-03T16:35:17.650|1|AAAAAAAAAAEsjwJT2Fdf8NzE23rrXFHB26+JnN5XgKQlR7uuVMZu4JDrWfsYU85wZZvHad0bwRZu7zYnzibQGsyCB1yNuC2J0gfghZmONPHa7iI6eIaZNjUTDwTq8p7Z/wC3yCx4/sgVKWXLpl3qKQxQ2jJBD9GkpCko7Noto/3hhYfi28/QZlvRi7hfGkc6a4aWFn/ok2TARQa7s3najeV3ZHdtrikKGAmoUAbJWtRE5FmsD5czS5fRsOyIP0yWPP2Xk2Wu6EhktGOr3sKsAaWh+eLzrfq2I9r3dUPwRcYqCgFP17EvvIKeEgTW1WnfCfnFZASRGwKpxFxby9LZgl5xMrWqrislncLUAHhFY0hspgWN1UE0PK/aNJWupYGaT631q/od8UcKfnBQsR11g5vO8zFkgDk10gkfrJxfySwME5uVNAcDlTkpkKK2vIsSmHtQVkhEeVjEoYBOnJbNCOVm7PzuGOxvtA+TX8CtGMG04DR7Hh+R7Pegg2b/4ypIYuFlTcQx33sgBZrGvz433TbiYpIlZdUKz4DpNXn5U2zoUUKtVC8h1ZboBrASfQ+MdJiRK2jQnTOIpLCSW9dvgmG6NBge4IZ39ngY8F0dffHkaEu7Q3Z6O4IFWdO7de66PLMEF/UXI40kpElyzKj2TtRfWdoJIms4jYBF0fz6UVdtTvP85BgaO6cSlEEXq9cqciRAO3R+qo6JEY+bSw/3tcLYep6upSRj\"}"
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["x-amzn-RequestId", "JP1CH5QBCJPMITCVSSKGSONOBVVV4KQNSO5AEMVJF66Q9ASUAAJG"],
+          ["x-amz-crc32", "2944270340"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "1997"],
+          ["Date", "Wed, 04 Nov 2026 21:48:16 GMT"]
+        ],
+        "body": "{\"Records\":[{\"awsRegion\":\"us-east-2\",\"dynamodb\":{\"ApproximateCreationDateTime\":1.793723928E9,\"Keys\":{\"pk\":{\"S\":\"a\"}},\"NewImage\":{\"pk\":{\"S\":\"a\"},\"v\":{\"S\":\"one\"}},\"SequenceNumber\":\"12100000714580876880150\",\"SizeBytes\":10,\"StreamViewType\":\"NEW_AND_OLD_IMAGES\"},\"eventID\":\"289e853546916515f043e78ce5aa178e\",\"eventName\":\"INSERT\",\"eventSource\":\"aws:dynamodb\",\"eventVersion\":\"1.1\"},{\"awsRegion\":\"us-east-2\",\"dynamodb\":{\"ApproximateCreationDateTime\":1.793723928E9,\"Keys\":{\"pk\":{\"S\":\"a\"}},\"NewImage\":{\"pk\":{\"S\":\"a\"},\"v\":{\"S\":\"two\"}},\"OldImage\":{\"pk\":{\"S\":\"a\"},\"v\":{\"S\":\"one\"}},\"SequenceNumber\":\"12200000744465372945763\",\"SizeBytes\":17,\"StreamViewType\":\"NEW_AND_OLD_IMAGES\"},\"eventID\":\"2a5165a1a1d630fa37e61f089e6f7235\",\"eventName\":\"MODIFY\",\"eventSource\":\"aws:dynamodb\",\"eventVersion\":\"1.1\"},{\"awsRegion\":\"us-east-2\",\"dynamodb\":{\"ApproximateCreationDateTime\":1.793723929E9,\"Keys\":{\"pk\":{\"S\":\"a\"}},\"OldImage\":{\"pk\":{\"S\":\"a\"},\"v\":{\"S\":\"two\"}},\"SequenceNumber\":\"12400001491442358651784\",\"SizeBytes\":10,\"StreamViewType\":\"NEW_AND_OLD_IMAGES\"},\"eventID\":\"54c757bfd8b8865ccac921c7c608c7a5\",\"eventName\":\"REMOVE\",\"eventSource\":\"aws:dynamodb\",\"eventVersion\":\"1.1\"},{\"awsRegion\":\"us-east-2\",\"dynamodb\":{\"ApproximateCreationDateTime\":1.793723963E9,\"Keys\":{\"pk\":{\"S\":\"k\"}},\"NewImage\":{\"b\":{\"BOOL\":true},\"l\":{\"L\":[{\"S\":\"ab\"},{\"N\":\"1\"}]},\"m\":{\"M\":{\"x\":{\"S\":\"y\"}}},\"n\":{\"N\":\"12345.678\"},\"nl\":{\"NULL\":true},\"pk\":{\"S\":\"k\"},\"ss\":{\"SS\":[\"a\",\"bc\"]}},\"SequenceNumber\":\"14400003272598720649616\",\"SizeBytes\":40,\"StreamViewType\":\"NEW_AND_OLD_IMAGES\"},\"eventID\":\"ba069443c99901268c726738bb1b6f38\",\"eventName\":\"INSERT\",\"eventSource\":\"aws:dynamodb\",\"eventVersion\":\"1.1\"},{\"awsRegion\":\"us-east-2\",\"dynamodb\":{\"ApproximateCreationDateTime\":1.793723997E9,\"Keys\":{\"pk\":{\"S\":\"marker-12\"}},\"NewImage\":{\"pk\":{\"S\":\"marker-12\"}},\"SequenceNumber\":\"16300001420882151208176\",\"SizeBytes\":22,\"StreamViewType\":\"NEW_AND_OLD_IMAGES\"},\"eventID\":\"50c48e7e3f4f067b4183e25bef8556cd\",\"eventName\":\"INSERT\",\"eventSource\":\"aws:dynamodb\",\"eventVersion\":\"1.1\"}]}"
+      }
+    }
+  ]
+}
