@@ -7,12 +7,26 @@ For the maintainer. Tagging, publishing and every registry login are the maintai
 - `.goreleaser.yaml` builds linux and darwin binaries for amd64 and arm64, a `tar.gz` archive of each (with LICENSE, NOTICE and README.md), `checksums.txt`, the image `ghcr.io/sustinbebustin/understudy` for linux/amd64 and linux/arm64, and a Homebrew cask. It publishes nothing: the GitHub release is disabled, `dockers_v2` is disabled outside snapshot, and the cask's `skip_upload` is `"true"`, so it is never committed to the tap. A prerelease tag such as `v0.1.0-rc.1` does not move the `latest` image tag.
 - `release.yml` runs `goreleaser release --clean` on a `v*` tag, with `contents: write` and `packages: write` on that job only, and attaches the archives, checksums and cask to the run.
 - CI's `release-check` job runs `just release-check` on every pull request: `goreleaser check`, then `goreleaser release --snapshot --clean --skip=publish`. Run it locally the same way; it writes `dist/` (gitignored) and leaves two `ghcr.io/sustinbebustin/understudy:*-amd64`/`-arm64` tag pairs in the local daemon.
-- No SBOM and no signing. `dockers_v2.sbom` is off, because the attestation runs BuildKit's scanner image and archive SBOMs need syft, neither of which the release uses today. Turning either on is a separate decision.
+- The darwin binaries are signed with a Developer ID certificate and notarized by Apple (`.goreleaser.yaml` `notarize`, quill on the Linux runner), so Gatekeeper runs them when the cask installs them. `release.yml` refuses a tag until the five signing secrets of step 1 exist; the snapshot dry run builds unsigned.
+- No SBOM. `dockers_v2.sbom` is off, because the attestation runs BuildKit's scanner image and archive SBOMs need syft, neither of which the release uses today. Turning either on is a separate decision.
 
 ## 1. Decide before the tag
 
-- **The cask and Gatekeeper.** The darwin binaries are not signed or notarized. Homebrew quarantines what a cask downloads, so macOS may refuse to run `understudy` installed from the cask. Check it on the first release (step 5). The fixes are signing and notarizing, or a cask `hooks.post.install` that removes the quarantine attribute; the second bypasses Gatekeeper for this binary, so it is a security choice, not a default.
-- **The npm and PyPI names.** Both are `testcontainers-understudy` (testcontainers.md 8.1, finding 9); confirm before publishing, or change `package.json`/`pyproject.toml` first.
+- **macOS signing secrets.** Homebrew quarantines what a cask downloads, and Gatekeeper refuses a quarantined binary that Apple has not notarized. The release signs and notarizes the darwin binaries, and needs an Apple Developer Program membership and five repository secrets:
+  1. In the Apple Developer portal, create a **Developer ID Application** certificate (Certificates, Identifiers & Profiles; the certificate signing request comes from Keychain Access on a Mac, or `openssl req` anywhere). Export it with its private key as a `.p12` with a password.
+  2. In App Store Connect, Users and Access, Integrations, create a **Team** API key with the Developer role. Download the `.p8` (it can be downloaded once) and note its Key ID and the Issuer ID.
+  3. Store them:
+
+     ```sh
+     base64 -w0 developer-id.p12 | gh secret set MACOS_SIGN_P12 --repo sustinbebustin/understudy
+     gh secret set MACOS_SIGN_PASSWORD --repo sustinbebustin/understudy
+     base64 -w0 AuthKey_KEYID.p8 | gh secret set MACOS_NOTARY_KEY --repo sustinbebustin/understudy
+     gh secret set MACOS_NOTARY_KEY_ID --repo sustinbebustin/understudy
+     gh secret set MACOS_NOTARY_ISSUER_ID --repo sustinbebustin/understudy
+     ```
+
+     (`base64 -w0` is GNU; on macOS use `base64 -i <file>`.) Delete the local `.p12` and `.p8` afterwards, or keep them in a password manager.
+- **The npm and PyPI names.** Both are `testcontainers-understudy` (testcontainers.md 8.1, finding 9), confirmed by the maintainer on 2026-11-05.
 - **Release notes.** `changelog` is disabled, so the GitHub release body is empty unless you write it after the run or enable the changelog.
 
 ## 2. Turn publishing on
@@ -92,7 +106,7 @@ brew install --cask sustinbebustin/tap/understudy
 understudy version
 ```
 
-The cask's version is `X.Y.Z` and its URLs point at the `vX.Y.Z` release assets. If macOS refuses to run the binary, see "The cask and Gatekeeper" in step 1.
+The cask's version is `X.Y.Z` and its URLs point at the `vX.Y.Z` release assets. On a Mac, `spctl --assess --type execute -v "$(command -v understudy)"` should print `accepted` with `source=Notarized Developer ID`. If it does not, check the release run's notarize step log.
 
 ## 6. Publish the Testcontainers modules
 

@@ -18,6 +18,28 @@ builds:
     ldflags:
       - -s -w -X main.version={{ .Version }}
 
+# The darwin binaries are signed with a Developer ID certificate and
+# notarized by Apple, so Gatekeeper runs them when the cask installs them
+# (Homebrew quarantines what a cask downloads). GoReleaser does both with
+# quill on the Linux runner, before archiving. The step runs when
+# MACOS_SIGN_P12 is set: release.yml sets it from the repository secrets and
+# refuses a tag without them, while the snapshot dry run (just release-check,
+# ci.yml) has none and builds unsigned. docs/release-runbook.md step 1 says
+# how to create the certificate and the App Store Connect key.
+notarize:
+  macos:
+    - enabled: '{{ isEnvSet "MACOS_SIGN_P12" }}'
+      ids: [understudy]
+      sign:
+        certificate: "{{ .Env.MACOS_SIGN_P12 }}"
+        password: "{{ .Env.MACOS_SIGN_PASSWORD }}"
+      notarize:
+        issuer_id: "{{ .Env.MACOS_NOTARY_ISSUER_ID }}"
+        key_id: "{{ .Env.MACOS_NOTARY_KEY_ID }}"
+        key: "{{ .Env.MACOS_NOTARY_KEY }}"
+        wait: true
+        timeout: 20m
+
 archives:
   - id: understudy
     ids: [understudy]
