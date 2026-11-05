@@ -1,0 +1,36 @@
+{
+  "step": "02-get-http",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "http://us1103-ssec.s3.us-east-2.amazonaws.com/c1",
+        "headers": [
+          ["Host", "us1103-ssec.s3.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261105T180243Z"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"],
+          ["x-amz-content-sha256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["x-amz-server-side-encryption-customer-algorithm", "AES256"],
+          ["x-amz-server-side-encryption-customer-key", "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="],
+          ["x-amz-server-side-encryption-customer-key-MD5", "hRasmdxgYDKV3nvbahU1MA=="]
+        ]
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["x-amz-request-id", "SEXZPXT0NS3N2S4E"],
+          ["x-amz-id-2", "VDuDKlrHfM660SMRbjzNJC8ESkcCnSN0CQTnuKyv84yB+XyQSHoP5SdOyApsjTEUzlMbb6CS7lo="],
+          ["Date", "Thu, 05 Nov 2026 18:02:43 GMT"],
+          ["Content-Type", "application/xml"],
+          ["Server", "AmazonS3"],
+          ["Transfer-Encoding", "chunked"],
+          ["Connection", "close"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>InvalidArgument</Code><Message>Requests specifying Server Side Encryption with Customer provided keys must be made over a secure connection.</Message><ArgumentName>x-amz-server-side-encryption</ArgumentName><RequestId>SEXZPXT0NS3N2S4E</RequestId><HostId>VDuDKlrHfM660SMRbjzNJC8ESkcCnSN0CQTnuKyv84yB+XyQSHoP5SdOyApsjTEUzlMbb6CS7lo=</HostId></Error>"
+      }
+    }
+  ]
+}
