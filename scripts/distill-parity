@@ -449,7 +449,10 @@ def curl_exchange(http: bytes, trace: str, body: bytes | None = None) -> dict:
         method, target, _ = sent[0].split(" ", 2)
         headers = request_headers(parse_headers(sent[1:]))
         host = header_value(headers, "host")
-        request: dict = {"method": method, "url": f"https://{host}{target}" if host else target, "headers": headers}
+        # The URL's scheme is the port curl connected to: 80 for the plain-HTTP steps (S3SOL-02), 443 otherwise.
+        port = re.search(r"^\* +Trying \S+:(\d+)\.\.\.", trace, re.M)
+        scheme = "http" if port and port.group(1) == "80" else "https"
+        request: dict = {"method": method, "url": f"{scheme}://{host}{target}" if host else target, "headers": headers}
         uploaded = re.search(r"upload completely sent off: (\d+) bytes", trace)
         length = uploaded.group(1) if uploaded else header_value(headers, "content-length")
         if body is not None:

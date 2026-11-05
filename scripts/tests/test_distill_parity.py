@@ -132,6 +132,12 @@ def test_curl_capture_keeps_the_request_and_final_response():
     }
 
 
+def test_curl_capture_over_plain_http_keeps_the_http_scheme():
+    trace = "* Trying 3.1.4.1:80...\r\n> GET /k HTTP/1.1\r\n> Host: b.s3.us-east-2.amazonaws.com\r\n> \r\n"
+    exchange = dp.curl_exchange(b"HTTP/1.1 400 Bad Request\r\n\r\n", trace)
+    assert exchange["request"]["url"] == "http://b.s3.us-east-2.amazonaws.com/k"
+
+
 def test_curl_capture_keeps_the_request_body_recurl_saved():
     trace = "> POST / HTTP/1.1\r\n> Host: kinesis.us-east-2.amazonaws.com\r\n> Content-Length: 13\r\n> \r\n* upload completely sent off: 13 bytes\r\n"
     http = b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\n{}"
