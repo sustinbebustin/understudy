@@ -1801,7 +1801,7 @@ Internal operations:
 
 Behaviors chosen without AWS-recorded evidence, with the research they rest on and the parity scenario step that settles them, or why none does. The count and order follow the label the code states; the Label column shows the recording's verdict where a replayed step settles or contradicts the switch.
 
-232 switches: 119 aws-recorded, 1 third-party-recorded, 18 aws-doc, 94 inferred.
+232 switches: 120 aws-recorded, 1 third-party-recorded, 17 aws-doc, 94 inferred.
 
 | Switch | Value | Label | Reference | Settled by |
 |---|---|---|---|---|
@@ -1890,6 +1890,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `s3.sse-c.key-encoding` | `write-side-texts` | aws-recorded | docs/research/s3-ssec-object-lock.md#32-write-side-validation-third-party-recorded | none: S3SOL-04 is recorded; the replayer skips S3's REST requests |
 | `s3.sse-c.metadata-without-key` | `InvalidRequest` | aws-recorded | docs/research/s3-ssec-object-lock.md#33-reads-getobject-headobject-getobjectattributes | none: S3SOL-05 is recorded; the replayer skips S3's REST requests |
 | `s3.sse-c.missing-key-md5` | `InvalidArgument` | aws-recorded | docs/research/s3-ssec-object-lock.md#32-write-side-validation-third-party-recorded | none: S3SOL-03 is recorded; the replayer skips S3's REST requests |
+| `s3.sse-c.plain-http` | `refused` | aws-recorded | docs/research/s3-ssec-object-lock.md#39-https | none: S3SOL-02 is recorded; the replayer skips S3's REST requests |
 | `scheduler.at.past-due` | `fire-at-once` | aws-recorded | docs/research/scheduler.md#51-at | none: recorded in scheduler/SCH (09-at-past, 09-enable-past, 2026-11-03); the replayer does not route Scheduler's restJson1 requests |
 | `scheduler.denial.status` | `403` | aws-recorded | docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit | none: recorded in scheduler/SCH (10-01-denied-get, 2026-11-03); the replayer does not route Scheduler's restJson1 requests |
 | `scheduler.input.default` | `scheduled-event` | aws-recorded | docs/research/scheduler.md#63-input-the-default-payload-and-context-attributes | none: recorded in scheduler/SCH (07-sqs-no-input, 07-sns-no-input, 07-lambda-no-input, 07-eventbridge-no-input, 2026-11-03); the replayer does not route Scheduler's restJson1 requests |
@@ -1937,7 +1938,6 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `logs.retention.expiry` | `at-expiry` | aws-doc | docs/research/secrets-logs-events-alarms.md#32-retention | none: AWS deletes expired events lazily, typically within 72 hours, so no recording pins the instant |
 | `s3.create-bucket.public-acl` | `InvalidBucketAclWithObjectOwnership` | aws-doc | docs/research/s3.md#32-createbucket | none: unrecorded: no recording creates a bucket with a public canned ACL under BucketOwnerEnforced |
 | `s3.lifecycle.rule-limits` | `InvalidArgument` | aws-doc | https://docs.aws.amazon.com/AmazonS3/latest/API/API_LifecycleRule.html | none: s3/R12/12-lifecycle-transition-7-standard-ia.json, the other 12-lifecycle steps and 15-lifecycle-glacier-then-onezone-ia.json are recorded; the replayer skips S3's REST requests |
-| `s3.sse-c.plain-http` | `refused` | aws-doc | docs/research/s3-ssec-object-lock.md#39-https | none: unrecorded: S3SOL-02 is queued in docs/research/s3-ssec-object-lock.md 12 |
 | `s3.tagging.limits` | `InvalidTag` | aws-doc | docs/research/s3.md#429-bucket-tagging | none: unrecorded: no recording exceeds a bucket tag limit |
 | `secretsmanager.last-accessed-date.granularity` | `day` | aws-doc | docs/research/secrets-logs-events-alarms.md#24-operations-request-and-response-facts | none: unrecorded: no recording reads a LastAccessedDate |
 | `sqs.move-task.message-identity` | `new-message` | aws-doc | docs/research/sqs.md#93-startmessagemovetask-listmessagemovetasks-cancelmessagemovetask | none: sqs/R02/std-06-recv-src.json and fifo-06-recv-src.json are recorded; no scenario replays sqs/R02 yet |

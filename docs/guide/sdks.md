@@ -167,7 +167,7 @@ aws s3api get-object --bucket ssec-demo --key secret.txt \
     "SSECustomerKeyMD5": "hRasmdxgYDKV3nvbahU1MA=="
 ```
 
-Without the `put-bucket-encryption` call, the put fails with `AccessDenied` "Access Denied". At the plain HTTP endpoint it fails with `InvalidRequest` "Requests specifying Server Side Encryption with Customer provided keys must be made over a secure connection." A `get-object` without the key fails with `InvalidRequest` "The object was stored using a form of Server Side Encryption. The correct parameters must be provided to retrieve the object.", and one with another key fails with `AccessDenied`. understudy never stores the key. It keeps a salted HMAC of the key to check reads, and stores the object's bytes as sent, unencrypted.
+Without the `put-bucket-encryption` call, the put fails with `AccessDenied` "Access Denied". At the plain HTTP endpoint it fails, with or without that call, with `InvalidArgument` "Requests specifying Server Side Encryption with Customer provided keys must be made over a secure connection.", and so does any read sent with SSE-C headers. A `get-object` without the key fails with `InvalidRequest` "The object was stored using a form of Server Side Encryption. The correct parameters must be provided to retrieve the object.", and one with another key fails with `AccessDenied`. understudy never stores the key. It keeps a salted HMAC of the key to check reads, and stores the object's bytes as sent, unencrypted.
 
 Object Lock retention runs on the [emulator clock](clock.md), so a test moves the clock past the retain-until date instead of waiting for it:
 

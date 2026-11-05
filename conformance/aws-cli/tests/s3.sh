@@ -1639,7 +1639,8 @@ test_sse_c_over_plain_http_is_refused() {
     '{"Rules":[{"BlockedEncryptionTypes":{"EncryptionType":["NONE"]}}]}'
   assert_eq refused "$(switch_value s3.sse-c.plain-http)" 'switch s3.sse-c.plain-http'
   # The CLI base64-encodes the 32-byte key and adds its MD5 (s3-ssec-object-lock.md 3.12).
-  aws_error InvalidRequest 400 s3api put-object --bucket "$BUCKET" --key k --body "$(empty_file)" \
+  # testdata/parity/s3/S3SOL/02-put-http.json (3.9).
+  aws_error InvalidArgument 400 s3api put-object --bucket "$BUCKET" --key k --body "$(empty_file)" \
     --sse-customer-algorithm AES256 --sse-customer-key 1234567890abcdef1234567890abcdef
   aws_error_message_contains 'Requests specifying Server Side Encryption with Customer provided keys must be made over a secure connection.'
 }

@@ -73,7 +73,6 @@ func TestSSECCopySourceOverPlainHTTP(t *testing.T) {
 	runObjects(t, func(h *harness) {
 		t := h.T
 		h.follows("s3.sse-c.plain-http", "refused")
-		insecure := failure{status: 400, code: "InvalidRequest", message: textInsecure}
 		h.createBucket("ssec")
 		h.allowSSEC("ssec")
 		h.mustPutSSEC("ssec", "enc", "test_data", key1)
@@ -193,14 +192,14 @@ func TestSSECCompleteHeaders(t *testing.T) {
 			_, err := as(h, w, s3api.OpCompleteMultipartUpload, in)
 			return err
 		}
-		failure{status: 400, code: "InvalidRequest", message: textInsecure}.is(t, "Complete with the key over HTTP", complete(who{}, "enc", ssecID, part.ETag, &key1))
+		insecure.is(t, "Complete with the key over HTTP", complete(who{}, "enc", ssecID, part.ETag, &key1))
 		list := func(w who, key, id string, c customer) (*s3api.ListPartsOutput, *awserr.Error) {
 			return as(h, w, s3api.OpListParts, &s3api.ListPartsInput{Bucket: "mpu", Key: key, UploadId: id, SSECustomerAlgorithm: c.alg(), SSECustomerKey: c.k(), SSECustomerKeyMD5: c.m()})
 		}
 		_, err := list(overTLS, "enc", ssecID, key2)
 		failure{status: 400, code: "InvalidRequest", message: textMismatch}.is(t, "ListParts with another key", err)
 		_, err = list(who{}, "enc", ssecID, key1)
-		failure{status: 400, code: "InvalidRequest", message: textInsecure}.is(t, "ListParts with the key over HTTP", err)
+		insecure.is(t, "ListParts with the key over HTTP", err)
 		if listed, err := list(overTLS, "enc", ssecID, key1); err != nil || len(listed.Parts) != 1 {
 			t.Errorf("ListParts with the upload's key = %v, %v; want its one part", listed, err)
 		}

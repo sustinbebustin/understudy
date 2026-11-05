@@ -150,7 +150,8 @@ describe("S3 SSE-C", () => {
             SSECustomerKey: "1234567890abcdef1234567890abcdef",
           }),
         ),
-        { name: "InvalidRequest", status: 400 },
+        // testdata/parity/s3/S3SOL/02-put-http.json (s3-ssec-object-lock.md 3.9).
+        { name: "InvalidArgument", status: 400 },
       );
       expect(failure.message).toBe(
         "Requests specifying Server Side Encryption with Customer provided keys must be made over a secure connection.",

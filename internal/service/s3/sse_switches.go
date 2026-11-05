@@ -9,8 +9,7 @@ import (
 
 // The SSE-C and bucket-encryption switches of s3-ssec-object-lock.md 11.4,
 // in that table's order. Each names the recording-queue item of section 12
-// that settles it; recordedSwitch marks those the 2026-11-03 session
-// recorded.
+// that recorded it.
 
 // ssecSwitches lists the switches in table order.
 func ssecSwitches() []fidelity.Entry {
@@ -21,9 +20,10 @@ func ssecSwitches() []fidelity.Entry {
 		"s3.CompleteMultipartUpload", "s3.GetObject", "s3.HeadObject", "s3.GetObjectAttributes",
 	}
 	return []fidelity.Entry{
-		// ListParts checks the trio when sent, so it is refused over plain
-		// HTTP the same way (checkCustomerList; 3.9).
-		researchSwitch("s3.sse-c.plain-http", "refused", evidence.AWSDoc, "39-https", "S3SOL-02", append(slices.Clone(ssecPlainHTTPOps), "s3.ListParts")),
+		// S3SOL-02 recorded PutObject and GetObject; the other operations
+		// are inferred. ListParts checks the trio when sent, so it is
+		// refused over plain HTTP the same way (checkCustomerList; 3.9).
+		recordedSwitch("s3.sse-c.plain-http", "refused", "39-https", "S3SOL-02", append(slices.Clone(ssecPlainHTTPOps), "s3.ListParts")),
 		recordedSwitch("s3.sse-c.blocked-write", "AccessDenied", "43-what-the-block-refuses", "S3SOL-01",
 			[]string{"s3.PutObject", "s3.CopyObject", "s3.CreateMultipartUpload", "s3.UploadPart", "s3.UploadPartCopy"}),
 		// A read computes a missing key MD5 (S3SOL-03 03-get), so the
@@ -46,27 +46,19 @@ func ssecSwitches() []fidelity.Entry {
 	}
 }
 
-// recordedSwitch is a switch of s3-ssec-object-lock.md 11.4 whose section
-// 12 item the 2026-11-03 session recorded (testdata/parity/s3/S3SOL):
-// value is AWS's recorded behavior. No scenario settles it, as the
-// replayer skips S3's REST requests (s3Unreplayed).
+// recordedSwitch is one switch of s3-ssec-object-lock.md 11.4, SSE-C or
+// Object Lock, whose section 12 item a recording session recorded
+// (testdata/parity/s3/S3SOL): value is AWS's recorded behavior, anchor its
+// section's anchor in that note, record the item. No scenario settles it,
+// as the replayer skips S3's REST requests (s3Unreplayed).
 func recordedSwitch(name, value, anchor, record string, ops []string) fidelity.Entry {
-	e := researchSwitch(name, value, evidence.AWSRecorded, anchor, record, ops)
-	e.Settles = fidelity.NoScenario{Reason: s3Unreplayed(record + " is")}
-	return e
-}
-
-// researchSwitch is one switch of s3-ssec-object-lock.md 11.4, SSE-C or
-// Object Lock: anchor is its section's anchor in that note, record its
-// section 12 queue item.
-func researchSwitch(name, value string, label evidence.Label, anchor, record string, ops []string) fidelity.Entry {
 	return fidelity.Switch[string]{
 		Name:    name,
 		Value:   value,
-		Label:   label,
+		Label:   evidence.AWSRecorded,
 		Ref:     "docs/research/s3-ssec-object-lock.md#" + anchor,
 		Record:  record,
 		Ops:     ops,
-		Settles: fidelity.NoScenario{Reason: "unrecorded: " + record + " is queued in docs/research/s3-ssec-object-lock.md 12"},
+		Settles: fidelity.NoScenario{Reason: s3Unreplayed(record + " is")},
 	}.Entry()
 }

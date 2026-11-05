@@ -176,15 +176,19 @@ def test_bypass_header_on_a_bucket_without_object_lock(s3: Any, make_bucket: Cal
 
 
 def test_sse_c_over_plain_http_is_refused(s3: Any, make_bucket: Callable[..., str], endpoint: str) -> None:
-    """The suite has no TLS endpoint; SSE-C over plain HTTP follows switch s3.sse-c.plain-http."""
+    """The suite has no TLS endpoint; SSE-C over plain HTTP follows switch s3.sse-c.plain-http.
+
+    testdata/parity/s3/S3SOL/02-put-http.json (s3-ssec-object-lock.md 3.9).
+    """
     bucket = make_bucket("ssec")
     s3.put_bucket_encryption(
         Bucket=bucket,
         ServerSideEncryptionConfiguration={"Rules": [{"BlockedEncryptionTypes": {"EncryptionType": ["NONE"]}}]},
     )
     assert switch_value(endpoint, "s3.sse-c.plain-http") == "refused"
-    with raises("InvalidRequest") as info:
+    with raises("InvalidArgument") as info:
         # botocore base64-encodes the 32-byte key and adds its MD5 (s3-ssec-object-lock.md 3.12).
         s3.put_object(Bucket=bucket, Key="k", Body=b"v", SSECustomerAlgorithm="AES256", SSECustomerKey="1234567890abcdef1234567890abcdef")
     assert status_of(info.value) == 400
     assert message(info.value) == "Requests specifying Server Side Encryption with Customer provided keys must be made over a secure connection."
+    assert info.value.response["Error"]["ArgumentName"] == "x-amz-server-side-encryption"

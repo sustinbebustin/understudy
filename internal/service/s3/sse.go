@@ -147,8 +147,8 @@ func writeCallOf(c *kernel.Call, action string) writeCall {
 // resolveSSE applies s3.md 5.7: the request's headers win; without them
 // the bucket's default rule decides. key is the object's key, whose ARN is
 // the encryption context S3 adds. SSE-C headers are checked in the order
-// of s3-ssec-object-lock.md 11.3: the trio, then the bucket's block, then
-// the call's scheme.
+// of s3-ssec-object-lock.md 11.3: the trio, then the call's scheme, then
+// the bucket's block.
 func resolveSSE(r sseRequest, b *Bucket, key string, w writeCall) (sseChoice, *awserr.Error) {
 	k, err := parseCustomerWrite(r.customer, r.algorithm)
 	if err != nil {
@@ -369,7 +369,7 @@ const sseArgumentName = "x-amz-server-side-encryption"
 // tests/aws/services/s3/test_s3.snapshot.json, validated 2026-02-21) and
 // the 2026-11-03 session records them (testdata/parity/s3/S3SOL; the
 // missing-MD5 text S3SOL-03 03-put), and the text of the switch
-// s3.sse-c.plain-http, which no AWS recording shows (11.4).
+// s3.sse-c.plain-http (3.9; S3SOL-02, recorded 2026-11-05).
 const (
 	ssecConflictText    = "Server Side Encryption with Customer provided key is incompatible with the encryption method specified"
 	ssecAlgorithmText   = "The Encryption request you specified is not valid. Supported value: AES256."
@@ -437,9 +437,11 @@ func errSSECBlocked(w writeCall, bucket, key string) *awserr.Error {
 		" Server Side Encryption with Customer provided keys (SSE-C). Please specify a different server-side encryption type.")
 }
 
-// errSSECInsecure answers SSE-C headers over plain HTTP (switch
-// s3.sse-c.plain-http).
-func errSSECInsecure() *awserr.Error { return errInvalidRequest(ssecInsecureText) }
+// errSSECInsecure answers SSE-C headers over plain HTTP: InvalidArgument
+// naming x-amz-server-side-encryption, as the header refusals do (switch
+// s3.sse-c.plain-http; s3-ssec-object-lock.md 3.9; S3SOL-02, recorded
+// 2026-11-05).
+func errSSECInsecure() *awserr.Error { return errSSECHeader(ssecInsecureText) }
 
 // customerHeaders is one SSE-C header trio as a request sent it: the
 // target's x-amz-server-side-encryption-customer-* headers, or a copy
@@ -584,18 +586,24 @@ func fingerprint(salt, key []byte) []byte {
 }
 
 // checkCustomerWrite refuses an SSE-C write w of key whose headers parsed:
-// 403 on a bucket that blocks SSE-C (errSSECBlocked), then 400 over plain
-// HTTP (switch s3.sse-c.plain-http).
+// 400 over plain HTTP (switch s3.sse-c.plain-http), then 403 on a bucket
+// that blocks SSE-C (errSSECBlocked). A blocking bucket answered plain HTTP
+// with the 400 (s3-ssec-object-lock.md 3.9; S3SOL-02 02-put-blocked-http,
+// recorded 2026-11-05).
 func checkCustomerWrite(b *Bucket, key string, w writeCall) *awserr.Error {
+	if err := checkCustomerScheme(w.scheme); err != nil {
+		return err
+	}
 	if b.BlockedEncryption == BlockSSEC {
 		return errSSECBlocked(w, b.Name, key)
 	}
-	return checkCustomerScheme(w.scheme)
+	return nil
 }
 
 // checkCustomerScheme refuses SSE-C headers sent over plain HTTP: "Amazon
 // S3 rejects any requests made over HTTP when using SSE-C"
-// (s3-ssec-object-lock.md 3.9; switch s3.sse-c.plain-http).
+// (s3-ssec-object-lock.md 3.9; switch s3.sse-c.plain-http), writes and
+// reads alike (S3SOL-02, recorded 2026-11-05).
 func checkCustomerScheme(scheme string) *awserr.Error {
 	if scheme != "https" {
 		return errSSECInsecure()
@@ -606,8 +614,8 @@ func checkCustomerScheme(scheme string) *awserr.Error {
 // checkCustomerRead judges a read's or copy source's SSE-C headers against
 // the version's stored encryption (s3-ssec-object-lock.md 3.3, 3.5): the
 // stored-form 400 without headers on an SSE-C version, the header checks,
-// plain HTTP, the not-applicable 400 on another version, the wrong-key
-// 403. It returns the key whose MD5 the response echoes, nil without
+// plain HTTP, the not-applicable 400 on another version (plain HTTP first:
+// S3SOL-02 02-get-plain-http, recorded 2026-11-05), the wrong-key 403. It returns the key whose MD5 the response echoes, nil without
 // headers. A blocked bucket never refuses a read (4.3).
 func checkCustomerRead(stored Encryption, h customerHeaders, scheme string) (*customerKey, *awserr.Error) {
 	return judgeCustomerRead(stored, h, scheme, errSSECWrongKey)
@@ -651,7 +659,7 @@ func judgeCustomerRead(stored Encryption, h customerHeaders, scheme string, wron
 
 // checkCustomerPart judges an UploadPart's or UploadPartCopy target's
 // SSE-C headers against its upload's encryption (s3-ssec-object-lock.md
-// 3.6): the header checks, the bucket block, plain HTTP, then the match
+// 3.6): the header checks, plain HTTP, the bucket block, then the match
 // with the upload. It returns the key whose MD5 the response echoes, nil
 // for an upload that is not SSE-C.
 func checkCustomerPart(upload Encryption, h customerHeaders, b *Bucket, key string, w writeCall) (*customerKey, *awserr.Error) {

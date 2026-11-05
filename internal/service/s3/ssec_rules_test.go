@@ -34,7 +34,7 @@ const (
 	msgSSECBadKey = "The secret key was invalid for the specified algorithm."
 	// L12774.
 	msgSSECBadMD5 = "The calculated MD5 hash of the key did not match the hash that was provided."
-	// Switch s3.sse-c.plain-http (s3-ssec-object-lock.md 11.4).
+	// Switch s3.sse-c.plain-http; S3SOL-02, recorded 2026-11-05.
 	msgSSECInsecure = "Requests specifying Server Side Encryption with Customer provided keys must be made over a secure connection."
 )
 
@@ -294,12 +294,13 @@ func TestBlockedEncryptionOf(t *testing.T) {
 	}
 }
 
-// TestCheckCustomerWrite: an SSE-C write to a bucket that blocks SSE-C is
-// refused with 403 AccessDenied naming the caller, the action and the
-// object, checked before the scheme (s3-ssec-object-lock.md 4.3; S3SOL-01,
-// recorded 2026-11-03), and one over plain HTTP to a bucket that allows it
-// is refused under switch s3.sse-c.plain-http; HTTPS to an unblocked
-// bucket passes.
+// TestCheckCustomerWrite: an SSE-C write over plain HTTP is refused with
+// 400 InvalidArgument under switch s3.sse-c.plain-http, before the bucket's
+// block, so a blocking bucket answers it so too (s3-ssec-object-lock.md
+// 3.9; S3SOL-02 02-put-http and 02-put-blocked-http, recorded 2026-11-05);
+// one over HTTPS to a bucket that blocks SSE-C is refused with 403
+// AccessDenied naming the caller, the action and the object (4.3;
+// S3SOL-01, recorded 2026-11-03); HTTPS to an unblocked bucket passes.
 func TestCheckCustomerWrite(t *testing.T) {
 	values := switchValues(t)
 	role := identity.Root{Account: aws.DefaultAccount()}
@@ -309,13 +310,13 @@ func TestCheckCustomerWrite(t *testing.T) {
 	if v := declared(t, values, "s3.sse-c.plain-http"); v != "refused" {
 		t.Fatalf("switch s3.sse-c.plain-http declares %q; this test knows %q", v, "refused")
 	}
-	insecure := wantError{status: 400, code: "InvalidRequest", message: msgSSECInsecure}
+	insecure := wantError{status: 400, code: "InvalidArgument", message: msgSSECInsecure, fields: map[string]string{"ArgumentName": sseArg}}
 	call := func(scheme string) writeCall {
 		return writeCall{principal: role, action: "s3:CopyObject", scheme: scheme}
 	}
 	b := func(block BlockedEncryption) *Bucket { return &Bucket{Name: "b", BlockedEncryption: block} }
 	blocked.check(t, "blocked bucket over HTTPS", checkCustomerWrite(b(BlockSSEC), "k", call("https")))
-	blocked.check(t, "blocked bucket over HTTP", checkCustomerWrite(b(BlockSSEC), "k", call("http")))
+	insecure.check(t, "blocked bucket over HTTP", checkCustomerWrite(b(BlockSSEC), "k", call("http")))
 	insecure.check(t, "unblocked bucket over HTTP", checkCustomerWrite(b(BlockNone), "k", call("http")))
 	if err := checkCustomerWrite(b(BlockNone), "k", call("https")); err != nil {
 		t.Errorf("unblocked bucket over HTTPS: %s %q, want accepted", err.ID.QueryCode, err.Message)

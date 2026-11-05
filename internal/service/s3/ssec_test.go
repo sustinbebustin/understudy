@@ -119,7 +119,7 @@ const (
 	textNeedsKey    = "The object was stored using a form of Server Side Encryption. The correct parameters must be provided to retrieve the object."    // L12801, L12950
 	textWrongKey    = "Requests specifying Server Side Encryption with Customer provided keys must provide the correct secret key."                      // L12811, L12855
 	textNotSSEC     = "The encryption parameters are not applicable to this object."                                                                     // testdata/parity/s3/R15/x-ssec-on-non-ssec-read.json
-	textInsecure    = "Requests specifying Server Side Encryption with Customer provided keys must be made over a secure connection."
+	textInsecure    = "Requests specifying Server Side Encryption with Customer provided keys must be made over a secure connection."                    // S3SOL-02
 	textInitiate    = "The multipart upload initiate requested encryption. Subsequent part requests must include the appropriate encryption parameters." // L13133, L13154
 	textMismatch    = "The provided encryption parameters did not match the ones used originally."                                                       // L13164
 
@@ -131,6 +131,12 @@ const (
 // sseArgument is the ArgumentName of every SSE-C validation refusal, copy
 // source included (s3-ssec-object-lock.md 3.2).
 const sseArgument = "x-amz-server-side-encryption"
+
+// insecure is the refusal of SSE-C headers over plain HTTP, on writes and
+// reads alike, a blocking bucket's and a plain object's included (switch
+// s3.sse-c.plain-http; s3-ssec-object-lock.md 3.9; S3SOL-02, recorded
+// 2026-11-05, testdata/parity/s3/S3SOL/02-*.json).
+var insecure = failure{status: 400, code: "InvalidArgument", message: textInsecure, fields: map[string]string{"ArgumentName": sseArgument}}
 
 // overTLS is the default account's root over HTTPS, as every SSE-C
 // request must be (s3-ssec-object-lock.md 3.9).
@@ -362,12 +368,13 @@ func TestSSECReads(t *testing.T) {
 		failure{status: status, code: code, message: textNeedsKey}.is(t, "GetObjectAttributes without the key", attrs(overTLS, "enc", nil, nil, nil))
 
 		// Switch s3.sse-c.plain-http: reads with SSE-C headers over plain
-		// HTTP are refused too, before the stored encryption is compared.
+		// HTTP are refused too, before the stored encryption is compared
+		// (S3SOL-02 02-get-http and 02-get-plain-http, recorded 2026-11-05;
+		// HEAD and GetObjectAttributes inferred).
 		h.follows("s3.sse-c.plain-http", "refused")
-		insecure := failure{status: 400, code: "InvalidRequest", message: textInsecure}
 		insecure.is(t, "GET over HTTP with the key", get(who{}, "enc", key1.alg(), key1.k(), key1.m()))
 		insecure.is(t, "GET of a plain object over HTTP with SSE-C headers", get(who{}, "plain", key1.alg(), key1.k(), key1.m()))
-		wantCode(t, head(who{}, "enc", key1.alg(), key1.k(), key1.m()), "InvalidRequest", 400)
+		wantCode(t, head(who{}, "enc", key1.alg(), key1.k(), key1.m()), "InvalidArgument", 400)
 		insecure.is(t, "GetObjectAttributes over HTTP with the key", attrs(who{}, "enc", key1.alg(), key1.k(), key1.m()))
 
 		h.createBucket("versions")
@@ -464,8 +471,8 @@ func blocked(action, bucket, key string) failure {
 // TestSSECBlockedBucket: a new bucket blocks SSE-C writes (testdata/parity/s3/R06/01-get-get-bucket-encryption.json;
 // s3-ssec-object-lock.md 4.1): PutObject, CopyObject's target,
 // CreateMultipartUpload and UploadPart are refused with the recorded 403
-// (4.3; S3SOL-01, recorded 2026-11-03), before the scheme is checked,
-// while copy-source SSE-C headers are a read the block does not refuse
+// (4.3; S3SOL-01, recorded 2026-11-03), after the scheme is checked
+// (TestSSECPlainHTTP), while copy-source SSE-C headers are a read the block does not refuse
 // (S3SOL-01 01-copy-source-only). A bucket in me-south-1 allows SSE-C from
 // the start (4.1).
 func TestSSECBlockedBucket(t *testing.T) {
@@ -475,8 +482,6 @@ func TestSSECBlockedBucket(t *testing.T) {
 		h.put("blocked", "src", "source")
 		_, err := h.putSSEC("blocked", "k", "v", key1)
 		blocked("s3:PutObject", "blocked", "k").is(t, "PutObject", err)
-		_, err = as(h, who{}, s3api.OpPutObject, &s3api.PutObjectInput{Bucket: "blocked", Key: "k", Body: bytesBody("v"), SSECustomerAlgorithm: key1.alg(), SSECustomerKey: key1.k(), SSECustomerKeyMD5: key1.m()})
-		blocked("s3:PutObject", "blocked", "k").is(t, "PutObject over HTTP", err)
 		_, err = as(h, overTLS, s3api.OpCopyObject, &s3api.CopyObjectInput{Bucket: "blocked", Key: "k", CopySource: "blocked/src", SSECustomerAlgorithm: key1.alg(), SSECustomerKey: key1.k(), SSECustomerKeyMD5: key1.m()})
 		blocked("s3:CopyObject", "blocked", "k").is(t, "CopyObject target", err)
 		_, err = as(h, overTLS, s3api.OpCreateMultipartUpload, &s3api.CreateMultipartUploadInput{Bucket: "blocked", Key: "k", SSECustomerAlgorithm: key1.alg(), SSECustomerKey: key1.k(), SSECustomerKeyMD5: key1.m()})
@@ -533,19 +538,22 @@ func (h *harness) startUploadAs(w who, bucket, key string, in s3api.CreateMultip
 	return *out.UploadId
 }
 
-// TestSSECPlainHTTP: on a bucket that allows SSE-C, SSE-C writes over
-// plain HTTP are refused (switch s3.sse-c.plain-http; "Amazon S3 rejects
-// any requests made over HTTP when using SSE-C",
-// https://docs.aws.amazon.com/AmazonS3/latest/userguide/ServerSideEncryptionCustomerKeys.html).
+// TestSSECPlainHTTP: SSE-C writes over plain HTTP are refused with 400
+// InvalidArgument, on a bucket that allows SSE-C and, before its block's
+// 403, on one that blocks it (switch s3.sse-c.plain-http;
+// s3-ssec-object-lock.md 3.9; S3SOL-02 02-put-http and
+// 02-put-blocked-http, recorded 2026-11-05; the other writes inferred).
 func TestSSECPlainHTTP(t *testing.T) {
 	runObjects(t, func(h *harness) {
 		t := h.T
 		h.follows("s3.sse-c.plain-http", "refused")
-		insecure := failure{status: 400, code: "InvalidRequest", message: textInsecure}
+		h.createBucket("blocked")
+		_, err := as(h, who{}, s3api.OpPutObject, &s3api.PutObjectInput{Bucket: "blocked", Key: "k", Body: bytesBody("v"), SSECustomerAlgorithm: key1.alg(), SSECustomerKey: key1.k(), SSECustomerKeyMD5: key1.m()})
+		insecure.is(t, "PutObject to a bucket that blocks SSE-C", err)
 		h.createBucket("open")
 		h.allowSSEC("open")
 		h.put("open", "src", "source")
-		_, err := as(h, who{}, s3api.OpPutObject, &s3api.PutObjectInput{Bucket: "open", Key: "k", Body: bytesBody("v"), SSECustomerAlgorithm: key1.alg(), SSECustomerKey: key1.k(), SSECustomerKeyMD5: key1.m()})
+		_, err = as(h, who{}, s3api.OpPutObject, &s3api.PutObjectInput{Bucket: "open", Key: "k", Body: bytesBody("v"), SSECustomerAlgorithm: key1.alg(), SSECustomerKey: key1.k(), SSECustomerKeyMD5: key1.m()})
 		insecure.is(t, "PutObject", err)
 		_, err = as(h, who{}, s3api.OpCopyObject, &s3api.CopyObjectInput{Bucket: "open", Key: "k", CopySource: "open/src", SSECustomerAlgorithm: key1.alg(), SSECustomerKey: key1.k(), SSECustomerKeyMD5: key1.m()})
 		insecure.is(t, "CopyObject target", err)

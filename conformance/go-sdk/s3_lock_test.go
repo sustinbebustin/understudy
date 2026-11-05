@@ -82,7 +82,8 @@ func allowSSEC(t *testing.T, client *s3.Client, bucket string) {
 // through PutObject, GetObject and HeadObject, echoed with no
 // x-amz-server-side-encryption (L12790, L13190, L13204), and a GET without
 // the key or with another is refused (L12801, L12811). Over plain HTTP the
-// write is refused under switch s3.sse-c.plain-http.
+// write is refused under switch s3.sse-c.plain-http
+// (testdata/parity/s3/S3SOL/02-put-http.json; s3-ssec-object-lock.md 3.9).
 func TestS3SSEC(t *testing.T) {
 	t.Parallel()
 	if tlsEndpoint == nil {
@@ -149,7 +150,7 @@ func TestS3SSEC(t *testing.T) {
 		t.Fatalf("switch s3.sse-c.plain-http declares %q; this test checks %q", v, "refused")
 	}
 	_, err = put(s3Client(), "plain", ssecKey1)
-	apiErr(t, err, "SSE-C PutObject over plain HTTP", "InvalidRequest")
+	apiErr(t, err, "SSE-C PutObject over plain HTTP", "InvalidArgument")
 	wantMessage(t, err, "SSE-C PutObject over plain HTTP", "Requests specifying Server Side Encryption with Customer provided keys must be made over a secure connection.")
 }
 
