@@ -468,13 +468,14 @@ func blocked(action, bucket, key string) failure {
 		" Please specify a different server-side encryption type."}
 }
 
-// TestSSECBlockedBucket: a new bucket blocks SSE-C writes (testdata/parity/s3/R06/01-get-get-bucket-encryption.json;
+// TestSSECBlockedBucket: a new bucket blocks SSE-C writes
+// (testdata/parity/s3/R06/01-get-get-bucket-encryption.json;
 // s3-ssec-object-lock.md 4.1): PutObject, CopyObject's target,
 // CreateMultipartUpload and UploadPart are refused with the recorded 403
 // (4.3; S3SOL-01, recorded 2026-11-03), after the scheme is checked
-// (TestSSECPlainHTTP), while copy-source SSE-C headers are a read the block does not refuse
-// (S3SOL-01 01-copy-source-only). A bucket in me-south-1 allows SSE-C from
-// the start (4.1).
+// (TestSSECPlainHTTP), while copy-source SSE-C headers are a read the block
+// does not refuse (S3SOL-01 01-copy-source-only). A bucket in me-south-1
+// allows SSE-C from the start (4.1).
 func TestSSECBlockedBucket(t *testing.T) {
 	runObjects(t, func(h *harness) {
 		t := h.T

@@ -615,8 +615,9 @@ func checkCustomerScheme(scheme string) *awserr.Error {
 // the version's stored encryption (s3-ssec-object-lock.md 3.3, 3.5): the
 // stored-form 400 without headers on an SSE-C version, the header checks,
 // plain HTTP, the not-applicable 400 on another version (plain HTTP first:
-// S3SOL-02 02-get-plain-http, recorded 2026-11-05), the wrong-key 403. It returns the key whose MD5 the response echoes, nil without
-// headers. A blocked bucket never refuses a read (4.3).
+// S3SOL-02 02-get-plain-http, recorded 2026-11-05), the wrong-key 403. It
+// returns the key whose MD5 the response echoes, nil without headers. A
+// blocked bucket never refuses a read (4.3).
 func checkCustomerRead(stored Encryption, h customerHeaders, scheme string) (*customerKey, *awserr.Error) {
 	return judgeCustomerRead(stored, h, scheme, errSSECWrongKey)
 }

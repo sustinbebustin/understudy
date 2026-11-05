@@ -106,9 +106,10 @@ type wantSwitch struct {
 // order, each pointing at its section and its recording-queue item
 // (section 12): recorded (S3SOL-02 on 2026-11-05, the rest on 2026-11-03)
 // and settled by no scenario, since the replayer skips S3's REST requests;
-// s3.encryption.after-delete is backed by the recording of section 2. IAM enforcement's two S3 switches
-// (s3.denial.text, s3.root.bucket-policy-lockout) follow them
-// (iam-enforcement-surfaces.md 12.8).
+// s3.encryption.after-delete is backed by the recording of section 2. IAM
+// enforcement's two S3 switches (s3.denial.text,
+// s3.root.bucket-policy-lockout) follow them (iam-enforcement-surfaces.md
+// 12.8).
 func TestSSECAndObjectLockSwitches(t *testing.T) {
 	plainHTTPOps := []string{"s3.PutObject", "s3.CopyObject", "s3.CreateMultipartUpload", "s3.UploadPart", "s3.UploadPartCopy", "s3.CompleteMultipartUpload", "s3.GetObject", "s3.HeadObject", "s3.GetObjectAttributes"}
 	recorded := evidence.AWSRecorded
