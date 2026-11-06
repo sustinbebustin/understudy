@@ -20,6 +20,13 @@ import (
 // peer without serving it. The peer dials from 127.0.0.2; the interface
 // holds 127.0.0.1 in a /8, which contains it, or in a /32, which does not.
 func TestContainerListenerServesOnlyItsNetwork(t *testing.T) {
+	probe, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp4", "127.0.0.2:0")
+	if err != nil {
+		// The listener's own address is always inside its interface's
+		// network, so a peer outside it needs a second loopback address.
+		t.Skipf("this host's loopback has no 127.0.0.2 (macOS holds only 127.0.0.1 until 'sudo ifconfig lo0 alias 127.0.0.2'): %v", err)
+	}
+	_ = probe.Close()
 	for _, tc := range []struct {
 		name    string
 		ones    int
