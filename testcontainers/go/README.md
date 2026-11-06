@@ -45,7 +45,7 @@ func TestOrders(t *testing.T) {
 
 | Option | Effect |
 |---|---|
-| `WithDockerSocket()` | mounts the Docker socket and adds its group, for Lambda and DynamoDB Local; the start fails unless understudy then reports Docker enabled |
+| `WithDockerSocket()` | mounts the Docker socket and adds its group (0 on Docker Desktop, whose VM owns the socket), for Lambda and DynamoDB Local; the start fails unless understudy then reports Docker enabled |
 | `WithDockerSocketGroup(gid)` | the same, with the group given, for a daemon that is not a local unix socket |
 | `WithClock(Running{})`, `WithClock(Frozen{At: t})` | the emulator clock |
 | `WithClockScale(f)` | clock speed |

@@ -39,7 +39,7 @@ test("orders", async () => {
 
 | Method | Effect |
 |---|---|
-| `withDockerSocket()` | mounts the Docker socket and adds its group, for Lambda and DynamoDB Local; `start()` rejects with `UnderstudyDockerError` unless understudy then reports Docker enabled |
+| `withDockerSocket()` | mounts the Docker socket and adds its group (0 on Docker Desktop, whose VM owns the socket), for Lambda and DynamoDB Local; `start()` rejects with `UnderstudyDockerError` unless understudy then reports Docker enabled |
 | `withDockerSocket(gid)` | the same, with the group given, for a daemon that is not a local unix socket |
 | `withClock({ frozenAt, scale })` | the emulator clock |
 | `withSeed(n)` | repeatable generated identifiers, as a `bigint` |

@@ -99,8 +99,13 @@ export function removeContainers(ids: string[]): void {
   if (ids.length > 0) docker("rm", "-f", "-v", ...ids);
 }
 
-/** The group owning the local Docker socket the client uses (testcontainers.md 8.5). */
+/**
+ * The group owning the Docker socket as a container sees it (testcontainers.md 8.5):
+ * 0 on Docker Desktop, whose VM socket is root:root 0660, else the group of the
+ * local socket the client uses.
+ */
 export function dockerSocketGid(): number {
+  if (docker("info", "--format", "{{.OperatingSystem}}").includes("Docker Desktop")) return 0;
   const host = process.env.DOCKER_HOST ?? "unix:///var/run/docker.sock";
   assert.ok(host.startsWith("unix://"), `the Docker daemon is at ${host}, not a local unix socket; this test needs one`);
   return statSync(host.slice("unix://".length)).gid;
