@@ -10,17 +10,11 @@
 //     host's external address, which understudy does not bind. Addresses
 //     returns an *UnsupportedError naming the remedy instead of an address
 //     that would time out.
-//   - The Docker Desktop probe follows ARCHITECTURE.md 14.5 and ADR 0011: it
-//     overrides the image's entrypoint with `getent ahostsv4
-//     host.docker.internal`, because the Lambda base images' entrypoint
-//     rejects more than one argument and `getent hosts` prints only the
-//     IPv6 address of a dual-stack name. A probe that cannot run falls back
-//     to 192.168.65.254 and keeps the reason in FallbackHost for doctor.
-//     The Detector remembers a successful probe per daemon (Info.ID); a
-//     failed one is retried on the next detection. A probe that printed its
-//     address but whose container could not be removed still counts as
-//     successful; the removal error is kept in ProbedHost.Cleanup for
-//     doctor.
+//   - Docker Desktop hands functions Desktop's documented address for
+//     host.docker.internal, 192.168.65.254, without probing it (ADR 0011,
+//     amendment 2026-11-06): the probe the ADR first specified never had a
+//     caller, and Desktop is a supported, untested topology, so the
+//     documented address is the design.
 //   - Understudy's own container is found by the container ID in
 //     /proc/self/mountinfo (the root of the /etc/hostname, /etc/hosts or
 //     /etc/resolv.conf mount, under Docker's containers/<id>/ or Podman's
