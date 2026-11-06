@@ -140,6 +140,12 @@ jobs:
       - uses: extractions/setup-just@v4
         with:
           just-version: "1.58.0"
+      # The tests run behind a dead proxy, which also reaches the docker
+      # CLI, so TestImage's build cannot fetch a registry token for the
+      # Dockerfile's golang stages. Pulled here, the digest-pinned base
+      # resolves from the daemon's store instead.
+      - name: Pull the image's golang base
+        run: docker pull "$(sed -n 's/^FROM --platform=$BUILDPLATFORM \(golang:[^ ]*\) AS builder$/\1/p' Dockerfile)"
       - run: just test-docker
 
   # Builds the image, then runs the smoke workload with a Lambda invoke
