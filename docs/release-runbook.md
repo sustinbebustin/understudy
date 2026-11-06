@@ -31,13 +31,11 @@ For the maintainer. Tagging, publishing and every registry login are the maintai
 
 ## 2. Turn publishing on
 
-First make sure the tap repository exists; the cask publish and the tap token both need it:
+The cask goes to the existing tap `sustinbebustin/homebrew-tap`, which also holds the mws formula under `Formula/`. GoReleaser writes `Casks/understudy.rb` there on the first publish, so the `Casks/` directory need not exist beforehand. Confirm the tap is still reachable, since a missing tap fails the tagged run in the cask step, after the image and the GitHub release are already public:
 
 ```sh
 gh repo view sustinbebustin/homebrew-tap
 ```
-
-If it does not, create it public with a `Casks/` directory before going on. A missing tap fails the tagged run in the cask step, after the image and the GitHub release are already public.
 
 Then one pull request, reviewed and merged before the tag, so a single change turns on all publishing:
 
@@ -51,7 +49,7 @@ Then one pull request, reviewed and merged before the tag, so a single change tu
    - The tests that pin `0.0.0` until the first release: `testcontainers/go/understudy/understudy_test.go`, `testcontainers/python/tests/test_validation.py`, `testcontainers/node/test/validation.test.ts`.
 4. Run `just verify`, `just release-check` and `just testcontainers`.
 
-After that pull request is merged, add the tap token, never before: a fine-grained personal access token limited to `sustinbebustin/homebrew-tap` with Contents read and write. The workflow's own `GITHUB_TOKEN` cannot write to another repository.
+After that pull request is merged, add the tap token, never before: a fine-grained personal access token limited to `sustinbebustin/homebrew-tap` with Contents read and write. The token mws already uses for its `HOMEBREW_TAP_TOKEN` secret qualifies if it has that scope; GitHub never shows a secret's value again, so paste it from where you keep it or create a new one. The workflow's own `GITHUB_TOKEN` cannot write to another repository.
 
 ```sh
 gh secret set HOMEBREW_TAP_TOKEN --repo sustinbebustin/understudy
