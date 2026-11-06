@@ -6,10 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -696,6 +698,44 @@ func TestBlockingTimerWorkDoesNotStallLaterTimers(t *testing.T) {
 		var settle *kernel.SettleError
 		if !errors.As(err, &settle) || len(pending) != 1 || pending[kernel.InvocationRunning] != 1 {
 			t.Errorf("Settle = %v, %v; want one invocation-running", pending, err)
+		}
+	})
+}
+
+// TestWorkStartedDuringAnAdvanceBeginsAfterIt: tracked work a timer handler
+// starts while the clock advances begins once the advance has reached its
+// target, so it reads the advanced time rather than the handler's due
+// instant (ADR 0006, amendment 2026-11-06). The handler yields after
+// starting the work, which without the rule lets the work run while the
+// advance still holds Now at the due instant.
+func TestWorkStartedDuringAnAdvanceBeginsAfterIt(t *testing.T) {
+	run(t, func(k *kerneltest.K) {
+		t := k.T
+		var started, startedInHandler atomic.Bool
+		seen := make(chan clock.Instant, 1)
+		kind := k.Kernel.Timers().Handle(kindBlock, func(*kernel.Call, clock.TimerKey, clock.Instant) {
+			k.Kernel.Go(kernel.InvocationRunning, func(context.Context) {
+				started.Store(true)
+				seen <- k.Clock.Now()
+			})
+			for range 100 {
+				runtime.Gosched()
+			}
+			startedInHandler.Store(started.Load())
+		})
+		target := k.Clock.Now().Add(time.Hour)
+		armTimers(t, k, timer{kind: kind, id: "a", after: time.Second})
+		if _, err := k.Clock.AdvanceTo(target); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := k.Kernel.Settle(t.Context(), time.Second); err != nil {
+			t.Fatal(err)
+		}
+		if startedInHandler.Load() {
+			t.Error("the work started while its handler ran, before the advance ended")
+		}
+		if got := <-seen; got != target {
+			t.Errorf("the work read %s, want the advance's target %s", got, target)
 		}
 	})
 }

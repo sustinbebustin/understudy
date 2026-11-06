@@ -151,6 +151,17 @@ func (c *Clock) Now() Instant {
 	return c.nowLocked()
 }
 
+// Stepping reports whether an advance is firing timers, with Now held at
+// each timer's due instant, and returns the channel that advance closes
+// when it has moved Now to its target. Work that must see the advanced
+// time waits on the channel while stepping is true, then asks again: a
+// mode change closes the same channel.
+func (c *Clock) Stepping() (stepping bool, ended <-chan struct{}) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.stepping, c.changed
+}
+
 // Mode returns the current mode.
 func (c *Clock) Mode() Mode {
 	c.mu.Lock()
