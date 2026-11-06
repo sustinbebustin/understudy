@@ -8,7 +8,7 @@ set shell := ["bash", "-euo", "pipefail", "-c"]
 test_exec := "env HTTP_PROXY=http://127.0.0.1:9 HTTPS_PROXY=http://127.0.0.1:9 NO_PROXY=localhost,.localhost,127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
 
 # The GoReleaser that release-check runs; release.yml pins the same version.
-goreleaser_version := "v2.18.3"
+goreleaser_version := "v2.19.0"
 
 # List the recipes.
 default:

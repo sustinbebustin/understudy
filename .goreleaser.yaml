@@ -18,14 +18,13 @@ builds:
     ldflags:
       - -s -w -X main.version={{ .Version }}
 
-# The darwin binaries are signed with a Developer ID certificate and
-# notarized by Apple, so Gatekeeper runs them when the cask installs them
-# (Homebrew quarantines what a cask downloads). GoReleaser does both with
-# quill on the Linux runner, before archiving. The step runs when
-# MACOS_SIGN_P12 is set: release.yml sets it from the repository secrets and
-# refuses a tag without them, while the snapshot dry run (just release-check,
-# ci.yml) has none and builds unsigned. docs/release-runbook.md step 1 says
-# how to create the certificate and the App Store Connect key.
+# Optional signing: the darwin binaries ship unsigned, and the cask removes
+# the quarantine attribute instead (homebrew_casks hooks below). If the
+# maintainer ever joins the Apple Developer Program and adds the five
+# MACOS_* repository secrets, this step signs them with the Developer ID
+# certificate and has Apple notarize them, with quill on the Linux runner,
+# before archiving. Without MACOS_SIGN_P12 it is skipped, as in the snapshot
+# dry run. docs/release-runbook.md "macOS and Gatekeeper" has the steps.
 notarize:
   macos:
     - enabled: '{{ isEnvSet "MACOS_SIGN_P12" }}'
@@ -111,6 +110,17 @@ homebrew_casks:
       name: homebrew-tap
       token: '{{ envOrDefault "HOMEBREW_TAP_TOKEN" "" }}'
     skip_upload: "true"
+    # Homebrew quarantines what a cask downloads, and Gatekeeper refuses a
+    # quarantined binary Apple has not notarized. Removing the attribute
+    # after install trusts the binary on the strength of the HTTPS download
+    # and the cask's sha256, as Homebrew formulae and LocalStack's lstk cask
+    # do. Harmless if the binary is ever notarized.
+    hooks:
+      post:
+        install_steps: |
+          on_macos do
+            run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{ .StagedPath }}/understudy"]
+          end
 
 changelog:
   disable: true

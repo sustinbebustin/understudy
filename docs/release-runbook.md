@@ -7,12 +7,12 @@ For the maintainer. Tagging, publishing and every registry login are the maintai
 - `.goreleaser.yaml` builds linux and darwin binaries for amd64 and arm64, a `tar.gz` archive of each (with LICENSE, NOTICE and README.md), `checksums.txt`, the image `ghcr.io/sustinbebustin/understudy` for linux/amd64 and linux/arm64, and a Homebrew cask. It publishes nothing: the GitHub release is disabled, `dockers_v2` is disabled outside snapshot, and the cask's `skip_upload` is `"true"`, so it is never committed to the tap. A prerelease tag such as `v0.1.0-rc.1` does not move the `latest` image tag.
 - `release.yml` runs `goreleaser release --clean` on a `v*` tag, with `contents: write` and `packages: write` on that job only, and attaches the archives, checksums and cask to the run.
 - CI's `release-check` job runs `just release-check` on every pull request: `goreleaser check`, then `goreleaser release --snapshot --clean --skip=publish`. Run it locally the same way; it writes `dist/` (gitignored) and leaves two `ghcr.io/sustinbebustin/understudy:*-amd64`/`-arm64` tag pairs in the local daemon.
-- The darwin binaries are signed with a Developer ID certificate and notarized by Apple (`.goreleaser.yaml` `notarize`, quill on the Linux runner), so Gatekeeper runs them when the cask installs them. `release.yml` refuses a tag until the five signing secrets of step 1 exist; the snapshot dry run builds unsigned.
+- The darwin binaries ship unsigned. The cask removes the quarantine attribute after install, so Gatekeeper does not block them (step 1, "macOS and Gatekeeper"). Signing and notarizing switch on by themselves if the five `MACOS_*` secrets are ever added.
 - No SBOM. `dockers_v2.sbom` is off, because the attestation runs BuildKit's scanner image and archive SBOMs need syft, neither of which the release uses today. Turning either on is a separate decision.
 
 ## 1. Decide before the tag
 
-- **macOS signing secrets.** Homebrew quarantines what a cask downloads, and Gatekeeper refuses a quarantined binary that Apple has not notarized. The release signs and notarizes the darwin binaries, and needs an Apple Developer Program membership and five repository secrets:
+- **macOS and Gatekeeper.** Homebrew quarantines what a cask downloads, and Gatekeeper refuses a quarantined binary that Apple has not notarized. The cask's post-install step (`.goreleaser.yaml` `homebrew_casks.hooks`) removes the attribute, as LocalStack's `lstk` cask does; this trusts the binary on the HTTPS download and the cask's sha256 rather than Apple's notarization (maintainer decision 2026-11-06). A darwin archive downloaded by hand from the release is still quarantined: `xattr -d com.apple.quarantine ./understudy` or System Settings, Privacy & Security, "Open Anyway". Nothing needs doing before the tag. To sign and notarize instead, which needs an Apple Developer Program membership, add five repository secrets and the release does it with no other change:
   1. In the Apple Developer portal, create a **Developer ID Application** certificate (Certificates, Identifiers & Profiles; the certificate signing request comes from Keychain Access on a Mac, or `openssl req` anywhere). Export it with its private key as a `.p12` with a password.
   2. In App Store Connect, Users and Access, Integrations, create a **Team** API key with the Developer role. Download the `.p8` (it can be downloaded once) and note its Key ID and the Issuer ID.
   3. Store them:
@@ -106,7 +106,7 @@ brew install --cask sustinbebustin/tap/understudy
 understudy version
 ```
 
-The cask's version is `X.Y.Z` and its URLs point at the `vX.Y.Z` release assets. On a Mac, `spctl --assess --type execute -v "$(command -v understudy)"` should print `accepted` with `source=Notarized Developer ID`. If it does not, check the release run's notarize step log.
+The cask's version is `X.Y.Z` and its URLs point at the `vX.Y.Z` release assets. On a Mac, `understudy version` must run without a Gatekeeper prompt, and `xattr "$(readlink -f "$(command -v understudy)")"` must not list `com.apple.quarantine`. If it does, the cask's post-install step did not run: read the cask in the tap and `brew install --cask --verbose` output.
 
 ## 6. Publish the Testcontainers modules
 

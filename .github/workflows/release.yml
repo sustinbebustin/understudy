@@ -44,39 +44,22 @@ jobs:
         run: echo "$GITHUB_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      # A release ships signed and notarized darwin binaries or none at all:
-      # without the secrets GoReleaser would skip the notarize step and the
-      # cask would install a binary Gatekeeper refuses.
-      - name: Require the macOS signing secrets
-        run: |
-          missing=
-          for v in MACOS_SIGN_P12 MACOS_SIGN_PASSWORD MACOS_NOTARY_ISSUER_ID MACOS_NOTARY_KEY_ID MACOS_NOTARY_KEY; do
-            [ -n "${!v}" ] || missing="$missing $v"
-          done
-          if [ -n "$missing" ]; then
-            echo "::error::Missing repository secrets:$missing. Nothing was built or published. Create them as docs/release-runbook.md step 1 describes, then re-run this workflow."
-            exit 1
-          fi
-        env:
-          MACOS_SIGN_P12: ${{ secrets.MACOS_SIGN_P12 }}
-          MACOS_SIGN_PASSWORD: ${{ secrets.MACOS_SIGN_PASSWORD }}
-          MACOS_NOTARY_ISSUER_ID: ${{ secrets.MACOS_NOTARY_ISSUER_ID }}
-          MACOS_NOTARY_KEY_ID: ${{ secrets.MACOS_NOTARY_KEY_ID }}
-          MACOS_NOTARY_KEY: ${{ secrets.MACOS_NOTARY_KEY }}
       - uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
         with:
           distribution: goreleaser
           # Pinned: the publish gates rest on dockers_v2 and homebrew_casks
-          # semantics of this release; the justfile's goreleaser_version
+          # semantics of this release (install_steps needs v2.19 or later);
+          # the justfile's goreleaser_version
           # matches. Bump both deliberately.
-          version: v2.18.3
+          version: v2.19.0
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Empty until the maintainer adds the secret, which keeps the cask
           # out of the tap.
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
-          # Sign and notarize the darwin binaries (.goreleaser.yaml notarize).
+          # Optional: when set, the darwin binaries are signed and notarized
+          # (.goreleaser.yaml notarize); unset, they ship unsigned.
           MACOS_SIGN_P12: ${{ secrets.MACOS_SIGN_P12 }}
           MACOS_SIGN_PASSWORD: ${{ secrets.MACOS_SIGN_PASSWORD }}
           MACOS_NOTARY_ISSUER_ID: ${{ secrets.MACOS_NOTARY_ISSUER_ID }}
