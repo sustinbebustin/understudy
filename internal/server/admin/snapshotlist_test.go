@@ -69,7 +69,9 @@ func TestSnapshotListNamesEveryArchive(t *testing.T) {
 		dir, h := snapshotsDir(k)
 		mod := time.Date(2026, 10, 26, 12, 0, 0, 0, time.FixedZone("UTC+2", 2*3600))
 		want := []admin.SnapshotFile{
-			{Path: "B.tar", Bytes: 3},
+			// Byte order puts C before b; the names differ in more than
+			// case, so a case-insensitive filesystem holds both.
+			{Path: "C.tar", Bytes: 3},
 			{Path: "b.tar", Bytes: 10},
 			{Path: "deep/er/x.tar", Bytes: 2},
 			{Path: "notes.tmp", Bytes: 1},
